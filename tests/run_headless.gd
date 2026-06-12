@@ -1,0 +1,477 @@
+extends SceneTree
+
+## CI entry: godot --headless --path . -s res://tests/run_headless.gd
+
+const PASS := 0
+const FAIL := 1
+
+var _failed := 0
+
+
+func _initialize() -> void:
+	print("=== AHC LCG headless tests ===")
+	_run_test("A-01 setup reaches investigation phase", _test_setup_to_inv_phase)
+	_run_test("A-02 resource action", _test_resource_action)
+	_run_test("A-03 event records written", _test_event_records)
+	_run_test("F-01 round 1 skips mythos", _test_round1_skips_mythos)
+	_run_test("F-02 full round to round 2 mythos", _test_full_round_to_mythos)
+	_run_test("F-03 action phase gate", _test_action_phase_gate)
+	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
+	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
+	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
+	_run_test("C-04 register applies modifier", _test_register_modifier)
+	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
+	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
+	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
+	_run_test("C-08 initiation dry-run gate", _test_initiation_dry_run_gate)
+	_run_test("ST-01 begin pushes stack", _test_st_begin)
+	_run_test("ST-02 commit adds icon bonus", _test_st_commit_bonus)
+	_run_test("ST-03 successful intellect test", _test_st_success)
+	_run_test("ST-04 auto-fail token", _test_st_auto_fail)
+	_run_test("ST-05 ally commit helps", _test_st_ally_commit)
+	_run_test("ST-06 peril blocks ally", _test_st_peril_blocks_ally)
+	_run_test("ST-07 apply success callback", _test_st_apply_success)
+	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
+	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
+	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
+	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
+	_run_test("ACT-04 evade disengages enemy", _test_act_evade_success)
+	_run_test("ACT-05 evade requires engagement", _test_act_evade_not_engaged)
+	_run_test("ACT-06 fight rejects aloof", _test_act_fight_aloof)
+	_run_test("ACT-07 engage adds to threat area", _test_act_engage_success)
+	_run_test("ACT-08 engage steals enemy", _test_act_engage_steal)
+	_run_test("ACT-09 engage rejects massive", _test_act_engage_massive)
+	_run_test("ACT-10 engage then fight aloof", _test_act_engage_then_fight)
+	_run_test("AOO-01 resource provokes damage", _test_aoo_resource)
+	_run_test("AOO-02 fight skips aoo", _test_aoo_fight_skip)
+	_run_test("AOO-03 exhausted enemy skips aoo", _test_aoo_exhausted_skip)
+	_run_test("ACT-11 move to connected location", _test_act_move_success)
+	_run_test("ACT-12 move rejects disconnected", _test_act_move_fail)
+	if _failed > 0:
+		print("FAILED: %d test(s)" % _failed)
+		quit(FAIL)
+	else:
+		print("All tests passed.")
+		quit(PASS)
+
+
+func _run_test(name: String, fn: Callable) -> void:
+	if fn.call():
+		print("  OK  %s" % name)
+	else:
+		print("  FAIL %s" % name)
+		_failed += 1
+
+
+func _test_setup_to_inv_phase() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	return h.framework_step() == AhcEnums.FrameworkStep.INV_2_1_PHASE_BEGINS
+
+
+func _test_resource_action() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	if not h.advance_to_action_phase():
+		return false
+	h.ctx.state.registry.get_investigator(&"inv_1").actions_remaining = 1
+	var res := h.take_resource_action()
+	h.close_windows()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and inv.resource_pool == 6 and inv.actions_remaining == 0
+
+
+func _test_round1_skips_mythos() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	return (
+		h.ctx.framework.round_number == 1
+		and h.ctx.framework.skip_mythos
+		and h.framework_step() == AhcEnums.FrameworkStep.INV_2_1_PHASE_BEGINS
+	)
+
+
+func _test_full_round_to_mythos() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	if not h.run_full_round_one_investigator():
+		return false
+	h.ctx.framework.advance()
+	return (
+		h.ctx.framework.round_number == 2
+		and h.framework_step() == AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS
+	)
+
+
+func _test_action_phase_gate() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var blocked := h.take_resource_action()
+	return not blocked.ok and blocked.error == "not_action_phase"
+
+
+func _test_event_records() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	return h.event_count(AhcEnums.EventRecordKind.FRAMEWORK_STEP) >= 14
+
+
+func _test_dry_run_register_only() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionTestHelper.lasting_willpower_turn(&"inv_1", 1)
+	return c.dry_run(node)
+
+
+func _test_dry_run_draw_empty() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var draw := CompositionNode.draw(&"inv_1")
+	return not c.dry_run(draw)
+
+
+func _test_dry_run_draw_or_register() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.seq([
+		CompositionNode.draw(&"inv_1"),
+		CompositionTestHelper.lasting_willpower_turn(&"inv_1", 1),
+	])
+	return c.dry_run(node)
+
+
+func _test_register_modifier() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.lasting_willpower_turn(&"inv_1", 1))
+	return c.modifier_willpower(3, &"inv_1") == 4
+
+
+func _test_restriction_blocks_draw() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.forbid_draw_turn(&"inv_1"))
+	return not c.dry_run(CompositionNode.draw(&"inv_1"))
+
+
+func _test_listener_draw_on_timing() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.delayed_draw_listener(&"inv_1", &"after_fight"))
+	var inv_before := h.ctx.state.registry.get_investigator(&"inv_1")
+	if inv_before.deck.size() != 1 or inv_before.hand.size() != 0:
+		return false
+	h.ctx.timing.emit_timing(&"after_fight")
+	var inv_after := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv_after.deck.is_empty() and inv_after.hand.size() == 1
+
+
+func _test_until_fired_listener() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.delayed_draw_listener(&"inv_1", &"after_fight"))
+	if h.ctx.registrations.count() != 1:
+		return false
+	h.ctx.timing.emit_timing(&"after_fight")
+	if h.ctx.registrations.count() != 0:
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv.hand.size() == 1 and inv.deck.size() == 1
+
+
+func _test_initiation_dry_run_gate() -> bool:
+	var h := RuleTestHarness.new(42)
+	var draw_intent := InitiationIntent.create(&"inv_1", CompositionNode.draw(&"inv_1"))
+	if h.ctx.initiation.can_initiate(draw_intent, h.ctx):
+		return false
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	if not h.ctx.initiation.can_initiate(draw_intent, h.ctx):
+		return false
+	var res := h.ctx.initiation.initiate(draw_intent, h.ctx)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and inv.hand.size() == 1
+
+
+func _test_st_begin() -> bool:
+	var h := RuleTestHarness.new(42)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	st.begin(test)
+	return (
+		h.ctx.skill_test_stack.size() == 1
+		and h.ctx.skill_tests.skill_test_step_count(AhcEnums.SkillTestStep.ST_1_BEGIN) >= 1
+	)
+
+
+func _test_st_commit_bonus() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 5)
+	var commits: Array[CommittedCard] = [CommittedCard.create(card_id, &"inv_1")]
+	var result := st.run(test, commits)
+	return result.modified_value == 4
+
+
+func _test_st_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 3)
+	return st.run(test).success
+
+
+func _test_st_auto_fail() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.auto_fail()])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	var result := st.run(test)
+	return not result.success and result.modified_value == 0
+
+
+func _test_st_ally_commit() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc", {"intellect": 2})
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv1.skill_intellect = 2
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_2", AhcEnums.SkillType.INTELLECT
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 3)
+	var commits: Array[CommittedCard] = [CommittedCard.create(card_id, &"inv_2")]
+	return st.run(test, commits).success
+
+
+func _test_st_peril_blocks_ally() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_2", AhcEnums.SkillType.INTELLECT
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2, true)
+	var res := h.ctx.skill_tests.commit_card(
+		test, &"inv_2", card_id
+	)
+	return not res.ok and res.error == "peril_no_assist"
+
+
+func _test_st_apply_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	var flags := {"applied": false}
+	test.on_success = func(_ctx: SkillTestContext) -> void:
+		flags.applied = true
+	st.run(test)
+	return flags.applied
+
+
+func _test_st_end_cleanup() -> bool:
+	var h := RuleTestHarness.new(42)
+	var token := ChaosToken.numeric(0, &"tok_1")
+	GameBootstrap.setup_chaos_bag(h.ctx, [token])
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	var commits: Array[CommittedCard] = [CommittedCard.create(card_id, &"inv_1")]
+	st.run(test, commits)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		h.ctx.skill_test_stack.is_empty()
+		and inv.hand.is_empty()
+		and inv.discard.has(card_id)
+		and card.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.chaos_bag.tokens.size() == 1
+		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
+	)
+
+
+func _test_act_investigate_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.clues = 2
+	var res := h.investigate_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and res.success and loc.clues == 1 and inv.clues_on_card == 1
+
+
+func _test_act_investigate_fail() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.shroud = 9
+	loc.clues = 2
+	var inv_before := h.ctx.state.registry.get_investigator(&"inv_1")
+	var res := h.investigate_action()
+	return res.ok and not res.success and loc.clues == 2 and inv_before.clues_on_card == 0
+
+
+func _test_act_fight_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.fight_action({"enemy_id": &"enemy_1"})
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy.damage == 1
+
+
+func _test_act_evade_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1"
+	)
+	var res := h.evade_action({"enemy_id": &"enemy_1"})
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy.exhausted and enemy.engaged_with == &""
+
+
+func _test_act_evade_not_engaged() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.evade_action({"enemy_id": &"enemy_1"})
+	return not res.ok and res.error == "not_engaged"
+
+
+func _test_act_fight_aloof() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"", true)
+	var res := h.fight_action({"enemy_id": &"enemy_1"})
+	return not res.ok and res.error == "aloof"
+
+
+func _test_act_engage_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and inv.threat_area.has(&"enemy_1") and enemy.is_engaged_with(&"inv_1")
+
+
+func _test_act_engage_steal() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_2"
+	)
+	var inv2_before := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv2_before.threat_area.append(&"enemy_1")
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		res.ok
+		and enemy.is_engaged_with(&"inv_1")
+		and inv1.threat_area.has(&"enemy_1")
+		and not inv2.threat_area.has(&"enemy_1")
+	)
+
+
+func _test_act_engage_massive() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"", false, true
+	)
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	return not res.ok and res.error == "massive"
+
+
+func _test_act_engage_then_fight() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"", true
+	)
+	if not h.engage_action({"enemy_id": &"enemy_1"}).ok:
+		return false
+	h.ctx.state.registry.get_investigator(&"inv_1").actions_remaining = 1
+	var fight_res := h.fight_action({"enemy_id": &"enemy_1"})
+	return fight_res.ok and fight_res.success
+
+
+func _test_aoo_resource() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1")
+	h.ctx.state.registry.get_investigator(&"inv_1").threat_area.append(&"enemy_1")
+	var pool_before := h.ctx.state.registry.get_investigator(&"inv_1").resource_pool
+	var res := h.take_resource_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and inv.damage_taken == 1 and inv.resource_pool == pool_before + 1 and int(res.aoo_attacks) == 1
+
+
+func _test_aoo_fight_skip() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1")
+	h.ctx.state.registry.get_investigator(&"inv_1").threat_area.append(&"enemy_1")
+	var res := h.fight_action({"enemy_id": &"enemy_1"})
+	return res.ok and int(res.aoo_attacks) == 0 and h.ctx.state.registry.get_investigator(&"inv_1").damage_taken == 0
+
+
+func _test_aoo_exhausted_skip() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1")
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.exhausted = true
+	h.ctx.state.registry.get_investigator(&"inv_1").threat_area.append(&"enemy_1")
+	var res := h.take_resource_action()
+	return res.ok and int(res.aoo_attacks) == 0 and h.ctx.state.registry.get_investigator(&"inv_1").damage_taken == 0
+
+
+func _test_act_move_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	var res := h.move_action({"destination_id": &"loc_b"})
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and inv.location_tag == &"loc_b" and int(res.aoo_attacks) == 0
+
+
+func _test_act_move_fail() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_far", 1, 0)
+	var res := h.move_action({"destination_id": &"loc_far"})
+	return not res.ok and res.error == "not_connected"

@@ -1,0 +1,26 @@
+# Godot 4
+.godot/
+*.import
+export.cfg
+export_presets.cfg
+*.translation
+
+# Godot 临时/备份
+*.tmp
+*.bak
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE（含本机 Godot 路径，勿提交）
+.vscode/*
+!.vscode/settings.json.example
+.idea/
+
+# 日志与本地环境
+*.log
+.env
+.env.*
