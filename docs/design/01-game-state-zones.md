@@ -128,20 +128,78 @@ enum Zone {
 
 **Limbo 语义**：Event/Treachery **显现结算中**时进 LIMBO；Limbo 中卡**不算 In-Play**（Grimoire Limbo）。**已 commit 的 Skill** 不进 LIMBO — 见 `SkillTestContext.committed`，zone 暂留 HAND 直至 ST.8（OQ-01-03）。
 
-### 3.6 Hidden 与信息隔离（已裁决 OQ-01-01）
+### 3.6 牌面可见性（按观察者）
 
-**Domain 层**在 `CardInstance.is_hidden` 标记 Hidden 状态。Rules / headless **保留完整 definition_id**。
+**牌面可见性是针对玩家（调查员观察者）的**，与 **zone** 正交。  
+Rules / headless **始终保留完整 `definition_id`**；可见性决定 **某观察者是否知晓牌面**，以及 Presentation 如何渲染。
 
-**Presentation 层**对非 owner 隐藏牌名与文本，仅显示 Hidden 牌背；由 `VisibilityFilter` 分流 owner / observer 视图。
+#### 3.6.1 三档受众（FaceAudience）
+
+| 档位 | 含义 | 典型 |
+|---|---|---|
+| **HIDDEN_ALL** | **所有玩家**均不知牌面（可知「此处有牌」） | 牌库顶、他人手牌、未揭示的 deck/discard 窥探前 |
+| **CONTROLLER** | **仅控制者**知牌面 | 自己手牌、Hidden 遭遇（控制者）、抽牌 D2 后 |
+| **ALL** | **所有调查员**知牌面 | 场上公开 treachery、「全体看牌库顶」类效果 |
+
+```gdscript
+enum FaceAudience { HIDDEN_ALL, CONTROLLER, ALL }
+
+class CardFaceVisibility:
+    var audience: FaceAudience = FaceAudience.HIDDEN_ALL
+    ## 可选：显式观察者集合（非常规 reveal）；默认由 audience + controller_id 推导
+
+    func face_known_to(card: CardInstance, observer: StringName) -> bool:
+        match audience:
+            FaceAudience.HIDDEN_ALL:
+                return false
+            FaceAudience.CONTROLLER:
+                return card.controller_id == observer
+            FaceAudience.ALL:
+                return true
+        return false
+```
+
+**控制者 vs 所有者**：触发与 peek 以 **`controller_id`** 为准（遭遇 draw 后控制者常为 drawer）；owner 用于 deck/weakness bearer 等，见 §6。
+
+#### 3.6.2 与 zone / Hidden 关键词
+
+| 概念 | 层 | 说明 |
+|---|---|---|
+| **zone** | Domain | 牌在哪个 pile（deck/hand/…） |
+| **FaceAudience** | Domain | 谁看得到 **牌面** |
+| **Hidden 关键词** | 规则 → Domain | 在场遭遇等：通常 **CONTROLLER** 对控制者，**HIDDEN_ALL** 对他人 |
+| **`is_hidden`** | Domain 标记 | 兼容 Hidden 关键词；**不替代** FaceAudience，由进场/register 同步 |
+
+**禁止**用 zone 推导牌面可见性（例如「还在 deck 则无人可见」仅作 **默认策略**，D2 reveal 后可为 CONTROLLER 而 zone 仍为 deck/Limbo）。
+
+#### 3.6.3 INFORMATION brick 与「非进场揭示」
+
+| 操作 | 改什么 | 是否改 zone |
+|---|---|---|
+| **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | 对该牌 `audience → CONTROLLER`（控制者） | 否（D3 才入手） |
+| **窥探牌库/弃牌堆顶** | `audience → CONTROLLER` 或 **ALL**（视文本） | 否 |
+| **Search / 选牌展示** | 按文本设 audience；选完未拿的可能恢复 HIDDEN_ALL | 视效果 |
+| **ENTER_HAND** | zone 变更；控制者通常已为 CONTROLLER | 是 |
+
+「揭示非在场牌」= **只改 FaceAudience**（INFORMATION / REVEAL brick），**不**等价于 enter play。
+
+#### 3.6.4 Presentation 分流
 
 ```gdscript
 class VisibilityFilter:
     func get_display_title(card: EntityId, observer: StringName) -> String:
         var inst := state.get_card(card)
-        if inst.is_hidden and inst.owner_id != observer:
-            return "[Hidden]"
-        return inst.definition.title
+        if inst.face.face_known_to(inst, observer):
+            return inst.definition.title
+        return "[Hidden]"
 ```
+
+Presentation **只读** Domain 的 `CardFaceVisibility`；不在 UI 层单独维护「谁看到了什么」。
+
+#### 3.6.5 与 Peril / 多人
+
+- **Peril**： encounter 帧内仅 drawer 为 relevant observer（协助/打牌限制）；与 FaceAudience 叠加，见 [04-skill-test-engine](04-skill-test-engine.md)。  
+- **Headless**：规则用完整 `definition_id`；测试可见性时 assert `face_known_to(card, observer)`。
 
 ### 3.7 TokenBag
 
@@ -326,4 +384,4 @@ class LocationState:
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-01-02 裁决：SimultaneousEffectGroup 同时效果语义 |
-| 2026-05-25 | v0.3 | OQ-01-01 裁决：Hidden Domain 标记 + Presentation 过滤 |
+| 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |

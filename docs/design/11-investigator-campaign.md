@@ -69,7 +69,7 @@ Play/gain asset 无 slot → 选 discard 已有 asset 腾位。
 ### 5.2 Resign
 
 - Clues/scenario tokens → current location
-- Eliminated from scenario，**不**改 🕣 count
+- Eliminated from scenario，**不**改 [per_investigator] count
 
 ### 5.3 Elimination 清理
 
@@ -146,12 +146,18 @@ Scenario 后：
 
 ---
 
-## 10. Weakness 分流
+## 10. Weakness 与 Revelation（分流）
 
-| 类型 | Draw 时 |
+| 维度 | 说明 |
 |---|---|
-| Encounter cardtype weakness | 当 encounter draw resolve |
-| Player cardtype weakness | Revelation → hand；非 draw 进 hand 也当 draw resolve |
+| **Weakness** | 卡**子类型**（缺陷/诅咒/故事线等）；**不一定**有 Revelation 能力 |
+| **Revelation** | **能力类型**（**Revelation –**）；可在 encounter、weakness、Dilemma 等上出现 |
+
+| 情况 | Draw / 入手时 |
+|---|---|
+| Encounter cardtype weakness | 当 **encounter draw** resolve（非调查员 deck→hand D3） |
+| Player cardtype weakness，**无** Revelation | 进入手牌；**无**显现 nest |
+| Player cardtype（含 weakness、Dilemma 等），**有** Revelation | 进入手牌时 nest `seq.revelation.on_enter_hand`（[15 §16](15-timing-entry-catalog.md) D3） |
 | Bearer | 加入 deck 不占 size |
 
 ---
@@ -180,7 +186,7 @@ class InvestigatorCampaignSystem:
 | I-03 | Purchase level 0 card | cost 1 XP |
 | I-04 | Permanent Collector | +5 deck size |
 | I-05 | Draw weakness in opening | set aside, redraw |
-| I-06 | Resign 4 player | 🕣 still 4 |
+| I-06 | Resign 4 player | [per_investigator] still 4 |
 
 ---
 

@@ -10,6 +10,7 @@ var _events: EventRecordLog
 var _log: GameLog
 var _scenario: ScenarioSystem
 var _enemy: EnemySystem
+var _registrations: RegistrationStore
 
 var current_step: AhcEnums.FrameworkStep = AhcEnums.FrameworkStep.SETUP_01_CHOOSE_INVESTIGATORS
 var round_number: int = 0
@@ -29,13 +30,15 @@ func _init(
 	log: GameLog,
 	_config: RulesConfig,
 	scenario: ScenarioSystem = null,
-	enemy: EnemySystem = null
+	enemy: EnemySystem = null,
+	registrations: RegistrationStore = null
 ) -> void:
 	_state = state
 	_events = events
 	_log = log
 	_scenario = scenario
 	_enemy = enemy
+	_registrations = registrations
 
 
 func start_setup() -> void:
@@ -233,6 +236,11 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 		var inv := _state.registry.get_investigator(_state.active_investigator_id)
 		if inv:
 			inv.is_active_turn = false
+		_tick_duration(AhcEnums.DurationAnchorKind.THIS_TURN)
+	elif step == AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS:
+		_tick_duration(AhcEnums.DurationAnchorKind.THIS_PHASE)
+	elif step == AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
+		_tick_duration(AhcEnums.DurationAnchorKind.THIS_ROUND)
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_2_HUNTER_PATROL_MOVE:
 		if _enemy:
 			_enemy.hunter_patrol_move()
@@ -245,6 +253,16 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 				up_inv.resource_pool += 1
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_5_CHECK_HAND_SIZE:
 		investigators_remaining_this_phase = player_order.duplicate()
+
+
+func _tick_duration(anchor: AhcEnums.DurationAnchorKind) -> void:
+	if _registrations == null:
+		return
+	var before := _registrations.count()
+	_registrations.tick_duration(anchor)
+	var removed := before - _registrations.count()
+	if removed > 0:
+		_log.log(AhcEnums.LogCategory.SYSTEM, "duration_tick", {"anchor": anchor, "removed": removed})
 
 
 func _start_next_investigator_turn() -> void:

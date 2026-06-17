@@ -18,10 +18,17 @@ func simulate(node: CompositionNode, sim: GameSimulator) -> DryRunResult:
 
 
 func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
-	if node.atom_name == &"draw":
-		if RestrictionEvaluator.blocks_draw(node.inv_id, sim.registrations):
-			return false
-		return sim.mutator.draw_from_deck_to_hand(node.inv_id)
+	match node.atom_name:
+		&"draw":
+			if RestrictionEvaluator.blocks_draw(node.inv_id, sim.registrations):
+				return false
+			var result := sim.mutator.execute_draw_instruction(node.inv_id, maxi(node.draw_amount, 1))
+			return result.ok and result.drew and not result.defeated
+		&"take_horror":
+			sim.mutator.take_horror(node.inv_id, maxi(node.atom_amount, 1))
+			return true
+		&"discard_from_hand":
+			return sim.mutator.discard_from_hand(node.card_id, node.inv_id)
 	return false
 
 

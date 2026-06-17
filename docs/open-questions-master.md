@@ -38,7 +38,7 @@
 | OQ-04-03 | [04-skill-test](design/04-skill-test-engine.md) | Symbol 效果 ST.4 发起嵌套检定，父检定 ST.5 是否等待？ | **否。** 子检定入队；父检定 ST.5→ST.8 不等待；子检定父 ST.8 后执行。 |
 | OQ-05-03 | [05-chaos-bag](design/05-chaos-bag.md) | Spreading Flames Skull「fail by 2+ draw Fire!」— fail by 在 ST.6 还是 ST.7 判定？ | **ST.7。** 作为失败效果的一部分结算；ST.6 仅判定 fail 并计算 `fail_by`。见 05 §5。 |
 | OQ-06-01 | [06-ability](design/06-ability-initiation.md) / [07-effect](design/07-effect-resolution.md) | 多条 Replacement 冲突 — LIFO 还是最后注册？ | **Encounter 卡优先于玩家卡**；同优先级 **Lead Investigator** 选择。见 07 §7。 |
-| OQ-06-02 | [06-ability](design/06-ability-initiation.md) | Play restriction 是否需要 dry-run simulate？ | **需要。** 打出/发动合法性须 dry-run；**仅当干运行产出可结算效果** 时通过。见 06 §4.2。 |
+| OQ-06-02 | [06-ability](design/06-ability-initiation.md) | Play restriction 是否需要 dry-run simulate？ | **需要。** L7 终端 dry-run；COLLECT 不批量 dry-run。见 06 §7.2。 |
 | OQ-07-02 | [07-effect](design/07-effect-resolution.md) | Moving damage/horror 是否独立 `EffectOp.TRANSFER_AFFLICTION` 且不算 heal？ | **是。** 独立 `TRANSFER_AFFLICTION`；**不算 heal**。见 07 §4.1。 |
 | OQ-07-06 | [07-effect](design/07-effect-resolution.md) | Replacement stack 与 Cancel 交互：cancel 已替换后的 effect 还是原始 trigger？ | **看触发先后。** Replacement 一般为 Delayed，与 Forced 同优先级。Replacement 先 → Cancel 无法发动；Cancel 先 → Replacement 不结算。见 07 §6.1。 |
 | OQ-08-02 | [08-enemy](design/08-enemy-engagement.md) | Massive 攻击中途 exhaust：剩余攻击取消时点？ | **batch 发起时锁定序列**，尽量全部结算；**中途横置不取消**后续攻击。见 08 §6.3。 |
@@ -59,13 +59,17 @@
 | OQ-01-01 | [01-state](design/01-game-state-zones.md) | **Hidden** 卡：Domain 标记还是仅 Presentation 隐藏？ | **Domain** `CardInstance.is_hidden` + **Presentation** 对非 owner 隐藏牌名。见 01 §3.6。 |
 | OQ-01-03 | [01-state](design/01-game-state-zones.md) | Committed skill：LIMBO 还是 Context？ | **`SkillTestContext.committed`**；zone 留 **HAND** 至 ST.8；不进 LIMBO。 |
 | OQ-03-03 | [03-action](design/03-action-system.md) | Parley current agenda 是否同地点？ | **否。** Agenda **无地点**；可 Activate 其能力，不适用 Parley 同地点。见 03 §6.10。 |
-| OQ-06-03 | [06-ability](design/06-ability-initiation.md) | 多个 🕭 谁选顺序？ | **Lead Investigator**。见 06 §5.2。 |
+| OQ-06-03 | [06-ability](design/06-ability-initiation.md) | 多个 [reaction] 谁选顺序？ | **Lead Investigator**（均已选用后）；选用权在控制者。见 06 §8.2。 |
+| OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **D2–D3 区间**（§16.3）。 |
+| OQ-TIMING-02 | [15-timing](design/15-timing-entry-catalog.md) | Move leave/enter | **MOVE_ATOMIC** 单 brick、单 entry。见 15 §5.3。 |
+| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when | **SPLIT**；WOULD=D1 后 D2 前；WHEN=D2–D3。见 15 §16。 |
+| OQ-TIMING-04 | [15-timing](design/15-timing-entry-catalog.md) | 玩家牌 **Revelation 能力** 于入手时的 nest 时点 | **ENTER_HAND（D3）**；`seq.revelation.on_enter_hand`；**按 `has_revelation_ability` 判定**，与 weakness 子类型无关。见 15 §16.2。 |
 | OQ-08-03 | [08-enemy](design/08-enemy-engagement.md) | Alert 时 enemy 不在 threat area 是否 deal？ | **是**，仍 deal。见 08 §6.4。 |
 | OQ-01-05 | [01-state](design/01-game-state-zones.md) | 多 copy 同 title 非 exceptional 卡 in play：instance_id 与 definition_id 在 Target 解析中的优先级？ | |
 | OQ-02-03 | [02-framework](design/02-framework-flow.md) | `INV_2_2` 选顺序：电子化是否每轮都 UI 选，还是允许「固定顺时针」可选规则？ | |
 | OQ-02-04 | [02-framework](design/02-framework-flow.md) | Player Window「无响应」时：自动关闭 vs 显式「Pass」？ | **自动关闭**（`player_window_auto_close_ms` 可配置）。见 02 §4.1。 |
 | OQ-02-06 | [02-framework](design/02-framework-flow.md) | 全员淘汰时是否立即 SCENARIO_RESOLUTION 还是完成当前 Framework 步？ | |
-| OQ-03-04 | [03-action](design/03-action-system.md) | 🕮×n 一次扣还是分步？AOO 几次？ | **一次花费** `actions -= n`；整次 initiating **至多 1 轮 AOO**。见 03 §3.2。 |
+| OQ-03-04 | [03-action](design/03-action-system.md) | `[action]`×n 一次扣还是分步？AOO 几次？ | **一次花费** `actions -= n`；整次 initiating **至多 1 轮 AOO**。见 03 §3.2。 |
 | OQ-08-01 | [08-enemy](design/08-enemy-engagement.md) | Hunter 等距 + Prey？ | **等距子集 → Prey 过滤 → Lead 选**；Prey 不可选非等距。见 08 §4。 |
 | OQ-03-06 | [03-action](design/03-action-system.md) | Play asset 时 slot 弃置：玩家选顺序还是引擎默认最旧 asset？ | |
 | OQ-04-03 | [04-skill-test](design/04-skill-test-engine.md) | Symbol 效果在 ST.4 发起 fight 嵌套检定，父检定 ST.5 是否等待子检定完成？ | **否。** 子检定入队；父 ST.5→ST.8 不等待；父 ST.8 后执行。 |
@@ -74,7 +78,7 @@
 | OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | 2026 Core 各场景 reference **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ | |
 | OQ-05-02 | [05-chaos-bag](design/05-chaos-bag.md) | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ | |
 | OQ-05-05 | [05-chaos-bag](design/05-chaos-bag.md) | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ | |
-| OQ-06-04 | [06-ability](design/06-ability-initiation.md) | Forced 🕭 是否存在？（通常无，但 scenario 卡） | |
+| OQ-06-04 | [06-ability](design/06-ability-initiation.md) | Forced [reaction] 是否存在？（通常无，但 scenario 卡） | |
 | OQ-06-06 | [06-ability](design/06-ability-initiation.md) | Ignore 效果仍计 Limit — 触发时 record 还是 resolve 后 record？ | |
 | OQ-07-01 | [07-effect](design/07-effect-resolution.md) | 伤害分配 UI：何时必须玩家选 vs AI 默认（最保护 investigator？）？ | |
 | OQ-07-03 | [07-effect](design/07-effect-resolution.md) | Assign 阶段 prevent 部分 damage：剩余是否 re-assign 还是 fizzle？ | |
@@ -82,7 +86,7 @@
 | OQ-08-05 | [08-enemy](design/08-enemy-engagement.md) | Engage 抢怪：同时 disengage 原调查员是否触发「leaves engagement」类能力？ | |
 | OQ-09-01 | [09-location](design/09-location-graph.md) | Setup 放置 vs Move enter：是否统一 `enter_location()` 单入口？ | |
 | OQ-09-03 | [09-location](design/09-location-graph.md) | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ | |
-| OQ-09-05 | [09-location](design/09-location-graph.md) | Your Friend's Room 🕮 Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） | |
+| OQ-09-05 | [09-location](design/09-location-graph.md) | Your Friend's Room `[action]` Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） | |
 | OQ-10-02 | [10-scenario](design/10-scenario-encounter.md) | Objective must advance 无 window — 自动 advance 还是暂停提示？ | |
 | OQ-10-03 | [10-scenario](design/10-scenario-encounter.md) | Agenda 非 1.3 advance（卡牌 explicit）— 框架如何插入 ad-hoc advance 步？ | |
 | OQ-10-05 | [10-scenario](design/10-scenario-encounter.md) | Act b side 变 Enemy — 是否立即 spawn 还是入 encounter 区？ | |

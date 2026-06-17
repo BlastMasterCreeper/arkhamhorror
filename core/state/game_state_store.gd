@@ -3,6 +3,7 @@ extends RefCounted
 
 var registry: EntityRegistry = EntityRegistry.new()
 var zones: ZoneManager
+var encounter_discard: Array[StringName] = []
 var token_pool: TokenPool = TokenPool.new()
 var chaos_bag: ChaosBag = ChaosBag.new()
 var current_act_number: int = 1

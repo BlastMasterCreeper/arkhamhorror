@@ -17,6 +17,10 @@ func take_resource_action() -> Dictionary:
 	return ctx.actions.execute(AhcEnums.ActionType.RESOURCE, &"inv_1")
 
 
+func draw_action(extra: Dictionary = {}) -> Dictionary:
+	return ctx.actions.execute(AhcEnums.ActionType.DRAW, &"inv_1", extra)
+
+
 func prepare_action_phase(chaos_tokens: Array[ChaosToken] = []) -> bool:
 	run_setup()
 	if not advance_to_action_phase():

@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.2 · 2026-05-25
+> **状态**：v0.3 · 2026-05-25
 
 ---
 
@@ -10,7 +10,7 @@
 
 用 **Register / Unregister + Buff + Context** 统一理解全部能力与持续/延时效果。
 
-- **印刷能力类型**（Constant / Forced / 🕭 / 🕮）→ 编译期 **tags**，不是运行时分支。
+- **印刷能力类型**（Constant / Forced / [reaction] / [action]）→ 编译期 **tags**，不是运行时分支。
 - **状态变更**由 [07-composition](07-composition.md)（Atom 节点）完成。
 - **规则变更**由 **RegisterNode** 写入 `RegistrationStore`。
 - **Buff 仅三种**；关键词（Surge、Peril…）、Cancel/Replacement **不是** Buff 类型。
@@ -127,7 +127,7 @@ T0 合法性：Register **已创建** 即通过；**不要求** T2/T3 发生。
 
 ### 5.4 多 Buff 同壳
 
-**Until end of investigation phase, you get +1 🕓, and after you discover a clue, draw 1.**
+**Until end of investigation phase, you get +1 [willpower], and after you discover a clue, draw 1.**
 
 ```text
 Registration {
@@ -211,7 +211,7 @@ class ListenerPayload:
     var timing: TimingPoint
     var trigger: TriggerKind      # when | at | after
     var composition: CompositionNode
-    var player_initiated: bool    # 🕭 / 🕤
+    var player_initiated: bool    # [reaction] / [free]
     var optional: bool
     var limit: LimitSpec
     var initiation_meta: Dictionary
@@ -220,11 +220,11 @@ class ListenerPayload:
 | 来源 | Register 时机 | 典型 Lifetime |
 |---|---|---|
 | 印刷 Forced | enter_play | WHILE_IN_PLAY |
-| 印刷 🕭 | enter_play | WHILE_IN_PLAY |
+| 印刷 [reaction] | enter_play | WHILE_IN_PLAY |
 | 效果创建 lasting | effect resolve | DURATION |
 | 效果创建 delayed | effect resolve | UNTIL_FIRED |
 
-**TimingBus**（06 §5.1）：Forced/Delayed 级 Listener → Framework → 🕭；`UNTIL_FIRED` 的 Registration 在 listener 执行后 Unregister。
+**TimingBus**（06 §5.1）：Forced/Delayed 级 Listener → Framework → [reaction]；`UNTIL_FIRED` 的 Registration 在 listener 执行后 Unregister。
 
 **Act flip**（OQ-02-02）：a 面 `WHILE_IN_PLAY` 注销；effect 创建的 `DURATION` / `UNTIL_FIRED` **保留**。
 
@@ -286,16 +286,35 @@ class RegistrationStore:
 
 ## 12. ApplicationContext
 
+**场合 = 正交维度拼凑**；**订阅键**只用其中粗索引（见 [06-ability-initiation §4.1](06-ability-initiation.md)）。修正值 / 监听 / Initiation **共用** `Condition.matches(ctx)`。
+
 ```gdscript
 class ApplicationContext:
-    var timing: TimingPoint
+    var timing: StringName              # 粗时点名；L0 辅助
     var framework_step: FrameworkStep
-    var modifier_query: ModifierQuery
-    var initiation: InitiationIntent
-    var skill_test: SkillTestContext
-    var pending: PendingResolution
+    var controller_id: StringName
+    var tags: Array[StringName]         # 开放集合；L3 情景，非封闭 enum
+    var trigger: TriggeringCondition
     var payload: Dictionary
+    var referents: Dictionary           # RulesMemory；历史条件
+    var skill_test: SkillTestContext    # 检定时填充
+    var pending: PendingResolution      # Cancel/Replace 窗口
+    var initiation: InitiationIntent
 ```
+
+| 维度 | 典型用途 | 订阅 L0 | 门槛 L3 |
+|---|---|---|---|
+| `timing` / 阶段+事件族 | 何时叫醒 | ✅ | — |
+| `framework_step` | 仅 Upkeep 4.4 等 | ❌ | ✅ |
+| `tags` | `framework`、`resource_action` | ❌ | ✅ |
+| `controller_id` | 「当你…」 | 注册 scope | ✅ |
+| `skill_test` | 本次检定 | ❌ | ✅ |
+| `pending` | Instead / Cancel | 特殊 hook | ✅ |
+| `payload` / `referents` | 数量、上一次… | ❌ | ✅ |
+
+**不**为每种 stat×场合建枚举（如 `GainSourceKind`）；调查员 Upkeep 4.4 gain +1 = `framework_step` + `tags_all: [framework, gain_resource]`。
+
+实现：`core/timing/application_context.gd`、`core/timing/condition.gd`。Eligibility 关卡见 [06 §5](06-ability-initiation.md)；时点入口见 **[15-timing-entry-catalog.md](15-timing-entry-catalog.md)**。
 
 ---
 
@@ -320,7 +339,7 @@ class AbilityCompiler:
 | Constant | Register + WHILE_IN_PLAY |
 | Lasting effect | Register + DURATION |
 | Delayed effect | Register + UNTIL_FIRED + LISTENER |
-| Forced / 🕭 | Register + LISTENER（或 enter_play template） |
+| Forced / [reaction] | Register + LISTENER（或 enter_play template） |
 | 关键词 Surge 等 | keywords + 编译，非 BuffType |
 
 ---
@@ -342,7 +361,7 @@ class AbilityCompiler:
 
 | ID | v1 默认 |
 |---|---|
-| OQ-BUFF-03 | Forced/Delayed Listener **直跑 Composition**；🕭 **完整 Initiation** |
+| OQ-BUFF-03 | Forced/Delayed Listener **直跑 Composition**；[reaction] **完整 Initiation** |
 | OQ-BUFF-04 | Lasting 默认 **不** 随源卡 leave play 结束；`WHILE_SOURCE_IN_PLAY` 才绑源卡 |
 
 ---
@@ -353,3 +372,4 @@ class AbilityCompiler:
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | Buff 三种；删 FRAME/PENDING；持续/延时=Lifetime；持续壳内 Listener 详述；dry-run 见 07-composition |
+| 2026-05-25 | v0.3 | ApplicationContext 拼凑式场合；订阅键 vs L3 情景；链到 Eligibility L0–L7 |

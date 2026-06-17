@@ -51,7 +51,7 @@ class LocationState:
 
 ```
 1. Flip to revealed side
-2. clues = clue_value × per_investigator_multiplier（🕣）
+2. clues = clue_value × per_investigator_multiplier（[per_investigator]）
 3. Place clues from token pool onto location
 4. 应用连接变化（若 revealed 面修改 connections）
 5. Trigger Forced/enter play effects
@@ -73,7 +73,7 @@ Setup 时 investigator  placed at location → **算 enter** → reveal + clues�
 
 ---
 
-## 5. Per Investigator (🕣)
+## 5. Per Investigator ([per_investigator])
 
 ```gdscript
 func per_investigator(base: int) -> int:
@@ -118,10 +118,10 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 
 | ID | 场景 | 预期 |
 |---|---|---|
-| L-01 | 4 player, clue 🕣2 | 8 clues placed |
+| L-01 | 4 player, clue [per_investigator]2 | 8 clues placed |
 | L-02 | Move to unrevealed | reveal + clues |
 | L-03 | Setup start at unrevealed | reveal at setup |
-| L-04 | Resign 后 🕣 不变 | act threshold 仍 ×4 |
+| L-04 | Resign 后 [per_investigator] 不变 | act threshold 仍 ×4 |
 | L-05 | Haunted fail investigate | Haunted resolves |
 | L-06 | Connection 单向 | 不能反向 Move |
 
@@ -135,7 +135,7 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 | OQ-09-02 | P2 | 同 title 多 copy location（罕见）— 仍算 different locations — 如何 instance 化？ |
 | OQ-09-03 | P1 | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ |
 | OQ-09-04 | P2 | Farthest location 计算：blocked path 是否参与？ |
-| OQ-09-05 | P1 | Your Friend's Room 🕮 Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） |
+| OQ-09-05 | P1 | Your Friend's Room [action] Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） |
 | OQ-09-06 | P2 | Location enter play already revealed — clues 在 setup 还是 enter 时放？ |
 
 ---

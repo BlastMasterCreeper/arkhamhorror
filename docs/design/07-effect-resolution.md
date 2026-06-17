@@ -198,7 +198,7 @@ Exile/remove from game **不可** ignore。
 ```gdscript
 # TimingBus 在同一 timing 内：
 # 1. Forced + Delayed（含 Replacement 注册的延时替换）按 06 §5.1 顺序 resolve
-# 2. 玩家 🕭 Cancel 在对应 window 内 initiate
+# 2. 玩家 [reaction] Cancel 在对应 window 内 initiate
 # 3. 以实际 resolve 先后为准，非 DAG 内固定 Cancel-before-Replacement
 
 func on_pending_effect(pending: EffectRequest) -> void:
@@ -244,7 +244,7 @@ func resolve_replacement_conflict(candidates: Array[ReplacementCandidate]) -> Re
 
 ### 7.1 Replacement 与 Cancel（已裁决 OQ-07-06）
 
-Replacement 能力通常实现为 **DelayedEffect**（到达指定 timing 时以 Forced 级优先级介入），与 Cancel 🕭 的交互见 **§6.1**：
+Replacement 能力通常实现为 **DelayedEffect**（到达指定 timing 时以 Forced 级优先级介入），与 Cancel [reaction] 的交互见 **§6.1**：
 
 - 非「Cancel 替换前还是替换后」的二选一，而是 **谁先在该 timing 实际 resolve**
 - Replacement 先 → Cancel 不能发动
@@ -382,7 +382,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 |---|---|---|
 | OQ-06-01 | Replacement 冲突：**Encounter 卡优先于玩家卡**；同优先级由 **Lead Investigator** 选择。见 §7。 | 2026-05-25 |
 | OQ-07-06 | **看触发先后。** Replacement 一般为 Delayed，与 Forced 同优先级。Replacement 先 → Cancel 无法发动；Cancel 先 → Replacement 不结算（无可替换的可结算效果）。见 §6.1、§7.1。 | 2026-05-25 |
-| OQ-07-02 | **是。** 独立 `EffectOp.TRANSFER_AFFLICTION`；**不算 heal**，不触发 heal 相关 🕭。见 §4.1。 | 2026-05-25 |
+| OQ-07-02 | **是。** 独立 `EffectOp.TRANSFER_AFFLICTION`；**不算 heal**，不触发 heal 相关 [reaction]。见 §4.1。 | 2026-05-25 |
 
 ---
 

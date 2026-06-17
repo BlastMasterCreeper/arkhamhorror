@@ -8,12 +8,14 @@ func _init(store: RegistrationStore) -> void:
 	_store = store
 
 
-func compute(base: int, query: ModifierQuery) -> int:
+func compute(base: int, query: ModifierQuery, app_ctx: ApplicationContext = null) -> int:
 	var mods := _store.collect_modifiers(query.controller_id)
 	var add_total := 0
 	var mul_factor := 1.0
 	for mod in mods:
 		if mod.stat != query.stat:
+			continue
+		if mod.condition != null and (app_ctx == null or not mod.condition.matches(app_ctx)):
 			continue
 		match mod.op:
 			AhcEnums.ModOp.ADD:

@@ -258,7 +258,7 @@ func _on_ward(_ctx, _inst, payload: Dictionary) -> void:
 
 ### 7.2 Meat Cleaver（Action + Forced nested cost）
 
-- Template：`🕮 Fight + skill test modifiers`
+- Template：`[action] Fight + skill test modifiers`
 - Script override：`on_custom_effect("meat_cleaver_optional_horror")` 处理 take 1 horror for +1 damage
 
 ### 7.3 Deduction（Committed Skill）
@@ -268,7 +268,7 @@ func _on_ward(_ctx, _inst, payload: Dictionary) -> void:
 ### 7.4 Logan Hastings（Ally Reaction）
 
 - Template：After defeat enemy, exhaust, gain 1 resource
-- Constant：`You get +1 🕓` → modifier registration
+- Constant：`You get +1 [willpower]` → modifier registration
 
 ### 7.5 Servant of Flame（Enemy）
 

@@ -47,6 +47,24 @@ func _initialize() -> void:
 	_run_test("AOO-03 exhausted enemy skips aoo", _test_aoo_exhausted_skip)
 	_run_test("ACT-11 move to connected location", _test_act_move_success)
 	_run_test("ACT-12 move rejects disconnected", _test_act_move_fail)
+	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
+	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
+	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
+	_run_test("VIS-01 draw reveal before hand", _test_vis_draw_reveal_before_hand)
+	_run_test("VIS-02 draw face known to controller only", _test_vis_draw_controller_only)
+	_run_test("DRAW-02 draw two simultaneous", _test_draw_two_simultaneous)
+	_run_test("DRAW-03 draw two mid-deck shuffle", _test_draw_two_mid_shuffle)
+	GameBootstrap.register_enter_hand_test_definitions()
+	_run_test("ENT-01 enter_hand revelation take horror", _test_ent_revelation_take_horror)
+	_run_test("ENT-02 enter_hand no revelation", _test_ent_no_revelation)
+	_run_test("ENT-03 enter_hand revelation order and limbo discard", _test_ent_revelation_order)
+	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
+	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
+	_run_test("NS-02 after waits for nested child", _test_ns_after_order)
+	_run_test("NS-03 upkeep framework resource modifier", _test_ns_upkeep_resource_modifier)
+	_run_test("NS-04 gain sequence fires after listener", _test_ns_gain_after_listener)
+	_run_test("NS-05 response window refresh after nest", _test_ns_refresh_after_nest)
+	_run_test("NS-06 reaction blocked on own resolution", _test_ns_self_response_blocked)
 	if _failed > 0:
 		print("FAILED: %d test(s)" % _failed)
 		quit(FAIL)
@@ -475,3 +493,290 @@ func _test_act_move_fail() -> bool:
 	GameBootstrap.setup_test_location(h.ctx, &"loc_far", 1, 0)
 	var res := h.move_action({"destination_id": &"loc_far"})
 	return not res.ok and res.error == "not_connected"
+
+
+func _test_act_draw_from_deck() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var res := h.draw_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and res.drew and inv.hand.has(card_id) and inv.deck.is_empty()
+
+
+func _test_act_draw_shuffle() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var card_id := GameBootstrap.add_test_card_to_discard(h.ctx, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.deck.clear()
+	var res := h.draw_action()
+	return (
+		res.ok
+		and res.drew
+		and res.shuffled
+		and res.horror_taken == 1
+		and inv.hand.has(card_id)
+		and inv.discard.is_empty()
+		and not inv.deck.has(card_id)
+	)
+
+
+func _test_act_draw_defeated() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.deck.clear()
+	inv.discard.clear()
+	var res := h.draw_action()
+	return res.ok and res.defeated and inv.eliminated
+
+
+func _test_vis_draw_reveal_before_hand() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	if card.face_known_to(&"inv_1"):
+		return false
+	var bound := h.ctx.mutator.bind_deck_top(&"inv_1")
+	if bound != card_id:
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if not inv.deck.has(card_id):
+		return false
+	if not h.ctx.mutator.reveal_drawn_card(card_id, &"inv_1"):
+		return false
+	if not card.face_known_to(&"inv_1"):
+		return false
+	if card.zone != AhcEnums.Zone.DECK:
+		return false
+	return h.ctx.mutator.enter_hand_from_deck(card_id, &"inv_1") and inv.hand.has(card_id)
+
+
+func _test_vis_draw_controller_only() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var res := h.draw_action()
+	if not res.ok or not res.drew:
+		return false
+	var card := h.ctx.state.registry.get_card(card_id)
+	return card.face_known_to(&"inv_1") and not card.face_known_to(&"inv_2")
+
+
+func _test_draw_two_simultaneous() -> bool:
+	var h := RuleTestHarness.new(42)
+	var a := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"card_a")
+	var b := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"card_b")
+	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 2, [&"test"])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var drawn: Array = res.get("drawn", [])
+	return (
+		res.ok
+		and res.drew
+		and drawn.size() == 2
+		and inv.hand.has(a)
+		and inv.hand.has(b)
+		and inv.deck.is_empty()
+		and not res.defeated
+	)
+
+
+func _test_draw_two_mid_shuffle() -> bool:
+	var h := RuleTestHarness.new(42)
+	var top := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"top")
+	var from_disc := GameBootstrap.add_test_card_to_discard(h.ctx, &"inv_1", &"from_disc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.deck = [top] as Array[StringName]
+	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 2, [&"test"])
+	return (
+		res.ok
+		and res.drew
+		and res.shuffled
+		and res.horror_taken == 1
+		and inv.hand.size() == 2
+		and inv.hand.has(top)
+		and inv.hand.has(from_disc)
+		and inv.discard.is_empty()
+	)
+
+
+func _test_ent_revelation_take_horror() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"rev_take_horror")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var revelations: Array = res.get("revelations", [])
+	return (
+		res.ok
+		and res.drew
+		and inv.hand.has(card_id)
+		and inv.horror_taken == 1
+		and revelations.size() == 1
+		and revelations[0] == card_id
+	)
+
+
+func _test_ent_no_revelation() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"plain_weakness")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var revelations: Array = res.get("revelations", [])
+	return (
+		res.ok
+		and res.drew
+		and inv.hand.has(card_id)
+		and inv.horror_taken == 0
+		and revelations.is_empty()
+	)
+
+
+func _test_ent_revelation_order() -> bool:
+	var h := RuleTestHarness.new(42)
+	var first := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"rev_take_horror")
+	var second := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"rev_limbo_discard")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 2, [&"test"])
+	var revelations: Array = res.get("revelations", [])
+	var second_card := h.ctx.state.registry.get_card(second)
+	return (
+		res.ok
+		and res.drew
+		and inv.hand.has(first)
+		and not inv.hand.has(second)
+		and inv.discard.has(second)
+		and second_card.zone == AhcEnums.Zone.DISCARD
+		and inv.horror_taken == 1
+		and revelations.size() == 2
+		and revelations[0] == first
+		and revelations[1] == second
+	)
+
+
+func _test_reg_turn_end_tick() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.lasting_willpower_turn(&"inv_1", 1))
+	if c.modifier_willpower(3, &"inv_1") != 4:
+		return false
+	if h.ctx.registrations.count() != 1:
+		return false
+	h.end_turn()
+	return h.ctx.registrations.count() == 0 and c.modifier_willpower(3, &"inv_1") == 3
+
+
+func _test_ns_lifo_nest() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	var parent := TriggeringCondition.custom(&"parent_effect", &"inv_1")
+	var child := TriggeringCondition.custom(&"child_effect", &"inv_1")
+	h.ctx.sequences.run(
+		parent,
+		func() -> void:
+			h.ctx.sequences.nest(child, func() -> void: pass)
+	)
+	var expected := [
+		"WHEN:parent_effect@0",
+		"RESOLVE:parent_effect@0",
+		"WHEN:child_effect@1",
+		"RESOLVE:child_effect@1",
+		"AFTER:child_effect@1",
+		"AFTER:parent_effect@0",
+	]
+	return h.ctx.memory.phase_trace == expected
+
+
+func _test_ns_after_order() -> bool:
+	var h := RuleTestHarness.new(42)
+	var order: Array[String] = []
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_forced(&"parent_effect", func() -> void: order.append("parent_after"))
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_forced(&"child_effect", func() -> void: order.append("child_after"))
+	)
+	var parent := TriggeringCondition.custom(&"parent_effect", &"inv_1")
+	var child := TriggeringCondition.custom(&"child_effect", &"inv_1")
+	h.ctx.sequences.run(
+		parent,
+		func() -> void:
+			h.ctx.sequences.nest(child, func() -> void: pass)
+	)
+	return order == ["child_after", "parent_after"]
+
+
+func _test_ns_upkeep_resource_modifier() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.upkeep_framework_resource_bonus(&"inv_1", 1))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	if inv.resource_pool != pool_before + 1:
+		return false
+	h.ctx.framework.current_step = AhcEnums.FrameworkStep.UPKEEP_4_4_DRAW_AND_RESOURCE
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"framework", &"upkeep_4_4"])
+	return inv.resource_pool == pool_before + 1 + 2
+
+
+func _test_ns_gain_after_listener() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.after_gain_draw_listener(&"inv_1"))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if inv.deck.size() != 1 or inv.hand.size() != 0:
+		return false
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return inv.deck.is_empty() and inv.hand.size() == 1
+
+
+func _test_ns_refresh_after_nest() -> bool:
+	var h := RuleTestHarness.new(42)
+	var score := [0]
+	var outer := SequenceHandler.when_forced(
+		&"player_window",
+		func() -> void:
+			score[0] += 1
+			if score[0] == 1:
+				var inner := SequenceHandler.when_forced(
+					&"player_window",
+					func() -> void: score[0] += 10
+				)
+				h.ctx.sequences.register_handler(inner)
+	)
+	h.ctx.sequences.register_handler(outer)
+	h.ctx.sequences.run(TriggeringCondition.custom(&"player_window", &"inv_1"), func() -> void: pass)
+	return score[0] == 11 and h.ctx.sequences.response_round() == 0
+
+
+func _test_ns_self_response_blocked() -> bool:
+	var h := RuleTestHarness.new(42)
+	var reaction_fired := [false]
+	var reaction := SequenceHandler.after_reaction(
+		&"draw_cards",
+		&"card_a",
+		&"inv_1",
+		func() -> void: reaction_fired[0] = true
+	)
+	h.ctx.sequences.register_handler(reaction)
+	var parent := TriggeringCondition.custom(&"play_card", &"inv_1")
+	parent.after_timing = &""
+	var draw := TriggeringCondition.custom(&"draw_cards", &"inv_1")
+	h.ctx.sequences.run(
+		parent,
+		func() -> void:
+			h.ctx.sequences.begin_ability_resolution(&"card_a")
+			h.ctx.sequences.nest(draw, func() -> void: pass)
+			h.ctx.sequences.end_ability_resolution()
+	)
+	return not reaction_fired[0]

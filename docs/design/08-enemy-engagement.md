@@ -60,7 +60,7 @@ func choose_hunter_target(enemy: EntityId) -> EntityId:
     return ui.lead_investigator_choose(equidistant)
 ```
 
-Prey 示例：`Prey (lowest 🕑)` — 在等距子集内比较 agility 值。
+Prey 示例：`Prey (lowest [agility])` — 在等距子集内比较 agility 值。
 
 ---
 
@@ -96,7 +96,7 @@ enum AttackKind { PHASE, OPPORTUNITY, RETALIATE, ALERT }
 class EnemyAttack:
     var enemy: EntityId
     var target_investigator: StringName
-    var kind: AttackKind          # 供 🕭 过滤与日志；不改变结算逻辑
+    var kind: AttackKind          # 供 [reaction] 过滤与日志；不改变结算逻辑
     var damage: int
     var horror: int
     var exhaust_after: bool
@@ -139,7 +139,7 @@ class EnemyPhaseAttackResolver:
 | **ALERT** | Fail **evade** test vs **ready** enemy（带 Alert） | Evade test **ST.7 之后** | `exhaust_after = false`；可不 engaged |
 | **PHASE** | Enemy Phase 3.3；enemy engaged（Massive 见 §6.3） | `ENEMY_PHASE_ATTACK` FrameworkStep | `exhaust_after = true`（Massive batch 例外） |
 
-**统一边界**：上述四种在 **攻击效果层** 均属 **enemy attack**，共用 `perform_attack()`，可触发「After enemy attacks you / After enemy attacks」等 🕭。**触发与时点逻辑不得并入 `perform_attack()`**，须保留在各 Resolver / Trigger 中。
+**统一边界**：上述四种在 **攻击效果层** 均属 **enemy attack**，共用 `perform_attack()`，可触发「After enemy attacks you / After enemy attacks」等 [reaction]。**触发与时点逻辑不得并入 `perform_attack()`**，须保留在各 Resolver / Trigger 中。
 
 | 来源 | exhaust_after |
 |---|---|

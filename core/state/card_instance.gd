@@ -13,5 +13,10 @@ var attachments: Array[EntityId] = []
 var attached_to: EntityId = null
 var lasting_effect_ids: Array[StringName] = []
 var is_hidden: bool = false
+var face_visibility: CardFaceVisibility = CardFaceVisibility.new()
 var skill_icons: Dictionary = {}
 var max_committed_per_test: int = -1
+
+
+func face_known_to(observer: StringName) -> bool:
+	return face_visibility.face_known_to(self, observer)

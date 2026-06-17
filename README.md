@@ -109,6 +109,10 @@ copy .vscode\settings.json.example .vscode\settings.json   # 按需改 Godot 路
 
 - [x] AOO 借机攻击 + 基础 Move（AOO-01～03，ACT-11～12）
 
+- [x] Draw 行动 + Duration tick（ACT-13～15，REG-01）
+
+- [x] Nested Sequences + ApplicationContext + ResourceGain（NS-01～06）
+
 - [ ] Core 2026 卡牌 YAML
 
 

@@ -33,7 +33,7 @@ enum ActionType {
 |---|---|---|---|
 | Draw | 基础 | 1 | 是 |
 | Resource | 基础 | 1 | 是 |
-| Activate | 衍生 | 1×每个 🕮 | 视 designator |
+| Activate | 衍生 | 1×每个 [action] | 视 designator |
 | Play | 衍生 | 1（Fast 除外） | Fast 否；否则是 |
 | Move | 基础 | 1 | 是 |
 | Investigate | 基础 | 1 | 是 |
@@ -63,7 +63,7 @@ class ActionRequest:
 1. 校验 FrameworkStep == INV_2_2_1 且 investigator 有 actions
 2. 校验行动合法性（目标、地点、engage 状态等）
 3. AbilityInitiationPipeline.pre_check（若经能力）
-4. 计算 action cost（🕮 个数 n = 该能力 **一次行动花费**）
+4. 计算 action cost（[action] 个数 n = 该能力 **一次行动花费**）
 5. Pay action cost（actions_remaining -= n，**一次付清**）
 6. ──► Resolve AOO（若 applicable，**整次 initiating 最多 1 次**）
 7. 执行行动主体（可能发起 SkillTest）
@@ -72,7 +72,7 @@ class ActionRequest:
 
 ### 3.2 行动花费与借机攻击（已裁决 OQ-03-04）
 
-多个 🕮 符号表示该能力的 **行动花费总量**（如 🕮🕮 = 花费 2 actions），**不是**分多次各走一遍行动框架。
+多个 [action] 符号表示该能力的 **行动花费总量**（如 [action][action] = 花费 2 actions），**不是**分多次各走一遍行动框架。
 
 | 规则 | 说明 |
 |---|---|
@@ -82,7 +82,7 @@ class ActionRequest:
 
 ```gdscript
 func pay_action_cost(request: ActionRequest) -> void:
-    var n := count_action_icons(request.ability)   # 🕮 个数
+    var n := count_action_icons(request.ability)   # [action] 个数
     state.actions_remaining[request.investigator_id] -= n
 
 func resolve_aoo_if_needed(request: ActionRequest) -> void:
@@ -98,7 +98,7 @@ Grimoire：带 bold **Fight/Evade/Investigate/Move** 的能力视为对应行动
 
 ```gdscript
 func get_action_designators(ability: AbilityDef) -> Array[ActionType]:
-    # 例：🕮: Fight (🕯) → [ACTIVATE, FIGHT]
+    # 例：[action]: Fight ([combat] or [agility]) → [ACTIVATE, FIGHT]
     pass
 
 func provokes_aoo(request: ActionRequest) -> bool:
@@ -148,7 +148,7 @@ class AttackOfOpportunityResolver:
         # 然后 return control to action body
 ```
 
-AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you」等 🕭）。**Provoke 判定与插入时点保留在本 Resolver**，不得并入 `perform_attack()`。
+AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you」等 [reaction]）。**Provoke 判定与插入时点保留在本 Resolver**，不得并入 `perform_attack()`。
 
 ---
 
@@ -158,6 +158,7 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - 从 deck 顶抽 1；deck 空 → shuffle discard + take 1 horror + draw（同时发生）
 - discard 也空 → defeated + 1 mental trauma
+- **规范抽牌序列**（信息 D2 可见、WHEN=D2–D3、Weakness 显现于入手）：见 **[15-timing-entry-catalog §16](15-timing-entry-catalog.md)**
 
 ### 6.2 Resource
 
@@ -225,13 +226,13 @@ func is_valid_fight_target(inv: StringName, enemy: EntityId, ability: AbilityDef
 
 ### 6.9 Parley / Resign
 
-- 必须带 designator 的 🕮 或 Play
+- 必须带 designator 的 [action] 或 Play
 - Parley 通常要求 **enemy 在同地点**（除非文本另说）
 - Resign：clues/tokens 留 location；investigator eliminated
 
 ### 6.10 Activate current agenda（已裁决 OQ-03-03）
 
-**Agenda（密谋）没有「在地点上」的概念。** 调查员可以 **Activate** current agenda 上的 🕮 能力，但 **不** 视为 Parley「同地点」目标。
+**Agenda（密谋）没有「在地点上」的概念。** 调查员可以 **Activate** current agenda 上的 [action] 能力，但 **不** 视为 Parley「同地点」目标。
 
 | 能力来源 | 地点语义 |
 |---|---|
@@ -272,11 +273,11 @@ class ActionSystem:
 | ID | 场景 | 预期 |
 |---|---|---|
 | A-01 | engaged 时 Draw | AOO 先结算 |
-| A-02 | 🕮 Fight 能力 | 无 AOO |
+| A-02 | [action] Fight 能力 | 无 AOO |
 | A-03 | Fast event 在他人 turn window | 不耗 action |
 | A-04 | Fight 打 aloof unengaged | 非法 |
 | A-05 | Fight fail，enemy engaged 队友 | 队友受伤 |
-| A-06 | 🕮🕮 Activate | actions **一次 -2**；**至多 1 轮** AOO（非按 🕮 次数重复） |
+| A-06 | [action][action] Activate | actions **一次 -2**；**至多 1 轮** AOO（非按 [action] 次数重复） |
 
 ---
 
@@ -294,7 +295,7 @@ class ActionSystem:
 | OQ-03-01 | **以 Grimoire 为准。** 基础 Fight 目标 = 调查员**当前地点**上的敌人（含 unengaged、自己 threat 区、同地点他人 engaged 的敌人）。特殊卡牌能力可扩展目标范围至地点外。Aloof 未 engage 不可打。 | 2026-05-25 |
 | OQ-03-02 | **攻击效果层**统一 `EnemyAttack` + `AttackKind`（PHASE / OPPORTUNITY / RETALIATE / ALERT），共用 `perform_attack()`，均属 enemy attack。**触发条件与时点**各 kind 独立（AOO→Action 管线、Retaliate/Alert→Skill Test、Phase→Enemy Phase）；不得把 provoke / ST.7 插入逻辑并入 `perform_attack()`。见 08 §6.1。 | 2026-05-25 |
 | OQ-03-03 | **Agenda 无地点概念**；可 Activate agenda 能力，**不**视为 Parley 同地点。见 §6.10。 | 2026-05-25 |
-| OQ-03-04 | 🕮×n = **一次行动花费**，`actions_remaining -= n` **一次付清**；整次 initiating **至多 1 轮 AOO**。见 §3.2。 | 2026-05-25 |
+| OQ-03-04 | [action]×n = **一次行动花费**，`actions_remaining -= n` **一次付清**；整次 initiating **至多 1 轮 AOO**。见 §3.2。 | 2026-05-25 |
 
 ---
 

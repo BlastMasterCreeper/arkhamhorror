@@ -34,7 +34,7 @@ func resolve_encounter_draw(drawer: StringName) -> void:
 |---|---|
 | Draw | deck 空 → shuffle discard |
 | Peril | **覆盖该 encounter 整个结算期间**（含 revelation 触发的嵌套检定）；仅 drawer 可 commit/play/咨询。见 [04-skill-test-engine.md §4.1](04-skill-test-engine.md) |
-| Revelation | weakness encounter 化同理 |
+| Revelation | 遭遇 treachery/enemy 等；**encounter cardtype weakness** 走本管线（≠ 玩家牌入手显现） |
 | Enemy spawn | 见 EnemySystem |
 | Treachery | 默认 discard；可入 threat/play |
 | Surge | 仅 **Revelation 已结算** 后触发；Setup 1–13 **不**结算显现 → **无 Setup surge 链**（见 §2.1） |
@@ -60,7 +60,7 @@ func setup_step_14_game_begins() -> void:
 
 ### 3.1 Advance 条件
 
-- Group spend clues ≥ act threshold（🕣 或 flat）
+- Group spend clues ≥ act threshold（[per_investigator] 或 flat）
 - Objective –  override/additional requirements
 - Forced advance when conditions met（must vs may）
 
@@ -77,7 +77,7 @@ func setup_step_14_game_begins() -> void:
 
 ### 3.3 Spend clues advance
 
-- 🕤 player ability during any investigator turn player window
+- [free] player ability during any investigator turn player window
 - Any/all investigators contribute
 
 ---
@@ -108,8 +108,8 @@ Agenda flip 时 investigator 未 defeated 且无 remaining agenda → 1 mental o
 
 | 文本 | 行为 |
 |---|---|
-| Objective – must advance when... | 条件满足必须 advance（指定 timing 或 any 🕤 window） |
-| Objective – may advance | 可选；无 timing 则 any 🕤 window |
+| Objective – must advance when... | 条件满足必须 advance（指定 timing 或 any [free] window） |
+| Objective – may advance | 可选；无 timing 则 any [free] window |
 | Override clues | 覆盖或追加 spend 要求 |
 
 ---
@@ -161,7 +161,7 @@ class ScenarioSystem:
 |---|---|---|
 | SC-01 | Surge treachery | draw 2nd |
 | SC-02 | Peril test | 他人不可 commit |
-| SC-03 | Act spend 🕣 clues 4p | threshold ×4 |
+| SC-03 | Act spend [per_investigator] clues 4p | threshold ×4 |
 | SC-04 | Agenda doom advance | all doom cleared |
 | SC-05 | Defeat Victory 2 enemy | victory display +2 |
 | SC-06 | (→R1) on act 3b | resolution 1 |

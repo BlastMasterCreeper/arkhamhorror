@@ -65,7 +65,7 @@ class SkillTestEngine:
 
 ### 3.1 ST.1 Determine skill
 
-- 基础行动固定 skill；`(🕯 or 🕑)` 由 performing investigator 选择
+- 基础行动固定 skill；Fight/Evade 等可在 `([combat] or [agility])` 中由 performing investigator 择一
 - 发起 `TimingBus`: `skill_test_begins`
 - Push `GameContext.skill_test_stack`
 
@@ -86,7 +86,7 @@ class SkillTestEngine:
 ### 3.4 ST.4 Symbol effects
 
 - Skull/Cultist/Tablet/Elder Thing → ScenarioReference 能力
-- Elder Sign → investigator 卡 🕯 能力
+- Elder Sign → investigator 卡 printed **Elder Sign** 能力（揭示 [elder_sign] token 时）
 - Campaign symbol → campaign guide
 - Auto-fail → `auto_fail = true`
 - 「Reveal another token」→ **仅递归 ST.3 → ST.4**；**不**回到 ST.2，**不**开启任何 Player Window（已裁决 OQ-04-01）
@@ -140,7 +140,7 @@ base = investigator.get_skill(skill)
 
 | 规则 | 实现 |
 |---|---|
-| Wild 🌐 | 匹配任意 skill |
+| Wild [wild] | 匹配任意 skill |
 | 无 matching icon | 不可 commit |
 | Peril | 仅 performing 可 commit（见 §4.1） |
 | Max N committed | 按 title 计数 |

@@ -83,7 +83,7 @@ class RegisterNode extends CompositionNode:
 
 ## 4. 合法性 Dry-run（CompositionDryRunner）
 
-> 完整 Initiation 流程见 [06 §4.2](06-ability-initiation.md)。
+> 完整 Initiation 流程见 [06 §7.2](06-ability-initiation.md)。Eligibility L7 终端 dry_run；COLLECT 不批量 dry_run。
 
 ### 4.1 原则（已裁决）
 

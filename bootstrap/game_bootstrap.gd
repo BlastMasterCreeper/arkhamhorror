@@ -10,15 +10,22 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.state = GameStateStore.new()
 	ctx.log = GameLog.new()
 	ctx.events = EventRecordLog.new()
+	ctx.memory = RulesMemory.new()
 	ctx.timing = TimingBus.new(ctx.log)
+	ctx.sequences = ResolutionSequenceStack.new(ctx.log, ctx.events, ctx.memory)
 	ctx.choices = ChoiceResolver.new()
 	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)
 	ctx.registrations = RegistrationStore.new()
 	ctx.mutator = StateMutator.new(ctx.state)
+	ctx.resource_gain = ResourceGainService.new(ctx.mutator)
+	ctx.card_abilities = CardAbilityService.new(ctx.mutator)
+	ctx.enter_hand = EnterHandService.new(ctx.card_abilities)
+	ctx.draw_investigator = DrawInvestigatorService.new(ctx.mutator, ctx.enter_hand)
 	ctx.modifiers = ModifierEngine.new(ctx.registrations)
 	ctx.composition = CompositionExecutor.new(
 		ctx.state, ctx.registrations, ctx.mutator, ctx.log
 	)
+	ctx.composition.bind_game_context(ctx)
 	ctx.listeners = ListenerDispatcher.new(ctx.registrations, ctx.composition)
 	ctx.timing.bind_listeners(ctx.listeners)
 	ctx.legality = InitiationLegalityChecker.new()
@@ -32,7 +39,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	)
 	ctx.combat = CombatResolver.new(ctx.state, ctx.log, ctx.timing)
 	ctx.framework = FrameworkFlowEngine.new(
-		ctx.state, ctx.events, ctx.log, ctx.config, ctx.scenario, ctx.enemy
+		ctx.state, ctx.events, ctx.log, ctx.config, ctx.scenario, ctx.enemy, ctx.registrations
 	)
 	ctx.actions = ActionSystem.new(
 		ctx.state,
@@ -41,10 +48,35 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.log,
 		ctx.framework,
 		ctx.skill_tests,
-		ctx.combat
+		ctx.combat,
+		ctx.mutator
 	)
 	ctx.actions.bind_game_context(ctx)
+	ctx.sequences.bind_game_context(ctx)
 	return ctx
+
+
+static func register_enter_hand_test_definitions() -> void:
+	CardRegistry.register_definition(&"plain_weakness", {})
+	CardRegistry.register_revelation(
+		&"rev_take_horror",
+		&"revelation:0",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.take_horror(bind.controller_id, 1)
+	)
+	CardRegistry.register_definition(
+		&"rev_limbo_discard",
+		{
+			"enter_zone": AhcEnums.Zone.LIMBO,
+			"limbo_discard_pile": &"owner_discard",
+		}
+	)
+	CardRegistry.register_revelation(
+		&"rev_limbo_discard",
+		&"revelation:0",
+		func(_bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.seq([])
+	)
 
 
 static func add_test_card_to_deck(ctx: GameContext, inv_id: StringName, definition_id: StringName = &"test_card") -> StringName:
@@ -59,6 +91,25 @@ static func add_test_card_to_deck(ctx: GameContext, inv_id: StringName, definiti
 	var inv := ctx.state.registry.get_investigator(inv_id)
 	if inv:
 		inv.deck.append(instance_id)
+	return instance_id
+
+
+static func add_test_card_to_discard(
+	ctx: GameContext,
+	inv_id: StringName,
+	definition_id: StringName = &"test_card"
+) -> StringName:
+	var instance_id := ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, definition_id)
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = inv_id
+	card.controller_id = inv_id
+	card.zone = AhcEnums.Zone.DISCARD
+	ctx.state.registry.register_card(card)
+	var inv := ctx.state.registry.get_investigator(inv_id)
+	if inv:
+		inv.discard.append(instance_id)
 	return instance_id
 
 

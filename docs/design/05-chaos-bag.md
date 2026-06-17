@@ -155,7 +155,7 @@ class ChaosBagSnapshot:
 
 ## 8. Elder Sign
 
-- 揭示 🕯 时触发** performing investigator** 卡上 printed 🕯 能力
+- 揭示 [elder_sign] token 时触发 performing investigator 卡上 printed **Elder Sign** 能力
 - 通常含 modifier + conditional effect（如 Joe Diamond：+1, succeed → draw + resource）
 
 绑定：`InvestigatorDefinition.elder_sign_ability_id`

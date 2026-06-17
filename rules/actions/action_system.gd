@@ -9,6 +9,9 @@ var _framework: FrameworkFlowEngine
 var _skill_tests: SkillTestEngine
 var _basic_actions: BasicActionResolver
 var _aoo: AttackOfOpportunityResolver
+var _mutator: StateMutator
+var _resource_gain: ResourceGainService
+var _draw_investigator: DrawInvestigatorService
 var _game_ctx: GameContext
 
 
@@ -19,7 +22,8 @@ func _init(
 	log: GameLog,
 	framework: FrameworkFlowEngine = null,
 	skill_tests: SkillTestEngine = null,
-	combat: CombatResolver = null
+	combat: CombatResolver = null,
+	mutator: StateMutator = null
 ) -> void:
 	_state = state
 	_events = events
@@ -31,10 +35,14 @@ func _init(
 		_basic_actions = BasicActionResolver.new(state, skill_tests)
 	if combat:
 		_aoo = AttackOfOpportunityResolver.new(state, combat)
+	_mutator = mutator
 
 
 func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
+	if ctx:
+		_resource_gain = ctx.resource_gain
+		_draw_investigator = ctx.draw_investigator
 
 
 func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extra: Dictionary = {}) -> Dictionary:
@@ -54,9 +62,27 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 	var result := {"ok": true, "aoo_attacks": int(aoo_result.get("attacks", 0))}
 	match action_type:
 		AhcEnums.ActionType.RESOURCE:
-			inv.resource_pool += 1
+			if _resource_gain and _game_ctx:
+				_resource_gain.gain(
+					_game_ctx,
+					investigator_id,
+					1,
+					[&"resource_action"]
+				)
+			else:
+				inv.resource_pool += 1
 		AhcEnums.ActionType.DRAW:
-			pass
+			if _draw_investigator and _game_ctx:
+				result = _draw_investigator.draw_cards(
+					_game_ctx,
+					investigator_id,
+					1,
+					[&"draw_action"]
+				)
+			elif _mutator:
+				result = _mutator.perform_draw_action(investigator_id)
+			else:
+				result = {"ok": false, "error": "draw_unavailable"}
 		AhcEnums.ActionType.MOVE:
 			result = _run_basic_action(action_type, investigator_id, extra)
 		AhcEnums.ActionType.INVESTIGATE:

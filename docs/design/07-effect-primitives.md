@@ -166,7 +166,7 @@ class AtomMoveCard:
 
 - 不抽目标（Search / Draw 宏负责选 `card_id`）
 - 不支付 cost
-- 不触发 🕭 / Forced（由 L1 执行器在 commit 后通知 TimingBus）
+- 不触发 [reaction] / Forced（由 L1 执行器在 commit 后通知 TimingBus）
 
 **Domain 边界转换（同一事务内强制）**：
 
@@ -243,7 +243,7 @@ class AtomAdjustMarker:
 | Move damage/horror A→B | **Transfer** |
 | Deal from 「虚无」 | **Adjust** 正 delta（或 POOL → 卡 用 Transfer） |
 
-**不触发** heal 相关 🕭 的判定：由 TimingBus 看 **语义标签**（Wrapper 在 Adjust 前标记 `semantic=heal`），非原子自身。
+**不触发** heal 相关 [reaction] 的判定：由 TimingBus 看 **语义标签**（Wrapper 在 Adjust 前标记 `semantic=heal`），非原子自身。
 
 ---
 
@@ -368,7 +368,7 @@ L2 Wrapper 额外写 **semantic record**（`semantic=deal_damage`, `amount=3`）
 
 1. Fork `GameStateStore`（浅拷贝容器 + 共享不可变 def）
 2. 按序/按组应用 5 原子
-3. 不 emit TimingBus（Forced/🕭 不跑）
+3. 不 emit TimingBus（Forced/[reaction] 不跑）
 4. 返回 `ResolvableReport`：哪些原子会失败、是否至少一条成功
 
 Initiation dry-run（OQ-06-02）= 对 **整棵 Wrapper 树** 做上述模拟。

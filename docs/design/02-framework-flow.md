@@ -304,7 +304,7 @@ class ActAgendaFlipContext:
 
 | 场景 | 预期 |
 |---|---|
-| Act 2a 🕭「After enemy spawns…」，2b spawn 敌人 | **不**触发 2a Reaction |
+| Act 2a [reaction]「After enemy spawns…」，2b spawn 敌人 | **不**触发 2a Reaction |
 | Act 1a Forced 创建的 Delayed「下回合开始时…」 | flip 后 Delayed **仍**在指定 timing 触发 |
 | Agenda flip | 同 Act |
 

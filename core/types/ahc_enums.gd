@@ -186,6 +186,8 @@ enum LogCategory {
 	SCENARIO,
 }
 
+enum FaceAudience { HIDDEN_ALL, CONTROLLER, ALL }
+
 enum GrimRuleMode { AUTO_WORST, PAUSE_FOR_RULING, DISABLED }
 
 enum EventRecordKind {
@@ -194,8 +196,11 @@ enum EventRecordKind {
 	SKILL_TEST_STEP,
 	EFFECT_APPLIED,
 	COMPOSITION_STEP,
+	SEQUENCE_STEP,
 	SYSTEM,
 }
+
+enum SequencePhase { WHEN, RESOLVE, AFTER }
 
 enum PileKind {
 	INV_DECK,
@@ -236,6 +241,7 @@ enum StatRef {
 	SKILL_INTELLECT,
 	SKILL_COMBAT,
 	SKILL_AGILITY,
+	RESOURCE_GAIN_AMOUNT,
 }
 
 enum ModOp { ADD, SUB, MUL, DOUBLE, HALVE }
