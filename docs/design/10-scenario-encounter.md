@@ -13,31 +13,39 @@
 
 ## 2. Encounter Draw 管线（Mythos 1.4 / 能力 draw）
 
+> **规范流程**：[15-timing-entry-catalog.md §17](15-timing-entry-catalog.md)（`seq.draw.encounter`）。本节保留 **ScenarioSystem 委托形状** 与 **帧语义** 摘要。
+
 ```gdscript
-func resolve_encounter_draw(drawer: StringName) -> void:
-    var frame := EncounterResolutionFrame.new(drawer)
-    push_encounter_frame(frame)
-    loop:
-        card = encounter_deck.draw()
-        if peril(card):
-            frame.peril = true              # 覆盖本 encounter 整个结算帧
-        resolve_revelation(card)            # Forced, may skill test; 嵌套检定 ST.8 后入队
-        drain_pending_nested_tests(frame)   # 帧内 Peril 约束延续
-        if enemy(card): enemy_system.spawn(card, drawer)
-        elif treachery(card): discard_unless_in_play(card)
-        if surge(card): continue loop
-        else: break
-    pop_encounter_frame(frame)
+func resolve_encounter_draw(drawer: StringName, amount: int = 1) -> void:
+    sequence_catalog.run(&"seq.draw.encounter", {
+        "drawer_id": drawer,
+        "amount": amount,
+    })
 ```
 
-| Step | 说明 |
+**引擎内 RESOLVE 形状**（Surge 同帧，不 proliferate Service）：
+
+```text
+seq.draw.encounter
+  push EncounterResolutionFrame(drawer)
+  repeat amount times:
+    loop:                                    # Surge loop（单张内）
+      nest seq.draw.encounter.collect_one    # E1
+      nest seq.draw.encounter.resolve_card   # E2–E6 共享（§17.4）
+      if surge: continue loop
+      else: break
+  pop frame → AFTER
+```
+
+| Step | Catalog / 说明 |
 |---|---|
-| Draw | deck 空 → shuffle discard |
-| Peril | **覆盖该 encounter 整个结算期间**（含 revelation 触发的嵌套检定）；仅 drawer 可 commit/play/咨询。见 [04-skill-test-engine.md §4.1](04-skill-test-engine.md) |
-| Revelation | 遭遇 treachery/enemy 等；**encounter cardtype weakness** 走本管线（≠ 玩家牌入手显现） |
-| Enemy spawn | 见 EnemySystem |
-| Treachery | 默认 discard；可入 threat/play |
-| Surge | 仅 **Revelation 已结算** 后触发；Setup 1–13 **不**结算显现 → **无 Setup surge 链**（见 §2.1） |
+| E1 Draw | `seq.draw.encounter.collect_one`；deck 空 → shuffle discard（**无 horror**，OQ-10-04） |
+| E3 Peril | `seq.encounter.check_peril` → E3 Register RESTRICTION（[04 §4](04-skill-test-engine.md)） |
+| E4 Revelation | `seq.encounter.revelation`；**encounter cardtype weakness** 亦走此管线 |
+| E5 Dispatch | `seq.encounter.dispatch` → spawn / treachery discard / Hidden hand（[15 §17.4.2–3](15-timing-entry-catalog.md)） |
+| E5 Enemy | `seq.encounter.spawn` → spawn 或 **`discard_spawn_failed`**（[08 §7.4](08-enemy-engagement.md)） |
+| E5 Treachery | 默认 encounter discard；Hidden / 留场例外 |
+| E6 Surge | **同一 frame** 内回到 E1；**Revelation 已结算** 后判定（OQ-10-06 待裁） |
 
 ### 2.1 Setup 与显现 / Surge（已裁决 OQ-10-01）
 
@@ -165,6 +173,12 @@ class ScenarioSystem:
 | SC-04 | Agenda doom advance | all doom cleared |
 | SC-05 | Defeat Victory 2 enemy | victory display +2 |
 | SC-06 | (→R1) on act 3b | resolution 1 |
+| ENC-01 | 遭遇空库洗弃，无 horror | discard → deck |
+| ENC-02 | Surge treachery | 同 frame 第二圈 E1 |
+| ENC-03 | Peril test | 他人不可 commit（04 §4.1） |
+| ENC-04 | encounter weakness 从 inv deck | `resolve_bound`，非 enter_hand |
+| ENC-08 | 无 Spawn enemy | spawn_engaged；无 Engage 子流程 |
+| ENC-11 | Spawn 无合法 location | encounter discard（`discard_spawn_failed`） |
 
 ---
 
@@ -174,7 +188,6 @@ class ScenarioSystem:
 |---|---|---|
 | OQ-10-02 | P1 | Objective must advance 无 window — 自动 advance 还是暂停提示？ |
 | OQ-10-03 | P1 | Agenda 非 1.3 advance（卡牌 explicit）— 框架如何插入 ad-hoc advance 步？ |
-| OQ-10-04 | P2 | Encounter deck shuffle mid-ability — 先 resolve 完再 shuffle？ |
 | OQ-10-05 | P1 | Act b side 变 Enemy — 是否立即 spawn 还是入 encounter 区？ |
 | OQ-10-06 | P2 | Forbidden Secrets surge 条件 — 引擎 evaluate 时机在 revelation 前还是后？ |
 
@@ -183,6 +196,7 @@ class ScenarioSystem:
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-10-01 | Setup 1–13 **不结算显现** → **无 Setup surge 链**（原场景不存在）。若有 setup 显现/涌动，仅在 **Setup 14「When the game begins」** 结算。见 §2.1。 | 2026-05-25 |
+| OQ-10-04 | **collect 立即洗**；嵌套效果内 deck 抽空 → **defer shuffle 至子树 pop 后**。见 [15 §17.11](15-timing-entry-catalog.md)。 | 2026-06-18 |
 
 ---
 
@@ -192,3 +206,6 @@ class ScenarioSystem:
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-10-01 裁决：Setup 不结算显现；game begins 时结算 |
+| 2026-06-18 | v0.3 | §2 对齐 [15 §17](15-timing-entry-catalog.md) SequenceCatalog 映射；ENC-01～04 |
+| 2026-06-18 | v0.3.1 | E5 enemy spawn 术语：`spawn_engaged` vs `auto_engage_at_location`（15 §17.4.1 / 08 §7） |
+| 2026-06-18 | v0.3.2 | `resolve_card` 共享子 flow；E5 dispatch / Hidden / Treachery（15 §17.4–12） |

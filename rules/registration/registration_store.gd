@@ -20,6 +20,18 @@ func unregister(id: StringName) -> void:
 			return
 
 
+func unregister_by_encounter_frame(frame_id: StringName) -> void:
+	if frame_id == &"":
+		return
+	var to_remove: Array[StringName] = []
+	for reg in _entries:
+		if reg.lifetime_kind == AhcEnums.LifetimeKind.WHILE_ENCOUNTER_FRAME \
+				and reg.encounter_frame_id == frame_id:
+			to_remove.append(reg.id)
+	for id in to_remove:
+		unregister(id)
+
+
 func count() -> int:
 	return _entries.size()
 
@@ -64,6 +76,7 @@ func duplicate_store() -> RegistrationStore:
 		r.controller_id = reg.controller_id
 		r.lifetime_kind = reg.lifetime_kind
 		r.duration = reg.duration
+		r.encounter_frame_id = reg.encounter_frame_id
 		r.buffs = reg.buffs.duplicate()
 		copy._entries.append(r)
 	return copy

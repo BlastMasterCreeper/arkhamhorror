@@ -10,6 +10,7 @@ var _timing: TimingBus
 var _stack: Array[SkillTestContext] = []
 var _next_id: int = 0
 var _pending_nested: Array[SkillTestContext] = []
+var _game_ctx: GameContext = null
 
 
 func _init(
@@ -29,6 +30,9 @@ func _init(
 
 
 func begin_test(ctx: SkillTestContext, game_ctx: GameContext = null) -> SkillTestContext:
+	_game_ctx = game_ctx
+	if game_ctx != null and game_ctx.memory != null:
+		EncounterPeril.sync_test_context_from_frame(ctx, game_ctx.memory)
 	if ctx.id == &"":
 		_next_id += 1
 		ctx.id = StringName("skill_test_%d" % _next_id)
@@ -55,8 +59,15 @@ func step_commit(ctx: SkillTestContext, commits: Array[CommittedCard]) -> Dictio
 
 
 func commit_card(ctx: SkillTestContext, from_inv: StringName, card_id: StringName) -> Dictionary:
-	if ctx.peril and from_inv != ctx.performing_investigator:
-		return {"ok": false, "error": "peril_no_assist"}
+	var store := _game_ctx.registrations if _game_ctx != null else null
+	var peril_reason := RestrictionEvaluator.block_reason(
+		RestrictionEvaluator.Intent.COMMIT_TO_TEST,
+		from_inv,
+		store,
+		ctx
+	)
+	if peril_reason != &"":
+		return {"ok": false, "error": RestrictionEvaluator.commit_block_error(peril_reason)}
 	var performer := _state.registry.get_investigator(ctx.performing_investigator)
 	var committer := _state.registry.get_investigator(from_inv)
 	if performer == null or committer == null:
@@ -209,8 +220,11 @@ func close_player_window(ctx: SkillTestContext) -> void:
 
 func queue_nested_test(parent: SkillTestContext, child: SkillTestContext) -> void:
 	child.nested_depth = parent.nested_depth + 1
-	child.peril = parent.peril
 	child.encounter_resolution_id = parent.encounter_resolution_id
+	if _game_ctx != null and _game_ctx.memory != null:
+		EncounterPeril.sync_test_context_from_frame(child, _game_ctx.memory)
+	else:
+		child.peril = parent.peril
 	parent.pending_nested_tests.append(child)
 
 

@@ -20,3 +20,19 @@ static func hand_bottom(inv_id: StringName) -> CardSlot:
 	s.owner_id = inv_id
 	s.insert = AhcEnums.InsertMode.BOTTOM
 	return s
+
+
+static func discard_top(inv_id: StringName) -> CardSlot:
+	var s := CardSlot.new()
+	s.pile = AhcEnums.PileKind.INV_DISCARD
+	s.owner_id = inv_id
+	s.insert = AhcEnums.InsertMode.TOP
+	return s
+
+
+static func encounter_discard_top() -> CardSlot:
+	var s := CardSlot.new()
+	s.pile = AhcEnums.PileKind.INV_DISCARD
+	s.owner_id = &"encounter"
+	s.insert = AhcEnums.InsertMode.TOP
+	return s

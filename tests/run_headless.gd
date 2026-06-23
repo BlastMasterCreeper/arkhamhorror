@@ -30,6 +30,9 @@ func _initialize() -> void:
 	_run_test("ST-04 auto-fail token", _test_st_auto_fail)
 	_run_test("ST-05 ally commit helps", _test_st_ally_commit)
 	_run_test("ST-06 peril blocks ally", _test_st_peril_blocks_ally)
+	_run_test("PERIL-01 encounter frame blocks ally commit", _test_peril_frame_blocks_ally)
+	_run_test("PERIL-04 peril sticky on frame", _test_peril_sticky_on_frame)
+	_run_test("PERIL-05 frame pop allows ally commit", _test_peril_pop_allows_ally)
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
@@ -276,12 +279,57 @@ func _test_st_peril_blocks_ally() -> bool:
 	var card_id := GameBootstrap.add_skill_card_to_hand(
 		h.ctx, &"inv_2", AhcEnums.SkillType.INTELLECT
 	)
+	var frame := EncounterResolutionFrame.create(&"inv_1")
+	h.ctx.memory.push_encounter_frame(frame)
+	EncounterPeril.apply_e3_check(h.ctx, frame, true)
 	var st := SkillTestHelper.new(h.ctx)
-	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2, true)
-	var res := h.ctx.skill_tests.commit_card(
-		test, &"inv_2", card_id
-	)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var res := h.ctx.skill_tests.commit_card(test, &"inv_2", card_id)
 	return not res.ok and res.error == "peril_no_assist"
+
+
+func _test_peril_frame_blocks_ally() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_2", AhcEnums.SkillType.INTELLECT
+	)
+	var frame := EncounterResolutionFrame.create(&"inv_1")
+	h.ctx.memory.push_encounter_frame(frame)
+	EncounterPeril.apply_e3_check(h.ctx, frame, true)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var res := h.ctx.skill_tests.commit_card(test, &"inv_2", card_id)
+	return not res.ok and res.error == "peril_no_assist" and test.peril
+
+
+func _test_peril_sticky_on_frame() -> bool:
+	var h := RuleTestHarness.new(42)
+	var frame := EncounterResolutionFrame.create(&"inv_1")
+	h.ctx.memory.push_encounter_frame(frame)
+	EncounterPeril.apply_e3_check(h.ctx, frame, true)
+	EncounterPeril.apply_e3_check(h.ctx, frame, false)
+	return frame.peril and h.ctx.registrations.count() == 1
+
+
+func _test_peril_pop_allows_ally() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_2", AhcEnums.SkillType.INTELLECT
+	)
+	var frame := EncounterResolutionFrame.create(&"inv_1")
+	h.ctx.memory.push_encounter_frame(frame)
+	EncounterPeril.apply_e3_check(h.ctx, frame, true)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.pop_encounter_resolution_frame()
+	test.peril = false
+	var res := h.ctx.skill_tests.commit_card(test, &"inv_2", card_id)
+	return res.ok
 
 
 func _test_st_apply_success() -> bool:

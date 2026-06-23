@@ -90,10 +90,10 @@ class EffectResolutionGraph:
 ### 3.1 单请求流程
 
 ```
-1. Validate targets（Silver Rule 冲突标记）
+1. Validate targets
 2. 若本请求已被 Cancel（见 §6.1）→ abort（视为未发生）
 3. 若 Replacement 已生效（见 §7.1）→ 执行替换后效果，跳过原 op
-4. Check Cannot — 绝对拦截
+4. Check Cannot — RESTRICTION / 卡面「cannot」绝对拦截（§3.2）
 5. Pay embedded costs（若有）
 6. Execute op
 7. Emit timing events（after/when）
@@ -101,6 +101,90 @@ class EffectResolutionGraph:
 ```
 
 **Cancel 与 Replacement 的先后**不在此线性步骤内硬编码，而在 **TimingBus 触发顺序** 中裁决（§6.1、§7.1）。
+
+### 3.2 冲突与竞争：总览
+
+Grimoire 无单一「平级竞争总表」；引擎将 **不同机制** 分型。**Cannot** 与 **同时点竞争** 不是同一类——前者 **禁止**，后者 **多条 handler 争同一 impact**。
+
+```text
+同一 pending / timing 窗口
+  ├─ 0. Cannot（非竞争）→ X 不得发生
+  ├─ 1. 同时点竞争（§3.3）→ 子类型各有裁决器
+  ├─ 2. Cancel / Ignore vs Replacement → resolve 先后（§6.1）
+  ├─ 3. 跨类 tier 整批（06 §8.1）
+  ├─ 4. Silver Rule → 两卡文本无法调和（非 replacement 栈）
+  └─ 5. 合法多选 → Lead / 控制者（Grim 不参与）
+```
+
+| 机制 | Grimoire | 是否「同时点竞争」 | 裁决 |
+|---|---|---|---|
+| **Cannot** | *Cannot* | **否**（绝对禁止） | 不得 countermand |
+| **Replacement** | *Instead* | **是**（子类 **替换竞争**） | **最后 initiate** 的一条（§3.4、§7） |
+| **Forced / Triggered 等同窗** | Ability + *Priority of Simultaneous Resolution* | **是**（**能力竞争**） | 跨类 tier；类内队长/控制者自排（06 §8） |
+| **Cancel / Ignore** | Cancel 词条 | 打断 pending，非平级表 | 与 Replacement **看谁先 resolve** |
+| **Silver Rule** | *The Silver Rule* | **否**（文本命题冲突） | 遭遇 > 玩家；同类 → 队长 |
+| **合法多选** | Locked Door 先例 | **否** | Lead / 控制者任选 valid |
+| **Grim Rule** | *The Grim Rule* | — | **实体**查书受阻兜底；**电子版**见 [00 §6](../00-architecture-overview.md) |
+
+**Cannot 示例**（非 Silver、非 replacement 竞争）：
+
+```text
+「你不能受到 horror。」+「受到 2 horror。」→ horror 不发生；无需 Silver Rule。
+险境（Peril）帧内：非 drawer **cannot** play asset/event、**cannot** trigger、**cannot** commit skill 到 drawer 检定 → 不进入 tier 竞争；[fast] 亦无效。见 [04 §4](04-skill-test-engine.md)。
+```
+
+### 3.3 同时点竞争（Same-timing competition）
+
+**定义**：同一 **triggering condition** / **Timing Window** 内，多条能力或效果 **同时成为 handler**（含 LISTENER、Forced、[reaction]、**Replacement**），且不能全部按原文成立。
+
+Replacement **是** 同时点上的 listener/能力；与 Forced、[reaction] 共享窗口，但 **冲突裁决** 走 **Instead**，不是 Silver Rule，也 **不是** encounter>player 泛化规则。
+
+| 子类型 | 典型 | 同优先级？ | 裁决 | 玩家自排？ |
+|---|---|---|---|---|
+| **替换竞争** | 多条 `instead` / `would` 改同一 trigger 的 resolution | 是（同属 replacement） | **最后 initiate 的一条**（§3.4） | **否**（自动）；Forced 同时时 **先** 由队长定 initiate/resolve **顺序**，顺序决定「最近」 |
+| **Forced 类内** | 多个 Forced 同 timing | 是（同属 FORCED tier） | 队长选 resolve 顺序（*Priority of Simultaneous Resolution*） | **是**（队长） |
+| **Triggered 类内** | 多个 [reaction] 均已选用 | 是（同属 TRIGGERED tier） | 队长选顺序（OQ-06-03） | 选用：控制者；顺序：队长 |
+| **跨类** | Forced vs [reaction] | **否** | FORCED 批 **整类先于** TRIGGERED 批（06 §8.1） | **不可**跨类对调 |
+
+**Grimoire · Priority of Simultaneous Resolution**（与 Instead **配合**，非替代）：
+
+- 遭遇 Forced **先于** 玩家 Forced initiate/resolve；
+- 多个 Forced **同时** → 队长定 **顺序**；
+- 若其中多条为 **冲突的 replacement**，在该顺序下 **后 initiate / 后 resolve 的那条** = Instead 的 **most recent**。
+
+### 3.4 Replacement：「最近」= 最后 initiate
+
+Grimoire *Instead*（[`arkham-grimoire-v1.0.md`](../reference/arkham-grimoire-v1.0.md) · **Instead**）：
+
+> …multiple replacement effects are **initiated** against the **same triggering condition** and **create a conflict**… the **most recent** replacement effect is used…
+
+**引擎定义（OQ-06-01 / OQ-REPL-01）**：
+
+| 术语 | 含义 |
+|---|---|
+| **initiated** | 该 replacement 能力 **开始 Initiation Sequence**（Forced 自动发起；Triggered 经控制者选用后发起） |
+| **most recent** | 同一 `triggering_condition_id` 上、已 initiate 且 **resolution 互斥** 的 replacement 集合中，**`initiation_seq` 最大** 的一条 |
+| **conflict** | 对同一 triggering condition 的 resolve 路径 **不能同时成立**（非所有同 trigger 的 instead 都竞争） |
+
+```gdscript
+## 单调序号：每次 Initiation COMMENCE 对 pending_trigger 递增。
+var initiation_seq: int
+
+func resolve_replacement_conflict(
+    candidates: Array[ReplacementCandidate]
+) -> ReplacementCandidate:
+    candidates.sort_custom(func(a, b): return a.initiation_seq < b.initiation_seq)
+    return candidates[candidates.size() - 1]
+```
+
+**Would 层（先于「最近」比较）**：`When X would occur` **先于** `When X occurs`；would-replacement **改变** condition 性质后，**不得**再引用 **原始** condition——后续 when 型 replacement 可能 **不进入** 竞争集合。
+
+**不是「最近」**：卡牌注册序、LIFO nest pop 序、encounter cardtype（除非走 Silver Rule 文本冲突）。
+
+```gdscript
+func check_cannot(req: EffectRequest, ctx: ApplicationContext) -> bool:
+    return RestrictionEvaluator.blocks(req, ctx.registrations)
+```
 
 ---
 
@@ -211,38 +295,44 @@ func on_pending_effect(pending: EffectRequest) -> void:
 
 ---
 
-## 7. Instead / Would（Replacement）（已裁决 OQ-06-01）
+## 7. Instead / Would（Replacement · 替换竞争）
 
-- **Instead**：替换 resolution
-- **Would**：更高优先级 when
-- **冲突优先级**（非 LIFO / 非「最后注册」）：
+> **归类**：§3.3 **同时点竞争** 之子类型 **替换竞争**。
 
-| 优先级 | 来源 | 冲突处理 |
-|---|---|---|
-| **1（高）** | **Encounter 卡**（遭遇 / treachery / scenario 等） | 覆盖玩家卡 Replacement |
-| **2** | **玩家卡**（investigator / player card） | — |
-| **同优先级** | 多条同时适用 | **Lead Investigator** 选择哪条生效 |
+### 7.0 规则出处
+
+| 条目 | 内容 |
+|---|---|
+| **Instead** | `instead` = replacement；同 trigger + conflict → **most recent** |
+| **Would** | `When X would` 先于 `When X`；可替换 condition 性质并封锁原 condition |
+| **Priority of Simultaneous Resolution** | 遭遇 Forced 先于玩家 Forced；多 Forced 同时 → 队长定 resolve **顺序**（顺序参与「最近」） |
+
+### 7.1 冲突条件与裁决
+
+三条 **同时** 满足才走「最近一条」：
+
+1. 同一 **`triggering_condition_id`**
+2. 均为 **replacement**（已 **initiate**）
+3. 对 **如何 resolve** 产生 **conflict**
+
+| 规则 | 说明 |
+|---|---|
+| **最近 = 最后 initiate** | `initiation_seq` 最大者生效（§3.4） |
+| **Would 层** | would 窗口先于 when；改 condition 后原 condition 上的 replacement 可能失效 |
+| **非 conflict** | 多条 instead 可并存时不适用「最近」 |
 
 ```gdscript
-enum ReplacementSourceTier { ENCOUNTER, PLAYER }
-
 class ReplacementCandidate:
-    var source_tier: ReplacementSourceTier
-    var source_card: EntityId
-    var replaces: EffectRequest
-    var with_effect: EffectRequest
-
-func resolve_replacement_conflict(candidates: Array[ReplacementCandidate]) -> ReplacementCandidate:
-    var best_tier := candidates.map(c -> c.source_tier).min()  # ENCOUNTER < PLAYER
-    var tier_matches := candidates.filter(c -> c.source_tier == best_tier)
-    if tier_matches.size() == 1:
-        return tier_matches[0]
-    return ui.lead_investigator_choose(tier_matches)
+    var source_ability_id: StringName
+    var triggering_condition_id: StringName
+    var initiation_seq: int
+    var with_resolution: Callable  # 替换后的 resolve 路径
 ```
 
-应用时仍走 `ReplacementStack` 记录链，但 **选取哪条 Replacement 生效** 按上表，而非 push 顺序。
+> **勿与 Silver Rule 混淆**：cardtype **不**决定 replacement 胜负。  
+> **勿与 Cannot 混淆**：cannot 绝对禁止，**不是** replacement 竞争。
 
-### 7.1 Replacement 与 Cancel（已裁决 OQ-07-06）
+### 7.2 Replacement 与 Cancel（已裁决 OQ-07-06）
 
 Replacement 能力通常实现为 **DelayedEffect**（到达指定 timing 时以 Forced 级优先级介入），与 Cancel [reaction] 的交互见 **§6.1**：
 
@@ -380,7 +470,8 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | ID | 裁决 | 日期 |
 |---|---|---|
-| OQ-06-01 | Replacement 冲突：**Encounter 卡优先于玩家卡**；同优先级由 **Lead Investigator** 选择。见 §7。 | 2026-05-25 |
+| OQ-06-01 | 多条 Replacement 同 triggering condition 冲突 | **最后 initiate**（`initiation_seq` 最大）。见 §3.4、§7。 |
+| OQ-REPL-01 | `initiation_seq` 边界（嵌套 initiate、would 改 condition） | v0：COMMENCE 单调序号；见 §3.4。 |
 | OQ-07-06 | **看触发先后。** Replacement 一般为 Delayed，与 Forced 同优先级。Replacement 先 → Cancel 无法发动；Cancel 先 → Replacement 不结算（无可替换的可结算效果）。见 §6.1、§7.1。 | 2026-05-25 |
 | OQ-07-02 | **是。** 独立 `EffectOp.TRANSFER_AFFLICTION`；**不算 heal**，不触发 heal 相关 [reaction]。见 §4.1。 | 2026-05-25 |
 
@@ -391,6 +482,9 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
-| 2026-05-25 | v0.2 | OQ-06-01 裁决：Replacement 优先级 Encounter > Player |
+| 2026-05-25 | v0.2 | OQ-06-01：Replacement 最近一条（对齐 Grimoire Instead） |
 | 2026-05-25 | v0.3 | OQ-07-06 裁决：Cancel vs Replacement 看触发先后 |
+| 2026-06-18 | v0.4 | **§3.2** 冲突裁决栈；**Cannot 绝对优先**；修正 Replacement ≠ Silver Rule |
+| 2026-06-18 | v0.4.1 | Grim 移出主路径；对齐 00 §6 电子版完备规则 |
+| 2026-06-18 | v0.5 | **§3.2–§3.4** 同时点竞争分型；Replacement=最后 initiate；链 Grimoire Instead + Simultaneous Resolution |
 | 2026-05-25 | v0.4 | OQ-07-02 裁决：TRANSFER_AFFLICTION 独立且不算 heal |

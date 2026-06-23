@@ -28,14 +28,17 @@ class EnemyState:
 
 | 事件 | 行为 |
 |---|---|
-| Spawn at location with investigator | auto engage（除非 aloof） |
+| **Encounter draw，无 Spawn 文本**（非 Aloof） | **`spawn_engaged(drawer)`** — 原子进场 engaged + threat area；**无** auto engage 过程 |
+| Spawn at location **有** Spawn 文本（或效果指定 location） | 先进 location → **`auto_engage_at_location`**（除非 Aloof） |
 | Investigator enters location with ready unengaged enemy | auto engage |
 | Enemy moves into location with investigator | auto engage |
 | Exhausted enemy readies at location with investigator (Upkeep 4.3) | auto engage |
-| Engage action | 手动 engage aloof/exhausted/他人 engaged |
+| **Engage action** | 手动 engage（与 spawn 无关的 **[action]**） |
 | Evade success | disengage → enemy at location |
-| Aloof spawn | at location, **not** in threat area |
+| **Aloof spawn**（含无 Spawn 的 encounter draw） | at drawer location，**unengaged**，**不**进 threat area |
 | Massive | ready: engaged with **all** at location; exhausted: none; **never** in threat area |
+
+**术语**：**`spawn_engaged`** = 进场时已是 engaged 状态（L0 一次提交）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标；**`Engage action`** = 调查员行动。三者 **不可** 混用。
 
 **多调查员同地点**：Lead Investigator 选 engage 目标（Prey 优先）。
 
@@ -180,15 +183,75 @@ Ready elusive 在 **attack resolves 后**（含 fail）：disengage all → move
 
 ## 7. Spawn
 
+> **规则来源**：Grimoire *Spawn*；FAQ *Spawning an Enemy*（draw vs location spawn）。
+
+### 7.1 三种进场模式（术语）
+
+| 模式 | 何时 | 行为 | 是否调用 `engage()` / auto engage |
+|---|---|---|---|
+| **`spawn_engaged(drawer)`** | Encounter draw，**无** `Spawn –` 文本，**非 Aloof** | `location := drawer.location`；`engaged_with := drawer`；进 **threat area** | **否** — 单 L0 原子 |
+| **`spawn_at_location` + `auto_engage_at_location`** | 有 `Spawn –` 文本，或效果 spawn 到 location | 先进合法 location；若非 Aloof → 按 §3 Engagement 选调查员 engage | **是** — auto engage 子流程 |
+| **`spawn_at_location`（Aloof）** | Aloof，任意 spawn 路径 | 进 location，**unengaged**，不进 threat area | **否** |
+
+**Engage action**（[03 §6](03-action-system.md)）与上表 **无关** — 仅调查员花费 action 手动 engage。
+
+### 7.2 算法（`EnemySystem.spawn_from_encounter_draw`）
+
 ```
-1. Parse spawn instruction（或 override from ability）
-2. 选合法 location（investigator 选若多选）
-3. 无法 spawn → discard，不 enter play
-4. 默认无 instruction → engaged with drawer, threat area
-5. Aloof → unengaged at location
+1. Parse spawn instruction（或 ability override）
+2. 若 instruction 为空（Framework 1.4 默认 draw）:
+     if aloof:
+       spawn_at_location(drawer.location)   # unengaged
+     else:
+       spawn_engaged(drawer)                # 原子；≠ auto engage
+   else:
+     loc := 选合法 location（drawer 选若多选）
+     if 无法 spawn → discard_to_owner_pile(enemy)   # 不 enter play；见 §7.4
+     spawn_at_location(loc)
+     if not aloof:
+       auto_engage_at_location(loc)         # Lead / Prey，见 §3
+3. Massive / 其他关键词在 spawn 提交后由 register 同步
 ```
 
----
+```gdscript
+## L0 原子：无 Spawn 文本的 encounter draw（非 Aloof）
+func spawn_engaged(enemy_id: StringName, drawer_id: StringName) -> void:
+    var loc := drawer_location(drawer_id)
+    place_in_play(enemy_id, loc)
+    enemy.engaged_with = drawer_id
+    add_to_threat_area(drawer_id, enemy_id)
+    # 禁止 nest ActionSystem.engage 或 auto_engage_at_location
+```
+
+### 7.3 与 E5 的对应
+
+遭遇抽牌 E5 → `seq.encounter.spawn` → 上表分支；见 [15 §17.4.1](15-timing-entry-catalog.md)。
+
+### 7.4 Spawn 失败：弃置到 **对应弃牌堆**
+
+Grimoire *Spawn*：若无合法 location spawn，**does not spawn, and is discarded instead**。
+
+| Owner | 弃置目标 | 典型 |
+|---|---|---|
+| **encounter deck**（`owner_id = encounter`） | **encounter discard pile** | 遭遇牌库抽出的 enemy |
+| **调查员 bearer**（weakness enemy） | 该调查员 **discard pile** | encounter cardtype weakness 等 |
+
+```gdscript
+## L0：按 CardInstance.owner_id 路由；不 enter play
+func discard_spawn_failed(enemy_id: StringName) -> void:
+    var owner := state.get_owner(enemy_id)
+    if owner == &"encounter":
+        mutator.discard_to_encounter_pile(enemy_id)
+    else:
+        mutator.discard_to_investigator_pile(enemy_id, owner)
+    # 视为「已 draw / 已结算 spawn 尝试」；Surge、AFTER 等仍按 E5 完成后的规则继续
+```
+
+**要点**：
+
+- **不是** removed from game；是 **owner 对应 discard pile**（与 defeat 路由一致，见 §8）。
+- Revelation（E4）**已结算** 后若 spawn 失败，仍 discard — spawn 失败 **不** 回溯显现。
+- `spawn_engaged` 路径下 drawer **无 location**（极端/setup 边界）→ v0 同 **`discard_spawn_failed`**（OQ-ENC-02）。
 
 ## 8. Defeat / Victory / Doomed
 
@@ -202,8 +265,13 @@ Ready elusive 在 **attack resolves 后**（含 fail）：disengage all → move
 
 ```gdscript
 class EnemySystem:
-    func spawn(enemy: EntityId, drawer: StringName, instruction: SpawnInstruction) -> Result
-    func engage(enemy: EntityId, inv: StringName) -> Result
+    func spawn_from_encounter_draw(enemy: EntityId, drawer: StringName) -> Result
+    func spawn_engaged(enemy: EntityId, drawer: StringName) -> Result   # L0；无 auto engage
+    func spawn_at_location(enemy: EntityId, location: EntityId) -> Result
+    func auto_engage_at_location(enemy: EntityId, location: EntityId) -> Result
+    func discard_spawn_failed(enemy: EntityId) -> Result   # §7.4；owner 路由 discard
+    func spawn(enemy: EntityId, drawer: StringName, instruction: SpawnInstruction) -> Result  # 委托 §7.2
+    func engage(enemy: EntityId, inv: StringName) -> Result             # Engage **action** 专用
     func disengage(enemy: EntityId) -> Result
     func hunter_patrol_move() -> void
     func resolve_phase_attacks() -> void
@@ -226,6 +294,8 @@ class EnemySystem:
 | EN-05 | Massive 2 investigators | 2 attacks then exhaust |
 | EN-07 | Massive batch 第 1 击后 card exhaust enemy | 第 2 击仍 resolve |
 | EN-06 | Elusive after AOO | flee + exhaust |
+| EN-08 | Spawn 指向未进场 location | **encounter discard**；不 enter play |
+| EN-09 | Weakness enemy spawn 失败 | **bearer discard pile** |
 
 ---
 
@@ -255,3 +325,5 @@ class EnemySystem:
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-03-02 补充：触发 / 时点 / 攻击效果三层结构 |
 | 2026-05-25 | v0.3 | OQ-08-02 裁决：Massive batch 锁定序列，中途 exhaust 不取消 |
+| 2026-06-18 | v0.4 | §3/§7 **`spawn_engaged` vs `auto_engage_at_location` vs Engage action**；对齐 15 §17 E5 |
+| 2026-06-18 | v0.4.1 | §7.4 spawn 失败 → **owner 对应 discard pile**；EN-08/09 |

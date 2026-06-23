@@ -11,6 +11,7 @@
 将《诡镇奇谈：卡牌版》（Arkham Horror: The Card Game, AHC LCG）的 2026 Core Set 规则抽象为**严谨、可运行、解耦**的电子系统，满足：
 
 1. **Framework Event** 与 **Player Window** 严格分离，对齐 Grimoire 时点图。
+2. **规则完备性**：电子版 **引擎即规则**；时点、冲突、Cannot/Replacement/tier 等须 **可判定、可重放**（见 [07 §3.2](design/07-effect-resolution.md)）。**Grim Rule 不是** 主路径（§6）。
 2. 所有卡牌逻辑通过 **数据定义 + 可选脚本** 实现，引擎只提供通用原语。
 3. 子系统边界清晰，可独立测试与迭代。
 4. 扩展包通过 `CardPack` / `ScenarioPack` 插件化接入，无需修改核心引擎。
@@ -238,19 +239,57 @@ res://tests/
 
 ---
 
-## 6. 规则优先级（可配置）
+## 6. 规则优先级与 Grim Rule（实体 vs 电子版）
 
 | 规则 | 行为 |
 |---|---|
 | **Golden Rule** | 卡牌文本 > 规则书 |
-| **Silver Rule** | 遭遇卡 > 玩家卡；双遭遇/双玩家由 Lead Investigator 裁定 |
-| **Grim Rule** | 无法共识时选对调查员最不利的结果；**不**用于 Lead Investigator 多选一 |
+| **Cannot** | 卡面 / RESTRICTION 的 **cannot** **绝对**；其他能力 **不得** countermand（Grimoire *Cannot*）。见 [07 §3.2](design/07-effect-resolution.md) |
+| **Silver Rule** | 两卡文本 **直接矛盾且无法调和** 时：遭遇 > 玩家；双遭遇/双玩家 → 队长。**不**适用于 Cannot；**不**适用于 Replacement 栈（见 [07 §3.2–§3.4](design/07-effect-resolution.md)） |
+| **Grim Rule**（Grimoire） | 玩家 **查不到规则 / 无法共识 / 局进行不下去** 时，选当时认为 **对通关最不利** 的方式继续。**含** 时点冲突——但前提是 **人肉查书失败**，不是规则体系的正式答案 |
 
-引擎配置项 `RulesConfig.grim_rule_mode`（**默认 `AUTO_WORST`**，已裁决 OQ-00-01）：
+### 6.1 实体桌游：Grim 的真实角色
 
-- `AUTO_WORST`：**默认。** 无法共识时自动选最差结果并写入 GameLog
-- `PAUSE_FOR_RULING`：暂停等待玩家查 Grimoire（可选）
-- `DISABLED`：仅用于单元测试
+Grimoire 明确：Grim Rule **is not an exhaustive answer**；目的是 **lookup 太费时** 时 **让实体局继续**，障碍主要来自 **玩家对规则不熟 + 无法快速查到**，而非规则书「缺了一条」。
+
+时点冲突、Replacement 争用等，在桌游里 **本应有 Grimoire 答案**；落到 Grim 说明 **桌上没能及时找到那条答案**。
+
+### 6.2 电子版：完备规则，Grim 非主路径
+
+本项目的 **产品目标** 是 **数字化 Grimoire + 引擎内建完备裁定**：
+
+| 实体桌游 | 电子版引擎 |
+|---|---|
+| 玩家查 PDF / 讨论 | **TimingCatalog、SequenceCatalog、07 §3.2 冲突栈** 直接给出结果 |
+| 不熟规则 → 可能 Grim | **不应** 因「不熟悉」触发 Grim |
+| Grim 含 timing 冲突 | timing 冲突应在 **层 0–4 + 队长合法多选** 内 **确定性 resolve** |
+| 落到 Grim = 继续游戏 | 落到 Grim = **`RulesEngineGap`**（实现漏洞 / 设计师未决 OQ），应 **assert / 日志 / 修引擎**，而非 silent 猜最糟 |
+
+```text
+正常对局路径：
+  Cannot → Replacement → Cancel → tier → Silver → Lead 合法多选
+  （永不进入 Grim）
+
+仅以下情况可配置 Grim / AUTO_WORST：
+  · headless 回归探测未覆盖分支（显式 seed config）
+  · 故意模拟实体桌「查书失败」（house / 教学模式，可选）
+  · 设计师 OQ 尚未关闭且允许临时继续（应标记 TECH_DEBT）
+```
+
+### 6.3 `RulesConfig.grim_rule_mode`
+
+| 模式 | 用途 |
+|---|---|
+| **`DISABLED`**（**引擎默认**） | 冲突栈无法 resolve → **push_error / EventRecord `RULES_GAP`**；测试 fail fast |
+| `AUTO_WORST` | headless / 探索性回归；**非** 正式对局默认 |
+| `PAUSE_FOR_RULING` | 带 UI 时人工裁定（极少） |
+
+```gdscript
+# rules/config/rules_config.gd — 默认 DISABLED；GameBootstrap.create(..., config) 可覆盖
+var grim_rule_mode: GrimRuleMode = GrimRuleMode.DISABLED
+```
+
+**Invariant（目标）**：任意合法游戏状态转移，引擎 **不依赖** Grim Rule 即可推进。Grimoire 的 Grim 条文保留为 **对照说明**，解释实体桌为何存在该兜底，**不**作为电子版冲突解析的主算法。
 
 ---
 
@@ -346,7 +385,7 @@ class EventRecord:
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-00-06 | **需要 headless**。v1 支持单进程 `godot --headless` 无 UI 规则运行；Domain/Rules 与 UI 解耦，共用 `GameContext`；测试经 `RuleTestHarness` + 固定 seed + `EventRecord`/`state_hash` 回归。详见 §5.5。 | 2026-05-25 |
-| OQ-00-01 | 默认 **`AUTO_WORST`**；`PAUSE_FOR_RULING` 为可选配置。见 §6。 | 2026-05-25 |
+| OQ-00-01 | 电子版默认 `grim_rule_mode`？ | **`DISABLED`**；冲突由 07 §3.2 完备栈 resolve；`AUTO_WORST` 仅 headless 显式开启。Grim = 实体查书受阻兜底，非引擎主路径。见 §6。 | 2026-06-18 |
 
 ---
 
@@ -358,3 +397,4 @@ class EventRecord:
 | 2026-05-25 | v0.2 | 增加 Framework Step 索引引用 |
 | 2026-05-25 | v0.3 | OQ-00-06 裁决：v1 支持 headless 规则运行（§5.5） |
 | 2026-05-25 | v0.4 | OQ-00-01 默认 AUTO_WORST；OQ-IDX-02 EventRecord 扩展 |
+| 2026-06-18 | v0.5 | **§6** Grim Rule 实体 vs 电子版；默认 `DISABLED`；完备规则 invariant |

@@ -1,6 +1,6 @@
 # 04 — 技能检定引擎 (SkillTestEngine)
 
-> **依赖**：[02-framework-flow.md](02-framework-flow.md), [05-chaos-bag.md](05-chaos-bag.md), [07-effect-resolution.md](07-effect-resolution.md)  
+> **依赖**：[02-framework-flow.md](02-framework-flow.md), [05-chaos-bag.md](05-chaos-bag.md), [06-ability-initiation.md](06-ability-initiation.md), [07-effect-resolution.md](07-effect-resolution.md), [15-timing-entry-catalog.md](15-timing-entry-catalog.md)  
 > **规则来源**：Grimoire IV. Skill Test Timing (p.30)
 
 ---
@@ -39,7 +39,7 @@ class SkillTestContext:
     var nested_depth: int
     var on_success: Callable                  # ST.7 callbacks
     var on_fail: Callable
-    var peril: bool                           # 禁止协助；见 §4 Peril 范围
+    var peril: bool                           # 镜像 frame.peril；L4 走 RestrictionEvaluator（§4）
     var auto_fail: bool
     var auto_success: bool
     var encounter_resolution_id: StringName   # 非空 = 仍在某次 encounter 结算帧内
@@ -72,7 +72,7 @@ class SkillTestEngine:
 ### 3.2 ST.2 Commit
 
 - Performing investigator：任意张 eligible（matching icon 或 wild）
-- 同地点其他 investigator：**1 张**（Peril 时禁止）
+- 同地点其他 investigator：**1 张**（险境时 **Cannot**，见 §4）
 - 每张 matching icon +1 skill value
 - Max committed per test 限制（如 Perception max 1）
 - 不付 resource cost
@@ -136,66 +136,220 @@ base = investigator.get_skill(skill)
 
 ---
 
-## 4. Commit 规则详表
+## 4. Peril（险境 · 持续 Cannot）
+
+> **规则来源**：Grimoire *Peril*、Framework 1.4 step 2；[15 §17 E3](15-timing-entry-catalog.md)。  
+> **已裁决**：OQ-04-02 — 覆盖 **整个 encounter 结算帧**（含 Surge 链、spawn/discard、嵌套检定）。
+
+### 4.1 规则语义
+
+Grimoire *Peril*（*cannot* 措辞）：
+
+- **drawer**（正在结算该遭遇的调查员）**cannot confer** with other players；
+- **其他调查员** **cannot** play cards、**cannot** trigger abilities、**cannot** commit cards to **that investigator’s skill test(s)**；
+- 约束持续于 **「the peril encounter is resolving」** — 引擎 = **`EncounterResolutionFrame` 在栈上且 `frame.peril == true`** 的整段 E2–E7（含 Surge 后续圈）。
+
+> **术语**：Grimoire 规定 skill **不能 play**，只能从 hand **commit**。`FORBID_PLAY` 仅 asset/event；skill 限制为 `FORBID_COMMIT_TO_TEST`。
+
+| 属性 | 说明 |
+|---|---|
+| **触发** | E3：drawn 卡带 **peril** 关键词 → `frame.peril = true` |
+| **粘性** | 帧内一旦为 true，**Surge 抽到无 peril 的卡也不解除**；直至 **frame pop** |
+| **Surge 后补触发** | 若首圈无 peril、Surge 圈 E3 遇到 peril 卡 → 当圈置 true，**之后** 全帧生效 |
+| **performing** | 帧内 skill test 的 performing = drawer（除非文本改 performing；改 performing **不** 解除他人 Cannot） |
+
+**不是**：Player Window 开关、Eligibility 软过滤、同时点 tier 竞争、Replacement/Silver Rule 可推翻的禁止。
+
+### 4.2 引擎定位：**RESTRICTION Cannot**，非竞争
+
+对齐 [07-effect-resolution §3.2](07-effect-resolution.md) 冲突链 **第 0 步**；险境与卡面 *cannot* **同路径** — `RegistrationStore` + `RestrictionEvaluator`（[06 §7](06-registration-buff-model.md)）。
+
+```text
+同一时刻有玩家/能力想行动
+  0. RESTRICTION Cannot（含 E3 险境 Register）→ **不得发生**
+  1. 同时点竞争（Replacement / Forced / Triggered tier …）
+  …
+```
+
+| 对比 | Peril（译后） | Replacement 竞争 | Silver Rule |
+|---|---|---|---|
+| 机制类 | **RESTRICTION**（E3 Register） | 同时点 **替换竞争** | 文本不可调和 |
+| 能否 countermand | **否**（Grimoire *Cannot*） | 最后 initiate 赢 | 队长 / 遭遇优先 |
+| drawer 打出 asset/event | **允许** | — | — |
+| 队友 [fast] 打出 asset/event | **禁止**（`FORBID_PLAY`） | 不进入竞争 | — |
+| 队友 commit skill 到 drawer 检定 | **禁止**（`FORBID_COMMIT_TO_TEST`） | — | — |
+
+**Invariant**：任何卡牌能力 **不得** countermand 已挂 RESTRICTION；无需 Silver Rule / Grim Rule。
+
+### 4.3 EncounterResolutionFrame 生命周期
+
+与 [15 §17.5](15-timing-entry-catalog.md) 一致。`frame.peril` = E3 已触发（粘性镜像）；**裁决看 Registration**，不看散落 `if frame.peril`。
+
+```gdscript
+class EncounterResolutionFrame:
+    var id: StringName
+    var drawer_id: StringName
+    var peril: bool = false                         # E3 粘性镜像；Condition / ctx.peril
+    var peril_restrictions_registered: bool = false # E3 Register 幂等
+    var cards_resolved: Array[StringName]
+    var surge_depth: int = 0
+```
+
+```text
+push frame (E0)
+  … E3 seq.encounter.check_peril
+       → frame.peril = true（粘性）
+       → Composition Register（WHILE_ENCOUNTER_FRAME × 3 RESTRICTION）
+  … E4–E6（含 Surge 回 E1）
+  … 嵌套 skill test（bind frame.id）
+pop frame (E7) → unregister_by_encounter_frame(frame.id)
+```
+
+### 4.4 E3 · Register RESTRICTION（非独立 Policy）
+
+**禁止** `PerilPolicy` / 平行 cannot 分支。E3 = catalog 一步 **Composition**：
+
+```gdscript
+## RegistrationTemplate.peril_encounter_frame(drawer_id, frame_id)
+## Lifetime: WHILE_ENCOUNTER_FRAME(frame_id)
+## Buffs:
+##   FORBID_PLAY            — actor != drawer_id
+##   FORBID_TRIGGER         — actor != drawer_id
+##   FORBID_COMMIT_TO_TEST  — actor != drawer_id 且 test.performing == drawer_id
+
+class EncounterPeril:
+    static func apply_e3_check(game_ctx, frame, has_peril_keyword) -> void
+    static func detach_frame(game_ctx, frame) -> void   # E7 pop 时 Unregister
+    static func sync_test_context_from_frame(test_ctx, memory) -> void
+```
+
+`AbilityUnitRef.from_framework(&"seq.encounter.check_peril")` 作 provenance。
+
+### 4.5 禁止清单（actor × action）
+
+| Actor | Play asset/event | Trigger 能力 | Commit skill 到 drawer 检定 | Confer |
+|---|---|---|---|---|
+| **drawer** | ✓ | ✓ | ✓（performing） | ✗ 规则（Presentation） |
+| **其他调查员** | **Cannot** | **Cannot** | **Cannot** | — |
+| **Forced（他人控）** | — | **Cannot** initiate | — | — |
+| **Encounter Forced** | — | 引擎 E4 自动 resolve | — | — |
+
+Player Window 仍可出现；COLLECT / Initiation 在 **L4** 经 `RestrictionEvaluator` 使他人能力 **不进 eligible**。
+
+### 4.6 拦截点（统一 `RestrictionEvaluator`）
+
+| 入口 | 检查时机 | Intent |
+|---|---|---|
+| **EligibilityPipeline L4** | COLLECT / PRE_INITIATE | `PLAY` / `TRIGGER` |
+| **ActionSystem.play_asset / play_event** | 付 cost 前 | `PLAY` |
+| **SkillTestEngine.commit_card** | commit 前 | `COMMIT_TO_TEST` |
+| **CompositionExecutor draw atom** | execute 前 | `DRAW`（已有 C-05） |
+| **EffectResolutionGraph** step 4 | submit 前 | 按 op 映射 Intent |
+
+```gdscript
+var reason := RestrictionEvaluator.block_reason(
+    RestrictionEvaluator.Intent.COMMIT_TO_TEST,
+    actor_id, game_ctx.registrations, skill_test)
+if reason != &"":
+    return fail(reason)   # L4 / commit / play 等同语义
+```
+
+### 4.7 SkillTestContext.peril 与 frame 同步
+
+- `begin_test` → `EncounterPeril.sync_test_context_from_frame`：`ctx.peril = frame.peril`（**镜像**，供 Condition）。
+- **commit 裁决**只查 `RestrictionEvaluator`，**禁止**仅读 `ctx.peril`。
+- 嵌套检定：自 frame 复制 `peril` 镜像；RESTRICTION 仍 active 直至 frame pop。
+
+### 4.8 测试
+
+| ID | 场景 | 预期 |
+|---|---|---|
+| ST-06 / PERIL-01 | E3 Register 后队友 commit | `peril_no_assist` |
+| PERIL-02 | 队友 play asset | `restriction_forbid_play`（待接 ActionSystem） |
+| PERIL-03 | 队友 [reaction] | L4 `FORBID_TRIGGER` fail |
+| PERIL-04 | Surge 第二圈无 peril 关键词 | `frame.peril` 仍 true；Register 不重复 |
+| PERIL-05 | `pop_encounter_resolution_frame` | Unregister；队友 commit 允许 |
+| PERIL-06 | drawer play / trigger | 允许 |
+
+---
+
+## 4.9 RulesMemory：遭遇帧栈
+
+```gdscript
+func push_encounter_frame(frame: EncounterResolutionFrame) -> void
+func pop_encounter_frame() -> EncounterResolutionFrame
+func peek_encounter_frame() -> EncounterResolutionFrame
+func top_encounter_frame_if_peril() -> EncounterResolutionFrame
+```
+
+| 时机 | 调用 |
+|---|---|
+| `seq.draw.encounter` RESOLVE 开头 | `push_encounter_frame(...)` |
+| E3 | `EncounterPeril.apply_e3_check(game_ctx, frame, has_peril)` |
+| E7 | `GameContext.pop_encounter_resolution_frame()` → pop + Unregister |
+
+---
+
+## 4.10 ApplicationContext 与 tags
+
+`top_encounter_frame_if_peril()` 非空时注入 `peril_active`、`referents["encounter_drawer_id"]` — **仅 L3 / UI**；L4 **仍走 RestrictionEvaluator**。
+
+---
+
+## 4.11 E3 · Catalog 接线
+
+```text
+seq.encounter.check_peril
+  RESOLVE:
+    EncounterPeril.apply_e3_check(game_ctx, memory.peek_encounter_frame(), has_keyword(peril))
+```
+
+| 文件 | 职责 |
+|---|---|
+| `rules/encounter/encounter_peril.gd` | E3 Register / detach / test sync |
+| `rules/registration/restriction_evaluator.gd` | 统一 Cannot 裁决 |
+| `rules/registration/registration_template.gd` | `peril_encounter_frame` |
+| `core/timing/encounter_resolution_frame.gd` | 帧 + peril 粘性镜像 |
+| `rules/skill_test/skill_test_engine.gd` | commit → RestrictionEvaluator |
+
+**待接**：ActionSystem play、Eligibility L4、EffectGraph step 4（同一 evaluator）。
+
+---
+
+## 5. Commit 规则详表
 
 | 规则 | 实现 |
 |---|---|
 | Wild [wild] | 匹配任意 skill |
 | 无 matching icon | 不可 commit |
-| Peril | 仅 performing 可 commit（见 §4.1） |
+| Peril | 仅 performing 可 commit（**Cannot**，§4） |
 | Max N committed | 按 title 计数 |
 | Commit 归属 | **`SkillTestContext.committed` 列表**；卡 **zone 仍为 HAND** 直至 ST.8 discard（已裁决 OQ-01-03）。不用 LIMBO |
 | LIMBO | 仅 **Event/Treachery 显现结算中** 等场景；与 committed skill **无关** |
 
-### 4.1 Peril 范围（已裁决 OQ-04-02）
-
-**Peril 覆盖该 encounter 的整个结算期间**，不限于首张 skill test。
-
-| 范围 | 说明 |
-|---|---|
-| **Encounter 结算帧** | 从 draw → revelation → spawn/discard → surge 递归，直至该 encounter **完全结算完毕** |
-| **Peril 约束** | 帧内**所有** skill test：仅 **performing investigator**（通常为 drawer）可 commit / play cards / 被咨询 |
-| **嵌套检定** | ST.4/ST.7 等触发的后续检定须等**前一检定 ST.8 完成后**才开始；但仍在 encounter 结算帧内 → **仍不可协助** |
-
-```gdscript
-class EncounterResolutionFrame:
-    var drawer: StringName
-    var encounter: EntityId
-    var peril: bool
-    var pending_nested_tests: Array[SkillTestContext]  # 父检定 ST.8 后依次执行
-
-func can_commit(from_inv: StringName, test: SkillTestContext) -> bool:
-    if test.peril and from_inv != test.performing_investigator:
-        return false
-    return ...  # 常规 matching icon 等
-```
-
-嵌套检定**不**继承父检定的 committed / tokens / difficulty；**Peril 状态**继承自当前 encounter 结算帧（若 `encounter_resolution_id` 仍 active 且 `peril == true`）。
-
 ---
 
-## 5. 嵌套检定（已裁决 OQ-04-02）
+## 6. 嵌套检定（已裁决 OQ-04-02）
 
 当 ST.4 / ST.7 文本发起新检定时：
 
 1. **不**在父检定中途插入；**入队**，待父检定 **ST.8 完成**后执行（父检定 ST.5–ST.7 **不等待**子检定，见 OQ-04-03）
 2. 子检定独立 committed / tokens / difficulty
-3. 若父检定处于 **Peril encounter 结算帧**内，子检定 `peril = true`，队友仍不可 commit
+3. 子检定 `peril` 自 **EncounterResolutionFrame** 复制（§4.7）；队友 **Cannot** commit
 
 ```gdscript
 func queue_nested_test(parent: SkillTestHandle, child_ctx: SkillTestContext) -> void:
     child_ctx.nested_depth = parent.ctx.nested_depth + 1
-    if parent.ctx.encounter_resolution_id != "":
+    if parent.ctx.encounter_resolution_id != &"":
         var frame := state.get_encounter_frame(parent.ctx.encounter_resolution_id)
         child_ctx.encounter_resolution_id = frame.id
         child_ctx.peril = frame.peril
     frame.pending_nested_tests.append(child_ctx)
-    # 父检定继续 ST.5–ST.8；ST.8 后 drain pending_nested_tests
 ```
 
 ---
 
-## 6. SkillTestAPI（Script 门面）
+## 7. SkillTestAPI（Script 门面）
 
 ```gdscript
 class SkillTestAPI:
@@ -212,7 +366,7 @@ class SkillTestAPI:
 
 ---
 
-## 7. 与 ActionSystem 集成
+## 8. 与 ActionSystem 集成
 
 | 行动 | 检定 |
 |---|---|
@@ -225,20 +379,20 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 
 ---
 
-## 8. 测试场景
+## 9. 测试场景
 
 | ID | 场景 | 预期 |
 |---|---|---|
 | T-01 | 成功 investigate | discover 1 clue |
 | T-02 | Auto-fail token | fail regardless |
 | T-03 | 队友 commit 1 张 | +1 modifier |
-| T-04 | Peril treachery test | 队友不可 commit |
+| T-04 | Peril treachery test | 队友不可 commit（§4 · PERIL-01） |
 | T-05 | Deduction committed 成功 investigate | +1 clue（ST.7） |
 | T-06 | 空 deck draw during test 引发 horror | 与检定独立 |
 
 ---
 
-## 9. Open Questions
+## 10. Open Questions
 
 | ID | 优先级 | 问题 |
 |---|---|---|
@@ -251,13 +405,14 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-04-01 | Player Window 在 **ST.2 前后**（commit 后一次）及 **ST.3–ST.4 整链结束后**（`PW_SKILL_TEST_AFTER_REVEAL`，进入 ST.5 前一次）。「Reveal another token」**仅递归 ST.3→ST.4**，不回 ST.2，递归中 **无 Player Window**。 | 2026-05-25 |
-| OQ-04-02 | **Peril 覆盖 encounter 整个结算期间。** 嵌套检定须等前一检定 **ST.8** 后开始，但仍在结算帧内 → **仍不可协助 commit**。见 §4.1、§5。 | 2026-05-25 |
-| OQ-04-03 | **否。** 子检定入队，父检定继续 ST.5→ST.8；子检定于父 **ST.8 后**执行。由 OQ-04-02 嵌套时序推出。 | 2026-05-25 |
-| OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（作为失败效果的一部分）。ST.6 仅计算 `fail_by`。见 05 §5。 | 2026-05-25 |
+| OQ-04-02 | **Peril = 遭遇帧内持续 Cannot**（§4）；嵌套检定 ST.8 后入队仍不可协助。见 §4、§6。 | 2026-05-25 |
+| OQ-04-03 | **否。** 子检定入队，父检定继续 ST.5→ST.8；子检定于父 **ST.8 后**执行。 | 2026-05-25 |
+| OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（ST.6 仅算 `fail_by`）。 | 2026-05-25 |
+| OQ-PERIL-01 | drawer **confer** 仅 Presentation / 联机礼仪；引擎不阻断 drawer 行动。 | 2026-06-18 |
 
 ---
 
-## 10. 变更记录
+## 11. 变更记录
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
@@ -265,3 +420,6 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | 2026-05-25 | v0.2 | OQ-04-01 裁决；修正 ST.3 无 Window、ST.4 后 Window 仅整链一次 |
 | 2026-05-25 | v0.3 | OQ-04-02 裁决：Peril 覆盖 encounter 结算帧；嵌套检定 ST.8 后入队仍不可协助 |
 | 2026-05-25 | v0.4 | OQ-05-03 裁决：fail by 效果在 ST.7 |
+| 2026-06-18 | v0.6 | **§4 收紧**：险境 = E3 Register RESTRICTION；删 `PerilPolicy`；统一 `RestrictionEvaluator` |
+| 2026-06-18 | v0.5 | **§4 Peril 重设计**：持续 Cannot、L4/07 冲突链第 0 步；PERIL-01～06 |
+| 2026-06-18 | v0.5.1 | **§4.9–11** 帧栈 / AppContext / E3 catalog；`EncounterResolutionFrame`；PERIL-01/04/05 测试 |

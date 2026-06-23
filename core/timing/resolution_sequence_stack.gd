@@ -149,6 +149,7 @@ func _dispatch_handlers(frame: ResolutionSequenceFrame, phase: AhcEnums.Sequence
 		matched.append(handler)
 	if matched.is_empty():
 		return 0
+	# 类别优先级：整 tier 排序；同类内顺序待 ResponseWindow.resolve_batch（06 §8.2）。
 	matched.sort_custom(func(a: SequenceHandler, b: SequenceHandler) -> bool:
 		return int(a.tier) < int(b.tier)
 	)

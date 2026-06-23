@@ -95,25 +95,31 @@ class SequenceHandler:
 
 队长 **不**替其他调查员决定「用不用 [reaction]」。**选用不是 Eligibility 关卡**；选用后必须 Initiation（L6–L7）。
 
-### 5.2 Tier（同一轮 collect 内）
+### 5.2 类别优先级 vs 同类内自排
+
+与 [06 §8](06-ability-initiation.md)、[07 §3.2–§3.4](07-effect-resolution.md) 一致：**先按类别整批**，**再在同类内**自排或 **Instead 自动最近 initiate**。
+
+| 层 | 谁定 | 规则 |
+|---|---|---|
+| **类别优先级** | 引擎 | `AbilityCategoryTier`：FORCED → FRAMEWORK → TRIGGERED → DELAYED → LISTENER |
+| **同类内顺序** | 玩家 / 流程 | 仅 **同一 tier 内**：Forced 批内队长选序；[reaction] 控制者选用；均已选用后队长排 TRIGGERED 批内顺序 |
 
 ```text
-1. Forced
-2. Framework 内嵌
-3. [reaction] Triggered
-4. LISTENER（after_timing，AFTER-B）
+1. FORCED      ← 整类 resolve 完
+2. FRAMEWORK
+3. TRIGGERED   ← [reaction] 选用 + 类内队长选序
+4. DELAYED
+5. LISTENER    ← AFTER-B
 ```
+
+**禁止**：用队长选序把 [reaction] 插到 Forced 之前或中间。
 
 ### 5.3 窗口流水线
 
 ```text
 打开 TimingWindow
   → EligibilityPipeline COLLECT（L0–L5）→ eligible 集合
-  → ResponseWindow：
-       Forced：自动 Initiation → resolve（可 nest）
-       [reaction]：控制者选用 → Initiation → resolve
-       多条选用：队长排序
-       或：关闭本轮响应
+  → ResponseWindow.resolve_batch(eligible)   # 按 tier 分批；同类内 Initiation + nest
   → nest 返回 → 若窗口仍 open → refresh → 再 COLLECT
 关闭 TimingWindow
 ```
@@ -151,7 +157,7 @@ loop:
     response_round += 1
     eligible = EligibilityPipeline.run(COLLECT) \ resolved_handlers
     if eligible.empty(): break
-    ResponseWindow.resolve_batch(eligible)   # 内含 Initiation + nest
+    ResponseWindow.resolve_batch(eligible)   # 按 tier 分批；同类内 Initiation + nest
     mark resolved
 close(XX)
 ```
@@ -197,8 +203,12 @@ sequences.end_ability_resolution()
 | `core/timing/timing_window.gd` | 开放窗口 / response_round |
 | `core/timing/sequence_handler.gd` | source_id / controller / tier |
 | `core/timing/response_prompt.gd` | ResponseWindow UI 骨架 |
-| `core/timing/resource_gain_service.gd` | gain 统一入口 |
-| `core/timing/triggering_condition.gd` | `kind` → 将映射 `sequence_id` |
+| `core/timing/sequence_catalog.gd` | `run` / `nest` / `nest_batch` 流程注册表 |
+| `bootstrap/sequence_catalog_bootstrap.gd` | 内置 flow：draw 子序列、`seq.enter_hand`、`seq.gain_resource` |
+| `core/timing/draw_investigator_flow.gd` | 调查员抽牌 RESOLVE 编排 |
+| `core/timing/draw_subflow_handlers.gd` | `collect_one` / `empty_piles_defeated` resolve |
+| `core/timing/resource_gain_service.gd` | gain 薄 facade → `catalog.run(seq.gain_resource)` |
+| `core/timing/triggering_condition.gd` | `kind` + draw 子 flow triggers |
 | （待建）`TimingCatalog` | 规范 emit（[15](15-timing-entry-catalog.md)） |
 
 ---
@@ -210,3 +220,5 @@ sequences.end_ability_resolution()
 | 2026-05-25 | v0.1 | 初稿；SequenceStack 竖切 |
 | 2026-05-25 | v0.2 | TimingWindow refresh；[reaction] 禁自响应；控制者 vs 队长 |
 | 2026-05-25 | v0.3 | Eligibility 分工；链到 15 TimingCatalog |
+| 2026-06-18 | v0.4 | §11 补充 `SequenceCatalog`、draw 子 flow 实现映射 |
+| 2026-06-18 | v0.5 | **§5.2** 链 07 同时点竞争 / replacement |

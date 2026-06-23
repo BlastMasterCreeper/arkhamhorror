@@ -17,10 +17,11 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)
 	ctx.registrations = RegistrationStore.new()
 	ctx.mutator = StateMutator.new(ctx.state)
-	ctx.resource_gain = ResourceGainService.new(ctx.mutator)
 	ctx.card_abilities = CardAbilityService.new(ctx.mutator)
-	ctx.enter_hand = EnterHandService.new(ctx.card_abilities)
-	ctx.draw_investigator = DrawInvestigatorService.new(ctx.mutator, ctx.enter_hand)
+	ctx.sequence_catalog = SequenceCatalog.new()
+	SequenceCatalogBootstrap.register_builtin(ctx.sequence_catalog, ctx.mutator, ctx.card_abilities)
+	ctx.resource_gain = ResourceGainService.new(ctx.sequence_catalog)
+	ctx.draw_investigator = DrawInvestigatorService.new(ctx.sequence_catalog)
 	ctx.modifiers = ModifierEngine.new(ctx.registrations)
 	ctx.composition = CompositionExecutor.new(
 		ctx.state, ctx.registrations, ctx.mutator, ctx.log
@@ -62,7 +63,10 @@ static func register_enter_hand_test_definitions() -> void:
 		&"rev_take_horror",
 		&"revelation:0",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.take_horror(bind.controller_id, 1)
+			return CompositionNode.adjust_marker(
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
+				1
+			)
 	)
 	CardRegistry.register_definition(
 		&"rev_limbo_discard",

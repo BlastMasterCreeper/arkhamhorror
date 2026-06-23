@@ -24,6 +24,11 @@ static func from_sequence(
 		ctx.framework_step = game_ctx.framework.current_step
 	if game_ctx.memory:
 		ctx.referents = game_ctx.memory.get_referents(trigger.controller_id)
+		var peril_frame := game_ctx.memory.top_encounter_frame_if_peril()
+		if peril_frame != null:
+			if not ctx.tags.has(&"peril_active"):
+				ctx.tags.append(&"peril_active")
+			ctx.referents["encounter_drawer_id"] = peril_frame.drawer_id
 	match phase:
 		AhcEnums.SequencePhase.WHEN:
 			ctx.timing = StringName("when_%s" % trigger.kind)

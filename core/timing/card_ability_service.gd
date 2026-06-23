@@ -31,6 +31,8 @@ func resolve_revelations(
 	if card == null:
 		return false
 	var units := CardRegistry.revelation_units_at(card.id.definition_id)
+	if game_ctx.config != null and game_ctx.config.enter_hand_timing != null:
+		units = game_ctx.config.enter_hand_timing.order_ability_units(units)
 	if units.is_empty():
 		return false
 	var bind := AbilityBindContext.new()

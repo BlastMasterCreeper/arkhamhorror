@@ -26,8 +26,14 @@ alwaysApply: true
 - **唯一入口**：timing `enter_hand`（`seq.enter_hand`）。不区分 draw / add、牌库 / 遭遇 / 其他来源。
 - **效果体**：`CardRegistry.register_revelation` → `CompositionNode` 序列。
 - **显现后**：若卡仍在 **LIMBO**，`finalize_limbo_discard` 弃入 `CardRegistry.limbo_discard_pile`（`owner_discard` | `encounter_discard`）。
+- **显现顺序**：设计师尚未裁定 **FORCED 类内** 多张牌顺序；`EnterHandTimingPolicy` 占位。**跨类**（Forced vs [reaction]）走 06 §8 类别优先级，非玩家自排。
 - 物理落点（HAND vs LIMBO）由卡定义 `enter_zone` 决定，与入口 timing 正交。
 
 ## 实现约定
 
-- 新增效果：扩展 Composition atom / Register + `AbilityUnitRef`；不要新增语义 dispatch 或按规则原文分支的特殊 service。
+- **L0 效果**：Composition atom / Register + `AbilityUnitRef`；不进 Service。
+- **规则流程**：`SequenceCatalog.register_run` / `register_nest_batch`（见 `SequenceCatalogBootstrap`）；不要为每个 flow 新建 Service 类。
+- **子 flow**：复杂 RESOLVE 拆成 catalog 条目（如 `seq.draw.collect_one`）；编排循环留在 flow handler，不进 L0。
+- **冲突裁决**：见 [07 §3.2–§3.4](docs/design/07-effect-resolution.md) — **Cannot** = `RESTRICTION` + `RestrictionEvaluator`（含险境 E3 Register，[04 §4](docs/design/04-skill-test-engine.md)）；**同时点竞争**（含 **替换竞争**）；**tier**；**Silver Rule**；**电子版** Grim 非主路径（00 §6）。
+- **薄 facade**：`DrawInvestigatorService` 等仅 `catalog.run(flow_id, params)`，便于 composition / action 调用。
+- 不要新增语义 dispatch 或按规则原文分支的特殊 service。

@@ -148,17 +148,52 @@ Scenario 后：
 
 ## 10. Weakness 与 Revelation（分流）
 
+> **规则来源**：Grimoire *Weakness* — resolved differently depending upon **cardtype**。
+
 | 维度 | 说明 |
 |---|---|
-| **Weakness** | 卡**子类型**（缺陷/诅咒/故事线等）；**不一定**有 Revelation 能力 |
-| **Revelation** | **能力类型**（**Revelation –**）；可在 encounter、weakness、Dilemma 等上出现 |
+| **Weakness** | 卡**子类型**（缺陷/诅咒/伤/敌人/故事线等）；与 asset/event/skill/**enemy/treachery** 等 **cardtype 正交** |
+| **Revelation** | **能力类型**（**Revelation –**）；可在 encounter 牌、weakness、Dilemma 等上出现；**按 `has_revelation` 判定**，非 weakness 子类型 |
+
+### 10.1 按 cardtype 的 Weakness 路由
+
+| Weakness cardtype | Grimoire 行为摘要 | 引擎管线 |
+|---|---|---|
+| **Enemy / Treachery** | as if drawn from **encounter deck** | `seq.draw.encounter.resolve_bound`（[15 §17.6](15-timing-entry-catalog.md)） |
+| **Asset** | Revelation（若有）→ **add to hand** → 作 asset 使用 | `seq.draw.investigator` D2–D3 + `seq.enter_hand` |
+| **Event** | 同上 → 作 event 使用 | 同上 |
+| **Skill** | 同上 → 作 skill 使用 | 同上 |
+
+```text
+Weakness 子类型          Cardtype 轴
+     │                    ├── ENEMY / TREACHERY  → 遭遇 draw 管线
+     │                    ├── ASSET              → 调查员 draw → hand → play asset
+     └─ (flaw/story…)     ├── EVENT              → 调查员 draw → hand → play event
+                          └── SKILL              → 调查员 draw → hand → commit skill
+```
+
+### 10.2 与 Revelation / 无显现
 
 | 情况 | Draw / 入手时 |
 |---|---|
-| Encounter cardtype weakness | 当 **encounter draw** resolve（非调查员 deck→hand D3） |
-| Player cardtype weakness，**无** Revelation | 进入手牌；**无**显现 nest |
-| Player cardtype（含 weakness、Dilemma 等），**有** Revelation | 进入手牌时 nest `seq.revelation.on_enter_hand`（[15 §16](15-timing-entry-catalog.md) D3） |
-| Bearer | 加入 deck 不占 size |
+| Encounter cardtype weakness | **encounter** E2–E6；**非** 调查员 D3 enter_hand |
+| Player cardtype weakness，**无** Revelation | D3 进 hand；**无** `seq.enter_hand` nest |
+| Player cardtype（含 weakness），**有** Revelation | D3 `nest_batch seq.enter_hand`（[15 §16](15-timing-entry-catalog.md)） |
+| 非 draw 入手（任意 weakness） | Grimoire *as if just drawn* → 上表对应管线 |
+| Bearer |  scenario 中加入 deck/hand/threat **不占** deck size |
+
+### 10.3 引擎判定（禁止混用）
+
+```gdscript
+## 路由只看 cardtype + is_weakness；勿写 if weakness: always encounter
+func is_encounter_cardtype_weakness(def: CardDefinition) -> bool:
+    return def.is_weakness and def.cardtype in [CardType.ENEMY, CardType.TREACHERY]
+
+func is_player_cardtype_weakness(def: CardDefinition) -> bool:
+    return def.is_weakness and def.cardtype in [CardType.ASSET, CardType.EVENT, CardType.SKILL]
+```
+
+**Invariant**：asset/event/skill weakness **永不** 调用 `seq.draw.encounter`（除非未来印刷 explicit 双类型 — 当前无）。
 
 ---
 
@@ -187,6 +222,10 @@ class InvestigatorCampaignSystem:
 | I-04 | Permanent Collector | +5 deck size |
 | I-05 | Draw weakness in opening | set aside, redraw |
 | I-06 | Resign 4 player | [per_investigator] still 4 |
+| WKN-01 | Draw **asset** weakness w/ Revelation | D3 enter_hand；**非** encounter draw |
+| WKN-02 | Draw **event** weakness no Revelation | hand only；no enter_hand nest |
+| WKN-03 | Draw **enemy** weakness from deck | `resolve_bound`；spawn_engaged or discard_spawn_failed |
+| WKN-04 | Draw **skill** weakness | D3 hand；可 commit 至检定 |
 
 ---
 
@@ -208,3 +247,4 @@ class InvestigatorCampaignSystem:
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
+| 2026-06-18 | v0.2 | **§10** Weakness 全 cardtype 路由（asset/event/skill vs enemy/treachery）；WKN-01～04 |

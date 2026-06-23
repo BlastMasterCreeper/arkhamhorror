@@ -3,6 +3,35 @@ extends RefCounted
 
 var phase_trace: Array[String] = []
 var _referents: Dictionary = {}
+var _encounter_frame_stack: Array[EncounterResolutionFrame] = []
+
+
+func push_encounter_frame(frame: EncounterResolutionFrame) -> void:
+	if frame != null:
+		_encounter_frame_stack.append(frame)
+
+
+func pop_encounter_frame() -> EncounterResolutionFrame:
+	if _encounter_frame_stack.is_empty():
+		return null
+	return _encounter_frame_stack.pop_back()
+
+
+func peek_encounter_frame() -> EncounterResolutionFrame:
+	if _encounter_frame_stack.is_empty():
+		return null
+	return _encounter_frame_stack[_encounter_frame_stack.size() - 1]
+
+
+func top_encounter_frame_if_peril() -> EncounterResolutionFrame:
+	var frame := peek_encounter_frame()
+	if frame != null and frame.peril:
+		return frame
+	return null
+
+
+func encounter_frame_depth() -> int:
+	return _encounter_frame_stack.size()
 
 
 func clear_trace() -> void:
@@ -45,4 +74,5 @@ func duplicate_memory() -> RulesMemory:
 	var copy := RulesMemory.new()
 	copy.phase_trace = phase_trace.duplicate()
 	copy._referents = _referents.duplicate(true)
+	copy._encounter_frame_stack = _encounter_frame_stack.duplicate()
 	return copy

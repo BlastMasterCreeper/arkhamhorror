@@ -33,7 +33,7 @@ enum AbilityKind {
 |---|---|---|
 | Constant | 引擎 | 查询 modifier 时 |
 | Forced | 引擎 | timing point 自动 |
-| Revelation | 引擎 | 按 **能力** 分流：遭遇 draw / 玩家牌 **入手**（`has_revelation_ability`）；≠ weakness 子类型 |
+| Revelation | 引擎 | 按 **能力** + **cardtype** 分流：遭遇 E4 / 玩家 D3 `seq.enter_hand`（`has_revelation`）；weakness 路由见 [11 §10](11-investigator-campaign.md) |
 | Free `[free]` | 玩家 | Player Window 或文本指定 |
 | Reaction `[reaction]` | 玩家 | when/at/after 条件 |
 | Action `[action]` | 玩家 | Activate action |
@@ -156,7 +156,7 @@ class EligibilityPipeline:
 | **L1** | 注册还有效？ | 源卡在场、Lifetime、UNTIL_FIRED |
 | **L2** | 结构位置对吗？ | tier、禁自响应、Forced vs [reaction] 槽位 |
 | **L3** | 卡面情景满足？ | `Condition.matches(ctx)` |
-| **L4** | 全局规则禁止？ | RESTRICTION buff |
+| **L4** | 全局规则禁止？ | **RESTRICTION buff**（含 E3 险境 Register）；`RestrictionEvaluator`；**cannot 绝对** |
 | **L5** | 次数还有？ | Limit / Max；Forced 不过→跳过；[reaction] 不过→不出候选 |
 | **L6** | 费用可付？ | 分类型 Evaluator（见 §5.3） |
 | **L7** | 效果能落地？ | `CompositionDryRunner`；目标仍合法 |
@@ -317,23 +317,55 @@ UI 高亮、AI、headless 在 **Initiation PRE_RESOLVE** 调用 `dry_run()`；CO
 
 ## 8. TimingBus 与优先级
 
-> **collect eligible** 走 `EligibilityPipeline.run(..., COLLECT)`（L0–L5），见 §5。窗口交互见 §6、[14 §5、§8](14-nested-sequences.md)。
+> **collect eligible** 走 `EligibilityPipeline.run(..., COLLECT)`（L0–L5），见 §5。窗口交互见 §6、[14 §5、§8](14-nested-sequences.md)。  
+> **同时点竞争**总览（含 **替换竞争** / Replacement）见 [07 §3.2–§3.4](07-effect-resolution.md)。
 
-### 8.1 同一 Timing Point 顺序
+**两层模型（必须区分）：**
 
+| 层 | 名称 | 裁决者 | 含义 |
+|---|---|---|---|
+| **A** | **类别优先级**（`AbilityCategoryTier`） | **引擎** | 不同**能力类别**之间的整体先后；**跨类不可**由玩家对调 |
+| **B** | **同类内顺序** | **玩家 / 流程** | **仅当**两条能力 **同属一类 tier** 时，才进入选用、队长选序、注册序等 |
+
+```text
+COLLECT → eligible（按 tier 分组）
+  → 先 resolve 整个 FORCED 类（类内自排）
+  → 再 resolve 整个 FRAMEWORK 类（类内自排）
+  → 再 TRIGGERED 类 …
+  → 禁止「一条 [reaction] 插进 Forced 批次中间」
 ```
-1. Forced abilities（全部 resolve 完）
-2. Framework 内嵌效果
-3. Triggered abilities（玩家选择顺序，见下）
-4. Delayed effects（若 timing 匹配）
+
+### 8.1 类别优先级（跨类 · 引擎固定）
+
+同一 Timing Window 内，**类别**按下列顺序 **整批** 推进；**上一类全部 resolve 完** 才进入下一类：
+
+| 顺序 | `AbilityCategoryTier` | 典型能力 |
+|---|---|---|
+| 1 | **FORCED** | Forced – when/after/at；显现（Revelation）nest |
+| 2 | **FRAMEWORK** | 框架步内嵌 forced / 规则流程 |
+| 3 | **TRIGGERED** | `[reaction]` / `[action]` / `[free]` 触发 |
+| 4 | **DELAYED** | 延时替换、延时监听（timing 匹配时） |
+| 5 | **LISTENER** | `after_timing` 放出（AFTER-B） |
+
+```gdscript
+## 与 SequenceHandler.Tier 对齐；数值越小越先（整类 batch）。
+enum AbilityCategoryTier { FORCED, FRAMEWORK, TRIGGERED, DELAYED, LISTENER }
 ```
 
-### 8.2 Forced vs Reaction
+> **与 Cannot / Silver Rule / Replacement 分工**：**Cannot** 非竞争、绝对拦截（07 §3.2）。**同时点竞争** 含 **替换竞争**（Instead：最后 initiate，§3.4）与 **能力竞争**（本节 tier + 类内自排）。**Silver Rule** 仅文本无法调和。
 
-- Forced **优先于** 引用同一 timing 的 [reaction]
-- 多个 Forced：**Lead Investigator** 选顺序（若无可选则按注册顺序）
-- 多个 [reaction] 同时 eligible 且 **均已选用**：**Lead Investigator** 选结算顺序（已裁决 OQ-06-03）
-- [reaction] **是否选用**：**控制者**（非队长）；选用后必须 Initiation
+### 8.2 同类内顺序（仅同 tier · 玩家自排）
+
+**不得**用「队长选序」跨越 §8.1 的类别边界。同类内规则：
+
+| 同类情况 | 自排规则 |
+|---|---|
+| 多个 **replacement** 同 trigger 且 **conflict** | **不**自排；**最后 initiate** 自动生效（07 §3.4）。Forced 同时时 **先** 队长定 initiate 顺序 |
+| 多个 **Forced** | **Lead Investigator** 选结算顺序；无可选 UI 时 → 注册顺序 |
+| 多个 **[reaction]** eligible | **控制者**对每条 **选用 / 不选用**（非队长） |
+| 多个 **[reaction]** **均已选用** | **Lead Investigator** 在 **TRIGGERED 类内** 排顺序（OQ-06-03） |
+| 多个 **LISTENER** | 默认注册顺序；若设计师要求可选则另定 |
+| **enter_hand** 多张牌显现（均属 FORCED 类） | `EnterHandTimingPolicy` 管 **类内** 牌序（见 [15 §16.4.1](15-timing-entry-catalog.md)） |
 
 ### 8.3 When / At / After
 
@@ -422,7 +454,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 
 | ID | 裁决 | 日期 |
 |---|---|---|
-| OQ-06-01 | Replacement 冲突：**Encounter 卡 > 玩家卡**；同优先级 **Lead Investigator** 选择。见 [07 §7](07-effect-resolution.md)。 | 2026-05-25 |
+| OQ-06-01 | Replacement 冲突：**最后 initiate**。见 [07 §3.4、§7](07-effect-resolution.md)。 | 2026-06-18 |
 | OQ-06-02 | 打出/发动须 **dry-run**（**L7 终端**）；COLLECT 不批量 dry-run。见 §7.2。 | 2026-05-25 |
 | OQ-06-03 | 多个 [reaction] 同时选用后：**Lead Investigator** 选顺序；选用权在控制者。见 §8.2。 | 2026-05-25 |
 | OQ-IDX-02 | Initiation 各步完整 **EventRecord**，与 Framework 同级。见 §4 pipeline。 | 2026-05-25 |
@@ -436,3 +468,6 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-06-01/02 裁决：Replacement 优先级 + Initiation dry-run |
 | 2026-05-25 | v0.3 | AbilitySpec；Eligibility L0–L7；ResponseWindow；Hook→(sequence_id,slot)；链到 15 |
+| 2026-06-18 | v0.4 | **§8** 两层优先级：类别整批 vs 同类内自排 |
+| 2026-06-18 | v0.4.1 | 移除 Replacement→Silver Rule 误链；指向 07 §3.2 Cannot |
+| 2026-06-18 | v0.4.2 | §8 链 07 同时点竞争；§8.2 replacement 类内自动最近 initiate |

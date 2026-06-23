@@ -61,18 +61,45 @@ func _execute_atom(node: CompositionNode) -> void:
 			else:
 				_mutator.execute_draw_instruction(node.inv_id, amount)
 			_log.log(AhcEnums.LogCategory.CARD, "composition:draw", {"inv": node.inv_id, "amount": amount})
-		&"take_horror":
-			_mutator.take_horror(node.inv_id, maxi(node.atom_amount, 1))
+		&"move_card":
+			if node.to_slot != null:
+				_mutator.move_card(node.card_id, node.to_slot)
+				_log.log(AhcEnums.LogCategory.CARD, "composition:move_card", {"card": node.card_id})
+		&"adjust_marker":
+			if node.marker_slot != null:
+				_mutator.adjust_marker(node.marker_slot, node.marker_delta)
+				_log.log(
+					AhcEnums.LogCategory.CARD,
+					"composition:adjust_marker",
+					{"delta": node.marker_delta}
+				)
+		&"set_flag":
+			_mutator.set_flag(node.inv_id, node.flag_field, node.flag_value)
+			_log.log(AhcEnums.LogCategory.CARD, "composition:set_flag", {"bearer": node.inv_id})
+		&"reveal_to_controller":
+			_mutator.reveal_to_controller(node.card_id, node.inv_id)
 			_log.log(
 				AhcEnums.LogCategory.CARD,
-				"composition:take_horror",
-				{"inv": node.inv_id, "amount": node.atom_amount}
+				"composition:reveal_to_controller",
+				{"card": node.card_id, "controller": node.inv_id}
 			)
-		&"discard_from_hand":
-			_mutator.discard_from_hand(node.card_id, node.inv_id)
+		&"pop_deck_top":
+			var card_id := _mutator.pop_deck_top(node.inv_id)
+			if _game_ctx != null and _game_ctx.memory != null and card_id != &"":
+				DrawInvestigatorComposition.append_pending(_game_ctx.memory, node.inv_id, card_id)
 			_log.log(
 				AhcEnums.LogCategory.CARD,
-				"composition:discard_from_hand",
+				"composition:pop_deck_top",
+				{"inv": node.inv_id, "card": card_id}
+			)
+		&"shuffle_discard_into_deck":
+			_mutator.shuffle_discard_into_deck(node.inv_id)
+			_log.log(AhcEnums.LogCategory.CARD, "composition:shuffle_discard", {"inv": node.inv_id})
+		&"commit_enter_hand":
+			_mutator.commit_enter_hand(node.card_id, node.inv_id)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:commit_enter_hand",
 				{"inv": node.inv_id, "card": node.card_id}
 			)
 		_:

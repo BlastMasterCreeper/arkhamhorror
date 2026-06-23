@@ -37,7 +37,8 @@
 | OQ-04-02 | [04-skill-test](design/04-skill-test-engine.md) | 嵌套检定的 Peril 是否继承父 encounter？ | **是。** Peril 覆盖 encounter **整个结算帧**；嵌套检定 ST.8 后入队，仍在帧内 → 不可协助。见 04 §4.1、§5。 |
 | OQ-04-03 | [04-skill-test](design/04-skill-test-engine.md) | Symbol 效果 ST.4 发起嵌套检定，父检定 ST.5 是否等待？ | **否。** 子检定入队；父检定 ST.5→ST.8 不等待；子检定父 ST.8 后执行。 |
 | OQ-05-03 | [05-chaos-bag](design/05-chaos-bag.md) | Spreading Flames Skull「fail by 2+ draw Fire!」— fail by 在 ST.6 还是 ST.7 判定？ | **ST.7。** 作为失败效果的一部分结算；ST.6 仅判定 fail 并计算 `fail_by`。见 05 §5。 |
-| OQ-06-01 | [06-ability](design/06-ability-initiation.md) / [07-effect](design/07-effect-resolution.md) | 多条 Replacement 冲突 — LIFO 还是最后注册？ | **Encounter 卡优先于玩家卡**；同优先级 **Lead Investigator** 选择。见 07 §7。 |
+| OQ-06-01 | 多条 Replacement 同 triggering condition 冲突 | **最后 initiate**（`initiation_seq` 最大）。Grimoire *Instead*。见 07 §3.4、§7。 |
+| OQ-REPL-01 | [07-effect](design/07-effect-resolution.md) | `initiation_seq` 与嵌套/would 改 condition 后的边界 | **v0**：COMMENCE 单调序号；would 改 condition 后原 condition 候选剔除。嵌套 initiate 见 §3.4。待卡牌用例补测。 |
 | OQ-06-02 | [06-ability](design/06-ability-initiation.md) | Play restriction 是否需要 dry-run simulate？ | **需要。** L7 终端 dry-run；COLLECT 不批量 dry-run。见 06 §7.2。 |
 | OQ-07-02 | [07-effect](design/07-effect-resolution.md) | Moving damage/horror 是否独立 `EffectOp.TRANSFER_AFFLICTION` 且不算 heal？ | **是。** 独立 `TRANSFER_AFFLICTION`；**不算 heal**。见 07 §4.1。 |
 | OQ-07-06 | [07-effect](design/07-effect-resolution.md) | Replacement stack 与 Cancel 交互：cancel 已替换后的 effect 还是原始 trigger？ | **看触发先后。** Replacement 一般为 Delayed，与 Forced 同优先级。Replacement 先 → Cancel 无法发动；Cancel 先 → Replacement 不结算。见 07 §6.1。 |
@@ -51,7 +52,7 @@
 
 | ID | 来源 | 问题 | 裁决 |
 |---|---|---|---|
-| OQ-00-01 | [00-architecture](00-architecture-overview.md) | 电子版默认 `grim_rule_mode`？ | **默认 `AUTO_WORST`**；`PAUSE_FOR_RULING` 可选。见架构 §6。 |
+| OQ-00-01 | [00-architecture](00-architecture-overview.md) | 电子版默认 `grim_rule_mode`？ | **`DISABLED`**；完备冲突栈；`AUTO_WORST` 仅 headless 显式配置。Grim = 实体查书兜底。见 00 §6。 |
 | OQ-00-02 | [00-architecture](00-architecture-overview.md) | 多人 hot-seat vs 网络：Lead Investigator 裁定权是否仅本地主机持有？ | |
 | OQ-00-04 | [00-architecture](00-architecture-overview.md) | 实现阶段是否迁移 addon，还是在 `arkhamhorror` 全新实现并仅参考 API 形状？ | |
 | OQ-IDX-01 | [00-framework-step-index](design/00-framework-step-index.md) | ST.1–ST.8 是否注册为 `FrameworkStep` 子枚举还是独立 `SkillTestStep`？ | **独立 `SkillTestStep`**，`SkillTestEngine` 独占。见 IDX Skill Test 表。 |
@@ -63,7 +64,14 @@
 | OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **D2–D3 区间**（§16.3）。 |
 | OQ-TIMING-02 | [15-timing](design/15-timing-entry-catalog.md) | Move leave/enter | **MOVE_ATOMIC** 单 brick、单 entry。见 15 §5.3。 |
 | OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when | **SPLIT**；WOULD=D1 后 D2 前；WHEN=D2–D3。见 15 §16。 |
-| OQ-TIMING-04 | [15-timing](design/15-timing-entry-catalog.md) | 玩家牌 **Revelation 能力** 于入手时的 nest 时点 | **ENTER_HAND（D3）**；`seq.revelation.on_enter_hand`；**按 `has_revelation_ability` 判定**，与 weakness 子类型无关。见 15 §16.2。 |
+| OQ-TIMING-04 | [15-timing](design/15-timing-entry-catalog.md) | 玩家牌 **Revelation 能力** 于入手时的 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按 `has_revelation` 判定**，与 weakness 子类型无关。见 15 §16.2。 |
+| OQ-TIMING-05 | [15-timing](design/15-timing-entry-catalog.md) | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **设计师待定**；FORCED 类内自排；`EnterHandTimingPolicy`。跨类优先级见 06 §8.1。 |
+| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN 区间 | **E2–E5**（§17.3）；Surge 每圈独立 WHEN。 |
+| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | **E1 bind 后、E2 前**（§17.3）。 |
+| OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **顺序** full resolve（含 Surge 链）再下一张。见 15 §17.2 E6。 |
+| OQ-ENC-01 | [15-timing §17](design/15-timing-entry-catalog.md) | 遭遇 deck + discard 皆空 | v0：**RULES_GAP**。 |
+| OQ-ENC-02 | [08-enemy §7.4](design/08-enemy-engagement.md) | drawer 无 location 时 spawn_engaged | v0：**`discard_spawn_failed`**。 |
+| OQ-PERIL-01 | [04-skill-test §4](design/04-skill-test-engine.md) | drawer confer | **Presentation**；引擎不拦 drawer 行动。 |
 | OQ-08-03 | [08-enemy](design/08-enemy-engagement.md) | Alert 时 enemy 不在 threat area 是否 deal？ | **是**，仍 deal。见 08 §6.4。 |
 | OQ-01-05 | [01-state](design/01-game-state-zones.md) | 多 copy 同 title 非 exceptional 卡 in play：instance_id 与 definition_id 在 Target 解析中的优先级？ | |
 | OQ-02-03 | [02-framework](design/02-framework-flow.md) | `INV_2_2` 选顺序：电子化是否每轮都 UI 选，还是允许「固定顺时针」可选规则？ | |
@@ -122,7 +130,7 @@
 | OQ-09-02 | [09-location](design/09-location-graph.md) | 同 title 多 copy location（罕见）— 仍算 different locations — 如何 instance 化？ | |
 | OQ-09-04 | [09-location](design/09-location-graph.md) | Farthest location 计算：blocked path 是否参与？ | |
 | OQ-09-06 | [09-location](design/09-location-graph.md) | Location enter play already revealed — clues 在 setup 还是 enter 时放？ | |
-| OQ-10-04 | [10-scenario](design/10-scenario-encounter.md) | Encounter deck shuffle mid-ability — 先 resolve 完再 shuffle？ | |
+| OQ-10-04 | [10-scenario](design/10-scenario-encounter.md) | Encounter deck shuffle mid-ability | v0：**collect 立即洗**；嵌套效果 defer shuffle（[15 §17.11](design/15-timing-entry-catalog.md)）。 |
 | OQ-10-06 | [10-scenario](design/10-scenario-encounter.md) | Forbidden Secrets surge 条件 — 引擎 evaluate 时机在 revelation 前还是后？ | |
 | OQ-11-03 | [11-investigator](design/11-investigator-campaign.md) | Epic mode transfer — 电子版是否 v1 不实现？ | |
 | OQ-11-05 | [11-investigator](design/11-investigator-campaign.md) | Random basic weakness 池 — 按 product 还是 global 池？ | |
@@ -181,7 +189,8 @@
 | 2026-05-25 | v0.3.8 | OQ-04-01 裁决：Reveal another 递归无 Player Window |
 | 2026-05-25 | v0.3.9 | OQ-04-02 裁决：Peril 覆盖 encounter 结算帧 |
 | 2026-05-25 | v0.4.0 | OQ-05-03 裁决：fail by 效果在 ST.7 |
-| 2026-05-25 | v0.4.1 | OQ-06-01/02 裁决：Replacement 优先级 + Initiation dry-run |
+| 2026-05-25 | v0.4.1 | OQ-06-01/02 裁决：Replacement + Initiation dry-run |
+| 2026-06-18 | v0.4.4 | OQ-06-01 细化：最后 initiate；新增 OQ-REPL-01；07 §3.2–§3.4 同时点竞争 |
 | 2026-05-25 | v0.4.2 | OQ-07-06 裁决：Cancel vs Replacement 触发先后 |
 | 2026-05-25 | v0.4.3 | OQ-07-02 裁决：TRANSFER_AFFLICTION 不算 heal |
 | 2026-05-25 | v0.4.4 | OQ-08-02 裁决：Massive batch 锁定攻击序列 |

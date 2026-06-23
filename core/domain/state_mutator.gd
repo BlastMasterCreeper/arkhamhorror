@@ -10,27 +10,38 @@ func _init(state: GameStateStore) -> void:
 	_information = InformationExecutor.new(state)
 
 
+func state() -> GameStateStore:
+	return _state
+
+
 func information() -> InformationExecutor:
 	return _information
 
 
+## L0 · AtomMoveCard
 func move_card(card_id: StringName, to: CardSlot) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
 	var owner_inv := _state.registry.get_investigator(card.owner_id)
-	if owner_inv == null:
-		return false
-	_remove_from_pile(card, owner_inv)
+	if owner_inv != null:
+		_remove_from_pile(card, owner_inv)
+	elif card.zone == AhcEnums.Zone.LIMBO:
+		pass
+	if to.owner_id == &"encounter":
+		return _insert_encounter_discard(card)
 	var target_inv := _state.registry.get_investigator(to.owner_id)
 	if target_inv == null:
 		return false
 	if not _insert_into_pile(card, target_inv, to):
 		return false
 	card.zone = _zone_for_pile(to.pile)
+	if to.pile == AhcEnums.PileKind.INV_HAND:
+		card.controller_id = to.owner_id
 	return true
 
 
+## L0 · AtomTransferMarker
 func transfer_marker(kind: AhcEnums.MarkerKind, amount: int, from: MarkerSlot, to: MarkerSlot) -> bool:
 	if amount <= 0:
 		return false
@@ -40,6 +51,34 @@ func transfer_marker(kind: AhcEnums.MarkerKind, amount: int, from: MarkerSlot, t
 	return true
 
 
+## L0 · AtomAdjustMarker
+func adjust_marker(at: MarkerSlot, delta: int, clamp_min: int = 0) -> bool:
+	if delta == 0:
+		return true
+	if at.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
+		return _adjust_investigator_marker(at.bearer_id, at.kind, delta, clamp_min)
+	if at.bearer_kind == AhcEnums.BearerKind.GLOBAL:
+		return _adjust_pool_marker(at.kind, delta, clamp_min)
+	return false
+
+
+## L0 · AtomSetFlag
+func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Variant) -> bool:
+	match field:
+		AhcEnums.FlagField.ELIMINATED:
+			var inv := _state.registry.get_investigator(bearer_id)
+			if inv == null:
+				return false
+			inv.eliminated = bool(value)
+			return true
+	return false
+
+
+## L0 · AtomSetRef — 待扩展
+func set_ref(_bearer_id: StringName, _field: StringName, _ref_id: StringName) -> bool:
+	return false
+
+
 func peek_deck_top(inv_id: StringName) -> StringName:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null or inv.deck.is_empty():
@@ -47,38 +86,22 @@ func peek_deck_top(inv_id: StringName) -> StringName:
 	return inv.deck[0] as StringName
 
 
-## D1 bind：返回将抽的 instance，牌仍在 deck。
 func bind_deck_top(inv_id: StringName) -> StringName:
 	return peek_deck_top(inv_id)
 
 
-## D2：仅改牌面可见性，不改 zone。
-func reveal_drawn_card(card_id: StringName, controller_id: StringName) -> bool:
-	return _information.reveal_to_controller(card_id, controller_id)
-
-
-## D3：deck → hand（牌须仍在 deck 堆列表中）。
-func enter_hand_from_deck(card_id: StringName, inv_id: StringName) -> bool:
+func deck_is_empty(inv_id: StringName) -> bool:
 	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null or not inv.deck.has(card_id):
-		return false
-	inv.deck.erase(card_id)
-	return _enter_hand(card_id, inv_id)
+	return inv == null or inv.deck.is_empty()
 
 
-func _enter_hand(card_id: StringName, inv_id: StringName) -> bool:
+func discard_is_empty(inv_id: StringName) -> bool:
 	var inv := _state.registry.get_investigator(inv_id)
-	var card := _state.registry.get_card(card_id)
-	if inv == null or card == null:
-		return false
-	card.zone = AhcEnums.Zone.HAND
-	card.controller_id = inv_id
-	inv.hand.append(card_id)
-	return true
+	return inv == null or inv.discard.is_empty()
 
 
-## 从牌库顶取下 instance（仍保持 zone=DECK，待 reveal/入手）。
-func take_top_from_deck(inv_id: StringName) -> StringName:
+## 从牌库顶取下 instance（脱离 deck pile；zone 暂留 DECK，待 reveal/入手）。
+func pop_deck_top(inv_id: StringName) -> StringName:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null or inv.deck.is_empty():
 		return &""
@@ -87,117 +110,58 @@ func take_top_from_deck(inv_id: StringName) -> StringName:
 	return card_id
 
 
-## Grimoire Drawing Cards：一次指令抽 amount 张；≥2 同时 reveal+入手；空库 mid-draw 洗弃牌堆并完成。
-func execute_draw_instruction(inv_id: StringName, amount: int) -> Dictionary:
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null:
-		return {"ok": false, "error": "unknown_investigator", "drawn": [], "drew": false, "shuffled": false, "shuffles": 0, "horror_taken": 0, "defeated": false}
-	if amount <= 0:
-		return {"ok": true, "drawn": [], "drew": false, "shuffled": false, "shuffles": 0, "horror_taken": 0, "defeated": false}
-	var pending: Array[StringName] = []
-	var shuffles := 0
-	var horror_taken := 0
-	while pending.size() < amount:
-		if inv.deck.is_empty():
-			if inv.discard.is_empty():
-				inv.eliminated = true
-				return _draw_instruction_result(pending, shuffles, horror_taken, true)
-			_shuffle_discard_into_deck(inv)
-			shuffles += 1
-			horror_taken += 1
-			inv.horror_taken += 1
-		var card_id := take_top_from_deck(inv_id)
-		if card_id == &"":
-			if inv.discard.is_empty():
-				return _draw_instruction_result(pending, shuffles, horror_taken, true)
-			continue
-		pending.append(card_id)
-	for card_id in pending:
-		if not reveal_drawn_card(card_id, inv_id):
-			push_warning("StateMutator: reveal failed for %s" % card_id)
-	for card_id in pending:
-		if not enter_hand_entry(card_id, inv_id):
-			push_warning("StateMutator: enter_hand_entry failed for %s" % card_id)
-	return _draw_instruction_result(pending, shuffles, horror_taken, false)
+## Information brick · D2
+func reveal_to_controller(card_id: StringName, controller_id: StringName) -> bool:
+	return _information.reveal_to_controller(card_id, controller_id)
 
 
-## enter_hand 入口：按卡定义进入 HAND 或 LIMBO（显现唯一 timing 的物理落点）。
-func enter_hand_entry(card_id: StringName, inv_id: StringName) -> bool:
-	var inv := _state.registry.get_investigator(inv_id)
-	var card := _state.registry.get_card(card_id)
-	if inv == null or card == null:
-		return false
-	if inv.deck.has(card_id):
-		inv.deck.erase(card_id)
-	match CardRegistry.enter_hand_zone(card.id.definition_id):
-		AhcEnums.Zone.LIMBO:
-			return enter_limbo(card_id, inv_id)
-		_:
-			return _enter_hand(card_id, inv_id)
-
-
-func enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
+## D3：按卡定义进入 HAND 或 LIMBO。
+func commit_enter_hand(card_id: StringName, inv_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
-	var inv := _state.registry.get_investigator(card.owner_id)
-	if inv != null:
-		_remove_from_pile(card, inv)
-	card.zone = AhcEnums.Zone.LIMBO
-	card.controller_id = controller_id
-	return true
+	match CardRegistry.enter_hand_zone(card.id.definition_id):
+		AhcEnums.Zone.LIMBO:
+			return _enter_limbo(card_id, inv_id)
+		_:
+			return move_card(card_id, CardSlot.hand_bottom(inv_id))
 
 
-## 显现后仍在 limbo → 弃入 CardRegistry 指定的牌堆。
+func enter_hand_from_deck(card_id: StringName, inv_id: StringName) -> bool:
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null or not inv.deck.has(card_id):
+		return false
+	inv.deck.erase(card_id)
+	return commit_enter_hand(card_id, inv_id)
+
+
+func reveal_drawn_card(card_id: StringName, controller_id: StringName) -> bool:
+	return reveal_to_controller(card_id, controller_id)
+
+
+func enter_hand_entry(card_id: StringName, inv_id: StringName) -> bool:
+	return commit_enter_hand(card_id, inv_id)
+
+
+func enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
+	return _enter_limbo(card_id, controller_id)
+
+
 func finalize_limbo_discard(card_id: StringName, controller_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null or card.zone != AhcEnums.Zone.LIMBO:
 		return false
 	match CardRegistry.limbo_discard_pile(card.id.definition_id):
 		&"encounter_discard":
-			return _discard_to_encounter_discard(card_id)
+			return move_card(card_id, CardSlot.encounter_discard_top())
 		_:
-			return _discard_to_owner_discard(card_id, controller_id)
+			return move_card(card_id, CardSlot.discard_top(controller_id))
 
 
-func _discard_to_owner_discard(card_id: StringName, owner_id: StringName) -> bool:
-	var inv := _state.registry.get_investigator(owner_id)
-	var card := _state.registry.get_card(card_id)
-	if inv == null or card == null:
-		return false
-	inv.discard.append(card_id)
-	card.zone = AhcEnums.Zone.DISCARD
-	card.owner_id = owner_id
-	return true
+func execute_draw_instruction(inv_id: StringName, amount: int) -> Dictionary:
+	return DrawInvestigatorFlow.run_mutator_only(self, inv_id, amount)
 
 
-func _discard_to_encounter_discard(card_id: StringName) -> bool:
-	var card := _state.registry.get_card(card_id)
-	if card == null:
-		return false
-	_state.encounter_discard.append(card_id)
-	card.zone = AhcEnums.Zone.DISCARD
-	return true
-
-
-func _draw_instruction_result(
-	drawn: Array[StringName],
-	shuffles: int,
-	horror_taken: int,
-	defeated: bool
-) -> Dictionary:
-	return {
-		"ok": true,
-		"drawn": drawn.duplicate(),
-		"drew": not drawn.is_empty(),
-		"shuffled": shuffles > 0,
-		"shuffles": shuffles,
-		"horror_taken": horror_taken,
-		"defeated": defeated,
-	}
-
-
-## D1→D2→D3 抽 1 张（测试/组合原子）。
 func draw_one_card_to_hand(inv_id: StringName) -> StringName:
 	var result := execute_draw_instruction(inv_id, 1)
 	var drawn: Array = result.get("drawn", [])
@@ -214,7 +178,11 @@ func perform_draw_action(inv_id: StringName) -> Dictionary:
 	return execute_draw_instruction(inv_id, 1)
 
 
-func _shuffle_discard_into_deck(inv: InvestigatorState) -> void:
+## Domain pile op（非 L0 效果原子；design 07a §6）。
+func shuffle_discard_into_deck(inv_id: StringName) -> void:
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return
 	for card_id in inv.discard:
 		var card := _state.registry.get_card(card_id)
 		if card:
@@ -222,6 +190,79 @@ func _shuffle_discard_into_deck(inv: InvestigatorState) -> void:
 	inv.deck = inv.discard.duplicate()
 	inv.deck.shuffle()
 	inv.discard.clear()
+
+
+func add_resources(inv_id: StringName, amount: int) -> void:
+	if amount <= 0:
+		return
+	adjust_marker(MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.RESOURCE), amount)
+
+
+func take_horror(inv_id: StringName, amount: int) -> void:
+	if amount <= 0:
+		return
+	adjust_marker(MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.HORROR_TAKEN), amount)
+
+
+func discard_from_hand(card_id: StringName, inv_id: StringName) -> bool:
+	return move_card(card_id, CardSlot.discard_top(inv_id))
+
+
+func _enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return false
+	var inv := _state.registry.get_investigator(card.owner_id)
+	if inv != null:
+		_remove_from_pile(card, inv)
+	card.zone = AhcEnums.Zone.LIMBO
+	card.controller_id = controller_id
+	return true
+
+
+func _insert_encounter_discard(card: CardInstance) -> bool:
+	_state.encounter_discard.append(card.id.instance_id)
+	card.zone = AhcEnums.Zone.DISCARD
+	return true
+
+
+func _adjust_investigator_marker(
+	inv_id: StringName,
+	kind: AhcEnums.MarkerKind,
+	delta: int,
+	clamp_min: int
+) -> bool:
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return false
+	match kind:
+		AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
+			if delta < 0 and inv.resource_pool + delta < clamp_min:
+				return false
+			inv.resource_pool = maxi(inv.resource_pool + delta, clamp_min)
+			return true
+		AhcEnums.MarkerKind.HORROR_TAKEN:
+			inv.horror_taken = maxi(inv.horror_taken + delta, clamp_min)
+			return true
+	return false
+
+
+func _adjust_pool_marker(kind: AhcEnums.MarkerKind, delta: int, clamp_min: int) -> bool:
+	var pool := _state.token_pool
+	match kind:
+		AhcEnums.MarkerKind.POOL_RESOURCE, AhcEnums.MarkerKind.RESOURCE:
+			pool.resource_available = maxi(pool.resource_available + delta, clamp_min)
+			return true
+		AhcEnums.MarkerKind.POOL_DAMAGE:
+			pool.damage_available = maxi(pool.damage_available + delta, clamp_min)
+			return true
+		AhcEnums.MarkerKind.POOL_HORROR:
+			pool.horror_available = maxi(pool.horror_available + delta, clamp_min)
+			return true
+		AhcEnums.MarkerKind.POOL_CLUE:
+			pool.clue_available = maxi(pool.clue_available + delta, clamp_min)
+			return true
+	return false
 
 
 func _remove_from_pile(card: CardInstance, inv: InvestigatorState) -> void:
@@ -235,10 +276,7 @@ func _remove_from_pile(card: CardInstance, inv: InvestigatorState) -> void:
 
 
 func _insert_into_pile(card: CardInstance, inv: InvestigatorState, to: CardSlot) -> bool:
-	var target_inv := _state.registry.get_investigator(to.owner_id)
-	if target_inv == null:
-		return false
-	var pile: Array = _pile_array(target_inv, to.pile)
+	var pile: Array = _pile_array(inv, to.pile)
 	if pile == null:
 		return false
 	card.owner_id = to.owner_id
@@ -296,24 +334,13 @@ func _take_from_pool(kind: AhcEnums.MarkerKind, amount: int) -> bool:
 
 
 func _give_to_pool(kind: AhcEnums.MarkerKind, amount: int) -> void:
-	var pool := _state.token_pool
-	match kind:
-		AhcEnums.MarkerKind.POOL_RESOURCE, AhcEnums.MarkerKind.RESOURCE:
-			pool.resource_available += amount
-		AhcEnums.MarkerKind.POOL_DAMAGE:
-			pool.damage_available += amount
-		AhcEnums.MarkerKind.POOL_HORROR:
-			pool.horror_available += amount
-		AhcEnums.MarkerKind.POOL_CLUE:
-			pool.clue_available += amount
+	_adjust_pool_marker(kind, amount, 0)
 
 
 func _take_from_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> bool:
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null:
-		return false
 	if kind == AhcEnums.MarkerKind.RESOURCE or kind == AhcEnums.MarkerKind.POOL_RESOURCE:
-		if inv.resource_pool < amount:
+		var inv := _state.registry.get_investigator(inv_id)
+		if inv == null or inv.resource_pool < amount:
 			return false
 		inv.resource_pool -= amount
 		return true
@@ -321,36 +348,4 @@ func _take_from_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amou
 
 
 func _give_to_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> void:
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null:
-		return
-	if kind == AhcEnums.MarkerKind.RESOURCE or kind == AhcEnums.MarkerKind.POOL_RESOURCE:
-		inv.resource_pool += amount
-
-
-func add_resources(inv_id: StringName, amount: int) -> void:
-	if amount <= 0:
-		return
-	_give_to_investigator(inv_id, AhcEnums.MarkerKind.RESOURCE, amount)
-
-
-func take_horror(inv_id: StringName, amount: int) -> void:
-	if amount <= 0:
-		return
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null:
-		return
-	inv.horror_taken += amount
-
-
-func discard_from_hand(card_id: StringName, inv_id: StringName) -> bool:
-	var inv := _state.registry.get_investigator(inv_id)
-	var card := _state.registry.get_card(card_id)
-	if inv == null or card == null or card.zone != AhcEnums.Zone.HAND:
-		return false
-	if not inv.hand.has(card_id):
-		return false
-	inv.hand.erase(card_id)
-	inv.discard.append(card_id)
-	card.zone = AhcEnums.Zone.DISCARD
-	return true
+	_adjust_investigator_marker(inv_id, kind, amount, 0)

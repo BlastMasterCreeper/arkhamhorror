@@ -16,7 +16,7 @@
 8. [design/06-ability-initiation.md](design/06-ability-initiation.md) — 能力、Initiation、**Eligibility L0–L7**、ResponseWindow
 9. [design/06-registration-buff-model.md](design/06-registration-buff-model.md) — **Registration / Buff 统一模型**
 10. [design/07-composition.md](design/07-composition.md) — **效果组合 Composition + dry-run**
-11. [design/07-effect-resolution.md](design/07-effect-resolution.md) — 效果解析（组合与包装）
+11. [design/07-effect-resolution.md](design/07-effect-resolution.md) — 效果解析（**§3.2–§3.4 同时点竞争 / Replacement**）
 12. [design/07-effect-primitives.md](design/07-effect-primitives.md) — **效果原子（L0）**
 13. [design/08-enemy-engagement.md](design/08-enemy-engagement.md) — 敌人与交战
 14. [design/09-location-graph.md](design/09-location-graph.md) — 地点与线索
@@ -46,4 +46,4 @@
 
 ## 版本
 
-设计草案 v0.3 · 2026-05-25（共 17 份文档 + 81 条 Open Questions）
+设计草案 v0.3 · 2026-06-18（共 17 份文档 + 81 条 Open Questions；§15 v0.3 含 SequenceCatalog draw 子 flow）

@@ -25,15 +25,22 @@ var legality: InitiationLegalityChecker
 var combat: CombatResolver
 var sequences: ResolutionSequenceStack
 var memory: RulesMemory
+var sequence_catalog: SequenceCatalog
 var resource_gain: ResourceGainService
 var draw_investigator: DrawInvestigatorService
 var card_abilities: CardAbilityService
-var enter_hand: EnterHandService
 
 var active_investigator_id: StringName = &""
 var performing_investigator_id: StringName = &""
 var lead_investigator_id: StringName = &""
 var skill_test_stack: Array[SkillTestContext] = []
+
+
+func pop_encounter_resolution_frame() -> EncounterResolutionFrame:
+	var frame := memory.pop_encounter_frame() if memory != null else null
+	if frame != null:
+		EncounterPeril.detach_frame(self, frame)
+	return frame
 
 
 func get_current_framework_step() -> AhcEnums.FrameworkStep:

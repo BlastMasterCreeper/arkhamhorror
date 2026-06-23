@@ -56,6 +56,32 @@ static func draw_investigator(
 	return t
 
 
+static func draw_collect_one(
+	controller_id: StringName,
+	after_timing: StringName = &"after_draw_collect_one"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("draw_collect_%s_%d" % [controller_id, Time.get_ticks_msec()])
+	t.kind = &"draw_collect_one"
+	t.controller_id = controller_id
+	t.tags = [&"draw_investigator", &"draw_collect"]
+	t.after_timing = after_timing
+	return t
+
+
+static func draw_empty_piles_defeated(
+	controller_id: StringName,
+	after_timing: StringName = &"after_draw_empty_piles_defeated"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("draw_empty_%s_%d" % [controller_id, Time.get_ticks_msec()])
+	t.kind = &"draw_empty_piles_defeated"
+	t.controller_id = controller_id
+	t.tags = [&"draw_investigator", &"draw_defeated"]
+	t.after_timing = after_timing
+	return t
+
+
 static func enter_hand(
 	controller_id: StringName,
 	card_id: StringName,

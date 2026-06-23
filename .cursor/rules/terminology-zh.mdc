@@ -1,0 +1,31 @@
+---
+description: 官方简中术语与用户偏好译名；对话与设计文档中文表述规范
+alwaysApply: true
+---
+
+# 术语（简中 · 用户规范）
+
+用户提供的官方/习惯译名优先于自行翻译。对话、设计文档、测试说明用 **中文规范名**；**代码标识符**（类名、`flow_id`、枚举、Grimoire 英文引文）保持英文。
+
+## 已登记
+
+| English | 简中（规范） | 备注 |
+|---------|-------------|------|
+| **Revelation** | **显现** | 官方简中；能力类型 `Revelation –`；≠ weakness 子类型 |
+| Surge | 涌动 | 项目文档已用（如 setup 显现/涌动） |
+| Peril | 险境 | 遭遇帧内持续 Cannot（04 §4） |
+| Play (card) | **打出** | **仅 asset / event** 从 hand 进入 play / 结算；≠ skill |
+| Commit (skill) | **投入** / commit | skill 从 hand 投入检定；Grimoire：**不能**称 play |
+
+## 用法
+
+- 对用户解释：**显现**、**险境**、**涌动** 等规范译名。
+- 写设计文档：中文正文用规范译名；首次出现可括注英文（如「显现（Revelation）」）。
+- 写代码 / Catalog：仍用 `seq.encounter.revelation`、`has_revelation`、`resolve_revelations` 等英文 API。
+- 用户在新对话中补充译名时，**追加本表**并保持一行一词。
+
+## 勿混用
+
+- **显现（Revelation）** ≠ **弱点（Weakness 子类型）**；路由看 cardtype + `has_revelation`。
+- 避免把 Revelation 写成「揭示」「暴露」等非规范译法（除非引用第三方非官方文本并标明）。
+- **Skill 不能打出**：`FORBID_PLAY` 仅 asset/event；skill 走 `FORBID_COMMIT_TO_TEST`。险境与卡面 cannot 均经 **RESTRICTION Register**，无独立 Policy。

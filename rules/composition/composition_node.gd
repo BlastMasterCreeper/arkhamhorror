@@ -5,9 +5,14 @@ var kind: AhcEnums.CompositionNodeKind = AhcEnums.CompositionNodeKind.SEQ
 var children: Array[CompositionNode] = []
 var inv_id: StringName = &""
 var card_id: StringName = &""
+var atom_op: AhcEnums.AtomOp = AhcEnums.AtomOp.MOVE_CARD
 var atom_name: StringName = &""
 var draw_amount: int = 1
-var atom_amount: int = 1
+var marker_delta: int = 0
+var flag_field: AhcEnums.FlagField = AhcEnums.FlagField.ELIMINATED
+var flag_value: Variant = true
+var to_slot: CardSlot = null
+var marker_slot: MarkerSlot = null
 var register_template: RegistrationTemplate = null
 var provenance: AbilityUnitRef = null
 
@@ -20,6 +25,7 @@ static func seq(nodes: Array) -> CompositionNode:
 	return n
 
 
+## L2 宏 · 调查员抽牌指令（展开为 DrawInvestigatorFlow 原子链）。
 static func draw(inv_id: StringName, amount: int = 1) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -29,21 +35,75 @@ static func draw(inv_id: StringName, amount: int = 1) -> CompositionNode:
 	return n
 
 
-static func take_horror(inv_id: StringName, amount: int = 1) -> CompositionNode:
+## L0 · AtomMoveCard
+static func move_card(card_id: StringName, to: CardSlot) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.inv_id = inv_id
-	n.atom_name = &"take_horror"
-	n.atom_amount = maxi(amount, 1)
+	n.atom_op = AhcEnums.AtomOp.MOVE_CARD
+	n.atom_name = &"move_card"
+	n.card_id = card_id
+	n.to_slot = to
 	return n
 
 
-static func discard_from_hand(card_id: StringName, inv_id: StringName) -> CompositionNode:
+## L0 · AtomAdjustMarker
+static func adjust_marker(at: MarkerSlot, delta: int) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_op = AhcEnums.AtomOp.ADJUST_MARKER
+	n.atom_name = &"adjust_marker"
+	n.marker_slot = at
+	n.marker_delta = delta
+	return n
+
+
+## L0 · AtomSetFlag
+static func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Variant) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_op = AhcEnums.AtomOp.SET_FLAG
+	n.atom_name = &"set_flag"
+	n.inv_id = bearer_id
+	n.flag_field = field
+	n.flag_value = value
+	return n
+
+
+## Information brick · 牌面 reveal（非 L0 五原子，design 15 §4.1）。
+static func reveal_to_controller(card_id: StringName, controller_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"reveal_to_controller"
+	n.card_id = card_id
+	n.inv_id = controller_id
+	return n
+
+
+## L0 · pop deck top（结果写入 RulesMemory draw_pending）。
+static func pop_deck_top(inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"pop_deck_top"
+	n.inv_id = inv_id
+	return n
+
+
+## Domain pile op · 洗弃牌堆进牌库（非 L0 效果原子）。
+static func shuffle_discard_into_deck(inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"shuffle_discard_into_deck"
+	n.inv_id = inv_id
+	return n
+
+
+## D3 · enter_hand（HAND 或 LIMBO，按卡定义）。
+static func commit_enter_hand(card_id: StringName, inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"commit_enter_hand"
 	n.card_id = card_id
 	n.inv_id = inv_id
-	n.atom_name = &"discard_from_hand"
 	return n
 
 

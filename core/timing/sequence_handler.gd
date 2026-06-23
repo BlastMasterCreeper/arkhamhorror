@@ -1,6 +1,8 @@
 class_name SequenceHandler
 extends RefCounted
 
+## 能力**类别**优先级（跨类整批；见 06 §8.1 / 14 §5.2）。
+## 同类内选用、队长选序不由 tier 表达，见 ResponseWindow（待建）。
 enum Tier { FORCED, FRAMEWORK, TRIGGERED, LISTENER }
 
 var match_kind: StringName = &""

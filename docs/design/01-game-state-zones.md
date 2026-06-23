@@ -177,6 +177,7 @@ class CardFaceVisibility:
 | 操作 | 改什么 | 是否改 zone |
 |---|---|---|
 | **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | 对该牌 `audience → CONTROLLER`（控制者） | 否（D3 才入手） |
+| **遭遇抽 E2**（[15 §17](15-timing-entry-catalog.md)） | 默认 `audience → ALL`；Hidden 跳过公开 | 否（E5 才落场/弃） |
 | **窥探牌库/弃牌堆顶** | `audience → CONTROLLER` 或 **ALL**（视文本） | 否 |
 | **Search / 选牌展示** | 按文本设 audience；选完未拿的可能恢复 HIDDEN_ALL | 视效果 |
 | **ENTER_HAND** | zone 变更；控制者通常已为 CONTROLLER | 是 |

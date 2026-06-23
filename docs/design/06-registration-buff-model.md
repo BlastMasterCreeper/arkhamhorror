@@ -51,7 +51,7 @@ class BuffSpec:
 ```gdscript
 enum BuffType {
     MODIFIER,       # 被动改数值
-    RESTRICTION,    # 被动禁止/允许
+    RESTRICTION,    # 被动禁止/允许；编译卡面 "cannot …"；Grimoire：cannot 绝对，不得 countermand（07 §3.2）
     LISTENER,       # timing 到点跑 Composition
 }
 ```
@@ -191,14 +191,29 @@ class ModifierPayload:
 
 ## 7. RESTRICTION
 
-Initiation **dry-run** 与行动合法性：能否打出、移动、commit 等。
+Initiation **dry-run** 与行动合法性：能否打出、移动、commit 等。**统一** `RestrictionEvaluator.block_reason`（L4 / Action / SkillTest / EffectGraph step 4）。
 
 ```gdscript
 class RestrictionPayload:
-    var kind: RestrictionKind
-    var params: Dictionary
-    var polarity: Polarity
+    var kind: RestrictionKind   # FORBID_DRAW | FORBID_PLAY | FORBID_TRIGGER | FORBID_COMMIT_TO_TEST | …
+    var drawer_id: StringName     # 险境 E3：豁免 actor
+    var encounter_frame_id: StringName
+
+enum LifetimeKind {
+    …
+    WHILE_ENCOUNTER_FRAME,   # E7 pop → unregister_by_encounter_frame
+}
 ```
+
+**险境（Peril）译法** — E3 `seq.encounter.check_peril` 一步 Register，**非**独立 Policy：
+
+```gdscript
+RegistrationTemplate.peril_encounter_frame(drawer_id, frame_id)
+# → 1× Registration，3× RESTRICTION buff，Lifetime WHILE_ENCOUNTER_FRAME
+# provenance: AbilityUnitRef.from_framework("seq.encounter.check_peril")
+```
+
+卡面「本回合不能抽牌」→ `FORBID_DRAW` + `DURATION(THIS_TURN)`。**同 evaluator、同 L4**。
 
 ---
 
