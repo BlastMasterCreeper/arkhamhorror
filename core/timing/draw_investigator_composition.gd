@@ -2,6 +2,8 @@ class_name DrawInvestigatorComposition
 extends RefCounted
 
 const PENDING_KEY := &"draw_pending"
+const BOUND_KEY := &"draw_bound"
+const SPAWN_FAILED_KEY := &"spawn_failed_discards"
 const SHUFFLES_KEY := &"draw_shuffles"
 const HORROR_KEY := &"draw_horror_taken"
 
@@ -39,6 +41,8 @@ static func init_draw_state(memory: RulesMemory, inv_id: StringName) -> void:
 	if memory == null:
 		return
 	memory.set_referent(inv_id, PENDING_KEY, [] as Array[StringName])
+	memory.set_referent(inv_id, BOUND_KEY, [] as Array[StringName])
+	memory.set_referent(inv_id, SPAWN_FAILED_KEY, [] as Array[StringName])
 	memory.set_referent(inv_id, SHUFFLES_KEY, 0)
 	memory.set_referent(inv_id, HORROR_KEY, 0)
 
@@ -67,6 +71,71 @@ static func append_pending(memory: RulesMemory, inv_id: StringName, card_id: Str
 		bucket = []
 	bucket.append(card_id)
 	memory.set_referent(inv_id, PENDING_KEY, bucket)
+
+
+static func bound_cards(memory: RulesMemory, inv_id: StringName) -> Array[StringName]:
+	if memory == null:
+		return []
+	var bucket: Array = memory.get_referent(inv_id, BOUND_KEY) as Array
+	if bucket == null:
+		return []
+	var out: Array[StringName] = []
+	for card_id in bucket:
+		out.append(card_id as StringName)
+	return out
+
+
+static func append_bound(memory: RulesMemory, inv_id: StringName, card_id: StringName) -> void:
+	if memory == null or card_id == &"":
+		return
+	var bucket: Array = memory.get_referent(inv_id, BOUND_KEY) as Array
+	if bucket == null:
+		bucket = []
+	bucket.append(card_id)
+	memory.set_referent(inv_id, BOUND_KEY, bucket)
+
+
+static func append_spawn_failed(
+	memory: RulesMemory,
+	inv_id: StringName,
+	card_id: StringName
+) -> void:
+	if memory == null or card_id == &"":
+		return
+	var bucket: Array = memory.get_referent(inv_id, SPAWN_FAILED_KEY) as Array
+	if bucket == null:
+		bucket = []
+	bucket.append(card_id)
+	memory.set_referent(inv_id, SPAWN_FAILED_KEY, bucket)
+
+
+static func spawn_failed_discards(memory: RulesMemory, inv_id: StringName) -> Array[StringName]:
+	if memory == null:
+		return []
+	var bucket: Array = memory.get_referent(inv_id, SPAWN_FAILED_KEY) as Array
+	if bucket == null:
+		return []
+	var out: Array[StringName] = []
+	for card_id in bucket:
+		out.append(card_id as StringName)
+	return out
+
+
+static func draw_slots_filled(memory: RulesMemory, inv_id: StringName) -> int:
+	return (
+		pending_count(memory, inv_id)
+		+ bound_cards(memory, inv_id).size()
+		+ spawn_failed_discards(memory, inv_id).size()
+	)
+
+
+static func merged_drawn_cards(memory: RulesMemory, inv_id: StringName) -> Array[StringName]:
+	var out := pending_cards(memory, inv_id)
+	for card_id in bound_cards(memory, inv_id):
+		out.append(card_id)
+	for card_id in spawn_failed_discards(memory, inv_id):
+		out.append(card_id)
+	return out
 
 
 static func increment_shuffle_horror(memory: RulesMemory, inv_id: StringName) -> void:

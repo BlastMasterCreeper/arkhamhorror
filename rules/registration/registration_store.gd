@@ -3,6 +3,11 @@ extends RefCounted
 
 var _entries: Array[Registration] = []
 var _next_id: int = 0
+var _stat_projections: StatProjectionStore = null
+
+
+func bind_stat_projections(store: StatProjectionStore) -> void:
+	_stat_projections = store
 
 
 func register(template: RegistrationTemplate) -> StringName:
@@ -10,14 +15,70 @@ func register(template: RegistrationTemplate) -> StringName:
 	var reg_id := StringName("reg_%d" % _next_id)
 	var reg := Registration.from_template(template, reg_id)
 	_entries.append(reg)
+	if _stat_projections != null:
+		_stat_projections.attach(reg_id, template.stat_queries, template.controller_id)
 	return reg_id
 
 
 func unregister(id: StringName) -> void:
+	if _stat_projections != null:
+		_stat_projections.detach(id)
 	for i in range(_entries.size() - 1, -1, -1):
 		if _entries[i].id == id:
 			_entries.remove_at(i)
 			return
+
+
+func unregister_by_drawn_card(card_id: StringName) -> void:
+	if card_id == &"":
+		return
+	var to_remove: Array[StringName] = []
+	for reg in _entries:
+		if reg.lifetime_kind == AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING \
+				and reg.drawn_card_id == card_id:
+			to_remove.append(reg.id)
+	for id in to_remove:
+		unregister(id)
+
+
+func unregister_by_hidden_in_hand_card(card_id: StringName) -> void:
+	if card_id == &"":
+		return
+	var to_remove: Array[StringName] = []
+	for reg in _entries:
+		if reg.lifetime_kind == AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND \
+				and reg.drawn_card_id == card_id:
+			to_remove.append(reg.id)
+	for id in to_remove:
+		unregister(id)
+
+
+func has_hidden_leave_hand_restriction(card_id: StringName) -> bool:
+	if card_id == &"":
+		return false
+	for reg in _entries:
+		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND:
+			continue
+		if reg.drawn_card_id != card_id:
+			continue
+		for buff in reg.buffs:
+			if buff.type == AhcEnums.BuffType.RESTRICTION:
+				return true
+	return false
+
+
+func has_peril_for_drawn_card(card_id: StringName) -> bool:
+	if card_id == &"":
+		return false
+	for reg in _entries:
+		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
+			continue
+		if reg.drawn_card_id != card_id:
+			continue
+		for buff in reg.buffs:
+			if buff.type == AhcEnums.BuffType.RESTRICTION:
+				return true
+	return false
 
 
 func unregister_by_encounter_frame(frame_id: StringName) -> void:
@@ -77,6 +138,7 @@ func duplicate_store() -> RegistrationStore:
 		r.lifetime_kind = reg.lifetime_kind
 		r.duration = reg.duration
 		r.encounter_frame_id = reg.encounter_frame_id
+		r.drawn_card_id = reg.drawn_card_id
 		r.buffs = reg.buffs.duplicate()
 		copy._entries.append(r)
 	return copy

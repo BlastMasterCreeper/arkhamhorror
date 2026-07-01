@@ -57,7 +57,7 @@
 | OQ-00-04 | [00-architecture](00-architecture-overview.md) | 实现阶段是否迁移 addon，还是在 `arkhamhorror` 全新实现并仅参考 API 形状？ | |
 | OQ-IDX-01 | [00-framework-step-index](design/00-framework-step-index.md) | ST.1–ST.8 是否注册为 `FrameworkStep` 子枚举还是独立 `SkillTestStep`？ | **独立 `SkillTestStep`**，`SkillTestEngine` 独占。见 IDX Skill Test 表。 |
 | OQ-IDX-02 | [00-framework-step-index](design/00-framework-step-index.md) | Initiation 步骤是否写入 EventRecord 与 Framework 同级？ | **是**，完整可回放。见 06 §4、架构 §7.2。 |
-| OQ-01-01 | [01-state](design/01-game-state-zones.md) | **Hidden** 卡：Domain 标记还是仅 Presentation 隐藏？ | **Domain** `CardInstance.is_hidden` + **Presentation** 对非 owner 隐藏牌名。见 01 §3.6。 |
+| OQ-01-01 | [01-state](design/01-game-state-zones.md) | **隐私（Hidden）** 卡：Domain 标记还是仅 Presentation 隐藏？ | **Domain** `CardInstance.is_hidden` + **Presentation** 对非 owner 隐藏牌名。见 01 §3.6、15 §17.4.3。 |
 | OQ-01-03 | [01-state](design/01-game-state-zones.md) | Committed skill：LIMBO 还是 Context？ | **`SkillTestContext.committed`**；zone 留 **HAND** 至 ST.8；不进 LIMBO。 |
 | OQ-03-03 | [03-action](design/03-action-system.md) | Parley current agenda 是否同地点？ | **否。** Agenda **无地点**；可 Activate 其能力，不适用 Parley 同地点。见 03 §6.10。 |
 | OQ-06-03 | [06-ability](design/06-ability-initiation.md) | 多个 [reaction] 谁选顺序？ | **Lead Investigator**（均已选用后）；选用权在控制者。见 06 §8.2。 |

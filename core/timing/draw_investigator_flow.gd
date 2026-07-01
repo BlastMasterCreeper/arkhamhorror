@@ -1,7 +1,7 @@
 class_name DrawInvestigatorFlow
 extends RefCounted
 
-## 调查员抽牌：catalog 子 flow 收集 + L1 Composition 批量 D2/D3。
+## 调查员抽牌：D1 内联 collect + L1 Composition 批量 D2/D3。
 
 
 static func run(game_ctx: GameContext, inv_id: StringName, amount: int) -> Dictionary:
@@ -34,12 +34,8 @@ static func _run_core(game_ctx: GameContext, inv_id: StringName, amount: int) ->
 	if amount <= 0:
 		return _empty_result()
 	DrawInvestigatorComposition.init_draw_state(memory, inv_id)
-	while DrawInvestigatorComposition.pending_count(memory, inv_id) < amount:
-		var collect: Dictionary
-		if catalog != null and game_ctx.sequences != null:
-			collect = catalog.nest(game_ctx, &"seq.draw.collect_one", {"inv_id": inv_id})
-		else:
-			collect = DrawSubflowHandlers.resolve_collect_one(game_ctx, inv_id, null)
+	while DrawInvestigatorComposition.draw_slots_filled(memory, inv_id) < amount:
+		var collect := DrawSubflowHandlers.collect_one_step(game_ctx, inv_id, catalog)
 		if collect.get("defeated", false):
 			return _result_from_memory(memory, inv_id, true)
 		if not collect.get("collected", false):
@@ -59,10 +55,15 @@ static func _run_core(game_ctx: GameContext, inv_id: StringName, amount: int) ->
 
 
 static func _result_from_memory(memory: RulesMemory, inv_id: StringName, defeated: bool) -> Dictionary:
-	var drawn := DrawInvestigatorComposition.pending_cards(memory, inv_id)
+	var drawn := DrawInvestigatorComposition.merged_drawn_cards(memory, inv_id)
 	var shuffles := int(memory.get_referent(inv_id, DrawInvestigatorComposition.SHUFFLES_KEY)) if memory else 0
 	var horror := int(memory.get_referent(inv_id, DrawInvestigatorComposition.HORROR_KEY)) if memory else 0
-	return _result(drawn, shuffles, horror, defeated)
+	var spawn_failed := (
+		DrawInvestigatorComposition.spawn_failed_discards(memory, inv_id)
+		if memory
+		else [] as Array[StringName]
+	)
+	return _result(drawn, shuffles, horror, defeated, spawn_failed)
 
 
 static func _fail_result() -> Dictionary:
@@ -86,7 +87,8 @@ static func _result(
 	drawn: Array[StringName],
 	shuffles: int,
 	horror_taken: int,
-	defeated: bool
+	defeated: bool,
+	spawn_failed_discards: Array[StringName] = []
 ) -> Dictionary:
 	return {
 		"ok": true,
@@ -96,4 +98,5 @@ static func _result(
 		"shuffles": shuffles,
 		"horror_taken": horror_taken,
 		"defeated": defeated,
+		"spawn_failed_discards": spawn_failed_discards.duplicate(),
 	}

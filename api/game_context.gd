@@ -8,6 +8,7 @@ var log: GameLog
 var events: EventRecordLog
 var config: RulesConfig
 var choices: ChoiceResolver
+var interaction: PlayerInteractionGate
 
 var actions: ActionSystem
 var skill_tests: SkillTestEngine
@@ -28,7 +29,11 @@ var memory: RulesMemory
 var sequence_catalog: SequenceCatalog
 var resource_gain: ResourceGainService
 var draw_investigator: DrawInvestigatorService
+var draw_encounter: DrawEncounterService
 var card_abilities: CardAbilityService
+
+var stat_projections: StatProjectionStore
+var stat_emitter: GameStatEmitter
 
 var active_investigator_id: StringName = &""
 var performing_investigator_id: StringName = &""

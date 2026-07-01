@@ -107,7 +107,16 @@ func run_through_step(target: AhcEnums.FrameworkStep, max_hops: int = 512) -> bo
 
 
 func run_full_round_one_investigator() -> bool:
+	return run_full_round_investigators(1)
+
+
+func run_full_round_investigators(count: int) -> bool:
+	if count < 1:
+		return false
 	if not advance_to_action_phase():
 		return false
-	end_turn()
+	for i in count:
+		end_turn()
+		if i < count - 1 and not advance_to_action_phase():
+			return false
 	return run_through_step(AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS)

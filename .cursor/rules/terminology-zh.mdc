@@ -16,6 +16,17 @@ alwaysApply: true
 | Peril | 险境 | 遭遇帧内持续 Cannot（04 §4） |
 | Play (card) | **打出** | **仅 asset / event** 从 hand 进入 play / 结算；≠ skill |
 | Commit (skill) | **投入** / commit | skill 从 hand 投入检定；Grimoire：**不能**称 play |
+| **state primitive** | **状态原语** | L0 **三类** GameState 写入；③ 含 **Reveal** 与 SetFlag/SetRef |
+| **effect** | **效果** | dry-run 可 CREATED：状态原语 + Register |
+| **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
+| **Player Interaction** | **玩家交互** | 能力选用 / Optional / 目标 / 队长排序；`PlayerInteractionGate` |
+
+## 对话表述（已裁决）
+
+- **每次使用英文专用词**（架构名、机制名、API 类型名等），**须在同句或紧随括号内附上中文说明**。  
+  例：命名流程（named flow / `seq.*`）、效果组合（Composition）、注册存储（RegistrationStore）。
+- 代码标识符（`flow_id`、类名、枚举值）可保留英文；**概念讲解**仍附中文。
+- 设计文档：中文正文为主；首次出现可「中文（English）」；见上表规范译名。
 
 ## 用法
 
@@ -29,3 +40,4 @@ alwaysApply: true
 - **显现（Revelation）** ≠ **弱点（Weakness 子类型）**；路由看 cardtype + `has_revelation`。
 - 避免把 Revelation 写成「揭示」「暴露」等非规范译法（除非引用第三方非官方文本并标明）。
 - **Skill 不能打出**：`FORBID_PLAY` 仅 asset/event；skill 走 `FORBID_COMMIT_TO_TEST`。险境与卡面 cannot 均经 **RESTRICTION Register**，无独立 Policy。
+- **Reveal 是效果**：`reveal_to_*` = L0 揭示状态原语，参与 dry-run CREATED。见 07-primitives §5.3、07-composition §4.1、01 §3.6。

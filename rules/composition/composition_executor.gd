@@ -83,6 +83,13 @@ func _execute_atom(node: CompositionNode) -> void:
 				"composition:reveal_to_controller",
 				{"card": node.card_id, "controller": node.inv_id}
 			)
+		&"reveal_to_all":
+			_mutator.reveal_to_all(node.card_id)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:reveal_to_all",
+				{"card": node.card_id}
+			)
 		&"pop_deck_top":
 			var card_id := _mutator.pop_deck_top(node.inv_id)
 			if _game_ctx != null and _game_ctx.memory != null and card_id != &"":
@@ -100,6 +107,40 @@ func _execute_atom(node: CompositionNode) -> void:
 			_log.log(
 				AhcEnums.LogCategory.CARD,
 				"composition:commit_enter_hand",
+				{"inv": node.inv_id, "card": node.card_id}
+			)
+		&"commit_hidden_enter_hand":
+			_mutator.commit_hidden_enter_hand(node.card_id, node.inv_id)
+			if _game_ctx != null:
+				EncounterPrivacy.register_leave_hand_restriction(
+					_game_ctx, node.card_id, node.inv_id
+				)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:commit_hidden_enter_hand",
+				{"inv": node.inv_id, "card": node.card_id}
+			)
+		&"expose_hidden":
+			_mutator.expose_hidden_card(node.card_id)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:expose_hidden",
+				{"card": node.card_id}
+			)
+		&"spawn_encounter_enemy":
+			if _game_ctx != null and _game_ctx.sequence_catalog != null:
+				_game_ctx.sequence_catalog.nest(
+					_game_ctx,
+					&"seq.encounter.spawn",
+					{
+						"drawer_id": node.inv_id,
+						"card_id": node.card_id,
+						"from_hand": true,
+					}
+				)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:spawn_encounter_enemy",
 				{"inv": node.inv_id, "card": node.card_id}
 			)
 		_:

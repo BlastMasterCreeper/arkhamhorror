@@ -29,23 +29,22 @@ func resolve_encounter_draw(drawer: StringName, amount: int = 1) -> void:
 seq.draw.encounter
   push EncounterResolutionFrame(drawer)
   repeat amount times:
-    loop:                                    # Surge loop（单张内）
-      nest seq.draw.encounter.collect_one    # E1
-      nest seq.draw.encounter.resolve_card   # E2–E6 共享（§17.4）
+    surge loop:
+      collect_one_step (内联 E1)
+      resolve_card_body (内联 E2/E3/E5 discard + nest E4/E5 spawn)
       if surge: continue loop
-      else: break
   pop frame → AFTER
 ```
 
 | Step | Catalog / 说明 |
 |---|---|
-| E1 Draw | `seq.draw.encounter.collect_one`；deck 空 → shuffle discard（**无 horror**，OQ-10-04） |
-| E3 Peril | `seq.encounter.check_peril` → E3 Register RESTRICTION（[04 §4](04-skill-test-engine.md)） |
-| E4 Revelation | `seq.encounter.revelation`；**encounter cardtype weakness** 亦走此管线 |
-| E5 Dispatch | `seq.encounter.dispatch` → spawn / treachery discard / Hidden hand（[15 §17.4.2–3](15-timing-entry-catalog.md)） |
-| E5 Enemy | `seq.encounter.spawn` → spawn 或 **`discard_spawn_failed`**（[08 §7.4](08-enemy-engagement.md)） |
-| E5 Treachery | 默认 encounter discard；Hidden / 留场例外 |
-| E6 Surge | **同一 frame** 内回到 E1；**Revelation 已结算** 后判定（OQ-10-06 待裁） |
+| E1+E2 Draw | **G1** 内联 collect + reveal 子步 |
+| E3 Peril | **G2** priority **100** Register RESTRICTION |
+| E4 Revelation | **G3** priority **90** nest Forced |
+| E5 Treachery | **G4** priority **80** discard |
+| E5 Enemy | **G4** priority **80** · 默认/指令 `spawn_from_encounter_draw` |
+| E6 Surge | **G5** priority **70** evaluate + 再抽 G1 |
+| Weakness 重定向 | `seq.draw.encounter.resolve_bound` → 同 priority 队列（skip G1） |
 
 ### 2.1 Setup 与显现 / Surge（已裁决 OQ-10-01）
 

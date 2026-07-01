@@ -47,6 +47,28 @@ When an investigator takes this action, that investigator draws **one** card fro
 
 ---
 
+## 隐私 Hidden（Grimoire p.14 · Dream-Eaters FAQ）
+
+**中文裁定名**：**隐私**（英文关键词 `Hidden`）。
+
+> Hidden cards have Revelation abilities that secretly add them to an investigator's hand. This should be done without revealing that card or its text to the other investigators.
+
+**引擎映射**：
+
+| 规则 | 引擎 |
+|---|---|
+| 显现秘密入手 | E4 · `commit_hidden_enter_hand` · `is_hidden=true` |
+| 计入手牌上限 | Domain · `inv.hand` |
+| **除卡面能力外不得离手** | E4 Register `FORBID_LEAVE_HAND` · `move_card` 查 Restrictions；G4 skip 为 Framework 优化 |
+| 隐私 treachery 视为威胁区 | Eligibility 模拟；zone 仍为 HAND |
+| 隐私 enemy 不进威胁区 | G4 skip spawn；`expose_hidden` → `spawn_encounter_enemy` |
+| 弃置 → 遭遇弃牌堆 | `move_card` → encounter discard |
+| 淘汰时手牌隐私牌 | （待实现）→ encounter discard · FAQ 1.22 |
+
+详述：[15 §17.4.3](../design/15-timing-entry-catalog.md) · [01 §3.6.2](../design/01-game-state-zones.md)
+
+---
+
 ## 待增补条目（引擎常查）
 
 - [ ] When / After / Triggering Condition（p.4–5, p.23–25）

@@ -13,15 +13,23 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.memory = RulesMemory.new()
 	ctx.timing = TimingBus.new(ctx.log)
 	ctx.sequences = ResolutionSequenceStack.new(ctx.log, ctx.events, ctx.memory)
-	ctx.choices = ChoiceResolver.new()
+	ctx.choices = DefaultChoiceResolver.new()
+	ctx.interaction = PlayerInteractionGate.new()
+	ctx.interaction.resolver = ctx.choices
 	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)
 	ctx.registrations = RegistrationStore.new()
+	ctx.stat_projections = StatProjectionStore.new()
+	ctx.stat_projections.bind(ctx.events, ctx.state)
+	ctx.stat_emitter = GameStatEmitter.new(ctx.events, ctx.state, ctx.stat_projections)
+	ctx.registrations.bind_stat_projections(ctx.stat_projections)
 	ctx.mutator = StateMutator.new(ctx.state)
+	ctx.mutator.bind_registration_store(ctx.registrations)
 	ctx.card_abilities = CardAbilityService.new(ctx.mutator)
 	ctx.sequence_catalog = SequenceCatalog.new()
 	SequenceCatalogBootstrap.register_builtin(ctx.sequence_catalog, ctx.mutator, ctx.card_abilities)
 	ctx.resource_gain = ResourceGainService.new(ctx.sequence_catalog)
 	ctx.draw_investigator = DrawInvestigatorService.new(ctx.sequence_catalog)
+	ctx.draw_encounter = DrawEncounterService.new(ctx.sequence_catalog)
 	ctx.modifiers = ModifierEngine.new(ctx.registrations)
 	ctx.composition = CompositionExecutor.new(
 		ctx.state, ctx.registrations, ctx.mutator, ctx.log
@@ -34,6 +42,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.state, ctx.events, ctx.effects, ctx.composition
 	)
 	ctx.scenario = ScenarioSystem.new(ctx.state, ctx.log)
+	ctx.scenario.bind_context(ctx)
 	ctx.enemy = EnemySystem.new(ctx.state, ctx.log)
 	ctx.skill_tests = SkillTestEngine.new(
 		ctx.state, ctx.events, ctx.log, ctx.modifiers, ctx.mutator, ctx.timing
@@ -42,6 +51,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.framework = FrameworkFlowEngine.new(
 		ctx.state, ctx.events, ctx.log, ctx.config, ctx.scenario, ctx.enemy, ctx.registrations
 	)
+	ctx.framework.bind_game_context(ctx)
 	ctx.actions = ActionSystem.new(
 		ctx.state,
 		ctx.events,
@@ -187,6 +197,109 @@ static func _skill_icon_key(skill: AhcEnums.SkillType) -> StringName:
 		AhcEnums.SkillType.AGILITY:
 			return &"agility"
 	return &""
+
+
+static func add_encounter_card_to_deck(
+	ctx: GameContext,
+	definition_id: StringName,
+	keywords: Array = [],
+	extra_def: Dictionary = {}
+) -> StringName:
+	var instance_id := ctx.state.registry.allocate_instance_id(&"enc_card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, definition_id)
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"encounter"
+	card.controller_id = &"encounter"
+	card.zone = AhcEnums.Zone.DECK
+	ctx.state.registry.register_card(card)
+	ctx.state.encounter_deck.append(instance_id)
+	var def_data: Dictionary = {
+		"card_type": &"treachery",
+		"limbo_discard_pile": &"encounter_discard",
+	}
+	def_data.merge(extra_def, true)
+	if not keywords.is_empty():
+		def_data["keywords"] = keywords
+	CardRegistry.register_definition(definition_id, def_data)
+	return instance_id
+
+
+static func add_encounter_card_to_discard(
+	ctx: GameContext,
+	definition_id: StringName,
+	keywords: Array = [],
+	extra_def: Dictionary = {}
+) -> StringName:
+	var instance_id := ctx.state.registry.allocate_instance_id(&"enc_card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, definition_id)
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"encounter"
+	card.controller_id = &"encounter"
+	card.zone = AhcEnums.Zone.DISCARD
+	ctx.state.registry.register_card(card)
+	ctx.state.encounter_discard.append(instance_id)
+	var def_data: Dictionary = {
+		"card_type": &"treachery",
+		"limbo_discard_pile": &"encounter_discard",
+	}
+	def_data.merge(extra_def, true)
+	if not keywords.is_empty():
+		def_data["keywords"] = keywords
+	CardRegistry.register_definition(definition_id, def_data)
+	return instance_id
+
+
+static func add_encounter_enemy_to_deck(
+	ctx: GameContext,
+	definition_id: StringName,
+	opts: Dictionary = {}
+) -> StringName:
+	var keywords: Array = opts.get("keywords", [])
+	var extra := {
+		"card_type": &"enemy",
+		"aloof": opts.get("aloof", false),
+		"enemy": opts.get(
+			"enemy",
+			{"fight": opts.get("fight", 2), "evade": opts.get("evade", 2), "health": 1}
+		),
+	}
+	var spawn_instruction = opts.get("spawn_instruction", null)
+	if spawn_instruction is SpawnInstructionSpec:
+		extra["spawn_instruction"] = spawn_instruction
+	var prey_instruction = opts.get("prey_instruction", null)
+	if prey_instruction is PreyInstructionSpec:
+		extra["prey_instruction"] = prey_instruction
+	if opts.get("prey", false):
+		extra["keywords"] = keywords.duplicate()
+		if not (extra["keywords"] as Array).has(&"prey"):
+			(extra["keywords"] as Array).append(&"prey")
+	return add_encounter_card_to_deck(ctx, definition_id, keywords, extra)
+
+
+static func add_investigator_weakness_to_deck(
+	ctx: GameContext,
+	inv_id: StringName,
+	definition_id: StringName,
+	card_type: StringName = &"asset",
+	extra_def: Dictionary = {}
+) -> StringName:
+	var instance_id := ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, definition_id)
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = inv_id
+	card.controller_id = inv_id
+	card.zone = AhcEnums.Zone.DECK
+	ctx.state.registry.register_card(card)
+	var inv := ctx.state.registry.get_investigator(inv_id)
+	if inv:
+		inv.deck.append(instance_id)
+	var def_data: Dictionary = {"card_type": card_type, "is_weakness": true}
+	def_data.merge(extra_def, true)
+	CardRegistry.register_definition(definition_id, def_data)
+	return instance_id
 
 
 static func setup_test_location(

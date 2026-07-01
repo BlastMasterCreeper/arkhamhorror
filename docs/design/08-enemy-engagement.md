@@ -40,11 +40,34 @@ class EnemyState:
 
 **术语**：**`spawn_engaged`** = 进场时已是 engaged 状态（L0 一次提交）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标；**`Engage action`** = 调查员行动。三者 **不可** 混用。
 
-**多调查员同地点**：Lead Investigator 选 engage 目标（Prey 优先）。
+**多调查员同地点**：走 **`auto_engage_at_location`**（**② engage 内核**）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
+
+```gdscript
+func auto_engage_at_location(enemy_id: StringName, location: EntityId) -> void:
+    var candidates := investigators_at(location)
+    if candidates.is_empty():
+        return
+    var def := CardRegistry.get_def(enemy_id)
+    var target: StringName
+    if candidates.size() == 1:
+        target = candidates[0]
+    else:
+        var prey_pick := PreyResolver.best_match(def.prey_instruction, candidates)  # ① 同步读
+        target = prey_pick if prey_pick != &"" else ui.lead_investigator_choose(candidates)
+    engage_l0(enemy_id, target)   # 效果在 engage，不在 Prey
+```
 
 ---
 
 ## 4. Prey 与 Hunter 目标（已裁决 OQ-08-01）
+
+> **Prey 指令** = `CardDefinition.prey_instruction`（RR *enemy instruction* · **① 规则参数**）。**不执行任何效果** — **禁止** nest、LISTENER、Register；仅在 **② engage 内核** 与 **③ Hunter 移动 LISTENER 的等距分支** 内 **`PreyResolver` 同步读**。见 [07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)。
+
+| 消费点 | 内核 | Prey 作用 |
+|---|---|---|
+| **`auto_engage_at_location`** | **②** engage | 同 location 多调查员 → 选 engage 目标 |
+| **Hunter 等距** | **③** `@ seq.enemy.3_2` | 等距子集内 tie-break（**不**改最短路径） |
+| **G4 spawn** | **②** spawn 后缀 | **不读** Prey（魔典：不影响 spawn location） |
 
 Hunter 移动 / 选最近调查员时：
 
@@ -55,7 +78,7 @@ Hunter 移动 / 选最近调查员时：
 ```gdscript
 func choose_hunter_target(enemy: EntityId) -> EntityId:
     var equidistant := investigators_at_minimum_path_distance(enemy)
-    var prey_matches := filter_by_prey(enemy, equidistant)
+    var prey_matches := PreyResolver.filter_candidates(enemy_def_id, equidistant)
     if prey_matches.size() == 1:
         return prey_matches[0]
     if prey_matches.size() > 1:
@@ -63,22 +86,25 @@ func choose_hunter_target(enemy: EntityId) -> EntityId:
     return ui.lead_investigator_choose(equidistant)
 ```
 
-Prey 示例：`Prey (lowest [agility])` — 在等距子集内比较 agility 值。
+Prey 示例：`Prey (lowest [agility])` — 在 **等距** 或 **同地点** 候选子集内比较；**never** 跨距离选非等距调查员。
+
+**禁止**：`PreyPolicy`；Prey 独立 timing / nest；把 Prey 编译为 LISTENER（Hunter **移动** 才编译 LISTENER，Prey 只是 handler 内 Resolver 调用）。
 
 ---
 
-## 5. Hunter / Patrol 移动（Enemy 3.2）
+## 5. Hunter / Patrol 移动（Enemy 3.2 · ③ 编译）
 
-| 关键词 | 移动 |
-|---|---|
-| Hunter | ready, unengaged, 不在有 investigator 的地点 → 沿最短路径向 nearest investigator 移动 1 步 |
-| Patrol | 向括号内目标移动 1 步（方向/地点/卡） |
-| 阻挡 | card ability 阻止移动 → 不移动 |
-| 移动后遇 investigator | auto engage |
+Framework **3.2** emit `(seq.enemy.3_2, WHEN)` → **RESOLVE** Hunter / Patrol **LISTENER**（AbilityCompiler 共享模板 · L0 move）。**不**在 Framework handler 按关键词名分支。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
 
-**不移动**：exhausted、已 engaged、hunter 已在有 investigator 地点。
+| 关键词 | 编译 | 参数（①） |
+|---|---|---|
+| Hunter | **③** LISTENER · 最近 investigator 路径 | 无卡面 Spec |
+| Patrol | **③** LISTENER · 向 designated target 移动 1 步 | `PatrolTargetSpec` · handler 内 `PatrolTargetResolver` |
+| 移动后遇 investigator | **②** | `auto_engage_at_location`（内读 Prey） |
 
----
+**不移动**：exhausted、已 engaged、hunter 已在有 investigator 地点；patrol 已在 designated target；card ability 阻挡。
+
+**与 Prey 同卡**：Prey **①** 供 engage / Hunter **等距**；Patrol 括号 **①** 供路径目标 — 职责不同，均 **不 nest**。
 
 ## 6. 敌人攻击（已裁决 OQ-03-02）
 
@@ -223,9 +249,18 @@ func spawn_engaged(enemy_id: StringName, drawer_id: StringName) -> void:
     # 禁止 nest ActionSystem.engage 或 auto_engage_at_location
 ```
 
-### 7.3 与 E5 的对应
+### 7.3 与 G4 / priority 80 的对应
 
-遭遇抽牌 E5 → `seq.encounter.spawn` → 上表分支；见 [15 §17.4.1](15-timing-entry-catalog.md)。
+遭遇抽牌 **G4** → `ENCOUNTER_CARD_DRAWN` priority **80** → **nest `seq.encounter.spawn`** → `spawn_from_encounter_draw`（**非** 与 draw 平行的 timing entry）。**无 Spawn 文本** = 默认生成；**有 Spawn –** = 指令生成（改 location / engage 路径）。见 [15 §4.0.5.2](15-timing-entry-catalog.md)、[15 §17.4.1](15-timing-entry-catalog.md)。
+
+### 7.5 敌人指令译法摘要（Spawn / Prey）
+
+| 指令 | 档 | 提供 | 读参位置 | 禁止 |
+|---|---|---|---|---|
+| **Spawn –** | **①** | WHERE | **②** spawn 内核 · G4 · `SpawnLocationResolver` | Ability / LISTENER / 独立 timing |
+| **Prey –** | **①** | WHO | **②** `auto_engage_at_location`；**③** Hunter 等距 handler 内 `PreyResolver` | nest / LISTENER / G4 spawn 分支读 Prey |
+
+Spawn 细则 [15 §17.4.1b](15-timing-entry-catalog.md)；Prey [15 §17.4.1c](15-timing-entry-catalog.md)、[07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)。
 
 ### 7.4 Spawn 失败：弃置到 **对应弃牌堆**
 
@@ -327,3 +362,4 @@ class EnemySystem:
 | 2026-05-25 | v0.3 | OQ-08-02 裁决：Massive batch 锁定序列，中途 exhaust 不取消 |
 | 2026-06-18 | v0.4 | §3/§7 **`spawn_engaged` vs `auto_engage_at_location` vs Engage action**；对齐 15 §17 E5 |
 | 2026-06-18 | v0.4.1 | §7.4 spawn 失败 → **owner 对应 discard pile**；EN-08/09 |
+| 2026-06-18 | v0.5 | §0.1 三档译法；Prey **①** 仅 engage 内核读参（不 nest/LISTENER）；Hunter/Patrol **③** 编译 |

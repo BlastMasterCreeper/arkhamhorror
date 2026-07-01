@@ -36,6 +36,8 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return sim.mutator.set_flag(node.inv_id, node.flag_field, node.flag_value)
 		&"reveal_to_controller":
 			return sim.mutator.reveal_to_controller(node.card_id, node.inv_id)
+		&"reveal_to_all":
+			return sim.mutator.reveal_to_all(node.card_id)
 		&"pop_deck_top":
 			var card_id := sim.mutator.pop_deck_top(node.inv_id)
 			return card_id != &""
@@ -46,6 +48,18 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return false
 		&"commit_enter_hand":
 			return sim.mutator.commit_enter_hand(node.card_id, node.inv_id)
+		&"commit_hidden_enter_hand":
+			return sim.mutator.commit_hidden_enter_hand(node.card_id, node.inv_id)
+		&"expose_hidden":
+			var expose_card := sim.state.registry.get_card(node.card_id)
+			return expose_card != null and expose_card.is_hidden
+		&"spawn_encounter_enemy":
+			var card := sim.state.registry.get_card(node.card_id)
+			return (
+				card != null
+				and card.zone == AhcEnums.Zone.HAND
+				and CardRegistry.card_type(card.id.definition_id) == &"enemy"
+			)
 	return false
 
 

@@ -24,8 +24,8 @@ enum AbilityKind {
     TRIGGERED_FREE,     # [free]
     TRIGGERED_REACTION, # [reaction]
     TRIGGERED_ACTION,   # [action]
-    KEYWORD,            # Fast, Surge, ...
-    SPAWN,              # Enemy spawn instruction
+    KEYWORD,            # Fast, Surge, …
+    # SPAWN 已移出 — 「Spawn –」为 CardDefinition.spawn_instruction，非 AbilityKind（见 15 §17.4.1b）
 }
 ```
 
@@ -33,12 +33,13 @@ enum AbilityKind {
 |---|---|---|
 | Constant | 引擎 | 查询 modifier 时 |
 | Forced | 引擎 | timing point 自动 |
-| Revelation | 引擎 | 按 **能力** + **cardtype** 分流：遭遇 E4 / 玩家 D3 `seq.enter_hand`（`has_revelation`）；weakness 路由见 [11 §10](11-investigator-campaign.md) |
+| Revelation | 引擎 | 按 **能力** + **cardtype** 分流：遭遇 priority 90 / 玩家 D3 `seq.enter_hand`；weakness 路由见 [11 §10](11-investigator-campaign.md) |
 | Free `[free]` | 玩家 | Player Window 或文本指定 |
 | Reaction `[reaction]` | 玩家 | when/at/after 条件 |
 | Action `[action]` | 玩家 | Activate action |
-| Keyword | 引擎 | 规则 shorthand |
-| Spawn | 引擎 | enemy enters play |
+| Keyword | 引擎 | 规则 shorthand；**③** 编译 REGISTER/LISTENER（险境、涌动、Hunter/Patrol 移动…）；Patrol 括号 = **①** `PatrolTargetSpec`（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)） |
+| **Spawn – 指令** | — | **非本表** — `CardDefinition.spawn_instruction`；G4 内联读 WHERE（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)、[15 §17.4.1b](15-timing-entry-catalog.md)） |
+| **Prey – 指令** | — | **非本表** — `CardDefinition.prey_instruction`（**①**）；**②** engage / **③** Hunter 等距 handler 内 `PreyResolver`；**不 nest**（[07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)） |
 
 ---
 
@@ -155,13 +156,33 @@ class EligibilityPipeline:
 | **L0** | 此刻是否叫醒这类能力？ | 阶段+事件族 / `after_*` / 框架窗口 |
 | **L1** | 注册还有效？ | 源卡在场、Lifetime、UNTIL_FIRED |
 | **L2** | 结构位置对吗？ | tier、禁自响应、Forced vs [reaction] 槽位 |
-| **L3** | 卡面情景满足？ | `Condition.matches(ctx)` |
+| **L3** | 卡面情景满足？ | `Condition.matches(ctx, snapshot)` — 现态读 Domain；**历史谓词**读 [06c StatProjection](06c-stat-projections.md) |
 | **L4** | 全局规则禁止？ | **RESTRICTION buff**（含 E3 险境 Register）；`RestrictionEvaluator`；**cannot 绝对** |
 | **L5** | 次数还有？ | Limit / Max；Forced 不过→跳过；[reaction] 不过→不出候选 |
-| **L6** | 费用可付？ | 分类型 Evaluator（见 §5.3） |
+| **L6** | 费用可付？ | 分类型 Evaluator（见 §5.5） |
 | **L7** | 效果能落地？ | `CompositionDryRunner`；目标仍合法 |
 
-### 5.3 L6 · CostPipeline（非通用 Condition）
+### 5.4 L3 · 现态 vs 历史谓词（已裁决）
+
+卡面 If / While / 「本回合第 N 次 action」等 **发动条件** 均属 L3，在 **TimingCatalog emit → COLLECT** 时即时验证。
+
+| 子类 | 数据源 | 示例 |
+|---|---|---|
+| **现态** | `GameStateStore` / `RegistrationStore`（L4 另关） | 在某地点、已 engage、手牌数 |
+| **历史谓词** | `EventRecord` + **StatProjectionStore** | 本 turn action spend 次数、first action、Limit fold |
+
+历史谓词 **禁止** 从 `actions_remaining` 等标量推导；详见 **[06c-stat-projections.md](06c-stat-projections.md)**：
+
+```text
+Register → attach(stat_queries)           # 不 fold
+COLLECT  → 首次 demand → cold fold → HOT
+Emitter  → on_event 增量（仅 HOT）
+Unregister → detach → ref=0 丢弃 HOT
+```
+
+`ApplicationContext` 仅场合快照；COLLECT 派生 `EvaluationContext` + `snapshot` 传入 `Condition.matches`。
+
+### 5.5 L6 · CostPipeline（非通用 Condition）
 
 费用种类各异，**不做订阅、不进 L0–L5**，Initiation 内专用管道：
 
@@ -175,7 +196,7 @@ apply_cost_modifiers(intent)
   → 全部 can_pay → pay
 ```
 
-### 5.4 能力形态 · 过哪些关
+### 5.6 能力形态 · 过哪些关
 
 | 形态 | COLLECT L1–L5 | Initiation L6–L7 |
 |---|---|---|
@@ -186,7 +207,7 @@ apply_cost_modifiers(intent)
 | 反应 [reaction] | L0–L5 | 控制者选用 **后** ✓ |
 | 行动 [action] | 另走 Action Initiation | ✓ |
 
-### 5.5 与 Initiation 步骤对照
+### 5.7 与 Initiation 步骤对照
 
 | Initiation 步 | 对应关卡 |
 |---|---|
@@ -228,7 +249,7 @@ ResponseWindow
 
 队长 **不**替其他调查员决定用不用 [reaction]；只排 **均已选用** 的多条顺序。见 [14-nested-sequences §5](14-nested-sequences.md)。
 
-Presentation：`ResponsePrompt`（`core/timing/response_prompt.gd`）供 UI / headless 共用。
+Presentation：`ResponsePrompt`（`core/timing/response_prompt.gd`）为单次 **USE_ABILITY** 轻量 DTO；完整交互见 **[16-player-interaction.md](16-player-interaction.md)**（`ChoiceRequest` + `PlayerInteractionGate`）。
 
 ---
 
@@ -468,6 +489,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-06-01/02 裁决：Replacement 优先级 + Initiation dry-run |
 | 2026-05-25 | v0.3 | AbilitySpec；Eligibility L0–L7；ResponseWindow；Hook→(sequence_id,slot)；链到 15 |
+| 2026-06-18 | v0.4.3 | **§5.4** L3 历史谓词；链 [06c StatProjection](06c-stat-projections.md) |
 | 2026-06-18 | v0.4 | **§8** 两层优先级：类别整批 vs 同类内自排 |
 | 2026-06-18 | v0.4.1 | 移除 Replacement→Silver Rule 误链；指向 07 §3.2 Cannot |
 | 2026-06-18 | v0.4.2 | §8 链 07 同时点竞争；§8.2 replacement 类内自动最近 initiate |

@@ -55,6 +55,10 @@ class CardDefinition:
     var slots: Array[SlotType]
     var keywords: Array[StringName]
     var printed_abilities: Array[AbilityTemplate]
+    # ① 规则参数（07 §0.1）— Spawn：② G4 读；Prey：② engage / ③ Hunter 等距读，不 nest
+    var spawn_instruction: SpawnInstructionSpec | null
+    var prey_instruction:  PreyInstructionSpec  | null
+    # Patrol 括号 ①；Patrol 移动 ③ LISTENER @ 3.2（07 §0.1.3）
     var script_path: String                # optional
 ```
 

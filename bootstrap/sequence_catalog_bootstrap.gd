@@ -7,6 +7,14 @@ static func register_builtin(
 	mutator: StateMutator,
 	card_abilities: CardAbilityService
 ) -> void:
+	_register_flows(catalog, mutator, card_abilities)
+
+
+static func _register_flows(
+	catalog: SequenceCatalog,
+	mutator: StateMutator,
+	card_abilities: CardAbilityService
+) -> void:
 	catalog.register_nest_batch(
 		&"seq.enter_hand",
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -22,13 +30,43 @@ static func register_builtin(
 			return DrawSubflowHandlers.resolve_empty_piles_defeated(game_ctx, inv_id)
 	)
 	catalog.register_run(
-		&"seq.draw.collect_one",
+		&"seq.draw.encounter",
 		func(params: Dictionary) -> TriggeringCondition:
-			var inv_id: StringName = params.get("inv_id", &"")
-			return TriggeringCondition.draw_collect_one(inv_id),
+			var drawer_id: StringName = params.get("drawer_id", &"")
+			return TriggeringCondition.draw_encounter(drawer_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			var inv_id: StringName = params.get("inv_id", &"")
-			return DrawSubflowHandlers.resolve_collect_one(game_ctx, inv_id, catalog)
+			var drawer_id: StringName = params.get("drawer_id", &"")
+			return DrawEncounterFlow.run(game_ctx, drawer_id)
+	)
+	catalog.register_run(
+		&"seq.draw.encounter.resolve_bound",
+		func(params: Dictionary) -> TriggeringCondition:
+			var drawer_id: StringName = params.get("drawer_id", &"")
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.draw_encounter_resolve_bound(drawer_id, card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			var drawer_id: StringName = params.get("drawer_id", &"")
+			var card_id: StringName = params.get("card_id", &"")
+			return DrawEncounterFlow.resolve_bound(game_ctx, drawer_id, card_id)
+	)
+	catalog.register_run(
+		&"seq.encounter.revelation",
+		func(params: Dictionary) -> TriggeringCondition:
+			var drawer_id: StringName = params.get("drawer_id", &"")
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.encounter_revelation(drawer_id, card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return _resolve_encounter_revelation(game_ctx, params, card_abilities)
+	)
+	catalog.register_run(
+		&"seq.encounter.spawn",
+		func(params: Dictionary) -> TriggeringCondition:
+			var drawer_id: StringName = params.get("drawer_id", &"")
+			var card_id: StringName = params.get("card_id", &"")
+			var from_hand: bool = bool(params.get("from_hand", false))
+			return TriggeringCondition.encounter_spawn(drawer_id, card_id, &"after_encounter_spawn", from_hand),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return _resolve_encounter_spawn(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.draw.investigator",
@@ -82,6 +120,57 @@ static func _resolve_draw_investigator(
 	)
 	result["revelations"] = nest.get("revelations", [])
 	return result
+
+
+static func _resolve_encounter_revelation(
+	game_ctx: GameContext,
+	params: Dictionary,
+	abilities: CardAbilityService
+) -> Dictionary:
+	var drawer_id: StringName = params.get("drawer_id", &"")
+	var card_id: StringName = params.get("card_id", &"")
+	if abilities != null and abilities.has_revelation(game_ctx, card_id):
+		var ok := abilities.resolve_revelations(
+			game_ctx, drawer_id, card_id, &"seq.encounter.revelation"
+		)
+		return {"resolved": ok}
+	var card := game_ctx.state.registry.get_card(card_id) if game_ctx != null else null
+	if card == null:
+		return {"resolved": false}
+	if CardRegistry.is_hidden(card.id.definition_id) and game_ctx.mutator != null:
+		var ok_hidden := game_ctx.mutator.commit_hidden_enter_hand(card_id, drawer_id)
+		if ok_hidden:
+			EncounterPrivacy.register_leave_hand_restriction(game_ctx, card_id, drawer_id)
+			game_ctx.mutator.finalize_limbo_discard(card_id, drawer_id)
+		return {"resolved": ok_hidden}
+	return {"resolved": false}
+
+
+static func _resolve_encounter_spawn(
+	game_ctx: GameContext,
+	params: Dictionary
+) -> Dictionary:
+	var drawer_id: StringName = params.get("drawer_id", &"")
+	var card_id: StringName = params.get("card_id", &"")
+	var from_hand: bool = bool(params.get("from_hand", false))
+	if game_ctx == null or game_ctx.enemy == null or card_id == &"":
+		return {"spawned": false, "discarded": false}
+	if from_hand:
+		if game_ctx.mutator == null:
+			return {"spawned": false, "discarded": false, "error": &"no_mutator"}
+		EncounterPrivacy.unregister_for_card(game_ctx, card_id)
+		if not game_ctx.mutator.prepare_hand_card_for_encounter_spawn(card_id, drawer_id):
+			return {"spawned": false, "discarded": false, "error": &"invalid_hand_spawn"}
+	var result := game_ctx.enemy.spawn_from_encounter_draw(game_ctx, card_id, drawer_id)
+	if result.get("discarded", false):
+		return {"spawned": false, "discarded": true, "card_id": card_id}
+	if result.get("ok", false) and result.has("enemy_id"):
+		return {
+			"spawned": true,
+			"discarded": false,
+			"enemy_id": result.get("enemy_id", card_id),
+		}
+	return {"spawned": false, "discarded": false, "error": result.get("error", &"")}
 
 
 static func _nest_enter_hand_revelations(

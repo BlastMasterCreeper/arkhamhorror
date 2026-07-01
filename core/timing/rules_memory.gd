@@ -24,10 +24,11 @@ func peek_encounter_frame() -> EncounterResolutionFrame:
 
 
 func top_encounter_frame_if_peril() -> EncounterResolutionFrame:
+	## @deprecated 使用 RegistrationStore.has_peril_for_drawn_card + current_card_id
 	var frame := peek_encounter_frame()
-	if frame != null and frame.peril:
-		return frame
-	return null
+	if frame == null:
+		return null
+	return frame
 
 
 func encounter_frame_depth() -> int:

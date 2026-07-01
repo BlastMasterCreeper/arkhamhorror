@@ -5,7 +5,9 @@ var controller_id: StringName = &""
 var lifetime_kind: AhcEnums.LifetimeKind = AhcEnums.LifetimeKind.DURATION
 var duration: AhcEnums.DurationAnchorKind = AhcEnums.DurationAnchorKind.THIS_TURN
 var encounter_frame_id: StringName = &""
+var drawn_card_id: StringName = &""
 var buffs: Array[BuffSpec] = []
+var stat_queries: Array = []
 
 
 static func lasting_modifier(
@@ -45,19 +47,36 @@ static func delayed_listener(
 	return t
 
 
-## E3 seq.encounter.check_peril：险境 Cannot → 三条 RESTRICTION，帧 pop 时 Unregister。
-static func peril_encounter_frame(drawer_id: StringName, frame_id: StringName) -> RegistrationTemplate:
+## G2 peril Register：`WHILE_DRAWN_CARD_RESOLVING(card_id)` — G4 完 Unregister；不跨 Surge。
+static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = &""
-	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_ENCOUNTER_FRAME
-	t.encounter_frame_id = frame_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
+	t.drawn_card_id = card_id
 	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_play_peril(drawer_id, frame_id))
+		BuffSpec.restriction_buff(RestrictionPayload.forbid_play_peril(drawer_id, card_id))
 	)
 	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_trigger_peril(drawer_id, frame_id))
+		BuffSpec.restriction_buff(RestrictionPayload.forbid_trigger_peril(drawer_id, card_id))
 	)
 	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_commit_peril(drawer_id, frame_id))
+		BuffSpec.restriction_buff(RestrictionPayload.forbid_commit_peril(drawer_id, card_id))
 	)
 	return t
+
+
+## E4 隐私 Register：`WHILE_HIDDEN_IN_HAND(card_id)` — 卡面能力合法离手时 Unregister。
+static func hidden_in_hand(controller_id: StringName, card_id: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = controller_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND
+	t.drawn_card_id = card_id
+	t.buffs.append(
+		BuffSpec.restriction_buff(RestrictionPayload.forbid_leave_hand(card_id, controller_id))
+	)
+	return t
+
+
+## @deprecated 使用 peril_drawn_card_resolving
+static func peril_encounter_frame(drawer_id: StringName, frame_id: StringName) -> RegistrationTemplate:
+	return peril_drawn_card_resolving(drawer_id, frame_id)

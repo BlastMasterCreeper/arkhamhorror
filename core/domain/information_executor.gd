@@ -1,6 +1,9 @@
 class_name InformationExecutor
 extends RefCounted
 
+## L0 ③ 揭示状态（AtomRevealCard）的实现体；经 StateMutator.reveal_to_* 调用。
+## 写入 CardFaceVisibility.audience；Presentation 据此公开牌面。
+
 var _state: GameStateStore
 
 

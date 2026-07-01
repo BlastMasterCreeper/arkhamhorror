@@ -3,6 +3,7 @@ extends RefCounted
 
 var _records: Array[EventRecord] = []
 var _seq: int = 0
+var event_index: EventIndex = EventIndex.new()
 
 
 func append(
@@ -38,3 +39,13 @@ func append_skill_test(step: AhcEnums.SkillTestStep, state_hash: String, extra: 
 
 func get_records() -> Array[EventRecord]:
 	return _records
+
+
+func last_seq() -> int:
+	if _records.is_empty():
+		return -1
+	return _records[_records.size() - 1].seq
+
+
+func record_count() -> int:
+	return _records.size()

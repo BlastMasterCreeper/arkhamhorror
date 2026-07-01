@@ -69,13 +69,32 @@ static func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Va
 	return n
 
 
-## Information brick · 牌面 reveal（非 L0 五原子，design 15 §4.1）。
+## L0 · AtomRevealCard（Grimoire Reveal 揭示卡牌；写 FaceAudience）
 static func reveal_to_controller(card_id: StringName, controller_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_op = AhcEnums.AtomOp.REVEAL_CARD
 	n.atom_name = &"reveal_to_controller"
 	n.card_id = card_id
 	n.inv_id = controller_id
+	return n
+
+
+static func reveal_to_all(card_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_op = AhcEnums.AtomOp.REVEAL_CARD
+	n.atom_name = &"reveal_to_all"
+	n.card_id = card_id
+	return n
+
+
+static func commit_hidden_enter_hand(card_id: StringName, inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"commit_hidden_enter_hand"
+	n.card_id = card_id
+	n.inv_id = inv_id
 	return n
 
 
@@ -102,6 +121,25 @@ static func commit_enter_hand(card_id: StringName, inv_id: StringName) -> Compos
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"commit_enter_hand"
+	n.card_id = card_id
+	n.inv_id = inv_id
+	return n
+
+
+## L0 · 隐私（Hidden）暴露显现（清 is_hidden + ALL；须先于 spawn_encounter_enemy）。
+static func expose_hidden(card_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"expose_hidden"
+	n.card_id = card_id
+	return n
+
+
+## L2 · nest `seq.encounter.spawn`（须 preceded by expose_hidden / reveal 等显现步骤）。
+static func spawn_encounter_enemy(card_id: StringName, inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"spawn_encounter_enemy"
 	n.card_id = card_id
 	n.inv_id = inv_id
 	return n

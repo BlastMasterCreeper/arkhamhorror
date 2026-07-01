@@ -11,6 +11,7 @@ static func from_context(ctx: GameContext) -> GameSimulator:
 	sim.state = _duplicate_state(ctx.state)
 	sim.registrations = ctx.registrations.duplicate_store()
 	sim.mutator = StateMutator.new(sim.state)
+	sim.mutator.bind_registration_store(sim.registrations)
 	return sim
 
 

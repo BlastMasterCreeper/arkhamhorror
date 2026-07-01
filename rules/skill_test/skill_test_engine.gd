@@ -32,7 +32,7 @@ func _init(
 func begin_test(ctx: SkillTestContext, game_ctx: GameContext = null) -> SkillTestContext:
 	_game_ctx = game_ctx
 	if game_ctx != null and game_ctx.memory != null:
-		EncounterPeril.sync_test_context_from_frame(ctx, game_ctx.memory)
+		EncounterPeril.sync_test_context_from_frame(ctx, game_ctx)
 	if ctx.id == &"":
 		_next_id += 1
 		ctx.id = StringName("skill_test_%d" % _next_id)
@@ -222,7 +222,7 @@ func queue_nested_test(parent: SkillTestContext, child: SkillTestContext) -> voi
 	child.nested_depth = parent.nested_depth + 1
 	child.encounter_resolution_id = parent.encounter_resolution_id
 	if _game_ctx != null and _game_ctx.memory != null:
-		EncounterPeril.sync_test_context_from_frame(child, _game_ctx.memory)
+		EncounterPeril.sync_test_context_from_frame(child, _game_ctx)
 	else:
 		child.peril = parent.peril
 	parent.pending_nested_tests.append(child)

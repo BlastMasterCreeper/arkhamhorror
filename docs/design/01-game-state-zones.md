@@ -133,6 +133,10 @@ enum Zone {
 **牌面可见性是针对玩家（调查员观察者）的**，与 **zone** 正交。  
 Rules / headless **始终保留完整 `definition_id`**；可见性决定 **某观察者是否知晓牌面**，以及 Presentation 如何渲染。
 
+> **已裁决 · Reveal（揭示）是 L0 状态原语**  
+> Grimoire **Reveal 卡牌** 写入 `FaceAudience`（经 `StateMutator.reveal_to_*` / `AtomRevealCard`），**是效果施加**：改 Domain 揭示状态，Presentation 据此向用户 **公开牌面**；**参与** Composition dry-run **CREATED**。  
+> Headless 规则层始终保留完整 `definition_id`；与 UI 的差异仅在 **谁被视作已知牌面**。抽牌 **D2** = 规则 Reveal 步，同时锚定 **WHEN draw** 区间。见 [07-effect-primitives §5.3](07-effect-primitives.md)、[07-composition §4.1](07-composition.md)。
+
 #### 3.6.1 三档受众（FaceAudience）
 
 | 档位 | 含义 | 典型 |
@@ -161,28 +165,30 @@ class CardFaceVisibility:
 
 **控制者 vs 所有者**：触发与 peek 以 **`controller_id`** 为准（遭遇 draw 后控制者常为 drawer）；owner 用于 deck/weakness bearer 等，见 §6。
 
-#### 3.6.2 与 zone / Hidden 关键词
+#### 3.6.2 与 zone / 隐私（Hidden）关键词
 
 | 概念 | 层 | 说明 |
 |---|---|---|
 | **zone** | Domain | 牌在哪个 pile（deck/hand/…） |
 | **FaceAudience** | Domain | 谁看得到 **牌面** |
-| **Hidden 关键词** | 规则 → Domain | 在场遭遇等：通常 **CONTROLLER** 对控制者，**HIDDEN_ALL** 对他人 |
-| **`is_hidden`** | Domain 标记 | 兼容 Hidden 关键词；**不替代** FaceAudience，由进场/register 同步 |
+| **隐私（Hidden）** | 规则 → Domain | 遭遇/弱点关键词；E4 秘密入手后通常 **CONTROLLER** 对控制者，**HIDDEN_ALL** 对他人 |
+| **`is_hidden`** | Domain 标记 | 对应卡牌关键词 `hidden`；**不替代** FaceAudience，由 E4 / expose 同步 |
+
+**隐私 · 离手不变量**（Grimoire p.14）：隐私牌在手牌期间 **除该卡牌面能力所述方式外，不能以任何方式离开手牌**。引擎：**E4 Register `FORBID_LEAVE_HAND`**（`WHILE_HIDDEN_IN_HAND`）；`move_card` 入口查询；G4 Framework skip 为不发起非法 Intent 的优化。见 [15 §17.4.3](15-timing-entry-catalog.md)。
 
 **禁止**用 zone 推导牌面可见性（例如「还在 deck 则无人可见」仅作 **默认策略**，D2 reveal 后可为 CONTROLLER 而 zone 仍为 deck/Limbo）。
 
-#### 3.6.3 INFORMATION brick 与「非进场揭示」
+#### 3.6.3 信息更新（非效果）与「非进场揭示」
 
-| 操作 | 改什么 | 是否改 zone |
-|---|---|---|
-| **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | 对该牌 `audience → CONTROLLER`（控制者） | 否（D3 才入手） |
-| **遭遇抽 E2**（[15 §17](15-timing-entry-catalog.md)） | 默认 `audience → ALL`；Hidden 跳过公开 | 否（E5 才落场/弃） |
-| **窥探牌库/弃牌堆顶** | `audience → CONTROLLER` 或 **ALL**（视文本） | 否 |
-| **Search / 选牌展示** | 按文本设 audience；选完未拿的可能恢复 HIDDEN_ALL | 视效果 |
-| **ENTER_HAND** | zone 变更；控制者通常已为 CONTROLLER | 是 |
+| 操作 | 改什么 | 是否效果 | 是否改 zone |
+|---|---|---|---|
+| **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | `audience → CONTROLLER` | **是**（**AtomRevealCard**） | 否（D3 才入手） |
+| **遭遇抽 E2**（[15 §17](15-timing-entry-catalog.md)） | 默认 `audience → ALL`；**隐私（Hidden）** 跳过公开 | **是**（Reveal） | 否（G4 才落场/弃） |
+| **窥探牌库/弃牌堆顶** | `audience → CONTROLLER` 或 **ALL** | **是**（Reveal） | 否 |
+| **Search 展示** | 按文本设 audience | **是**（Reveal） | 视后续是否 MoveCard |
+| **ENTER_HAND** | zone 变更 | **是**（MoveCard） | 是 |
 
-「揭示非在场牌」= **只改 FaceAudience**（INFORMATION / REVEAL brick），**不**等价于 enter play。
+「揭示非在场牌」= **Reveal 原语**（写 `FaceAudience`），**不**等价于 enter play；与 **MoveCard** 分步（如 D2 reveal、D3 入手）。
 
 #### 3.6.4 Presentation 分流
 
@@ -192,7 +198,7 @@ class VisibilityFilter:
         var inst := state.get_card(card)
         if inst.face.face_known_to(inst, observer):
             return inst.definition.title
-        return "[Hidden]"
+        return "[Hidden]"  # Presentation · 非控制者未见牌面（含隐私牌）
 ```
 
 Presentation **只读** Domain 的 `CardFaceVisibility`；不在 UI 层单独维护「谁看到了什么」。

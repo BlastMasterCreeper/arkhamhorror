@@ -11,6 +11,7 @@ var _log: GameLog
 var _scenario: ScenarioSystem
 var _enemy: EnemySystem
 var _registrations: RegistrationStore
+var _game_ctx: GameContext = null
 
 var current_step: AhcEnums.FrameworkStep = AhcEnums.FrameworkStep.SETUP_01_CHOOSE_INVESTIGATORS
 var round_number: int = 0
@@ -39,6 +40,10 @@ func _init(
 	_scenario = scenario
 	_enemy = enemy
 	_registrations = registrations
+
+
+func bind_game_context(ctx: GameContext) -> void:
+	_game_ctx = ctx
 
 
 func start_setup() -> void:
@@ -235,6 +240,8 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 	elif step == AhcEnums.FrameworkStep.INV_2_2_2_TURN_ENDS:
 		var inv := _state.registry.get_investigator(_state.active_investigator_id)
 		if inv:
+			if _game_ctx != null and _game_ctx.stat_emitter != null:
+				_game_ctx.stat_emitter.record_turn_end(inv.id)
 			inv.is_active_turn = false
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_TURN)
 	elif step == AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS:
@@ -247,12 +254,22 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_3_ENGAGED_ATTACKS:
 		investigators_remaining_this_phase = player_order.duplicate()
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_4_DRAW_AND_RESOURCE:
-		for inv_id in player_order:
-			var up_inv := _state.registry.get_investigator(inv_id)
-			if up_inv:
-				up_inv.resource_pool += 1
+		_resolve_upkeep_draw_and_resource()
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_5_CHECK_HAND_SIZE:
 		investigators_remaining_this_phase = player_order.duplicate()
+
+
+func _resolve_upkeep_draw_and_resource() -> void:
+	var tags: Array[StringName] = [&"framework", &"upkeep_4_4"]
+	if _game_ctx != null and _game_ctx.draw_investigator != null and _game_ctx.resource_gain != null:
+		for inv_id in player_order:
+			_game_ctx.draw_investigator.draw_cards(_game_ctx, inv_id, 1, tags)
+			_game_ctx.resource_gain.gain(_game_ctx, inv_id, 1, tags)
+		return
+	for inv_id in player_order:
+		var up_inv := _state.registry.get_investigator(inv_id)
+		if up_inv:
+			up_inv.resource_pool += 1
 
 
 func _tick_duration(anchor: AhcEnums.DurationAnchorKind) -> void:
@@ -277,6 +294,8 @@ func _start_next_investigator_turn() -> void:
 		inv.actions_remaining = 3 + inv.actions_bonus_next_turn - inv.actions_penalty_next_turn
 		inv.actions_bonus_next_turn = 0
 		inv.actions_penalty_next_turn = 0
+	if _game_ctx != null and _game_ctx.stat_emitter != null:
+		_game_ctx.stat_emitter.record_turn_begin(inv_id)
 
 
 func _next_setup_step(step: AhcEnums.FrameworkStep) -> AhcEnums.FrameworkStep:

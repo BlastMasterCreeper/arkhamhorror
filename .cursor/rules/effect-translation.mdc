@@ -1,39 +1,100 @@
 ---
-description: 框架与卡牌效果一律译为序列；仅保留来源归属，不执着自然语言
+description: 一切译为命名流程 seq.* 及其 nest；仅保留来源归属
 alwaysApply: true
 ---
 
 # 效果翻译原则
 
-## 核心
+## 核心（已裁决）
 
-**所有**框架效果与卡牌效果都必须翻译为本项目的 **RuleSequence / Composition 序列**，无例外。
+**一切**规则效果——Grimoire 规范流程、框架步、卡牌能力/显现、遭遇/检定子流程——均译为 **命名流程（`seq.*`）** 及其 **nest 组合**。无例外。
 
-- 不为效果保留自然语言描述作为运行时分支（禁止 `match effect_text`、`take_horror_1` 等语义 atom id）。
-- 与原文规则书的唯一联系是 **来源归属（provenance）**：译后序列来自哪条游戏流程、哪张卡的哪个能力/效果单元。
+- 不为效果保留自然语言运行时分支（禁止 `match effect_text`、语义 atom id）。
+- 与规则书原文的唯一联系：**provenance**（`AbilityUnitRef`：哪条 `flow_id`、哪张卡哪个 ability）。
 
-## 来源归属（AbilityUnitRef）
+**禁止**：Grimoire/卡面段落 → 专属 `*Policy` / `*Service`；与 Catalog 平行的第二套 dispatch。
+
+## 统一翻译模型
+
+```text
+一切效果  →  seq.*（SequenceCatalog 条目）
+              ├─ handler 内顺序 RESOLVE（mutator reveal / move / register…）
+              ├─ catalog.nest / nest_batch → 另一条 seq.*
+              └─ 必要时在单步内 composition.execute（见下）
+
+组合 = nest 命名流程，不是「框架用 seq、卡牌用别的东西」。
+```
+
+| 来源 | 译法 | 例子 |
+|------|------|------|
+| Grimoire 章节流程 | `seq.*` | `seq.draw.investigator`、`seq.draw.encounter` |
+| 行动 | `seq.action.*` nest 内核 seq | action draw → `seq.draw.investigator` |
+| 卡牌能力 / 显现 / lasting | **`seq.*` 或 nest 已有 seq** | 显现统一 `seq.enter_hand`；卡面体 = 该 seq 内 nest 或内联 RESOLVE |
+| 子流程复用 | `catalog.nest(other_seq)` | 同一内核多入口 |
+
+**入口不同 ≠ 新机制**：耗 action、Forced、遭遇 E4 都是 **触发/nest 同一条或相关的 seq.*`。
+
+## Composition 的定位（不是与 seq 并列的顶层）
+
+**Composition 不负责「命名流程」；命名流程也不只管框架。**
+
+- **命名流程（`seq.*`）** = 唯一 **翻译与运行时编排单元**（Catalog + Stack + Timing）。
+- **Composition** = **某条 seq 在 RESOLVE 某一步时** 的可执行树（卡面 YAML/脚本编译产物；含 Atom、Register、Seq/Choice）；用于 **dry-run（L7）** 与 **短效果体** 展开。
+- 长规范流程 = **seq handler 顺序步骤 + nest 其它 seq**；卡面「Deal 3 damage」= **nest `seq.effect.*` 模板** 或 **该 ability 注册的 `seq.card…` 条目**，不是绕过 Catalog 的独立通道。
+
+```text
+seq.draw.investigator          ← 命名流程（非「仅框架」）
+  handler: … nest seq.enter_hand …
+  D2: reveal_to_controller（L0 揭示原语，是效果）
+  某步: composition.execute（状态原语 / Register）
+
+seq.enter_hand                 ← 命名流程（显现入口）
+  nest 卡面 ability 对应 seq / composition
+
+卡面 ability                   ← 同样必须是 seq 或 nest 进 seq，不是第三体系
+```
+
+## 什么是「效果」（已裁决）
+
+**效果（effect）** = resolve 时可 **CREATED**、对局面/规则有 **直接影响** 的写入：
+
+| 是效果 | 不是效果 |
+|---|---|
+| **状态原语（state primitive）** L0 Atom → `GameStateStore`（**三类**；③ 含 Reveal） | 纯桌谈约定（不写入 Domain） |
+| **Register** → `RegistrationStore` / Buff | |
+
+见 [07-effect-primitives §0/§5.3](docs/design/07-effect-primitives.md)、[07-composition §4.1](docs/design/07-composition.md)。
+
+## 落地要素
+
+1. **状态原语** — L0 `StateMutator` **三类**写入（含 **`reveal_to_*`**、SetFlag/SetRef）  
+2. **Register** — `RegistrationStore` / Buff（**是效果**）；查询见 [06 §16](docs/design/06-registration-buff-model.md)  
+8. **`PlayerInteractionGate`** — 窗口内决策（[16](docs/design/16-player-interaction.md)；**晚于** Eligibility/ResponseWindow，见 [17](docs/design/17-seq-runtime.md) §6）  
+9. **`SequenceCatalog` + handler** — 每条译后的 `seq.*`  
+10. **`ResolutionSequenceStack` + Timing** — push/pop、Would/When/After（15 D/E/ST）  
+11. **`RulesMemory`** — 步间 referents  
+12. **Initiation / Eligibility / TimingBus** — 窗口与能力  
+13. **`AbilityUnitRef`** — provenance  
+
+## 来源归属
 
 | 字段 | 含义 |
 |------|------|
-| `flow_id` | 游戏流程 / 规则序列（如 `seq.draw.investigator`） |
+| `flow_id` | 命名流程 id |
 | `definition_id` | 卡牌定义 id |
-| `ability_id` | 能力/效果单元 id（如 `revelation:0`） |
-| `instance_id` | 运行时卡实例 |
+| `ability_id` | 能力/效果单元 id |
+| `instance_id` | 运行时实例 |
 
 ## 显现（Revelation）
 
-- **唯一入口**：timing `enter_hand`（`seq.enter_hand`）。不区分 draw / add、牌库 / 遭遇 / 其他来源。
-- **效果体**：`CardRegistry.register_revelation` → `CompositionNode` 序列。
-- **显现后**：若卡仍在 **LIMBO**，`finalize_limbo_discard` 弃入 `CardRegistry.limbo_discard_pile`（`owner_discard` | `encounter_discard`）。
-- **显现顺序**：设计师尚未裁定 **FORCED 类内** 多张牌顺序；`EnterHandTimingPolicy` 占位。**跨类**（Forced vs [reaction]）走 06 §8 类别优先级，非玩家自排。
-- 物理落点（HAND vs LIMBO）由卡定义 `enter_zone` 决定，与入口 timing 正交。
+- **入口 seq**：`seq.enter_hand`（不区分 draw/add 来源）。
+- **卡面体**：该 ability 对应的 **seq 或 nest**；显现后 LIMBO 弃置等仍在 **同一命名流程** 内 RESOLVE。
+- 顺序占位：`EnterHandTimingPolicy`；跨类优先级见 06 §8。
 
 ## 实现约定
 
-- **L0 效果**：Composition atom / Register + `AbilityUnitRef`；不进 Service。
-- **规则流程**：`SequenceCatalog.register_run` / `register_nest_batch`（见 `SequenceCatalogBootstrap`）；不要为每个 flow 新建 Service 类。
-- **子 flow**：复杂 RESOLVE 拆成 catalog 条目（如 `seq.draw.collect_one`）；编排循环留在 flow handler，不进 L0。
-- **冲突裁决**：见 [07 §3.2–§3.4](docs/design/07-effect-resolution.md) — **Cannot** = `RESTRICTION` + `RestrictionEvaluator`（含险境 E3 Register，[04 §4](docs/design/04-skill-test-engine.md)）；**同时点竞争**（含 **替换竞争**）；**tier**；**Silver Rule**；**电子版** Grim 非主路径（00 §6）。
-- **薄 facade**：`DrawInvestigatorService` 等仅 `catalog.run(flow_id, params)`，便于 composition / action 调用。
-- 不要新增语义 dispatch 或按规则原文分支的特殊 service。
+- **内联 vs nest**（[15 §4.0.5](docs/design/15-timing-entry-catalog.md)）：**上一步是否触发本步时点**？是 → nest；否 → 内联。
+- 新效果 → **`register_run` / `nest`**，不新建语义 Service。
+- **Cannot** → Register RESTRICTION + [06 §16](docs/design/06-registration-buff-model.md) Intent 入口。
+- 薄 facade 仅 `catalog.run(flow_id, params)`。
+- 冲突：07 §3.2–§3.4（Cannot / 竞争 / tier / Silver Rule）。

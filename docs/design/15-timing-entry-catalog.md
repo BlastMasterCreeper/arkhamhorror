@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-buff-model.md](06-registration-buff-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
 > **符号记法**：[ArkhamDB 标准](../reference/arkham-symbol-notation.md)  
-> **状态**：v0.5 · 2026-06-18
+> **状态**：v0.6 · 2026-06-18
 
 ---
 
@@ -64,12 +64,358 @@ RESOLVE  bricks…
 
 ## 4. RuleSequence 与 Brick
 
+### 4.0 拼合原则（设计重心）
+
+> **已裁决**：Grimoire 中 **凡有名称的规范规则序列**，均须译成 `SequenceCatalog` 的 `seq.*` + 砖块拼步 + L0 三类原子落地；**不得**为段落保留平行 Service / Policy / 原文分支 dispatch。详见 [.cursor/rules/effect-translation.mdc](../../.cursor/rules/effect-translation.mdc) §「Grimoire 命名规则序列」。
+
+Grimoire 译成引擎时：
+
+1. **先定砖块粒度（G0–G3，§4.0.2）** — 小序列 = **同一条 `seq.*` 内多砖顺序拼**，**不必** register 子 `seq.*`。
+2. **再拼 Grimoire 命名流程** — 仅 **有正式名称的规范流程** → `seq.*`；其 `RuleSequenceDef.bricks` = 砖块列表 + Would/When/After 政策。
+3. **跨入口复用** — 同一内核仅在被 **多条命名 seq** 共用时，才用 **SUBSEQUENCE** nest 已有 `seq.*`（可选，非升格）。
+
+**翻译自检**：
+
+| 问 | 期望 |
+|---|---|
+| Grimoire 是否给了 **顶层**流程名？ | 有 → 一条 `seq.*`；**内部步骤 = 砖块**，不是子 seq 清单 |
+| 子步骤（D1 collect、shuffle+pop） | **G0–G3 砖块**拼在同一 `seq.*` 内；**禁止**仅为子步骤 register `seq.*` |
+| 同一内核被 action 与效果等多处调用？ | 可选 `SUBSEQUENCE` nest **已有** `seq.*` |
+| 某步只改 GameState？ | EFFECT（G0/G1）→ L0 三类 |
+| 某步改规则 / reveal？ | G2 REGISTER 或 **REVEAL** |
+|  tempted 新建 Service 包整段？ | **否** → 砖块 + handler 拼接模式（§4.0.4） |
+
+**RESTRICTION / MODIFIER / LISTENER** 是 **REGISTER 砖块** 写入 `RegistrationStore`；生效查询在 **触发该砖块语义的入口**，不是序列外第二套本体。
+
+### 4.0.1 效果原子 vs 砖块：定义与边界
+
+两套名词 **不同层级**，不互相替代：
+
+| | **效果原子（Atom · L0）** | **砖块（Brick · Catalog 步）** |
+|---|---|---|
+| **定义** | 对 `GameStateStore` 的 **唯一合法、不可再拆** 的状态写入 | 命名 RuleSequence 里的 **一步规范流程** |
+| **文档** | [07-effect-primitives §5](07-effect-primitives.md) | 本节 §4.1 |
+| **代码** | `StateMutator` / `AtomOp` | `SequenceCatalog` handler、`RuleSequenceDef.bricks` |
+| **粒度** | **最细**（一次 move / transfer / adjust / set_flag / set_ref） | **G0–G3 四档**（§4.0.2）；**单砖上界 G2** |
+| **谁发明** | 引擎底座，**封闭枚举**，极少新增 | Catalog 设计步；**小序列 = 砖块列表，不必升格 seq** |
+| **时序 / WHEN** | **无** | G2 / **REVEAL** 可定步骤边界；整段 WHEN 由 **seq 政策** 定 |
+| **典型** | `pop_deck_top`、`transfer_marker` | G0 `pop_deck_top`、G1 `reveal_batch`、G2 E3 REGISTER、G3 collect 循环 |
+
+```text
+Grimoire 规范流程
+  → RuleSequence（seq.*）由 **砖块** 列出步骤顺序
+       → 砖块 EFFECT 展开为 Composition / L0 **原子**
+            → StateMutator 执行
+```
+
+**卡牌效果**不走单独原子表：编译为 **Composition 树**（同样落地 L0）；**嵌 nest** 已有 `seq.*` 时，外层是砖块 SUBSEQUENCE，内层是卡面 Composition。
+
+#### 状态原语（L0）— 三类（07-primitives §2、§5）
+
+[07-effect-primitives §2](07-effect-primitives.md) **已裁决**：复杂效果 = **卡牌地址 + 标记/计数 + 揭示与离散**：
+
+| 类 | 改什么 | 典型子操作 |
+|---|---|---|
+| **① 卡牌地址** | `CardSlot`、zone、顺序 | `AtomMoveCard` |
+| **② 标记/计数地址** | `MarkerSlot`；含 pool 端点 | `AtomTransferMarker`；`AtomAdjustMarker` |
+| **③ 揭示与离散** | `FaceAudience`；标志/引用 | **`AtomRevealCard`** → `reveal_to_*`；`AtomSetFlag`；`AtomSetRef` |
+
+**Register** 是效果但 **不是** L0；整流程 **Draw/DealDamage/Play** = 命名 `seq.*` 展开为 L0 + Register。
+
+`CompositionNode.atom_name` 是 **调用包装**，必须归约到 L0（含 **Reveal**）或 Register 路径。
+
+#### 砖块（Brick）— 边界
+
+四类（§4.1 `BrickKind`）：
+
+| Brick | 改 GameState？ | 改 Registration？ | 典型 |
+|---|---|---|---|
+| **EFFECT** | 是（经 L0/L1，含 **Reveal**） | 可（Register 节点） | `reveal_batch`、`commit_enter_hand`、E3 RESTRICTION |
+| **REVEAL** | **是**（③ `AtomRevealCard`，类内子操作） | 否 | D2/E2 `reveal_to_*`（Grimoire Reveal 步） |
+| **SUBSEQUENCE** | 委托子 seq | 委托 | `nest seq.draw.empty_piles_defeated`、`nest seq.enter_hand` |
+| **FRAMEWORK_STEP** | 经框架通道 | — | Upkeep 步进、阶段切换 |
+
+#### 砖块（Brick）— 种类与上界
+
+四类（§4.1 `BrickKind`）：
+
+| Brick | 改 GameState？ | 改 Registration？ | 典型 |
+|---|---|---|---|
+| **EFFECT** | 是（经 L0/L1） | 可（L2 Register） | G0–G2：`pop_deck_top`、`shuffle_and_horror`、E3 RESTRICTION |
+| **REVEAL** | **是**（③ 揭示与离散） | 否 | D2/E2 `reveal_to_*` |
+| **SUBSEQUENCE** | 委托 | 委托 | nest 已有 `seq.*` |
+| **FRAMEWORK_STEP** | 经框架通道 | — | Upkeep 步进 |
+
+**单砖上界（已裁决）**：最大粒度 = **G2 RuleStep**（含 Register 或 **Reveal** 边界的 **一步** Grimoire 步骤）。更长流程 = **同一条 `seq.*` 内多砖顺序拼（G3 SubFlow）**，**不** register 子 `seq.*`。
+
+**不是砖块**：Eligibility L0–L7、Player Window、`RestrictionEvaluator` 查询、TimingBus emit — **执行框架**（Buff 查询见 [06 §16](06-registration-buff-model.md)）。
+
+### 4.0.2 砖块粒度分类（G0–G3）
+
+| 等级 | 名称 | 展开 | 独立 Grimoire 步 / timing 边界？ | 例子 |
+|---|---|---|---|---|
+| **G0** | AtomWrap | 单次 L0（或 atom_name 包装） | 否 | `pop_deck_top`、`commit_enter_hand` |
+| **G1** | Compose | L1 Composition（多 L0 + Seq/Choice） | 通常否 | `shuffle_and_horror`、`reveal_batch` |
+| **G2** | RuleStep | G1 + **L2 Register**，或 **Reveal 砖** 对应的一步 | **是** | E3 peril REGISTER；D2 **Reveal** |
+| **G3** | SubFlow | handler 内 **有序多砖**（G0–G2），可 `×N` 循环 | 由 **最外层 G2** 或 seq 政策定 | D1「collect 一张」= G1→G0 两砖 × N |
+
+```text
+上界链：L0  ⊂  G0/G1 EFFECT  ⊂  G2 RuleStep  ⊂  G3 SubFlow（多砖）  ⊂  seq.*（命名流程）
+                              ↑ 单砖最大到这里          ↑ 小序列到此为止，不必升格
+```
+
+**G3 不是 BrickKind**：是 **文档/handler 分组**——同一 `seq.*` RESOLVE 里连续执行的砖块序列（含 loop）。  
+**SUBSEQUENCE 不是 G4**：仅 **跨 Catalog 入口复用** 或 **因果上成立新的 triggering condition** 时 nest 已有 `seq.*`；**禁止**把 G3 默认升格为子 `seq.*`。
+
+### 4.0.5 内联 vs 嵌套：**流程连续** vs **时点触发的结算**（已裁决）
+
+> **术语**：**结算**（resolve）= 可 **CREATED** 的写入（L0 状态原语、G2 **Register**、卡面 Composition 等，见 [07-composition §4](07-composition.md)）；**遭遇结算时点** = `seq.draw.encounter` 的 WHEN 区间（E2 后–E5 前）及其 **子时点 commit**（peril 检测、牌实例 bind、after card resolved 等）。
+
+划分内联 / nest 的 **操作判据**（一条即可）：
+
+> **上一步是否触发了本步结算所依附的时点锚点？**  
+> **是** → **nest**（新 TC / 新 `(sequence_id, slot)`；本步作为 **独立结算** 入栈）  
+> **否** — 只是同一 encounter WHEN 内的 **连续 then**（无独立子时点）→ **内联**
+
+| | **内联** | **嵌套** |
+|---|---|---|
+| **语义** | 同一 WHEN 内的 **then**（流程连续） | 子时点 **触发** 一段 **独立结算** |
+| **TriggeringCondition** | 不新建 | 新建（或 `sequences.nest` 等价 TC） |
+| **典型** | E2 reveal、E5 默认 discard | Register Buff、显现 Forced、spawn、涌动再抽 |
+
+```text
+内联：  A ──then──► B ──then──► C     （B 无独立子时点锚；同一 WHEN 内连续）
+嵌套：  A ──emit/commit 子时点──► nest B   （B 是依附该子时点的结算，含 Register）
+```
+
+**Register 也是结算**：向 `RegistrationStore` 写入 Buff（G2 Register）与 L0 move、卡面 Composition **同属 resolve**。**Buff 创建可 nest**，触发源是 **遭遇结算子时点**，不必等「有没有玩家响应窗」。
+
+**与旧判据的关系**：「上一步是否触发了 **响应** 时点」是子集；**Forced / Register / 关键词 LISTENER fire** 只要锚在子时点上，均 **nest**。
+
+**示例（调查员 `seq.draw.investigator`）**：
+
+| 段 | 内联 / nest | 理由 |
+|---|---|---|
+| D1 collect / D2→D3 物理入手 | **内联** | 同一 draw WHEN 内连续；**未** commit 独立子时点 |
+| D3 `commit_enter_hand` 后带 Revelation | **nest** `enter_hand` | **入手子时点** 触发显现结算 |
+| 两堆皆空 | **nest** `empty_piles_defeated` | **抽牌失败子时点** 触发 defeated 结算 |
+
+**示例（遭遇 `seq.draw.encounter` · priority 队列）**：
+
+| 段 | Priority | 说明 |
+|---|---|---|
+| E1+E2 Draw | emit timing | G1 → `ENCOUNTER_CARD_DRAWN` |
+| E3 peril | **100** | Register RESTRICTION |
+| E4 显现 | **90** | nest Forced |
+| E5 enemy / treachery | **80** | spawn 默认/指令 或 discard |
+| AFTER | **75** | emit |
+| E6 Surge | **70** | 再抽 G1 |
+
+**禁止**：为 Grimoire 段落 **proliferate** 平行 `seq.encounter.check_peril` 等 **命名流程**（handler 内 nest + `composition.execute(register)` 即可）；把 **已由子时点触发的 Register/Forced** 压进内联（漏 slot / provenance）。
+
+#### 4.0.5.1 险境 / 显现 / 涌动：同锚点、异优先级（已裁决）
+
+三者均订阅 **`ENCOUNTER_CARD_DRAWN`（抽取遭遇牌时）**；Grimoire G2–G5 由 **FrameworkPriority** 排序（§4.0.5.2）。显现 = Forced；险境 = Register RESTRICTION；涌动 = priority 70；**敌人进场（默认 / 指令 Spawn）与 treachery discard = 同档 priority 80**，指令只改 spawn 分支。
+
+#### 4.0.5.1a 险境 vs 显现（Buff 类型对照 · 保留）
+
+> **术语**：**timing entry** = 时点条目；**Register** = 注册 Buff；**RESTRICTION** = 限制类 Buff；**encounter resolution frame** = 遭遇结算帧（drawer / surge 诊断，**不** 承载 peril）。
+
+两者在遭遇结算时间线上 **十分接近**（同在 `resolve_card_body` 内、常与入手前后衔接），但 **不是同一类引擎事件**：
+
+| | **险境 E3** | **显现 E4** |
+|---|---|---|
+| **魔典语义** | 只规定结算期间限制 **已生效**（*while resolving*）；**未** 规定 Register 写入时刻 | Forced 能力须 **resolve**（结算）；订在 encounter draw / 入手等 entry |
+| **规则性质** | **帧内不变量**（frame-scoped invariant） | **完整 timing entry**（卡面 Forced / 订阅窗） |
+| **引擎做什么** | nest：**Register RESTRICTION** 结算（peril 检测子时点触发） | nest：Forced Composition 结算 |
+| **能力订阅** | RESTRICTION 供 L4 **查询**；子时点可登记 TimingCatalog | 卡面订 Revelation / encounter draw 等 entry |
+| **结构** | **nest** Register（非独立 `seq.check_peril`） | **nest** `seq.encounter.revelation` |
+| **内联/nest 判据** | **是** — 遭遇结算 **peril 子时点** 触发 Register 结算 | **是** — 显现 **子时点** 触发 Forced 结算 |
+
+**Grimoire 读法**：peril 只规定区间内限制 **成立**，未规定 Register 时刻；引擎在 **peril 检测子时点** nest Register 以满足不变量。RESTRICTION **生效**仍靠 L4 查询，不靠 nest 开窗给玩家响应。
+
+```text
+resolve_card_body（时间线相近）
+  E2 reveal ──then──► nest E3 Register RESTRICTION（peril 子时点 · 结算）
+                           ──then──► nest E4 revelation（显现子时点 · 结算）
+```
+
+**勿混淆**：E3 nest 的是 **Register 这段结算**，不是另开 Grimoire 命名 `seq.*`；与 E4 nest 显现 **同型**（子时点 → 独立结算入栈），Buff 类型不同（RESTRICTION vs Forced Composition）。
+
+**帧边界（已裁决）**：险境 RESTRICTION **不跨 Surge** — 生命周期 **`WHILE_DRAWN_CARD_RESOLVING(card_id)`**，**G4 完成、G5 Surge 再抽前** Unregister；与魔典 *that peril encounter* / Surge *after resolves* 一致。
+
+#### 4.0.5.2 抽取遭遇牌：单一时点 + 优先级排序（已裁决）
+
+> **术语**：**ENCOUNTER_CARD_DRAWN** = 抽取遭遇牌时（G1 Draw commit 触发的 timing entry）；**FrameworkPriority** = 框架优先级（同 timed 下结算体的自动排序键）。
+
+**已裁决**：**险境、显现、涌动、敌人进场（spawn）、诡雷弃置（discard）** 均锚在 **同一 timing entry — 抽取遭遇牌时**（`ENCOUNTER_CARD_DRAWN`）。Grimoire G2–G5 由 **FrameworkPriority** dequeue；**Spawn 指令（Spawn – 文本）只改进场方式，不另开 timing entry**。
+
+| 结算体 | Buff / 类型 | FrameworkPriority | Grimoire | 生命周期 / 备注 |
+|---|---|---|---|---|
+| **险境 Register** | RESTRICTION | **100** `PERIL_KEYWORD` | G2 | **`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — G4 完 Unregister |
+| 玩家 When draw [reaction] | LISTENER / TRIGGERED | **95** | When 示例 | peril 已生效 |
+| **显现 Forced** | Composition | **90** `REVELATION_FORCED` | G3 | 同 timing |
+| **G4 类型落点** | L0 Composition | **80** `ENCOUNTER_TYPE_RESOLVE` | G4 | 见下表；**含** 敌人进场 + treachery discard |
+| emit **AFTER(card)** | — | **75** | After draw | G4 后、Surge **前** |
+| **Surge 再抽** | keyword flow | **70** `SURGE_KEYWORD` | G5 | evaluate `has_surge`（含 E4 赋予） |
+
+**Priority 80 · G4 分支**（同一 dequeue 档；**非** 独立 timing）：
+
+| 卡类 | 条件 | 进场 / 落点模式 | L0 路径（[08 §7](08-enemy-engagement.md)） |
+|---|---|---|---|
+| **Treachery** | 默认 | 遭遇弃牌堆 | `discard_to_encounter_pile` |
+| **Treachery** | Hidden 已在 hand | 跳过 discard | E4 Composition 已处理 |
+| **Enemy** | **无** `Spawn –` 文本，非 Aloof | **默认生成** · engaged with drawer | `spawn_engaged(drawer)` |
+| **Enemy** | **无** Spawn 文本，**Aloof** | 默认生成 · unengaged at drawer.location | `spawn_at_location` |
+| **Enemy** | **有** `Spawn –` 文本 | **指令生成** · 解析 instruction → 选 location | `resolve_spawn_location` → `spawn_at_location` |
+| **Enemy** | 有 Spawn，非 Aloof | 指令生成 + auto engage | 上式 + `auto_engage_at_location` |
+| **Enemy** | 无合法 location | spawn 失败 | `discard_spawn_failed`（owner 堆） |
+
+```text
+G1 Draw commit → emit ENCOUNTER_CARD_DRAWN
+  priority_queue.dequeue_all():
+    100 peril Register
+    95  player When draw
+    90  revelation Forced
+    80  G4: treachery discard | enemy spawn（instruction 分支在 handler 内）
+         → Unregister peril(card_id)
+    75  AFTER(card)
+    70  surge? → 下一张 G1
+```
+
+**Spawn 指令语义**：`CardDefinition.spawn_instruction` / 牌面 `Spawn –` 文本 → **仅修改** `seq.encounter.spawn` handler 内 `spawn_from_encounter_draw` 的分支（location 解析、auto engage）；**不** 注册第二 timing hook。
+
+**与 nest 的关系**：priority 80 的 enemy 结算 **nest `seq.encounter.spawn`** 入栈（与 E4 nest `seq.encounter.revelation` 同型）；**触发源仍** 为 `ENCOUNTER_CARD_DRAWN`，与 treachery discard **同档不同支**。默认生成与指令生成 **共用** 同一条 nest，handler 内分支。
+
+**禁止**：`WHILE_ENCOUNTER_FRAME` 承载 peril；`seq.encounter.spawn` 作为 **与 draw 平行的 timing entry**（禁止单独 `catalog.run` 脱离遭遇抽牌）；为默认/指令 spawn 各建 **两条** `seq.*`。
+
+### 4.0.6 流程推进：**嵌套结束 → 回到内联下一步**（已裁决）
+
+**游戏流程在 RESOLVE 内如何前进**：
+
+| 层 | 推进方式 |
+|---|---|
+| **内联** | 同栈帧 RESOLVE 内的 **顺序步骤**（G0–G3 砖块、loop、`execute`）— **流程连续** |
+| **嵌套** | 某内联步 **导致** 新 TC → **暂停** 内联游标 → 子栈 **整段** WHEN→RESOLVE→AFTER（可再嵌套）→ pop |
+| **恢复** | 一串嵌套 **全部结束**（子帧 pop 回父帧）→ **继续父 RESOLVE 的下一内联步** |
+
+```text
+父 RESOLVE（内联程序）
+  step₁ 内联
+  step₂ 内联 ──causes──► nest 子 A
+                            子 A RESOLVE
+                              … nest 孙 B …
+                              孙 B pop
+                            子 A AFTER → pop
+  step₃ 内联   ◄── 嵌套链结束后才执行
+  step₄ 内联
+父 AFTER → pop
+```
+
+**要点**：
+
+1. **嵌套不替换内联** — 子栈是在 **父 RESOLVE 中途** 插入的因果支链；pop 后 **不是** 开新 seq，而是 **接着跑** 父 handler 里尚未执行的内联步。  
+2. **LIFO 只作用于嵌套** — 多层 nest 先完最深子帧；**同一层内联** 仍是 **FIFO 顺序**（then）。  
+3. **实现（v0）** — `catalog.nest` / `sequences.nest` **同步**调用 `run()`，子树跑完 **return** 到父 resolve 回调的 **下一行**（见 `draw_investigator_flow.gd`：`collect_one_step` 内 nest `empty_piles` 返回后继续 loop 或 `reveal_batch`）。  
+4. **实现（目标）** — `RuleSequenceDef.bricks` + 帧上 **内联游标**；nest 时保存游标，pop 后 **advance 到下一块**（与现 handler 语义等价）。
+
+**`seq.draw.investigator` 示例**：
+
+```text
+[内联] while collect_one_step …
+         └─[nest] empty_piles? → pop → return defeated / 继续 loop
+[内联] reveal_batch
+[内联] enter_hand_batch
+[nest_batch] enter_hand
+         └─ foreach: [nest] enter_hand 逐张 → pop → 下一张
+（内联结束）
+父 AFTER
+```
+
+**禁止**：子 pop 后 **跳过** 父 RESOLVE 剩余内联步直接父 AFTER（除非父 RESOLVE 已显式 abort）；在 AFTER 关闭后 **异步** 补 nest（14 §7）。
+
+**何时拆砖**：
+
+1. Grimoire **单独成步**（E3、D2 Reveal）→ **独立 G2 砖**（REVEAL 或 REVEAL + 后续 EFFECT）。  
+2. **打开/关闭 WHEN 区间** → G2 **REVEAL** 或 seq 政策锚点。  
+3. 仅 L0 一次调用、无独立时点 → **并入 G1**，不单独占砖。  
+4. 多步 **仅在本流程内**、**无新 triggering condition**（流程连续）→ **G3 砖列表**，不 register 子 seq。
+
+### 4.0.3 蕴含关系（⊂ / ⊥）
+
+```text
+seq.*  (RuleSequenceDef)
+  ⊃  BrickList[]           有序；G3 = 连续片段，非新类型
+       ├─ EFFECT  ⊃  Composition?  ⊃  L0*
+       │            ⊃  RegisterNode?  → RegistrationStore（挂 Buff；查在 Intent 入口）
+       ├─ REVEAL       ⊃  reveal_to_*     → StateMutator / AtomRevealCard
+       ├─ SUBSEQUENCE  ⊃  run(other seq.*)   可选；⊄「砖块升格」
+       └─ FRAMEWORK_STEP  ⊃  FrameworkChannel
+
+MoveCard ⊥ Reveal          正交：zone 变更 ≠ 揭示状态（分砖顺序拼，如 D2→D3）
+G3  ⊃  ≥2 逻辑砖           仍在同一 seq.* 栈帧内
+Buff 查询  ⊄  Brick         RESTRICTION 在 [06 §16](06-registration-buff-model.md) Intent 入口
+```
+
+| 关系 | 含义 |
+|---|---|
+| **seq ⊃ bricks** | 仅 **Grimoire 顶层命名流程** 占 `sequence_id` + push/pop |
+| **EFFECT ⊃ L0** | 每个 EFFECT 砖 **必须** 能归约到三类 L0（或 L2 Register） |
+| **G1 ⊃ G0×n** | Compose 砖 **蕴含** 多个 L0，对外仍 **一步** |
+| **G3 ⊃ brick×n** | 小序列 **蕴含** 多步，**不** 蕴含新 `seq.*` |
+| **SUBSEQUENCE ⊃ seq** | **因果** 上调用已有命名 seq（新 TC）；与 G3 **互斥**于同一逻辑段 |
+
+### 4.0.4 拼接模式
+
+| 模式 | 结构 | WHEN / emit | 例子 |
+|---|---|---|---|
+| **Linear** | `B₁ → B₂ → … → Bₙ` | 首个 G2 或 seq 政策 | E1→E2→E3 encounter |
+| **Batch** | `repeat G3)` 或 `nest_batch` | 父 seq WHEN 覆盖整段 | draw N：collect G3 × N |
+| **RevealSandwich** | `REVEAL` → `EFFECT*` → 关闭区间 | REVEAL 开 WHEN；末 EFFECT 关 | D2 reveal → enter_hand |
+| **RegisterPoint** | 单 G2 EFFECT（Register） | 常单点 emit | E3 peril |
+| **Delegate** | `SUBSEQUENCE` → 已有 `seq.*` | 继承 **子 seq** 政策 | `seq.action.draw` → `seq.draw.investigator` |
+
+Handler 实现：`RuleSequenceDef.bricks` 定 **Linear / InfoSandwich / RegisterPoint**；**Batch** 用 loop 或 `catalog.nest_batch` 调 **同 seq 内** G3 逻辑；**Delegate** 才 `catalog.run(other_seq)`。
+
+#### L1 / L2 与砖块的关系
+
+| 层 | 名称 | 与砖块 |
+|---|---|---|
+| **L1** | Composition 控制流 | **G1+ EFFECT** 的展开体 |
+| **L2** | Register / CancelPending / ReplacePending | **G2 EFFECT** 内节点 |
+| **L3** | 宏（Draw、DealDamage…） | 编译期展开为砖块列表；不进运行时 tree |
+
+#### 砖块 vs 命名 RuleSequence
+
+| | **砖块** | **`seq.*`** |
+|---|---|---|
+| **角色** | 步骤 | Grimoire **顶层**命名流程 |
+| **栈帧** | 无独立 id | push / pop |
+| **LISTENER 订阅** | 不单独订 | `(seq.*, slot)` |
+| **小序列** | **G3 多砖拼成** | 不为此单独开 seq |
+
+**RuleSequence 不覆盖的**：Eligibility、Player Window、`RestrictionEvaluator` — **执行框架**。
+
+#### 竖切对照（调查员抽牌 · 砖块拼成，不必子 seq）
+
+```text
+seq.draw.investigator                    ← 唯一命名 seq（Grimoire Draw Cards）
+  [G3 × N] collect 小序列（两砖，**内联**于 `seq.draw.investigator`）
+      [G1 EFFECT] shuffle_and_horror
+      [G0 EFFECT] pop_deck_top
+  [G1 EFFECT] reveal_batch               ← D2
+  [G1 EFFECT] enter_hand_batch           ← D3（可 nest seq.enter_hand 作 Delegate）
+
+seq.action.draw                          ← 另一命名 seq（耗 action）
+  [SUBSEQUENCE Delegate] → seq.draw.investigator
+```
+
 ### 4.1 Brick 种类
 
 ```gdscript
 enum BrickKind {
     EFFECT,          # L0 原子 / Composition 落地（改 zone、伤害等）
-    INFORMATION,     # 信息可见 / 控制者 confirm（改 InformationState，非 effect 施加）
+    REVEAL,          # AtomRevealCard：写 FaceAudience（Grimoire Reveal；是 L0 效果）
     SUBSEQUENCE,     # 嵌套另一条 RuleSequence
     FRAMEWORK_STEP,  # 框架步（框架通道）
 }
@@ -77,10 +423,10 @@ enum BrickKind {
 
 | Brick | 是否「效果施加」 | 典型 |
 |---|---|---|
-| **EFFECT** | 是 | MoveCard、DealDamage、move_transaction |
-| **INFORMATION** | 否（牌面受众变更） | `FaceAudience` → CONTROLLER / ALL（见 [01 §3.6](01-game-state-zones.md)） |
-| **ENTER_HAND** | 是（zone） | deck/limbo → hand；**带 Revelation 能力的玩家牌** 在入手时 nest（见 §16.2） |
-| **SUBSEQUENCE** | — | fight 内嵌 skill_test、shuffle+horror |
+| **EFFECT** | 是 | G0–G2：MoveCard、Register RESTRICTION、`enter_hand` |
+| **REVEAL** | **是**（③ AtomRevealCard） | `FaceAudience` → CONTROLLER / ALL（[01 §3.6](01-game-state-zones.md)） |
+| **SUBSEQUENCE** | — | **Delegate**：跨命名 seq 复用（如 action.draw → draw.investigator） |
+| **FRAMEWORK_STEP** | — | Upkeep 步进、阶段切换 |
 
 ### 4.2 RuleSequenceDef
 
@@ -113,9 +459,10 @@ Grimoire 未定义 deck→hand、leave→enter 中间态时，**不**用 zone �
 |---|---|---|
 | **DRAW_WHEN_SPAN_D2_D3** | `seq.draw.investigator` | WHEN **窗口** = 控制者 **CONTROLLER**（D2 后）至 ENTER_HAND 完成（D3 后，含显现 nest） |
 | **DRAW_WOULD_BEFORE_D2** | `seq.draw.investigator` | WOULD = instance 已 bind（D1 后）、**D2 信息 reveal 前** |
-| **DRAW_ENCOUNTER_WOULD_BEFORE_E2** | `seq.draw.encounter` | WOULD = E1 bind 后、**E2 公开 reveal 前** |
-| **DRAW_ENCOUNTER_WHEN_SPAN_E2_E5** | `seq.draw.encounter` | WHEN **窗口** = E2 后至 E5 类型落点完成（含 `seq.encounter.revelation` nest） |
-| **ENCOUNTER_REVELATION_COMMITTED** | `seq.encounter.revelation` | 遭遇显现；**非** `seq.enter_hand`；Forced；`pre_impact=SPLIT` |
+| **DRAW_ENCOUNTER_WOULD_BEFORE_G1** | `seq.draw.encounter` | WOULD = E0 意图后、**G1 pop 前** |
+| **DRAW_ENCOUNTER_WHEN_SPAN_G1_G4** | `seq.draw.encounter` | WHEN = **G1 Draw 完成后** → **G4 完成后**（非 E2 后） |
+| **ENCOUNTER_CARD_DRAWN** | `seq.draw.encounter` | **抽取遭遇牌时**（G1 commit）；险境/显现/涌动 **同锚点** + FrameworkPriority |
+| **ENCOUNTER_REVELATION_COMMITTED** | `seq.encounter.revelation` | 遭遇显现 nest；priority **90**；**非** `seq.enter_hand` |
 | **MOVE_INTENT_COMMITTED** | `seq.action.move` | from/to **已确定**；leave+enter **规则上同时**（一个 brick） |
 | **FIGHT_COMMITTED** | `seq.action.fight` | Fight 行动 **开始 RESOLVE**；默认与内嵌 test 的 AFTER **merge**（§7） |
 | **GAIN_COMMITTED** | `seq.gain_resource`（设计别名 `seq.action.gain_resource`） | 一次 gain 结算 commit（已实现竖切） |
@@ -215,13 +562,13 @@ class TimingCatalog:
 | 效果「全体揭示牌库顶」 | ALL | ALL |
 
 ```gdscript
-# INFORMATION brick（D2）示意
+# REVEAL 砖（D2）示意
 func reveal_to_controller(card_id, controller_id):
     card.face.audience = FaceAudience.CONTROLLER
     card.controller_id = controller_id  # 若尚未设置
 ```
 
-**信息首次对控制者可见 = D2 结束**（INFORMATION brick）。**不是** D3 进 hand 时才首次可见。
+**牌面首次对控制者可见 = D2 结束**（**Reveal** 原语写入 `CONTROLLER`）。**不是** D3 进 hand 时才首次可见。
 
 ### 16.2 步骤 D0–D5
 
@@ -230,13 +577,13 @@ D0  抽牌意图成立（push 前 / push 瞬间）
     信息：HIDDEN_ALL（控制者亦不知牌面）
     区域：未动牌
 
-D1  收集单张（循环 nest `seq.draw.collect_one`，直至 `amount` 或终止）
+D1  收集单张（**内联 G3** 循环 `collect_one_step`，直至 `amount` 或终止）
     · 牌库非空 → `pop_deck_top` → 写入 `RulesMemory.draw_pending`
     · 空库 → L1 `shuffle_and_horror`（`shuffle_discard_into_deck` + `HORROR_TAKEN`）→ 再 pop
     · 两堆皆空 → nest `seq.draw.empty_piles_defeated` → 本张 draw 终止
     信息：HIDDEN_ALL（控制者亦不知牌面）
 
-D2  INFORMATION — `reveal_batch`（L1 Composition of `reveal_to_controller`）
+D2  REVEAL — `reveal_batch`（L1 Composition of `reveal_to_controller`）
     牌面：HIDDEN_ALL → **CONTROLLER**（控制者）  ★ D2 ★
     区域：仍可 deck / Limbo（实现）；触发不读 zone
 
@@ -266,7 +613,7 @@ D5  pop → emit AFTER
 **WHEN 是区间，不是 D2 与 D3 之间的单点：**
 
 ```text
-open TimingWindow(seq.draw.investigator, WHEN)   # D2 INFORMATION 完成
+open TimingWindow(seq.draw.investigator, WHEN)   # D2 Reveal 完成
   … 可 refresh；D3 内 `seq.enter_hand` nest 显现 …
 close TimingWindow                              # D3 ENTER_HAND + seq.enter_hand nest 完成
 ```
@@ -274,6 +621,30 @@ close TimingWindow                              # D3 ENTER_HAND + seq.enter_hand
 **「When you draw」** 能力在 **控制者已为 CONTROLLER 之后、draw 序列 pop 之前** 均可响应，**包括** 正在入手与 **显现结算期间**（仍在 D3 内）。
 
 **「When you would draw」** → 订阅 **WOULD**（D2 前）。
+
+### 16.3.1 Slot / 步骤 / 结构对照（模板）
+
+译 flow 时 **先判因果边界，再列 slot，再选内联或 nest**（§4.0.5）。能力订阅 **`(sequence_id, slot)`**（§2）。
+
+| 步骤 | 内联/嵌套 | 因果 vs 连续 | 应 emit 的 TimingEntry | 典型能力 | 实现 |
+|---|---|---|---|---|---|
+| D0 push | 根 `run` | 整段 draw **开始** | — | — | ✅ |
+| D1 collect ×N | **内联** | **连续**（同一次 draw 收集） | 父 **WOULD** | would draw | ⚠️ WOULD 未 emit |
+| D1 两堆空 | **nest** | **因果**：空库 **导致** defeated | （abort；无父 AFTER） | — | ✅ |
+| D2 reveal | **内联** | **连续**：draw 事务一步 | 父 **WHEN open** | when you draw | ❌ |
+| D3 enter_hand | **内联** | **连续**：draw 事务一步 | 父 WHEN 仍开 | 同上 | ❌ |
+| D3 显现 | **nest** | **因果**：入手 **触发** Revelation | 子 `(enter_hand, slot)` | Revelation | ✅ nest |
+| D5 pop | 父 pop | draw **结束** | 父 **AFTER** | after you draw | ✅ pop；❌ offer |
+
+**结构决策（因果优先）**：
+
+| 逻辑段 | 选择 | 理由 |
+|---|---|---|
+| D2 + D3 物理入手 | **内联** | **流程连续**，同一 draw TC |
+| D3 显现 | **nest** | **因果关系**，新 `enter_hand` TC |
+| D1 collect 循环 | **内联** | **流程连续**，G1 shuffle + G0 pop |
+
+新 `seq.*` 可复制本表格式写入对应 §16/§17 节。
 
 ### 16.4 Bricks 与 SequenceCatalog 映射
 
@@ -284,19 +655,12 @@ seq.draw.investigator          # RUN · catalog.register_run
   RESOLVE:
     init RulesMemory (draw_pending / draw_shuffles / draw_horror_taken)
     while pending.size < amount:
-      nest seq.draw.collect_one     # 编排循环，非 L0 效果
+      collect_one_step (内联 G3)        # shuffle+horror / pop；两堆空 → nest empty_piles
     execute reveal_batch              # L1 · D2
     execute enter_hand_batch          # L1 · D3 物理落点
     nest_batch seq.enter_hand         # NEST_BATCH · D3 显现 timing
 
-seq.draw.collect_one           # RUN · nest 于 collect 循环内
-  RESOLVE:
-    if deck empty:
-      if discard empty → nest seq.draw.empty_piles_defeated → abort
-      else execute shuffle_and_horror   # L1: shuffle_discard + HORROR_TAKEN
-    execute pop_deck_top                # L0 → append draw_pending
-
-seq.draw.empty_piles_defeated  # RUN · nest 于 collect_one 内
+seq.draw.empty_piles_defeated  # RUN · 因果 nest 于 D1 内
   RESOLVE:
     set_flag(ELIMINATED)
 
@@ -315,6 +679,26 @@ seq.enter_hand                 # NEST_BATCH · 所有「进入手牌」来源共
   WHEN   — open after D2; close after nest_batch(seq.enter_hand)
   AFTER  — on seq.draw.investigator pop
 ```
+
+#### 16.4.2 框架 Upkeep 4.4（`UPKEEP_4_4_DRAW_AND_RESOURCE` · 已实现）
+
+Grimoire 补给：**每位调查员抽 1 张 + 获 1 资源**。引擎 **不** 内联改 `resource_pool`，经 Catalog **Delegate** 已有 seq：
+
+```text
+FrameworkFlowEngine._resolve_upkeep_draw_and_resource()
+  foreach inv_id in player_order:
+    [Delegate · 连续] draw_investigator.draw_cards(amount=1, tags=[framework, upkeep_4_4])
+    [Delegate · 连续] resource_gain.gain(base=1, tags=[framework, upkeep_4_4])
+```
+
+| 步 | 内联/nest | 因果 | seq |
+|---|---|---|---|
+| 抽 1 | Delegate → 完整 draw seq | 连续（框架编排） | `seq.draw.investigator` |
+| +1 资源 | Delegate → 完整 gain seq | 连续 | `seq.gain_resource` |
+
+**tags**：`framework` + `upkeep_4_4`；`gain_resource` / `draw_investigator` 由 `TriggeringCondition` 自动附加。L3 能力可绑 `framework_step == UPKEEP_4_4`（见 06 §4.1）。
+
+代码：`rules/framework/framework_flow_engine.gd` · `GameBootstrap` 绑定 `GameContext`。
 
 ```gdscript
 # seq.enter_hand handler 示意（已实现）
@@ -396,7 +780,7 @@ var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
 | `CardFaceVisibility` + `FaceAudience`（[01 §3.6](01-game-state-zones.md)） | `TimingCatalog` / WOULD·WHEN 区间 emit（TIM-01～04） |
 | L0：`pop_deck_top`、`shuffle_discard_into_deck`、`commit_enter_hand`、`reveal_to_controller` | `seq.draw.encounter` |
 | L1：`DrawInvestigatorComposition`（`shuffle_and_horror`、`reveal_batch`、`enter_hand_batch`） | 设计别名 `seq.action.gain_resource` → 代码 `seq.gain_resource` 对齐（可选） |
-| `SequenceCatalog`：`seq.draw.investigator`、`seq.draw.collect_one`、`seq.draw.empty_piles_defeated`、`seq.enter_hand`、`seq.gain_resource` | `TimingCatalog` 索引表（§17） |
+| `SequenceCatalog`：`seq.draw.investigator`、`seq.draw.empty_piles_defeated`、`seq.enter_hand`、`seq.gain_resource` | `TimingCatalog` 索引表（§17） |
 | `DrawInvestigatorFlow` + `DrawSubflowHandlers`；`DrawInvestigatorService` → `catalog.run` | D1 per-card instance bind（当前以 `card_id` + pending 列表） |
 | `CardRegistry.register_revelation` → Composition；ENT-01～03 测试 | encounter draw 共用 `seq.enter_hand` |
 | `StateMutator.execute_draw_instruction` dry-run 回退（`run_mutator_only`） | |
@@ -425,140 +809,154 @@ var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
 | E5 后 enemy 在场 | ALL（公开 enemy） | — | zone 迁移；audience 随进场策略 |
 
 ```gdscript
-# INFORMATION brick（E2 默认）示意
+# REVEAL 砖（E2 默认）示意
 func reveal_encounter_drawn(card_id: StringName) -> void:
     card.face.audience = FaceAudience.ALL
 ```
 
 **Hidden** 由卡定义/register 在 E4 分支处理，**不**在 E2 对全体 `ALL`。
 
-### 17.2 步骤 E0–E7
+### 17.2 步骤 E0–E7 与 Grimoire Framework 1.4 对齐
+
+> **权威逐步流程**（Grimoire p.27 · Mythos 1.4）：  
+> **G1** Draw → **G2** Check peril → **G3** Resolve revelation → **G4** Spawn / discard → **G5** Surge → restart G1。  
+> Framework 1.4 **摘要句**（先写 revelation 再写 type）以 **编号逐步列表** 为准；摘要 **省略** G2 peril。
+
+#### 17.2.1 引擎步骤 ↔ Grimoire 对照
+
+| Grimoire | 引擎 | 说明 |
+|---|---|---|
+| — | **E0** 意图 / push 帧 | 引擎信封；魔典无对应步 |
+| **G1 Draw** | **E1** `collect_one_step` + **E2** `reveal_encounter` | E2 为 G1 的 **L0 子步**（公开牌面）；魔典 **无** 独立 reveal 步；Hidden **跳过** E2 |
+| **G2 Check peril** | **E3** nest Register RESTRICTION | **紧接 G1**，在 G3 **之前**（Framework step 2） |
+| **G3 Revelation** | **E4** nest `seq.encounter.revelation` | treachery 在 **limbo**（暂存区）结算 |
+| **G4 Spawn / discard** | **E5** nest spawn / 内联 discard | 二分，非并行 |
+| **G5 Surge** | **E6** nest（evaluate + 再抽 → E1） | **G4 全部完成后**；含 E4 动态赋予 surge |
+| — | **E7** pop 帧 + 外层 AFTER | 整链 Surge + 批量 `amount` 完成后 |
 
 ```text
-E0  遭遇抽牌意图成立（push / run 前）
+E0  遭遇抽牌意图成立（push 帧前）
     drawer_id 已知；EncounterResolutionFrame 将创建
-    信息：HIDDEN_ALL
 
-E1  收集单张（Surge 循环或批量中的每一张）
-    · pop_encounter_deck_top → RulesMemory.encounter_pending（frame 级 referent）
-    · 空库 → shuffle_encounter_discard_into_deck（**无 horror**）
-    · 两堆皆空 → RULES_GAP（遭遇无「 defeated」等价；见 OQ-ENC-01）
-    信息：HIDDEN_ALL（控制者亦不知，除非已从 deck 外 bind）
+E1  G1 · Draw（内联 collect）
+    · pop_encounter_deck_top → bind 牌实例
+    · 空库 → shuffle_encounter_discard（无 horror）
+    · 两堆皆空 → RULES_GAP（OQ-ENC-01）
+    · E2 reveal_encounter — G1 子步（Hidden 跳过；非独立 Grimoire 步）
 
-E2  INFORMATION — reveal_encounter（默认 ALL）
-    牌面：HIDDEN_ALL → **ALL**（默认）  ★ E2 ★
-    区域：仍为 deck / Limbo；**不**读 zone 判触发
-    Hidden 卡：跳过本步公开 reveal
+[WOULD 窗结束]
 
-E3  PERIL — check_peril(frame)
-    若 drawn 卡带 peril → frame.peril = true（**粘性**至 frame pop）
-    激活 **Register RESTRICTION**（`EncounterPeril.apply_e3_check`，[04 §4](04-skill-test-engine.md)）；**非** Eligibility 软过滤
-    覆盖本 frame 内 Surge 链与嵌套检定
+open WHEN   # G1 Draw 完成即开（非 E2 后）—「When you draw encounter」
 
-E4  REVELATION — nest seq.encounter.revelation
-    · **Forced**；**非** seq.enter_hand
-    · encounter 卡 Forced **先于** player 卡（Grimoire Simultaneous Priority）
-    · 可嵌 skill test；仍在 peril frame 内
-    · Hidden：显现秘密加 hand；audience drawer=CONTROLLER，他人 HIDDEN_ALL
+E3  G2 · nest Register RESTRICTION（peril 子时点）
+E4  G3 · nest revelation
+E5  G4 · nest spawn / 内联 treachery discard
 
-E5  TYPE_DISPATCH — nest seq.encounter.dispatch
-    · **enemy** → nest seq.encounter.spawn（见 §17.4.1）
-      · **无 Spawn 文本**（非 Aloof）→ **`spawn_engaged(drawer)`** 原子进场
-      · **有 Spawn 文本** → spawn_at_location → **auto_engage_at_location**（除非 Aloof）
-      · **Aloof**（含无 Spawn draw）→ spawn_at_location(drawer.location)，unengaged
-      · **无合法 location** → **`discard_spawn_failed`** → owner 对应弃牌堆（08 §7.4）
-    · **treachery** → encounter discard（除非能力留 threat / in play）
-    · **story asset** 等 → 按 CardDefinition 默认落点
+close WHEN
 
-E6  SURGE_CHECK
-    · surge → **同一 EncounterResolutionFrame** 内回到 **E1**（不 pop 外层）
-    · 否 → 若批量 `amount` 仍有下一张 → E1；否则 E7
+emit AFTER(card)    # 「After you draw an encounter card」— G4 后、G5 前
 
-E7  pop frame → emit AFTER
-    「After you draw an encounter card」= **本张** E1–E5 完成后、**Surge 下一圈 E1 之前**
-    Grimoire *Then* 优先于本 AFTER（见 14 §2、Grimoire Then）
+E6  G5 · nest Surge（evaluate has_surge → 再抽 E1；同一帧）
+
+E7  无 Surge 且批量完成 → pop 帧 → 外层 AFTER
 ```
 
 **无 enter_hand。** 玩家牌显现仍仅经 `seq.enter_hand`（§16）；遭遇显现 **永不** 复用该 nest。
 
-### 17.3 Would / When / After 的 **准确位置**
+### 17.3 Would / When / After 的 **准确位置**（对齐 Grimoire）
 
 | Slot | 步骤区间 | 牌面（默认） | 说明 |
 |---|---|---|---|
-| **WOULD** | **E1 bind 后 → E2 开始前** | HIDDEN_ALL | 「将要遭遇抽」 |
-| **WHEN** | **E2 完成后 → E5 完成后** | **ALL** | 「遭遇抽牌时」= E2–E5（含 revelation nest、spawn/discard） |
-| **AFTER** | **本张 E5 后、Surge 下一圈 E1 前** | ALL 或已落场 | Surge **不**延长本张 AFTER |
+| **WOULD** | **E0 意图后 → G1 pop 前** | HIDDEN_ALL | 「When you **would** draw an encounter card」 |
+| **WHEN** | **G1 Draw 完成后 → G4 完成后** | 非 Hidden：**ALL**（E2 后）；Hidden：drawer 见 E4 | 「When you draw…」；When 词条示例：**G1 后、G3 前**（*before revelation*） |
+| **AFTER** | **G4 完成后 → G5 Surge 再抽 G1 前** | ALL 或已落场 | 每张牌 **独立** AFTER；Surge **不**合并 |
 
-**Surge 链**：每一圈 E1–E5 各自 **独立** WHEN 窗口；外层 `seq.draw.encounter` 的 AFTER 在 **全部** Surge + 批量抽完后 E7 pop。
+**Mandatory 步 vs 玩家窗**：G2 peril、G3 revelation、G4 spawn/discard 为 **框架强制步**（nest 结算）；玩家 **[reaction] When draw** 在 WHEN 窗内、**G3 nest 之前** initiate（Grimoire *When* p.24 示例）。G2 后 peril RESTRICTION 已生效 → 他人 **仍 cannot** play/trigger/commit（与 When 窗 **并存**）。
+
+**Surge 链**：每一圈 **独立** ENCOUNTER_CARD_DRAWN + priority 队列；`EncounterResolutionFrame` 仅保留 drawer / surge_depth 等 **诊断**，**不** 承载 peril 粘性。
+
+**peril 不跨 Surge（已裁决）**：G5 在 **上一张 G4 完成后**；该张 peril RESTRICTION 已在 priority **80 档结束** 时 Unregister → 下一张 G1 是 **全新** 抽取时点。
 
 ```text
-open TimingWindow(seq.draw.encounter, WHEN)   # E2 reveal 完成
-  … seq.encounter.revelation nest …
-  … seq.encounter.dispatch …
-close TimingWindow                              # E5 完成
-emit AFTER (per card, before Surge E1)
+[WOULD] …
+G1 Draw → emit ENCOUNTER_CARD_DRAWN
+  priority dequeue: 100 peril → 90 revelation → 80 spawn|discard（Unregister peril）
+  → 75 AFTER(card)
+  → 70 surge? → 下一张 G1 …
 ```
 
-**「When you would draw an encounter card」** → 订阅 **WOULD**（E2 前）。
+#### 17.3.2 FrameworkPriority 配置（占位）
+
+```gdscript
+# rules/config/encounter_draw_priority.gd — 设计师可调；默认对齐 Grimoire G2–G5
+class EncounterDrawPriorityPolicy:
+    const PERIL_KEYWORD := 100
+    const PLAYER_WHEN_DRAW := 95
+    const REVELATION_FORCED := 90
+    const ENCOUNTER_TYPE_RESOLVE := 80
+    const SURGE_KEYWORD := 70
+    const AFTER_DRAW_EMIT := 75
+```
+
+**配置入口**：`RulesConfig.encounter_draw_priority`（与 `enter_hand_timing` 同型占位）。
+
+### 17.3.1 Slot / 步骤 / 结构对照（模板）
+
+译 flow：G1 commit → **ENCOUNTER_CARD_DRAWN** → **FrameworkPriority** 排序（§4.0.5.2、§17.3.2）。各档可 nest 结算入栈。
+
+| 步骤 | Grimoire | Priority | 结算体 | 说明 |
+|---|---|---|---|---|
+| E1+E2 | **G1 Draw** | （开 timing） | L0 collect + reveal | emit ENCOUNTER_CARD_DRAWN |
+| **E3** | **G2 Peril** | **100** | nest Register RESTRICTION | `WHILE_DRAWN_CARD_RESOLVING(card_id)` |
+| — | When draw | **95** | 玩家 [reaction] | 可选 |
+| **E4** | **G3 Revelation** | **90** | nest Forced | |
+| **E5 G4** | **G4** | **80** | nest `seq.encounter.spawn` / 内联 treachery discard | enemy：**nest 生成**（无 Spawn→默认；有 Spawn→指令）；treachery：discard；**Unregister peril** |
+| AFTER | — | **75** | emit AFTER(card) | G4 后、Surge 再抽前 |
+| **E6** | **G5 Surge** | **70** | evaluate + 再抽 G1 | 新 ENCOUNTER_CARD_DRAWN |
+
+**Hidden treachery**：G1 跳过 E2 公开 reveal → G3 nest revelation（Composition 内秘密 `commit_enter_hand`）→ G4 **跳过** 默认 discard。
+
+**结构决策**：
+
+| 逻辑段 | 选择 | 理由 |
+|---|---|---|
+| E1+E2 | G1 内联 | 魔典 step 1；E2 非独立 timing 边界 |
+| E3/E4/E6 | priority nest 结算 | Register / Forced / Surge |
+| E5 G4 | priority **80** handler | enemy：**nest `seq.encounter.spawn`**；treachery 内联 discard |
+| `resolve_card_body` | orchestrator | dequeue `ENCOUNTER_CARD_DRAWN` 队列 |
 
 ### 17.4 Bricks 与 SequenceCatalog 映射
 
-**原则**：与 §16 相同 — 步骤 = **Catalog 条目** + **L1 Composition**；**EncounterResolutionFrame** 跨 Surge 圈持有 `peril` / `drawer_id`。
+**原则**：`ENCOUNTER_CARD_DRAWN` + **FrameworkPriority**（§4.0.5.2）；`EncounterResolutionFrame` 跨 Surge 圈（仅 drawer 诊断）。
 
 ```text
-seq.draw.encounter                 # RUN · catalog.register_run
+seq.draw.encounter                 # RUN
   RESOLVE:
-    push EncounterResolutionFrame(drawer_id)     # RulesMemory frame stack
-    init RulesMemory (encounter_pending, shuffles, cards_resolved)
+    push EncounterResolutionFrame(drawer_id)
     for i in amount:
-      loop:                         # Surge loop（单张内）
-        nest seq.draw.encounter.collect_one      # E1（或 resolve_bound skip）
-        nest seq.draw.encounter.resolve_card     # E2–E6 共享子 flow
-        if surge(card): continue loop
-        else: break loop
-      append cards_resolved
-    pop frame → AFTER
+      surge loop:
+        collect_one_step (G1)
+        emit ENCOUNTER_CARD_DRAWN → priority dequeue（G2–G5）
+        if surge: continue
+    pop frame → E7 AFTER
 
-seq.draw.encounter.resolve_card    # RUN · nest；单张 E2–E6（§17.10）
-  params: drawer_id, card_id（默认 encounter_pending）
+seq.encounter.spawn              # RUN · nest · priority 80 结算体（非第二 timing 锚）
   RESOLVE:
-    execute reveal_encounter（Hidden → skip ALL，§17.4.3）
-    nest seq.encounter.check_peril               # E3
-    nest seq.encounter.revelation                # E4
-    nest seq.encounter.dispatch                  # E5
+    spawn_from_encounter_draw(enemy_id, drawer_id)
+    # 默认生成（无 Spawn 文本）→ spawn_engaged | spawn_at_location(Aloof)
+    # 指令生成（Spawn –）→ resolve_spawn_location → spawn_at_location + optional auto_engage
 
-seq.draw.encounter.resolve_bound   # RUN · nest；weakness / as-if-drawn
-  params: drawer_id, card_id, skip_collect=true
-  RESOLVE:
-    bind card_id → encounter_pending（无 E1 pop）
-    nest seq.draw.encounter.resolve_card         # 同上 E2–E6
+seq.draw.encounter.resolve_bound   # RUN · weakness 重定向
+  bind card_id → 同上 priority 队列（skip G1）
 
-seq.draw.encounter.collect_one     # RUN · nest 于 E1
-  RESOLVE:
-    if encounter_deck empty:
-      if encounter_discard empty → RULES_GAP（OQ-ENC-01）
-      else execute shuffle_encounter_discard     # L1 · 无 horror（§17.13）
-    execute pop_encounter_deck_top               # L0 → encounter_pending
-
-seq.encounter.revelation           # NEST · E4
-  CardAbilityService.resolve_encounter_revelations
-  → Composition（Forced；flow_id = seq.encounter.revelation）
-
-seq.encounter.check_peril          # NEST · E3
-  EncounterPeril.apply_e3_check(game_ctx, frame, has_peril_keyword)
-  # 见 [04 §4.11](04-skill-test-engine.md)
-
-seq.encounter.dispatch             # NEST · E5（§17.4.2 / §17.4.3）
-  branch cardtype → spawn | treachery_discard | hidden_hand | put_into_play
-
-seq.encounter.spawn                # NEST · E5 enemy
-  EnemySystem.spawn_from_encounter_draw(card_id, drawer_id)
-  # 见 §17.4.1
+seq.encounter.revelation           # RUN · nest · priority 90 结算体（非第二 timing 锚）
 ```
 
-### 17.4.1 E5 Enemy：`spawn_engaged` vs `auto_engage_at_location`
+> **架构说明**：`seq.encounter.spawn` **不是** 与 `seq.draw.encounter` **平行** 的 timing entry；**是** G4 priority 80 的 **nest 结算体**（同型于 `seq.encounter.revelation` @ 90）。~~`check_peril`~~ / ~~`dispatch`~~ 等 **独立 seq** 仍禁止 proliferate。
 
-Grimoire / FAQ *Spawning an Enemy*：investigator **draw** 时若无 `Spawn –`，敌人 **spawns engaged with drawer**（**unless Aloof**）。这是 **进场态** 一次写入，**不是** Engage 行动，也 **不是** 「先进 location 再 auto engage」。
+### 17.4.1 G4 Enemy：`spawn_engaged` vs 指令 `Spawn –`
+
+Grimoire Framework 1.4 step 4 / *Spawning an Enemy*：**均在 `ENCOUNTER_CARD_DRAWN` · priority 80** 结算。`Spawn –` **指令** 只改 location 解析与是否 `auto_engage_at_location`；**默认生成**（无 Spawn 文本）走 `spawn_engaged`（非 Aloof）或 Aloof 落点。
 
 | 条件 | 引擎路径 | Domain 结果 |
 |---|---|---|
@@ -592,6 +990,104 @@ func spawn_from_encounter_draw(enemy_id: StringName, drawer_id: StringName) -> v
 
 **Invariant**：`spawn_engaged` **不得** nest `ActionSystem.engage` 或 `auto_engage_at_location` — drawer 已由规则唯一确定。
 
+#### 17.4.1b 指令生成（Spawn –）vs 普通生成：译法（已裁决）
+
+> **术语**：**普通生成** = Grimoire Framework 1.4 默认进场（无 `Spawn –` 文本）；**指令生成** = 牌面 **Spawn –** 段落（卡牌描述）。
+
+| | **普通生成** | **指令生成** |
+|---|---|---|
+| **来源** | **规则流程**（Framework） | **卡牌描述**（printed Spawn） |
+| **编译** | **无** 卡面字段；priority 80 handler 内固定分支 | 导入时编译 → **`SpawnInstructionSpec`**（非 Ability） |
+| **运行时** | `EnemySystem.spawn_default_from_draw` | `composition.execute(spawn_composition)` 或 `spawn_with_spec` |
+| **时点** | 同 **`ENCOUNTER_CARD_DRAWN` · priority 80** | **同左** — 指令 **不** 另订 timing hook |
+| **Hook** | 无卡面 AbilityHook | **无独立** `(sequence_id, slot)` — 由框架 G4 **调用** 卡面编译体 |
+
+**分工（已裁决）**：
+
+```text
+卡面 Spawn 文本  →  编译期解析（禁止运行时 match 原文）
+  → SpawnLocationSelector（枚举/结构化 spec：your location / nearest empty / 具名 location …）
+  → 可选 Composition 子树：ChoiceLocation · ResolveTargets
+
+Framework G4（priority 80）→  固定后缀（规则流程，非卡面）
+  → spawn_at_location(enemy, loc)
+  → if not Aloof: auto_engage_at_location
+  → if 无合法 loc: discard_spawn_failed
+```
+
+**与显现（Revelation）对照**：显现 = 完整 Forced **Composition**（priority 90）；Spawn 指令 = **受限卡面 spec**（主要是 **WHERE**）+ **Framework 标准后缀**（进场态 / engage / 失败 discard）。**不是** 把 Spawn 文本译成独立 `seq.*` timing entry。
+
+**不是能力、不是 Buff（已裁决）**：
+
+| 不是 | 理由 |
+|---|---|
+| **Card Ability** | 无 Forced/[reaction] Hook；不 Register；不进入 Initiation / Eligibility 订阅 |
+| **MODIFIER** | 不改数值查询；仅 G4 内联分支读 **WHERE** |
+| **RESTRICTION / LISTENER** | 不挂 RegistrationStore；不订独立 timing |
+| **独立 seq.*** | 并入 `seq.draw.encounter` priority **80** handler |
+
+**CardDefinition 形状（示意）**：
+
+```gdscript
+class SpawnInstructionSpec:   # 非 AbilitySpec
+    var mode: SpawnMode   # FRAMEWORK_DEFAULT | INSTRUCTION
+    var selector: SpawnLocationSelector   # 编译产物；非 raw string
+    # composition: CompositionNode  # 仅 selector 需 Choice 时
+```
+
+**priority 80 handler 分支**：
+
+```gdscript
+func resolve_g4_enemy(enemy_id: StringName, drawer_id: StringName) -> void:
+    var spec := CardRegistry.spawn_spec(card.definition_id)
+    if spec.mode == SpawnMode.FRAMEWORK_DEFAULT:
+        EnemySystem.spawn_default_from_draw(enemy_id, drawer_id)
+    else:
+        var loc := SpawnLocationResolver.resolve(spec.selector, drawer_id, game_ctx)
+        if loc == null:
+            EnemySystem.discard_spawn_failed(enemy_id)
+            return
+        EnemySystem.spawn_at_location(enemy_id, loc)
+        if not card.aloof(enemy_id):
+            EnemySystem.auto_engage_at_location(enemy_id, loc)
+    unregister_peril_for_card(card_id)
+```
+
+**provenance**：指令路径 `AbilityUnitRef.from_card_instruction("seq.encounter.spawn", def_id, &"spawn")`；普通生成 `from_framework("seq.encounter.spawn")`（经 `seq.draw.encounter` G4 nest）。
+
+**禁止**：运行时 `match spawn_text`；`SpawnPolicy`；`seq.encounter.spawn` 作为 **与 draw 平行的 timing entry**；Register / MODIFIER。
+
+#### 17.4.1c 猎物指令（Prey –）：engage 内核读参（已裁决）
+
+> **术语**：RR *enemy instructions* 含 Spawn 与 Prey；二者 **均为 ① 规则参数**（[07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)）。**Prey 不执行任何效果** — **禁止** nest、LISTENER、Register、独立 timing。
+
+| | **Spawn –** | **Prey –** |
+|---|---|---|
+| **提供** | **WHERE** | **WHO**（同地点 / 等距多选） |
+| **Spec** | `SpawnInstructionSpec` | `PreyInstructionSpec` |
+| **读参内核** | **②** spawn · G4 · `SpawnLocationResolver` | **②** `auto_engage_at_location`；**③** Hunter 等距 handler 内 `PreyResolver` |
+| **进入 G4 spawn 分支？** | **是** | **否**（*no effect on spawn location*） |
+| **nest？** | G4 **nest `seq.encounter.spawn`** | **禁止** |
+
+```text
+CardDefinition
+  spawn_instruction: SpawnInstructionSpec | null
+  prey_instruction:  PreyInstructionSpec  | null
+
+② auto_engage_at_location（engage 内核 — 可因响应链 nest seq.engage.auto，但 Prey 仍只是 kernel 内 Resolver 调用）
+  candidates := investigators_at(loc)
+  target := PreyResolver.best_match(prey_instruction, candidates)   # 同步，不 nest Prey
+  engage_l0(enemy, target)
+
+③ choose_hunter_target 在 Hunter LISTENER handler 内
+  equidistant := …
+  PreyResolver.best_match(prey_instruction, equidistant)
+```
+
+**Keyword Prey 标签** → `PreyInstructionSpec`（**①**）；**不** 译 LISTENER。
+
+**禁止**：`PreyPolicy`；Prey 独立 timing / nest；G4 handler 读 `prey_instruction`；把 Prey 当 Forced Register。
+
 ### 17.4.2 E5 Treachery 与非 Enemy 落点
 
 Grimoire Framework 1.4 Step 4：**treachery → encounter discard pile**，除非能力另有指示。
@@ -615,46 +1111,110 @@ func dispatch_treachery(card_id: StringName, drawer_id: StringName) -> void:
 
 **Cancel treachery 效果**：Grimoire — 仍视为 **已 draw**；仍进 encounter discard（能力取消 **不** 取消「已抽」事实）。E5 在 cancel 解析完成后执行 discard，除非 cancel 文本明确改落点。
 
-### 17.4.3 Hidden 关键词分支
+### 17.4.3 隐私（Hidden）关键词
 
-Grimoire *Hidden*：Revelation **秘密** 加 hand；不向其他调查员公开牌面或文本。
+**规则出处**：Grimoire p.14 · *Hidden*；Dream-Eaters 修订见 [`arkhamdb-rules-reference.md`](../reference/arkhamdb-rules-reference.md) · *Hidden*。
+
+**中文裁定名**：**隐私**（英文卡牌关键词 **`Hidden`**）。`CardDefinition.keywords` / 代码仍用 `&"hidden"`；Domain 真值 `CardInstance.is_hidden`。
+
+#### 规则译文（Grimoire + Dream-Eaters FAQ）
+
+带 **隐私** 关键词的遭遇牌或弱点，具有 **显现（Revelation）能力**，将该牌 **秘密** 加入调查员手牌——**不得**向其他调查员公开该牌或其文本。
+
+隐私牌在调查员 **手牌** 期间：
+
+| 条目 | 规则 |
+|---|---|
+| **手牌上限** | 计入调查员最大手牌数 |
+| **离手限制** | **除该卡牌面能力所述方式外，不能以任何方式离开手牌**（Grimoire：*cannot leave … except those described on the card*） |
+| **弃置落点** | 进入 **遭遇弃牌堆** |
+| **淘汰** | 调查员被淘汰时，手牌中的隐私遭遇牌 → 遭遇弃牌堆（FAQ 1.22，同威胁区遭遇牌） |
+
+**手牌期间 · 按 cardtype 分支**（Dream-Eaters 修订；Grimoire 早期将 treachery 与 enemy 合并表述「视为威胁区」，引擎按下列拆分）：
+
+| 卡类 | hand 期间语义 |
+|---|---|
+| **隐私 treachery** | **视为**威胁区（constant / triggered 可用）；**仅**控制者 |
+| **隐私 enemy** | **不** engaged、**不**在 threat area、**不**攻击（除非卡面另说）；constant / triggered **仅**控制者 |
+
+**显现与隐私**：隐私 **绑定于显现能力**——E4 通过 `commit_hidden_enter_hand` 秘密入手并设 `is_hidden=true`；**不是** spawn / discard 步骤的属性。后续若卡面 **暴露** 再 **生成**，须 composition 内 **显现先于生成**（`expose_hidden` → `spawn_encounter_enemy`）。
+
+#### 遭遇抽牌管线差异（G1–G5）
 
 | 步骤 | 与默认 encounter draw 的差异 |
 |---|---|
-| **E2** | **跳过** `reveal_encounter`（ALL）；保持 HIDDEN_ALL（他人）/ drawer 在 E4 后 CONTROLLER |
-| **E3 Peril** | 照常；若 drawn 卡 peril，仍 `frame.peril = true` |
-| **E4** | Revelation Composition：`commit_enter_hand` + `is_hidden=true` + `audience=CONTROLLER`（drawer） |
-| **E5** | treachery 默认 discard **不执行**（牌在 hand）；enemy 罕见，按 CardDefinition |
+| **E2** | **跳过** `reveal_encounter`（ALL）；他人保持 HIDDEN_ALL |
+| **E3 Peril** | 照常 |
+| **E4** | nest `seq.encounter.revelation` → `commit_hidden_enter_hand` + `is_hidden=true` + CONTROLLER |
+| **G4** | **跳过 Framework 默认离手**（见下） |
+
+#### 为何 G4 跳过自动生成 / 默认弃置
+
+G4 对非隐私牌的 **默认路径** 会把牌 **离开 hand**：
+
+- treachery → 默认 **discard**（进遭遇弃牌堆）
+- enemy → 默认 **spawn**（进 play / 威胁区）
+
+隐私牌的 **离手限制** 禁止 Framework 代劳上述操作，故：
+
+```gdscript
+# G4 · 隐私 treachery：已在 hand，禁止 Framework discard
+if card.is_hidden and card.zone == Zone.HAND:
+    return
+
+# G4 · 隐私 enemy：禁止 Framework spawn（须卡面能力 expose + spawn）
+if _hidden_enemy_skips_spawn(card, def_id):
+    return
+```
+
+**仅**该卡牌面 composition 所描述的能力（如 `expose_hidden` + `spawn_encounter_enemy`、或卡面自定义 discard 文本）可将隐私牌合法离手。
 
 ```gdscript
 func reveal_encounter_step(card_id: StringName, drawer_id: StringName) -> void:
-    if card.has_keyword(&"hidden"):
+    if CardRegistry.is_hidden(def_id):  # 隐私
         return
     executor.execute(DrawEncounterComposition.reveal_to_all(card_id))
 ```
 
-**Domain 不变量**：Hidden 在 hand 期间 **视为** threat area（规则语义）；`CardInstance.is_hidden` + Eligibility 过滤；discard 时 → **encounter discard pile**（Grimoire Hidden 第二条 bullet）。
+#### 引擎映射
+
+| 规则 | 引擎 |
+|---|---|
+| 秘密入手 | E4 · `commit_hidden_enter_hand` |
+| **除卡面能力外不得离手** | E4 Register **`FORBID_LEAVE_HAND`** · `WHILE_HIDDEN_IN_HAND(card_id)`；`RestrictionEvaluator` @ `move_card` |
+| 禁止 Framework 离手 | G4 skip discard / spawn（Framework 不发起非法 Intent；RESTRICTION 为规范真源） |
+| `is_hidden` + Eligibility | constant / triggered 过滤；Presentation 牌名 |
+| 卡面暴露 + 生成 | `expose_hidden` → `spawn_encounter_enemy` → unregister → nest `seq.encounter.spawn` |
+| hand → LIMBO（spawn 前） | `prepare_hand_card_for_encounter_spawn`（**仅**域转换，不含显现） |
+
+**测试**：ENC-12 / ENC-22（秘密入手 + RESTRICTION）；ENC-24（`move_card` 拦截）；ENC-23（卡面 expose → spawn → unregister）。
 
 ### 17.4.4 Surge 与 Then / AFTER 边界（规范）
 
 ```text
-单张牌生命周期:
-  E1 bind → [WOULD] → E2 → open WHEN → E3–E5 → close WHEN
-  → emit AFTER(card)     # 「After you draw an encounter card」
-  → E6 surge? → 下一圈 E1（同一 frame）
+单张牌生命周期（对齐 G1–G5）:
+  [WOULD]
+  G1 Draw（E1+E2）→ open WHEN
+  nest G2 peril
+  （When draw [reaction] — 可选，G3 前）
+  nest G3 revelation
+  G4 spawn | discard
+  close WHEN
+  emit AFTER(card)
+  nest G5 surge? → 下一圈 G1
 
 效果文本: 「Draw encounter. Then, X」
-  → E5 完成 → Then X → 然后 AFTER(card) 能力可 initiate（Grimoire Then 优先）
+  → G4 完成 → Then X → 然后 AFTER(card)（Grimoire Then 优先）
 ```
 
-Surge **不**合并多张牌的 AFTER；每张 **独立** AFTER，均在下一 Surge E1 之前。
+Surge **不**合并多张牌的 AFTER；每张 **独立** AFTER，均在 **G5 再抽 G1 之前**。
 
 **Timing emit（目标，待 TimingCatalog）**：
 
 ```text
-  WOULD  — after E1 bind、before E2 reveal_encounter
-  WHEN   — open after E2; close after seq.encounter.dispatch
-  AFTER  — per resolved card, after E5, before Surge next E1
+  WOULD  — E0 意图后、G1 pop 前
+  WHEN   — open after G1（E1+E2）；close after G4（E5）
+  AFTER  — per card, after G4, before G5 next G1
   OUTER AFTER — on seq.draw.encounter pop (E7)
 ```
 
@@ -662,27 +1222,25 @@ Surge **不**合并多张牌的 AFTER；每张 **独立** AFTER，均在下一 S
 
 | 调查员 | 遭遇 |
 |---|---|
-| `seq.draw.collect_one` | `seq.draw.encounter.collect_one` |
-| `shuffle_and_horror` | `shuffle_encounter_discard`（仅洗，无 marker） |
-| `reveal_batch` → CONTROLLER | `reveal_encounter` → ALL |
-| `enter_hand_batch` + `seq.enter_hand` | `seq.encounter.revelation` + `dispatch` |
-| `empty_piles_defeated` | （无）两堆空 → RULES_GAP |
+| D1 内联 `collect_one_step` | E1 内联 `collect_one_step` |
+| D2–E3 内联 | E2–E3 内联 |
+| nest 显现（入手/抽牌触发） | ENCOUNTER_CARD_DRAWN + priority（peril/revelation/surge） |
+| `nest empty_piles_defeated` | （无）两堆空 → RULES_GAP |
 
 ### 17.5 EncounterResolutionFrame
 
 ```gdscript
 class EncounterResolutionFrame:
     var drawer_id: StringName
-    var peril: bool = false              # E3 置位后粘性至 pop
     var cards_resolved: Array[StringName]
-    var surge_depth: int = 0             # 诊断 / UI
+    var surge_depth: int = 0             # 诊断；peril 见 RegistrationStore per card_id
 
 # RulesMemory referents（frame 级，key = drawer_id 或 frame_id）
 const ENCOUNTER_PENDING := &"encounter_pending"
 const ENCOUNTER_SHUFFLES := &"encounter_shuffles"
 ```
 
-**Peril** = E3 **Register** 三条 `RESTRICTION`；L4 / Action / SkillTest / EffectGraph 统一 **`RestrictionEvaluator`**（[04 §4](04-skill-test-engine.md)）。`ApplicationContext.tags` 可含 `peril_active` 供 Condition，**不**替代 L4。
+**Peril** = priority **100** Register · **`WHILE_DRAWN_CARD_RESOLVING(card_id)`**；G4 完 Unregister；**不跨 Surge**。
 
 **嵌套检定**：revelation 内 skill test 走 `seq.skill_test.*` nest；ST.8 后入队仍属 **同一 frame**（OQ-04-02 已裁决）。
 
@@ -725,13 +1283,13 @@ func weakness_route(def: CardDefinition) -> WeaknessRoute:
 | 来源 | 路由 |
 |---|---|
 | Mythos 1.4 / 效果「draw encounter」 | 正常 `seq.draw.encounter` |
-| 调查员 deck **collect_one** + **encounter cardtype** weakness | **重定向** `resolve_bound`；skip E1；abort 调查员 D2 |
-| 调查员 deck **collect_one** + **player cardtype** weakness | **不**重定向；完整 D2–D3 + `seq.enter_hand`（若有 Revelation） |
+| 调查员 deck **D1 pop** + **encounter cardtype** weakness | **重定向** `resolve_bound`；skip E1；abort 调查员 D2 |
+| 调查员 deck **D1 pop** + **player cardtype** weakness | **不**重定向；完整 D2–D3 + `seq.enter_hand`（若有 Revelation） |
 | Weakness **非 draw** 入手（search/add 等） | player 型：`seq.enter_hand` / as-if-drawn 调查员线；encounter 型：`resolve_bound`（Grimoire as if drawn from encounter deck） |
 | Setup mulligan 抽到 weakness | set aside redraw；**不** resolve（[11 §6](11-investigator-campaign.md)） |
 
 ```text
-seq.draw.investigator / collect_one:
+seq.draw.investigator RESOLVE (D1 collect_one_step):
   card_id := pop_deck_top(...)
   match weakness_route(card.definition):
     ENCOUNTER_DRAW:
@@ -742,7 +1300,7 @@ seq.draw.investigator / collect_one:
       append draw_pending; continue  # 含 asset/event/skill weakness
 ```
 
-`resolve_bound` → **`nest seq.draw.encounter.resolve_card`**（§17.4）；与主循环 **同一** E2–E6 实现。
+`resolve_bound` → **`resolve_card_body`**（§17.4）；与主循环 **同一** E2–E6 实现。
 
 #### 17.6.3 Owner 与弃牌堆（spawn 失败 / defeat）
 
@@ -773,7 +1331,7 @@ seq.draw.investigator / collect_one:
 | `pop_encounter_deck_top` | L0 | deck → limbo/pending；append `encounter_pending` |
 | `shuffle_encounter_discard_into_deck` | L0 | 遭遇弃牌堆洗回牌库 |
 | `shuffle_encounter_discard` | L1 Seq | 仅洗弃，**无** horror marker |
-| `reveal_to_all` | L0 INFORMATION | `FaceAudience.ALL` |
+| `reveal_to_all` | L0 **AtomRevealCard** | `FaceAudience.ALL` |
 | `discard_to_encounter_pile` | L0 | treachery 默认 E5 |
 | `discard_spawn_failed` | L0 | owner 路由（委托 08 §7.4） |
 
@@ -810,8 +1368,27 @@ static func discard_treachery_default(card_id: StringName) -> CompositionNode:
 class_name DrawEncounterFlow
 extends RefCounted
 
-## 与 DrawInvestigatorFlow 对称；catalog 子 flow 收集 + Composition 批量 E2。
+## E1 内联 collect + resolve_card_body（E2/E3 内联；仅 revelation/spawn nest）
+
 static func run(game_ctx: GameContext, drawer_id: StringName, amount: int) -> Dictionary
+
+static func resolve_card_body(
+	game_ctx: GameContext,
+	drawer_id: StringName,
+	card_id: StringName,
+	catalog: SequenceCatalog
+) -> Dictionary
+
+class_name DrawEncounterSubflowHandlers
+extends RefCounted
+
+## E1 内联 collect（对标 DrawSubflowHandlers.collect_one_step）。
+
+static func collect_one_step(
+	game_ctx: GameContext,
+	drawer_id: StringName,
+	catalog: SequenceCatalog = null
+) -> Dictionary
 
 class_name DrawEncounterService
 extends RefCounted
@@ -835,27 +1412,24 @@ func draw_encounter_cards(
     "shuffled": bool,
     "shuffles": int,
     "surge_depth_max": int,
-    "peril": bool,                   # frame 最终 peril 粘性
+    "peril_card_ids": Array[StringName],  # 本 run 曾带 peril 的 card_id（诊断）
     "spawn_failed_discards": Array[StringName],
     "revelations": Array[StringName], # 有 encounter revelation 的 card_id
 }
 ```
 
-`DrawEncounterSubflowHandlers`：`resolve_collect_one` / `resolve_resolve_bound` — 对标 `DrawSubflowHandlers`。
+`DrawEncounterSubflowHandlers.collect_one_step` / `DrawEncounterFlow.resolve_card_body` — 对标调查员 D1 内联 + D2–D3 编排。
 
 ### 17.10 TriggeringCondition 与 ApplicationContext tags
 
 ```gdscript
 static func draw_encounter(
-    drawer_id: StringName,
-    amount: int,
-    source_tags: Array[StringName] = [],
-    after_timing: StringName = &"after_draw_encounter"
+	drawer_id: StringName,
+	amount: int,
+	source_tags: Array[StringName] = [],
+	after_timing: StringName = &"after_draw_encounter"
 ) -> TriggeringCondition
 # kind = &"draw_encounter"; controller_id = drawer_id; payload = {amount}
-
-static func draw_encounter_collect_one(drawer_id: StringName) -> TriggeringCondition
-# tags: [&"draw_encounter", &"draw_collect"]
 
 static func encounter_revelation(
     drawer_id: StringName,
@@ -875,7 +1449,7 @@ static func draw_encounter_resolve_bound(
 | Tag | 何时 |
 |---|---|
 | `draw_encounter` | 整个 `seq.draw.encounter` frame |
-| `peril_active` | `frame.peril == true` |
+| `peril_active` | 当前 resolving card_id 在 Store 中有 peril RESTRICTION |
 | `encounter_drawer:{id}` | drawer 身份 |
 | `surge_chain` | Surge 循环内（可选，诊断） |
 
@@ -883,12 +1457,12 @@ static func draw_encounter_resolve_bound(
 
 | 场景 | v0 政策 |
 |---|---|
-| **E1 collect_one**，牌库空、弃牌堆非空 | **立即** `shuffle_encounter_discard` 再 pop（Framework 1.4 常规 draw） |
+| **E1 collect_one_step**，牌库空、弃牌堆非空 | **立即** `shuffle_encounter_discard` 再 pop（Framework 1.4 常规 draw） |
 | **Revelation / 嵌套效果**执行中牌库抽空 | Grimoire：该 **效果完全 resolve 后** 再 shuffle；frame 设 `deferred_encounter_shuffle`，当前 Composition 子树 **不** 中断 |
 | 两堆皆空 | **RULES_GAP**（OQ-ENC-01） |
 
 ```text
-collect_one:     empty deck → shuffle now → pop
+collect_one_step:  empty deck → shuffle now → pop
 nested effect:   empty deck → flag defer → on subtree pop → shuffle → 若效果还需 draw 则再 collect
 ```
 
@@ -913,20 +1487,39 @@ func resolve_encounter_revelations(
 
 **禁止** E4 调用 `seq.enter_hand` nest — 订阅键 `(seq.enter_hand, slot)` 与遭遇 draw WHEN 窗口 **不同**。
 
-### 17.13 实现状态
+### 17.13 实现状态与竖切顺序
 
 | 已有（可复用） | 待建 |
 |---|---|
-| `CardAbilityService.resolve_revelations` + Composition | `DrawEncounterFlow` + `DrawEncounterComposition` |
+| `EncounterResolutionFrame`（`core/timing/encounter_resolution_frame.gd`） | `DrawEncounterFlow` + `DrawEncounterComposition` |
 | `ResolutionSequenceStack` nest / run | L0：`pop_encounter_deck_top`、`reveal_to_all`、`shuffle_encounter_discard` |
-| **`EncounterResolutionFrame` + E3 RESTRICTION Register + 帧栈**（04 §4.11）；commit → `RestrictionEvaluator` | Action / Eligibility L4 play·trigger（PERIL-02/03） |
-| `FaceAudience` / `reveal_to_controller` 模式 | `TriggeringCondition.draw_encounter` 等（§17.10） |
-| `DrawInvestigatorService` facade 模式 | `DrawEncounterService` |
-| `SequenceCatalog` / bootstrap 模式 | Catalog 全家桶（§17.4）含 `resolve_card` / `resolve_bound` |
-| `EnemySystem` spawn 设计（08 §7） | `spawn_engaged` / `discard_spawn_failed` 实现 |
-| | `resolve_encounter_revelations` |
-| | `ScenarioSystem.resolve_encounter_draw` |
-| | ENC-01～12+ 测试 |
+| `DrawInvestigatorFlow` / `DrawSubflowHandlers` **内联/nest 样板** | `DrawEncounterSubflowHandlers.collect_one_step` |
+| `CardAbilityService.resolve_revelations` | `resolve_encounter_revelations` |
+| `DrawInvestigatorService` facade | `DrawEncounterService` + Catalog 登记（§17.4） |
+| `ScenarioSystem.resolve_encounter_draw`（**仅 log**） | Mythos 1.4 → `catalog.run` |
+| `FrameworkFlowEngine` Mythos 1.4 | `EncounterPeril.apply_e3_check`（内联）、spawn nest |
+
+**推荐竖切（实现顺序）**：
+
+```text
+P-ENC-1  L0 + DrawEncounterComposition + collect_one_step（内联 E1）
+P-ENC-2  EncounterDrawPriorityPolicy + peril Register（WHILE_DRAWN_CARD_RESOLVING）
+P-ENC-3  seq.draw.encounter RUN + DrawEncounterService + ScenarioSystem 接线
+P-ENC-4  revelation nest + priority 80 spawn（默认/指令分支）
+P-ENC-5  Surge priority 70 + peril 不跨 Surge 断言（PERIL-04/05）
+P-ENC-6  resolve_bound（weakness 重定向）+ 11 §10 路由
+P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
+```
+
+| 测试 ID | 断言 |
+|---|---|
+| ENC-01 | E1 pop + shuffle（无 horror） |
+| ENC-02 | E2 ALL reveal；Hidden 跳过 |
+| ENC-03 | E5 treachery → encounter discard |
+| ENC-04 | peril priority 100 Register；G4 后 Unregister；Surge 下一张 **无** 上一张 peril |
+| ENC-05 | E4 走 `seq.encounter.revelation`，**非** enter_hand |
+| ENC-06 | Surge 同 frame 第二圈 E1 |
+| ENC-07 | Mythos 1.4 框架步 → catalog.run |
 
 ---
 
@@ -938,9 +1531,8 @@ func resolve_encounter_revelations(
 
 | flow_id | kind | 说明 |
 |---|---|---|
-| `seq.draw.investigator` | RUN | 调查员抽 N 张；RESOLVE 后 `nest_batch seq.enter_hand` |
-| `seq.draw.collect_one` | RUN（nest） | 单张收集：空库洗弃+horror 或 pop |
-| `seq.draw.empty_piles_defeated` | RUN（nest） | 两堆皆空 → ELIMINATED |
+| `seq.draw.investigator` | RUN | 调查员抽 N 张；D1 内联 collect；`nest_batch seq.enter_hand` |
+| `seq.draw.empty_piles_defeated` | RUN（因果 nest） | 两堆皆空 → ELIMINATED |
 | `seq.enter_hand` | NEST_BATCH | 入手 timing + Revelation Composition（全来源共用） |
 | `seq.gain_resource` | RUN | 资源 gain + modifier |
 
@@ -950,19 +1542,14 @@ func resolve_encounter_revelations(
 
 | flow_id | kind | 说明 |
 |---|---|---|
-| `seq.draw.investigator` | RUN | 调查员抽 N 张；RESOLVE 后 `nest_batch seq.enter_hand` |
-| `seq.draw.collect_one` | RUN（nest） | 单张收集：空库洗弃+horror 或 pop |
-| `seq.draw.empty_piles_defeated` | RUN（nest） | 两堆皆空 → ELIMINATED |
+| `seq.draw.investigator` | RUN | 调查员抽 N 张；D1 内联 collect；`nest_batch seq.enter_hand` |
+| `seq.draw.empty_piles_defeated` | RUN（因果 nest） | 两堆皆空 → ELIMINATED |
 | `seq.enter_hand` | NEST_BATCH | 入手 timing + Revelation Composition（**玩家牌**） |
 | `seq.gain_resource` | RUN | 资源 gain + modifier |
-| `seq.draw.encounter` | RUN | 遭遇抽 N 张；Surge 同帧；push/pop frame |
-| `seq.draw.encounter.collect_one` | RUN（nest） | E1；遭遇库 pop；空库洗弃 |
-| `seq.draw.encounter.resolve_card` | RUN（nest） | **E2–E6 共享**；主循环与 resolve_bound 共用 |
-| `seq.draw.encounter.resolve_bound` | RUN（nest） | weakness / as-if-drawn；skip E1 |
-| `seq.encounter.revelation` | NEST | E4 遭遇显现 Forced |
-| `seq.encounter.check_peril` | NEST | E3 peril → frame |
-| `seq.encounter.dispatch` | NEST | E5 treachery / hidden / enemy 分支 |
-| `seq.encounter.spawn` | NEST | `spawn_engaged` / auto engage / discard_spawn_failed |
+| `seq.draw.encounter` | RUN | 遭遇抽 N；E1 内联；Surge 同 frame |
+| `seq.draw.encounter.resolve_bound` | RUN（重定向） | weakness → `resolve_card_body` |
+| `seq.encounter.revelation` | RUN（nest） | priority **90** 结算体（`ENCOUNTER_CARD_DRAWN`） |
+| `seq.encounter.spawn` | RUN（nest） | priority **80** 敌人生成结算体（`ENCOUNTER_CARD_DRAWN`）；默认/指令共用 |
 
 ---
 
@@ -982,8 +1569,12 @@ func resolve_encounter_revelations(
 | ENC-01 | 遭遇空库洗弃；**无** horror |
 | ENC-02 | Surge：第二圈在 **同一 frame** 内 E1，外层不 pop |
 | ENC-03 | AFTER 在本张 E5 后、Surge 下一 E1 前 |
-| ENC-04 | Peril 粘性：嵌套检定中他人不可 commit |
+| ENC-04 | peril per card_id；G4 后 Unregister；Surge 下一张无上一张 peril |
 | ENC-05 | 遭遇 revelation 走 `seq.encounter.revelation`，**非** `seq.enter_hand` |
+| ENC-21 | 遭遇 enemy 走 `seq.encounter.spawn` nest（`phase_trace` 含 `encounter_spawn`） |
+| ENC-22 | 隐私 enemy 秘密入手；**不** nest spawn（Framework 离手禁止） |
+| ENC-23 | 隐私 enemy：卡面 `expose_hidden` → `spawn_encounter_enemy` → unregister |
+| ENC-24 | 隐私牌 Register `FORBID_LEAVE_HAND`；`move_card` 离手被拦 |
 | ENC-06 | E2 默认 ALL；Hidden 不公开 |
 | ENC-07 | encounter cardtype weakness 从 inv deck 重定向 resolve_bound |
 | ENC-08 | 无 Spawn enemy draw | `spawn_engaged`；不调用 auto engage / Engage action |
@@ -993,7 +1584,7 @@ func resolve_encounter_revelations(
 | ENC-12 | Weakness enemy spawn 失败 | → bearer **investigator discard** |
 | ENC-13 | Hidden treachery | E2 不 ALL；E4 秘密 hand；E5 不 discard |
 | ENC-14 | Cancel treachery 效果 | 仍 encounter discard；仍算 drawn |
-| ENC-15 | `resolve_bound` vs 主 draw | 同一 `resolve_card` handler |
+| ENC-15 | `resolve_bound` vs 主 draw | 同一 `resolve_card_body` |
 | WKN-01 | Asset weakness + Revelation | 调查员 D3 `enter_hand`；非 encounter 管线 |
 | WKN-02 | Event weakness 无 Revelation | D3 hand only |
 | WKN-03 | Enemy weakness from inv deck | `resolve_bound` / E5 spawn |
@@ -1046,7 +1637,10 @@ func resolve_encounter_revelations(
 | 2026-06-18 | v0.3 | **§16.4** SequenceCatalog 映射（collect_one / empty_piles / enter_hand）；显现统一 `seq.enter_hand`；§16.6/§20 对齐代码 |
 | 2026-06-18 | v0.3.1 | **§16.4.1** 显现顺序 `EnterHandTimingPolicy` 占位；OQ-TIMING-05 |
 | 2026-06-18 | v0.4 | **§17 遭遇抽牌**：E0–E7；`seq.encounter.revelation`；Surge 同帧；weakness 重定向；ENC-01～07 |
-| 2026-06-18 | v0.4.1 | **§17.4.1** E5 `spawn_engaged` vs `auto_engage_at_location`；ENC-08～10；对齐 [08 §7](08-enemy-engagement.md) |
+| 2026-06-18 | v0.4.2 | D1 collect **内联**；移除 `seq.draw.collect_one` |
 | 2026-06-18 | v0.4.2 | spawn 失败 **`discard_spawn_failed`**（owner 弃牌堆）；ENC-11～12；OQ-ENC-02 |
+| 2026-06-18 | v0.5.2 | §4.0.5 **上一步触发时点**；E3 peril 内联；仅 revelation/spawn nest |
 | 2026-06-18 | v0.5 | **§17.4** `resolve_card` 共享子 flow；§17.4.2–4 Treachery/Hidden/Surge；§17.8–12 Composition/Flow/Trigger/shuffle/CardAbility；ENC-13～15；OQ-10-04 |
+| 2026-06-18 | v0.6 | **§4** 砖块 G0–G3；**③ AtomRevealCard**（Grimoire Reveal）；小序列 = 砖块拼成 |
 | 2026-06-18 | v0.5.1 | **§17.6.1–3** Weakness 全 cardtype 路由（asset/event/skill vs enemy/treachery）；WKN-01～04；对齐 [11 §10](11-investigator-campaign.md) |
+| 2026-06-18 | v0.6.1 | **§17.4.1c** Prey **engage 内核**读参；禁止 nest/LISTENER；对齐 [07 §0.1.2](07-effect-primitives.md) |

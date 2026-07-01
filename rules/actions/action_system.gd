@@ -57,6 +57,11 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 	if inv.actions_remaining < action_cost:
 		return {"ok": false, "error": "insufficient_actions"}
 	inv.actions_remaining -= action_cost
+	var spend_id := -1
+	if _game_ctx != null and _game_ctx.stat_emitter != null:
+		spend_id = _game_ctx.stat_emitter.record_action_spend(
+			investigator_id, action_type, action_cost
+		)
 	_log.log(AhcEnums.LogCategory.ACTION, "action:%s" % action_type, {"inv": investigator_id, "cost": action_cost})
 	var aoo_result := _resolve_aoo(investigator_id, action_type)
 	var result := {"ok": true, "aoo_attacks": int(aoo_result.get("attacks", 0))}
@@ -95,6 +100,8 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 			result = _run_basic_action(action_type, investigator_id, extra)
 	if not result.ok:
 		inv.actions_remaining += action_cost
+		if spend_id >= 0 and _game_ctx != null and _game_ctx.stat_emitter != null:
+			_game_ctx.stat_emitter.record_action_spend_void(spend_id, investigator_id, action_cost)
 		return result
 	result["aoo_attacks"] = int(aoo_result.get("attacks", 0))
 	if _framework:

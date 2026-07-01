@@ -59,6 +59,10 @@ func get_enemy(enemy_id: StringName) -> EnemyState:
 	return _enemies.get(enemy_id) as EnemyState
 
 
+func unregister_enemy(enemy_id: StringName) -> void:
+	_enemies.erase(enemy_id)
+
+
 func all_enemy_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
 	for k in _enemies.keys():

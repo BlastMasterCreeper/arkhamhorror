@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.3 · 2026-05-25
+> **状态**：v0.4 · 2026-06-18
 
 ---
 
@@ -193,6 +193,8 @@ class ModifierPayload:
 
 Initiation **dry-run** 与行动合法性：能否打出、移动、commit 等。**统一** `RestrictionEvaluator.block_reason`（L4 / Action / SkillTest / EffectGraph step 4）。
 
+**应用场合**不由规则序列步数决定，而由 **[§16 Buff 应用场合清单](#16-buff-应用场合清单裁决方法)** 的 **Intent × 入口** 主表决定；新增 cannot 时先查 §16.4，再扩 `RestrictionKind` / `Intent` / 接线入口。
+
 ```gdscript
 class RestrictionPayload:
     var kind: RestrictionKind   # FORBID_DRAW | FORBID_PLAY | FORBID_TRIGGER | FORBID_COMMIT_TO_TEST | …
@@ -201,16 +203,17 @@ class RestrictionPayload:
 
 enum LifetimeKind {
     …
-    WHILE_ENCOUNTER_FRAME,   # E7 pop → unregister_by_encounter_frame
+    WHILE_ENCOUNTER_FRAME,   # 非 peril；peril 用 WHILE_DRAWN_CARD_RESOLVING
+    WHILE_DRAWN_CARD_RESOLVING,   # 险境 E3 Register；G4 完 Unregister；不跨 Surge
 }
 ```
 
-**险境（Peril）译法** — E3 `seq.encounter.check_peril` 一步 Register，**非**独立 Policy：
+**险境（Peril）译法** — **ENCOUNTER_CARD_DRAWN** timing · priority **100** · nest Register RESTRICTION；Lifetime **`WHILE_DRAWN_CARD_RESOLVING(card_id)`**（**不跨 Surge**，G4 完 Unregister）。见 [15 §4.0.5.2](15-timing-entry-catalog.md)。
 
 ```gdscript
 RegistrationTemplate.peril_encounter_frame(drawer_id, frame_id)
 # → 1× Registration，3× RESTRICTION buff，Lifetime WHILE_ENCOUNTER_FRAME
-# provenance: AbilityUnitRef.from_framework("seq.encounter.check_peril")
+# provenance: AbilityUnitRef.from_framework("seq.draw.encounter")  # E3 内联步
 ```
 
 卡面「本回合不能抽牌」→ `FORBID_DRAW` + `DURATION(THIS_TURN)`。**同 evaluator、同 L4**。
@@ -372,7 +375,180 @@ class AbilityCompiler:
 
 ---
 
-## 16. 开放问题
+## 16. Buff 应用场合清单（裁决方法）
+
+> **已裁决**：译 Grimoire / 实现卡面时，**用本清单决定 Buff 类型与应用站点**；禁止为段落或 `seq.*` 砖块逐步发明平行查询逻辑。  
+> **Intent / StatRef / Timing** 会随实现增长；**入口站点**相对稳定（动作系统、Initiation、Effect 提交、数值查询站）。
+
+### 16.1 总流程（译前先过四问）
+
+```text
+Grimoire 条文 / 卡面效果
+  │
+  ├─ Q1 改数值（+1 skill、gain +1 resource）？
+  │     → MODIFIER → §16.3 查询站清单
+  │
+  ├─ Q2 禁止/允许某类动作或效果（cannot、immune、peril）？
+  │     → RESTRICTION → §16.4 Intent×入口；Register 时机见 §16.7
+  │
+  ├─ Q3 某时点后执行子效果（When/After/Forced/[reaction]）？
+  │     → LISTENER → §16.5 Timing 清单（详表 [15 §17](15-timing-entry-catalog.md)）
+  │
+  └─ Q4 以上皆否？
+        → §16.6 非 Buff 路由（Domain 不变量 / L7 dry-run / Pipeline / Setup）
+```
+
+**Register 时机**（何时挂 Buff）仍由 **命名规则序列** 的 REGISTER 砖块或卡 `enter_play` 决定（[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)）；**本清单解决的是「挂好后在哪查、在哪生效」**。
+
+### 16.2 第一关：是否 Buff？
+
+| Grimoire / 卡面现象 | Buff？ | 实际路由 |
+|---|---|---|
+| cannot play / trigger / draw / commit（含 peril、lasting） | **RESTRICTION** | §16.4 |
+| +N skill / shroud / damage amount / gain amount | **MODIFIER** | §16.3 |
+| After you X, do Y / Forced / [reaction] | **LISTENER** | §16.5 |
+| exhausted 不能再 exhaust | **否** | Domain：`set_flag` / exhaust 入口状态检查 |
+| target 不合法不能 initiate | **否** | Eligibility **L7** `CompositionDryRunner` |
+| assign 超过 asset 血量 | **否** | `DamagePipeline.assign` 规则 |
+| deck 不能带两张同名 | **否** | Setup / deckbuild 校验 |
+| Permanent 不能离场 | **混合** | Domain 关键词 + 可能 **MOVE** Intent（§16.4） |
+| Immune to treachery / player card effects | **RESTRICTION** | EffectGraph step 4 + `EffectOp`→Intent |
+| Aloof 不能攻击未 engage 敌人 | **RESTRICTION** | **FIGHT** Intent + `Condition`（engage 状态） |
+| Instead / Cancel | **否** | [07-composition](07-composition.md) `CancelPending` / `ReplacePending` |
+| Surge / Massive 流程 | **否** | 关键词 + **命名 seq**（非 BuffType） |
+| 抽牌 D2 / 遭遇 E2 **Reveal** | **否**（非 Buff） | L0 **`AtomRevealCard`** / `StateMutator.reveal_to_*`；见 [07 §5.3](07-effect-primitives.md) |
+
+### 16.3 MODIFIER · 查询站清单
+
+**模式**：Register MODIFIER → 在 **下列站点** 调用 `ModifierEngine.compute(base, query, app_ctx)`；`Condition.matches(app_ctx)` 过滤场合。
+
+| 查询站 ID | 何时调用 | `StatRef` | 典型 `ApplicationContext` | 状态 |
+|---|---|---|---|---|
+| **MOD-Q-SKILL** | 检定 ST.5 算 modified value | `SKILL_WILLPOWER` … `SKILL_AGILITY` | `skill_test` 填充 | **已实现**（`SkillTestEngine.step_calculate_modified_value`） |
+| **MOD-Q-GAIN-RES** | `seq.gain_resource` 落 resource 前 | `RESOURCE_GAIN_AMOUNT` | `framework_step` + `tags`（如 `gain_resource`） | **已实现**（`SequenceCatalogBootstrap._resolve_gain_resource`） |
+| **MOD-Q-SHROUD** | 地点 investigate 算 difficulty | `SHROUD`（待 enum） | location + tags | 待实现 |
+| **MOD-Q-DAMAGE-AMT** | Deal damage Assign 前定 amount | `DAMAGE_AMOUNT`（待 enum） | source、target tags | 待实现 |
+| **MOD-Q-HORROR-AMT** | Deal horror Assign 前 | `HORROR_AMOUNT`（待 enum） | 同上 | 待实现 |
+| **MOD-Q-COST** | Initiation L6 前 | `ACTION_COST` / resource cost（待 enum） | `initiation` | 待实现 |
+
+**新增 MODIFIER 卡面**：先在本表 **登记查询站**（或复用已有站 + `Condition`），再扩 `StatRef`；**不要**在 `seq.*` handler 内散落 `if card_id`.
+
+### 16.4 RESTRICTION · Intent × 入口主表
+
+**模式**：Register RESTRICTION（`RestrictionKind` + payload）→ 在 **入口** 调 `RestrictionEvaluator.block_reason(intent, actor, store, ctx)`。  
+**`Intent`** 对齐 **可被禁止的动作/效果类**（与 `ActionType` / Initiation / 关键 `EffectOp` 同族），**不对齐** `seq.*` 砖块编号。
+
+#### 16.4.1 入口站点（稳定层）
+
+| 入口 ID | 子系统 | 检查时机 | 典型 Intent |
+|---|---|---|---|
+| **REST-E-PLAY** | `ActionSystem` play asset/event | 付 cost / commit play 前 | `PLAY` |
+| **REST-E-TRIGGER** | `EligibilityPipeline` L4 | COLLECT / PRE_INITIATE | `TRIGGER` |
+| **REST-E-DRAW** | `CompositionExecutor` draw atom | execute 前 | `DRAW` |
+| **REST-E-COMMIT** | `SkillTestEngine.commit_card` | commit 前 | `COMMIT_TO_TEST` |
+| **REST-E-ACTION** | `ActionSystem.execute` | 耗 action、发起 basic action 前 | `MOVE` `ENGAGE` `FIGHT` …（待扩） |
+| **REST-E-EFFECT** | `EffectResolutionGraph` step 4 / Composition 等价点 | submit `EffectRequest` 前 | 按 `EffectOp`→Intent（待接） |
+| **REST-E-ACTIVATE** | Asset `[action]` / `[free]` initiation | Pre-restrictions | `ACTIVATE`（待 enum） |
+
+L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **同一 Intent** 均可；payload / `drawer_id` 豁免在 `_matches` 内处理。
+
+#### 16.4.2 Intent 与 RestrictionKind（增长表）
+
+| Intent（`RestrictionEvaluator`） | 对齐 | 典型 `RestrictionKind` | Grimoire / 卡面来源 | 入口 | 状态 |
+|---|---|---|---|---|---|
+| `DRAW` | 抽牌 | `FORBID_DRAW` | peril 无关；卡面「不能抽牌」 | REST-E-DRAW | **已实现** |
+| `PLAY` | 打出 asset/event | `FORBID_PLAY` | peril E3；immune play | REST-E-PLAY | Kind **已实现**；**ActionSystem 待接** |
+| `TRIGGER` | initiate 能力 | `FORBID_TRIGGER` | peril E3；[reaction]/Forced | REST-E-TRIGGER | Kind **已实现**；**L4 待接** |
+| `COMMIT_TO_TEST` | commit skill | `FORBID_COMMIT_TO_TEST` | peril E3 | REST-E-COMMIT | **已实现** |
+| `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
+| `MOVE` | 移动行动 / 效果移动调查员 | `FORBID_MOVE` | 「不能离开地点」 | REST-E-ACTION / REST-E-EFFECT | 待 enum + 接线 |
+| `ENGAGE` | engage 行动 | `FORBID_ENGAGE` | aloof 等（常配合 Condition） | REST-E-ACTION | 待 |
+| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION | 待 |
+| `INVESTIGATE` | investigate 行动 | `FORBID_INVESTIGATE` | 地点规则 | REST-E-ACTION | 待 |
+| `EVADE` | evade 行动 | `FORBID_EVADE` | — | REST-E-ACTION | 待 |
+| `ACTIVATE` | 启动 asset 能力 | `FORBID_ACTIVATE` | 「不能启动」 | REST-E-ACTIVATE | 待 |
+| `DISCARD` | 从手牌弃牌（非自愿） | `FORBID_DISCARD` | weakness 等 | REST-E-EFFECT | 待 |
+| `GAIN_HORROR` | 受到 horror | `FORBID_GAIN_HORROR` | 「不能受到 horror」 | REST-E-EFFECT | 待 |
+| `GAIN_DAMAGE` | 受到 damage | `FORBID_GAIN_DAMAGE` | 同上 | REST-E-EFFECT | 待 |
+| `SEARCH` | search 牌库/集合 | `FORBID_SEARCH` | — | REST-E-EFFECT | 待 |
+| `CONFER` | peril 商议 | —（peril 用 PLAY/TRIGGER/COMMIT 覆盖） | Grimoire peril | — | 不单独 Intent |
+
+**扩 Intent 规程**：① 在本表加一行；② 扩 `AhcEnums.RestrictionKind` + `RestrictionEvaluator._matches`；③ **只接一个入口 ID**；④ 卡面 Register 仍走 REGISTER 砖块，**禁止**新 Policy 类。
+
+#### 16.4.3 EffectOp → Intent（REST-E-EFFECT 映射草案）
+
+| `EffectOp` | Intent | 备注 |
+|---|---|---|
+| `DRAW_CARDS` | `DRAW` | 与 REST-E-DRAW 同 Intent |
+| `GAIN_RESOURCE` | `GAIN_RESOURCE`（待） | 或 MODIFIER 减 amount + RESTRICTION 禁 entirely |
+| `DEAL_HORROR` / `DEAL_DIRECT_HORROR` | `GAIN_HORROR`（待） | target 侧查 |
+| `DEAL_DAMAGE` / `DEAL_DIRECT_DAMAGE` | `GAIN_DAMAGE`（待） | 同上 |
+| `MOVE_INVESTIGATOR` | `MOVE` | |
+| `DISCARD_CARDS` | `DISCARD` | |
+| `SEARCH_DECK` | `SEARCH` | |
+| `EXHAUST` / `READY` | `EXHAUST` / `READY`（待） | 效果层 vs 行动层 |
+| `ENGAGE` / `DISENGAGE` | `ENGAGE` / `DISENGAGE`（待） | |
+
+Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`（source tags）+ REST-E-EFFECT，**不是**新 BuffType。
+
+### 16.5 LISTENER · Timing 订阅清单
+
+**模式**：Register LISTENER → `TimingBus` / `ResolutionSequenceStack` 在 **Catalog 规范时刻** emit → Eligibility L0–L5 → Initiation → Composition。
+
+| 清单项 | 订阅键 | emit 责任 | 文档索引 |
+|---|---|---|---|
+| 框架 after fight / draw / … | `timing` 字符串 或 `(sequence_id, AFTER)` | 框架 / Combat / draw seq pop | [15 §17](15-timing-entry-catalog.md) |
+| 命名 seq WHEN/AFTER | `(sequence_id, WOULD\|WHEN\|AFTER)` | 对应 `seq.*` 砖块边界 | [15 §4](15-timing-entry-catalog.md)、[14](14-nested-sequences.md) |
+| 卡面 [reaction] | `ListenerPayload.timing` + `player_initiated` | 同上；COLLECT 开窗 | [06-ability-initiation §5](06-ability-initiation.md) |
+| UNTIL_FIRED 延时 | 同 timing；Lifetime 摘 registration | listener 跑完 unregister | §4.1 |
+
+**新增 LISTENER**：先在 [15](15-timing-entry-catalog.md) 登记 TimingEntry / emit 点，再在本节补一行；**不要**为每张卡 invent 新 emit 通道。
+
+### 16.6 非 Buff 路由（Q4 出口）
+
+| 现象 | 机制 |
+|---|---|
+| 结构 / 牌组合法性 | Setup、deckbuild |
+| 目标不存在、效果空转 | Eligibility L7 |
+| Assign / prevent / soak | `DamagePipeline` + Wrapper |
+| Instead 竞争 | `PendingResolution` + initiation_seq |
+| 区域不变量（leave play token→pool） | `StateMutator` / [01 §5](01-game-state-zones.md) |
+| 关键词流程（Surge 再抽） | **G5** nest evaluate + 再抽 G1（**G4 后**；不在 G1 Register） |
+| **Reveal 卡牌**（D2/E2、窥探） | L0 `reveal_to_*`（**是效果**，非 Buff）；见 [07 §5.3](07-effect-primitives.md) |
+
+### 16.7 Register 时机 vs 查询时机（对照）
+
+| | Register（挂 Buff） | 查询（生效） |
+|---|---|---|
+| **险境** | E3 砖块 `REGISTER` | REST-E-PLAY / TRIGGER / COMMIT |
+| **卡面 lasting cannot draw** | 效果 resolve REGISTER | REST-E-DRAW |
+| **Asset Constant +1 Will** | `enter_play` template | MOD-Q-SKILL |
+| **Until end of turn after fight draw 1** | 效果 resolve REGISTER | LISTENER timing + MOD/DRAW 子 Composition |
+
+**规则序列多** → Register 时机多；**查询站点**仍按 §16.3–§16.5 **有限入口**扩展，而非每 seq 一步一查。
+
+---
+
+## 17. StatProjection（历史谓词读模型）
+
+> **详文**：[06c-stat-projections.md](06c-stat-projections.md)
+
+Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**不是** Buff，**不**写入 `RegistrationStore` payload；由并行组件 **StatProjectionStore** 管理读模型：
+
+| 时机 | 行为 |
+|---|---|
+| `register()` | `StatProjectionStore.attach(reg_id, template.stat_queries, scope)` — **DORMANT** |
+| `TimingCatalog` → COLLECT | 首次 demand → **cold fold** `EventRecord` → **HOT** |
+| Emitter | `on_event` 仅更新 HOT 投影 |
+| `unregister()` / duration tick | `detach(reg_id)` → ref=0 丢弃 HOT |
+
+**权威源** = `EventRecord`；**禁止**从 Domain 压扁字段推导 spend 次数。
+
+`AbilityCompiler.compile_card` 产出 `stat_queries[]`（与 `RegistrationTemplate[]` 并列）。
+
+---
+
+## 18. 开放问题
 
 | ID | v1 默认 |
 |---|---|
@@ -381,10 +557,12 @@ class AbilityCompiler:
 
 ---
 
-## 17. 变更记录
+## 19. 变更记录
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-05-25 | v0.1 | 初稿 |
-| 2026-05-25 | v0.2 | Buff 三种；删 FRAME/PENDING；持续/延时=Lifetime；持续壳内 Listener 详述；dry-run 见 07-composition |
+| 2026-06-18 | v0.4.1 | **§17** StatProjection 读模型；链 [06c](06c-stat-projections.md) |
+| 2026-06-18 | v0.4 | **§16** Buff 应用场合清单；Reveal 走 L0 非 Buff |
 | 2026-05-25 | v0.3 | ApplicationContext 拼凑式场合；订阅键 vs L3 情景；链到 Eligibility L0–L7 |
+| 2026-05-25 | v0.2 | Buff 三种；删 FRAME/PENDING；持续/延时=Lifetime；持续壳内 Listener 详述；dry-run 见 07-composition |
+| 2026-05-25 | v0.1 | 初稿 |

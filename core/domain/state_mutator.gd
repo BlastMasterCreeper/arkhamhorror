@@ -3,11 +3,16 @@ extends RefCounted
 
 var _state: GameStateStore
 var _information: InformationExecutor
+var _registrations: RegistrationStore = null
 
 
 func _init(state: GameStateStore) -> void:
 	_state = state
 	_information = InformationExecutor.new(state)
+
+
+func bind_registration_store(store: RegistrationStore) -> void:
+	_registrations = store
 
 
 func state() -> GameStateStore:
@@ -22,6 +27,8 @@ func information() -> InformationExecutor:
 func move_card(card_id: StringName, to: CardSlot) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
+		return false
+	if _would_leave_hand(card, to) and _blocks_leave_hand(card_id):
 		return false
 	var owner_inv := _state.registry.get_investigator(card.owner_id)
 	if owner_inv != null:
@@ -79,6 +86,36 @@ func set_ref(_bearer_id: StringName, _field: StringName, _ref_id: StringName) ->
 	return false
 
 
+func pop_encounter_deck_top() -> StringName:
+	if _state.encounter_deck.is_empty():
+		return &""
+	var card_id := _state.encounter_deck[0] as StringName
+	_state.encounter_deck.remove_at(0)
+	var card := _state.registry.get_card(card_id)
+	if card != null:
+		card.zone = AhcEnums.Zone.LIMBO
+	return card_id
+
+
+func encounter_deck_is_empty() -> bool:
+	return _state.encounter_deck.is_empty()
+
+
+func encounter_discard_is_empty() -> bool:
+	return _state.encounter_discard.is_empty()
+
+
+## Domain pile op · 遭遇弃牌堆洗回遭遇牌库（无 horror）。
+func shuffle_encounter_discard_into_deck() -> void:
+	for card_id in _state.encounter_discard:
+		var card := _state.registry.get_card(card_id)
+		if card != null:
+			card.zone = AhcEnums.Zone.DECK
+	_state.encounter_deck = _state.encounter_discard.duplicate()
+	_state.encounter_deck.shuffle()
+	_state.encounter_discard.clear()
+
+
 func peek_deck_top(inv_id: StringName) -> StringName:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null or inv.deck.is_empty():
@@ -110,9 +147,54 @@ func pop_deck_top(inv_id: StringName) -> StringName:
 	return card_id
 
 
-## Information brick · D2
+## L0 · AtomRevealCard（Grimoire Reveal；D2 等）
 func reveal_to_controller(card_id: StringName, controller_id: StringName) -> bool:
 	return _information.reveal_to_controller(card_id, controller_id)
+
+
+func reveal_to_all(card_id: StringName) -> bool:
+	return _information.reveal_to_all(card_id)
+
+
+func hide_from_all(card_id: StringName) -> bool:
+	return _information.hide_from_all(card_id)
+
+
+## 隐私（Hidden）遭遇 · E4 秘密入手显现（drawer CONTROLLER + is_hidden）。
+func commit_hidden_enter_hand(card_id: StringName, inv_id: StringName) -> bool:
+	if not commit_enter_hand(card_id, inv_id):
+		return false
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.is_hidden = true
+	card.controller_id = inv_id
+	return reveal_to_controller(card_id, inv_id)
+
+
+## 隐私 enemy · spawn 前域转换（hand→LIMBO）。公开/清 is_hidden 由先行显现 composition 负责。
+func prepare_hand_card_for_encounter_spawn(card_id: StringName, bearer_id: StringName) -> bool:
+	var card := _state.registry.get_card(card_id)
+	var inv := _state.registry.get_investigator(bearer_id)
+	if card == null or inv == null:
+		return false
+	if card.zone != AhcEnums.Zone.HAND:
+		return false
+	if card.controller_id != bearer_id and not inv.hand.has(card_id):
+		return false
+	_remove_from_pile(card, inv)
+	card.controller_id = bearer_id
+	card.zone = AhcEnums.Zone.LIMBO
+	return true
+
+
+## 隐私卡面暴露显现：结束 secret hand 并公开牌面（须先于 spawn_encounter_enemy）。
+func expose_hidden_card(card_id: StringName) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.is_hidden = false
+	return reveal_to_all(card_id)
 
 
 ## D3：按卡定义进入 HAND 或 LIMBO。
@@ -349,3 +431,17 @@ func _take_from_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amou
 
 func _give_to_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> void:
 	_adjust_investigator_marker(inv_id, kind, amount, 0)
+
+
+func _would_leave_hand(card: CardInstance, to: CardSlot) -> bool:
+	if card.zone != AhcEnums.Zone.HAND:
+		return false
+	if to.pile == AhcEnums.PileKind.INV_HAND:
+		return false
+	return true
+
+
+func _blocks_leave_hand(card_id: StringName) -> bool:
+	if _registrations == null:
+		return false
+	return RestrictionEvaluator.blocks_leave_hand(card_id, _registrations)

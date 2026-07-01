@@ -47,6 +47,8 @@
 | **TimingCatalog** | 规范 emit 唯一出口（[15](15-timing-entry-catalog.md)） |
 | **EligibilityPipeline** | 收集候选 L0–L5；Initiation L6–L7（[06 §5](06-ability-initiation.md)） |
 | **ResponseWindow** | [reaction] 选用、队长排序、关闭时点（**非门槛**） |
+| **PlayerInteractionGate** | 统一 `ChoiceRequest` 决策入口（[16](16-player-interaction.md)） |
+| **seq 运行时清单** | 新 flow 必备横切件（[17](17-seq-runtime.md) §3） |
 | **TimingBus + ListenerDispatcher** | AFTER-B 放出 `after_timing` 后 dispatch 延时监听 |
 | **ApplicationContext** | 栈帧 + tags + framework_step；供 Condition / MODIFIER |
 | **RulesMemory** | referents、phase trace |
@@ -139,10 +141,20 @@ class SequenceHandler:
 
 ```gdscript
 sequences.nest(child_trigger, child_resolve)
-# 暂停父 RESOLVE / 父响应轮次 → 完整 run(child) → pop 恢复
+# 暂停父 RESOLVE 内联游标 → 完整 run(child)（可再 nest）→ pop → 父 RESOLVE 下一内联步
+```
+
+**流程推进**（[15 §4.0.6](15-timing-entry-catalog.md)）：
+
+```text
+内联 stepᵢ  ──causes──►  nest 子树（可多层 LIFO）
+                              … 子 AFTER → pop
+内联 stepᵢ₊₁  ◄── 嵌套链全部结束后执行
 ```
 
 子序列 **AFTER-B flush** 先于父 AFTER-A 继续。禁止在 AFTER 窗口关闭后异步补跑子序列。
+
+**nest = 上一步触发了本步时点**；否则 **内联**（[15 §4.0.5](15-timing-entry-catalog.md)）。嵌套 pop 后恢复父 RESOLVE 下一内联步。对照 [17 §4](17-seq-runtime.md)、[15 §17.3.1](15-timing-entry-catalog.md)。
 
 ---
 
@@ -206,7 +218,7 @@ sequences.end_ability_resolution()
 | `core/timing/sequence_catalog.gd` | `run` / `nest` / `nest_batch` 流程注册表 |
 | `bootstrap/sequence_catalog_bootstrap.gd` | 内置 flow：draw 子序列、`seq.enter_hand`、`seq.gain_resource` |
 | `core/timing/draw_investigator_flow.gd` | 调查员抽牌 RESOLVE 编排 |
-| `core/timing/draw_subflow_handlers.gd` | `collect_one` / `empty_piles_defeated` resolve |
+| `core/timing/draw_subflow_handlers.gd` | D1 `collect_one_step`（内联）/ `empty_piles_defeated` resolve |
 | `core/timing/resource_gain_service.gd` | gain 薄 facade → `catalog.run(seq.gain_resource)` |
 | `core/timing/triggering_condition.gd` | `kind` + draw 子 flow triggers |
 | （待建）`TimingCatalog` | 规范 emit（[15](15-timing-entry-catalog.md)） |

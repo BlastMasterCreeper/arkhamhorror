@@ -223,8 +223,8 @@ Initiation Sequence 独立为 `AbilityInitiationPipeline`（Grimoire p.31）。
 **约束**：
 
 - Rules / Domain 层**不得**依赖 `Node`、场景树、纹理、输入事件
-- 需玩家裁决时（伤害分配、Lead Investigator 多选一），经 `ChoiceRequest` 抽象，headless 与 UI 共用接口
-- Presentation 层不参与 headless 路径
+- 需玩家裁决时（能力选用、Optional、目标、队长排序、伤害分配），经 **`PlayerInteractionGate.ask(ChoiceRequest)`** 抽象；headless 与 UI 共用接口（见 [design/16-player-interaction.md](design/16-player-interaction.md)）
+- 旧 `ChoiceResolver` 仍可通过 `ctx.interaction.resolver` 注入；Presentation 层不参与 headless 路径
 
 **建议目录**：
 

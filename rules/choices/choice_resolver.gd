@@ -1,10 +1,11 @@
 class_name ChoiceResolver
 extends RefCounted
 
-## Headless / UI shared interface for player decisions.
+## Headless / UI 共用决策接口。子类：DefaultChoiceResolver、ScriptingChoiceResolver。
+
 
 func resolve(request: ChoiceRequest) -> Variant:
-	push_warning("ChoiceResolver.resolve not implemented: %s" % request.prompt)
-	if request.options.is_empty():
+	if request == null or request.options.is_empty():
 		return null
-	return request.options[0]
+	var idx := clampi(request.default_index, 0, request.options.size() - 1)
+	return request.options[idx]

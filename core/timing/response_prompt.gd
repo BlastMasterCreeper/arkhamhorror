@@ -1,7 +1,7 @@
 class_name ResponsePrompt
 extends RefCounted
 
-## Headless / UI 共用：🕭 是否由控制者选用；Forced 恒为 true。
+## 单次 [reaction] 选用结果（轻量 DTO）。完整交互见 PlayerInteractionGate / ChoiceRequest（16-player-interaction.md）。
 var handler: SequenceHandler
 var controller_confirmed: bool = true
 

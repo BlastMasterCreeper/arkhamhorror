@@ -138,27 +138,24 @@ base = investigator.get_skill(skill)
 
 ## 4. Peril（险境 · 持续 Cannot）
 
-> **规则来源**：Grimoire *Peril*、Framework 1.4 step 2；[15 §17 E3](15-timing-entry-catalog.md)。  
-> **已裁决**：OQ-04-02 — 覆盖 **整个 encounter 结算帧**（含 Surge 链、spawn/discard、嵌套检定）。
+> **规则来源**：Grimoire *Peril*、Framework 1.4 step 2；[15 §17 E3](15-timing-entry-catalog.md)、[15 §4.0.5.2](15-timing-entry-catalog.md)。  
+> **已裁决**：OQ-04-02 — peril RESTRICTION 生命周期 = **`WHILE_DRAWN_CARD_RESOLVING(card_id)`**；**不跨 Surge**（G4 完 Unregister，G5 再抽前）。
 
 ### 4.1 规则语义
 
 Grimoire *Peril*（*cannot* 措辞）：
 
-- **drawer**（正在结算该遭遇的调查员）**cannot confer** with other players；
-- **其他调查员** **cannot** play cards、**cannot** trigger abilities、**cannot** commit cards to **that investigator’s skill test(s)**；
-- 约束持续于 **「the peril encounter is resolving」** — 引擎 = **`EncounterResolutionFrame` 在栈上且 `frame.peril == true`** 的整段 E2–E7（含 Surge 后续圈）。
-
-> **术语**：Grimoire 规定 skill **不能 play**，只能从 hand **commit**。`FORBID_PLAY` 仅 asset/event；skill 限制为 `FORBID_COMMIT_TO_TEST`。
+- **drawer** **cannot confer**；**其他调查员** **cannot** play / trigger / commit 到 drawer 的 skill test(s)；
+- 约束持续于 **「the peril encounter is resolving」** — 引擎 = **该张 drawn 卡 G2–G4 期间** RESTRICTION 在 Store 中 active。
 
 | 属性 | 说明 |
 |---|---|
-| **触发** | E3：drawn 卡带 **peril** 关键词 → `frame.peril = true` |
-| **粘性** | 帧内一旦为 true，**Surge 抽到无 peril 的卡也不解除**；直至 **frame pop** |
-| **Surge 后补触发** | 若首圈无 peril、Surge 圈 E3 遇到 peril 卡 → 当圈置 true，**之后** 全帧生效 |
-| **performing** | 帧内 skill test 的 performing = drawer（除非文本改 performing；改 performing **不** 解除他人 Cannot） |
+| **触发** | **ENCOUNTER_CARD_DRAWN** timing · priority **100** · 卡带 peril 关键词 |
+| **生命周期** | **`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — **G4（spawn/discard）完成时 Unregister** |
+| **不跨 Surge** | G5 Surge 在 **上一张 G4 后**；下一张 G1 = **新** ENCOUNTER_CARD_DRAWN，**无** 上一张 peril |
+| **performing** | 该张卡 resolve 期间 skill test performing = drawer |
 
-**不是**：Player Window 开关、Eligibility 软过滤、同时点 tier 竞争、Replacement/Silver Rule 可推翻的禁止。
+**不是**：跨 Surge 帧级 sticky、`WHILE_ENCOUNTER_FRAME` 级 peril Register。
 
 ### 4.2 引擎定位：**RESTRICTION Cannot**，非竞争
 
@@ -181,49 +178,46 @@ Grimoire *Peril*（*cannot* 措辞）：
 
 **Invariant**：任何卡牌能力 **不得** countermand 已挂 RESTRICTION；无需 Silver Rule / Grim Rule。
 
-### 4.3 EncounterResolutionFrame 生命周期
+### 4.3 EncounterResolutionFrame 与 per-card peril
 
-与 [15 §17.5](15-timing-entry-catalog.md) 一致。`frame.peril` = E3 已触发（粘性镜像）；**裁决看 Registration**，不看散落 `if frame.peril`。
+`EncounterResolutionFrame` 保留 **drawer / surge_depth / cards_resolved**（诊断、嵌套检定 bind）。**peril 裁决只看 RegistrationStore**（`WHILE_DRAWN_CARD_RESOLVING`），**不** 用帧级 `peril` 粘性跨 Surge。
 
 ```gdscript
 class EncounterResolutionFrame:
     var id: StringName
     var drawer_id: StringName
-    var peril: bool = false                         # E3 粘性镜像；Condition / ctx.peril
-    var peril_restrictions_registered: bool = false # E3 Register 幂等
     var cards_resolved: Array[StringName]
     var surge_depth: int = 0
+    # 已删除 frame.peril 粘性 — 见 PERIL-04 测试迁移
 ```
 
 ```text
-push frame (E0)
-  … E3 seq.encounter.check_peril
-       → frame.peril = true（粘性）
-       → Composition Register（WHILE_ENCOUNTER_FRAME × 3 RESTRICTION）
-  … E4–E6（含 Surge 回 E1）
-  … 嵌套 skill test（bind frame.id）
-pop frame (E7) → unregister_by_encounter_frame(frame.id)
+push frame (E0) — 可跨 Surge 圈（仅 drawer 上下文）
+  per card: ENCOUNTER_CARD_DRAWN → priority 100 Register peril (card_id)
+            → … 90 revelation → 80 G4 → Unregister peril(card_id)
+            → 75 AFTER → 70 surge?
+pop frame (E7)
 ```
 
-### 4.4 E3 · Register RESTRICTION（非独立 Policy）
+### 4.4 E3 · peril priority 100 · Register RESTRICTION
 
-**禁止** `PerilPolicy` / 平行 cannot 分支。E3 = catalog 一步 **Composition**：
+> **术语**：**子时点** = 遭遇结算 WHEN 内的 commit 边界；**Register 结算** = G2 Register 写入 RegistrationStore。
+
+**与显现的区别**：E3 nest **Register RESTRICTION**（peril 检测子时点触发）；E4 nest Forced。见 [15 §4.0.5.1–§4.0.5.2](15-timing-entry-catalog.md)。
+
+**禁止** `PerilPolicy` / 平行 cannot 分支。E3 = **nest** 内 `composition.execute(register_template)`：
 
 ```gdscript
-## RegistrationTemplate.peril_encounter_frame(drawer_id, frame_id)
-## Lifetime: WHILE_ENCOUNTER_FRAME(frame_id)
-## Buffs:
-##   FORBID_PLAY            — actor != drawer_id
-##   FORBID_TRIGGER         — actor != drawer_id
-##   FORBID_COMMIT_TO_TEST  — actor != drawer_id 且 test.performing == drawer_id
+## RegistrationTemplate.peril_drawn_card(drawer_id, card_id)
+## Lifetime: WHILE_DRAWN_CARD_RESOLVING(card_id) — G4 完 Unregister
+## Buffs: FORBID_PLAY / FORBID_TRIGGER / FORBID_COMMIT_TO_TEST（actor != drawer_id）
 
 class EncounterPeril:
-    static func apply_e3_check(game_ctx, frame, has_peril_keyword) -> void
-    static func detach_frame(game_ctx, frame) -> void   # E7 pop 时 Unregister
-    static func sync_test_context_from_frame(test_ctx, memory) -> void
+    static func apply_peril_register(game_ctx, drawer_id, card_id, has_peril_keyword) -> void
+    static func unregister_for_card(game_ctx, card_id) -> void   # priority 80 后
 ```
 
-`AbilityUnitRef.from_framework(&"seq.encounter.check_peril")` 作 provenance。
+`AbilityUnitRef.from_framework(&"seq.draw.encounter")` 作 provenance（E3 内联步）。
 
 ### 4.5 禁止清单（actor × action）
 
@@ -238,13 +232,15 @@ Player Window 仍可出现；COLLECT / Initiation 在 **L4** 经 `RestrictionEva
 
 ### 4.6 拦截点（统一 `RestrictionEvaluator`）
 
+完整 **Intent × 入口** 主表见 [06-registration-buff-model §16.4](06-registration-buff-model.md#164-restriction--intent--入口主表)。下表为 skill test / peril 相关子集：
+
 | 入口 | 检查时机 | Intent |
 |---|---|---|
 | **EligibilityPipeline L4** | COLLECT / PRE_INITIATE | `PLAY` / `TRIGGER` |
 | **ActionSystem.play_asset / play_event** | 付 cost 前 | `PLAY` |
 | **SkillTestEngine.commit_card** | commit 前 | `COMMIT_TO_TEST` |
-| **CompositionExecutor draw atom** | execute 前 | `DRAW`（已有 C-05） |
-| **EffectResolutionGraph** step 4 | submit 前 | 按 op 映射 Intent |
+| **CompositionExecutor draw atom** | execute 前 | `DRAW` |
+| **EffectResolutionGraph** step 4 | submit 前 | 按 op 映射 Intent（§16.4.3） |
 
 ```gdscript
 var reason := RestrictionEvaluator.block_reason(
@@ -267,8 +263,8 @@ if reason != &"":
 | ST-06 / PERIL-01 | E3 Register 后队友 commit | `peril_no_assist` |
 | PERIL-02 | 队友 play asset | `restriction_forbid_play`（待接 ActionSystem） |
 | PERIL-03 | 队友 [reaction] | L4 `FORBID_TRIGGER` fail |
-| PERIL-04 | Surge 第二圈无 peril 关键词 | `frame.peril` 仍 true；Register 不重复 |
-| PERIL-05 | `pop_encounter_resolution_frame` | Unregister；队友 commit 允许 |
+| PERIL-04 | Surge 第二圈无 peril 关键词 | **无** 上一张 RESTRICTION；新 card_id 单独 Register |
+| PERIL-05 | G4 完、G5 Surge 前 | peril Unregister；他人 commit **允许** |
 | PERIL-06 | drawer play / trigger | 允许 |
 
 ---
@@ -296,12 +292,13 @@ func top_encounter_frame_if_peril() -> EncounterResolutionFrame
 
 ---
 
-## 4.11 E3 · Catalog 接线
+## 4.11 E3 · 内联接线（resolve_card_body）
 
 ```text
-seq.encounter.check_peril
-  RESOLVE:
-    EncounterPeril.apply_e3_check(game_ctx, memory.peek_encounter_frame(), has_keyword(peril))
+seq.draw.encounter → resolve_card_body (内联)
+  …
+  EncounterPeril.apply_e3_check(game_ctx, memory.peek_encounter_frame(), has_keyword(peril))
+  …
 ```
 
 | 文件 | 职责 |

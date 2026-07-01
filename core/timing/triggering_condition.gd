@@ -56,19 +56,6 @@ static func draw_investigator(
 	return t
 
 
-static func draw_collect_one(
-	controller_id: StringName,
-	after_timing: StringName = &"after_draw_collect_one"
-) -> TriggeringCondition:
-	var t := TriggeringCondition.new()
-	t.id = StringName("draw_collect_%s_%d" % [controller_id, Time.get_ticks_msec()])
-	t.kind = &"draw_collect_one"
-	t.controller_id = controller_id
-	t.tags = [&"draw_investigator", &"draw_collect"]
-	t.after_timing = after_timing
-	return t
-
-
 static func draw_empty_piles_defeated(
 	controller_id: StringName,
 	after_timing: StringName = &"after_draw_empty_piles_defeated"
@@ -96,4 +83,87 @@ static func enter_hand(
 	t.tags.append_array(source_tags)
 	t.after_timing = after_timing
 	t.payload = {"card_id": card_id}
+	return t
+
+
+static func draw_encounter(
+	drawer_id: StringName,
+	card_id: StringName = &"",
+	source_tags: Array[StringName] = [],
+	after_timing: StringName = &"after_draw_encounter"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("draw_enc_%s_%d" % [drawer_id, Time.get_ticks_msec()])
+	t.kind = &"draw_encounter"
+	t.controller_id = drawer_id
+	t.tags = [&"draw_encounter", &"ENCOUNTER_CARD_DRAWN"]
+	t.tags.append_array(source_tags)
+	t.after_timing = after_timing
+	t.payload = {"drawer_id": drawer_id, "card_id": card_id}
+	return t
+
+
+static func encounter_card_drawn(
+	drawer_id: StringName,
+	card_id: StringName,
+	after_timing: StringName = &""
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("enc_card_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"encounter_card_drawn"
+	t.controller_id = drawer_id
+	t.tags = [&"draw_encounter", &"ENCOUNTER_CARD_DRAWN"]
+	t.payload = {"drawer_id": drawer_id, "card_id": card_id}
+	t.after_timing = after_timing
+	return t
+
+
+static func encounter_revelation(
+	drawer_id: StringName,
+	card_id: StringName,
+	after_timing: StringName = &"after_encounter_revelation"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("enc_rev_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"encounter_revelation"
+	t.controller_id = drawer_id
+	t.payload = {"drawer_id": drawer_id, "card_id": card_id}
+	return t
+
+
+static func encounter_spawn(
+	drawer_id: StringName,
+	card_id: StringName,
+	after_timing: StringName = &"after_encounter_spawn",
+	from_hand: bool = false
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("enc_spawn_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"encounter_spawn"
+	t.controller_id = drawer_id
+	if from_hand:
+		t.tags = [&"spawn", &"encounter_spawn_from_hand"]
+	else:
+		t.tags = [&"draw_encounter", &"ENCOUNTER_CARD_DRAWN", &"spawn"]
+	t.after_timing = after_timing
+	t.payload = {
+		"drawer_id": drawer_id,
+		"card_id": card_id,
+		"from_hand": from_hand,
+	}
+	return t
+
+
+static func draw_encounter_resolve_bound(
+	drawer_id: StringName,
+	card_id: StringName,
+	after_timing: StringName = &"after_draw_encounter_bound"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("enc_bound_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"draw_encounter_resolve_bound"
+	t.controller_id = drawer_id
+	t.tags = [&"draw_encounter", &"weakness_encounter", &"ENCOUNTER_CARD_DRAWN"]
+	t.after_timing = after_timing
+	t.payload = {"drawer_id": drawer_id, "card_id": card_id}
 	return t
