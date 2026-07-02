@@ -143,6 +143,16 @@ func _execute_atom(node: CompositionNode) -> void:
 				"composition:spawn_encounter_enemy",
 				{"inv": node.inv_id, "card": node.card_id}
 			)
+		&"discard_encounter_from_hand":
+			if _game_ctx != null:
+				EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
+					_game_ctx, node.card_id, node.inv_id
+				)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:discard_encounter_from_hand",
+				{"inv": node.inv_id, "card": node.card_id}
+			)
 		_:
 			push_warning("CompositionExecutor: unknown atom %s" % node.atom_name)
 

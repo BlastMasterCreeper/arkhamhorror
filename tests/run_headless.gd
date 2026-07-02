@@ -44,6 +44,9 @@ func _initialize() -> void:
 	_run_test("ENC-23 hidden enemy hand ability spawns", _test_enc_hidden_enemy_hand_spawn)
 	_run_test("ENC-12 hidden treachery secret hand", _test_enc_hidden_secret_hand)
 	_run_test("ENC-24 hidden privacy forbid leave hand", _test_enc_hidden_forbid_leave_hand)
+	_run_test("ENC-25 hidden treachery effective threat area", _test_enc_hidden_treachery_threat_area)
+	_run_test("ENC-26 hidden treachery card discard from hand", _test_enc_hidden_treachery_discard_from_hand)
+	_run_test("ENC-27 elimination discards hidden hand encounter", _test_enc_elimination_hidden_hand)
 	_run_test("ENC-13 default treachery reveal all", _test_enc_default_reveal_all)
 	_run_test("ENC-14 empty deck shuffles discard", _test_enc_shuffle_discard)
 	_run_test("ENC-15 both piles empty rules gap", _test_enc_both_piles_empty)
@@ -698,6 +701,7 @@ func _test_enc_hidden_enemy_no_spawn() -> bool:
 		and h.ctx.state.registry.get_enemy(card_id) == null
 		and not inv1.threat_area.has(card_id)
 		and not has_spawn
+		and card.owner_id == &"encounter"
 		and h.ctx.registrations.has_hidden_leave_hand_restriction(card_id)
 	)
 
@@ -769,6 +773,7 @@ func _test_enc_hidden_secret_hand() -> bool:
 		and card.face_known_to(&"inv_1")
 		and not card.face_known_to(&"inv_2")
 		and h.ctx.state.encounter_discard.is_empty()
+		and card.owner_id == &"encounter"
 		and h.ctx.registrations.has_hidden_leave_hand_restriction(card_id)
 	)
 
@@ -794,6 +799,80 @@ func _test_enc_hidden_forbid_leave_hand() -> bool:
 	)
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
 	return blocked_enc and blocked_inv and inv1.hand.has(card_id)
+
+
+func _test_enc_hidden_treachery_threat_area() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var treach_id := GameBootstrap.add_encounter_card_to_deck(
+		h.ctx,
+		&"enc_hidden_ta_t",
+		[&"hidden"]
+	)
+	var enemy_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"enc_hidden_ta_e",
+		{"keywords": [&"hidden"], "hidden": true}
+	)
+	var t_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not t_res.get("ok", false):
+		return false
+	h.ctx.state.encounter_deck.clear()
+	h.ctx.state.encounter_deck.append(enemy_id)
+	var e_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not e_res.get("ok", false):
+		return false
+	var state := h.ctx.state
+	return (
+		ThreatAreaQuery.counts_in_effective_threat_area(state, &"inv_1", treach_id)
+		and not ThreatAreaQuery.counts_in_effective_threat_area(state, &"inv_1", enemy_id)
+		and not h.ctx.state.registry.get_investigator(&"inv_1").threat_area.has(treach_id)
+	)
+
+
+func _test_enc_hidden_treachery_discard_from_hand() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var card_id := GameBootstrap.add_encounter_card_to_deck(
+		h.ctx,
+		&"enc_hidden_disc",
+		[&"hidden"]
+	)
+	var draw_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not draw_res.get("ok", false):
+		return false
+	if not h.ctx.registrations.has_hidden_leave_hand_restriction(card_id):
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.discard_encounter_from_hand(card_id, &"inv_1"))
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		h.ctx.state.encounter_discard.has(card_id)
+		and not inv1.hand.has(card_id)
+		and not h.ctx.registrations.has_hidden_leave_hand_restriction(card_id)
+	)
+
+
+func _test_enc_elimination_hidden_hand() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var card_id := GameBootstrap.add_encounter_card_to_deck(
+		h.ctx,
+		&"enc_hidden_elim",
+		[&"hidden"]
+	)
+	var draw_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not draw_res.get("ok", false):
+		return false
+	var elim := InvestigatorElimination.eliminate(h.ctx, &"inv_1")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		elim.get("eliminated", false)
+		and inv1.eliminated
+		and h.ctx.state.encounter_discard.has(card_id)
+		and not inv1.hand.has(card_id)
+		and not h.ctx.registrations.has_hidden_leave_hand_restriction(card_id)
+	)
 
 
 func _test_enc_default_reveal_all() -> bool:

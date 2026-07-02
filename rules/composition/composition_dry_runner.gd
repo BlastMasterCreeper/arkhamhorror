@@ -60,6 +60,13 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				and card.zone == AhcEnums.Zone.HAND
 				and CardRegistry.card_type(card.id.definition_id) == &"enemy"
 			)
+		&"discard_encounter_from_hand":
+			var discard_card := sim.state.registry.get_card(node.card_id)
+			return (
+				discard_card != null
+				and discard_card.zone == AhcEnums.Zone.HAND
+				and discard_card.owner_id == &"encounter"
+			)
 	return false
 
 

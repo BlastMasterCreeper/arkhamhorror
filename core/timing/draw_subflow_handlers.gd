@@ -68,10 +68,4 @@ static func _redirect_encounter_weakness(
 
 
 static func resolve_empty_piles_defeated(game_ctx: GameContext, inv_id: StringName) -> Dictionary:
-	var mutator := game_ctx.mutator
-	var executor := game_ctx.composition
-	if executor != null:
-		executor.execute(CompositionNode.set_flag(inv_id, AhcEnums.FlagField.ELIMINATED, true))
-	elif mutator != null:
-		mutator.set_flag(inv_id, AhcEnums.FlagField.ELIMINATED, true)
-	return {"defeated": true}
+	return InvestigatorElimination.eliminate(game_ctx, inv_id)

@@ -30,11 +30,19 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 		return false
 	if _would_leave_hand(card, to) and _blocks_leave_hand(card_id):
 		return false
-	var owner_inv := _state.registry.get_investigator(card.owner_id)
-	if owner_inv != null:
-		_remove_from_pile(card, owner_inv)
-	elif card.zone == AhcEnums.Zone.LIMBO:
-		pass
+	if _would_leave_hand(card, to):
+		var holder_id := card.controller_id
+		if holder_id == &"":
+			holder_id = card.owner_id
+		var holder := _state.registry.get_investigator(holder_id)
+		if holder != null:
+			_remove_from_pile(card, holder)
+	else:
+		var owner_inv := _state.registry.get_investigator(card.owner_id)
+		if owner_inv != null:
+			_remove_from_pile(card, owner_inv)
+		elif card.zone == AhcEnums.Zone.LIMBO:
+			pass
 	if to.owner_id == &"encounter":
 		return _insert_encounter_discard(card)
 	var target_inv := _state.registry.get_investigator(to.owner_id)
@@ -361,7 +369,9 @@ func _insert_into_pile(card: CardInstance, inv: InvestigatorState, to: CardSlot)
 	var pile: Array = _pile_array(inv, to.pile)
 	if pile == null:
 		return false
-	card.owner_id = to.owner_id
+	# 遭遇牌 owner 恒为 encounter；进调查员 pile 只改 controller（见 move_card HAND 分支）。
+	if card.owner_id != &"encounter":
+		card.owner_id = to.owner_id
 	if to.insert == AhcEnums.InsertMode.TOP:
 		pile.insert(0, card.id.instance_id)
 	else:

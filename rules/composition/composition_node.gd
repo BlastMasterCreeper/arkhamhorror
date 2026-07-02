@@ -145,6 +145,16 @@ static func spawn_encounter_enemy(card_id: StringName, inv_id: StringName) -> Co
 	return n
 
 
+## L0 · 隐私/遭遇 treachery 卡面弃置（unregister 离手限制 → 遭遇弃牌堆）。
+static func discard_encounter_from_hand(card_id: StringName, inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"discard_encounter_from_hand"
+	n.card_id = card_id
+	n.inv_id = inv_id
+	return n
+
+
 static func register(template: RegistrationTemplate) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.REGISTER

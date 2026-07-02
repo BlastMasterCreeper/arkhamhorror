@@ -63,7 +63,7 @@ When an investigator takes this action, that investigator draws **one** card fro
 | 隐私 treachery 视为威胁区 | Eligibility 模拟；zone 仍为 HAND |
 | 隐私 enemy 不进威胁区 | G4 skip spawn；`expose_hidden` → `spawn_encounter_enemy` |
 | 弃置 → 遭遇弃牌堆 | `move_card` → encounter discard |
-| 淘汰时手牌隐私牌 | （待实现）→ encounter discard · FAQ 1.22 |
+| 淘汰时手牌隐私牌 | `InvestigatorElimination` → encounter discard · FAQ 1.22 |
 
 详述：[15 §17.4.3](../design/15-timing-entry-catalog.md) · [01 §3.6.2](../design/01-game-state-zones.md)
 

@@ -1185,6 +1185,9 @@ func reveal_encounter_step(card_id: StringName, drawer_id: StringName) -> void:
 | 禁止 Framework 离手 | G4 skip discard / spawn（Framework 不发起非法 Intent；RESTRICTION 为规范真源） |
 | `is_hidden` + Eligibility | constant / triggered 过滤；Presentation 牌名 |
 | 卡面暴露 + 生成 | `expose_hidden` → `spawn_encounter_enemy` → unregister → nest `seq.encounter.spawn` |
+| 卡面弃置离手 | `discard_encounter_from_hand` → unregister → 遭遇弃牌堆 |
+| 视为威胁区（treachery） | `ThreatAreaQuery.effective_threat_area_ids` |
+| 淘汰清理 | `InvestigatorElimination.eliminate`（威胁区 + 手牌隐私遭遇） |
 | hand → LIMBO（spawn 前） | `prepare_hand_card_for_encounter_spawn`（**仅**域转换，不含显现） |
 
 **测试**：ENC-12 / ENC-22（秘密入手 + RESTRICTION）；ENC-24（`move_card` 拦截）；ENC-23（卡面 expose → spawn → unregister）。
@@ -1575,6 +1578,9 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | ENC-22 | 隐私 enemy 秘密入手；**不** nest spawn（Framework 离手禁止） |
 | ENC-23 | 隐私 enemy：卡面 `expose_hidden` → `spawn_encounter_enemy` → unregister |
 | ENC-24 | 隐私牌 Register `FORBID_LEAVE_HAND`；`move_card` 离手被拦 |
+| ENC-25 | 隐私 treachery 在手 → `ThreatAreaQuery` 视为威胁区；隐私 enemy 否 |
+| ENC-26 | `discard_encounter_from_hand` 合法离手 → 遭遇弃牌堆 |
+| ENC-27 | 淘汰 → 手牌隐私遭遇 → 遭遇弃牌堆 |
 | ENC-06 | E2 默认 ALL；Hidden 不公开 |
 | ENC-07 | encounter cardtype weakness 从 inv deck 重定向 resolve_bound |
 | ENC-08 | 无 Spawn enemy draw | `spawn_engaged`；不调用 auto engage / Engage action |
