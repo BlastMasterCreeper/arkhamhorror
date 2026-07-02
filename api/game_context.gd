@@ -30,6 +30,7 @@ var sequence_catalog: SequenceCatalog
 var resource_gain: ResourceGainService
 var draw_investigator: DrawInvestigatorService
 var draw_encounter: DrawEncounterService
+var action_sequences: ActionSequenceService
 var card_abilities: CardAbilityService
 
 var stat_projections: StatProjectionStore

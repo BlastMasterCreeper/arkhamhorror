@@ -30,6 +30,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.resource_gain = ResourceGainService.new(ctx.sequence_catalog)
 	ctx.draw_investigator = DrawInvestigatorService.new(ctx.sequence_catalog)
 	ctx.draw_encounter = DrawEncounterService.new(ctx.sequence_catalog)
+	ctx.action_sequences = ActionSequenceService.new(ctx.sequence_catalog)
 	ctx.modifiers = ModifierEngine.new(ctx.registrations)
 	ctx.composition = CompositionExecutor.new(
 		ctx.state, ctx.registrations, ctx.mutator, ctx.log

@@ -86,6 +86,8 @@ func _initialize() -> void:
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
+	_run_test("ACT-CAT-01 action seq catalog registered", _test_act_catalog_registered)
+	_run_test("ACT-CAT-02 action gain fires after_gain_resource", _test_act_catalog_gain_after_listener)
 	_run_test("VIS-01 draw reveal before hand", _test_vis_draw_reveal_before_hand)
 	_run_test("VIS-02 draw face known to controller only", _test_vis_draw_controller_only)
 	_run_test("DRAW-02 draw two simultaneous", _test_draw_two_simultaneous)
@@ -1417,6 +1419,38 @@ func _test_act_draw_defeated() -> bool:
 	inv.discard.clear()
 	var res := h.draw_action()
 	return res.ok and res.defeated and inv.eliminated
+
+
+func _test_act_catalog_registered() -> bool:
+	var h := RuleTestHarness.new(42)
+	var catalog := h.ctx.sequence_catalog
+	var flows: Array[StringName] = [
+		&"seq.action.draw",
+		&"seq.action.gain_resource",
+		&"seq.action.move",
+		&"seq.action.investigate",
+		&"seq.action.fight",
+		&"seq.action.engage",
+		&"seq.action.evade",
+	]
+	for flow_id in flows:
+		if not catalog.has_flow(flow_id):
+			return false
+	return h.ctx.action_sequences != null
+
+
+func _test_act_catalog_gain_after_listener() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.after_gain_draw_listener(&"inv_1"))
+	if not h.prepare_action_phase():
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if inv.deck.size() != 1 or inv.hand.size() != 0:
+		return false
+	var res := h.take_resource_action()
+	return res.ok and inv.deck.is_empty() and inv.hand.size() == 1
 
 
 func _test_vis_draw_reveal_before_hand() -> bool:

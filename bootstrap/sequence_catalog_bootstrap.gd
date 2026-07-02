@@ -93,6 +93,58 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return _resolve_gain_resource(game_ctx, params, mutator)
 	)
+	_register_action_flows(catalog)
+
+
+static func _register_action_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.action.draw",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", &"")
+			var tags := ActionFlowHandlers._merge_tags([&"draw_action"], params.get("source_tags", []))
+			return TriggeringCondition.action_committed(
+				&"draw", inv_id, tags, &"after_action_draw", params
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ActionFlowHandlers.resolve_action_draw(game_ctx, catalog, params)
+	)
+	catalog.register_run(
+		&"seq.action.gain_resource",
+		func(params: Dictionary) -> TriggeringCondition:
+			var controller_id: StringName = params.get("controller_id", &"")
+			var tags := ActionFlowHandlers._merge_tags([&"resource_action"], params.get("source_tags", []))
+			return TriggeringCondition.action_committed(
+				&"gain_resource", controller_id, tags, &"after_action_gain_resource", params
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ActionFlowHandlers.resolve_action_gain_resource(game_ctx, catalog, params)
+	)
+	_register_basic_action_flow(catalog, &"seq.action.move", &"move", &"after_action_move", AhcEnums.ActionType.MOVE)
+	_register_basic_action_flow(
+		catalog, &"seq.action.investigate", &"investigate", &"after_action_investigate", AhcEnums.ActionType.INVESTIGATE
+	)
+	_register_basic_action_flow(catalog, &"seq.action.fight", &"fight", &"after_fight", AhcEnums.ActionType.FIGHT)
+	_register_basic_action_flow(catalog, &"seq.action.engage", &"engage", &"after_action_engage", AhcEnums.ActionType.ENGAGE)
+	_register_basic_action_flow(catalog, &"seq.action.evade", &"evade", &"after_action_evade", AhcEnums.ActionType.EVADE)
+
+
+static func _register_basic_action_flow(
+	catalog: SequenceCatalog,
+	flow_id: StringName,
+	action_kind: StringName,
+	after_timing: StringName,
+	action_type: AhcEnums.ActionType
+) -> void:
+	catalog.register_run(
+		flow_id,
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", &"")
+			return TriggeringCondition.action_committed(
+				action_kind, inv_id, [action_kind], after_timing, params
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ActionFlowHandlers.resolve_basic_action(game_ctx, action_type, params)
+	)
 
 
 static func _resolve_draw_investigator(

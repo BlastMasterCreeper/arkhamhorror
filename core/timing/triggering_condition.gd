@@ -154,6 +154,25 @@ static func encounter_spawn(
 	return t
 
 
+static func action_committed(
+	action_kind: StringName,
+	controller_id: StringName,
+	source_tags: Array[StringName] = [],
+	after_timing: StringName = &"",
+	payload: Dictionary = {}
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("action_%s_%s_%d" % [action_kind, controller_id, Time.get_ticks_msec()])
+	t.kind = StringName("action_%s" % action_kind)
+	t.controller_id = controller_id
+	t.tags = [&"action"]
+	t.tags.append(action_kind)
+	t.tags.append_array(source_tags)
+	t.after_timing = after_timing if after_timing != &"" else StringName("after_action_%s" % action_kind)
+	t.payload = payload.duplicate()
+	return t
+
+
 static func draw_encounter_resolve_bound(
 	drawer_id: StringName,
 	card_id: StringName,

@@ -6,12 +6,9 @@ var _events: EventRecordLog
 var _initiation: AbilityInitiationPipeline
 var _log: GameLog
 var _framework: FrameworkFlowEngine
-var _skill_tests: SkillTestEngine
-var _basic_actions: BasicActionResolver
 var _aoo: AttackOfOpportunityResolver
 var _mutator: StateMutator
-var _resource_gain: ResourceGainService
-var _draw_investigator: DrawInvestigatorService
+var _action_sequences: ActionSequenceService
 var _game_ctx: GameContext
 
 
@@ -30,9 +27,6 @@ func _init(
 	_initiation = initiation
 	_log = log
 	_framework = framework
-	_skill_tests = skill_tests
-	if skill_tests:
-		_basic_actions = BasicActionResolver.new(state, skill_tests)
 	if combat:
 		_aoo = AttackOfOpportunityResolver.new(state, combat)
 	_mutator = mutator
@@ -41,8 +35,7 @@ func _init(
 func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
 	if ctx:
-		_resource_gain = ctx.resource_gain
-		_draw_investigator = ctx.draw_investigator
+		_action_sequences = ctx.action_sequences
 
 
 func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extra: Dictionary = {}) -> Dictionary:
@@ -67,18 +60,21 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 	var result := {"ok": true, "aoo_attacks": int(aoo_result.get("attacks", 0))}
 	match action_type:
 		AhcEnums.ActionType.RESOURCE:
-			if _resource_gain and _game_ctx:
-				_resource_gain.gain(
+			if _action_sequences and _game_ctx:
+				var gain_result := _action_sequences.gain_resource(
 					_game_ctx,
 					investigator_id,
 					1,
 					[&"resource_action"]
 				)
+				result["amount"] = gain_result.get("amount", 1)
+			elif _mutator:
+				inv.resource_pool += 1
 			else:
 				inv.resource_pool += 1
 		AhcEnums.ActionType.DRAW:
-			if _draw_investigator and _game_ctx:
-				result = _draw_investigator.draw_cards(
+			if _action_sequences and _game_ctx:
+				result = _action_sequences.draw(
 					_game_ctx,
 					investigator_id,
 					1,
@@ -89,15 +85,15 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 			else:
 				result = {"ok": false, "error": "draw_unavailable"}
 		AhcEnums.ActionType.MOVE:
-			result = _run_basic_action(action_type, investigator_id, extra)
+			result = _run_resolved_action(AhcEnums.ActionType.MOVE, investigator_id, extra)
 		AhcEnums.ActionType.INVESTIGATE:
-			result = _run_basic_action(action_type, investigator_id, extra)
+			result = _run_resolved_action(AhcEnums.ActionType.INVESTIGATE, investigator_id, extra)
 		AhcEnums.ActionType.FIGHT:
-			result = _run_basic_action(action_type, investigator_id, extra)
+			result = _run_resolved_action(AhcEnums.ActionType.FIGHT, investigator_id, extra)
 		AhcEnums.ActionType.ENGAGE:
-			result = _run_basic_action(action_type, investigator_id, extra)
+			result = _run_resolved_action(AhcEnums.ActionType.ENGAGE, investigator_id, extra)
 		AhcEnums.ActionType.EVADE:
-			result = _run_basic_action(action_type, investigator_id, extra)
+			result = _run_resolved_action(AhcEnums.ActionType.EVADE, investigator_id, extra)
 	if not result.ok:
 		inv.actions_remaining += action_cost
 		if spend_id >= 0 and _game_ctx != null and _game_ctx.stat_emitter != null:
@@ -115,22 +111,35 @@ func _resolve_aoo(investigator_id: StringName, action_type: AhcEnums.ActionType)
 	return _aoo.resolve(investigator_id, action_type)
 
 
+func _run_resolved_action(
+	action_type: AhcEnums.ActionType,
+	investigator_id: StringName,
+	extra: Dictionary
+) -> Dictionary:
+	if _action_sequences == null or _game_ctx == null:
+		return _run_basic_action(action_type, investigator_id, extra)
+	match action_type:
+		AhcEnums.ActionType.MOVE:
+			return _action_sequences.move(_game_ctx, investigator_id, extra)
+		AhcEnums.ActionType.INVESTIGATE:
+			return _action_sequences.investigate(_game_ctx, investigator_id, extra)
+		AhcEnums.ActionType.FIGHT:
+			return _action_sequences.fight(_game_ctx, investigator_id, extra)
+		AhcEnums.ActionType.ENGAGE:
+			return _action_sequences.engage(_game_ctx, investigator_id, extra)
+		AhcEnums.ActionType.EVADE:
+			return _action_sequences.evade(_game_ctx, investigator_id, extra)
+	return {"ok": false, "error": "unsupported_action"}
+
+
 func _run_basic_action(
 	action_type: AhcEnums.ActionType,
 	investigator_id: StringName,
 	extra: Dictionary
 ) -> Dictionary:
-	if _basic_actions == null or _game_ctx == null:
+	if _game_ctx == null:
 		return {"ok": false, "error": "basic_actions_unavailable"}
-	match action_type:
-		AhcEnums.ActionType.MOVE:
-			return _basic_actions.move(_game_ctx, investigator_id, extra)
-		AhcEnums.ActionType.INVESTIGATE:
-			return _basic_actions.investigate(_game_ctx, investigator_id, extra)
-		AhcEnums.ActionType.FIGHT:
-			return _basic_actions.fight(_game_ctx, investigator_id, extra)
-		AhcEnums.ActionType.ENGAGE:
-			return _basic_actions.engage(_game_ctx, investigator_id, extra)
-		AhcEnums.ActionType.EVADE:
-			return _basic_actions.evade(_game_ctx, investigator_id, extra)
-	return {"ok": false, "error": "unsupported_action"}
+	return ActionFlowHandlers.resolve_basic_action(_game_ctx, action_type, {
+		"inv_id": investigator_id,
+		"extra": extra,
+	})
