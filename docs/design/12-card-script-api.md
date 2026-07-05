@@ -26,6 +26,18 @@
 
 **流程**：导入卡牌文本 → 尝试 `AbilityTemplate` → 无法无损表达或 dry-run 无法通过 → 补 `CardScript` / `ScenarioScript`。比例随卡池自然形成，**不作为 KPI**。
 
+### 1.2 Core 2026 选型快照（ArkhamDB · Phase 4）
+
+> **详表**：[`data/arkhamdb/reports/phase4_core_2026_backfill.md`](../../data/arkhamdb/reports/phase4_core_2026_backfill.md) §5
+
+| 选型 | 张数 | 说明 |
+|---|---:|---|
+| Template 全匹配 | 0 | Phase 3 模板均为 `partial`（条件/检定后缀） |
+| Template 部分 | 12 | 如 12003 enter_threat_area、12015 take_damage（首句） |
+| Script 优先 | 113 | 含 `[reaction]`/`[action]`/检定类 revelation |
+
+**记录约定**：逐卡选型写入 `data/packs/core_2026/cards/{code}.yaml`（OQ-12-06）；当前机器可读来源为 `imported/*.json` 的 `compiled_abilities` 字段。
+
 ---
 
 ## 2. 注册与加载
@@ -246,6 +258,26 @@ effects:
 
 ### 7.1 Ward of Protection（Fast Event Cancel）
 
+> **规范译法**（Interrupt 族 · SEQUENCE）：见 [07-effect-resolution §6.0.1](07-effect-resolution.md#601-样例ward-of-protectioncancel--sequence)。  
+> **FAQ**：Cancel revelation 后 treachery **仍进 encounter discard**；显现效果不结算。
+
+**AbilityCompiler 产出（与脚本双轨对齐）**：
+
+```gdscript
+# compile 结果 ≈ 下列 composition（非 CardScript 手写 cancel_revelation Service）
+CompositionNode.seq([
+    CompositionNode.interrupt_cancel(
+        InterruptTarget.sequence(
+            &"seq.encounter.revelation",
+            {"card_id": trigger_card_id, "controller_id": initiator_id}
+        )
+    ),
+    # + deal 1 horror（nest seq.deal.horror 或 L0 Atom）
+])
+```
+
+**Legacy CardScript 双轨**（复杂/过渡期 fallback；新卡优先 Compiler）：
+
 ```gdscript
 extends CardScriptBase
 
@@ -256,8 +288,16 @@ func _on_ward(_ctx, _inst, payload: Dictionary) -> void:
     var treachery = payload.get("card")
     if treachery == null or _is_weakness(treachery):
         return
-    ctx.effects().cancel_revelation(treachery).submit()
-    ctx.for_performing_investigator().take_horror(1)
+    # 目标：与 Compiler 相同 — nest seq.interrupt.cancel + horror
+    _ctx.sequence_catalog.run(_ctx, &"seq.interrupt.cancel", {
+        "controller_id": _ctx.performing_investigator_id(),
+        "target": {
+            "kind": "sequence",
+            "flow_id": &"seq.encounter.revelation",
+            "bind": {"card_id": treachery.id.instance_id},
+        },
+    })
+    _ctx.for_performing_investigator().take_horror(1)
 ```
 
 ### 7.2 Meat Cleaver（Action + Forced nested cost）

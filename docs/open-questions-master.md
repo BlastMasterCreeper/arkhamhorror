@@ -160,7 +160,19 @@
 
 ---
 
-## 建议裁决顺序
+## ArkhamDB 卡面驱动（Core 2026 回填 · Phase 4）
+
+> 来源：[`data/arkhamdb/reports/phase4_core_2026_backfill.md`](../data/arkhamdb/reports/phase4_core_2026_backfill.md)
+
+| ID | 关联 | 说明 | 优先级 |
+|---|---|---|---|
+| OQ-ADB-01 | [09-location §8](design/09-location-graph.md) / 12099 | Farthest empty spawn：blocked path 是否参与最短路径？与 OQ-09-04 同源 | P2 |
+| OQ-ADB-02 | [15 §17.4](design/15-timing-entry-catalog.md) / 12124 | Cosmic Evils：Peril + 正文「gains surge」— surge evaluate 在 G3 前还是 G5？ | P1 |
+| OQ-ADB-03 | [10-scenario](design/10-scenario-encounter.md) / 12126 | Forbidden Secrets：无 clue 时 gains surge — revelation 结算前/后判定？（cf. OQ-10-06） | P1 |
+| OQ-ADB-04 | [06 §16.4](design/06-registration-buff-model.md) / 12012 | Necronomicon：`cannot leave play` + threat area — Permanent Domain vs RESTRICTION | P2 |
+| OQ-ADB-05 | [15 §17.4.3](design/15-timing-entry-catalog.md) / 12179b | Hidden enemy 手牌 spawn — ENC-22/23 已竖切；多 copy 待补 | P2 |
+
+---
 
 1. ~~**OQ-03-01**~~ — Fight 目标范围
 2. ~~**OQ-03-02**~~ / ~~**OQ-08-02**~~ — 攻击原语与 Massive
@@ -198,4 +210,5 @@
 | 2026-05-25 | v0.4.6 | OQ-12-01 裁决：Template/Script 逐卡选型，无固定比例 |
 | 2026-05-25 | v0.5.0 | 批次 P1：IDX-01/02、12-06、01-01、02-04、00-01 裁决 |
 | 2026-05-25 | v0.5.1 | 批次 B 部分：01-03、03-03、06-03、08-03 裁决 |
+| 2026-07-06 | v0.5.3 | 新增 OQ-ADB-01～05（ArkhamDB Phase 4 回填） |
 | 2026-05-25 | v0.5.2 | OQ-03-04、OQ-08-01 裁决 |

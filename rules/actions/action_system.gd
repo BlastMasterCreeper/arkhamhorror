@@ -38,6 +38,37 @@ func bind_game_context(ctx: GameContext) -> void:
 		_action_sequences = ctx.action_sequences
 
 
+## REST-E-PLAY：打出 asset/event — 经 Initiation Sequence（Grimoire V）。
+func play_card(investigator_id: StringName, card_id: StringName) -> Dictionary:
+	if _game_ctx == null or _initiation == null:
+		return {"ok": false, "error": "no_context"}
+	var inv := _state.registry.get_investigator(investigator_id)
+	if inv == null:
+		return {"ok": false, "error": "unknown_investigator"}
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return {"ok": false, "error": "unknown_card"}
+	if card.zone != AhcEnums.Zone.HAND or not inv.hand.has(card_id):
+		return {"ok": false, "error": "not_in_hand"}
+	var def_id := card.id.definition_id
+	var on_play := CardRegistry.build_on_play_composition(_game_ctx, investigator_id, card_id)
+	var intent := InitiationIntent.play_card(
+		investigator_id,
+		card_id,
+		CardRegistry.resource_cost(def_id),
+		CardRegistry.action_cost(def_id),
+		on_play
+	)
+	var res := _initiation.initiate(intent, _game_ctx)
+	if res.ok:
+		_log.log(
+			AhcEnums.LogCategory.ACTION,
+			"action:play_card",
+			{"inv": investigator_id, "card": card_id}
+		)
+	return res
+
+
 func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extra: Dictionary = {}) -> Dictionary:
 	if _framework and not _framework.is_action_phase():
 		return {"ok": false, "error": "not_action_phase"}
@@ -49,6 +80,9 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 	var action_cost: int = int(extra.get("action_cost", 1))
 	if inv.actions_remaining < action_cost:
 		return {"ok": false, "error": "insufficient_actions"}
+	var restriction_reason := _restriction_block_for_action(action_type, investigator_id)
+	if restriction_reason != &"":
+		return {"ok": false, "error": RestrictionEvaluator.api_error(restriction_reason)}
 	inv.actions_remaining -= action_cost
 	var spend_id := -1
 	if _game_ctx != null and _game_ctx.stat_emitter != null:
@@ -143,3 +177,25 @@ func _run_basic_action(
 		"inv_id": investigator_id,
 		"extra": extra,
 	})
+
+
+func _registration_store() -> RegistrationStore:
+	if _game_ctx == null:
+		return null
+	return _game_ctx.registrations
+
+
+func _restriction_block_for_action(
+	action_type: AhcEnums.ActionType,
+	investigator_id: StringName
+) -> StringName:
+	var store := _registration_store()
+	if store == null:
+		return &""
+	if action_type == AhcEnums.ActionType.DRAW:
+		return RestrictionEvaluator.block_reason(
+			RestrictionEvaluator.Intent.DRAW,
+			investigator_id,
+			store
+		)
+	return &""

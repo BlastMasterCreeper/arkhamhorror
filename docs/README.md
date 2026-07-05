@@ -28,6 +28,12 @@
 20. [design/15-timing-entry-catalog.md](design/15-timing-entry-catalog.md) — **规范时点入口**（含 **§16 调查员抽牌 D0–D5**）
 21. [design/16-player-interaction.md](design/16-player-interaction.md) — **玩家交互**（§5 完整目录）
 22. [design/17-seq-runtime.md](design/17-seq-runtime.md) — **命名流程运行时**（seq.* checklist · 缺口 · 实施顺序）
+23. [design/18-arkhamdb-card-data.md](design/18-arkhamdb-card-data.md) — **ArkhamDB JSON 卡池**（字段映射 · Core 2026 统计 · 导入计划）
+
+## 卡池数据（离线）
+
+- [`data/arkhamdb/`](../../data/arkhamdb/) — schema + Core 2026 镜像 + 分析报告
+- 本地工具（Python 手动安装 · 杀毒软件注意）：[`setup-local-tools.md`](setup-local-tools.md)
 
 ## 规则疑点
 

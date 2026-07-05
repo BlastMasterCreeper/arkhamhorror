@@ -4,6 +4,22 @@ extends RefCounted
 var phase_trace: Array[String] = []
 var _referents: Dictionary = {}
 var _encounter_frame_stack: Array[EncounterResolutionFrame] = []
+var _cancelled_sequence_keys: Dictionary = {}
+
+
+static func sequence_bind_key(flow_id: StringName, bind: Dictionary = {}) -> StringName:
+	var card_id: StringName = bind.get("card_id", &"") as StringName
+	if card_id != &"":
+		return StringName("%s:%s" % [flow_id, card_id])
+	return flow_id
+
+
+func cancel_sequence(flow_id: StringName, bind: Dictionary = {}) -> void:
+	_cancelled_sequence_keys[sequence_bind_key(flow_id, bind)] = true
+
+
+func is_sequence_cancelled(flow_id: StringName, bind: Dictionary = {}) -> bool:
+	return bool(_cancelled_sequence_keys.get(sequence_bind_key(flow_id, bind), false))
 
 
 func push_encounter_frame(frame: EncounterResolutionFrame) -> void:
@@ -76,4 +92,5 @@ func duplicate_memory() -> RulesMemory:
 	copy.phase_trace = phase_trace.duplicate()
 	copy._referents = _referents.duplicate(true)
 	copy._encounter_frame_stack = _encounter_frame_stack.duplicate()
+	copy._cancelled_sequence_keys = _cancelled_sequence_keys.duplicate()
 	return copy

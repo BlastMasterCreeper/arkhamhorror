@@ -42,6 +42,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.initiation = AbilityInitiationPipeline.new(
 		ctx.state, ctx.events, ctx.effects, ctx.composition
 	)
+	ctx.triggered_abilities = TriggeredAbilityService.new()
 	ctx.scenario = ScenarioSystem.new(ctx.state, ctx.log)
 	ctx.scenario.bind_context(ctx)
 	ctx.enemy = EnemySystem.new(ctx.state, ctx.log)
@@ -64,7 +65,10 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.mutator
 	)
 	ctx.actions.bind_game_context(ctx)
+	ctx.initiation.bind_game_context(ctx)
+	ctx.triggered_abilities.bind_game_context(ctx)
 	ctx.sequences.bind_game_context(ctx)
+	ctx.effects.bind_game_context(ctx)
 	return ctx
 
 

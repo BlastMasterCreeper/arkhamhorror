@@ -109,6 +109,25 @@ func _execute_atom(node: CompositionNode) -> void:
 				"composition:commit_enter_hand",
 				{"inv": node.inv_id, "card": node.card_id}
 			)
+		&"enter_threat_area":
+			_mutator.commit_enter_threat_area(node.card_id, node.inv_id)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:enter_threat_area",
+				{"inv": node.inv_id, "card": node.card_id}
+			)
+		&"lose_all_resources":
+			var inv := _state.registry.get_investigator(node.inv_id)
+			if inv != null and inv.resource_pool > 0:
+				_mutator.adjust_marker(
+					MarkerSlot.investigator(node.inv_id, AhcEnums.MarkerKind.RESOURCE),
+					-inv.resource_pool
+				)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:lose_all_resources",
+				{"inv": node.inv_id}
+			)
 		&"commit_hidden_enter_hand":
 			_mutator.commit_hidden_enter_hand(node.card_id, node.inv_id)
 			if _game_ctx != null:
@@ -153,6 +172,40 @@ func _execute_atom(node: CompositionNode) -> void:
 				"composition:discard_encounter_from_hand",
 				{"inv": node.inv_id, "card": node.card_id}
 			)
+		&"cancel_pending":
+			if _game_ctx != null and _game_ctx.effects != null:
+				_game_ctx.effects.cancel_pending(node.pending_id)
+		&"ignore_pending":
+			if _game_ctx != null and _game_ctx.effects != null:
+				_game_ctx.effects.ignore_pending(node.pending_id)
+		&"interrupt":
+			if _game_ctx != null and _game_ctx.effects != null and node.interrupt_target != null:
+				if node.interrupt_mode == &"ignore":
+					_game_ctx.effects.apply_interrupt_ignore(node.interrupt_target)
+				else:
+					_game_ctx.effects.apply_interrupt_cancel(node.interrupt_target)
+		&"replace_pending":
+			if _game_ctx != null and _game_ctx.effects != null and node.effect_request != null:
+				_game_ctx.effects.register_replacement(
+					node.pending_id,
+					node.effect_request,
+					node.source_ability_id
+				)
+		&"replace_instead":
+			if (
+				_game_ctx != null
+				and _game_ctx.effects != null
+				and node.replace_target != null
+				and node.effect_request != null
+			):
+				_game_ctx.effects.apply_replace_instead(
+					node.replace_target,
+					node.effect_request,
+					node.source_ability_id
+				)
+		&"resolve_pending":
+			if _game_ctx != null and _game_ctx.effects != null:
+				_game_ctx.effects.resolve_pending(node.pending_id)
 		_:
 			push_warning("CompositionExecutor: unknown atom %s" % node.atom_name)
 

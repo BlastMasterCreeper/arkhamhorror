@@ -34,3 +34,12 @@ behavior is exercised through the headless GDScript test suite.
 - `godot --headless --path . --quit-after 5` runs the main scene
   (`res://main.tscn`), which just prints a skeleton banner — there is no
   interactive/GUI product to drive.
+
+### Windows local tools (Python / AV)
+- See [`docs/setup-local-tools.md`](docs/setup-local-tools.md).
+- **Do not** run `winget install`, download `.exe` installers, or
+  `powershell -ExecutionPolicy Bypass` on the user's machine — antivirus often
+  blocks agent-launched installs.
+- If `python` is missing, point the user to manual install (python.org, tick
+  **Add to PATH**); only run `python tools/*.py` when `python --version` already
+  works in the shell.

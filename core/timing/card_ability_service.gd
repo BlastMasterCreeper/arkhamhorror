@@ -23,7 +23,8 @@ func resolve_revelations(
 	game_ctx: GameContext,
 	controller_id: StringName,
 	card_id: StringName,
-	flow_id: StringName = &""
+	flow_id: StringName = &"",
+	defer_limbo_finalize: bool = false
 ) -> bool:
 	if game_ctx == null or game_ctx.composition == null:
 		return false
@@ -35,6 +36,12 @@ func resolve_revelations(
 		units = game_ctx.config.enter_hand_timing.order_ability_units(units)
 	if units.is_empty():
 		return false
+	var bind_dict := {"card_id": card_id}
+	if (
+		game_ctx.memory != null
+		and game_ctx.memory.is_sequence_cancelled(flow_id, bind_dict)
+	):
+		return true
 	var bind := AbilityBindContext.new()
 	bind.flow_id = flow_id
 	bind.controller_id = controller_id
@@ -53,7 +60,7 @@ func resolve_revelations(
 			card_id
 		)
 		game_ctx.composition.execute(node)
-	if _mutator != null:
+	if not defer_limbo_finalize and _mutator != null:
 		_mutator.finalize_limbo_discard(card_id, controller_id)
 	return true
 

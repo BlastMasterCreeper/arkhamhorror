@@ -41,7 +41,7 @@ flowchart TB
     end
     subgraph L2 [L2 规则节点]
         Reg[Register / Unregister]
-        Pend[CancelPending / ReplacePending]
+        Pend[Interrupt / Replace / ResolvePending]
     end
     subgraph L1 [L1 控制流]
         Seq[Seq / Then]
@@ -64,8 +64,9 @@ flowchart TB
 | L0 | `Atom` | [07-effect-primitives §5](07-effect-primitives.md) **三类状态原语** |
 | L2 | `Register` | 插入 `Registration` |
 | L2 | `Unregister` | 移除 Registration |
-| L2 | `CancelPending` | 取消 `PendingResolution` |
-| L2 | `ReplacePending` | 替换 pending 的 composition |
+| L2 | `Interrupt` | 统一 Cancel / Ignore（nest `seq.interrupt.*` 或 `CompositionNode.interrupt_*`） |
+| L2 | `Replace` | 统一 Instead（nest `seq.replace.instead` 或 `CompositionNode.replace_instead`） |
+| L2 | `ResolvePending` | 窗口结束后 resolve pending |
 | L1 | `Seq` | 顺序；Grimoire **Then** = 标记的 Seq |
 | L1 | `Simultaneous` | 同时组；组 commit 后才 flush after |
 | L1 | `ForEach` | 枚举目标 |
@@ -95,7 +96,7 @@ class RegisterNode extends CompositionNode:
 
 - **Register**：`RegistrationStore` 中 **成功插入一条 Registration** → 该节点 **CREATED**（**Buff 写入是效果**）
 - **Atom**（含 **`reveal_to_*`**、SetFlag/SetRef）：`StateMutator` 在 fork 上 **执行成功** → **CREATED**（**状态原语**）
-- **CancelPending / ReplacePending**：pending 存在且操作成功 → **CREATED**
+- **Interrupt / Replace / ResolvePending**：pending 存在且操作成功 → **CREATED**
 
 **Presentation** 只 **读** Domain 揭示状态渲染 UI；**不** 单独维护「谁看到了什么」。
 

@@ -14,6 +14,14 @@ static func blocks_draw(controller_id: StringName, store: RegistrationStore) -> 
 	return block_reason(Intent.DRAW, controller_id, store) != &""
 
 
+static func blocks_play(actor_id: StringName, store: RegistrationStore) -> bool:
+	return block_reason(Intent.PLAY, actor_id, store) != &""
+
+
+static func blocks_trigger(actor_id: StringName, store: RegistrationStore) -> bool:
+	return block_reason(Intent.TRIGGER, actor_id, store) != &""
+
+
 static func blocks_leave_hand(card_id: StringName, store: RegistrationStore) -> bool:
 	return block_reason(Intent.LEAVE_HAND, &"", store, null, card_id) != &""
 
@@ -40,9 +48,15 @@ static func block_reason(
 
 
 static func commit_block_error(reason: StringName) -> String:
+	return api_error(reason)
+
+
+static func api_error(reason: StringName) -> String:
 	if reason == &"restriction_forbid_commit_to_test":
 		return "peril_no_assist"
-	return String(reason)
+	if reason != &"":
+		return String(reason)
+	return ""
 
 
 static func _matches(

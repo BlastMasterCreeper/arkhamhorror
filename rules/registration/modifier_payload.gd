@@ -22,3 +22,27 @@ static func add_resource_gain(amount: int, apply_condition: Condition = null) ->
 	p.value = amount
 	p.condition = apply_condition
 	return p
+
+
+static func reduce_initiation_resource_cost(
+	amount: int,
+	apply_condition: Condition = null
+) -> ModifierPayload:
+	var p := ModifierPayload.new()
+	p.stat = AhcEnums.StatRef.INITIATION_RESOURCE_COST
+	p.op = AhcEnums.ModOp.SUB
+	p.value = amount
+	p.condition = apply_condition
+	return p
+
+
+static func reduce_initiation_action_cost(
+	amount: int,
+	apply_condition: Condition = null
+) -> ModifierPayload:
+	var p := ModifierPayload.new()
+	p.stat = AhcEnums.StatRef.INITIATION_ACTION_COST
+	p.op = AhcEnums.ModOp.SUB
+	p.value = amount
+	p.condition = apply_condition
+	return p

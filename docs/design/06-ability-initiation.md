@@ -451,7 +451,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 
 | ID | 场景 | 预期 |
 |---|---|---|
-| B-01 | Ward of Protection fast cancel treachery | revelation cancelled; 仍 take horror |
+| B-01 | Ward of Protection fast cancel treachery | revelation 未 resolve；**treachery 仍在 encounter discard**；仍 take horror；译法见 [07 §6.0.1](07-effect-resolution.md#601-样例ward-of-protectioncancel--sequence) |
 | B-02 | Forced before [reaction] After draw | Forced 先 |
 | B-03 | Limit once per round 第二次 | L5 拒绝 |
 | B-04 | Pay cost fail mid-initiate | L6 失败；无 cost 已付 |

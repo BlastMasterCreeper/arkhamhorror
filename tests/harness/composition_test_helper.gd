@@ -50,6 +50,17 @@ static func after_gain_draw_listener(inv_id: StringName) -> CompositionNode:
 	return delayed_draw_listener(inv_id, &"after_gain_resource")
 
 
+static func reduce_initiation_resource_cost_turn(
+	inv_id: StringName,
+	amount: int
+) -> CompositionNode:
+	var payload := ModifierPayload.reduce_initiation_resource_cost(amount)
+	var template := RegistrationTemplate.lasting_modifier(
+		inv_id, AhcEnums.DurationAnchorKind.THIS_TURN, payload
+	)
+	return CompositionNode.register(template)
+
+
 static func upkeep_framework_resource_bonus(inv_id: StringName, amount: int) -> CompositionNode:
 	var cond := Condition.with_framework_and_tags(
 		AhcEnums.FrameworkStep.UPKEEP_4_4_DRAW_AND_RESOURCE,

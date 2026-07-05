@@ -225,7 +225,7 @@ static func _step_revelation(ctx: Dictionary) -> void:
 			(outcome.get("revelations", []) as Array).append(card_id)
 		return
 	if game_ctx.card_abilities.resolve_revelations(
-		game_ctx, drawer_id, card_id, &"seq.draw.encounter"
+		game_ctx, drawer_id, card_id, &"seq.draw.encounter", true
 	):
 		(outcome.get("revelations", []) as Array).append(card_id)
 
@@ -278,16 +278,11 @@ static func _step_g4_resolve(ctx: Dictionary) -> void:
 		_nest_encounter_spawn(game_ctx, drawer_id, card_id, ctx.get("outcome", {}))
 		return
 	if card.is_hidden and card.zone == AhcEnums.Zone.HAND:
-		return  # 隐私 treachery · Framework discard 会离手 → 跳过
+		return  # 隐私 treachery · Framework 不得离手 → 跳过
 	if card.zone == AhcEnums.Zone.HAND or card.zone == AhcEnums.Zone.PLAY_AREA:
 		return
-	if card.zone == AhcEnums.Zone.LIMBO:
-		if card.owner_id == &"encounter":
-			game_ctx.mutator.move_card(card_id, CardSlot.encounter_discard_top())
-		else:
-			game_ctx.mutator.finalize_limbo_discard(card_id, drawer_id)
-		return
-	game_ctx.mutator.move_card(card_id, CardSlot.encounter_discard_top())
+	## 遭遇 treachery 默认落点 =「效果结算后仍在 limbo → finalize」（同 seq.enter_hand · 15 §16.4）
+	game_ctx.mutator.finalize_limbo_discard(card_id, drawer_id)
 
 
 static func _step_after_card(ctx: Dictionary) -> void:
@@ -313,6 +308,33 @@ static func _definition_id(game_ctx: GameContext, card_id: StringName) -> String
 	if card == null:
 		return &""
 	return card.id.definition_id
+
+
+static func resolve_encounter_card_tail(
+	game_ctx: GameContext,
+	drawer_id: StringName,
+	card_id: StringName
+) -> Dictionary:
+	## G3 显现 + G4 finalize + AFTER + Surge 评估（Ward 竖切 / 测试）。
+	var def_id := _definition_id(game_ctx, card_id)
+	var frame := game_ctx.memory.peek_encounter_frame() if game_ctx.memory != null else null
+	if frame == null and game_ctx.memory != null:
+		frame = EncounterResolutionFrame.create(drawer_id)
+		game_ctx.memory.push_encounter_frame(frame)
+	var outcome := {"should_surge": false, "revelations": [], "spawn_failed_discards": []}
+	var ctx := {
+		"game_ctx": game_ctx,
+		"frame": frame,
+		"drawer_id": drawer_id,
+		"card_id": card_id,
+		"def_id": def_id,
+		"outcome": outcome,
+	}
+	_step_revelation(ctx)
+	_step_g4_resolve(ctx)
+	_step_after_card(ctx)
+	_step_surge_eval(ctx)
+	return outcome
 
 
 static func _fail(error: String) -> Dictionary:

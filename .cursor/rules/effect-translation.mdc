@@ -95,6 +95,9 @@ seq.enter_hand                 ← 命名流程（显现入口）
 
 - **内联 vs nest**（[15 §4.0.5](docs/design/15-timing-entry-catalog.md)）：**上一步是否触发本步时点**？是 → nest；否 → 内联。
 - 新效果 → **`register_run` / `nest`**，不新建语义 Service。
+- **Cancel / Ignore** → **`seq.interrupt.cancel` / `seq.interrupt.ignore`** + `InterruptTarget`（[07 §6.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*CancelPolicy`。
+- **Instead / Would** → **`seq.replace.instead`** + `ReplacementTarget` + `replacement` 载荷（[07 §7.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*InsteadPolicy`。
+- **Cancel encounter revelation** → 仅注销 G3 显现；**G4 仍 discard** 至 encounter discard（FAQ · [07 §6.0.1](docs/design/07-effect-resolution.md)）。
 - **Cannot** → Register RESTRICTION + [06 §16](docs/design/06-registration-buff-model.md) Intent 入口。
 - 薄 facade 仅 `catalog.run(flow_id, params)`。
 - 冲突：07 §3.2–§3.4（Cannot / 竞争 / tier / Silver Rule）。

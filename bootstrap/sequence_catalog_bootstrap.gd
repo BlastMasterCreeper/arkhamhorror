@@ -93,7 +93,45 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return _resolve_gain_resource(game_ctx, params, mutator)
 	)
+	_register_interrupt_flows(catalog)
+	_register_replace_flows(catalog)
 	_register_action_flows(catalog)
+
+
+static func _register_interrupt_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.interrupt.cancel",
+		func(params: Dictionary) -> TriggeringCondition:
+			var controller_id: StringName = params.get("controller_id", &"")
+			return TriggeringCondition.custom(
+				&"interrupt_cancel", controller_id, [&"interrupt", &"cancel"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return InterruptFlowHandlers.resolve_cancel(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.interrupt.ignore",
+		func(params: Dictionary) -> TriggeringCondition:
+			var controller_id: StringName = params.get("controller_id", &"")
+			return TriggeringCondition.custom(
+				&"interrupt_ignore", controller_id, [&"interrupt", &"ignore"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return InterruptFlowHandlers.resolve_ignore(game_ctx, params)
+	)
+
+
+static func _register_replace_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.replace.instead",
+		func(params: Dictionary) -> TriggeringCondition:
+			var controller_id: StringName = params.get("controller_id", &"")
+			return TriggeringCondition.custom(
+				&"replace_instead", controller_id, [&"replace", &"instead"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ReplacementFlowHandlers.resolve_instead(game_ctx, params)
+	)
 
 
 static func _register_action_flows(catalog: SequenceCatalog) -> void:
@@ -183,7 +221,7 @@ static func _resolve_encounter_revelation(
 	var card_id: StringName = params.get("card_id", &"")
 	if abilities != null and abilities.has_revelation(game_ctx, card_id):
 		var ok := abilities.resolve_revelations(
-			game_ctx, drawer_id, card_id, &"seq.encounter.revelation"
+			game_ctx, drawer_id, card_id, &"seq.encounter.revelation", true
 		)
 		return {"resolved": ok}
 	var card := game_ctx.state.registry.get_card(card_id) if game_ctx != null else null
@@ -244,24 +282,38 @@ static func _nest_enter_hand_revelations(
 		game_ctx, controller_id, card_ids, params
 	)
 	var resolved: Array[StringName] = []
-	if game_ctx == null or game_ctx.sequences == null:
-		for card_id in ordered_cards:
-			var cid := card_id as StringName
-			if abilities.resolve_revelations(game_ctx, controller_id, cid, provenance_flow_id):
-				resolved.append(cid)
+	if game_ctx == null:
 		return {"revelations": resolved}
 	for card_id in ordered_cards:
 		var cid := card_id as StringName
-		if not abilities.has_revelation(game_ctx, cid):
-			continue
-		var trigger := TriggeringCondition.enter_hand(controller_id, cid, tags)
-		game_ctx.sequences.nest(
-			trigger,
-			func() -> void:
-				abilities.resolve_revelations(game_ctx, controller_id, cid, provenance_flow_id)
-		)
-		resolved.append(cid)
+		if abilities.has_revelation(game_ctx, cid):
+			if game_ctx.sequences == null:
+				abilities.resolve_revelations(
+					game_ctx, controller_id, cid, provenance_flow_id, true
+				)
+				resolved.append(cid)
+			else:
+				var trigger := TriggeringCondition.enter_hand(controller_id, cid, tags)
+				game_ctx.sequences.nest(
+					trigger,
+					func() -> void:
+						abilities.resolve_revelations(
+							game_ctx, controller_id, cid, provenance_flow_id, true
+						)
+				)
+				resolved.append(cid)
+		_finalize_enter_hand_limbo(game_ctx, controller_id, cid)
 	return {"revelations": resolved}
+
+
+static func _finalize_enter_hand_limbo(
+	game_ctx: GameContext,
+	controller_id: StringName,
+	card_id: StringName
+) -> void:
+	if game_ctx == null or game_ctx.mutator == null:
+		return
+	game_ctx.mutator.finalize_limbo_discard(card_id, controller_id)
 
 
 static func _resolve_gain_resource(

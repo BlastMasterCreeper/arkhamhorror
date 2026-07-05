@@ -32,6 +32,7 @@ var draw_investigator: DrawInvestigatorService
 var draw_encounter: DrawEncounterService
 var action_sequences: ActionSequenceService
 var card_abilities: CardAbilityService
+var triggered_abilities: TriggeredAbilityService
 
 var stat_projections: StatProjectionStore
 var stat_emitter: GameStatEmitter

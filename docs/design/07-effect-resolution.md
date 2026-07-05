@@ -262,15 +262,160 @@ EffectBuilder.transfer_horror(1).from(inv).to(enemy).submit(ctx)
 
 ## 6. Cancel vs Ignore
 
+### 6.0 统一译法（Cancel / Ignore 卡面）
+
+**一切** Cancel / Ignore 类 Card Ability 均译为 **`seq.interrupt.*` 命名流程**，携带同一 **`InterruptTarget`** 描述符；**禁止**为单卡保留 `cancel_revelation` 等平行 Service。
+
+```text
+Cancel / Ignore 卡面
+  → AbilityCompiler 选定 timing entry（[reaction] / Forced when…）
+  → composition 内 nest 或 L2 Interrupt 节点
+  → seq.interrupt.cancel | seq.interrupt.ignore { target: InterruptTarget }
+  → InterruptHandler 按 target.kind 分发到对应运行时
+```
+
+| 卡面 archetype | catalog | `InterruptTarget.kind` | bind 示例 |
+|---|---|---|---|
+| Cancel revelation / treachery | `seq.interrupt.cancel` | **SEQUENCE** | `flow_id: seq.encounter.revelation`, `bind: { card_id }` |
+| Cancel 某 initiation | `seq.interrupt.cancel` | **SEQUENCE** | `flow_id` + RulesMemory referent |
+| Ignore costs | `seq.interrupt.ignore` | **COST** | `bind: { cost_slot, ability_id }` |
+| Ignore Retaliate / Alert 等 | `seq.interrupt.ignore` | **KEYWORD** | `keyword: retaliate`, `scope: { fight_id }` |
+| Ignore chaos token modifier | `seq.interrupt.ignore` | **CHAOS_TOKEN** | `scope: { skill_test_id, token_id }` |
+| 竖切：pending EffectOp | 同上 | **IMPACT** | `pending_id`（占位；非卡面长期译法） |
+
+**Mode 与 Kind 分离**：
+
+- **Mode**（`cancel` / `ignore`）= 卡面 Cancel 词条 vs Ignore 词条 → 选 `seq.interrupt.cancel` 或 `.ignore`。
+- **Kind** = 运行时 **绑定对象**；同一 Mode 下不同 Kind 走不同分支（见 §6 表）。
+
+```gdscript
+class InterruptTarget:
+    enum Kind { SEQUENCE, IMPACT, COST, KEYWORD, CHAOS_TOKEN }
+    var kind: Kind
+    var flow_id: StringName      # SEQUENCE
+    var pending_id: StringName   # IMPACT 竖切占位
+    var keyword: StringName      # KEYWORD
+    var bind: Dictionary
+    var scope: Dictionary
+```
+
+**Composition 对齐**（[07-composition §3](07-composition.md)）：
+
+- 推荐：`catalog.nest(game_ctx, &"seq.interrupt.cancel", { "target": … })`
+- 等价：`CompositionNode.interrupt_cancel(InterruptTarget.sequence(...))`
+- `cancel_pending` / `ignore_pending` Builder API **保留为** `InterruptTarget.pending_impact` 的语法糖（测试 / 竖切）。
+
+**与关键词三档译法**（[07-effect-primitives §0.1](07-effect-primitives.md)）：
+
+| 目标 | 译法档 | 说明 |
+|---|---|---|
+| Ignore **keyword** 行为 | ③ + `seq.interrupt.ignore` | 在 keyword LISTENER 入口查 IgnoreMask |
+| Cancel **Card Ability initiation** | Card Ability + `seq.interrupt.cancel` | 打断 **SEQUENCE**，非 Register |
+| Ignore **单条 impact** | `seq.interrupt.ignore` · IMPACT | 保留 initiate，resolve 不施加 |
+
+**运行时接线状态**（2026-07）：
+
+| Kind | 状态 |
+|---|---|
+| IMPACT（`pending_id`） | 已接 `PendingResolutionStore` |
+| SEQUENCE（`flow_id` + bind） | 已接 `RulesMemory.cancel_sequence` → G3 跳过 composition |
+| COST / KEYWORD / CHAOS_TOKEN | 待接 Initiation / keyword / chaos 子系统 |
+
+### 6.0.1 样例：Ward of Protection（Cancel · SEQUENCE）
+
+> **卡面（2026 Core）**：*Fast. Play when you draw a non-weakness treachery card. Cancel that card's revelation effect and take 1 horror.*
+
+**译法要点**：
+
+- Cancel 对象是 **显现能力**（Revelation Card Ability），不是抽牌本身 → `InterruptTarget.kind = SEQUENCE`，`flow_id = seq.encounter.revelation`。
+- 遭遇 treachery **已 draw**（G1 pop → **limbo**）；Cancel 仅 **注销 G3 显现子流程** 的可结算体（Grimoire *Cancel* = interrupt initiation of the effect）。
+- **显现被取消 ≠ 抽牌未发生**；**G4 强制步仍执行** — 牌 **仍进遭遇弃牌堆**（见下「收尾不变量」）。
+- `take 1 horror` 是 **独立效果步**，与 interrupt **同 composition Seq** 顺序 resolve（Then 语义）。
+
+**收尾不变量（已裁决 · FAQ）**：
+
+> *If the effects of a treachery card are canceled, the card is still regarded as having been drawn, and it is still placed in the encounter discard pile.*
+
+| 步骤 | Cancel revelation 后 |
+|---|---|
+| G3 `seq.encounter.revelation` | **未施加**显现效果（或 composition 空跑）；**不在 G3 discard** |
+| G4 treachery 落点 | **G4** 调用 `finalize_limbo_discard`（仍 limbo → 按 `limbo_discard_pile`）；**非** 独立 move 砖块 |
+| Surge / peril 等 | 按原 draw 事务继续（若显现未改 card 状态） |
+
+**引擎约束**：`seq.interrupt.cancel` bind `seq.encounter.revelation` 时 **不得** pop/abort 父帧 `seq.draw.encounter`；仅跳过/注销显现 resolve，**保留** G4 砖块。Hidden treachery 等 **卡面特规 discard** 仍走各自分支，不因 Cancel 泛化跳过。
+
+**测试**： [06 §12 B-01](06-ability-initiation.md) — revelation 未 resolve；**牌在 encounter discard**；仍 take 1 horror。
+
+```yaml
+ability_id: ward_cancel_revelation
+kind: FAST_EVENT
+timing_entry:
+  # 「when you draw treachery」落在 draw 事务 WHEN 窗内（含 D3 显现前/中）· 15 §16.3
+  sequence_id: seq.draw.investigator
+  slot: WHEN
+eligibility:
+  - card_type: treachery
+  - not: weakness
+composition:
+  kind: SEQ
+  children:
+    - atom: nest
+      flow_id: seq.interrupt.cancel
+      params:
+        controller_id: $initiator
+        target:
+          kind: sequence
+          flow_id: seq.encounter.revelation
+          bind:
+            card_id: $trigger.card_id      # 本次 draw 绑定的 treachery
+            controller_id: $trigger.controller_id
+    - atom: nest
+      flow_id: seq.deal.horror           # 未来 catalog；竖切可用 L0 Atom
+      params:
+        controller_id: $initiator
+        amount: 1
+provenance:
+  definition_id: ward_of_protection
+  ability_id: ward_cancel_revelation
+```
+
+**等价 Builder API**：
+
+```gdscript
+CompositionNode.seq([
+    CompositionNode.interrupt_cancel(
+        InterruptTarget.sequence(
+            &"seq.encounter.revelation",
+            {"card_id": trigger_card_id, "controller_id": initiator_id}
+        )
+    ),
+    # deal 1 horror …
+])
+```
+
+**勿译成**：
+
+| 误译 | 原因 |
+|---|---|
+| `InterruptTarget.IMPACT` + pending draw | Cancel 的不是单条 EffectOp，而是 **Card Ability 显现 seq** |
+| `seq.interrupt.cancel` bind `seq.draw.investigator` | 抽牌已发生；规则只取消 **revelation effect** |
+| 单卡 `WardCancelService` | 违反 [effect-translation](../.cursor/rules/effect-translation.mdc) |
+
+### 6.1 规则语义对照
+
 | | Cancel | Ignore |
 |---|---|---|
+| **序列登记** | **未结算前注销** pending（`PendingResolutionStore` 移除；视为从未登记可结算序列） | **保留** pending 登记（initiate 仍成立；可对 initiate 响应） |
+| **结算** | 不可再 resolve（`unknown_pending`） | resolve 时 **不施加** op（`ignored: true`, `applied: false`） |
 | Initiation | 打断，未发生 | 已 initiate |
 | 后续反应 | 不可 react | 可 react to initiate |
 | Chaos token | 视为未 draw | 已 draw，modifier/effect 不应用 |
+| **遭遇 treachery（Cancel revelation）** | 显现效果未发生；**仍视为已 draw** | — |
+| **遭遇 treachery 落点** | **G4 仍 discard → encounter discard pile** | — |
 
 Exile/remove from game **不可** ignore。
 
-### 6.1 Cancel 与 Replacement 交互（已裁决 OQ-07-06）
+### 6.2 Cancel 与 Replacement 交互（已裁决 OQ-07-06）
 
 **看两者触发先后**；Replacement 效果一般为 **Delayed 延时效果**，与 **Forced** 同优先级 tier（见 §10、`06 §5.1`）。
 
@@ -299,7 +444,160 @@ func on_pending_effect(pending: EffectRequest) -> void:
 
 > **归类**：§3.3 **同时点竞争** 之子类型 **替换竞争**。
 
-### 7.0 规则出处
+### 7.0 统一译法（Instead / Would 卡面）
+
+**一切** Instead / Would 类 Card Ability 均译为 **`seq.replace.instead`**（Would 层见下），携带 **`ReplacementTarget`** + **`replacement` 载荷**；**禁止**单卡 `*InsteadPolicy`。
+
+```text
+Instead / Would 卡面
+  → AbilityCompiler 选定 timing entry（Forced when… / Delayed when X would…）
+  → composition 内 nest 或 L2 Replace 节点
+  → seq.replace.instead {
+       target: ReplacementTarget,
+       replacement: EffectRequest | nest seq.*,
+       source_ability_id
+     }
+  → ReplacementHandler → PendingResolutionStore（most recent initiation_seq）
+```
+
+| 卡面 archetype | catalog | `ReplacementTarget.kind` | 说明 |
+|---|---|---|---|
+| Instead of resolving X, do Y | `seq.replace.instead` | **PENDING** | 替换 pending impact 的 resolve 路径 |
+| Instead of treachery revelation… | `seq.replace.instead` | **SEQUENCE** | 替换命名流程 resolve（待接 Stack） |
+| When X **would** happen… | `seq.replace.instead` | **WOULD_TRIGGER** | Would 层；先于 When 同 trigger |
+| 竖切：register replacement | 同上 | **PENDING** | `pending_id` 占位 |
+
+**与 Interrupt 的分工**（§6.0）：
+
+| 机制 | catalog 族 | 语义 |
+|---|---|---|
+| **Cancel / Ignore** | `seq.interrupt.*` | 打断或跳过施加 |
+| **Instead / Would** | `seq.replace.instead` | **改写**即将 resolve 的路径；多条竞争 → **最后 initiate** |
+
+```gdscript
+class ReplacementTarget:
+    enum Kind { PENDING, SEQUENCE, WOULD_TRIGGER }
+    var kind: Kind
+    var pending_id: StringName
+    var flow_id: StringName
+    var triggering_condition_id: StringName
+    var bind: Dictionary
+```
+
+**Composition 对齐**：
+
+- 推荐：`catalog.nest(game_ctx, &"seq.replace.instead", { target, replacement, source_ability_id })`
+- 等价：`CompositionNode.replace_instead(ReplacementTarget.pending(...), EffectRequest...)`
+- `replace_pending` **保留为** `ReplacementTarget.pending` 语法糖。
+
+**竞争裁决**（不变）：同一 `triggering_condition_id` + 冲突 replacement → `initiation_seq` 最大者胜出（§7.2）。
+
+**运行时接线状态**（2026-07）：
+
+| Kind | 状态 |
+|---|---|
+| PENDING | 已接 `PendingResolutionStore.register_replacement` |
+| SEQUENCE | 待接 `ResolutionSequenceStack` resolve 改写 |
+| WOULD_TRIGGER | 待接 Would 窗口 / condition 层 |
+
+### 7.0.1 样例：遭遇库顶 Instead（Would · WOULD_TRIGGER）
+
+> **教学范例**（概括常见 encounter-draw instead 句式，非 Core 单卡逐字原文）：  
+> *When you would draw the top card of the encounter deck, instead draw the top card of the encounter discard pile.*
+
+**译法要点**：
+
+- 卡面含 **would draw** → 订阅 **`seq.draw.encounter` 的 WOULD 槽**（D1 pop 前 · [15 §16.3.1](15-timing-entry-catalog.md)）。
+- 替换的是 **「从哪里 pop 遭遇牌」** 这一 **triggering condition 的 resolve 路径**，子 seq 尚未 push → `ReplacementTarget.kind = **WOULD_TRIGGER**`。
+- `replacement` 载荷 = **另一条命名流程**（或带 `source: discard_pile` 参数的 draw 变体），**不是** `EffectRequest` 单 op。
+
+**AbilityCompiler 产出（示意）**：
+
+```yaml
+ability_id: draw_encounter_discard_instead
+kind: FORCED   # 或 [reaction]；取决于印刷
+timing_entry:
+  sequence_id: seq.draw.encounter
+  slot: WOULD
+composition:
+  atom: nest
+  flow_id: seq.replace.instead
+  params:
+    controller_id: $initiator
+    target:
+      kind: would_trigger
+      triggering_condition_id: draw_encounter
+      bind:
+        drawer_id: $trigger.drawer_id
+    replacement:
+      nest: seq.draw.encounter.from_discard   # 未来 catalog 条目
+      params:
+        drawer_id: $trigger.drawer_id
+    source_ability_id: $ability.ref
+provenance:
+  definition_id: example_draw_discard_instead
+```
+
+**运行时序（目标）**：
+
+```text
+seq.draw.encounter RUN
+  D1 collect · emit WOULD
+    → [Listener] seq.replace.instead 登记 replacement
+    → winning replacement 改写 pop 来源：discard pile top 而非 deck top
+  D2+ 按改写后的路径继续（reveal / spawn / discard 等砖块不变）
+```
+
+### 7.0.2 样例对照：Instead 改 revelation（SEQUENCE · 非 Would）
+
+> **教学范例**：*Instead of resolving that treachery's revelation ability, discard that treachery.*
+
+与 §7.0.1 **对比** — 此处 **显现子流程已在栈上/可绑定**，替换 **已 nest 的 seq** 而非 Would 层 pop 来源：
+
+```yaml
+timing_entry:
+  sequence_id: seq.enter_hand          # 或 seq.encounter.revelation 的 WHEN
+  slot: WHEN
+composition:
+  atom: nest
+  flow_id: seq.replace.instead
+  params:
+    target:
+      kind: sequence
+      flow_id: seq.encounter.revelation
+      bind:
+        card_id: $trigger.card_id
+    replacement:
+      nest: seq.discard.from_hand
+      params:
+        card_id: $trigger.card_id
+        pile: encounter_discard
+    source_ability_id: $ability.ref
+```
+
+### 7.0.3 选型：`WOULD_TRIGGER` vs `SEQUENCE` vs `PENDING`
+
+| 问 | 选 Kind | 典型卡面 |
+|---|---|---|
+| 替换点在 **TC 成立前/之际**，原 resolve 体 **尚未** 作为独立 seq 存在？ | **WOULD_TRIGGER** | *When you **would** draw… instead…* |
+| 替换 **已在进行** 的命名子流程（revelation、spawn…）？ | **SEQUENCE** | *Instead of **resolving** revelation…* |
+| 仅替换 **单条 pending EffectOp**（如 gain 9 → gain 5）？ | **PENDING** | 竖切 / 简单资源替换；无独立 seq 名 |
+
+```text
+would draw encounter deck top
+  └─ WOULD_TRIGGER @ (seq.draw.encounter, WOULD)
+       replacement = 改 pop 来源的 seq 变体
+
+draw treachery → revelation 进行中
+  └─ SEQUENCE @ seq.encounter.revelation
+       replacement = discard /  alternate composition
+
+begin_pending(gain 9) 窗口内
+  └─ PENDING @ pending_id
+       replacement = EffectRequest.gain(5)
+```
+
+### 7.1 规则出处
 
 | 条目 | 内容 |
 |---|---|
@@ -307,7 +605,7 @@ func on_pending_effect(pending: EffectRequest) -> void:
 | **Would** | `When X would` 先于 `When X`；可替换 condition 性质并封锁原 condition |
 | **Priority of Simultaneous Resolution** | 遭遇 Forced 先于玩家 Forced；多 Forced 同时 → 队长定 resolve **顺序**（顺序参与「最近」） |
 
-### 7.1 冲突条件与裁决
+### 7.2 冲突条件与裁决
 
 三条 **同时** 满足才走「最近一条」：
 
@@ -332,7 +630,7 @@ class ReplacementCandidate:
 > **勿与 Silver Rule 混淆**：cardtype **不**决定 replacement 胜负。  
 > **勿与 Cannot 混淆**：cannot 绝对禁止，**不是** replacement 竞争。
 
-### 7.2 Replacement 与 Cancel（已裁决 OQ-07-06）
+### 7.3 Replacement 与 Cancel（已裁决 OQ-07-06）
 
 Replacement 能力通常实现为 **DelayedEffect**（到达指定 timing 时以 Forced 级优先级介入），与 Cancel [reaction] 的交互见 **§6.1**：
 
@@ -487,4 +785,6 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 2026-06-18 | v0.4 | **§3.2** 冲突裁决栈；**Cannot 绝对优先**；修正 Replacement ≠ Silver Rule |
 | 2026-06-18 | v0.4.1 | Grim 移出主路径；对齐 00 §6 电子版完备规则 |
 | 2026-06-18 | v0.5 | **§3.2–§3.4** 同时点竞争分型；Replacement=最后 initiate；链 Grimoire Instead + Simultaneous Resolution |
+| 2026-07-05 | v0.6 | **§6.0.1** Ward Cancel 样例；**§7.0.1–§7.0.3** Instead/Would 样例与 Kind 选型 |
+| 2026-07-05 | v0.6.1 | **§6.0.1 / §6.1** Cancel revelation 后 G4 仍 discard（FAQ 不变量） |
 | 2026-05-25 | v0.4 | OQ-07-02 裁决：TRANSFER_AFFLICTION 独立且不算 heal |

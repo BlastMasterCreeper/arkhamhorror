@@ -237,7 +237,22 @@ func enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
 	return _enter_limbo(card_id, controller_id)
 
 
+func commit_enter_threat_area(card_id: StringName, inv_id: StringName) -> bool:
+	var card := _state.registry.get_card(card_id)
+	var inv := _state.registry.get_investigator(inv_id)
+	if card == null or inv == null:
+		return false
+	inv.hand.erase(card_id)
+	inv.deck.erase(card_id)
+	if not inv.threat_area.has(card_id):
+		inv.threat_area.append(card_id)
+	card.controller_id = inv_id
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	return true
+
+
 func finalize_limbo_discard(card_id: StringName, controller_id: StringName) -> bool:
+	## 效果结算后仍在 limbo → 按 CardDefinition.limbo_discard_pile 落堆（Grimoire Limbo）。
 	var card := _state.registry.get_card(card_id)
 	if card == null or card.zone != AhcEnums.Zone.LIMBO:
 		return false
@@ -333,6 +348,9 @@ func _adjust_investigator_marker(
 			return true
 		AhcEnums.MarkerKind.HORROR_TAKEN:
 			inv.horror_taken = maxi(inv.horror_taken + delta, clamp_min)
+			return true
+		AhcEnums.MarkerKind.DAMAGE:
+			inv.damage_taken = maxi(inv.damage_taken + delta, clamp_min)
 			return true
 	return false
 

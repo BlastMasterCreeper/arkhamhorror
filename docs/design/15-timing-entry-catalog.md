@@ -668,8 +668,8 @@ seq.enter_hand                 # NEST_BATCH · 所有「进入手牌」来源共
   for card_id in card_ids (按顺序):
     if has_revelation(card_id):
       nest TriggeringCondition.enter_hand
-      CardAbilityService.resolve_revelations → Composition
-    if still LIMBO → finalize_limbo_discard
+      CardAbilityService.resolve_revelations(defer=true)
+    finalize_limbo_discard   # 每张牌：仍 limbo → 落堆（与遭遇 G4 同原语）
 ```
 
 **Timing emit（目标，待 TimingCatalog）**：
@@ -850,7 +850,9 @@ open WHEN   # G1 Draw 完成即开（非 E2 后）—「When you draw encounter�
 
 E3  G2 · nest Register RESTRICTION（peril 子时点）
 E4  G3 · nest revelation
-E5  G4 · nest spawn / 内联 treachery discard
+E5  G4 · nest spawn / finalize_limbo_if_still（treachery）
+
+**G4 treachery 落点（已裁决）**：**不**单独 `move_card → encounter_discard`；与 `seq.enter_hand` 同原语 — **效果步结束后若仍在 limbo** → `finalize_limbo_discard`（`limbo_discard_pile: encounter_discard`）。Cancel revelation / 无显现后仍 limbo 亦走此路径。G4 仍负责 peril Unregister 与 enemy spawn 分支。
 
 close WHEN
 
@@ -1473,19 +1475,14 @@ nested effect:   empty deck → flag defer → on subtree pop → shuffle → �
 
 | 方法 | 用于 | flow_id | finalize |
 |---|---|---|---|
-| `resolve_revelations` | **玩家牌** `seq.enter_hand` | `seq.enter_hand` / draw provenance | `finalize_limbo_discard` → hand |
-| `resolve_encounter_revelations` | **E4** 遭遇显现 | `seq.encounter.revelation` | **不** 走 enter_hand；按 Composition 落点 |
+| `resolve_revelations(defer=true)` | **玩家 + 遭遇** 显现步 | 各 seq G3 | 调用方末尾 `finalize_limbo_discard` |
 
 ```gdscript
-func resolve_encounter_revelations(
-    game_ctx: GameContext,
-    drawer_id: StringName,
-    card_id: StringName,
-    flow_id: StringName = &"seq.encounter.revelation"
-) -> bool:
-    # 同 resolve_revelations 结构；register 用 revelation_units_at
-    # Forced tier；encounter 先于 player（06 §8 / Grimoire Priority）
-    # 不调用 finalize_limbo_discard 除非 builder 显式 enter_hand（Hidden）
+# 遭遇 G3：defer_limbo_finalize=true
+abilities.resolve_revelations(
+    game_ctx, drawer_id, card_id, &"seq.encounter.revelation", true
+)
+# 玩家 seq.enter_hand：默认 defer=false → G3 末 finalize_limbo_discard
 ```
 
 **禁止** E4 调用 `seq.enter_hand` nest — 订阅键 `(seq.enter_hand, slot)` 与遭遇 draw WHEN 窗口 **不同**。
@@ -1497,7 +1494,7 @@ func resolve_encounter_revelations(
 | `EncounterResolutionFrame`（`core/timing/encounter_resolution_frame.gd`） | `DrawEncounterFlow` + `DrawEncounterComposition` |
 | `ResolutionSequenceStack` nest / run | L0：`pop_encounter_deck_top`、`reveal_to_all`、`shuffle_encounter_discard` |
 | `DrawInvestigatorFlow` / `DrawSubflowHandlers` **内联/nest 样板** | `DrawEncounterSubflowHandlers.collect_one_step` |
-| `CardAbilityService.resolve_revelations` | `resolve_encounter_revelations` |
+| `CardAbilityService.resolve_revelations` | 遭遇路径 `defer_limbo_finalize=true` |
 | `DrawInvestigatorService` facade | `DrawEncounterService` + Catalog 登记（§17.4） |
 | `ScenarioSystem.resolve_encounter_draw`（**仅 log**） | Mythos 1.4 → `catalog.run` |
 | `FrameworkFlowEngine` Mythos 1.4 | `EncounterPeril.apply_e3_check`（内联）、spawn nest |
@@ -1523,6 +1520,23 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | ENC-05 | E4 走 `seq.encounter.revelation`，**非** enter_hand |
 | ENC-06 | Surge 同 frame 第二圈 E1 |
 | ENC-07 | Mythos 1.4 框架步 → catalog.run |
+
+### 17.14 Core 2026 遭遇卡清单（ArkhamDB 回填）
+
+> **详表**：[`data/arkhamdb/reports/phase4_core_2026_backfill.md`](../../data/arkhamdb/reports/phase4_core_2026_backfill.md) §4  
+> **导入层**：Phase 1–2 已写入 `CardRegistry` 关键词 / Spawn / Prey / Hidden。
+
+| 分类 | 张数 | 卡码（Core 2026） |
+|---|---:|---|
+| **Surge**（首行关键词） | 3 | 12126 Forbidden Secrets；12160 Raising Suspicions；12163 Aerial Pursuit |
+| **Peril** | 2 | 12124 Cosmic Evils；12195 Torment |
+| **Hidden** | 1 | 12179b Elokoss |
+| **Aloof** | 6 | 12099 The Nameless Lurker；12139 David Renfield；12143 Abigail Foreman；12144 Margaret Liu；12166 Whippoorwill；12188 Zealot |
+| **Massive** | 2 | 12179 / 12179b Elokoss |
+| **Spawn 指令**（已编译） | 1 | 12099 Farthest empty location |
+| **Prey 指令**（已编译） | 3 | 12009 Trish only；12114 lowest agility；12164 most resources |
+
+**测试 fixture 建议**：上表卡码作 ENC/PERIL/Hidden 回归用例；动态 surge（12126 无 clue）见 OQ-ADB-03。
 
 ---
 

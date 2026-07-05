@@ -3,6 +3,8 @@ extends RefCounted
 
 var id: StringName = &""
 var definition_id: StringName = &""
+## 调查员卡面名；Prey (Name only) 等指令过滤用。
+var display_name: String = ""
 var location_id: EntityId = null
 var location_tag: StringName = &""
 var play_area: Array[StringName] = []

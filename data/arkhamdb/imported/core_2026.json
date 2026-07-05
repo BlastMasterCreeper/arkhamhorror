@@ -1,0 +1,2932 @@
+{
+  "_meta": {
+    "source": "data/arkhamdb/pack/core/core_2026.json",
+    "pack": "core_2026",
+    "count": 74,
+    "skipped": 30,
+    "ability_compile_summary": {
+      "segment_total": 72,
+      "compiled_total": 11,
+      "by_kind": {
+        "reaction": 18,
+        "fast": 16,
+        "action": 22,
+        "revelation": 7,
+        "forced": 9
+      },
+      "by_template": {
+        "enter_threat_area": 6,
+        "take_damage": 4,
+        "take_horror": 1
+      }
+    }
+  },
+  "12001": {
+    "definition_id": "12001",
+    "title": "Daniela Reyes",
+    "card_type": "investigator",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Warden",
+      "Worker"
+    ],
+    "faction_code": "guardian",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 3,
+      "intellect": 2,
+      "combat": 5,
+      "agility": 2
+    },
+    "enemy": {
+      "health": 9
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction",
+      "elder_sign"
+    ],
+    "text": "[reaction] After an enemy attacks an investigator at your location: Fight that enemy <i>(using either a basic fight action or a </i><b>Fight</b><i> ability on a card)</i>. (Limit once per round.)\n[elder_sign] effect: +1. Deal 1 damage to an enemy at your location.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Guardian cards ([guardian]) level 0-5, Survivor cards ([survivor]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Daniela's Wrench, In Harm's Way, 1 random basic weakness.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After an enemy attacks an investigator at your location: Fight that enemy (using either a basic fight action or a Fight ability on a card). (Limit once per round.)",
+        "index": 0
+      }
+    ]
+  },
+  "12002": {
+    "definition_id": "12002",
+    "title": "Daniela's Wrench",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Tool",
+      "Weapon",
+      "Melee"
+    ],
+    "faction_code": "guardian",
+    "slot": "Hand",
+    "skills_icons": {
+      "combat": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action",
+      "fast"
+    ],
+    "text": "Daniela Reyes deck only.\n[fast] Exhaust Daniela's Wrench: Choose an enemy at your location. That enemy engages you and makes an immediate attack.\n[action]: <b>Fight</b> ([combat]). You get +2 [combat] for this attack. If this enemy attacked you this round, this attack deals +1 damage.",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "Exhaust Daniela's Wrench: Choose an enemy at your location. That enemy engages you and makes an immediate attack.",
+        "index": 0
+      },
+      {
+        "kind": "action",
+        "body": "Fight ([combat]). You get +2 [combat] for this attack. If this enemy attacked you this round, this attack deals +1 damage.",
+        "index": 1
+      }
+    ]
+  },
+  "12003": {
+    "definition_id": "12003",
+    "title": "In Harm's Way",
+    "card_type": "treachery",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "weakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Flaw"
+    ],
+    "faction_code": "neutral",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "revelation",
+      "forced"
+    ],
+    "text": "<b>Revelation</b> - Put In Harm's Way into play in your threat area.\n<b>Forced</b> - After you deal damage to an enemy: Take 1 damage and place 1 damage on In Harm's Way. If there is 3 or more damage on this card, discard it.\n<b>Forced</b> - When the game ends: Suffer 1 physical trauma.",
+    "ability_segments": [
+      {
+        "kind": "revelation",
+        "body": "Put In Harm's Way into play in your threat area.",
+        "index": 0
+      },
+      {
+        "kind": "forced",
+        "body": "Take 1 damage and place 1 damage on In Harm's Way. If there is 3 or more damage on this card, discard it.",
+        "trigger": "After you deal damage to an enemy",
+        "index": 1
+      },
+      {
+        "kind": "forced",
+        "body": "Suffer 1 physical trauma.",
+        "trigger": "When the game ends",
+        "index": 2
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "status": "effect_only",
+        "trigger": "After you deal damage to an enemy",
+        "template": "take_damage",
+        "amount": 1,
+        "direct": false
+      }
+    ]
+  },
+  "12004": {
+    "definition_id": "12004",
+    "title": "Joe Diamond",
+    "card_type": "investigator",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Detective"
+    ],
+    "faction_code": "seeker",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 2,
+      "intellect": 4,
+      "combat": 4,
+      "agility": 2
+    },
+    "enemy": {
+      "health": 7
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction",
+      "elder_sign"
+    ],
+    "text": "[reaction] After you successfully investigate: Draw 1 card. (Limit once per round.)\n[elder_sign] effect: +1. If you succeed, draw 1 card and gain 1 resource.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Seeker cards ([seeker]) level 0-5, Guardian cards ([guardian]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Detective's Intuition, Dead Ends, 1 random basic weakness.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you successfully investigate: Draw 1 card. (Limit once per round.)",
+        "index": 0
+      }
+    ]
+  },
+  "12005": {
+    "definition_id": "12005",
+    "title": "Detective's Intuition",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Insight"
+    ],
+    "faction_code": "seeker",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "intellect": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "Joe Diamond deck only.\nGain 2 resources and heal 1 damage or 1 horror.\n[reaction] After you draw Detective's Intuition during your turn: Reveal it and draw 2 additional cards.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you draw Detective's Intuition during your turn: Reveal it and draw 2 additional cards.",
+        "index": 0
+      }
+    ]
+  },
+  "12006": {
+    "definition_id": "12006",
+    "title": "Dead Ends",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 5,
+    "resource_cost_sentinel": "none",
+    "is_weakness": true,
+    "subtype_code": "weakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Blunder"
+    ],
+    "faction_code": "neutral",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "forced"
+    ],
+    "text": "<b>Forced</b> - When you search your deck and Dead Ends is among the searched cards: Draw it, cancel the effects of the search, and shuffle your deck.\n<b>Forced</b> - When the game ends or you are eliminated, if this card is in your hand: You earn 2 fewer experience.",
+    "ability_segments": [
+      {
+        "kind": "forced",
+        "body": "Draw it, cancel the effects of the search, and shuffle your deck.",
+        "trigger": "When you search your deck and Dead Ends is among the searched cards",
+        "index": 0
+      },
+      {
+        "kind": "forced",
+        "body": "You earn 2 fewer experience.",
+        "trigger": "When the game ends or you are eliminated, if this card is in your hand",
+        "index": 1
+      }
+    ]
+  },
+  "12007": {
+    "definition_id": "12007",
+    "title": "Trish Scarborough",
+    "card_type": "investigator",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Agency",
+      "Criminal"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 2,
+      "intellect": 4,
+      "combat": 2,
+      "agility": 4
+    },
+    "enemy": {
+      "health": 8
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "elder_sign"
+    ],
+    "text": "You may take an additional action during your turn, which can only be used to evade.\n[elder_sign] effect: +0. After this test resolves, you may disengage from each enemy and move to a connecting location.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Rogue cards ([rogue]) level 0-5, Seeker cards ([seeker]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Covert Ops, Black Chamber Operative, 1 random basic weakness."
+  },
+  "12008": {
+    "definition_id": "12008",
+    "title": "Covert Ops",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent",
+      "Illicit"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "intellect": 1,
+      "agility": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "Trish Scarborough deck only.\n[reaction] After you evade an enemy, exhaust Covert Ops: Either draw 1 card, or move to a connecting location.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you evade an enemy, exhaust Covert Ops: Either draw 1 card, or move to a connecting location.",
+        "index": 0
+      }
+    ]
+  },
+  "12009": {
+    "definition_id": "12009",
+    "title": "Black Chamber Operative",
+    "card_type": "enemy",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "weakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [
+      "hunter"
+    ],
+    "traits": [
+      "Humanoid",
+      "Coterie"
+    ],
+    "faction_code": "neutral",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {
+      "health": 2,
+      "fight": 4,
+      "evade": 4,
+      "damage": 1,
+      "horror": 1
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "forced"
+    ],
+    "text": "Hunter. Prey (Trish Scarborough only).\n<b>Forced</b> - After you evade Black Chamber Operative: Place 1 of your clues on your location. If you cannot, this enemy readies, engages you, and makes an immediate attack.",
+    "ability_segments": [
+      {
+        "kind": "forced",
+        "body": "Place 1 of your clues on your location. If you cannot, this enemy readies, engages you, and makes an immediate attack.",
+        "trigger": "After you evade Black Chamber Operative",
+        "index": 0
+      }
+    ],
+    "prey_instruction": {
+      "kind": "investigator_only",
+      "investigator_title": "Trish Scarborough"
+    }
+  },
+  "12010": {
+    "definition_id": "12010",
+    "title": "Dexter Drake",
+    "card_type": "investigator",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Performer",
+      "Sorcerer"
+    ],
+    "faction_code": "mystic",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 5,
+      "intellect": 2,
+      "combat": 2,
+      "agility": 3
+    },
+    "enemy": {
+      "health": 6
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction",
+      "elder_sign"
+    ],
+    "text": "[reaction] After you play an asset: Either return another non-story asset you control to your hand, or play a different asset from your hand <i>(paying its cost)</i>. (Limit once per round.)\n[elder_sign] effect: +1. You may return a non-story asset at your location to its owner's hand.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Mystic cards ([mystic]) level 0-5, Rogue cards ([rogue]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): \"For my next trick...\", The Necronomicon <i>(Drake Translation)</i>, 1 random basic weakness.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you play an asset: Either return another non-story asset you control to your hand, or play a different asset from your hand (paying its cost). (Limit once per round.)",
+        "index": 0
+      }
+    ]
+  },
+  "12011": {
+    "definition_id": "12011",
+    "title": "\"For my next trick...\"",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Spell",
+      "Trick"
+    ],
+    "faction_code": "mystic",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "agility": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Dexter Drake deck only.\nSearch your deck for a [[Spell]] or [[Item]] asset and play it, reducing its cost by 2 <i>(shuffle your deck)</i>. This action does not provoke attacks of opportunity."
+  },
+  "12012": {
+    "definition_id": "12012",
+    "title": "The Necronomicon",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "weakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Tome",
+      "Cursed"
+    ],
+    "faction_code": "neutral",
+    "slot": "Arcane",
+    "skills_icons": {},
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action",
+      "revelation"
+    ],
+    "text": "<b>Revelation</b> - Put The Necronomicon into play in your threat area. It cannot leave play except by the [action] ability below.\nYou cannot play assets or trigger abilities on other assets you control.\n[action]: Test [willpower] (5). If you succeed, discard The Necronomicon. If you fail, shuffle it into your deck and take 1 horror.",
+    "ability_segments": [
+      {
+        "kind": "revelation",
+        "body": "Put The Necronomicon into play in your threat area. It cannot leave play except by the",
+        "index": 0
+      },
+      {
+        "kind": "action",
+        "body": "ability below. You cannot play assets or trigger abilities on other assets you control.",
+        "index": 1
+      },
+      {
+        "kind": "action",
+        "body": "Test [willpower] (5). If you succeed, discard The Necronomicon. If you fail, shuffle it into your deck and take 1 horror.",
+        "index": 2
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "enter_threat_area"
+      }
+    ]
+  },
+  "12013": {
+    "definition_id": "12013",
+    "title": "Isabelle Barnes",
+    "card_type": "investigator",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Chosen",
+      "Hunter"
+    ],
+    "faction_code": "survivor",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 4,
+      "intellect": 2,
+      "combat": 3,
+      "agility": 3
+    },
+    "enemy": {
+      "health": 5
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast",
+      "elder_sign"
+    ],
+    "text": "[fast] During a skill test you are performing, take 1 direct horror: Commit an eligible skill from your discard pile to this test. After this test resolves, shuffle that card into your deck. (Limit once per round.)\n[elder_sign] effect: +1. If you succeed, heal 1 horror.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Survivor cards ([survivor]) level 0-5, Mystic cards ([mystic]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Isabelle's Twin .45s, Breaking Point, 1 random basic weakness.",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "During a skill test you are performing, take 1 direct horror: Commit an eligible skill from your discard pile to this test. After this test resolves, shuffle that card into your deck. (Limit once per round.)",
+        "index": 0
+      }
+    ]
+  },
+  "12014": {
+    "definition_id": "12014",
+    "title": "Isabelle's Twin .45s",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 4,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Weapon",
+      "Firearm"
+    ],
+    "faction_code": "survivor",
+    "slot": "Hand x2",
+    "skills_icons": {
+      "combat": 1,
+      "agility": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction",
+      "action"
+    ],
+    "text": "Isabelle Barnes deck only. Uses (6 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +1 [combat] and deal +1 damage for this attack.\n[reaction] After you resolve the above ability, spend 1 ammo and exhaust Isabelle's Twin .45s: <b>Fight</b> ([agility]). You get +1 [agility] and deal +1 damage for this attack.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Spend 1 ammo: Fight ([combat]). You get +1 [combat] and deal +1 damage for this attack.",
+        "index": 0
+      },
+      {
+        "kind": "reaction",
+        "body": "After you resolve the above ability, spend 1 ammo and exhaust Isabelle's Twin .45s: Fight ([agility]). You get +1 [agility] and deal +1 damage for this attack.",
+        "index": 1
+      }
+    ]
+  },
+  "12015": {
+    "definition_id": "12015",
+    "title": "Breaking Point",
+    "card_type": "treachery",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "weakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Hardship"
+    ],
+    "faction_code": "neutral",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "revelation"
+    ],
+    "text": "<b>Revelation</b> - Take 1 direct damage. Then, if you have 6 or fewer remaining sanity, take 1 direct damage. Then, if you have 3 or fewer remaining sanity, take 1 direct damage.",
+    "ability_segments": [
+      {
+        "kind": "revelation",
+        "body": "Take 1 direct damage. Then, if you have 6 or fewer remaining sanity, take 1 direct damage. Then, if you have 3 or fewer remaining sanity, take 1 direct damage.",
+        "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "take_damage",
+        "amount": 1,
+        "direct": true
+      }
+    ]
+  },
+  "12016": {
+    "definition_id": "12016",
+    "title": "Bodyguard",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Ally"
+    ],
+    "faction_code": "guardian",
+    "slot": "Ally",
+    "skills_icons": {
+      "combat": 1
+    },
+    "enemy": {
+      "health": 2
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "Bodyguard may be assigned damage dealt to other investigators at your location.\n[reaction] When Bodyguard is defeated: Deal 1 damage to an enemy at your location.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "When Bodyguard is defeated: Deal 1 damage to an enemy at your location.",
+        "index": 0
+      }
+    ]
+  },
+  "12017": {
+    "definition_id": "12017",
+    "title": "Endurance",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "guardian",
+    "slot": "",
+    "skills_icons": {
+      "combat": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "[fast] Spend 1 resource: You get +1 [combat] for this skill test (+2 [combat] instead if this is an attack or evasion).\n[fast] Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this is an attack or evasion).",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [combat] for this skill test (+2 [combat] instead if this is an attack or evasion).",
+        "index": 0
+      },
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this is an attack or evasion).",
+        "index": 1
+      }
+    ]
+  },
+  "12018": {
+    "definition_id": "12018",
+    "title": "Logan Hastings",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 4,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Ally",
+      "Hunter"
+    ],
+    "faction_code": "guardian",
+    "slot": "Ally",
+    "skills_icons": {
+      "combat": 1
+    },
+    "enemy": {
+      "health": 2
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "You get +1 [combat].\n[reaction] After you defeat an enemy, exhaust Logan Hastings: Gain 1 resource.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you defeat an enemy, exhaust Logan Hastings: Gain 1 resource.",
+        "index": 0
+      }
+    ]
+  },
+  "12019": {
+    "definition_id": "12019",
+    "title": "M1911",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Weapon",
+      "Firearm"
+    ],
+    "faction_code": "guardian",
+    "slot": "Hand",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "Uses (4 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +1 [combat] and deal +1 damage for this attack.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Spend 1 ammo: Fight ([combat]). You get +1 [combat] and deal +1 damage for this attack.",
+        "index": 0
+      }
+    ]
+  },
+  "12021": {
+    "definition_id": "12021",
+    "title": "Resilience",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "guardian",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1
+    },
+    "enemy": {
+      "health": 2
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": ""
+  },
+  "12022": {
+    "definition_id": "12022",
+    "title": "Lesson Learned",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Insight",
+      "Spirit"
+    ],
+    "faction_code": "guardian",
+    "slot": "",
+    "skills_icons": {
+      "intellect": 1,
+      "combat": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Fast. Play after an enemy attacks you.\nDiscover 1 clue at your location."
+  },
+  "12023": {
+    "definition_id": "12023",
+    "title": "Right Tool for the Job",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Insight"
+    ],
+    "faction_code": "guardian",
+    "slot": "",
+    "skills_icons": {
+      "intellect": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Search the top 9 cards of your deck for a [[Tool]] or [[Weapon]] asset and add it to your hand. Shuffle your deck."
+  },
+  "12026": {
+    "definition_id": "12026",
+    "title": "Counterattack",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Spirit",
+      "Tactic"
+    ],
+    "faction_code": "guardian",
+    "slot": "",
+    "skills_icons": {
+      "combat": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Fast. Play when an enemy attacks an investigator at your location <i>(before resolving that attack)</i>.\nCancel that attack. Deal 1 damage to that enemy."
+  },
+  "12027": {
+    "definition_id": "12027",
+    "title": "Bodyguard",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Ally"
+    ],
+    "faction_code": "guardian",
+    "slot": "Ally",
+    "skills_icons": {
+      "combat": 1,
+      "wild": 1
+    },
+    "enemy": {
+      "health": 3
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "Bodyguard may be assigned damage dealt to other investigators at your location.\n[reaction] When Bodyguard is defeated: Deal 2 damage to an enemy at your location.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "When Bodyguard is defeated: Deal 2 damage to an enemy at your location.",
+        "index": 0
+      }
+    ]
+  },
+  "12028": {
+    "definition_id": "12028",
+    "title": "Sledgehammer",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Tool",
+      "Weapon",
+      "Melee"
+    ],
+    "faction_code": "guardian",
+    "slot": "Hand x2",
+    "skills_icons": {
+      "combat": 2
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "[action]: <b>Fight</b> ([combat]). This attack deals + 1 damage.\n[action][action]: <b>Fight</b> ([combat]). You get +3 [combat] for this attack. If you succeed, you may exhaust Sledgehammer for this attack to deal +2 damage.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Fight ([combat]). This attack deals + 1 damage.",
+        "index": 0
+      },
+      {
+        "kind": "action",
+        "body": "[action]: Fight ([combat]). You get +3 [combat] for this attack. If you succeed, you may exhaust Sledgehammer for this attack to deal +2 damage.",
+        "index": 1
+      }
+    ]
+  },
+  "12029": {
+    "definition_id": "12029",
+    "title": "Winchester Model 12",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 4,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Weapon",
+      "Firearm"
+    ],
+    "faction_code": "guardian",
+    "slot": "Hand x2",
+    "skills_icons": {
+      "combat": 2
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "Uses (3 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +3 [combat] for this attack. If you succeed, this attack deals +1 damage for each point you succeed by (to a maximum of +4). If you fail and would deal damage to another investigator, this attack deals 1 damage for each point you fail by (to a maximum of 5 damage).",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Spend 1 ammo: Fight ([combat]). You get +3 [combat] for this attack. If you succeed, this attack deals +1 damage for each point you succeed by (to a maximum of +4). If you fail and would deal damage to another investigator, this attack deals 1 damage for each point you fail by (to a maximum of 5 damage).",
+        "index": 0
+      }
+    ]
+  },
+  "12030": {
+    "definition_id": "12030",
+    "title": "Dorothy Simmons",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Ally",
+      "Miskatonic"
+    ],
+    "faction_code": "seeker",
+    "slot": "Ally",
+    "skills_icons": {
+      "intellect": 1
+    },
+    "enemy": {
+      "health": 1
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "You get +1 [intellect].\n[reaction] After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons: Gain 1 resource.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons: Gain 1 resource.",
+        "index": 0
+      }
+    ]
+  },
+  "12033": {
+    "definition_id": "12033",
+    "title": "Local Map",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item"
+    ],
+    "faction_code": "seeker",
+    "slot": "Hand",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "Uses (4 secrets).\n[action] Spend 1 secret: <b>Investigate</b> ([intellect]). Investigate a revealed connecting location. You get +1 [intellect] for this investigation. If you succeed, you may exhaust Local Map to move to that location.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Spend 1 secret: Investigate ([intellect]). Investigate a revealed connecting location. You get +1 [intellect] for this investigation. If you succeed, you may exhaust Local Map to move to that location.",
+        "index": 0
+      }
+    ]
+  },
+  "12035": {
+    "definition_id": "12035",
+    "title": "Sharp Rhetoric",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "seeker",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "intellect": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "[fast] Spend 1 resource: You get +1 [intellect] for this skill test (+2 [intellect] instead if this is an investigation or parley).\n[fast] Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this is an investigation or parley).",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [intellect] for this skill test (+2 [intellect] instead if this is an investigation or parley).",
+        "index": 0
+      },
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this is an investigation or parley).",
+        "index": 1
+      }
+    ]
+  },
+  "12036": {
+    "definition_id": "12036",
+    "title": "Gather Intel",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Insight"
+    ],
+    "faction_code": "seeker",
+    "slot": "",
+    "skills_icons": {
+      "intellect": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Fast. Play when an enemy enters your location.\nDraw 2 cards."
+  },
+  "12037": {
+    "definition_id": "12037",
+    "title": "Through the Cracks",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Insight",
+      "Trick"
+    ],
+    "faction_code": "seeker",
+    "slot": "",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "<b>Evade</b> ([agility]). You get +1 [agility] for this evasion for each clue you control (to a maximum of +3). If you succeed, you may disengage from each enemy engaged with you and move to a revealed connecting location."
+  },
+  "12040": {
+    "definition_id": "12040",
+    "title": "Mysterious Grimoire",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Tome"
+    ],
+    "faction_code": "seeker",
+    "slot": "Hand",
+    "skills_icons": {
+      "intellect": 2
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "Uses (4 secrets).\n[fast] During your turn, spend 1 or 2 secrets and exhaust Mysterious Grimoire: Search the top 3 cards (or 6 cards instead if you spent 2 secrets) of your deck for a card and draw it. If 1 or more weaknesses are among the searched cards, draw them as well. Shuffle your deck.",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "During your turn, spend 1 or 2 secrets and exhaust Mysterious Grimoire: Search the top 3 cards (or 6 cards instead if you spent 2 secrets) of your deck for a card and draw it. If 1 or more weaknesses are among the searched cards, draw them as well. Shuffle your deck.",
+        "index": 0
+      }
+    ]
+  },
+  "12041": {
+    "definition_id": "12041",
+    "title": "Through the Cracks",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Insight",
+      "Trick"
+    ],
+    "faction_code": "seeker",
+    "slot": "",
+    "skills_icons": {
+      "agility": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "<b>Evade</b> ([agility]). You get +2 [agility] for this evasion for each clue you control (to a maximum of +6). If you succeed, you may disengage from each enemy engaged with you and move to a revealed connecting location."
+  },
+  "12043": {
+    "definition_id": "12043",
+    "title": "Unbridled Knowledge",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Insight"
+    ],
+    "faction_code": "seeker",
+    "slot": "",
+    "skills_icons": {
+      "intellect": 2,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Reveal the top 5 cards of your deck (8 cards instead if you control 2 or more clues). Draw 3 of them and place the rest of those cards on the top and/or bottom of your deck in any order."
+  },
+  "12045": {
+    "definition_id": "12045",
+    "title": "M1903 Hammerless",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Weapon",
+      "Firearm"
+    ],
+    "faction_code": "rogue",
+    "slot": "Hand",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "Uses (4 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([agility]). If the targeted enemy is exhausted, this attack deals +1 damage.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Spend 1 ammo: Fight ([agility]). If the targeted enemy is exhausted, this attack deals +1 damage.",
+        "index": 0
+      }
+    ]
+  },
+  "12046": {
+    "definition_id": "12046",
+    "title": "Olivier Bishop",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 4,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Ally",
+      "Criminal",
+      "Socialite"
+    ],
+    "faction_code": "rogue",
+    "slot": "Ally",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {
+      "health": 2
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "You get +1 [agility].\n[fast] During your turn, exhaust Olivier Bishop: Move to a connecting location.",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "During your turn, exhaust Olivier Bishop: Move to a connecting location.",
+        "index": 0
+      }
+    ]
+  },
+  "12047": {
+    "definition_id": "12047",
+    "title": "Silver Tongue",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "intellect": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "[fast] Spend 1 resource: You get +1 [intellect] for this skill test (+2 [intellect] instead if this is an evasion or parley).\n[fast] Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this is an evasion or parley).",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [intellect] for this skill test (+2 [intellect] instead if this is an evasion or parley).",
+        "index": 0
+      },
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this is an evasion or parley).",
+        "index": 1
+      }
+    ]
+  },
+  "12048": {
+    "definition_id": "12048",
+    "title": "Sticky Fingers",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "Limit 1 per investigator.\n[reaction] After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
+        "index": 0
+      }
+    ]
+  },
+  "12051": {
+    "definition_id": "12051",
+    "title": "Paint the Town Red",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Fortune",
+      "Gambit"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "<b>Parley.</b> Search the top 9 cards of the encounter deck for a non-[[Elite]] enemy, draw it, and gain resources equal to that enemy's printed health. Shuffle the encounter deck."
+  },
+  "12052": {
+    "definition_id": "12052",
+    "title": "Prestidigitation",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Trick"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Fast. Play only during your turn.\nPlay an [[Item]] asset from your hand, reducing its cost by 2. When your turn ends, return an [[Item]] asset you control to your hand."
+  },
+  "12053": {
+    "definition_id": "12053",
+    "title": "Out of Sight",
+    "card_type": "skill",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Practiced"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Max 1 committed per skill test.\nIf this test is successful by 2 or more, the performing investigator may disengage from each enemy and move to a revealed connecting location."
+  },
+  "12054": {
+    "definition_id": "12054",
+    "title": "Sticky Fingers",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "agility": 2
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "Fast. Limit 1 per investigator.\n[reaction] After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
+        "index": 0
+      }
+    ]
+  },
+  "12055": {
+    "definition_id": "12055",
+    "title": "Decisive Strike",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Tactic",
+      "Gambit"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "combat": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "<b>Fight</b> ([combat]). You get +2 [combat] and deal +1 damage for this attack. If this attack defeats an enemy, gain 5 resources."
+  },
+  "12057": {
+    "definition_id": "12057",
+    "title": "Out of Sight",
+    "card_type": "skill",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Practiced",
+      "Expert"
+    ],
+    "faction_code": "rogue",
+    "slot": "",
+    "skills_icons": {
+      "agility": 3
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Max 1 committed per skill test.\nIf this test is successful by 1 or more, the performing investigator may disengage from each enemy and move to a revealed location up to 2 connections away."
+  },
+  "12058": {
+    "definition_id": "12058",
+    "title": "Cloak of Resonance",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Clothing",
+      "Alchemy"
+    ],
+    "faction_code": "mystic",
+    "slot": "Body",
+    "skills_icons": {
+      "willpower": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "[reaction] When horror is placed on Cloak of Resonance, exhaust it: Deal 1 damage to an enemy at your location.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "When horror is placed on Cloak of Resonance, exhaust it: Deal 1 damage to an enemy at your location.",
+        "index": 0
+      }
+    ]
+  },
+  "12059": {
+    "definition_id": "12059",
+    "title": "Cosmic Flame",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Spell"
+    ],
+    "faction_code": "mystic",
+    "slot": "Arcane",
+    "skills_icons": {
+      "combat": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "Uses (3 charges).\n[action]: <b>Fight</b> ([willpower]). If you succeed, you may spend 1 charge to deal +1 damage for this attack. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Fight ([willpower]). If you succeed, you may spend 1 charge to deal +1 damage for this attack. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
+        "index": 0
+      }
+    ]
+  },
+  "12060": {
+    "definition_id": "12060",
+    "title": "Jim Culver",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 4,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Ally",
+      "Performer"
+    ],
+    "faction_code": "mystic",
+    "slot": "Ally",
+    "skills_icons": {
+      "willpower": 1
+    },
+    "enemy": {
+      "health": 2
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "You get +1 [willpower].\n[reaction] After you take damage and/or horror, exhaust Jim Culver: Draw 1 card.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you take damage and/or horror, exhaust Jim Culver: Draw 1 card.",
+        "index": 0
+      }
+    ]
+  },
+  "12061": {
+    "definition_id": "12061",
+    "title": "Lucky Charm",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Charm",
+      "Blessed"
+    ],
+    "faction_code": "mystic",
+    "slot": "Accessory",
+    "skills_icons": {
+      "willpower": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "Uses (4 charges).\n[fast] Spend 1 charge and exhaust Lucky Charm: Move 1 damage or 1 horror from a card at your location to a card you control <i>(with a health or sanity value)</i>.",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "Spend 1 charge and exhaust Lucky Charm: Move 1 damage or 1 horror from a card at your location to a card you control (with a health or sanity value).",
+        "index": 0
+      }
+    ]
+  },
+  "12062": {
+    "definition_id": "12062",
+    "title": "Second Sight",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 4,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Spell"
+    ],
+    "faction_code": "mystic",
+    "slot": "Arcane",
+    "skills_icons": {
+      "intellect": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "Uses (3 charges).\n[action]: <b>Investigate</b> ([willpower]). If you succeed, you may spend 1 charge to discover 1 additional clue at your location. If you reveal a [cultist] token during this test, remove 1 charge from Second Sight (if you cannot, take 1 horror and discard this card).",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Investigate ([willpower]). If you succeed, you may spend 1 charge to discover 1 additional clue at your location. If you reveal a [cultist] token during this test, remove 1 charge from Second Sight (if you cannot, take 1 horror and discard this card).",
+        "index": 0
+      }
+    ]
+  },
+  "12063": {
+    "definition_id": "12063",
+    "title": "Spiritual Intuition",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "mystic",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "combat": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "[fast] Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this test is on a [[Spell]] or [[Ritual]] card).\n[fast] Spend 1 resource: You get +1 [combat] for this skill test (+2 [combat] instead if this test is on a [[Spell]] or [[Ritual]] card).",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this test is on a [[Spell]] or [[Ritual]] card).",
+        "index": 0
+      },
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [combat] for this skill test (+2 [combat] instead if this test is on a [[Spell]] or [[Ritual]] card).",
+        "index": 1
+      }
+    ]
+  },
+  "12066": {
+    "definition_id": "12066",
+    "title": "Will of the Cosmos",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Insight",
+      "Augury"
+    ],
+    "faction_code": "mystic",
+    "slot": "",
+    "skills_icons": {
+      "intellect": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Place 1 doom on a player card you control. Then, discover 1 clue at your location and 1 clue at another revealed location."
+  },
+  "12067": {
+    "definition_id": "12067",
+    "title": "Soul Link",
+    "card_type": "skill",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Innate",
+      "Spell"
+    ],
+    "faction_code": "mystic",
+    "slot": "",
+    "skills_icons": {
+      "wild": 3
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "As an additional cost to commit Soul Link, take 1 horror."
+  },
+  "12068": {
+    "definition_id": "12068",
+    "title": "Mask of Silenus",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Mask",
+      "Relic",
+      "Cursed"
+    ],
+    "faction_code": "mystic",
+    "slot": "Head",
+    "skills_icons": {
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "Uses (3 charges).\n[reaction] When you would reveal a chaos token, spend 1 charge: Reveal 1 additional token. Choose 1 of those tokens to resolve and ignore the other. If you resolved a token with a symbol, take 1 horror.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "When you would reveal a chaos token, spend 1 charge: Reveal 1 additional token. Choose 1 of those tokens to resolve and ignore the other. If you resolved a token with a symbol, take 1 horror.",
+        "index": 0
+      }
+    ]
+  },
+  "12070": {
+    "definition_id": "12070",
+    "title": "Augur of Elokoss",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Spell",
+      "Augury"
+    ],
+    "faction_code": "mystic",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "intellect": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "<b>Investigate</b> ([intellect]). Add your [willpower] to your [intellect] for this investigation. If you succeed, discover 1 additional clue at your location. If you succeed and a token with a symbol was revealed during this test, you may discard a [[Terror]] or [[Hex]] treachery from any investigator's threat area."
+  },
+  "12071": {
+    "definition_id": "12071",
+    "title": "Cosmic Flame",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Spell"
+    ],
+    "faction_code": "mystic",
+    "slot": "Arcane",
+    "skills_icons": {
+      "willpower": 1,
+      "combat": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "Uses (4 charges).\n[action]: <b>Fight</b> ([willpower]). You get +2 [willpower] and deal +1 damage for this attack. If you succeed, you may spend 1 charge to deal 1 damage to an enemy at your location. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Fight ([willpower]). You get +2 [willpower] and deal +1 damage for this attack. If you succeed, you may spend 1 charge to deal 1 damage to an enemy at your location. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
+        "index": 0
+      }
+    ]
+  },
+  "12072": {
+    "definition_id": "12072",
+    "title": "Aleksey Saburov",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 3,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Ally"
+    ],
+    "faction_code": "survivor",
+    "slot": "Ally",
+    "skills_icons": {
+      "willpower": 1
+    },
+    "enemy": {
+      "health": 2
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "[reaction] When your turn begins: Heal 1 damage or 1 horror from Aleksey Saburov.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "When your turn begins: Heal 1 damage or 1 horror from Aleksey Saburov.",
+        "index": 0
+      }
+    ]
+  },
+  "12074": {
+    "definition_id": "12074",
+    "title": "Hunter's Instinct",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [
+      "hunter"
+    ],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "survivor",
+    "slot": "",
+    "skills_icons": {
+      "combat": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction"
+    ],
+    "text": "Limit 1 per investigator. Uses (3 supplies). If there are no supplies on Hunter's Instinct, discard it.\n[reaction] After you engage an enemy, spend 1 supply and exhaust Hunter's Instinct: Add a level 0 event in your discard pile to your hand.",
+    "ability_segments": [
+      {
+        "kind": "reaction",
+        "body": "After you engage an enemy, spend 1 supply and exhaust Hunter's Instinct: Add a level 0 event in your discard pile to your hand.",
+        "index": 0
+      }
+    ]
+  },
+  "12075": {
+    "definition_id": "12075",
+    "title": "Jumpsuit",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Clothing"
+    ],
+    "faction_code": "survivor",
+    "slot": "Body",
+    "skills_icons": {
+      "combat": 1
+    },
+    "enemy": {
+      "health": 2
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "[fast] During your turn, discard Jumpsuit: Choose a [[Tool]] or [[Weapon]] asset in your discard pile and add it to your hand.",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "During your turn, discard Jumpsuit: Choose a [[Tool]] or [[Weapon]] asset in your discard pile and add it to your hand.",
+        "index": 0
+      }
+    ]
+  },
+  "12076": {
+    "definition_id": "12076",
+    "title": "Levelheaded",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Talent"
+    ],
+    "faction_code": "survivor",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "fast"
+    ],
+    "text": "[fast] Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this test is on a scenario card).\n[fast] Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this test is on a scenario card).",
+    "ability_segments": [
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this test is on a scenario card).",
+        "index": 0
+      },
+      {
+        "kind": "fast",
+        "body": "Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this test is on a scenario card).",
+        "index": 1
+      }
+    ]
+  },
+  "12079": {
+    "definition_id": "12079",
+    "title": "\"Shove off!\"",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Tactic"
+    ],
+    "faction_code": "survivor",
+    "slot": "",
+    "skills_icons": {
+      "combat": 1,
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "<b>Evade</b> ([agility]). If you succeed, deal 1 damage to the evaded enemy. If you fail, return \"Shove off!\" to your hand at the end of your turn."
+  },
+  "12080": {
+    "definition_id": "12080",
+    "title": "Slippery",
+    "card_type": "skill",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Practiced"
+    ],
+    "faction_code": "survivor",
+    "slot": "",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "If this skill test is successful while evading a non-[[Elite]] enemy, that enemy does not ready during the next upkeep phase."
+  },
+  "12081": {
+    "definition_id": "12081",
+    "title": "Timely Intervention",
+    "card_type": "skill",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Fortune"
+    ],
+    "faction_code": "survivor",
+    "slot": "",
+    "skills_icons": {
+      "willpower": 1,
+      "agility": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Max 1 committed per skill test.\nYou may commit Timely Intervention from your hand after revealing chaos tokens during a skill test you are performing."
+  },
+  "12082": {
+    "definition_id": "12082",
+    "title": "Scrape By",
+    "card_type": "event",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Fortune"
+    ],
+    "faction_code": "survivor",
+    "slot": "",
+    "skills_icons": {
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Fast. Play when you would fail a skill test during which a non-[auto_fail] token was revealed.\nYou succeed at that skill test instead. If a token with a symbol was revealed during that skill test, take 1 horror."
+  },
+  "12083": {
+    "definition_id": "12083",
+    "title": "Old Compass",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Tool"
+    ],
+    "faction_code": "survivor",
+    "slot": "Hand",
+    "skills_icons": {
+      "intellect": 2
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "[action]: <b>Investigate</b> ([intellect]). Your location gets -1 shroud for this investigation. If you fail, you may exhaust Old Compass to attempt this test again. If you do, your location gets -2 shroud for this investigation, instead.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Investigate ([intellect]). Your location gets -1 shroud for this investigation. If you fail, you may exhaust Old Compass to attempt this test again. If you do, your location gets -2 shroud for this investigation, instead.",
+        "index": 0
+      }
+    ]
+  },
+  "12084": {
+    "definition_id": "12084",
+    "title": "On the Brink",
+    "card_type": "skill",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Gambit",
+      "Desperate"
+    ],
+    "faction_code": "survivor",
+    "slot": "",
+    "skills_icons": {
+      "wild": 2
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": "Max 1 committed per skill test.\nIf this test fails, return each other card committed to this test to its owner's hand and draw 1 card."
+  },
+  "12085": {
+    "definition_id": "12085",
+    "title": "Meat Cleaver",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Weapon",
+      "Melee"
+    ],
+    "faction_code": "survivor",
+    "slot": "Hand",
+    "skills_icons": {
+      "willpower": 1,
+      "combat": 1,
+      "wild": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "reaction",
+      "action"
+    ],
+    "text": "[action]: <b>Fight</b> ([combat]). You get +2 [combat] for this attack (+3 [combat] instead if you have 3 or fewer remaining sanity). If this attack defeats an enemy, you may heal 1 horror.\n[reaction] When you trigger the above [action] ability, take 1 horror: This attack deals +1 damage.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Fight ([combat]). You get +2 [combat] for this attack (+3 [combat] instead if you have 3 or fewer remaining sanity). If this attack defeats an enemy, you may heal 1 horror.",
+        "index": 0
+      },
+      {
+        "kind": "reaction",
+        "body": "When you trigger the above [action] ability, take 1 horror: This attack deals +1 damage.",
+        "index": 1
+      }
+    ]
+  },
+  "12086": {
+    "definition_id": "12086",
+    "title": "Broken Bottle",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Weapon",
+      "Melee",
+      "Improvised"
+    ],
+    "faction_code": "neutral",
+    "slot": "Hand",
+    "skills_icons": {
+      "combat": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "[action]: <b>Fight</b> ([combat]). You get +1 [combat] for this attack. If you succeed, you may discard Broken Bottle to deal +1 damage for this attack.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Fight ([combat]). You get +1 [combat] for this attack. If you succeed, you may discard Broken Bottle to deal +1 damage for this attack.",
+        "index": 0
+      }
+    ]
+  },
+  "12087": {
+    "definition_id": "12087",
+    "title": "Fedora",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 2,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Apparel",
+      "Headwear"
+    ],
+    "faction_code": "neutral",
+    "slot": "Head",
+    "skills_icons": {
+      "agility": 1
+    },
+    "enemy": {
+      "health": 1
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [],
+    "text": ""
+  },
+  "12088": {
+    "definition_id": "12088",
+    "title": "Hand-Crank Flashlight",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 1,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Tool"
+    ],
+    "faction_code": "neutral",
+    "slot": "Hand",
+    "skills_icons": {
+      "intellect": 1
+    },
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "[action]: <b>Investigate</b> ([intellect]). You get +1 [intellect] for this test. If you succeed, you may discard Hand-Crank Flashlight for your location to get -1 shroud until the end of the round.",
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Investigate ([intellect]). You get +1 [intellect] for this test. If you succeed, you may discard Hand-Crank Flashlight for your location to get -1 shroud until the end of the round.",
+        "index": 0
+      }
+    ]
+  },
+  "12098": {
+    "definition_id": "12098",
+    "title": "The Gold Bug",
+    "card_type": "asset",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "basicweakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Item",
+      "Relic",
+      "Alchemy",
+      "Cursed"
+    ],
+    "faction_code": "neutral",
+    "slot": "Accessory",
+    "skills_icons": {},
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action",
+      "revelation"
+    ],
+    "text": "<b>Revelation</b> - Put The Gold Bug into play in your threat area. It cannot leave play except by the [action] ability below.\nYou get -1 health and -1 sanity.\n[action]: Shuffle the Gold Bug into your deck.",
+    "ability_segments": [
+      {
+        "kind": "revelation",
+        "body": "Put The Gold Bug into play in your threat area. It cannot leave play except by the",
+        "index": 0
+      },
+      {
+        "kind": "action",
+        "body": "ability below. You get -1 health and -1 sanity.",
+        "index": 1
+      },
+      {
+        "kind": "action",
+        "body": "Shuffle the Gold Bug into your deck.",
+        "index": 2
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "enter_threat_area"
+      }
+    ]
+  },
+  "12099": {
+    "definition_id": "12099",
+    "title": "The Nameless Lurker",
+    "card_type": "enemy",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "basicweakness",
+    "hidden": false,
+    "aloof": true,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [
+      "aloof"
+    ],
+    "traits": [
+      "Humanoid",
+      "Monster"
+    ],
+    "faction_code": "neutral",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {
+      "health": 1,
+      "fight": 2,
+      "evade": 2,
+      "horror": 2
+    },
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "forced"
+    ],
+    "text": "Aloof.\n<b>Spawn</b> - Farthest empty location.\n<b>Forced</b> - When the investigation phase ends, if The Nameless Lurker is ready and has no doom on it: Place 1 doom on it.",
+    "ability_segments": [
+      {
+        "kind": "forced",
+        "body": "Place 1 doom on it.",
+        "trigger": "When the investigation phase ends, if The Nameless Lurker is ready and has no doom on it",
+        "index": 0
+      }
+    ],
+    "spawn_instruction": {
+      "selector": "farthest_empty"
+    }
+  },
+  "12102": {
+    "definition_id": "12102",
+    "title": "Pursued",
+    "card_type": "treachery",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "basicweakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Terror"
+    ],
+    "faction_code": "neutral",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action",
+      "revelation",
+      "forced"
+    ],
+    "text": "<b>Revelation</b> - Put Pursued into play in your threat area.\n<b>Forced</b> - After an enemy enters <i>(moves into or spawns at)</i> your location: Take 1 horror.\n[action][action]: Discard Pursued.",
+    "ability_segments": [
+      {
+        "kind": "revelation",
+        "body": "Put Pursued into play in your threat area.",
+        "index": 0
+      },
+      {
+        "kind": "forced",
+        "body": "Take 1 horror.",
+        "trigger": "After an enemy enters (moves into or spawns at) your location",
+        "index": 1
+      },
+      {
+        "kind": "action",
+        "body": "[action]: Discard Pursued.",
+        "index": 2
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "status": "effect_only",
+        "trigger": "After an enemy enters (moves into or spawns at) your location",
+        "template": "take_horror",
+        "amount": 1,
+        "direct": false
+      }
+    ]
+  },
+  "12103": {
+    "definition_id": "12103",
+    "title": "Syndicate Obligations",
+    "card_type": "treachery",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "basicweakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Pact",
+      "Syndicate"
+    ],
+    "faction_code": "neutral",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action",
+      "revelation",
+      "forced"
+    ],
+    "text": "<b>Revelation</b> - Put Syndicate Obligations into play in your threat area.\n<b>Forced</b> - After you spend 1 or more resources: Take 1 damage.\n[action][action]: Discard Syndicate Obligations.",
+    "ability_segments": [
+      {
+        "kind": "revelation",
+        "body": "Put Syndicate Obligations into play in your threat area.",
+        "index": 0
+      },
+      {
+        "kind": "forced",
+        "body": "Take 1 damage.",
+        "trigger": "After you spend 1 or more resources",
+        "index": 1
+      },
+      {
+        "kind": "action",
+        "body": "[action]: Discard Syndicate Obligations.",
+        "index": 2
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "status": "effect_only",
+        "trigger": "After you spend 1 or more resources",
+        "template": "take_damage",
+        "amount": 1,
+        "direct": false
+      }
+    ]
+  },
+  "12104": {
+    "definition_id": "12104",
+    "title": "Wounded",
+    "card_type": "treachery",
+    "pack_code": "core_2026",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": true,
+    "subtype_code": "basicweakness",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 0,
+    "keywords": [],
+    "traits": [
+      "Injury"
+    ],
+    "faction_code": "neutral",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {},
+    "location": {},
+    "encounter_code": "",
+    "ability_hints": [
+      "action",
+      "revelation",
+      "forced"
+    ],
+    "text": "<b>Revelation</b> - Put Wounded into play in your threat area.\n<b>Forced</b> - The first time you move each turn: Take 1 damage.\n[action][action]: Discard Wounded.",
+    "ability_segments": [
+      {
+        "kind": "revelation",
+        "body": "Put Wounded into play in your threat area.",
+        "index": 0
+      },
+      {
+        "kind": "forced",
+        "body": "Take 1 damage.",
+        "trigger": "The first time you move each turn",
+        "index": 1
+      },
+      {
+        "kind": "action",
+        "body": "[action]: Discard Wounded.",
+        "index": 2
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "status": "effect_only",
+        "trigger": "The first time you move each turn",
+        "template": "take_damage",
+        "amount": 1,
+        "direct": false
+      }
+    ]
+  }
+}

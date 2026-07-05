@@ -24,6 +24,47 @@ func _initialize() -> void:
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
 	_run_test("C-08 initiation dry-run gate", _test_initiation_dry_run_gate)
+	_run_test("INIT-01 initiation records full sequence", _test_initiation_sequence_events)
+	_run_test("INIT-02 play card aborts when cannot pay", _test_initiation_play_cost_abort)
+	_run_test("INIT-03 play card runs initiation pipeline", _test_initiation_play_card_pipeline)
+	_run_test("INIT-04 cost modifier reduces play cost", _test_initiation_cost_modifier)
+	_run_test("INIT-05 action ability provokes AOO", _test_initiation_action_aoo)
+	_run_test("INIT-06 on_play composition resolves", _test_initiation_on_play)
+	_run_test("INIT-07 refunds costs after post-AOO abort", _test_initiation_post_aoo_refund)
+	_run_test("TRIG-01 forced triggered bypasses initiation", _test_trig_forced_after_gain)
+	_run_test("TRIG-02 reaction declined by default", _test_trig_reaction_declined)
+	_run_test("TRIG-03 reaction accepted resolves", _test_trig_reaction_accepted)
+	_run_test("TRIG-04 peril blocks teammate triggered", _test_trig_peril_blocks)
+	_run_test("TRIG-05 install triggered on asset play", _test_trig_install_on_play)
+	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
+	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
+	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
+	_run_test("ADB-04 import treachery keywords", _test_adb_treachery_surge)
+	_run_test("ADB-05 import hidden enemy", _test_adb_hidden_elokoss)
+	_run_test("ADB-06 import peril treachery", _test_adb_peril_cosmic_evils)
+	_run_test("ADB-07 import keyword bool fields", _test_adb_keyword_bools)
+	_run_test("ADB-08 compile prey lowest agility", _test_adb_prey_lowest_agility)
+	_run_test("ADB-09 compile prey most resources", _test_adb_prey_most_resources)
+	_run_test("ADB-10 compile prey investigator only", _test_adb_prey_investigator_only)
+	_run_test("ADB-11 compile spawn farthest empty", _test_adb_spawn_farthest_empty)
+	_run_test("ADB-12 spawn farthest empty resolves", _test_adb_spawn_farthest_empty_play)
+	_run_test("ADB-13 prey lowest agility engages", _test_adb_prey_lowest_agility_play)
+	_run_test("ADB-14 segment in harms way", _test_adb_segment_in_harms_way)
+	_run_test("ADB-15 compile enter threat revelation", _test_adb_compile_enter_threat)
+	_run_test("ADB-16 breaking point damage revelation", _test_adb_breaking_point_revelation)
+	_run_test("ADB-17 ability compile summary", _test_adb_ability_compile_summary)
+	_run_test("EFF-01 effect draw blocked by forbid_draw", _test_eff_draw_blocked)
+	_run_test("EFF-02 effect draw resolves when allowed", _test_eff_draw_ok)
+	_run_test("CAN-01 cancel pending draw", _test_can_cancel_pending_draw)
+	_run_test("CAN-02 cancel fails after resolve", _test_can_cancel_after_resolve)
+	_run_test("CAN-03 replacement fails after cancel", _test_can_replacement_after_cancel)
+	_run_test("IGN-01 ignore keeps pending but skips apply", _test_ign_ignore_skips_apply)
+	_run_test("IGN-02 ignore blocks replacement", _test_ign_blocks_replacement)
+	_run_test("INT-01 catalog interrupt cancel pending", _test_int_catalog_interrupt_cancel)
+	_run_test("CAN-ENC-01 ward cancel revelation discards", _test_can_enc_ward_cancel_revelation)
+	_run_test("REPL-01 most recent replacement wins", _test_repl_most_recent_wins)
+	_run_test("REPL-02 composition cancel replace resolve", _test_repl_composition_pipeline)
+	_run_test("REPL-03 catalog replace instead pending", _test_repl_catalog_instead)
 	_run_test("ENC-01 seq.draw.encounter catalog", _test_enc_draw_catalog)
 	_run_test("ENC-02 default spawn engaged", _test_enc_spawn_default_engaged)
 	_run_test("ENC-17 default spawn drawer not prey auto engage", _test_enc_default_spawn_drawer_not_prey)
@@ -66,6 +107,10 @@ func _initialize() -> void:
 	_run_test("PERIL-01 encounter frame blocks ally commit", _test_peril_frame_blocks_ally)
 	_run_test("PERIL-04 peril not sticky across cards", _test_peril_not_sticky_across_cards)
 	_run_test("PERIL-05 peril unregister allows ally", _test_peril_unregister_allows_ally)
+	_run_test("REST-01 draw action blocked by forbid_draw", _test_rest_draw_action_blocked)
+	_run_test("PERIL-02 peril blocks teammate play", _test_peril_blocks_teammate_play)
+	_run_test("PERIL-03 peril blocks teammate trigger", _test_peril_blocks_teammate_trigger)
+	_run_test("PERIL-06 drawer play and trigger allowed", _test_peril_drawer_play_trigger_ok)
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
@@ -258,6 +303,750 @@ func _test_initiation_dry_run_gate() -> bool:
 	var res := h.ctx.initiation.initiate(draw_intent, h.ctx)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return res.ok and inv.hand.size() == 1
+
+
+func _collect_initiation_steps(h: RuleTestHarness) -> Array:
+	var out: Array = []
+	for rec in h.ctx.events.get_records():
+		if rec.kind == AhcEnums.EventRecordKind.INITIATION_STEP:
+			out.append(rec.initiation_step)
+	return out
+
+
+func _test_initiation_sequence_events() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var intent := InitiationIntent.create(&"inv_1", CompositionNode.draw(&"inv_1"))
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	if not res.ok:
+		return false
+	var expected: Array = [
+		AhcEnums.InitiationStep.INIT_PRE_RESTRICTIONS,
+		AhcEnums.InitiationStep.INIT_1_APPLY_MODIFIERS,
+		AhcEnums.InitiationStep.INIT_2_PAY_COSTS,
+		AhcEnums.InitiationStep.INIT_2B_AOO,
+		AhcEnums.InitiationStep.INIT_3_COMMENCE,
+		AhcEnums.InitiationStep.INIT_4_RESOLVE,
+	]
+	return _collect_initiation_steps(h) == expected
+
+
+func _test_initiation_play_cost_abort() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"costly_asset",
+		{"card_type": &"asset", "resource_cost": 2}
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"costly_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	inv.resource_pool = 1
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	return (
+		not res.ok
+		and res.error == "cannot_pay"
+		and inv.resource_pool == 1
+		and inv.hand.has(card_id)
+	)
+
+
+func _test_initiation_play_card_pipeline() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER
+	)
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	if not res.ok:
+		return false
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card.zone != AhcEnums.Zone.PLAY_AREA:
+		return false
+	var expected: Array = [
+		AhcEnums.InitiationStep.INIT_PRE_RESTRICTIONS,
+		AhcEnums.InitiationStep.INIT_1_APPLY_MODIFIERS,
+		AhcEnums.InitiationStep.INIT_2_PAY_COSTS,
+		AhcEnums.InitiationStep.INIT_2B_AOO,
+		AhcEnums.InitiationStep.INIT_3_COMMENCE,
+		AhcEnums.InitiationStep.INIT_4_RESOLVE,
+	]
+	return _collect_initiation_steps(h) == expected
+
+
+func _test_initiation_cost_modifier() -> bool:
+	var h := RuleTestHarness.new(42)
+	CompositionTestHelper.new(h.ctx).execute(
+		CompositionTestHelper.reduce_initiation_resource_cost_turn(&"inv_1", 1)
+	)
+	CardRegistry.register_definition(
+		&"discounted_asset",
+		{"card_type": &"asset", "resource_cost": 2}
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"discounted_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	inv.resource_pool = 1
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	return res.ok and inv.resource_pool == 0 and card.zone == AhcEnums.Zone.PLAY_AREA
+
+
+func _test_initiation_action_aoo() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.threat_area.append(&"enemy_1")
+	inv.actions_remaining = 2
+	var intent := InitiationIntent.action_ability(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		)
+	)
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return (
+		res.ok
+		and inv.damage_taken == 1
+		and inv.resource_pool == 6
+		and inv.actions_remaining == 1
+		and int(res.get("aoo_attacks", 0)) == 1
+	)
+
+
+func _test_initiation_on_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"ev_on_play", {"card_type": &"event"})
+	CardRegistry.register_on_play(
+		&"ev_on_play",
+		&"on_play:0",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.adjust_marker(
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.RESOURCE), 2
+			)
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"ev_on_play")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	var pool_before := inv.resource_pool
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	return (
+		res.ok
+		and inv.resource_pool == pool_before + 2
+		and not inv.hand.has(card_id)
+		and inv.discard.has(card_id)
+		and card.zone == AhcEnums.Zone.DISCARD
+	)
+
+
+func _test_initiation_post_aoo_refund() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 4
+	var intent := InitiationIntent.ability(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), -3
+		)
+	)
+	intent.resource_cost = 2
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return not res.ok and res.error == "illegal" and inv.resource_pool == 4
+
+
+func _test_trig_forced_after_gain() -> bool:
+	var h := RuleTestHarness.new(42)
+	var desc := TriggeredAbilityDescriptor.forced(
+		&"gain_resource",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		)
+	)
+	h.ctx.triggered_abilities.register(desc)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	if inv.resource_pool != pool_before + 2:
+		return false
+	return _collect_initiation_steps(h).is_empty()
+
+
+func _test_trig_reaction_declined() -> bool:
+	var h := RuleTestHarness.new(42)
+	var desc := TriggeredAbilityDescriptor.reaction(
+		&"gain_resource",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 5
+		)
+	)
+	h.ctx.triggered_abilities.register(desc)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return inv.resource_pool == pool_before + 1
+
+
+func _test_trig_reaction_accepted() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"reaction:use", "pick": true},
+	])
+	var desc := TriggeredAbilityDescriptor.reaction(
+		&"gain_resource",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 2
+		)
+	)
+	h.ctx.triggered_abilities.register(desc)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return inv.resource_pool == pool_before + 3
+
+
+func _test_trig_peril_blocks() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_trig_asset")
+	var desc := TriggeredAbilityDescriptor.reaction(
+		&"gain_resource",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_2",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), 3
+		)
+	)
+	h.ctx.triggered_abilities.register(desc)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"reaction:use", "pick": true},
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_2")
+	var pool_before := inv.resource_pool
+	h.ctx.resource_gain.gain(h.ctx, &"inv_2", 1, [&"resource_action"])
+	return inv.resource_pool == pool_before + 1
+
+
+func _test_trig_install_on_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"trig_asset", {"card_type": &"asset"})
+	CardRegistry.register_triggered(
+		&"trig_asset",
+		&"react:gain",
+		&"gain_resource",
+		AhcEnums.SequencePhase.AFTER,
+		&"forced",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.adjust_marker(
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.RESOURCE), 1
+			)
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"trig_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	if not h.ctx.actions.play_card(&"inv_1", card_id).ok:
+		return false
+	var pool_before := inv.resource_pool
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return inv.resource_pool == pool_before + 2
+
+
+func _test_adb_import_counts() -> bool:
+	var n := ArkhamDbCardLoader.load_core_2026()
+	return n >= 166
+
+
+func _test_adb_asset_local_map() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var def_id := &"12033"
+	return (
+		CardRegistry.title(def_id) == "Local Map"
+		and CardRegistry.card_type(def_id) == &"asset"
+		and CardRegistry.resource_cost(def_id) == 3
+		and CardRegistry.has_keyword(def_id, &"surge") == false
+	)
+
+
+func _test_adb_weakness_in_harms_way() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var def_id := &"12003"
+	return (
+		CardRegistry.is_weakness(def_id)
+		and CardRegistry.card_type(def_id) == &"treachery"
+	)
+
+
+func _test_adb_treachery_surge() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var def_id := &"12163"
+	return (
+		CardRegistry.card_type(def_id) == &"treachery"
+		and CardRegistry.has_keyword(def_id, &"surge")
+		and CardRegistry.ability_hints(def_id).has(&"revelation")
+	)
+
+
+func _test_adb_hidden_elokoss() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var def_id := &"12179b"
+	var enemy := CardRegistry.enemy_stats(def_id)
+	return (
+		CardRegistry.is_hidden(def_id)
+		and CardRegistry.has_keyword(def_id, &"hunter")
+		and CardRegistry.has_keyword(def_id, &"massive")
+		and CardRegistry.has_keyword(def_id, &"retaliate")
+		and int(enemy.get("fight", 0)) == 5
+	)
+
+
+func _test_adb_peril_cosmic_evils() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var def_id := &"12124"
+	return (
+		CardRegistry.has_keyword(def_id, &"peril")
+		and CardRegistry.ability_hints(def_id).has(&"revelation")
+	)
+
+
+func _adb_add_encounter_enemy_to_deck(h: RuleTestHarness, def_id: StringName) -> StringName:
+	var instance_id := h.ctx.state.registry.allocate_instance_id(&"enc_card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, def_id)
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"encounter"
+	card.controller_id = &"encounter"
+	card.zone = AhcEnums.Zone.DECK
+	h.ctx.state.registry.register_card(card)
+	h.ctx.state.encounter_deck.append(instance_id)
+	return instance_id
+
+
+func _adb_add_investigator_card_to_deck(
+	h: RuleTestHarness,
+	inv_id: StringName,
+	def_id: StringName
+) -> StringName:
+	var instance_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, def_id)
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = inv_id
+	card.controller_id = inv_id
+	card.zone = AhcEnums.Zone.DECK
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(inv_id)
+	if inv:
+		inv.deck.append(instance_id)
+	return instance_id
+
+
+func _test_adb_keyword_bools() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var def_id := &"12114"
+	return (
+		CardRegistry.is_hunter(def_id)
+		and CardRegistry.is_retaliate(def_id)
+		and CardRegistry.has_keyword(def_id, &"hunter")
+	)
+
+
+func _test_adb_prey_lowest_agility() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var prey := CardRegistry.prey_spec(&"12114")
+	return (
+		prey != null
+		and prey.compare_mode == PreyInstructionSpec.CompareMode.LOWEST
+		and prey.skill == AhcEnums.SkillType.AGILITY
+	)
+
+
+func _test_adb_prey_most_resources() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var prey := CardRegistry.prey_spec(&"12164")
+	return (
+		prey != null
+		and prey.value_kind == PreyInstructionSpec.ValueKind.RESOURCES
+		and prey.compare_mode == PreyInstructionSpec.CompareMode.HIGHEST
+	)
+
+
+func _test_adb_prey_investigator_only() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var prey := CardRegistry.prey_spec(&"12009")
+	return (
+		prey != null
+		and prey.investigator_title_only == "Trish Scarborough"
+	)
+
+
+func _test_adb_spawn_farthest_empty() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var spawn := CardRegistry.spawn_spec(&"12099")
+	return (
+		spawn.mode == SpawnInstructionSpec.Mode.INSTRUCTION
+		and spawn.selector_kind == SpawnInstructionSpec.SelectorKind.FARTHEST_EMPTY
+		and CardRegistry.is_aloof(&"12099")
+	)
+
+
+func _test_adb_spawn_farthest_empty_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a")
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.setup_test_location(h.ctx, &"loc_c")
+	GameBootstrap.connect_locations(h.ctx, &"loc_a", &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"loc_b", &"loc_c")
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"loc_a")
+	var card_id := _adb_add_encounter_enemy_to_deck(h, &"12099")
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(card_id)
+	return enemy != null and enemy.location_tag == &"loc_c" and enemy.engaged_with == &""
+
+
+func _test_adb_prey_lowest_agility_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	GameBootstrap.setup_investigator_at_location(
+		h.ctx, &"inv_2", &"test_loc", {"agility": 1}
+	)
+	h.ctx.state.registry.get_investigator(&"inv_1").skill_agility = 4
+	var def_data := CardRegistry.definition_data(&"12114")
+	def_data["spawn_instruction"] = SpawnInstructionSpec.at_drawer_location()
+	CardRegistry.register_definition(&"12114", def_data)
+	var card_id := _adb_add_encounter_enemy_to_deck(h, &"12114")
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(card_id)
+	return enemy != null and enemy.engaged_with == &"inv_2"
+
+
+func _test_adb_segment_in_harms_way() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var segments := CardRegistry.ability_segments(&"12003")
+	return segments.size() == 3 and CardRegistry.compiled_abilities(&"12003").size() >= 2
+
+
+func _test_adb_compile_enter_threat() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	return (
+		CardRegistry.has_revelation(&"12003")
+		and CardRegistry.compiled_abilities(&"12003")[0].get("template", "") == "enter_threat_area"
+	)
+
+
+func _test_adb_breaking_point_revelation() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not CardRegistry.has_revelation(&"12015"):
+		return false
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"12015")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.LIMBO
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+		return false
+	return inv.damage_taken == 1
+
+
+func _test_adb_ability_compile_summary() -> bool:
+	ArkhamDbCardLoader.load_core_2026()
+	var total_segments := 0
+	var total_compiled := 0
+	for def_id in [&"12003", &"12015", &"12126", &"12167"]:
+		total_segments += CardRegistry.ability_segments(def_id).size()
+		total_compiled += CardRegistry.compiled_abilities(def_id).size()
+	return total_segments >= 4 and total_compiled >= 2
+
+
+func _test_eff_draw_blocked() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.forbid_draw_turn(&"inv_1"))
+	var res := h.ctx.effects.submit(EffectRequest.draw_cards(&"inv_1", 1))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		not res.ok
+		and res.error == "restriction_forbid_draw"
+		and res.get("blocked_by_restriction", false)
+		and inv.hand.is_empty()
+	)
+
+
+func _test_eff_draw_ok() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var res := h.ctx.effects.submit(EffectRequest.draw_cards(&"inv_1", 1))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and inv.hand.has(card_id) and inv.deck.is_empty()
+
+
+func _test_can_cancel_pending_draw() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var begin := h.ctx.effects.begin_pending(EffectRequest.draw_cards(&"inv_1", 1))
+	if not begin.get("ok", false):
+		return false
+	var pending_id: StringName = begin.get("pending_id", &"")
+	if not h.ctx.effects.cancel_pending(pending_id).get("ok", false):
+		return false
+	var res := h.ctx.effects.resolve_pending(pending_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		not res.ok
+		and res.error == "unknown_pending"
+		and not h.ctx.effects.is_pending_registered(pending_id)
+		and inv.hand.is_empty()
+	)
+
+
+func _test_can_cancel_after_resolve() -> bool:
+	var h := RuleTestHarness.new(42)
+	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 1))
+	var pending_id: StringName = begin.get("pending_id", &"")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	if not h.ctx.effects.resolve_pending(pending_id).get("ok", false):
+		return false
+	if inv.resource_pool != pool_before + 1:
+		return false
+	var cancel := h.ctx.effects.cancel_pending(pending_id)
+	return not cancel.get("ok", false) and cancel.error == "already_resolved"
+
+
+func _test_can_replacement_after_cancel() -> bool:
+	var h := RuleTestHarness.new(42)
+	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 3))
+	var pending_id: StringName = begin.get("pending_id", &"")
+	if not h.ctx.effects.cancel_pending(pending_id).get("ok", false):
+		return false
+	var repl := h.ctx.effects.register_replacement(
+		pending_id,
+		EffectRequest.gain_resource(&"inv_1", 1),
+		&"ability_a"
+	)
+	return not repl.get("ok", false) and repl.error == "unknown_pending"
+
+
+func _test_ign_ignore_skips_apply() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 3))
+	var pending_id: StringName = begin.get("pending_id", &"")
+	if not h.ctx.effects.ignore_pending(pending_id).get("ok", false):
+		return false
+	if not h.ctx.effects.is_pending_registered(pending_id):
+		return false
+	if inv.resource_pool != pool_before:
+		return false
+	var res := h.ctx.effects.resolve_pending(pending_id)
+	return (
+		res.ok
+		and res.get("ignored", false)
+		and not res.get("applied", true)
+		and inv.resource_pool == pool_before
+	)
+
+
+func _test_ign_blocks_replacement() -> bool:
+	var h := RuleTestHarness.new(42)
+	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 3))
+	var pending_id: StringName = begin.get("pending_id", &"")
+	if not h.ctx.effects.ignore_pending(pending_id).get("ok", false):
+		return false
+	var repl := h.ctx.effects.register_replacement(
+		pending_id,
+		EffectRequest.gain_resource(&"inv_1", 1),
+		&"ability_a"
+	)
+	return not repl.get("ok", false) and String(repl.get("error", &"")) == "pending_closed"
+
+
+func _test_int_catalog_interrupt_cancel() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var begin := h.ctx.effects.begin_pending(EffectRequest.draw_cards(&"inv_1", 1))
+	if not begin.get("ok", false):
+		return false
+	var pending_id: StringName = begin.get("pending_id", &"")
+	var cancel := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.interrupt.cancel",
+		{
+			"controller_id": &"inv_1",
+			"target": {"kind": "impact", "pending_id": pending_id},
+		}
+	)
+	if not cancel.get("ok", false):
+		return false
+	var res := h.ctx.effects.resolve_pending(pending_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		not res.ok
+		and res.error == "unknown_pending"
+		and inv.hand.is_empty()
+	)
+
+
+func _test_can_enc_ward_cancel_revelation() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"enc_ward_treach",
+		{"card_type": &"treachery", "limbo_discard_pile": &"encounter_discard"}
+	)
+	CardRegistry.register_revelation(
+		&"enc_ward_treach",
+		&"rev",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.adjust_marker(
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
+				3
+			)
+	)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_ward_treach")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if h.ctx.mutator.pop_encounter_deck_top() != card_id:
+		return false
+	h.ctx.memory.push_encounter_frame(EncounterResolutionFrame.create(&"inv_1"))
+	var cancel := h.ctx.effects.apply_interrupt_cancel(
+		InterruptTarget.sequence(
+			&"seq.encounter.revelation",
+			{"card_id": card_id, "controller_id": &"inv_1"}
+		)
+	)
+	if not cancel.get("ok", false):
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.HORROR_TAKEN),
+			1
+		)
+	)
+	DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
+	h.ctx.memory.pop_encounter_frame()
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		inv.horror_taken == 1
+		and card != null
+		and card.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.encounter_discard.has(card_id)
+	)
+
+
+func _test_repl_most_recent_wins() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	var begin := h.ctx.effects.begin_pending(
+		EffectRequest.gain_resource(&"inv_1", 9),
+		&"trigger_gain"
+	)
+	var pending_id: StringName = begin.get("pending_id", &"")
+	if not h.ctx.effects.register_replacement(
+		pending_id,
+		EffectRequest.gain_resource(&"inv_1", 1),
+		&"ability_first"
+	).get("ok", false):
+		return false
+	if not h.ctx.effects.register_replacement(
+		pending_id,
+		EffectRequest.gain_resource(&"inv_1", 5),
+		&"ability_second"
+	).get("ok", false):
+		return false
+	var res := h.ctx.effects.resolve_pending(pending_id)
+	return res.ok and res.get("replaced", false) and inv.resource_pool == pool_before + 5
+
+
+func _test_repl_composition_pipeline() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 9))
+	var pending_id: StringName = begin.get("pending_id", &"")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.seq([
+			CompositionNode.replace_pending(
+				pending_id,
+				EffectRequest.gain_resource(&"inv_1", 2),
+				&"card_instead"
+			),
+			CompositionNode.resolve_pending(pending_id),
+		])
+	)
+	return inv.resource_pool == pool_before + 2
+
+
+func _test_repl_catalog_instead() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 9))
+	if not begin.get("ok", false):
+		return false
+	var pending_id: StringName = begin.get("pending_id", &"")
+	var repl := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.replace.instead",
+		{
+			"controller_id": &"inv_1",
+			"target": {"kind": "pending", "pending_id": pending_id},
+			"replacement": {
+				"op": AhcEnums.EffectOp.GAIN_RESOURCE,
+				"controller_id": &"inv_1",
+				"amount": 3,
+			},
+			"source_ability_id": &"card_instead",
+		}
+	)
+	if not repl.get("ok", false):
+		return false
+	var res := h.ctx.effects.resolve_pending(pending_id)
+	return res.ok and res.get("replaced", false) and inv.resource_pool == pool_before + 3
 
 
 func _test_st_begin() -> bool:
@@ -1170,6 +1959,76 @@ func _test_peril_unregister_allows_ally() -> bool:
 	return res.ok
 
 
+func _setup_peril_for_drawer(h: RuleTestHarness, drawer_id: StringName, enc_id: StringName) -> void:
+	var frame := EncounterResolutionFrame.create(drawer_id)
+	frame.current_card_id = enc_id
+	h.ctx.memory.push_encounter_frame(frame)
+	EncounterPeril.register_if_peril(h.ctx, drawer_id, enc_id, true)
+
+
+func _test_rest_draw_action_blocked() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.forbid_draw_turn(&"inv_1"))
+	if not h.prepare_action_phase():
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var actions_before := inv.actions_remaining
+	var res := h.draw_action()
+	return (
+		not res.ok
+		and res.error == "restriction_forbid_draw"
+		and inv.actions_remaining == actions_before
+		and inv.hand.is_empty()
+	)
+
+
+func _test_peril_blocks_teammate_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_2", AhcEnums.SkillType.WILLPOWER
+	)
+	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_play")
+	var res := h.ctx.actions.play_card(&"inv_2", card_id)
+	return not res.ok and res.error == "restriction_forbid_play"
+
+
+func _test_peril_blocks_teammate_trigger() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_trig")
+	var intent := InitiationIntent.create(
+		&"inv_2",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), 1
+		)
+	)
+	if h.ctx.initiation.can_initiate(intent, h.ctx):
+		return false
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return not res.ok and res.error == "restriction_forbid_trigger"
+
+
+func _test_peril_drawer_play_trigger_ok() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER
+	)
+	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_drawer")
+	var play_res := h.ctx.actions.play_card(&"inv_1", card_id)
+	if not play_res.ok:
+		return false
+	var intent := InitiationIntent.create(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		)
+	)
+	return h.ctx.initiation.can_initiate(intent, h.ctx) and h.ctx.initiation.initiate(intent, h.ctx).ok
+
+
 func _test_st_apply_success() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
@@ -1425,6 +2284,9 @@ func _test_act_catalog_registered() -> bool:
 	var h := RuleTestHarness.new(42)
 	var catalog := h.ctx.sequence_catalog
 	var flows: Array[StringName] = [
+		&"seq.interrupt.cancel",
+		&"seq.interrupt.ignore",
+		&"seq.replace.instead",
 		&"seq.action.draw",
 		&"seq.action.gain_resource",
 		&"seq.action.move",

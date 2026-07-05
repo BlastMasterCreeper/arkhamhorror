@@ -527,6 +527,40 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 
 **规则序列多** → Register 时机多；**查询站点**仍按 §16.3–§16.5 **有限入口**扩展，而非每 seq 一步一查。
 
+### 16.8 Core 2026 回填（ArkhamDB · Phase 4）
+
+> **详表**：[`data/arkhamdb/reports/phase4_core_2026_backfill.md`](../../data/arkhamdb/reports/phase4_core_2026_backfill.md)  
+> **生成**：`python tools/backfill_design_tables.py`（依赖 `tools/arkhamdb_import.py` 产出）
+
+#### 16.8.1 MODIFIER（§16.3 增长）
+
+| 卡面模式 | Core 2026 命中 | 查询站 |
+|---|---:|---|
+| `+N [skill]` / fight / evade | 24 | **MOD-Q-SKILL**（已实现） |
+| `+N damage` | 11 | **MOD-Q-DAMAGE-AMT**（待 enum） |
+| `+N shroud` | 1 | **MOD-Q-SHROUD**（待 enum） |
+| `-N cost` | 0 | **MOD-Q-COST**（待 enum） |
+
+#### 16.8.2 RESTRICTION（§16.4.2 样例）
+
+| Intent 分类 | 张数 | 代表卡 |
+|---|---:|---|
+| `DOMAIN_PERMANENT` | 2 | 12012 The Necronomicon；12098 The Gold Bug |
+| `FORBID_PLAY` | 1 | 12193 Langour |
+| `FORBID_MOVE` | 1 | 12179 Elokoss（敌人指令 + 调查员禁移动） |
+| `IF_YOU_CANNOT` | 5 | 条件分支，**非** Register RESTRICTION |
+| `IMMUNITY` | 2 | 12169/12170 attached cannot be damaged |
+| 待人工 | 1 | 12179b cannot attack you（回合 scope） |
+
+#### 16.8.3 LISTENER（§16.5 增长）
+
+| 订阅线索 | Core 2026 命中 | 引擎路由 |
+|---|---:|---|
+| Hunter 关键词 | 13 | 敌人 phase · `hunter_patrol_move`（待接 LISTENER） |
+| Retaliate 关键词 | 9 | 攻击后 handler（见 08 §6） |
+| `After you discover clues` | 6 | `after_clue` → TimingBus 增长 |
+| `When investigation phase ends` | 4 | 框架步 AFTER |
+
 ---
 
 ## 17. StatProjection（历史谓词读模型）

@@ -1,0 +1,4 @@
+Upstream: C:\Users\12162\Documents\arkhamdb-json-data-master\arkhamdb-json-data-master
+Repository: https://github.com/Kamalisk/arkhamdb-json-data
+Synced packs (initial): core_2026, core_2026_encounter
+Synced date: 2026-07-06

@@ -1,0 +1,19 @@
+---
+description: Cancel 遭遇显现后 treachery 仍须进 encounter discard pile
+alwaysApply: true
+---
+
+# Cancel revelation · 遭遇牌仍 discard
+
+**已裁决（FAQ）**：遭遇 treachery 的 **显现效果被 Cancel** 时：
+
+- 该牌 **仍视为已 draw**（抽牌事务 / `ENCOUNTER_CARD_DRAWN` 已发生）。
+- 显现 **Card Ability 未 resolve**（无显现结算）。
+- **G4 强制步仍执行**：treachery 经 **`finalize_limbo_discard`**（仍 limbo → encounter discard pile）。
+
+**禁止**：
+
+- 把 Cancel revelation 译成「抽牌未发生」或跳过 G4 discard。
+- `seq.interrupt.cancel` @ `seq.encounter.revelation` 时 abort 父帧 `seq.draw.encounter`。
+
+**参考**：[07-effect-resolution §6.0.1](docs/design/07-effect-resolution.md)、[15-timing §17 G4](docs/design/15-timing-entry-catalog.md)、B-01。

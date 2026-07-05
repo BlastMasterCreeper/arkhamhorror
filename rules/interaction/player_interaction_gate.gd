@@ -24,13 +24,19 @@ func ask(request: ChoiceRequest, ctx: GameContext) -> Variant:
 	return picked
 
 
-func ask_use_ability(handler: Variant, controller_id: StringName, ctx: GameContext) -> bool:
+func ask_use_ability(
+	handler: Variant,
+	controller_id: StringName,
+	ctx: GameContext,
+	default_use: bool = false
+) -> bool:
 	var req: ChoiceRequest = ChoiceRequest.new()
 	req.kind = AhcEnums.ChoiceKind.USE_ABILITY
 	req.decider_id = controller_id
 	req.prompt_id = &"reaction:use"
 	req.options = [handler]
 	req.context = {"handler": handler}
+	req.default_index = 1 if default_use else 0
 	var pick: Variant = ask(req, ctx)
 	if pick is bool:
 		return pick

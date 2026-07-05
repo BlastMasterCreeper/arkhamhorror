@@ -15,6 +15,12 @@ var to_slot: CardSlot = null
 var marker_slot: MarkerSlot = null
 var register_template: RegistrationTemplate = null
 var provenance: AbilityUnitRef = null
+var pending_id: StringName = &""
+var effect_request: EffectRequest = null
+var source_ability_id: StringName = &""
+var interrupt_mode: StringName = &""
+var interrupt_target: InterruptTarget = null
+var replace_target: ReplacementTarget = null
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -126,6 +132,24 @@ static func commit_enter_hand(card_id: StringName, inv_id: StringName) -> Compos
 	return n
 
 
+## L0 · treachery/asset 弱点进入威胁区（从 limbo / hand）。
+static func enter_threat_area(card_id: StringName, inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"enter_threat_area"
+	n.card_id = card_id
+	n.inv_id = inv_id
+	return n
+
+
+static func lose_all_resources(inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"lose_all_resources"
+	n.inv_id = inv_id
+	return n
+
+
 ## L0 · 隐私（Hidden）暴露显现（清 is_hidden + ALL；须先于 spawn_encounter_enemy）。
 static func expose_hidden(card_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
@@ -159,4 +183,71 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.REGISTER
 	n.register_template = template
+	return n
+
+
+## L2 · 统一打断节点（07 §6.0：Cancel / Ignore 均 nest seq.interrupt.* 或本节点）。
+static func interrupt(mode: StringName, target: InterruptTarget) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"interrupt"
+	n.interrupt_mode = mode
+	n.interrupt_target = target
+	if target != null and target.pending_id != &"":
+		n.pending_id = target.pending_id
+	return n
+
+
+static func interrupt_cancel(target: InterruptTarget) -> CompositionNode:
+	return interrupt(&"cancel", target)
+
+
+static func interrupt_ignore(target: InterruptTarget) -> CompositionNode:
+	return interrupt(&"ignore", target)
+
+
+## 竖切占位：等价 interrupt_cancel(InterruptTarget.pending_impact(...))。
+static func cancel_pending(pending_id: StringName) -> CompositionNode:
+	return interrupt_cancel(InterruptTarget.pending_impact(pending_id))
+
+
+## 竖切占位：等价 interrupt_ignore(InterruptTarget.pending_impact(...))。
+static func ignore_pending(pending_id: StringName) -> CompositionNode:
+	return interrupt_ignore(InterruptTarget.pending_impact(pending_id))
+
+
+## L2 · 统一 Instead 节点（07 §7.0：nest seq.replace.instead 或本节点）。
+static func replace_instead(
+	target: ReplacementTarget,
+	replacement: EffectRequest,
+	source_ability_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"replace_instead"
+	n.replace_target = target
+	n.effect_request = replacement
+	n.source_ability_id = source_ability_id
+	if target != null and target.pending_id != &"":
+		n.pending_id = target.pending_id
+	return n
+
+
+## 竖切占位：等价 replace_instead(ReplacementTarget.pending(...), ...)。
+static func replace_pending(
+	pending_id: StringName,
+	replacement: EffectRequest,
+	source_ability_id: StringName = &""
+) -> CompositionNode:
+	return replace_instead(
+		ReplacementTarget.pending(pending_id), replacement, source_ability_id
+	)
+
+
+## L2 · Resolve pending（Cancel / Replacement 窗口结束后执行）。
+static func resolve_pending(pending_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"resolve_pending"
+	n.pending_id = pending_id
 	return n

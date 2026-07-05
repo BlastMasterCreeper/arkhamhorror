@@ -51,6 +51,13 @@ func get_location(location_id: StringName) -> LocationState:
 	return _locations.get(location_id) as LocationState
 
 
+func all_location_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for k in _locations.keys():
+		ids.append(k)
+	return ids
+
+
 func register_enemy(state: EnemyState) -> void:
 	_enemies[state.id] = state
 
