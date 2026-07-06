@@ -188,7 +188,6 @@ class ScenarioSystem:
 | OQ-10-02 | P1 | Objective must advance 无 window — 自动 advance 还是暂停提示？ |
 | OQ-10-03 | P1 | Agenda 非 1.3 advance（卡牌 explicit）— 框架如何插入 ad-hoc advance 步？ |
 | OQ-10-05 | P1 | Act b side 变 Enemy — 是否立即 spawn 还是入 encounter 区？ |
-| OQ-10-06 | P2 | Forbidden Secrets surge 条件 — 引擎 evaluate 时机在 revelation 前还是后？ |
 
 ### 已裁决
 
@@ -196,6 +195,7 @@ class ScenarioSystem:
 |---|---|---|
 | OQ-10-01 | Setup 1–13 **不结算显现** → **无 Setup surge 链**（原场景不存在）。若有 setup 显现/涌动，仅在 **Setup 14「When the game begins」** 结算。见 §2.1。 | 2026-05-25 |
 | OQ-10-04 | **collect 立即洗**；嵌套效果内 deck 抽空 → **defer shuffle 至子树 pop 后**。见 [15 §17.11](15-timing-entry-catalog.md)。 | 2026-06-18 |
+| OQ-10-06 | **涌动不叠加**；动态 `gains surge` = KEYWORD 标记 Register · `WHILE_DRAWN_CARD_RESOLVING(card_id)`；12126 在 **G3 入口**判 clue 分支。见 [15 §17.4.5](15-timing-entry-catalog.md)、[06 §3.1](06-registration-buff-model.md)。 | 2026-07-06 |
 
 ---
 
@@ -208,3 +208,4 @@ class ScenarioSystem:
 | 2026-06-18 | v0.3 | §2 对齐 [15 §17](15-timing-entry-catalog.md) SequenceCatalog 映射；ENC-01～04 |
 | 2026-06-18 | v0.3.1 | E5 enemy spawn 术语：`spawn_engaged` vs `auto_engage_at_location`（15 §17.4.1 / 08 §7） |
 | 2026-06-18 | v0.3.2 | `resolve_card` 共享子 flow；E5 dispatch / Hidden / Treachery（15 §17.4–12） |
+| 2026-07-06 | v0.3.3 | OQ-10-06 裁决：涌动 KEYWORD 标记 · 不叠加（15 §17.4.5） |

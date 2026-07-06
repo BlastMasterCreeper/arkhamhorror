@@ -5,6 +5,7 @@ var type: AhcEnums.BuffType = AhcEnums.BuffType.MODIFIER
 var modifier: ModifierPayload = null
 var restriction: RestrictionPayload = null
 var listener: ListenerPayload = null
+var keyword: StringName = &""
 
 
 static func modifier_buff(payload: ModifierPayload) -> BuffSpec:
@@ -25,4 +26,11 @@ static func listener_buff(payload: ListenerPayload) -> BuffSpec:
 	var b := BuffSpec.new()
 	b.type = AhcEnums.BuffType.LISTENER
 	b.listener = payload
+	return b
+
+
+static func keyword_buff(keyword: StringName) -> BuffSpec:
+	var b := BuffSpec.new()
+	b.type = AhcEnums.BuffType.KEYWORD
+	b.keyword = keyword
 	return b

@@ -79,6 +79,9 @@ func _initialize() -> void:
 	_run_test("ENC-08 prey lowest agility", _test_enc_prey_lowest_agility)
 	_run_test("ENC-09 surge chain two treacheries", _test_enc_surge_chain)
 	_run_test("ENC-10 peril surge clears before second card", _test_enc_peril_surge_not_sticky)
+	_run_test("ENC-SURGE-02 dynamic keyword surge chain", _test_enc_surge_dynamic_keyword)
+	_run_test("ENC-SURGE-03 gained surge survives g4 peril unregister", _test_enc_surge_keyword_survives_g4)
+	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -1402,6 +1405,58 @@ func _test_enc_peril_surge_not_sticky() -> bool:
 		and not h.ctx.registrations.has_peril_for_drawn_card(first)
 		and not h.ctx.registrations.has_peril_for_drawn_card(second)
 	)
+
+
+func _test_enc_surge_dynamic_keyword() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"enc_dyn_surge", {"card_type": &"treachery"})
+	CardRegistry.register_revelation(
+		&"enc_dyn_surge",
+		&"revelation:0",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.grant_keyword(bind.card_id, &"surge")
+	)
+	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_dyn_surge", [])
+	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_b", [])
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var cards: Array = res.get("cards", [])
+	return (
+		cards.size() == 2
+		and cards[0] == first
+		and cards[1] == second
+		and int(res.get("surge_depth", 0)) == 1
+		and h.ctx.registrations.count() == 0
+	)
+
+
+func _test_enc_surge_keyword_survives_g4() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_surge", [])
+	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
+	EncounterGainedKeyword.register_surge(h.ctx, card_id)
+	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+		return false
+	EncounterPeril.unregister_for_card(h.ctx, card_id)
+	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+		return false
+	var tail := DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
+	return (
+		bool(tail.get("should_surge", false))
+		and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	)
+
+
+func _test_gain_effective_keyword() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_surge", [&"surge"])
+	var card := h.ctx.state.registry.get_card(card_id)
+	var def_id := card.id.definition_id
+	if not EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge"):
+		return false
+	EncounterGainedKeyword.register_surge(h.ctx, card_id)
+	return EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge")
 
 
 func _test_enc_revelation_nest() -> bool:

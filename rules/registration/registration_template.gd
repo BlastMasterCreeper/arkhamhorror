@@ -77,6 +77,19 @@ static func hidden_in_hand(controller_id: StringName, card_id: StringName) -> Re
 	return t
 
 
+## G3 动态 keyword · `WHILE_DRAWN_CARD_RESOLVING(card_id)` — G5 evaluate 后 Unregister；G4 peril 不清除。
+static func gained_keyword_drawn_card_resolving(
+	card_id: StringName,
+	keyword: StringName
+) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
+	t.drawn_card_id = card_id
+	t.buffs.append(BuffSpec.keyword_buff(keyword))
+	return t
+
+
 ## @deprecated 使用 peril_drawn_card_resolving
 static func peril_encounter_frame(drawer_id: StringName, frame_id: StringName) -> RegistrationTemplate:
 	return peril_drawn_card_resolving(drawer_id, frame_id)

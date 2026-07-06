@@ -53,6 +53,8 @@ static func build_composition(
 			return CompositionNode.lose_all_resources(bind.controller_id)
 		"enter_threat_area":
 			return CompositionNode.enter_threat_area(bind.card_id, bind.controller_id)
+		"grant_surge":
+			return CompositionNode.grant_keyword(bind.card_id, &"surge")
 	return null
 
 

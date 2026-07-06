@@ -257,7 +257,7 @@ resolve_card_body（时间线相近）
 | **显现 Forced** | Composition | **90** `REVELATION_FORCED` | G3 | 同 timing |
 | **G4 类型落点** | L0 Composition | **80** `ENCOUNTER_TYPE_RESOLVE` | G4 | 见下表；**含** 敌人进场 + treachery discard |
 | emit **AFTER(card)** | — | **75** | After draw | G4 后、Surge **前** |
-| **Surge 再抽** | keyword flow | **70** `SURGE_KEYWORD` | G5 | evaluate `has_surge`（含 E4 赋予） |
+| **Surge 再抽** | keyword flow | **70** `SURGE_KEYWORD` | G5 | evaluate 印刷 **或** 动态 KEYWORD 标记（**不叠加**）· 见 [§17.4.5](#1745-涌动surge--已裁决) |
 
 **Priority 80 · G4 分支**（同一 dequeue 档；**非** 独立 timing）：
 
@@ -831,7 +831,7 @@ func reveal_encounter_drawn(card_id: StringName) -> void:
 | **G2 Check peril** | **E3** nest Register RESTRICTION | **紧接 G1**，在 G3 **之前**（Framework step 2） |
 | **G3 Revelation** | **E4** nest `seq.encounter.revelation` | treachery 在 **limbo**（暂存区）结算 |
 | **G4 Spawn / discard** | **E5** nest spawn / 内联 discard | 二分，非并行 |
-| **G5 Surge** | **E6** nest（evaluate + 再抽 → E1） | **G4 全部完成后**；含 E4 动态赋予 surge |
+| **G5 Surge** | **E6** nest（evaluate + 再抽 → E1） | **G4 全部完成后**；印刷 surge **或** G3 动态 KEYWORD 标记（不叠加） |
 | — | **E7** pop 帧 + 外层 AFTER | 整链 Surge + 批量 `amount` 完成后 |
 
 ```text
@@ -1214,6 +1214,31 @@ func reveal_encounter_step(card_id: StringName, drawer_id: StringName) -> void:
 
 Surge **不**合并多张牌的 AFTER；每张 **独立** AFTER，均在 **G5 再抽 G1 之前**。
 
+### 17.4.5 涌动（Surge）· 已裁决
+
+**涌动不叠加**；动态 `gains surge` = **KEYWORD 标记 Register**，生命周期 **`WHILE_DRAWN_CARD_RESOLVING(card_id)`**，G5 与印刷 surge **同等生效**（合并 OR，至多再抽 1 张）。详 [06 §3.1–3.2](06-registration-buff-model.md#32-gained-characteristics动态特征--总纲--已裁决)。
+
+```text
+G3 revelation:
+  · 效果步「X gains surge」→ Register KEYWORD(surge) on card_id
+  · 12126：G3 入口 clue==0 → Register + 跳过 intellect 分支
+  · 12124：仅玩家选「伤害+horror」分支时 Register（无印刷 surge）
+
+G5 priority 70:
+  should_surge = CardRegistry.has_surge(def_id)
+              OR RegistrationStore.has_keyword_buff(card_id, &"surge")
+  if should_surge: 再抽 G1（同帧 surge_depth++）
+  Unregister KEYWORD(surge) for card_id   # 动态标记；印刷 surge 不 Register
+```
+
+| 卡码 | 印刷 Surge | 动态 surge | G5 结果 |
+|---|---|---|---|
+| 12126 Forbidden Secrets | 是 | 无 clue 时 G3 Register（与印刷合并） | 至多 1 次再抽 |
+| 12124 Cosmic Evils | 否 | 选伤害分支时 G3 Register | 该分支下再抽 1 张 |
+| 12160 / 12163 | 是 | — | 再抽 1 张 |
+
+**测试**：ENC-SURGE-01（印刷）；ENC-SURGE-02（12124 两分支）；ENC-SURGE-03（12126 有/无 clue）。
+
 **Timing emit（目标，待 TimingCatalog）**：
 
 ```text
@@ -1536,7 +1561,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | **Spawn 指令**（已编译） | 1 | 12099 Farthest empty location |
 | **Prey 指令**（已编译） | 3 | 12009 Trish only；12114 lowest agility；12164 most resources |
 
-**测试 fixture 建议**：上表卡码作 ENC/PERIL/Hidden 回归用例；动态 surge（12126 无 clue）见 OQ-ADB-03。
+**测试 fixture 建议**：上表卡码作 ENC/PERIL/Hidden 回归用例；12126 / 12124 动态 surge 见 [§17.4.5](#1745-涌动surge--已裁决)。
 
 ---
 
@@ -1663,4 +1688,6 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-06-18 | v0.5 | **§17.4** `resolve_card` 共享子 flow；§17.4.2–4 Treachery/Hidden/Surge；§17.8–12 Composition/Flow/Trigger/shuffle/CardAbility；ENC-13～15；OQ-10-04 |
 | 2026-06-18 | v0.6 | **§4** 砖块 G0–G3；**③ AtomRevealCard**（Grimoire Reveal）；小序列 = 砖块拼成 |
 | 2026-06-18 | v0.5.1 | **§17.6.1–3** Weakness 全 cardtype 路由（asset/event/skill vs enemy/treachery）；WKN-01～04；对齐 [11 §10](11-investigator-campaign.md) |
+| 2026-07-06 | v0.6.3 | 链 [06 §3.2](../../docs/design/06-registration-buff-model.md#32-gained-characteristics动态特征--总纲--已裁决) Gained characteristics |
+| 2026-07-06 | v0.6.2 | **§17.4.5** 涌动 KEYWORD 标记 · 不叠加；OQ-ADB-02/03、OQ-10-06 |
 | 2026-06-18 | v0.6.1 | **§17.4.1c** Prey **engage 内核**读参；禁止 nest/LISTENER；对齐 [07 §0.1.2](07-effect-primitives.md) |

@@ -54,6 +54,65 @@ AFTER_TRIGGERS = [
     ("after_phase", re.compile(r"When (?:the )?investigation phase ends", re.I)),
 ]
 
+GAINED_CHARACTERISTIC_PATTERNS: list[tuple[str, re.Pattern[str], str, str]] = [
+    (
+        "keyword_surge",
+        re.compile(r"gains\s+surge", re.I),
+        "KEYWORD",
+        "WHILE_DRAWN_CARD_RESOLVING · §06 3.1",
+    ),
+    (
+        "keyword_other",
+        re.compile(r"gains\s+(?:the\s+)?(peril|retaliate|hunter|aloof|massive|fast)\b", re.I),
+        "KEYWORD",
+        "按 keyword consumer · P2",
+    ),
+    (
+        "ability_action",
+        re.compile(r"gains\s*:?\s*(\[action\]|\[reaction\]|\[free\])", re.I),
+        "ABILITY",
+        "LISTENER + AbilitySpec · P1",
+    ),
+    (
+        "ability_forced",
+        re.compile(r"gains\s+[^.]{0,120}\bForced\b", re.I),
+        "ABILITY",
+        "LISTENER · Forced 文本",
+    ),
+    (
+        "trait",
+        re.compile(r"gains?\s+the?\s*(\[\[[^\]]+\]\]|\w+)\s+trait", re.I),
+        "TRAIT",
+        "TRAIT 标记 · P2",
+    ),
+    (
+        "icon",
+        re.compile(r"gains?\s+\[(willpower|intellect|combat|agility|wild)\]", re.I),
+        "ICON",
+        "MODIFIER / ICON · THIS_SKILL_TEST",
+    ),
+    (
+        "until_eot_ability",
+        re.compile(
+            r"until end of (?:your )?turn[^.]{0,100}(\[action\]|\[reaction\]|\[free\]|Forced)",
+            re.I,
+        ),
+        "ABILITY",
+        "DURATION(THIS_TURN) · P1",
+    ),
+    (
+        "deckbuilding_meta",
+        re.compile(r"Deckbuilding Options gains", re.I),
+        "META",
+        "构筑元数据 · 非运行时 characteristic",
+    ),
+]
+
+NOT_CHARACTERISTIC_PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
+    ("gain_resources", re.compile(r"\bgain\s+\d+\s+resource", re.I), "L0 资源原语"),
+    ("gain_action", re.compile(r"\bgain\s+(?:an?\s+)?action\b", re.I), "L0 行动原语"),
+]
+
 
 def plain(text: str) -> str:
     return STRIP_HTML.sub("", text or "").strip()
@@ -205,6 +264,73 @@ def template_selection(cards: list[dict[str, Any]]) -> dict[str, list[str]]:
     return {"template_full": template, "template_partial": partial, "script_needed": script}
 
 
+def card_text_blob(c: dict[str, Any]) -> str:
+    parts = [plain(c.get("text", "")), plain(c.get("back_text", ""))]
+    for seg in c.get("ability_segments") or []:
+        parts.append(plain(seg.get("body", "")))
+    return "\n".join(p for p in parts if p)
+
+
+def analyze_gained_characteristics(cards: list[dict[str, Any]]) -> tuple[str, dict[str, list[str]]]:
+    by_pattern: dict[str, list[str]] = defaultdict(list)
+    not_char: dict[str, list[str]] = defaultdict(list)
+    for c in cards:
+        text = card_text_blob(c)
+        ref = card_ref(c)
+        matched_char = False
+        for key, pat, _kind, _route in GAINED_CHARACTERISTIC_PATTERNS:
+            if pat.search(text):
+                by_pattern[key].append(ref)
+                matched_char = True
+        for key, pat, _route in NOT_CHARACTERISTIC_PATTERNS:
+            if pat.search(text):
+                not_char[key].append(ref)
+    lines = [
+        "# Core 2026 · Gained characteristics 统计",
+        "",
+        "数据源：`data/arkhamdb/imported/core_2026*.json`。",
+        "设计总纲：[06 §3.2](../../docs/design/06-registration-buff-model.md#32-gained-characteristics动态特征--总纲--已裁决)。",
+        "",
+        f"卡牌数：**{len(cards)}**（两包合计）。",
+        "",
+        "## 1. Characteristic 模式（Grimoire *gains a characteristic*）",
+        "",
+        "| 模式 | 命中 | Kind | 路由 | 卡清单 |",
+        "|---|---:|---|---|---|",
+    ]
+    for key, pat, kind, route in GAINED_CHARACTERISTIC_PATTERNS:
+        refs = by_pattern.get(key, [])
+        lines.append(
+            f"| `{key}` | {len(refs)} | {kind} | {route} | {'; '.join(refs) or '—'} |"
+        )
+    lines += [
+        "",
+        "## 2. 非 characteristic（勿误入 Gained 层）",
+        "",
+        "| 模式 | 命中 | 路由 | 卡清单 |",
+        "|---|---:|---|---|",
+    ]
+    for key, _pat, route in NOT_CHARACTERISTIC_PATTERNS:
+        refs = not_char.get(key, [])
+        ref_cell = "; ".join(refs[:8]) or "—"
+        if len(refs) > 8:
+            ref_cell += f" … +{len(refs) - 8} more"
+        lines.append(f"| `{key}` | {len(refs)} | {route} | {ref_cell} |")
+    lines += [
+        "",
+        "## 3. 实现优先级（Core 2026）",
+        "",
+        "| 优先级 | 内容 | 卡例 |",
+        "|---|---|---|",
+        "| **P0** | `has_effective_keyword` + Surge KEYWORD Register | 12124, 12126, 12160 |",
+        "| **P1** | until EOT + `[action]` / `[reaction]`（扩展包为主） | Core 2026：**0** |",
+        "| **P2** | trait / icon / 其它 keyword gains | Core 2026：**0** |",
+        "| — | Deckbuilding Options gains | 12181 Collector（META） |",
+        "",
+    ]
+    return "\n".join(lines), dict(by_pattern)
+
+
 def render_markdown(cards: list[dict[str, Any]]) -> str:
     mod_counts, mod_examples = modifier_hits(cards)
     cannot_rows = classify_cannot(cards)
@@ -320,15 +446,17 @@ def render_markdown(cards: list[dict[str, Any]]) -> str:
     lines += [f"- {r}" for r in selection["script_needed"][:20]] or ["- —"]
     lines += [
         "",
-        "## 6. 卡面驱动 open questions（新增线索）",
+        "## 6. 卡面驱动 open questions",
         "",
         "| ID | 来源卡 | 说明 |",
         "|---|---|---|",
         "| OQ-ADB-01 | 12099 The Nameless Lurker | Farthest empty spawn — blocked path 见 OQ-09-04 |",
-        "| OQ-ADB-02 | 12124 Cosmic Evils | Peril + 动态 surge 赋予 — evaluate 时机 |",
-        "| OQ-ADB-03 | 12126 Forbidden Secrets | 无 clue 时 gains surge — revelation 前/后 |",
         "| OQ-ADB-04 | 12012 The Necronomicon | cannot leave play + threat area — Permanent 混合 |",
         "| OQ-ADB-05 | 12179b Elokoss | Hidden enemy + spawn 分支 — ENC-22/23 已测 |",
+        "",
+        "**已裁决**：OQ-ADB-02/03（涌动）— 见 [06 §3.1–3.2](../../docs/design/06-registration-buff-model.md#31-涌动surge--已裁决)。",
+        "",
+        "Gained characteristics 统计：[`core_2026_gained_characteristics.md`](core_2026_gained_characteristics.md)。",
         "",
     ]
     return "\n".join(lines)
@@ -341,7 +469,11 @@ def main() -> None:
     REPORTS.mkdir(parents=True, exist_ok=True)
     out = REPORTS / "phase4_core_2026_backfill.md"
     out.write_text(render_markdown(cards), encoding="utf-8")
+    gained_md, _ = analyze_gained_characteristics(cards)
+    gained_out = REPORTS / "core_2026_gained_characteristics.md"
+    gained_out.write_text(gained_md, encoding="utf-8")
     print(f"Wrote {out.relative_to(ROOT)} ({len(cards)} cards)")
+    print(f"Wrote {gained_out.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

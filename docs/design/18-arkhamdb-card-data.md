@@ -163,6 +163,8 @@ python tools/analyze_arkhamdb_cards.py
 
 **运行**：`python tools/arkhamdb_import.py` → `python tools/backfill_design_tables.py`
 
+Gained characteristics 统计：[`core_2026_gained_characteristics.md`](../data/arkhamdb/reports/core_2026_gained_characteristics.md) · 设计 [06 §3.2–3.2.4](06-registration-buff-model.md#324-keywordprofile挂载-vs-表征-vs-消费已裁决)
+
 ### Phase 5 — 扩展包（P2+）
 
 - [ ] `rcore` / `dwl` / … 按 cycle 同步
@@ -189,6 +191,7 @@ python tools/analyze_arkhamdb_cards.py
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-07-06 | v0.5 | Phase 4 完成 + Gained characteristics 报告（06 §3.2） |
 | 2026-07-06 | v0.4 | Phase 4：设计表回填报告 + 06/12/15/OQ 同步 |
 | 2026-07-06 | v0.3 | Phase 3：能力分段、模板编译、ADB-14～17 |
 | 2026-07-06 | v0.2 | Phase 2：关键词回填、Spawn/Prey 编译、ADB-07～13 |

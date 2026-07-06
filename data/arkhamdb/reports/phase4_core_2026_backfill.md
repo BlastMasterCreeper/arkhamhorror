@@ -106,12 +106,14 @@
 - 12033 Local Map
 - 12035 Sharp Rhetoric
 
-## 6. 卡面驱动 open questions（新增线索）
+## 6. 卡面驱动 open questions
 
 | ID | 来源卡 | 说明 |
 |---|---|---|
 | OQ-ADB-01 | 12099 The Nameless Lurker | Farthest empty spawn — blocked path 见 OQ-09-04 |
-| OQ-ADB-02 | 12124 Cosmic Evils | Peril + 动态 surge 赋予 — evaluate 时机 |
-| OQ-ADB-03 | 12126 Forbidden Secrets | 无 clue 时 gains surge — revelation 前/后 |
 | OQ-ADB-04 | 12012 The Necronomicon | cannot leave play + threat area — Permanent 混合 |
 | OQ-ADB-05 | 12179b Elokoss | Hidden enemy + spawn 分支 — ENC-22/23 已测 |
+
+**已裁决**：OQ-ADB-02/03（涌动）— 见 [06 §3.1–3.2](../../docs/design/06-registration-buff-model.md#31-涌动surge--已裁决)。
+
+Gained characteristics 统计：[`core_2026_gained_characteristics.md`](core_2026_gained_characteristics.md)。

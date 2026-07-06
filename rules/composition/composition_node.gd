@@ -186,6 +186,11 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 	return n
 
 
+## L0 · 动态 keyword（06 §3.2 · G3 gains surge 等）。
+static func grant_keyword(card_id: StringName, keyword: StringName) -> CompositionNode:
+	return register(RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword))
+
+
 ## L2 · 统一打断节点（07 §6.0：Cancel / Ignore 均 nest seq.interrupt.* 或本节点）。
 static func interrupt(mode: StringName, target: InterruptTarget) -> CompositionNode:
 	var n := CompositionNode.new()

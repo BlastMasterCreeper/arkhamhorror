@@ -298,9 +298,14 @@ static func _step_after_card(ctx: Dictionary) -> void:
 
 
 static func _step_surge_eval(ctx: Dictionary) -> void:
+	var game_ctx: GameContext = ctx.get("game_ctx")
+	var card_id: StringName = ctx.get("card_id", &"")
 	var def_id: StringName = ctx.get("def_id", &"")
 	var outcome: Dictionary = ctx.get("outcome", {})
-	outcome["should_surge"] = CardRegistry.has_keyword(def_id, &"surge")
+	outcome["should_surge"] = EffectiveCharacteristicQuery.has_effective_keyword(
+		game_ctx, card_id, def_id, &"surge"
+	)
+	EncounterGainedKeyword.unregister_for_card(game_ctx, card_id)
 
 
 static func _definition_id(game_ctx: GameContext, card_id: StringName) -> StringName:

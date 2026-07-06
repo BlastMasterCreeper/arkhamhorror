@@ -278,7 +278,7 @@ enum RestrictionKind {
 	FORBID_LEAVE_HAND,
 }
 
-enum BuffType { MODIFIER, RESTRICTION, LISTENER }
+enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }
 
 enum CompositionNodeKind { SEQ, ATOM, REGISTER }
 

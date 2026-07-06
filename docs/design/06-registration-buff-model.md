@@ -58,9 +58,197 @@ enum BuffType {
 
 | 非 Buff 机制 | 实现方式 |
 |---|---|
-| Surge、Peril、Aloof、Massive 等 **关键词** | `CardDefinition.keywords` + 编译为 MODIFIER/RESTRICTION/LISTENER |
+| Surge（**印刷**） | `CardDefinition.keywords` 含 `surge` |
+| Surge（**动态** `gains surge`） | G3 内 Register **KEYWORD 标记** · `WHILE_DRAWN_CARD_RESOLVING(card_id)`；G5 与印刷合并 evaluate，**不叠加**（见 §3.1、[15 §17.4.5](15-timing-entry-catalog.md)） |
+| Peril、Aloof、Massive 等其它 **关键词** | `CardDefinition.keywords` + 编译为 MODIFIER/RESTRICTION/LISTENER |
 | Cancel / Replacement | [07-composition](07-composition.md) 的 `CancelPending` / `ReplacePending` 节点 |
 | Skill Test / Encounter 帧 | `SkillTestContext` 字段 + 子系统读 Context |
+
+### 3.1 涌动（Surge）· 已裁决
+
+**涌动不叠加**：印刷 `surge` 与 G3 内「gains surge」动态赋予 **至多触发一次** G5 再抽（再抽 1 张，非 2 张）。
+
+| 来源 | 引擎表示 | G5 evaluate |
+|---|---|---|
+| 牌面印刷 **Surge** | `CardDefinition.keywords` | `CardRegistry.has_surge(def_id)` |
+| 效果 **gains surge** | Register **KEYWORD 标记**（无 Composition payload） | `RegistrationStore.has_keyword_buff(card_id, &"surge")` |
+
+**动态 surge 生命周期**：**`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — 与本张遭遇 **结算期间** 绑定（G1 bind 起至 G5 evaluate 完成）；与险境 peril 同型 **不跨 Surge**（下一张 G1 无上一张 surge 标记）。
+
+**G3 内 Register 时机**：显现 composition 执行到「gains surge」效果步时 Register；**12124 Cosmic Evils** 仅在选择「受伤害+horror」分支时 Register；**12126 Forbidden Secrets** 在 G3 **入口**判定 `clue == 0` 时 Register 并 **跳过** intellect 分支（与印刷 surge 合并后仍只 surge 一次）。
+
+**G5**：priority **70** — `should_surge = printed OR dynamic` → 若 true 再抽 G1 → **Unregister** 本张 `card_id` 的动态 surge 标记。
+
+### 3.2 Gained characteristics（动态特征 · 总纲 · 已裁决）
+
+> **Grimoire**：*If a card gains a characteristic (such as an icon, a trait, a keyword, or ability text), the card functions as if it possesses the gained characteristic.*  
+> **Gained ≠ printed** — 能力若指「印刷特征」，**不**含 gained；引擎查询须区分 `is_printed_*` 与 `has_effective_*`。
+
+**整合原则（已裁决）**：
+
+1. **Grant / Revoke 入口统一** — Composition L0 `EffectOp.GRANT_CHARACTERISTIC` / `REVOKE_CHARACTERISTIC`（或等价 Register 节点），带 `LifetimeSpec` + `source`。
+2. **存储按 kind 分路由** — 不合并 handler；Surge 仍 G5、Retaliate 仍 fight 后、Initiation 仍 COLLECT 能力。
+3. **查询统一** — `EffectiveCharacteristicQuery`（或 RegistrationStore 门面）：`has_effective_keyword` / `has_effective_trait` / `effective_abilities` / `effective_skill_icons` = **印刷 ∪ gained**（按 kind 叠加规则）。
+
+```text
+EffectOp.GRANT_CHARACTERISTIC
+  target: card_id | investigator_id
+  kind: KEYWORD | TRAIT | ICON | ABILITY
+  payload: &"surge" | trait_id | icon | AbilitySpec ref
+  lifetime: WHILE_DRAWN_CARD_RESOLVING | DURATION(THIS_TURN) | …
+        │
+        ├─ KEYWORD  → KEYWORD 标记 Register（无 Composition；§3.1 Surge 为首例）
+        ├─ TRAIT    → TRAIT 标记 Register 或 CardInstance overlay
+        ├─ ICON     → MODIFIER Register（常为 THIS_SKILL_TEST）或 ICON 标记
+        └─ ABILITY  → LISTENER Register + AbilitySpec（until end of turn 等）
+        │
+        ▼
+Effective* 查询 @ 各 consumer（G5 / Initiation / SkillTest / Target）
+```
+
+#### 3.2.1 Kind 路由与叠加
+
+| Kind | 典型卡面 | 存储 | 生命周期常见 | 叠加 |
+|---|---|---|---|---|
+| **KEYWORD** | gains surge / gains Retaliate | KEYWORD 标记 Register | `WHILE_DRAWN_CARD_RESOLVING` 或 `WHILE_IN_PLAY` | **按 keyword 定**（Surge **不叠加**，§3.1） |
+| **ABILITY** | gains: `[action]` … until end of turn | `LISTENER` + `AbilitySpec` | `DURATION(THIS_TURN)` / `THIS_PHASE` | 多条并存；各 Limit 独立 |
+| **TRAIT** | gains the [[Cultist]] trait | TRAIT 标记 Register | 与 granting 效果同 lifetime | trait 集合 **union** |
+| **ICON** | gains [wild]（检定中） | MODIFIER 或 ICON 标记 | `THIS_SKILL_TEST` | 与印刷图标 union |
+| **数值** | gets +1 fight | 现有 **MODIFIER** Register | turn / phase / test | ModifierEngine 合并 |
+
+**非本表（非 characteristic）**：`gain N resource` / `gain an action` = 资源/行动 **状态原语**，不走 Gained characteristics。
+
+#### 3.2.2 查询 API（目标 · P0 竖切）
+
+```gdscript
+class EffectiveCharacteristicQuery:
+    static func has_effective_keyword(card_id: StringName, kw: StringName) -> bool:
+        # printed(definition_id) OR RegistrationStore.has_keyword_buff(card_id, kw)
+
+    static func has_printed_keyword(def_id: StringName, kw: StringName) -> bool:
+        return CardRegistry.has_keyword(def_id, kw)
+
+    static func effective_abilities(card_id: StringName) -> Array[AbilitySpec]:
+        # printed_abilities + gained LISTENER 展开（Initiation COLLECT）
+
+    static func effective_traits(card_id: StringName) -> Array[StringName]:
+        # CardDefinition.traits ∪ gained traits
+```
+
+**P0 竖切**：`has_effective_keyword` + Surge KEYWORD Register/UnRegister · **`draw_encounter_flow` G5** ✅（`EffectiveCharacteristicQuery` · `EncounterGainedKeyword` · ENC-SURGE-02/03 · GAIN-01）
+
+**P1**：until end of turn 的 `[action]` / `[reaction]` → `GRANT ABILITY` + LISTENER。  
+**P2**：trait / icon / 其它 keyword（Retaliate、Aloof…）按扩展包卡面增量。
+
+#### 3.2.3 Core 2026 卡面统计
+
+> 详表：[`data/arkhamdb/reports/core_2026_gained_characteristics.md`](../../data/arkhamdb/reports/core_2026_gained_characteristics.md)（`python tools/backfill_design_tables.py`）
+
+| 模式 | 命中 | 引擎路由 | 备注 |
+|---|---:|---|---|
+| `gains surge` | 3 | KEYWORD · §3.1 | 12124 / 12126 / 12160 |
+| `Deckbuilding Options gains` | 1 | **构筑元数据** · 非运行时 | 12181 Collector |
+| `gain N resource(s)` | 9 | L0 资源原语 | 非 characteristic |
+| until EOT + `[action]` 等 | 0 | ABILITY · P1 | Core 2026 无；扩展包再扫 |
+
+#### 3.2.4 KeywordProfile：挂载 vs 表征 vs 消费（已裁决）
+
+> **问题**：Listener **何时触发**由 [15 TimingCatalog](15-timing-entry-catalog.md) 的 emit 决定；**关键词本身何时挂载**是另一维度，**不能**统一为「抽取遭遇牌时 Register」。  
+> **架构背景**：Grimoire G2–G5 已收成 **`ENCOUNTER_CARD_DRAWN` + FrameworkPriority**（15 §4.0.5.2）；keyword 译法见 [07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述) 三档（① Spec / ② 砖块 / ③ 编译订阅）。
+
+**三层（勿混为一步 Register）**：
+
+| 层 | 问什么 | 与 Listener 的关系 |
+|---|---|---|
+| **① 挂载 mount** | 规则上从何时起 **算拥有** keyword？ | 可 **早于** Listener 首次触发（Hunter） |
+| **② 表征 representation** | 引擎如何存「有」？ | Listener 是表征之一，非全部 |
+| **③ 消费 consume** | 哪个 handler **读**并执行？ | 含 **纯查询**（Surge G5）与 **LISTENER fire** |
+
+```text
+mount_moment     = 规则要求 card 最早具备 keyword 的 instant
+representation   = DEFINITION | KEYWORD_BUFF | RESTRICTION | LISTENER
+unmount_moment   = 规则上不再具备 / 引擎卸表征
+consumer_slot    = 读 effective 并做事的站点（可与 mount 不同步）
+listener_trigger = 若表征含 LISTENER，Catalog emit 名（无则 —）
+```
+
+**`mount_moment` 枚举（增长表用）**：
+
+| 值 | 含义 | 典型 |
+|---|---|---|
+| `AT_PRINT` | 印刷在 `CardDefinition.keywords`；实例存活期有效 | Surge、Aloof 印刷 |
+| `LAZY_AT_CONSUMER` | 不单独挂载；consumer 读 Definition 即可 | Surge 印刷 @ G5 |
+| `AT_DRAW_G2` | 遭遇 G2 check peril（priority 100） | Peril 印刷 |
+| `AT_ENTER_PLAY` | 进场 / enemy spawn 完成 | Hunter、Retaliate |
+| `AT_REVELATION` | 显现子流程内（E4 / D3） | Hidden treachery |
+| `AT_GRANT` | 效果步「gains X」resolve 瞬间 | gains surge / gains [action] |
+| `AT_SETUP` | Setup / game begins | 场景常驻 keyword（少见） |
+
+**兼容规则（已裁决）**：
+
+1. **印刷 vs gained 共享 `consumer_slot`**，只改 `mount_moment` 与 `representation` 来源。  
+2. **`AT_DRAW_G2` 不是 keyword 通用挂载点** — 仅 **早生效** keyword（Peril）使用。  
+3. **晚判定 keyword**（Surge）：印刷 = `LAZY_AT_CONSUMER`；gained = `AT_GRANT` + `KEYWORD_BUFF`。  
+4. **G4 `unregister_by_drawn_card` 只卸 RESTRICTION**（Peril）；**不卸** `KEYWORD_BUFF`（Surge 须留到 G5）。  
+5. 新 keyword 先在增长表加一行 `KeywordProfile`，再实现 consumer；**禁止**为单卡 proliferate `seq.check_*`。
+
+**目标 API（P1+）**：
+
+```gdscript
+class KeywordProfile:
+    var keyword: StringName
+    var mount_printed: StringName      # AT_PRINT | AT_DRAW_G2 | …
+    var mount_gained: StringName       # AT_GRANT | …
+    var representation_printed: StringName
+    var representation_gained: StringName
+    var unmount: StringName
+    var consumer_slot: StringName
+    var listener_trigger: StringName   # &"" if none
+
+class KeywordMountService:
+    static func mount_printed(ctx, card_id, profile) -> void
+    static func mount_gained(ctx, card_id, profile, provenance) -> void
+    static func unmount(ctx, card_id, profile) -> void
+```
+
+##### Core 2026 · KeywordProfile 填表（遭遇 + 敌人 · 印刷路径）
+
+> 卡量来源：Phase 4 回填 · [§16.8.3](#1683-listener--§165-增长) / [15 §17.14](15-timing-entry-catalog.md#1714-core-2026-遭遇卡清单arkhamdb-回填)
+
+| keyword | Core 2026 约 qty | mount（印刷） | 表征（印刷） | unmount | consumer_slot | listener_trigger | 备注 |
+|---|---:|---|---|---|---|---|---|
+| **surge** | 3 首行 | `LAZY_AT_CONSUMER` | `DEFINITION` | —（G5 后本圈结束） | **G5** `SURGE_KEYWORD` · priority **70** | — | 不 Register；gained 见下行 |
+| **peril** | 2 | **`AT_DRAW_G2`** | **RESTRICTION** Register | **G4 初** Unregister RESTRICTION | **L4** REST-E-PLAY/TRIGGER/COMMIT | — | 挂载即 peril 生效 |
+| **hidden** | 1 (+ enemy) | **`AT_REVELATION`** E4 | `is_hidden` + **RESTRICTION** `FORBID_LEAVE_HAND` | expose / 合法离手 / unregister | **REST-E-MOVE** · E4/E5 | — | JSON `hidden` 字段 |
+| **aloof** | 6 文本 | `AT_ENTER_PLAY` spawn | `DEFINITION` + **REST-E-FIGHT/ENGAGE** Condition | leave play | **FIGHT** / **ENGAGE** Intent | — | 与 engage 状态联动 |
+| **hunter** | 13 | **`AT_ENTER_PLAY`** spawn | **LISTENER** @ enemy phase | leave play / defeat | **③** Hunter 移动内核 | **`ENEMY_3_2`** · `(seq.enemy, WHEN)` | Prey 为 **①** Spec，非 mount |
+| **retaliate** | 9 | **`AT_ENTER_PLAY`** | **LISTENER** 或 fight 后 attack 内核 | leave play | **Fight 成功路径** · Retaliate handler | **after investigator fight** | 与 Alert 同攻击层 |
+| **massive** | 2 | **`AT_ENTER_PLAY`** | `DEFINITION` + engage 拒绝规则 | leave play | **ENGAGE** / **AOO** 入口 | — | 非 Hunter 移动 |
+| **permanent** | 玩家卡 | **`AT_ENTER_PLAY`** | **Domain** `permanent` + MOVE Intent | 仅卡面允许离场 | **REST-E-MOVE** / Domain | — | 非 encounter draw |
+
+##### 印刷 vs gained · 对照（同一 consumer）
+
+| keyword | mount（印刷） | mount（gained） | 表征（印刷） | 表征（gained） | consumer（共用） |
+|---|---|---|---|---|---|
+| **surge** | `LAZY_AT_CONSUMER` | **`AT_GRANT`**（G3 效果步） | `DEFINITION` | **KEYWORD_BUFF** | G5 `has_effective_keyword` → 再抽 |
+| **peril** | `AT_DRAW_G2` | **`AT_GRANT`**（立刻） | RESTRICTION | RESTRICTION（同模板） | L4 险境查询 |
+| **hunter** | `AT_ENTER_PLAY` | **`AT_GRANT`** | LISTENER | LISTENER + `DURATION`/`WHILE_IN_PLAY` | 3.2 Hunter 移动 |
+| **retaliate** | `AT_ENTER_PLAY` | **`AT_GRANT`** | LISTENER / attack 内核 | LISTENER 或 KEYWORD_BUFF | fight 后 perform_attack |
+| **aloof** | `AT_ENTER_PLAY` | **`AT_GRANT`** | DEFINITION + Condition | KEYWORD_BUFF 或 RESTRICTION | FIGHT/ENGAGE |
+| **[action] 文本** | `AT_ENTER_PLAY` / constant | **`AT_GRANT`** | AbilitySpec 印刷 | **LISTENER** + AbilitySpec | Initiation COLLECT @ 各 timing |
+
+##### 时间线示意（Surge vs Peril · 同一次 draw）
+
+```text
+G1 Draw bind
+G2  Peril：mount RESTRICTION（仅 peril 类）
+G3  Revelation · 可能 AT_GRANT surge → KEYWORD_BUFF
+G4  unmount RESTRICTION（peril）· discard/spawn
+    （KEYWORD_BUFF 保留）
+G5  consume Surge · unmount KEYWORD_BUFF · 可能再抽 G1
+```
+
+**实现状态**：Surge 行（印刷 LAZY + gained KEYWORD_BUFF + G5 consumer）✅ P0；`KeywordMountService` / 全表 consumer 接线 — 待 P1/P2。
 
 ---
 
@@ -358,7 +546,8 @@ class AbilityCompiler:
 | Lasting effect | Register + DURATION |
 | Delayed effect | Register + UNTIL_FIRED + LISTENER |
 | Forced / [reaction] | Register + LISTENER（或 enter_play template） |
-| 关键词 Surge 等 | keywords + 编译，非 BuffType |
+| 关键词（印刷） | `CardDefinition.keywords` + ③ 编译 |
+| 关键词 / trait / 能力（**动态 gains**） | §3.2 GRANT → KEYWORD / LISTENER / TRAIT；`EffectiveCharacteristicQuery` |
 
 ---
 
@@ -372,6 +561,7 @@ class AbilityCompiler:
 | P4 | LISTENER + TimingBus |
 | P5 | CompositionExecutor + RegisterNode |
 | P6 | AbilityCompiler、keywords |
+| P6a | **Gained characteristics** · `EffectiveCharacteristicQuery`；P0 Surge KEYWORD 竖切 |
 
 ---
 
@@ -595,6 +785,10 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-07-06 | v0.4.5 | **§3.2.4** KeywordProfile 挂载/消费填表（Core 2026） |
+| 2026-07-06 | v0.4.4 | P0 实现：`EffectiveCharacteristicQuery` · KEYWORD Buff · G5 surge |
+| 2026-07-06 | v0.4.3 | **§3.2** Gained characteristics 总纲 + Core 2026 统计 |
+| 2026-07-06 | v0.4.2 | **§3.1** 涌动：动态 surge = KEYWORD 标记 · 不叠加；OQ-ADB-02/03 |
 | 2026-06-18 | v0.4.1 | **§17** StatProjection 读模型；链 [06c](06c-stat-projections.md) |
 | 2026-06-18 | v0.4 | **§16** Buff 应用场合清单；Reveal 走 L0 非 Buff |
 | 2026-05-25 | v0.3 | ApplicationContext 拼凑式场合；订阅键 vs L3 情景；链到 Eligibility L0–L7 |

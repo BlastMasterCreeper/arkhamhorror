@@ -131,7 +131,7 @@
 | OQ-09-04 | [09-location](design/09-location-graph.md) | Farthest location 计算：blocked path 是否参与？ | |
 | OQ-09-06 | [09-location](design/09-location-graph.md) | Location enter play already revealed — clues 在 setup 还是 enter 时放？ | |
 | OQ-10-04 | [10-scenario](design/10-scenario-encounter.md) | Encounter deck shuffle mid-ability | v0：**collect 立即洗**；嵌套效果 defer shuffle（[15 §17.11](design/15-timing-entry-catalog.md)）。 |
-| OQ-10-06 | [10-scenario](design/10-scenario-encounter.md) | Forbidden Secrets surge 条件 — 引擎 evaluate 时机在 revelation 前还是后？ | |
+| OQ-10-06 | [10-scenario](design/10-scenario-encounter.md) | Forbidden Secrets surge 条件 — 引擎 evaluate 时机在 revelation 前还是后？ | **G3 显现入口**判定 clue 分支；动态 `gains surge` = KEYWORD 标记 Register · `WHILE_DRAWN_CARD_RESOLVING`；与印刷 surge **不叠加**。见 [15 §17.4.5](design/15-timing-entry-catalog.md)、[06 §3.1](design/06-registration-buff-model.md)。 |
 | OQ-11-03 | [11-investigator](design/11-investigator-campaign.md) | Epic mode transfer — 电子版是否 v1 不实现？ | |
 | OQ-11-05 | [11-investigator](design/11-investigator-campaign.md) | Random basic weakness 池 — 按 product 还是 global 池？ | |
 | OQ-12-04 | [12-api](design/12-card-script-api.md) | 非 GDScript 卡牌逻辑（Lua/DSL）是否在路线图中？ | |
@@ -167,10 +167,15 @@
 | ID | 关联 | 说明 | 优先级 |
 |---|---|---|---|
 | OQ-ADB-01 | [09-location §8](design/09-location-graph.md) / 12099 | Farthest empty spawn：blocked path 是否参与最短路径？与 OQ-09-04 同源 | P2 |
-| OQ-ADB-02 | [15 §17.4](design/15-timing-entry-catalog.md) / 12124 | Cosmic Evils：Peril + 正文「gains surge」— surge evaluate 在 G3 前还是 G5？ | P1 |
-| OQ-ADB-03 | [10-scenario](design/10-scenario-encounter.md) / 12126 | Forbidden Secrets：无 clue 时 gains surge — revelation 结算前/后判定？（cf. OQ-10-06） | P1 |
 | OQ-ADB-04 | [06 §16.4](design/06-registration-buff-model.md) / 12012 | Necronomicon：`cannot leave play` + threat area — Permanent Domain vs RESTRICTION | P2 |
 | OQ-ADB-05 | [15 §17.4.3](design/15-timing-entry-catalog.md) / 12179b | Hidden enemy 手牌 spawn — ENC-22/23 已竖切；多 copy 待补 | P2 |
+
+**已裁决（涌动）**：
+
+| ID | 裁决 |
+|---|---|
+| OQ-ADB-02 | 动态 `gains surge` = KEYWORD 标记 · `WHILE_DRAWN_CARD_RESOLVING`；G5 与印刷 surge 合并 evaluate，**不叠加**。12124 选伤害分支时 G3 Register。见 [15 §17.4.5](design/15-timing-entry-catalog.md)。 |
+| OQ-ADB-03 | 12126：`clue==0` 在 **G3 显现入口**判定；Register surge 标记并跳过 intellect；与印刷 surge 仍只 G5 再抽 1 次。同 OQ-10-06。 |
 
 ---
 
@@ -210,5 +215,6 @@
 | 2026-05-25 | v0.4.6 | OQ-12-01 裁决：Template/Script 逐卡选型，无固定比例 |
 | 2026-05-25 | v0.5.0 | 批次 P1：IDX-01/02、12-06、01-01、02-04、00-01 裁决 |
 | 2026-05-25 | v0.5.1 | 批次 B 部分：01-03、03-03、06-03、08-03 裁决 |
+| 2026-07-06 | v0.5.4 | OQ-ADB-02/03、OQ-10-06 裁决：涌动 KEYWORD 标记 · 不叠加 |
 | 2026-07-06 | v0.5.3 | 新增 OQ-ADB-01～05（ArkhamDB Phase 4 回填） |
 | 2026-05-25 | v0.5.2 | OQ-03-04、OQ-08-01 裁决 |

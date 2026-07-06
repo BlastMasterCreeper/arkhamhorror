@@ -34,8 +34,50 @@ func unregister_by_drawn_card(card_id: StringName) -> void:
 		return
 	var to_remove: Array[StringName] = []
 	for reg in _entries:
-		if reg.lifetime_kind == AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING \
-				and reg.drawn_card_id == card_id:
+		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
+			continue
+		if reg.drawn_card_id != card_id:
+			continue
+		var removes_peril := false
+		for buff in reg.buffs:
+			if buff.type == AhcEnums.BuffType.RESTRICTION:
+				removes_peril = true
+				break
+		if removes_peril:
+			to_remove.append(reg.id)
+	for id in to_remove:
+		unregister(id)
+
+
+func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
+	if card_id == &"" or keyword == &"":
+		return false
+	for reg in _entries:
+		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
+			continue
+		if reg.drawn_card_id != card_id:
+			continue
+		for buff in reg.buffs:
+			if buff.type == AhcEnums.BuffType.KEYWORD and buff.keyword == keyword:
+				return true
+	return false
+
+
+func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:
+	if card_id == &"":
+		return
+	var to_remove: Array[StringName] = []
+	for reg in _entries:
+		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
+			continue
+		if reg.drawn_card_id != card_id:
+			continue
+		var has_keyword := false
+		for buff in reg.buffs:
+			if buff.type == AhcEnums.BuffType.KEYWORD:
+				has_keyword = true
+				break
+		if has_keyword:
 			to_remove.append(reg.id)
 	for id in to_remove:
 		unregister(id)
