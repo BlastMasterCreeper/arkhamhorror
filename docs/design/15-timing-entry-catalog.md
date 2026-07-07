@@ -1223,6 +1223,7 @@ G3 revelation:
   · 效果步「X gains surge」→ Register KEYWORD(surge) on card_id
   · 12126：G3 入口 clue==0 → Register + 跳过 intellect 分支
   · 12124：仅玩家选「伤害+horror」分支时 Register（无印刷 surge）
+  · 12160：place doom 步未 CREATED → Register（after_step if · 07 §3.3）
 
 G5 priority 70:
   should_surge = CardRegistry.has_surge(def_id)
@@ -1235,7 +1236,8 @@ G5 priority 70:
 |---|---|---|---|
 | 12126 Forbidden Secrets | 是 | 无 clue 时 G3 Register（与印刷合并） | 至多 1 次再抽 |
 | 12124 Cosmic Evils | 否 | 选伤害分支时 G3 Register | 该分支下再抽 1 张 |
-| 12160 / 12163 | 是 | — | 再抽 1 张 |
+| 12160 Raising Suspicions | 是 | place doom 未 CREATED → G3 Register | 至多 1 次再抽 |
+| 12163 Aerial Pursuit | 是 | —（仅印刷） | 再抽 1 张 |
 
 **测试**：ENC-SURGE-01（印刷）；ENC-SURGE-02（12124 两分支）；ENC-SURGE-03（12126 有/无 clue）。
 

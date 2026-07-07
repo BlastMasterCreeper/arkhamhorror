@@ -4,17 +4,40 @@ extends RefCounted
 
 func simulate(node: CompositionNode, sim: GameSimulator) -> DryRunResult:
 	var result := DryRunResult.new()
+	result.has_any_created = _simulate_node(node, sim)
+	return result
+
+
+func _simulate_node(node: CompositionNode, sim: GameSimulator) -> bool:
 	match node.kind:
 		AhcEnums.CompositionNodeKind.SEQ:
+			var any := false
 			for child in node.children:
-				var child_result := simulate(child, sim)
-				if child_result.has_any_created:
-					result.has_any_created = true
+				var created := _simulate_node(child, sim)
+				sim.last_step_created = created
+				any = any or created
+			return any
 		AhcEnums.CompositionNodeKind.ATOM:
-			result.has_any_created = _simulate_atom(node, sim)
+			var created := _simulate_atom(node, sim)
+			sim.last_step_created = created
+			return created
 		AhcEnums.CompositionNodeKind.REGISTER:
-			result.has_any_created = _simulate_register(node, sim)
-	return result
+			var created := _simulate_register(node, sim)
+			sim.last_step_created = created
+			return created
+		AhcEnums.CompositionNodeKind.IF:
+			return _simulate_if(node, sim)
+	return false
+
+
+func _simulate_if(node: CompositionNode, sim: GameSimulator) -> bool:
+	if node.branch_condition == null:
+		return false
+	var take_then := node.branch_condition.matches_domain_sim(sim, node.inv_id)
+	var branch: CompositionNode = node.then_branch if take_then else node.else_branch
+	if branch == null:
+		return false
+	return _simulate_node(branch, sim)
 
 
 func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
@@ -79,6 +102,15 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return node.replace_target != null and node.effect_request != null
 		&"resolve_pending":
 			return node.pending_id != &""
+		&"place_doom_nearest_enemy_without_doom":
+			var inv := sim.state.registry.get_investigator(node.inv_id)
+			if inv == null or inv.location_tag == &"":
+				return false
+			for enemy_id in sim.state.registry.all_enemy_ids():
+				var enemy := sim.state.registry.get_enemy(enemy_id)
+				if enemy != null and enemy.doom == 0 and enemy.location_tag != &"":
+					return true
+			return false
 	return false
 
 

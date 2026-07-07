@@ -280,7 +280,7 @@ enum RestrictionKind {
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }
 
-enum CompositionNodeKind { SEQ, ATOM, REGISTER }
+enum CompositionNodeKind { SEQ, ATOM, REGISTER, IF }
 
 enum LifetimeKind {
 	WHILE_IN_PLAY,

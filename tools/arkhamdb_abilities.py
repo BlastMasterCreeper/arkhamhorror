@@ -1,4 +1,8 @@
-"""Segment and template-compile ArkhamDB card ability text."""
+"""Segment and template-compile ArkhamDB card ability text.
+
+Compile policy: reuse established templates/conditions (07 §3.3, prior vertical slices).
+Split timing · condition · cost · effect when possible. Ask before extending when no precedent.
+"""
 
 from __future__ import annotations
 
@@ -26,6 +30,26 @@ LOSE_RESOURCES = re.compile(r"^Lose (\d+) resource", re.I)
 LOSE_ALL_RESOURCES = re.compile(r"^Lose all of your resources\.?", re.I)
 ENTER_THREAT = re.compile(r"^Put .+ into play in your threat area\.?", re.I)
 
+# 12126 · If = L3 情景条件（非 timing）；Otherwise = 互斥效果支
+FORBIDDEN_SECRETS_IF_ELSE = re.compile(
+    r"^If you have no clues, .+ gains surge\.\s*Otherwise,\s*(.+)\.?\s*$",
+    re.I | re.S,
+)
+RAISING_SUSPICIONS = re.compile(
+    r"^Place 1 doom on the nearest enemy with no doom on it\.\s*"
+    r"If no doom was placed by this effect, .+ gains surge\.?\s*$",
+    re.I | re.S,
+)
+
+# If 子句分类（编译元数据 · 07-composition §3.3）
+# 能力多要素：Forced When=timing、if=condition、能拆就拆（OQ-ADB-10）
+IF_TIMING_HINTS = re.compile(
+    r"\b(during this test|when you draw|after you|before you|at the start of|"
+    r"when your turn begins|while .+ test is resolving)\b",
+    re.I,
+)
+IF_REVEAL_TOKEN = re.compile(r"if you reveal a \[", re.I)
+
 
 def plain_text(raw: str) -> str:
     text = STRIP_HTML.sub("", raw)
@@ -37,6 +61,21 @@ def split_forced_body(body: str) -> tuple[str, str]:
         trigger, effect = body.split(":", 1)
         return trigger.strip(), effect.strip()
     return "", body.strip()
+
+
+def classify_if_kind(body: str, segment_kind: str) -> str:
+    """Classify leading If: timing | condition | both."""
+    if not body.lower().startswith("if "):
+        return ""
+    if segment_kind in ("reaction", "action", "fast", "forced"):
+        trigger, _ = split_forced_body(body) if segment_kind == "forced" else ("", body)
+        if trigger:
+            return "timing"
+    if IF_REVEAL_TOKEN.search(body) and IF_TIMING_HINTS.search(body):
+        return "both"
+    if IF_TIMING_HINTS.search(body):
+        return "timing"
+    return "condition"
 
 
 def segment_abilities(text: str) -> list[dict[str, Any]]:
@@ -84,13 +123,60 @@ def segment_abilities(text: str) -> list[dict[str, Any]]:
     segments: list[dict[str, Any]] = []
     for index, (_, payload) in enumerate(hits):
         payload["index"] = index
+        if_kind = classify_if_kind(str(payload.get("body", "")), str(payload.get("kind", "")))
+        if if_kind:
+            payload["if_kind"] = if_kind
         segments.append(payload)
     return segments
+
+
+def compile_revelation_if_else(body: str) -> dict[str, Any] | None:
+    m = FORBIDDEN_SECRETS_IF_ELSE.match(body)
+    if not m:
+        return None
+    else_body = m.group(1).strip()
+    return {
+        "template": "if_else",
+        "if_kind": "condition",
+        "evaluate": "at_entry",
+        "condition": "investigator_has_no_clues",
+        "then": {"template": "grant_surge"},
+        "else": {
+            "template": "uncompiled",
+            "body": else_body,
+            "status": "stub",
+        },
+    }
+
+
+def compile_raising_suspicions(body: str) -> dict[str, Any] | None:
+    # 12160 · Seq(place_doom → if_else after_step · 07 §3.3)
+    if not RAISING_SUSPICIONS.match(body):
+        return None
+    return {
+        "template": "seq",
+        "steps": [
+            {"template": "place_doom_nearest_enemy_without_doom"},
+            {
+                "template": "if_else",
+                "if_kind": "condition",
+                "evaluate": "after_step",
+                "condition": "previous_step_not_created",
+                "then": {"template": "grant_surge"},
+            },
+        ],
+    }
 
 
 def compile_effect_body(body: str) -> dict[str, Any] | None:
     if not body:
         return None
+    revelation_branch = compile_revelation_if_else(body)
+    if revelation_branch is not None:
+        return revelation_branch
+    raising = compile_raising_suspicions(body)
+    if raising is not None:
+        return raising
     if LOSE_ALL_RESOURCES.match(body):
         return {"template": "lose_all_resources"}
     m = LOSE_RESOURCES.match(body)
@@ -124,19 +210,26 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             compiled = compile_effect_body(body.split(".")[0] + ".")
         if compiled is None:
             return None
-        status = "full" if plain_text(body) == _template_body_preview(compiled) else "partial"
-        return {
+        status = "full"
+        if compiled.get("template") in ("if_else", "seq"):
+            status = "partial"
+        elif plain_text(body) != _template_body_preview(compiled):
+            status = "partial"
+        entry: dict[str, Any] = {
             "segment_index": segment["index"],
             "register_as": "revelation",
             "ability_id": f"revelation:{segment['index']}",
             "status": status,
             **compiled,
         }
+        if segment.get("if_kind"):
+            entry["if_kind"] = segment["if_kind"]
+        return entry
     if kind == "forced":
         effect = compile_effect_body(body)
         if effect is None:
             return None
-        return {
+        entry = {
             "segment_index": segment["index"],
             "register_as": "forced",
             "ability_id": f"forced:{segment['index']}",
@@ -144,6 +237,9 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             "trigger": segment.get("trigger", ""),
             **effect,
         }
+        if segment.get("if_kind"):
+            entry["if_kind"] = segment["if_kind"]
+        return entry
     return None
 
 
@@ -161,6 +257,10 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "Lose all of your resources."
     if template == "enter_threat_area":
         return "Put … into play in your threat area."
+    if template == "if_else":
+        return "If you have no clues, … gains surge."
+    if template == "seq":
+        return "Place 1 doom on the nearest enemy…"
     return ""
 
 

@@ -7,6 +7,7 @@ var fight: int = 0
 var evade: int = 0
 var health: int = 1
 var damage: int = 0
+var doom: int = 0
 var attack_damage: int = 1
 var attack_horror: int = 0
 var exhausted: bool = false

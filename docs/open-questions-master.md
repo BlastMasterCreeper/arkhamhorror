@@ -170,12 +170,17 @@
 | OQ-ADB-04 | [06 §16.4](design/06-registration-buff-model.md) / 12012 | Necronomicon：`cannot leave play` + threat area — Permanent Domain vs RESTRICTION | P2 |
 | OQ-ADB-05 | [15 §17.4.3](design/15-timing-entry-catalog.md) / 12179b | Hidden enemy 手牌 spawn — ENC-22/23 已竖切；多 copy 待补 | P2 |
 
-**已裁决（涌动）**：
+**已裁决（涌动 · 动态 surge 编译）**：
 
 | ID | 裁决 |
 |---|---|
 | OQ-ADB-02 | 动态 `gains surge` = KEYWORD 标记 · `WHILE_DRAWN_CARD_RESOLVING`；G5 与印刷 surge 合并 evaluate，**不叠加**。12124 选伤害分支时 G3 Register。见 [15 §17.4.5](design/15-timing-entry-catalog.md)。 |
 | OQ-ADB-03 | 12126：`clue==0` 在 **G3 显现入口**判定；Register surge 标记并跳过 intellect；与印刷 surge 仍只 G5 再抽 1 次。同 OQ-10-06。 |
+| OQ-ADB-06 | *your clues* 默认 = **调查员卡上** clue（`clues_on_card`）。见 [07 §3.3](design/07-composition.md)。 |
+| OQ-ADB-07 | 12160 *no doom was placed* = place 步 **未 CREATED**；`after_step` if；nearest 等距 **当前交互玩家**选。见 07 §3.3、16 §7.2.1。 |
+| OQ-ADB-08 | 12124 **must choose** 可执行项 + doom 支 **密谋推进框架**（阈值检测）。见 07 §3.3、16 §7.2.1。 |
+| OQ-ADB-09 | 12126 fail-by either/or：印刷漏 **must**，按 must choose 可执行项。见 07 §3.3。 |
+| OQ-ADB-10 | Forced **When + if** 等多要素 **能拆就拆**（timing · condition · cost · effect）。见 07 §3.3。 |
 
 ---
 
@@ -215,6 +220,7 @@
 | 2026-05-25 | v0.4.6 | OQ-12-01 裁决：Template/Script 逐卡选型，无固定比例 |
 | 2026-05-25 | v0.5.0 | 批次 P1：IDX-01/02、12-06、01-01、02-04、00-01 裁决 |
 | 2026-05-25 | v0.5.1 | 批次 B 部分：01-03、03-03、06-03、08-03 裁决 |
+| 2026-07-07 | v0.5.5 | OQ-ADB-06～10：clues 域、must choose、12160 after_step、多要素拆分 |
 | 2026-07-06 | v0.5.4 | OQ-ADB-02/03、OQ-10-06 裁决：涌动 KEYWORD 标记 · 不叠加 |
 | 2026-07-06 | v0.5.3 | 新增 OQ-ADB-01～05（ArkhamDB Phase 4 回填） |
 | 2026-05-25 | v0.5.2 | OQ-03-04、OQ-08-01 裁决 |

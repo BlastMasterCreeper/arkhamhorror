@@ -52,7 +52,8 @@ func _initialize() -> void:
 	_run_test("ADB-14 segment in harms way", _test_adb_segment_in_harms_way)
 	_run_test("ADB-15 compile enter threat revelation", _test_adb_compile_enter_threat)
 	_run_test("ADB-16 breaking point damage revelation", _test_adb_breaking_point_revelation)
-	_run_test("ADB-17 ability compile summary", _test_adb_ability_compile_summary)
+	_run_test("ADB-17 compile forbidden secrets surge", _test_adb_compile_forbidden_secrets)
+	_run_test("ADB-18 ability compile summary", _test_adb_ability_compile_summary)
 	_run_test("EFF-01 effect draw blocked by forbid_draw", _test_eff_draw_blocked)
 	_run_test("EFF-02 effect draw resolves when allowed", _test_eff_draw_ok)
 	_run_test("CAN-01 cancel pending draw", _test_can_cancel_pending_draw)
@@ -81,6 +82,11 @@ func _initialize() -> void:
 	_run_test("ENC-10 peril surge clears before second card", _test_enc_peril_surge_not_sticky)
 	_run_test("ENC-SURGE-02 dynamic keyword surge chain", _test_enc_surge_dynamic_keyword)
 	_run_test("ENC-SURGE-03 gained surge survives g4 peril unregister", _test_enc_surge_keyword_survives_g4)
+	_run_test("ENC-SURGE-04 forbidden secrets no clues", _test_enc_surge_12126_no_clues)
+	_run_test("ENC-SURGE-05 forbidden secrets with clues skips gained", _test_enc_surge_12126_with_clues)
+	_run_test("ADB-19 compile raising suspicions", _test_adb_compile_raising_suspicions)
+	_run_test("ENC-SURGE-06 raising suspicions places doom", _test_enc_surge_12160_places_doom)
+	_run_test("ENC-SURGE-07 raising suspicions no target gains surge", _test_enc_surge_12160_no_target_gained)
 	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
@@ -799,7 +805,7 @@ func _test_adb_ability_compile_summary() -> bool:
 	for def_id in [&"12003", &"12015", &"12126", &"12167"]:
 		total_segments += CardRegistry.ability_segments(def_id).size()
 		total_compiled += CardRegistry.compiled_abilities(def_id).size()
-	return total_segments >= 4 and total_compiled >= 2
+	return total_segments >= 4 and total_compiled >= 3
 
 
 func _test_eff_draw_blocked() -> bool:
@@ -1446,6 +1452,121 @@ func _test_enc_surge_keyword_survives_g4() -> bool:
 		bool(tail.get("should_surge", false))
 		and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
 	)
+
+
+func _adb_add_encounter_treachery_to_deck(h: RuleTestHarness, def_id: StringName) -> StringName:
+	return _adb_add_encounter_enemy_to_deck(h, def_id)
+
+
+func _test_adb_compile_forbidden_secrets() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12126")
+	var segments := CardRegistry.ability_segments(&"12126")
+	var then_tpl := ""
+	if compiled.size() == 1:
+		var then_entry: Variant = compiled[0].get("then", {})
+		if then_entry is Dictionary:
+			then_tpl = str((then_entry as Dictionary).get("template", ""))
+	return (
+		CardRegistry.has_revelation(&"12126")
+		and compiled.size() == 1
+		and compiled[0].get("template", "") == "if_else"
+		and compiled[0].get("if_kind", "") == "condition"
+		and compiled[0].get("condition", "") == "investigator_has_no_clues"
+		and then_tpl == "grant_surge"
+		and compiled[0].get("status", "") == "partial"
+		and segments.size() == 1
+		and segments[0].get("if_kind", "") == "condition"
+	)
+
+
+func _test_enc_surge_12126_no_clues() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if inv == null:
+		return false
+	inv.clues_on_card = 0
+	var first := _adb_add_encounter_treachery_to_deck(h, &"12126")
+	var second := _adb_add_encounter_treachery_to_deck(h, &"12127")
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var cards: Array = res.get("cards", [])
+	return (
+		cards.size() == 2
+		and cards[0] == first
+		and cards[1] == second
+		and int(res.get("surge_depth", 0)) == 1
+		and h.ctx.registrations.count() == 0
+	)
+
+
+func _test_enc_surge_12126_with_clues() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if inv == null:
+		return false
+	inv.clues_on_card = 1
+	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12126")
+	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
+	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+		return false
+	return not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+
+
+func _test_adb_compile_raising_suspicions() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12160")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var step0: Dictionary = steps[0]
+	var step1: Dictionary = steps[1]
+	return (
+		CardRegistry.has_revelation(&"12160")
+		and entry.get("template", "") == "seq"
+		and step0.get("template", "") == "place_doom_nearest_enemy_without_doom"
+		and step1.get("template", "") == "if_else"
+		and step1.get("evaluate", "") == "after_step"
+		and step1.get("condition", "") == "previous_step_not_created"
+		and (step1.get("then", {}) as Dictionary).get("template", "") == "grant_surge"
+	)
+
+
+func _test_enc_surge_12160_places_doom() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc")
+	var first := _adb_add_encounter_treachery_to_deck(h, &"12160")
+	var second := _adb_add_encounter_treachery_to_deck(h, &"12127")
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var cards: Array = res.get("cards", [])
+	return (
+		enemy != null
+		and enemy.doom == 1
+		and cards.size() == 2
+		and cards[0] == first
+		and cards[1] == second
+		and int(res.get("surge_depth", 0)) == 1
+	)
+
+
+func _test_enc_surge_12160_no_target_gained() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12160")
+	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
+	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+		return false
+	return h.ctx.registrations.has_keyword_buff(card_id, &"surge")
 
 
 func _test_gain_effective_keyword() -> bool:

@@ -21,6 +21,9 @@ var source_ability_id: StringName = &""
 var interrupt_mode: StringName = &""
 var interrupt_target: InterruptTarget = null
 var replace_target: ReplacementTarget = null
+var branch_condition: Condition = null
+var then_branch: CompositionNode = null
+var else_branch: CompositionNode = null
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -189,6 +192,35 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 ## L0 · 动态 keyword（06 §3.2 · G3 gains surge 等）。
 static func grant_keyword(card_id: StringName, keyword: StringName) -> CompositionNode:
 	return register(RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword))
+
+
+## L1 · 情景条件分支（If = L3 条件，非 timing；见 07-composition §3.3）。
+static func if_else(
+	condition: Condition,
+	then_node: CompositionNode,
+	else_node: CompositionNode,
+	controller_id: StringName
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.IF
+	n.branch_condition = condition
+	n.then_branch = then_node
+	n.else_branch = else_node
+	n.inv_id = controller_id
+	return n
+
+
+## L0 · 12160 等：最近无 doom 敌人放置 1 doom（CREATED → CompositionExecutor · 07 §4.4）。
+static func place_doom_nearest_enemy_without_doom(
+	card_id: StringName,
+	controller_id: StringName
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"place_doom_nearest_enemy_without_doom"
+	n.card_id = card_id
+	n.inv_id = controller_id
+	return n
 
 
 ## L2 · 统一打断节点（07 §6.0：Cancel / Ignore 均 nest seq.interrupt.* 或本节点）。

@@ -4,6 +4,7 @@ extends RefCounted
 var state: GameStateStore
 var registrations: RegistrationStore
 var mutator: StateMutator
+var last_step_created: bool = false
 
 
 static func from_context(ctx: GameContext) -> GameSimulator:
@@ -41,6 +42,7 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		inv.location_tag = inv_src.location_tag
 		inv.damage_taken = inv_src.damage_taken
 		inv.horror_taken = inv_src.horror_taken
+		inv.clues_on_card = inv_src.clues_on_card
 		inv.deck = inv_src.deck.duplicate()
 		inv.hand = inv_src.hand.duplicate()
 		inv.discard = inv_src.discard.duplicate()

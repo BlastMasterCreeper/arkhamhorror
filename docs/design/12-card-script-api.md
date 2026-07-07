@@ -36,7 +36,7 @@
 | Template 部分 | 12 | 如 12003 enter_threat_area、12015 take_damage（首句） |
 | Script 优先 | 113 | 含 `[reaction]`/`[action]`/检定类 revelation |
 
-**记录约定**：逐卡选型写入 `data/packs/core_2026/cards/{code}.yaml`（OQ-12-06）；当前机器可读来源为 `imported/*.json` 的 `compiled_abilities` 字段。
+**记录约定**：逐卡选型写入 `data/packs/core_2026/cards/{code}.yaml`（OQ-12-06）；当前机器可读来源为 `imported/*.json` 的 `compiled_abilities` 字段。带 **If/Otherwise** 的 revelation 须含 `if_kind` 与 `template: if_else`（若适用）——见 [07-composition §3.3](07-composition.md#33-卡面-if-消歧timing--condition--both--已裁决-2026-07-07)。
 
 ---
 

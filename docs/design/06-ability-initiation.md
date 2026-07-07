@@ -120,7 +120,7 @@ class AbilityHook:
 L0  订阅匹配        — 引入监听（索引，非门槛）
 L1  注册存续
 L2  结构钩子
-L3  情景条件        — 卡面 If / While…
+L3  情景条件        — 卡面 If / While…（*your clues* 默认 = 调查员卡上 · OQ-ADB-06）
 L4  规则限制        — RESTRICTION buff
 L5  次数配额
         ─── 收集阶段（COLLECT）到此为止 ───
@@ -164,7 +164,7 @@ class EligibilityPipeline:
 
 ### 5.4 L3 · 现态 vs 历史谓词（已裁决）
 
-卡面 If / While / 「本回合第 N 次 action」等 **发动条件** 均属 L3，在 **TimingCatalog emit → COLLECT** 时即时验证。
+卡面 If / While / 「本回合第 N 次 action」等 **发动条件** 均属 L3，在 **TimingCatalog emit → COLLECT** 时即时验证。**Forced** 段首 **When** = timing（L0/LISTENER），段内 **if** = L3；**能拆就拆**（OQ-ADB-10 · [07 §3.3](07-composition.md)）。
 
 | 子类 | 数据源 | 示例 |
 |---|---|---|
