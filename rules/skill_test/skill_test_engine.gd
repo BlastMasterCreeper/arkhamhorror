@@ -205,6 +205,8 @@ func run_full_test(ctx: SkillTestContext, game_ctx: GameContext = null, commits:
 	resolve_reveal_chain(ctx)
 	close_player_window(ctx)
 	step_apply_results(ctx)
+	if game_ctx != null:
+		RetaliateAlertResolver.resolve_post_st7(game_ctx, ctx)
 	step_end(ctx, game_ctx)
 	var result := SkillTestResult.new()
 	result.context = ctx

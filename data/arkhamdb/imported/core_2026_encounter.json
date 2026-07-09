@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 9,
+      "compiled_total": 11,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -15,11 +15,12 @@
         "revelation": 24
       },
       "by_template": {
+        "choice_must": 1,
         "enter_threat_area": 3,
         "take_horror": 2,
         "if_else": 1,
         "take_damage": 1,
-        "seq": 1,
+        "seq": 2,
         "lose_resources": 1
       }
     }
@@ -725,6 +726,42 @@
         "body": "You must either (choose one): - Place 1 doom on the current agenda. This effect can cause the agenda to advance. - Take 1 direct damage and 1 direct horror. Cosmic Evils gains surge.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "choice_must",
+        "prompt_id": "12124:revelation",
+        "options": [
+          {
+            "id": "agenda",
+            "template": "place_doom_on_current_agenda",
+            "may_advance_agenda": true
+          },
+          {
+            "id": "punish",
+            "template": "seq",
+            "steps": [
+              {
+                "template": "take_damage",
+                "amount": 1,
+                "direct": true
+              },
+              {
+                "template": "take_horror",
+                "amount": 1,
+                "direct": true
+              },
+              {
+                "template": "grant_surge"
+              }
+            ]
+          }
+        ]
+      }
     ]
   },
   "12125": {
@@ -845,9 +882,26 @@
           "template": "grant_surge"
         },
         "else": {
-          "template": "uncompiled",
-          "body": "test [intellect] (3). For each point you fail by, you must either place 1 of your clues on your location, or take 1 horror.",
-          "status": "stub"
+          "template": "skill_test",
+          "skill": "intellect",
+          "difficulty": 3,
+          "st7": {
+            "on_fail_by_each": {
+              "template": "choice_must",
+              "prompt_id": "12126:fail_by",
+              "options": [
+                {
+                  "id": "clue",
+                  "template": "place_clue_on_location"
+                },
+                {
+                  "id": "horror",
+                  "template": "take_horror",
+                  "amount": 1
+                }
+              ]
+            }
+          }
         }
       }
     ]
@@ -2317,6 +2371,36 @@
         "kind": "revelation",
         "body": "The nearest non-[[Elite]] enemy moves once toward your location. If it engages an investigator, it makes an immediate attack.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "resolve_location",
+            "target": "drawer_location"
+          },
+          {
+            "template": "nest_enemy_move",
+            "trait_exclude": [
+              "Elite"
+            ]
+          },
+          {
+            "template": "if_else",
+            "if_kind": "condition",
+            "evaluate": "after_step",
+            "condition": "previous_step_engaged_investigator",
+            "then": {
+              "template": "nest_enemy_attack"
+            }
+          }
+        ]
       }
     ]
   },

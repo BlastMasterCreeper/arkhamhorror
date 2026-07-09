@@ -40,6 +40,22 @@ RAISING_SUSPICIONS = re.compile(
     r"If no doom was placed by this effect, .+ gains surge\.?\s*$",
     re.I | re.S,
 )
+AERIAL_PURSUIT = re.compile(
+    r"^The nearest non-\[\[Elite\]\] enemy moves once toward your location\.\s*"
+    r"If it engages an investigator, it makes an immediate attack\.?\s*$",
+    re.I | re.S,
+)
+COSMIC_EVILS = re.compile(
+    r"^You must either \(choose one\):\s*"
+    r"- Place 1 doom on the current agenda\..*?"
+    r"- Take 1 direct damage and 1 direct horror\..+ gains surge\.?\s*$",
+    re.I | re.S,
+)
+FORBIDDEN_SECRETS_FAIL_BY = re.compile(
+    r"^test \[intellect\] \(3\)\. For each point you fail by, you must either "
+    r"place 1 of your clues on your location, or take 1 horror\.?\s*$",
+    re.I | re.S,
+)
 
 # If 子句分类（编译元数据 · 07-composition §3.3）
 # 能力多要素：Forced When=timing、if=condition、能拆就拆（OQ-ADB-10）
@@ -130,22 +146,88 @@ def segment_abilities(text: str) -> list[dict[str, Any]]:
     return segments
 
 
+def compile_forbidden_secrets_fail_by(body: str) -> dict[str, Any] | None:
+    if not FORBIDDEN_SECRETS_FAIL_BY.match(body.strip()):
+        return None
+    return {
+        "template": "skill_test",
+        "skill": "intellect",
+        "difficulty": 3,
+        "st7": {
+            "on_fail_by_each": {
+                "template": "choice_must",
+                "prompt_id": "12126:fail_by",
+                "options": [
+                    {"id": "clue", "template": "place_clue_on_location"},
+                    {"id": "horror", "template": "take_horror", "amount": 1},
+                ],
+            },
+        },
+    }
+
+
+def compile_cosmic_evils(body: str) -> dict[str, Any] | None:
+    if not COSMIC_EVILS.match(body):
+        return None
+    return {
+        "template": "choice_must",
+        "prompt_id": "12124:revelation",
+        "options": [
+            {"id": "agenda", "template": "place_doom_on_current_agenda", "may_advance_agenda": True},
+            {
+                "id": "punish",
+                "template": "seq",
+                "steps": [
+                    {"template": "take_damage", "amount": 1, "direct": True},
+                    {"template": "take_horror", "amount": 1, "direct": True},
+                    {"template": "grant_surge"},
+                ],
+            },
+        ],
+    }
+
+
 def compile_revelation_if_else(body: str) -> dict[str, Any] | None:
     m = FORBIDDEN_SECRETS_IF_ELSE.match(body)
     if not m:
         return None
     else_body = m.group(1).strip()
+    else_compiled = compile_forbidden_secrets_fail_by(else_body)
+    if else_compiled is None:
+        else_compiled = {
+            "template": "uncompiled",
+            "body": else_body,
+            "status": "stub",
+        }
     return {
         "template": "if_else",
         "if_kind": "condition",
         "evaluate": "at_entry",
         "condition": "investigator_has_no_clues",
         "then": {"template": "grant_surge"},
-        "else": {
-            "template": "uncompiled",
-            "body": else_body,
-            "status": "stub",
-        },
+        "else": else_compiled,
+    }
+
+
+def compile_aerial_pursuit(body: str) -> dict[str, Any] | None:
+    if not AERIAL_PURSUIT.match(body):
+        return None
+    return {
+        "template": "seq",
+        "steps": [
+            {"template": "resolve_location", "target": "drawer_location"},
+            {
+                "template": "nest_enemy_move",
+                "trait_exclude": ["Elite"],
+            },
+            {
+                "template": "if_else",
+                "if_kind": "condition",
+                "evaluate": "after_step",
+                "condition": "previous_step_engaged_investigator",
+                "then": {"template": "nest_enemy_attack"},
+            },
+        ],
     }
 
 
@@ -171,12 +253,18 @@ def compile_raising_suspicions(body: str) -> dict[str, Any] | None:
 def compile_effect_body(body: str) -> dict[str, Any] | None:
     if not body:
         return None
+    cosmic = compile_cosmic_evils(body)
+    if cosmic is not None:
+        return cosmic
     revelation_branch = compile_revelation_if_else(body)
     if revelation_branch is not None:
         return revelation_branch
     raising = compile_raising_suspicions(body)
     if raising is not None:
         return raising
+    aerial = compile_aerial_pursuit(body)
+    if aerial is not None:
+        return aerial
     if LOSE_ALL_RESOURCES.match(body):
         return {"template": "lose_all_resources"}
     m = LOSE_RESOURCES.match(body)
@@ -211,7 +299,7 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         if compiled is None:
             return None
         status = "full"
-        if compiled.get("template") in ("if_else", "seq"):
+        if compiled.get("template") in ("if_else", "seq", "choice_must"):
             status = "partial"
         elif plain_text(body) != _template_body_preview(compiled):
             status = "partial"
@@ -260,7 +348,17 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
     if template == "if_else":
         return "If you have no clues, … gains surge."
     if template == "seq":
+        steps = compiled.get("steps", [])
+        if steps:
+            first = steps[0]
+            if first.get("template") == "resolve_location":
+                return (
+                    "The nearest non-[[Elite]] enemy moves once toward your location. "
+                    "If it engages an investigator, it makes an immediate attack."
+                )
         return "Place 1 doom on the nearest enemy…"
+    if template == "choice_must":
+        return "You must either (choose one)…"
     return ""
 
 

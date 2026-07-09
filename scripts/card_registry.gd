@@ -197,11 +197,40 @@ static func is_hunter(definition_id: StringName) -> bool:
 	return has_keyword(definition_id, &"hunter")
 
 
+static func is_patrol(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("patrol", false):
+		return true
+	return has_keyword(definition_id, &"patrol")
+
+
+static func patrol_spec(definition_id: StringName) -> PatrolTargetSpec:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	var spec = data.get("patrol_instruction", null)
+	if spec is PatrolTargetSpec:
+		return spec
+	return null
+
+
 static func is_retaliate(definition_id: StringName) -> bool:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	if data.get("retaliate", false):
 		return true
 	return has_keyword(definition_id, &"retaliate")
+
+
+static func is_alert(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("alert", false):
+		return true
+	return has_keyword(definition_id, &"alert")
+
+
+static func is_elusive(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("elusive", false):
+		return true
+	return has_keyword(definition_id, &"elusive")
 
 
 static func is_massive(definition_id: StringName) -> bool:

@@ -71,6 +71,7 @@ When an investigator takes this action, that investigator draws **one** card fro
 
 ## 待增补条目（引擎常查）
 
+- [x] 敌人关键词简中对照 → [`terminology-zh.md`](terminology-zh.md) §敌人攻击与关键词
 - [ ] When / After / Triggering Condition（p.4–5, p.23–25）
 - [ ] Then / Priority of Simultaneous Resolution（p.19–22）
 - [ ] Initiation Sequence（p.31）

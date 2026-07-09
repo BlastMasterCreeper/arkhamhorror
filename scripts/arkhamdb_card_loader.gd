@@ -52,6 +52,8 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 		"aloof": bool(src.get("aloof", false)),
 		"hunter": "hunter" in keywords,
 		"retaliate": "retaliate" in keywords,
+		"alert": "alert" in keywords,
+		"elusive": "elusive" in keywords,
 		"massive": "massive" in keywords,
 		"permanent": bool(src.get("permanent", false)),
 		"victory": int(src.get("victory", 0)),

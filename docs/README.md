@@ -45,6 +45,8 @@
 
 **符号记法**（`[reaction]`、`[action]`、`[willpower]` 等）：[`reference/arkham-symbol-notation.md`](reference/arkham-symbol-notation.md)
 
+**简中术语对照**（Evade→躲避、Retaliate→反击、Alert→警戒 等）：[`reference/terminology-zh.md`](reference/terminology-zh.md)
+
 ## 规则来源（引擎设计基准）
 
 | 优先级 | 来源 |

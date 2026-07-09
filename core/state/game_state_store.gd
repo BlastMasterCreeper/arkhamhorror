@@ -8,6 +8,7 @@ var encounter_discard: Array[StringName] = []
 var token_pool: TokenPool = TokenPool.new()
 var chaos_bag: ChaosBag = ChaosBag.new()
 var current_act_number: int = 1
+var current_agenda_number: int = 1
 var round_number: int = 0
 var turn_id: int = 0
 var turn_owner_id: StringName = &""
@@ -22,7 +23,12 @@ func _init() -> void:
 
 
 func doom_in_play() -> int:
-	return doom_on_agenda
+	var total := doom_on_agenda
+	for enemy_id in registry.all_enemy_ids():
+		var enemy := registry.get_enemy(enemy_id)
+		if enemy != null:
+			total += enemy.doom
+	return total
 
 
 func compute_state_hash() -> String:

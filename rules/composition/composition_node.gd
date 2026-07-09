@@ -24,6 +24,19 @@ var replace_target: ReplacementTarget = null
 var branch_condition: Condition = null
 var then_branch: CompositionNode = null
 var else_branch: CompositionNode = null
+var choice_must: bool = false
+var choice_prompt_id: StringName = &""
+var choice_option_ids: Array[StringName] = []
+var test_skill: AhcEnums.SkillType = AhcEnums.SkillType.WILLPOWER
+var test_difficulty: int = 0
+var st7_plan: SkillTestSt7Plan = null
+var repeat_count_source: StringName = &""
+var repeat_count_fixed: int = 0
+var may_advance_agenda: bool = false
+var trait_exclude: Array[StringName] = []
+var location_target: StringName = &""
+var enemy_ref_id: StringName = &""
+var target_investigator_id: StringName = &""
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -192,6 +205,108 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 ## L0 · 动态 keyword（06 §3.2 · G3 gains surge 等）。
 static func grant_keyword(card_id: StringName, keyword: StringName) -> CompositionNode:
 	return register(RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword))
+
+
+## L1 · must choose（07 §3.3 · 16 §7.2.1）：resolve 前 dry-run 过滤 FIZZLE 分支。
+static func must_choose(
+	branches: Array,
+	controller_id: StringName,
+	option_ids: Array = [],
+	prompt_id: StringName = &"composition:choice_must"
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.CHOICE
+	n.inv_id = controller_id
+	n.choice_must = true
+	n.choice_prompt_id = prompt_id
+	for branch in branches:
+		if branch is CompositionNode:
+			n.children.append(branch as CompositionNode)
+	for oid in option_ids:
+		n.choice_option_ids.append(oid as StringName)
+	var idx := 0
+	while n.choice_option_ids.size() < n.children.size():
+		n.choice_option_ids.append(StringName("opt_%d" % idx))
+		idx += 1
+	return n
+
+
+## L0 · 12124 等：当前密谋放置 1 doom。
+static func place_doom_on_current_agenda(may_advance_agenda: bool = false) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"place_doom_on_current_agenda"
+	n.may_advance_agenda = may_advance_agenda
+	return n
+
+
+## L0 · 12126 fail-by：卡上 1 clue 放到调查员所在地点。
+static func place_clue_on_investigator_location(controller_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"place_clue_on_investigator_location"
+	n.inv_id = controller_id
+	return n
+
+
+## L2 · nest `seq.skill_test.*`（revelation 内检定 · 15 §17.5）。
+static func nest_skill_test(
+	controller_id: StringName,
+	skill: AhcEnums.SkillType,
+	difficulty: int,
+	card_id: StringName = &"",
+	st7_plan: SkillTestSt7Plan = null
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_skill_test"
+	n.inv_id = controller_id
+	n.card_id = card_id
+	n.test_skill = skill
+	n.test_difficulty = maxi(difficulty, 0)
+	n.st7_plan = st7_plan
+	return n
+
+
+static func nest_enemy_resolve_location(
+	controller_id: StringName,
+	location_target: StringName = &"drawer_location"
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_enemy_resolve_location"
+	n.inv_id = controller_id
+	n.location_target = location_target
+	return n
+
+
+static func nest_enemy_move(
+	controller_id: StringName,
+	trait_exclude: Array[StringName] = []
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_enemy_move"
+	n.inv_id = controller_id
+	n.trait_exclude = trait_exclude.duplicate()
+	return n
+
+
+static func nest_enemy_attack_last() -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_enemy_attack"
+	return n
+
+
+## L1 · 按最近一次检定 fail_by 重复执行 body（12126 · 16 §7.2.1 must 在 body 内）。
+static func repeat_fail_by(body: CompositionNode) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.REPEAT
+	n.repeat_count_source = &"last_skill_test_fail_by"
+	if body != null:
+		n.children.append(body)
+	return n
 
 
 ## L1 · 情景条件分支（If = L3 条件，非 timing；见 07-composition §3.3）。

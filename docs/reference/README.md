@@ -20,6 +20,7 @@
 | [`arkham-grimoire-v1.0.md`](arkham-grimoire-v1.0.md) | PDF 提取 | 引擎常查首选 |
 | [`arkhamdb-rules-reference.md`](arkhamdb-rules-reference.md) | [zh.arkhamdb.com/rules](https://zh.arkhamdb.com/rules) | 英文 RR+FAQ 镜像；**`[symbol]` 记法来源** |
 | [`arkham-symbol-notation.md`](arkham-symbol-notation.md) | 本项目约定 | design 文档统一符号表 |
+| [`terminology-zh.md`](terminology-zh.md) | 本项目约定 | **简中术语对照**（Retaliate→反击、Alert→警戒 等） |
 | [`grimoire-glossary-extract.md`](grimoire-glossary-extract.md) | 手工策展 | 高频条目 + 引擎映射草案 |
 
 ## 刷新离线镜像

@@ -7,7 +7,12 @@ var _mutator: StateMutator
 var _log: GameLog
 var _game_ctx: GameContext
 var _draw: DrawInvestigatorService
+var _dry_runner: CompositionDryRunner = CompositionDryRunner.new()
 var _last_step_created: bool = false
+var _last_skill_test_fail_by: int = 0
+var _last_step_enemy_id: StringName = &""
+var _last_step_engaged_investigator: StringName = &""
+var _last_resolved_location: StringName = &""
 
 
 func _init(
@@ -33,8 +38,20 @@ func last_step_created() -> bool:
 	return _last_step_created
 
 
+func last_step_engaged_investigator() -> StringName:
+	return _last_step_engaged_investigator
+
+
+func last_skill_test_fail_by() -> int:
+	return _last_skill_test_fail_by
+
+
 func execute(node: CompositionNode) -> void:
 	_last_step_created = false
+	_last_skill_test_fail_by = 0
+	_last_step_enemy_id = &""
+	_last_step_engaged_investigator = &""
+	_last_resolved_location = &""
 	_run_node(node)
 
 
@@ -52,6 +69,10 @@ func _run_node(node: CompositionNode) -> void:
 			_record_composition_step(node, _last_step_created)
 		AhcEnums.CompositionNodeKind.IF:
 			_execute_if(node)
+		AhcEnums.CompositionNodeKind.CHOICE:
+			_execute_choice(node)
+		AhcEnums.CompositionNodeKind.REPEAT:
+			_execute_repeat(node)
 
 
 func _stamp_provenance(node: CompositionNode) -> void:
@@ -277,9 +298,205 @@ func _execute_atom(node: CompositionNode) -> bool:
 					_game_ctx, node.inv_id, node.card_id
 				)
 			return false
+		&"place_doom_on_current_agenda":
+			if _game_ctx != null:
+				return EncounterAgendaDoomPlacement.place_on_current_agenda(
+					_game_ctx, node.may_advance_agenda
+				)
+			return false
+		&"place_clue_on_investigator_location":
+			if _game_ctx != null:
+				return InvestigatorCluePlacement.place_one_on_investigator_location(
+					_game_ctx, node.inv_id
+				)
+			return false
+		&"nest_skill_test":
+			return _execute_nest_skill_test(node)
+		&"nest_enemy_resolve_location":
+			return _execute_nest_enemy_resolve_location(node)
+		&"nest_enemy_move":
+			return _execute_nest_enemy_move(node)
+		&"nest_enemy_attack":
+			return _execute_nest_enemy_attack(node)
 		_:
 			push_warning("CompositionExecutor: unknown atom %s" % node.atom_name)
 			return false
+
+
+func _execute_choice(node: CompositionNode) -> void:
+	if node.children.is_empty():
+		return
+	var indices: Array[int] = []
+	if _game_ctx != null:
+		var sim := GameSimulator.from_context(_game_ctx)
+		if node.choice_must:
+			indices = _dry_runner.filter_executable_indices(node, sim)
+		else:
+			for i in node.children.size():
+				indices.append(i)
+	else:
+		for i in node.children.size():
+			indices.append(i)
+	if indices.is_empty():
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:choice_skip",
+			{"must": node.choice_must, "prompt": node.choice_prompt_id}
+		)
+		return
+	var pick_idx: int = indices[0]
+	if indices.size() > 1:
+		var option_ids: Array = []
+		for idx in indices:
+			var oid: StringName = (
+				node.choice_option_ids[idx]
+				if idx < node.choice_option_ids.size()
+				else StringName("opt_%d" % idx)
+			)
+			option_ids.append(oid)
+		var picked: Variant = null
+		if _game_ctx != null and _game_ctx.interaction != null:
+			picked = _game_ctx.interaction.ask_pick_option(
+				option_ids,
+				node.inv_id,
+				node.choice_prompt_id,
+				_game_ctx
+			)
+		if picked == null:
+			pick_idx = indices[0]
+		else:
+			pick_idx = indices[0]
+			for j in indices.size():
+				var idx_at: int = indices[j]
+				var oid_at: StringName = (
+					node.choice_option_ids[idx_at]
+					if idx_at < node.choice_option_ids.size()
+					else StringName("opt_%d" % idx_at)
+				)
+				if oid_at == picked or str(oid_at) == str(picked):
+					pick_idx = idx_at
+					break
+	var branch: CompositionNode = node.children[pick_idx]
+	if branch != null:
+		branch.provenance = node.provenance
+		_run_node(branch)
+
+
+func _execute_repeat(node: CompositionNode) -> void:
+	if node.children.is_empty():
+		return
+	var count := _resolve_repeat_count(node)
+	for _i in count:
+		var body: CompositionNode = node.children[0]
+		if body != null:
+			body.provenance = node.provenance
+			_run_node(body)
+
+
+func _resolve_repeat_count(node: CompositionNode) -> int:
+	if node.repeat_count_source == &"last_skill_test_fail_by":
+		return _last_skill_test_fail_by
+	if node.repeat_count_fixed > 0:
+		return node.repeat_count_fixed
+	return 0
+
+
+func _execute_nest_skill_test(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return false
+	var flow_id := SkillTestFlowHandlers.flow_id_for_skill(node.test_skill)
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		flow_id,
+		{
+			"inv_id": node.inv_id,
+			"skill": node.test_skill,
+			"difficulty": node.test_difficulty,
+			"card_id": node.card_id,
+			"st7_plan": node.st7_plan,
+		}
+	)
+	_last_skill_test_fail_by = int(result.get("fail_by", 0))
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:nest_skill_test",
+		{
+			"flow": flow_id,
+			"inv": node.inv_id,
+			"skill": node.test_skill,
+			"difficulty": node.test_difficulty,
+			"fail_by": _last_skill_test_fail_by,
+			"success": bool(result.get("success", false)),
+		}
+	)
+	return bool(result.get("ok", false))
+
+
+func _execute_nest_enemy_resolve_location(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return false
+	var target := node.location_target if node.location_target != &"" else &"drawer_location"
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.enemy.resolve_location",
+		{"target": target, "drawer_id": node.inv_id, "controller_id": node.inv_id}
+	)
+	_last_resolved_location = result.get("location_tag", &"") as StringName
+	return bool(result.get("ok", false)) and _last_resolved_location != &""
+
+
+func _execute_nest_enemy_move(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return false
+	if _last_resolved_location == &"":
+		return false
+	var enemy_id := NearestEnemyResolver.pick_nearest_enemy_toward_investigator(
+		_game_ctx, node.inv_id, node.trait_exclude, false
+	)
+	if enemy_id == &"":
+		return false
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.enemy.move",
+		{
+			"enemy_id": enemy_id,
+			"target_location": _last_resolved_location,
+			"steps": 1,
+		}
+	)
+	_last_step_enemy_id = enemy_id
+	_last_step_engaged_investigator = result.get("engaged_investigator", &"") as StringName
+	_last_step_created = enemy_id != &""
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:nest_enemy_move",
+		{
+			"enemy": _last_step_enemy_id,
+			"location": _last_resolved_location,
+			"engaged": _last_step_engaged_investigator,
+			"moved": bool(result.get("moved", false)),
+		}
+	)
+	return _last_step_created
+
+
+func _execute_nest_enemy_attack(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return false
+	var enemy_id := node.enemy_ref_id if node.enemy_ref_id != &"" else _last_step_enemy_id
+	var target := (
+		node.target_investigator_id
+		if node.target_investigator_id != &""
+		else _last_step_engaged_investigator
+	)
+	if enemy_id == &"" or target == &"":
+		return false
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.enemy.attack",
+		{"enemy_id": enemy_id, "target_investigator": target, "exhaust_after": false}
+	)
+	return bool(result.get("ok", false))
 
 
 func _execute_if(node: CompositionNode) -> void:

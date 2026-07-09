@@ -4,12 +4,17 @@ extends RefCounted
 var _state: GameStateStore
 var _log: GameLog
 var _timing: TimingBus
+var _game_ctx: GameContext = null
 
 
 func _init(state: GameStateStore, log: GameLog, timing: TimingBus = null) -> void:
 	_state = state
 	_log = log
 	_timing = timing
+
+
+func bind_game_context(ctx: GameContext) -> void:
+	_game_ctx = ctx
 
 
 func perform_attack(attack: EnemyAttack) -> void:
@@ -39,3 +44,5 @@ func perform_attack(attack: EnemyAttack) -> void:
 		var enemy := _state.registry.get_enemy(attack.enemy_id)
 		if enemy:
 			enemy.exhausted = true
+	if _game_ctx != null:
+		ElusiveResolver.try_flee_after_enemy_attack(_game_ctx, attack.enemy_id)

@@ -1,7 +1,7 @@
 class_name Condition
 extends RefCounted
 
-enum DomainPredicate { NONE, INVESTIGATOR_CLUES_ON_CARD_EQ, PREVIOUS_STEP_NOT_CREATED }
+enum DomainPredicate { NONE, INVESTIGATOR_CLUES_ON_CARD_EQ, PREVIOUS_STEP_NOT_CREATED, PREVIOUS_STEP_ENGAGED }
 
 var tags_all: Array[StringName] = []
 var _use_framework_step: bool = false
@@ -55,6 +55,15 @@ static func previous_step_not_created(_inv_id: StringName, _card_id: StringName 
 	return c
 
 
+## L3 · after_step · 上一子步移动后 engage 了调查员（12163）。
+static func previous_step_engaged_investigator(_inv_id: StringName, _card_id: StringName = &"") -> Condition:
+	var c := Condition.new()
+	c.domain_predicate = DomainPredicate.PREVIOUS_STEP_ENGAGED
+	c.domain_inv_id = _inv_id
+	c.domain_card_id = _card_id
+	return c
+
+
 static func from_compile_id(
 	condition_id: String,
 	inv_id: StringName,
@@ -65,6 +74,8 @@ static func from_compile_id(
 			return investigator_has_no_clues(inv_id)
 		"previous_step_not_created":
 			return previous_step_not_created(inv_id, card_id)
+		"previous_step_engaged_investigator":
+			return previous_step_engaged_investigator(inv_id, card_id)
 	return null
 
 
@@ -109,6 +120,10 @@ func matches_domain(game_ctx: GameContext, fallback_inv_id: StringName) -> bool:
 			if game_ctx.composition != null:
 				return not game_ctx.composition.last_step_created()
 			return true
+		DomainPredicate.PREVIOUS_STEP_ENGAGED:
+			if game_ctx.composition != null:
+				return game_ctx.composition.last_step_engaged_investigator() != &""
+			return false
 	return true
 
 
@@ -122,4 +137,6 @@ func matches_domain_sim(sim: GameSimulator, fallback_inv_id: StringName) -> bool
 			return inv != null and inv.clues_on_card == domain_eq
 		DomainPredicate.PREVIOUS_STEP_NOT_CREATED:
 			return not sim.last_step_created
+		DomainPredicate.PREVIOUS_STEP_ENGAGED:
+			return sim.last_step_engaged_investigator != &""
 	return true

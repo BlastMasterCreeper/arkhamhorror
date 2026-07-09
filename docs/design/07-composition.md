@@ -107,13 +107,29 @@ compile :
   if_else(
     Condition.investigator_has_no_clues(controller),
     then: grant_surge,
-    else: intellect_test(3)   # partial · stub
+    else: nest seq.skill_test.intellect(3)
+          + st7_fail_by: Choice(must) × fail_by   # 见下
   )
 ```
 
-Python：`tools/arkhamdb_abilities.py` · `classify_if_kind()` + `compile_revelation_if_else()` → JSON `template: if_else`。
+**Fail-by 衍生（FAQ · OQ-05-03）** — 见 04 §3.7 **ST.7 内联 Composition** 总表；12126 仅用 `on_fail_by_each` 槽。
 
-GDScript：`CompositionNodeKind.IF` · `Condition.from_compile_id()` · `ArkhamDbAbilityCompiler._build_if_else()`。
+| | |
+|---|---|
+| **不是** | ST.6 嵌套后果；nest pop 后父 Composition Seq |
+| **是** | **ST.7** 内 `SkillTestSt7Plan` → 内联 Composition（Choice 仍非 timing nest） |
+
+```text
+else 支 compile:
+  skill_test(intellect, 3):
+    st7:
+      on_fail_by_each: Choice(must): clue | horror
+runtime: nest seq.skill_test.* + SkillTestSt7Composition.register_plan @ ST.7
+```
+
+Python：`tools/arkhamdb_abilities.py` · `compile_revelation_if_else()` / `compile_forbidden_secrets_fail_by()`。
+
+GDScript：`CompositionNodeKind.IF` · `nest_skill_test(..., st7_fail_by)` · `SkillTestSt7Composition`。
 
 **Dry-run**：`IF` 在 fork 上 **求值 condition**，只 simulate **选中支**（与 `Choice` 的 OR 任一支不同）。
 
@@ -162,9 +178,28 @@ Choice(must, filter=dry_run_executable):
   B: direct_damage(1) + direct_horror(1) + grant_surge
 ```
 
+#### 检定 ST.7 内联效果（已裁决 2026-07-08）
+
+凡 *If you succeed/fail*、*If this test is successful/failed*、*for each fail by*、committed *If successful…* — **均属 ST.7 内联 Composition**（`SkillTestSt7Plan`），**不是**显现/Revelation 父 Seq 的 post-nest 步。检定本身仍 **nest** `seq.skill_test.*`（15 §17.5）。
+
+编译 JSON：
+
+```json
+{
+  "template": "skill_test",
+  "skill": "intellect",
+  "difficulty": 3,
+  "st7": {
+    "on_success": { "template": "..." },
+    "on_fail": { "template": "..." },
+    "on_fail_by_each": { "template": "choice_must", "options": [ ... ] }
+  }
+}
+```
+
 #### 12126 fail-by · must 语义
 
-*For each point you fail by, you must either place 1 clue… or take 1 horror* — 印刷未写 must 视为 **笔误**；引擎按 **must choose 可执行项** 处理（无 clue 可放 → 必须 horror）。
+*For each point you fail by, you must either place 1 clue… or take 1 horror* — 印刷未写 must 视为 **笔误**；引擎按 **must choose 可执行项** 处理（无 clue 可放 → 必须 horror）。**执行槽位 = ST.7**（04 §3.7 · OQ-05-03），非显现 Seq 的 post-nest 内联步。
 
 #### 12160 Raising Suspicions · 编译锚（partial）
 

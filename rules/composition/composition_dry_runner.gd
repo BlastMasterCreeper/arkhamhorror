@@ -27,6 +27,51 @@ func _simulate_node(node: CompositionNode, sim: GameSimulator) -> bool:
 			return created
 		AhcEnums.CompositionNodeKind.IF:
 			return _simulate_if(node, sim)
+		AhcEnums.CompositionNodeKind.CHOICE:
+			return _simulate_choice(node, sim)
+		AhcEnums.CompositionNodeKind.REPEAT:
+			return _simulate_repeat(node, sim)
+	return false
+
+
+## Must resolve：返回 dry-run 下至少 CREATED 一项的分支下标（07 §4.2 · 16 §7.2.1）。
+func filter_executable_indices(node: CompositionNode, sim: GameSimulator) -> Array[int]:
+	var out: Array[int] = []
+	if node == null or node.kind != AhcEnums.CompositionNodeKind.CHOICE:
+		return out
+	for i in node.children.size():
+		var fork := sim.fork()
+		if _simulate_node(node.children[i], fork):
+			out.append(i)
+	return out
+
+
+func _simulate_repeat(node: CompositionNode, sim: GameSimulator) -> bool:
+	if node.children.is_empty():
+		return false
+	var count := _repeat_count_for_sim(node, sim)
+	if count <= 0:
+		return false
+	var any := false
+	for _i in count:
+		var fork := sim.fork()
+		any = any or _simulate_node(node.children[0], fork)
+	return any
+
+
+func _repeat_count_for_sim(node: CompositionNode, sim: GameSimulator) -> int:
+	if node.repeat_count_source == &"last_skill_test_fail_by":
+		return sim.last_skill_test_fail_by
+	if node.repeat_count_fixed > 0:
+		return node.repeat_count_fixed
+	return 0
+
+
+func _simulate_choice(node: CompositionNode, sim: GameSimulator) -> bool:
+	for child in node.children:
+		var fork := sim.fork()
+		if _simulate_node(child, fork):
+			return true
 	return false
 
 
@@ -111,7 +156,71 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				if enemy != null and enemy.doom == 0 and enemy.location_tag != &"":
 					return true
 			return false
+		&"place_doom_on_current_agenda":
+			return sim.state != null
+		&"place_clue_on_investigator_location":
+			var clue_inv := sim.state.registry.get_investigator(node.inv_id)
+			if clue_inv == null or clue_inv.clues_on_card <= 0 or clue_inv.location_tag == &"":
+				return false
+			return sim.state.registry.get_location(clue_inv.location_tag) != null
+		&"nest_skill_test":
+			var test_inv := sim.state.registry.get_investigator(node.inv_id)
+			if test_inv == null:
+				return false
+			sim.last_skill_test_fail_by = _estimate_fail_by(test_inv, node.test_skill, node.test_difficulty)
+			if node.st7_plan != null:
+				if sim.last_skill_test_fail_by > 0 and node.st7_plan.on_fail_by_each != null:
+					var fork := sim.fork()
+					return _simulate_node(node.st7_plan.on_fail_by_each, fork)
+				if node.st7_plan.on_success != null and sim.last_skill_test_fail_by == 0:
+					var fork_ok := sim.fork()
+					return _simulate_node(node.st7_plan.on_success, fork_ok)
+				if node.st7_plan.on_fail != null and sim.last_skill_test_fail_by > 0:
+					var fork_fail := sim.fork()
+					return _simulate_node(node.st7_plan.on_fail, fork_fail)
+			return sim.last_skill_test_fail_by >= 0
+		&"nest_enemy_resolve_location":
+			var resolve_inv := sim.state.registry.get_investigator(node.inv_id)
+			if resolve_inv == null or resolve_inv.location_tag == &"":
+				return false
+			sim.last_resolved_location = resolve_inv.location_tag
+			return true
+		&"nest_enemy_move":
+			var move_inv := sim.state.registry.get_investigator(node.inv_id)
+			if move_inv == null or move_inv.location_tag == &"":
+				return false
+			for enemy_id in sim.state.registry.all_enemy_ids():
+				var enemy := sim.state.registry.get_enemy(enemy_id)
+				if enemy != null and enemy.location_tag != &"":
+					sim.last_step_created = true
+					sim.last_step_engaged_investigator = node.inv_id
+					return true
+			return false
+		&"nest_enemy_attack":
+			return sim.last_step_engaged_investigator != &""
 	return false
+
+
+func _estimate_fail_by(
+	inv: InvestigatorState,
+	skill: AhcEnums.SkillType,
+	difficulty: int
+) -> int:
+	var base := _investigator_skill_value(inv, skill)
+	return maxi(difficulty - base, 0)
+
+
+func _investigator_skill_value(inv: InvestigatorState, skill: AhcEnums.SkillType) -> int:
+	match skill:
+		AhcEnums.SkillType.WILLPOWER:
+			return inv.skill_willpower
+		AhcEnums.SkillType.INTELLECT:
+			return inv.skill_intellect
+		AhcEnums.SkillType.COMBAT:
+			return inv.skill_combat
+		AhcEnums.SkillType.AGILITY:
+			return inv.skill_agility
+	return 0
 
 
 func _simulate_register(node: CompositionNode, sim: GameSimulator) -> bool:

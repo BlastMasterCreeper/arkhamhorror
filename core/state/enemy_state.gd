@@ -14,6 +14,8 @@ var exhausted: bool = false
 var aloof: bool = false
 var massive: bool = false
 var engaged_with: StringName = &""
+## 效果施加：暂不参与自动交战（防止脱离→再交战死循环）。
+var auto_engage_suppressed: bool = false
 
 
 func is_engaged_with(inv_id: StringName) -> bool:
