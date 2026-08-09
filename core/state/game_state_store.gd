@@ -16,6 +16,20 @@ var lead_investigator_id: StringName = &""
 var active_investigator_id: StringName = &""
 var doom_on_agenda: int = 0
 var agenda_threshold: int = 7
+var act_clue_threshold: int = -1
+var victory_display: Array[StringName] = []
+var current_act_card_id: StringName = &""
+var current_agenda_card_id: StringName = &""
+var act_deck: Array[StringName] = []
+var agenda_deck: Array[StringName] = []
+var removed_from_game: Array[StringName] = []
+var scenario_resolution: int = -1
+var per_investigator_count: int = 1
+var set_aside: Array[StringName] = []
+var scenario_reference_card_id: StringName = &""
+var scenario_layout_installed: bool = false
+var setup_game_begins_resolved: bool = false
+var deferred_setup_revelations: Array[StringName] = []
 
 
 func _init() -> void:
@@ -28,6 +42,16 @@ func doom_in_play() -> int:
 		var enemy := registry.get_enemy(enemy_id)
 		if enemy != null:
 			total += enemy.doom
+	return total
+
+
+func total_victory_points() -> int:
+	var total := 0
+	for card_id in victory_display:
+		var card := registry.get_card(card_id)
+		if card == null:
+			continue
+		total += CardRegistry.victory_points(card.id.definition_id)
 	return total
 
 

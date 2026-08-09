@@ -48,6 +48,7 @@
 | **Patrol** | **巡逻** | Enemy Phase 3.2 向 designated target 移动 |
 | **Massive** | **庞大** | **未横置**时虚拟交战同地点全体；**永不**进威胁区 |
 | **Elusive** | **逃逸** | 敌人 **攻击**（含借机）或被 **攻击**（Fight）resolve 后 flee |
+| **Doomed** | **厄运降临** | 敌人 **被击败**（defeat）时当前密谋 +1 **毁灭**；discard 不算 defeat |
 | **Aloof** | **冷漠** | 不自动 engage |
 | **Prey** | **猎物** | `*Prey –`* 指令；engage / Hunter 等距；**不 nest** |
 

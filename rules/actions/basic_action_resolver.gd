@@ -92,7 +92,7 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	var enemy_id_copy := enemy_id
 	var inv_copy := inv_id
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		_apply_fight_damage(enemy_id_copy)
+		EnemyDefeatResolver.deal_damage(game_ctx, enemy_id_copy, 1)
 	test.on_fail = func(_ctx: SkillTestContext) -> void:
 		var fight_damage: int = int(extra.get("fight_damage", 1))
 		FightFailRedirectResolver.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
@@ -188,10 +188,3 @@ func _apply_discover_clue(location_id: StringName, inv_id: StringName) -> void:
 		return
 	loc.clues -= 1
 	inv.clues_on_card += 1
-
-
-func _apply_fight_damage(enemy_id: StringName) -> void:
-	var enemy := _state.registry.get_enemy(enemy_id)
-	if enemy == null:
-		return
-	enemy.damage += 1

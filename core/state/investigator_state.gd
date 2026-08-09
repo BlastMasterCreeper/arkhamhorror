@@ -25,6 +25,8 @@ var actions_bonus_next_turn: int = 0
 var actions_penalty_next_turn: int = 0
 var eliminated: bool = false
 var resigned: bool = false
+var physical_trauma: int = 0
+var mental_trauma: int = 0
 var is_active_turn: bool = false
 
 

@@ -30,11 +30,13 @@ static func try_alert(
 
 
 static func resolve_post_st7(game_ctx: GameContext, test: SkillTestContext) -> void:
-	if game_ctx == null or test == null or test.success:
-		return
-	if test.target_enemy_id == &"":
+	if game_ctx == null or test == null or test.target_enemy_id == &"":
 		return
 	var performer := test.performing_investigator
+	if test.success:
+		if test.skill == AhcEnums.SkillType.COMBAT:
+			ElusiveResolver.try_flee_was_attacked(game_ctx, test.target_enemy_id)
+		return
 	match test.skill:
 		AhcEnums.SkillType.COMBAT:
 			try_retaliate(game_ctx, test.target_enemy_id, performer)

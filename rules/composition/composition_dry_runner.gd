@@ -31,7 +31,29 @@ func _simulate_node(node: CompositionNode, sim: GameSimulator) -> bool:
 			return _simulate_choice(node, sim)
 		AhcEnums.CompositionNodeKind.REPEAT:
 			return _simulate_repeat(node, sim)
+		AhcEnums.CompositionNodeKind.FOR_EACH:
+			return _simulate_for_each(node, sim)
 	return false
+
+
+func _simulate_for_each(node: CompositionNode, sim: GameSimulator) -> bool:
+	if node.children.is_empty() or sim.state == null:
+		return false
+	var any := false
+	for inv_id in sim.state.registry.all_investigator_ids():
+		var inv := sim.state.registry.get_investigator(inv_id)
+		if inv == null or inv.eliminated or inv.resigned:
+			continue
+		var fork := sim.fork()
+		fork.for_each_inv_override = inv_id
+		any = _simulate_node(node.children[0], fork) or any
+	return any
+
+
+func _resolve_sim_inv(node: CompositionNode, sim: GameSimulator) -> StringName:
+	if node.inv_id == CompositionNode.INV_EACH and sim.for_each_inv_override != &"":
+		return sim.for_each_inv_override
+	return node.inv_id
 
 
 ## Must resolve：返回 dry-run 下至少 CREATED 一项的分支下标（07 §4.2 · 16 §7.2.1）。
@@ -164,7 +186,7 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			return sim.state.registry.get_location(clue_inv.location_tag) != null
 		&"nest_skill_test":
-			var test_inv := sim.state.registry.get_investigator(node.inv_id)
+			var test_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if test_inv == null:
 				return false
 			sim.last_skill_test_fail_by = _estimate_fail_by(test_inv, node.test_skill, node.test_difficulty)
@@ -198,6 +220,61 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return false
 		&"nest_enemy_attack":
 			return sim.last_step_engaged_investigator != &""
+		&"take_horror", &"take_damage":
+			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
+		&"discard_all_enemies_in_play":
+			return ScenarioCompositionAtoms.dry_discard_all_enemies_in_play(sim)
+		&"put_locations_into_play":
+			return ScenarioCompositionAtoms.dry_put_locations_into_play(sim, node.location_ids)
+		&"spawn_set_aside_enemy_at":
+			return ScenarioCompositionAtoms.dry_spawn_set_aside_enemy_at(
+				sim, node.definition_id, node.location_target
+			)
+		&"attach_set_aside_to_host":
+			return ScenarioCompositionAtoms.dry_attach_set_aside_to_host(
+				sim, node.definition_id, node.card_id, node.atom_count
+			)
+		&"attach_limbo_to_nearest_location_without":
+			var exclude := node.definition_id
+			if exclude == &"" and node.card_id != &"":
+				var c := sim.state.registry.get_card(node.card_id) if sim.state != null else null
+				if c != null:
+					exclude = c.id.definition_id
+			return EncounterAttachment.dry_attach_limbo_to_nearest_location_without(
+				sim, _resolve_sim_inv(node, sim), exclude
+			)
+		&"discard_set_aside_to_encounter_discard":
+			return ScenarioCompositionAtoms.dry_discard_set_aside_to_encounter_discard(
+				sim, node.definition_id, node.atom_count
+			)
+		&"nest_scenario_resolution":
+			var resolution := node.scenario_resolution
+			if resolution <= 0 and node.definition_id != &"":
+				resolution = ScenarioResolutionParser.parse(
+					CardRegistry.back_text(node.definition_id)
+				)
+			return ScenarioCompositionAtoms.dry_trigger_scenario_resolution(resolution)
+		&"defeat_surviving_non_resigned":
+			return ScenarioCompositionAtoms.dry_defeat_surviving_non_resigned(sim)
+		&"heal_and_set_aside_enemy":
+			return ScenarioCompositionAtoms.dry_heal_and_set_aside_enemy(sim, node.definition_id)
+		&"remove_location_from_game":
+			return ScenarioCompositionAtoms.dry_remove_location_from_game(sim, node.card_id)
+		&"put_story_asset_from_set_aside":
+			return ScenarioCompositionAtoms.dry_put_story_asset_from_set_aside(sim, node.definition_id)
+		&"place_clues_on_location":
+			return ScenarioCompositionAtoms.dry_place_clues_on_location(sim, node.location_target)
+		&"lead_search_draw_encounter_copies":
+			return ScenarioCompositionAtoms.dry_lead_search_draw_encounter_copies(
+				sim, node.definition_id
+			)
+		&"lead_draw_topmost_encounter_discard_copy":
+			return ScenarioCompositionAtoms.dry_lead_draw_topmost_encounter_discard_copy(
+				sim, node.definition_id
+			)
+		_:
+			push_warning("CompositionDryRunner: unknown atom %s" % node.atom_name)
+			return false
 	return false
 
 

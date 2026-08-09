@@ -246,6 +246,68 @@ static func agenda_advance(
 	return t
 
 
+static func act_advance(
+	after_timing: StringName = &"after_act_advance"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("act_advance_%d" % Time.get_ticks_msec())
+	t.kind = &"act_advance"
+	t.tags = [&"act", &"scenario"]
+	t.after_timing = after_timing
+	return t
+
+
+static func act_agenda_back_resolve(
+	definition_id: StringName,
+	flipped_card_id: StringName,
+	is_agenda: bool,
+	after_timing: StringName = &"after_act_agenda_back"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName(
+		"act_agenda_back_%s_%d" % [definition_id, Time.get_ticks_msec()]
+	)
+	t.kind = &"act_agenda_back_resolve"
+	t.tags = [&"scenario", &"agenda" if is_agenda else &"act", &"act_agenda_back"]
+	t.after_timing = after_timing
+	t.payload = {
+		"definition_id": definition_id,
+		"flipped_card_id": flipped_card_id,
+		"is_agenda": is_agenda,
+	}
+	return t
+
+
+static func act_agenda_back_step(
+	step_kind: StringName,
+	definition_id: StringName,
+	after_timing: StringName = &"after_act_agenda_back_step"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName(
+		"act_agenda_back_step_%s_%s_%d" % [step_kind, definition_id, Time.get_ticks_msec()]
+	)
+	t.kind = StringName("act_agenda_back_%s" % step_kind)
+	t.tags = [&"scenario", &"act_agenda_back", step_kind]
+	t.after_timing = after_timing
+	t.payload = {"definition_id": definition_id, "step_kind": step_kind}
+	return t
+
+
+static func scenario_trigger_resolution(
+	resolution: int,
+	source: StringName,
+	after_timing: StringName = &"after_scenario_resolution"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("scenario_resolution_%d_%d" % [resolution, Time.get_ticks_msec()])
+	t.kind = &"scenario_trigger_resolution"
+	t.tags = [&"scenario", &"resolution"]
+	t.after_timing = after_timing
+	t.payload = {"resolution": resolution, "source": source}
+	return t
+
+
 static func enemy_3_2_hunter_patrol(
 	after_timing: StringName = &"after_enemy_3_2_hunter_patrol"
 ) -> TriggeringCondition:

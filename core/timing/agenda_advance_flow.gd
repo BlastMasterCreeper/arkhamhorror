@@ -15,7 +15,31 @@ static func run(game_ctx: GameContext, params: Dictionary = {}) -> Dictionary:
 		return {"ok": true, "advanced": false, "reason": &"below_threshold"}
 	var from_agenda := game_ctx.state.current_agenda_number
 	var cleared := AgendaDoomPolicy.clear_all_doom(game_ctx)
-	game_ctx.state.current_agenda_number = from_agenda + 1
+	if game_ctx.state.current_agenda_card_id == &"":
+		game_ctx.state.current_agenda_number = from_agenda + 1
+		if game_ctx.log != null:
+			game_ctx.log.log(
+				AhcEnums.LogCategory.SCENARIO,
+				"agenda:advanced",
+				{
+					"from": from_agenda,
+					"to": game_ctx.state.current_agenda_number,
+					"source": source,
+					"doom_cleared": cleared,
+					"legacy": true,
+				}
+			)
+		return {
+			"ok": true,
+			"advanced": true,
+			"from_agenda": from_agenda,
+			"to_agenda": game_ctx.state.current_agenda_number,
+			"doom_cleared": cleared,
+			"legacy": true,
+		}
+	var flip := ActAgendaFlipFlow.flip_agenda(game_ctx)
+	if not flip.get("flipped", false):
+		return {"ok": false, "advanced": false, "reason": flip.get("reason", &"flip_failed")}
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
@@ -25,6 +49,8 @@ static func run(game_ctx: GameContext, params: Dictionary = {}) -> Dictionary:
 				"to": game_ctx.state.current_agenda_number,
 				"source": source,
 				"doom_cleared": cleared,
+				"current_card": game_ctx.state.current_agenda_card_id,
+				"threshold": game_ctx.state.agenda_threshold,
 			}
 		)
 	return {
@@ -33,6 +59,7 @@ static func run(game_ctx: GameContext, params: Dictionary = {}) -> Dictionary:
 		"from_agenda": from_agenda,
 		"to_agenda": game_ctx.state.current_agenda_number,
 		"doom_cleared": cleared,
+		"flip": flip,
 	}
 
 

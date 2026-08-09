@@ -4,8 +4,8 @@ extends RefCounted
 var ctx: GameContext
 
 
-func _init(p_seed: int = 42) -> void:
-	ctx = GameBootstrap.create(p_seed)
+func _init(p_seed: int = 42, config: RulesConfig = null) -> void:
+	ctx = GameBootstrap.create(p_seed, config)
 	GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
 
 

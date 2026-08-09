@@ -55,6 +55,8 @@ func start_setup() -> void:
 func advance() -> void:
 	if waiting_player_window:
 		return
+	if current_step == AhcEnums.FrameworkStep.SCENARIO_RESOLUTION:
+		return
 	if not _setup_complete:
 		_advance_setup()
 		return
@@ -105,6 +107,14 @@ func end_investigator_turn() -> void:
 		return
 	pending_action_loop = false
 	_goto(AhcEnums.FrameworkStep.INV_2_2_2_TURN_ENDS)
+
+
+func trigger_scenario_resolution(resolution: int) -> void:
+	if resolution <= 0:
+		return
+	if _state != null:
+		_state.scenario_resolution = resolution
+	_goto(AhcEnums.FrameworkStep.SCENARIO_RESOLUTION)
 
 
 func advance_until(step: AhcEnums.FrameworkStep, max_hops: int = 256) -> bool:
@@ -223,7 +233,22 @@ func _open_player_window(w: AhcEnums.PlayerWindow) -> void:
 
 
 func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
-	if step == AhcEnums.FrameworkStep.MYTHOS_1_2_PLACE_DOOM:
+	if step == AhcEnums.FrameworkStep.SETUP_10_SCENARIO_SETUP:
+		if _scenario:
+			_scenario.run_setup_scenario_layout()
+	elif step == AhcEnums.FrameworkStep.SETUP_11_SET_AGENDA_DECK:
+		if _scenario:
+			_scenario.run_setup_agenda_deck()
+	elif step == AhcEnums.FrameworkStep.SETUP_12_SET_ACT_DECK:
+		if _scenario:
+			_scenario.run_setup_act_deck()
+	elif step == AhcEnums.FrameworkStep.SETUP_13_PLACE_SCENARIO_REFERENCE:
+		if _scenario:
+			_scenario.run_setup_scenario_reference()
+	elif step == AhcEnums.FrameworkStep.SETUP_14_GAME_BEGINS_ABOUT:
+		if _scenario:
+			_scenario.run_setup_game_begins()
+	elif step == AhcEnums.FrameworkStep.MYTHOS_1_2_PLACE_DOOM:
 		if _scenario:
 			_scenario.place_mythos_doom()
 	elif step == AhcEnums.FrameworkStep.MYTHOS_1_3_CHECK_DOOM_THRESHOLD:
@@ -248,6 +273,8 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_PHASE)
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_ROUND)
+		if _game_ctx != null:
+			ScenarioObjectiveFlow.check_end_of_round(_game_ctx)
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_2_HUNTER_PATROL_MOVE:
 		if _enemy:
 			_enemy.enemy_phase_3_2_moves()

@@ -328,6 +328,18 @@ func ready_all_exhausted_enemies(game_ctx: GameContext) -> Dictionary:
 	return {"ok": true, "readied": readied}
 
 
+func deal_damage(game_ctx: GameContext, enemy_id: StringName, amount: int) -> Dictionary:
+	return EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
+
+
+func defeat_enemy(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
+	return EnemyDefeatResolver.defeat(game_ctx, enemy_id)
+
+
+func discard_enemy_from_play(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
+	return EnemyDefeatResolver.discard_from_play(game_ctx, enemy_id)
+
+
 func _apply_engage(enemy_id: StringName, inv_id: StringName) -> void:
 	var enemy := _state.registry.get_enemy(enemy_id)
 	var inv := _state.registry.get_investigator(inv_id)

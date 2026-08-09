@@ -289,6 +289,8 @@ static func add_encounter_enemy_to_deck(
 			(extra["keywords"] as Array).append(&"prey")
 	if opts.has("traits"):
 		extra["traits"] = opts.get("traits")
+	if opts.has("victory"):
+		extra["victory"] = int(opts.get("victory", 0))
 	return add_encounter_card_to_deck(ctx, definition_id, keywords, extra)
 
 
@@ -362,6 +364,12 @@ static func setup_test_enemy(
 	enemy.aloof = aloof
 	enemy.massive = massive
 	ctx.state.registry.register_enemy(enemy)
+
+
+static func config_spreading_flames() -> RulesConfig:
+	var cfg := RulesConfig.new()
+	cfg.setup_scenario_id = ScenarioSetupCatalog.SPREADING_FLAMES
+	return cfg
 
 
 static func run_setup_through_game_begins(ctx: GameContext) -> void:

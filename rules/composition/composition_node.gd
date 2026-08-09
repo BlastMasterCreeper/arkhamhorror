@@ -1,6 +1,9 @@
 class_name CompositionNode
 extends RefCounted
 
+## 占位：for_each 循环内绑定当前调查员 id。
+const INV_EACH: StringName = &"each_investigator"
+
 var kind: AhcEnums.CompositionNodeKind = AhcEnums.CompositionNodeKind.SEQ
 var children: Array[CompositionNode] = []
 var inv_id: StringName = &""
@@ -37,6 +40,11 @@ var trait_exclude: Array[StringName] = []
 var location_target: StringName = &""
 var enemy_ref_id: StringName = &""
 var target_investigator_id: StringName = &""
+var definition_id: StringName = &""
+var location_ids: Array[StringName] = []
+var atom_count: int = -1
+var scenario_resolution: int = -1
+var for_each_source: StringName = &"player_order"
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -402,4 +410,193 @@ static func resolve_pending(pending_id: StringName) -> CompositionNode:
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"resolve_pending"
 	n.pending_id = pending_id
+	return n
+
+
+## L0 · 弃置场上所有敌人（场景指令 / b 面）。
+static func discard_all_enemies_in_play() -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"discard_all_enemies_in_play"
+	return n
+
+
+## L0 · 地点进场（可从未揭示 set-aside 状态注册）。
+static func put_locations_into_play(ids: Array) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"put_locations_into_play"
+	for raw in ids:
+		n.location_ids.append(raw as StringName)
+	return n
+
+
+## L0 · 从 set-aside 生成敌人到指定地点。
+static func spawn_set_aside_enemy_at(
+	enemy_definition_id: StringName,
+	location_id: StringName
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"spawn_set_aside_enemy_at"
+	n.definition_id = enemy_definition_id
+	n.location_target = location_id
+	return n
+
+
+## L0 · 将 set-aside 牌附着到 host 卡（常为地点）。
+static func attach_set_aside_to_host(
+	definition_id: StringName,
+	host_card_id: StringName,
+	count: int = 1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"attach_set_aside_to_host"
+	n.definition_id = definition_id
+	n.card_id = host_card_id
+	n.atom_count = maxi(count, 1)
+	return n
+
+
+## L0 · limbo treachery 附着到最近且无该 definition 附着的地点（Fire! 显现）。
+static func attach_limbo_to_nearest_location_without(
+	card_id: StringName,
+	drawer_id: StringName,
+	exclude_attachment_definition_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"attach_limbo_to_nearest_location_without"
+	n.card_id = card_id
+	n.inv_id = drawer_id
+	n.definition_id = exclude_attachment_definition_id
+	return n
+
+
+## L0 · set-aside 复制进遭遇弃牌堆；atom_count < 0 表示全部。
+static func discard_set_aside_to_encounter_discard(
+	definition_id: StringName,
+	count: int = -1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"discard_set_aside_to_encounter_discard"
+	n.definition_id = definition_id
+	n.atom_count = count
+	return n
+
+
+## L1 · 按 player order 依次执行 body（跳过 eliminated / resigned）。
+static func for_each_player_order(body: CompositionNode) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.FOR_EACH
+	n.for_each_source = &"player_order"
+	if body != null:
+		n.children.append(body)
+	return n
+
+
+## L0 · 调查员受到 horror（场景 b 面 fail 等）。
+static func take_horror(inv_id: StringName, amount: int = 1) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"take_horror"
+	n.inv_id = inv_id
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
+## L0 · 调查员受到 damage。
+static func take_damage(inv_id: StringName, amount: int = 1) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"take_damage"
+	n.inv_id = inv_id
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
+## L2 · nest 场景结算 `(→R#)`。
+static func nest_scenario_resolution(
+	resolution: int,
+	source_definition_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_scenario_resolution"
+	n.scenario_resolution = resolution
+	n.definition_id = source_definition_id
+	return n
+
+
+## L0 · 未 resign 存活调查员 defeated + 可选 trauma。
+static func defeat_surviving_non_resigned(
+	physical_trauma: int = 0,
+	mental_trauma: int = 0
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"defeat_surviving_non_resigned"
+	n.marker_delta = physical_trauma
+	n.draw_amount = mental_trauma
+	return n
+
+
+static func heal_and_set_aside_enemy(definition_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"heal_and_set_aside_enemy"
+	n.definition_id = definition_id
+	return n
+
+
+static func remove_location_from_game(location_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"remove_location_from_game"
+	n.card_id = location_id
+	return n
+
+
+static func put_story_asset_from_set_aside(
+	definition_id: StringName,
+	controller_id: StringName = &"lead_investigator"
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"put_story_asset_from_set_aside"
+	n.definition_id = definition_id
+	n.location_target = controller_id
+	return n
+
+
+static func place_clues_on_location(location_id: StringName, printed_clues: int) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"place_clues_on_location"
+	n.location_target = location_id
+	n.atom_count = printed_clues
+	return n
+
+
+static func lead_search_draw_encounter_copies(
+	definition_id: StringName,
+	per_investigator: bool = false
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"lead_search_draw_encounter_copies"
+	n.definition_id = definition_id
+	n.flag_value = per_investigator
+	return n
+
+
+static func lead_draw_topmost_encounter_discard_copy(
+	definition_id: StringName
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"lead_draw_topmost_encounter_discard_copy"
+	n.definition_id = definition_id
 	return n

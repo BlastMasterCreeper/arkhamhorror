@@ -1,7 +1,13 @@
 class_name Condition
 extends RefCounted
 
-enum DomainPredicate { NONE, INVESTIGATOR_CLUES_ON_CARD_EQ, PREVIOUS_STEP_NOT_CREATED, PREVIOUS_STEP_ENGAGED }
+enum DomainPredicate {
+	NONE,
+	INVESTIGATOR_CLUES_ON_CARD_EQ,
+	PREVIOUS_STEP_NOT_CREATED,
+	PREVIOUS_STEP_ENGAGED,
+	LAST_SKILL_TEST_FAILED,
+}
 
 var tags_all: Array[StringName] = []
 var _use_framework_step: bool = false
@@ -43,6 +49,14 @@ static func investigator_has_no_clues(inv_id: StringName) -> Condition:
 	c.domain_predicate = DomainPredicate.INVESTIGATOR_CLUES_ON_CARD_EQ
 	c.domain_inv_id = inv_id
 	c.domain_eq = 0
+	return c
+
+
+## L3 · 上一子步 nest_skill_test 失败（fail_by > 0）。
+static func last_skill_test_failed(_inv_id: StringName = &"") -> Condition:
+	var c := Condition.new()
+	c.domain_predicate = DomainPredicate.LAST_SKILL_TEST_FAILED
+	c.domain_inv_id = _inv_id
 	return c
 
 
@@ -124,6 +138,10 @@ func matches_domain(game_ctx: GameContext, fallback_inv_id: StringName) -> bool:
 			if game_ctx.composition != null:
 				return game_ctx.composition.last_step_engaged_investigator() != &""
 			return false
+		DomainPredicate.LAST_SKILL_TEST_FAILED:
+			if game_ctx.composition != null:
+				return game_ctx.composition.last_skill_test_fail_by() > 0
+			return false
 	return true
 
 
@@ -139,4 +157,6 @@ func matches_domain_sim(sim: GameSimulator, fallback_inv_id: StringName) -> bool
 			return not sim.last_step_created
 		DomainPredicate.PREVIOUS_STEP_ENGAGED:
 			return sim.last_step_engaged_investigator != &""
+		DomainPredicate.LAST_SKILL_TEST_FAILED:
+			return sim.last_skill_test_fail_by > 0
 	return true

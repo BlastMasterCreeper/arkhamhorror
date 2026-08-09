@@ -98,6 +98,7 @@ static func _register_flows(
 	_register_action_flows(catalog)
 	_register_skill_test_flows(catalog)
 	_register_mythos_flows(catalog)
+	_register_act_agenda_back_flows(catalog)
 	_register_enemy_flows(catalog)
 
 
@@ -191,6 +192,28 @@ static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
 			return TriggeringCondition.agenda_advance(source, explicit),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return AgendaAdvanceFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.act.advance",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.act_advance(),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ActAdvanceFlow.run(game_ctx, params)
+	)
+
+
+static func _register_act_agenda_back_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.act_agenda.resolve_back",
+		func(params: Dictionary) -> TriggeringCondition:
+			var definition_id: StringName = params.get("definition_id", &"")
+			var flipped_card_id: StringName = params.get("flipped_card_id", &"")
+			var is_agenda: bool = bool(params.get("is_agenda", false))
+			return TriggeringCondition.act_agenda_back_resolve(
+				definition_id, flipped_card_id, is_agenda
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ActAgendaBackFlow.run_resolve_back(game_ctx, params)
 	)
 
 

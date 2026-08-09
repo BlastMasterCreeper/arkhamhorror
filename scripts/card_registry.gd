@@ -11,6 +11,16 @@ static func register_definition(definition_id: StringName, data: Dictionary = {}
 	_definitions[definition_id] = data
 
 
+static func patch_definition(definition_id: StringName, data: Dictionary) -> void:
+	var base: Dictionary = _definitions.get(definition_id, {})
+	if base.is_empty():
+		_definitions[definition_id] = data.duplicate()
+	else:
+		var merged := base.duplicate()
+		merged.merge(data, true)
+		_definitions[definition_id] = merged
+
+
 static func definition_data(definition_id: StringName) -> Dictionary:
 	var data: Variant = _definitions.get(definition_id, {})
 	if data is Dictionary:
@@ -178,7 +188,13 @@ static func enter_hand_zone(definition_id: StringName) -> AhcEnums.Zone:
 ## 显现后仍在 limbo 时弃入的牌堆：`owner_discard` | `encounter_discard`。
 static func limbo_discard_pile(definition_id: StringName) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
-	return data.get("limbo_discard_pile", &"owner_discard") as StringName
+	if data.has("limbo_discard_pile"):
+		return data.get("limbo_discard_pile") as StringName
+	## 遭遇 treachery / enemy 默认进遭遇弃牌堆。
+	var card_type: StringName = data.get("card_type", &"") as StringName
+	if card_type == &"treachery" or card_type == &"enemy":
+		return &"encounter_discard"
+	return &"owner_discard"
 
 
 static func has_keyword(definition_id: StringName, keyword: StringName) -> bool:
@@ -238,6 +254,96 @@ static func is_massive(definition_id: StringName) -> bool:
 	if data.get("massive", false):
 		return true
 	return has_keyword(definition_id, &"massive")
+
+
+static func is_doomed(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("doomed", false):
+		return true
+	return has_keyword(definition_id, &"doomed")
+
+
+static func victory_points(definition_id: StringName) -> int:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return int(data.get("victory", 0))
+
+
+static func is_act(definition_id: StringName) -> bool:
+	return card_type(definition_id) == &"act"
+
+
+static func is_agenda(definition_id: StringName) -> bool:
+	return card_type(definition_id) == &"agenda"
+
+
+static func back_text(definition_id: StringName) -> String:
+	return str(definition_data(definition_id).get("back_text", ""))
+
+
+static func back_name(definition_id: StringName) -> String:
+	return str(definition_data(definition_id).get("back_name", ""))
+
+
+static func back_effects(definition_id: StringName) -> Array:
+	var raw: Variant = definition_data(definition_id).get("back_effects", [])
+	if raw is Array:
+		return (raw as Array).duplicate(true)
+	return []
+
+
+static func scenario_objective(definition_id: StringName) -> Dictionary:
+	var raw: Variant = definition_data(definition_id).get("objective", {})
+	if raw is Dictionary:
+		return (raw as Dictionary).duplicate(true)
+	return {}
+
+
+static func scenario_doom_threshold(definition_id: StringName) -> int:
+	var data := definition_data(definition_id)
+	if not data.has("doom"):
+		return 7
+	var doom_val: Variant = data.get("doom")
+	if doom_val == null:
+		return -1
+	return int(doom_val)
+
+
+static func scenario_clue_threshold(definition_id: StringName) -> int:
+	return location_printed_clues(definition_id)
+
+
+static func all_definition_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key in _definitions.keys():
+		out.append(key as StringName)
+	out.sort()
+	return out
+
+
+static func encounter_code(definition_id: StringName) -> StringName:
+	return StringName(str(definition_data(definition_id).get("encounter_code", "")))
+
+
+static func location_shroud(definition_id: StringName) -> int:
+	var loc: Variant = definition_data(definition_id).get("location", {})
+	if loc is Dictionary:
+		return int((loc as Dictionary).get("shroud", 0))
+	return 0
+
+
+static func location_printed_clues(definition_id: StringName) -> int:
+	var loc: Variant = definition_data(definition_id).get("location", {})
+	if loc is Dictionary:
+		var clues: Variant = (loc as Dictionary).get("clues")
+		if clues == null or str(clues) == "dash":
+			return -1
+		return int(clues)
+	return -1
+
+
+static func goes_in_encounter_deck(definition_id: StringName) -> bool:
+	var ctype := card_type(definition_id)
+	return ctype == &"enemy" or ctype == &"treachery"
 
 
 static func has_surge(definition_id: StringName) -> bool:

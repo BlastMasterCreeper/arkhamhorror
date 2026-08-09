@@ -279,7 +279,9 @@ static func _step_g4_resolve(ctx: Dictionary) -> void:
 		return
 	if card.is_hidden and card.zone == AhcEnums.Zone.HAND:
 		return  # 隐私 treachery · Framework 不得离手 → 跳过
-	if card.zone == AhcEnums.Zone.HAND or card.zone == AhcEnums.Zone.PLAY_AREA:
+	if card.zone == AhcEnums.Zone.HAND \
+			or card.zone == AhcEnums.Zone.PLAY_AREA \
+			or card.zone == AhcEnums.Zone.ATTACHED:
 		return
 	## 遭遇 treachery 默认落点 =「效果结算后仍在 limbo → finalize」（同 seq.enter_hand · 15 §16.4）
 	game_ctx.mutator.finalize_limbo_discard(card_id, drawer_id)

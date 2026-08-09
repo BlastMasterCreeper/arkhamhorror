@@ -8,6 +8,7 @@ var last_step_created: bool = false
 var last_step_engaged_investigator: StringName = &""
 var last_resolved_location: StringName = &""
 var last_skill_test_fail_by: int = 0
+var for_each_inv_override: StringName = &""
 
 
 static func from_context(ctx: GameContext) -> GameSimulator:
@@ -22,6 +23,8 @@ func fork() -> GameSimulator:
 	var copy := GameSimulator.new()
 	copy.state = _duplicate_state(state)
 	copy.registrations = registrations.duplicate_store()
+	copy.last_skill_test_fail_by = last_skill_test_fail_by
+	copy.for_each_inv_override = for_each_inv_override
 	copy._bind_mutator()
 	return copy
 
@@ -39,6 +42,23 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 	copy.doom_on_agenda = src.doom_on_agenda
 	copy.agenda_threshold = src.agenda_threshold
 	copy.current_agenda_number = src.current_agenda_number
+	copy.current_act_number = src.current_act_number
+	copy.act_clue_threshold = src.act_clue_threshold
+	copy.victory_display = src.victory_display.duplicate()
+	copy.current_act_card_id = src.current_act_card_id
+	copy.current_agenda_card_id = src.current_agenda_card_id
+	copy.act_deck = src.act_deck.duplicate()
+	copy.agenda_deck = src.agenda_deck.duplicate()
+	copy.removed_from_game = src.removed_from_game.duplicate()
+	copy.scenario_resolution = src.scenario_resolution
+	copy.per_investigator_count = src.per_investigator_count
+	copy.set_aside = src.set_aside.duplicate()
+	copy.scenario_reference_card_id = src.scenario_reference_card_id
+	copy.scenario_layout_installed = src.scenario_layout_installed
+	copy.setup_game_begins_resolved = src.setup_game_begins_resolved
+	copy.deferred_setup_revelations = src.deferred_setup_revelations.duplicate()
+	copy.encounter_deck = src.encounter_deck.duplicate()
+	copy.encounter_discard = src.encounter_discard.duplicate()
 	copy.token_pool = TokenPool.new()
 	copy.token_pool.damage_available = src.token_pool.damage_available
 	copy.token_pool.horror_available = src.token_pool.horror_available
@@ -59,6 +79,10 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		inv.damage_taken = inv_src.damage_taken
 		inv.horror_taken = inv_src.horror_taken
 		inv.clues_on_card = inv_src.clues_on_card
+		inv.eliminated = inv_src.eliminated
+		inv.resigned = inv_src.resigned
+		inv.physical_trauma = inv_src.physical_trauma
+		inv.mental_trauma = inv_src.mental_trauma
 		inv.deck = inv_src.deck.duplicate()
 		inv.hand = inv_src.hand.duplicate()
 		inv.discard = inv_src.discard.duplicate()

@@ -340,9 +340,9 @@ func discard_spawn_failed(enemy_id: StringName) -> void:
 
 ## 8. Defeat / Victory / Doomed
 
-- Damage >= health → defeated → encounter discard（或 weakness owner discard）
-- Victory X → victory display
-- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）
+- Damage >= health → defeated → encounter discard（或 weakness owner discard）；**Victory X > 0** → `victory_display`（`EnemyDefeatResolver`）
+- Victory X → victory display（discard 不算 defeat，不进 victory display）
+- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）；实现见 `DoomedResolver` / `EnemyDefeatResolver`
 
 ---
 

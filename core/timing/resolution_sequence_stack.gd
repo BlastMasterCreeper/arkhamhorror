@@ -26,6 +26,14 @@ func register_handler(handler: SequenceHandler) -> void:
 	_handlers.append(handler)
 
 
+func unregister_handlers_by_source(source_id: StringName) -> void:
+	if source_id == &"":
+		return
+	for i in range(_handlers.size() - 1, -1, -1):
+		if _handlers[i].source_id == source_id:
+			_handlers.remove_at(i)
+
+
 func depth() -> int:
 	return _frames.size()
 
@@ -98,7 +106,9 @@ func _run_response_loop(phase: AhcEnums.SequencePhase) -> void:
 	frame.phase = phase
 	_record_phase(frame, phase)
 	_response_window.open_for(frame.trigger, phase)
-	_resolved_in_window.clear()
+	## 每层 response 窗口独立已结算表，避免 nest 清空父窗口导致 Forced 重入死循环。
+	var previous_resolved: Dictionary = _resolved_in_window
+	_resolved_in_window = {}
 	while true:
 		_response_window.next_round()
 		var handled := _dispatch_handlers(frame, phase)
@@ -107,6 +117,7 @@ func _run_response_loop(phase: AhcEnums.SequencePhase) -> void:
 	if phase == AhcEnums.SequencePhase.AFTER:
 		_emit_after_timing(frame)
 	_response_window.close()
+	_resolved_in_window = previous_resolved
 
 
 func _run_phase(phase: AhcEnums.SequencePhase, resolve_fn: Callable = Callable()) -> void:

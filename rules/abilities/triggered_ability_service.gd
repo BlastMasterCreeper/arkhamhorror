@@ -34,6 +34,16 @@ func install_card(controller_id: StringName, card_id: StringName) -> void:
 		)
 
 
+func uninstall_by_source(source_id: StringName) -> void:
+	if source_id == &"" or _ctx == null:
+		return
+	if _ctx.sequences != null:
+		_ctx.sequences.unregister_handlers_by_source(source_id)
+	for i in range(_descriptors.size() - 1, -1, -1):
+		if _descriptors[i].source_id == source_id:
+			_descriptors.remove_at(i)
+
+
 func resolve(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
 	if descriptor == null or _ctx == null:
 		return {"ok": false, "error": "no_context"}

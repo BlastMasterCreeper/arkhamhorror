@@ -13,6 +13,7 @@ var _last_skill_test_fail_by: int = 0
 var _last_step_enemy_id: StringName = &""
 var _last_step_engaged_investigator: StringName = &""
 var _last_resolved_location: StringName = &""
+var _inv_override_stack: Array[StringName] = []
 
 
 func _init(
@@ -52,6 +53,7 @@ func execute(node: CompositionNode) -> void:
 	_last_step_enemy_id = &""
 	_last_step_engaged_investigator = &""
 	_last_resolved_location = &""
+	_inv_override_stack.clear()
 	_run_node(node)
 
 
@@ -73,6 +75,31 @@ func _run_node(node: CompositionNode) -> void:
 			_execute_choice(node)
 		AhcEnums.CompositionNodeKind.REPEAT:
 			_execute_repeat(node)
+		AhcEnums.CompositionNodeKind.FOR_EACH:
+			_execute_for_each(node)
+
+
+func _resolve_inv(node: CompositionNode) -> StringName:
+	if node.inv_id == CompositionNode.INV_EACH and not _inv_override_stack.is_empty():
+		return _inv_override_stack[_inv_override_stack.size() - 1]
+	return node.inv_id
+
+
+func _execute_for_each(node: CompositionNode) -> void:
+	if node.children.is_empty() or _game_ctx == null or _game_ctx.framework == null:
+		return
+	var order: Array[StringName] = []
+	if node.for_each_source == &"player_order":
+		order = _game_ctx.framework.player_order.duplicate()
+	else:
+		order = _state.registry.all_investigator_ids()
+	for inv_id in order:
+		var inv := _state.registry.get_investigator(inv_id)
+		if inv == null or inv.eliminated or inv.resigned:
+			continue
+		_inv_override_stack.append(inv_id)
+		_run_node(node.children[0])
+		_inv_override_stack.pop_back()
 
 
 func _stamp_provenance(node: CompositionNode) -> void:
@@ -318,6 +345,93 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_move(node)
 		&"nest_enemy_attack":
 			return _execute_nest_enemy_attack(node)
+		&"take_horror":
+			var horror_inv := _resolve_inv(node)
+			if horror_inv == &"":
+				return false
+			_mutator.take_horror(horror_inv, node.marker_delta)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:take_horror",
+				{"inv": horror_inv, "amount": node.marker_delta}
+			)
+			return true
+		&"take_damage":
+			var dmg_inv := _resolve_inv(node)
+			if dmg_inv == &"":
+				return false
+			_mutator.adjust_marker(
+				MarkerSlot.investigator(dmg_inv, AhcEnums.MarkerKind.DAMAGE),
+				node.marker_delta
+			)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:take_damage",
+				{"inv": dmg_inv, "amount": node.marker_delta}
+			)
+			return true
+		&"discard_all_enemies_in_play":
+			return ScenarioCompositionAtoms.discard_all_enemies_in_play(_game_ctx)
+		&"put_locations_into_play":
+			return ScenarioCompositionAtoms.put_locations_into_play(
+				_game_ctx, node.location_ids
+			)
+		&"spawn_set_aside_enemy_at":
+			return ScenarioCompositionAtoms.spawn_set_aside_enemy_at(
+				_game_ctx, node.definition_id, node.location_target
+			)
+		&"attach_set_aside_to_host":
+			return ScenarioCompositionAtoms.attach_set_aside_to_host(
+				_game_ctx, node.definition_id, node.card_id, node.atom_count
+			)
+		&"attach_limbo_to_nearest_location_without":
+			return EncounterAttachment.attach_limbo_to_nearest_location_without(
+				_game_ctx,
+				node.card_id,
+				_resolve_inv(node),
+				node.definition_id
+			)
+		&"discard_set_aside_to_encounter_discard":
+			return ScenarioCompositionAtoms.discard_set_aside_to_encounter_discard(
+				_game_ctx, node.definition_id, node.atom_count
+			)
+		&"nest_scenario_resolution":
+			var resolution := node.scenario_resolution
+			if resolution <= 0 and node.definition_id != &"":
+				resolution = ScenarioResolutionParser.parse(
+					CardRegistry.back_text(node.definition_id)
+				)
+			return ScenarioCompositionAtoms.trigger_scenario_resolution(
+				_game_ctx, resolution, node.definition_id
+			)
+		&"defeat_surviving_non_resigned":
+			return ScenarioCompositionAtoms.defeat_surviving_non_resigned(
+				_game_ctx, node.marker_delta, node.draw_amount
+			)
+		&"heal_and_set_aside_enemy":
+			return ScenarioCompositionAtoms.heal_and_set_aside_enemy(
+				_game_ctx, node.definition_id
+			)
+		&"remove_location_from_game":
+			return ScenarioCompositionAtoms.remove_location_from_game(
+				_game_ctx, node.card_id
+			)
+		&"put_story_asset_from_set_aside":
+			return ScenarioCompositionAtoms.put_story_asset_from_set_aside(
+				_game_ctx, node.definition_id, node.location_target
+			)
+		&"place_clues_on_location":
+			return ScenarioCompositionAtoms.place_clues_on_location(
+				_game_ctx, node.location_target, node.atom_count
+			)
+		&"lead_search_draw_encounter_copies":
+			return ScenarioCompositionAtoms.lead_search_draw_encounter_copies(
+				_game_ctx, node.definition_id, bool(node.flag_value)
+			)
+		&"lead_draw_topmost_encounter_discard_copy":
+			return ScenarioCompositionAtoms.lead_draw_topmost_encounter_discard_copy(
+				_game_ctx, node.definition_id
+			)
 		_:
 			push_warning("CompositionExecutor: unknown atom %s" % node.atom_name)
 			return false
@@ -403,6 +517,9 @@ func _resolve_repeat_count(node: CompositionNode) -> int:
 
 func _execute_nest_skill_test(node: CompositionNode) -> bool:
 	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return false
+	var inv_id := _resolve_inv(node)
+	if inv_id == &"":
 		return false
 	var flow_id := SkillTestFlowHandlers.flow_id_for_skill(node.test_skill)
 	var result := _game_ctx.sequence_catalog.nest(

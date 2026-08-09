@@ -17,6 +17,27 @@ func _initialize() -> void:
 	_run_test("F-02 full round to round 2 mythos", _test_full_round_to_mythos)
 	_run_test("F-05 mythos 1.3 agenda advance", _test_f05_mythos_agenda_advance)
 	_run_test("SC-04 agenda doom advance clears doom", _test_sc04_agenda_advance_clears_doom)
+	_run_test("SC-05 agenda flip promotes next card", _test_sc05_agenda_flip_promotes)
+	_run_test("SC-06 act flip triggers resolution", _test_sc06_act_flip_resolution)
+	_run_test("SC-07 act advance spends clues", _test_sc07_act_advance_spends_clues)
+	_run_test("SC-08 setup wires act agenda decks", _test_sc08_setup_wires_act_agenda_decks)
+	_run_test("SC-09 setup scenario layout", _test_sc09_setup_scenario_layout)
+	_run_test("SC-10 setup scenario reference", _test_sc10_setup_scenario_reference)
+	_run_test("SC-11 investigate after sf setup", _test_sc11_investigate_after_sf_setup)
+	_run_test("SC-12 setup game begins timing", _test_sc12_setup_game_begins_timing)
+	_run_test("SC-13 act1 flip spawns layout", _test_sc13_act1_flip_spawns_layout)
+	_run_test("SC-14 agenda2 flip discards fire", _test_sc14_agenda2_flip_discards_fire)
+	_run_test("SC-15 act agenda back composition atoms", _test_sc15_act_agenda_back_composition_atoms)
+	_run_test("SC-16 agenda1 flip skill horror", _test_sc16_agenda1_flip_skill_horror)
+	_run_test("SC-17 agenda2 flip skill damage", _test_sc17_agenda2_flip_skill_damage)
+	_run_test("SC-18 agenda3 flip defeat trauma", _test_sc18_agenda3_flip_defeat_trauma)
+	_run_test("SC-19 objective all at quad advance", _test_sc19_objective_all_at_quad_advance)
+	_run_test("SC-20 objective servant defeated advance", _test_sc20_objective_servant_defeated_advance)
+	_run_test("SC-21 act2 flip layout", _test_sc21_act2_flip_layout)
+	_run_test("SC-22 act3 flip armitage", _test_sc22_act3_flip_armitage)
+	_run_test("SC-23 agenda3 forced draws fire", _test_sc23_agenda3_forced_draws_fire)
+	_run_test("SC-24 fire revelation attaches", _test_sc24_fire_revelation_attaches)
+	_run_test("SC-25 fire revelation no target discards", _test_sc25_fire_revelation_no_target_discards)
 	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
@@ -199,6 +220,16 @@ func _initialize() -> void:
 	_run_test("EN-18 massive fight fail no redirect", _test_en18_massive_fight_fail_no_redirect)
 	_run_test("EN-06 elusive after AOO flees", _test_en06_elusive_after_aoo)
 	_run_test("EN-19 fight elusive enemy flees", _test_en19_fight_elusive_flees)
+	_run_test("EN-20 fight fail redirect and retaliate", _test_en20_fight_fail_redirect_and_retaliate)
+	_run_test("EN-21 alert on aloof unengaged evade fail", _test_en21_alert_aloof_unengaged)
+	_run_test("EN-22 fight success elusive enemy flees", _test_en22_fight_success_elusive_flees)
+	_run_test("EN-23 defeat doomed places agenda doom", _test_en23_defeat_doomed_places_doom)
+	_run_test("EN-24 discard enemy skips doomed", _test_en24_discard_enemy_skips_doomed)
+	_run_test("EN-25 defeat non-doomed no agenda doom", _test_en25_defeat_non_doomed_no_doom)
+	_run_test("EN-26 defeat victory enemy to display", _test_en26_defeat_victory_to_display)
+	_run_test("EN-27 discard victory enemy not to display", _test_en27_discard_victory_not_to_display)
+	_run_test("ADB-23 import bystander doomed text", _test_adb_import_bystander_doomed)
+	_run_test("ADB-24 import elite servant victory points", _test_adb_import_elite_servant_victory)
 	_run_test("ADB-22 compile aerial pursuit", _test_adb_compile_aerial_pursuit)
 	_run_test("ENC-12163 move engage immediate attack", _test_enc_12163_move_attack)
 	if _failed > 0:
@@ -296,6 +327,556 @@ func _test_sc04_agenda_advance_clears_doom() -> bool:
 		and h.ctx.state.doom_on_agenda == 0
 		and enemy.doom == 0
 		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _prepare_sf_act_agenda_defs() -> void:
+	ScenarioSetupCatalog.prepare_definitions(ScenarioSetupCatalog.SPREADING_FLAMES)
+
+
+func _test_sc05_agenda_flip_promotes() -> bool:
+	var h := RuleTestHarness.new(42)
+	_prepare_sf_act_agenda_defs()
+	var setup := h.ctx.scenario.setup_act_agenda_decks([], [&"12106", &"12107", &"12108"])
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	h.ctx.state.doom_on_agenda = 3
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"mythos_1_3", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var current := h.ctx.state.registry.get_card(h.ctx.state.current_agenda_card_id)
+	return (
+		advance.get("advanced", false)
+		and h.ctx.state.current_agenda_number == 2
+		and h.ctx.state.agenda_threshold == 5
+		and h.ctx.state.doom_on_agenda == 0
+		and h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and flipped.zone == AhcEnums.Zone.REMOVED_FROM_GAME
+		and current != null
+		and current.face == AhcEnums.CardFace.A
+		and current.zone == AhcEnums.Zone.CURRENT_AGENDA
+		and h.ctx.state.current_agenda_card_id != first_id
+	)
+
+
+func _test_sc06_act_flip_resolution() -> bool:
+	var h := RuleTestHarness.new(42)
+	_prepare_sf_act_agenda_defs()
+	var setup := h.ctx.scenario.setup_act_agenda_decks([&"12112"], [])
+	if not setup.get("ok", false):
+		return false
+	var act_id := h.ctx.state.current_act_card_id
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.act.advance", {"skip_clue_spend": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(act_id)
+	return (
+		advance.get("advanced", false)
+		and h.ctx.state.scenario_resolution == 1
+		and h.ctx.framework.current_step == AhcEnums.FrameworkStep.SCENARIO_RESOLUTION
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and h.ctx.state.removed_from_game.has(act_id)
+		and h.ctx.state.current_act_card_id == &""
+	)
+
+
+func _test_sc07_act_advance_spends_clues() -> bool:
+	var h := RuleTestHarness.new(42)
+	_prepare_sf_act_agenda_defs()
+	var setup := h.ctx.scenario.setup_act_agenda_decks([&"12109", &"12110"], [])
+	if not setup.get("ok", false):
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.clues_on_card = 1
+	var blocked := h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	if blocked.get("advanced", true):
+		return false
+	inv.clues_on_card = 2
+	var advance := h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	var current := h.ctx.state.registry.get_card(h.ctx.state.current_act_card_id)
+	return (
+		advance.get("advanced", false)
+		and inv.clues_on_card == 0
+		and h.ctx.state.current_act_number == 2
+		and current != null
+		and current.id.definition_id == &"12110"
+	)
+
+
+func _test_sc08_setup_wires_act_agenda_decks() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var agenda := h.ctx.state.registry.get_card(h.ctx.state.current_agenda_card_id)
+	var act := h.ctx.state.registry.get_card(h.ctx.state.current_act_card_id)
+	return (
+		agenda != null
+		and agenda.id.definition_id == &"12106"
+		and agenda.zone == AhcEnums.Zone.CURRENT_AGENDA
+		and h.ctx.state.agenda_threshold == 3
+		and h.ctx.state.current_agenda_number == 1
+		and h.ctx.state.agenda_deck.size() == 2
+		and act != null
+		and act.id.definition_id == &"12109"
+		and act.zone == AhcEnums.Zone.CURRENT_ACT
+		and h.ctx.state.act_clue_threshold == 2
+		and h.ctx.state.current_act_number == 1
+		and h.ctx.state.act_deck.size() == 3
+		and h.framework_step() == AhcEnums.FrameworkStep.INV_2_1_PHASE_BEGINS
+	)
+
+
+func _sf_set_aside_count(h: RuleTestHarness, definition_id: StringName) -> int:
+	var count := 0
+	for card_id in h.ctx.state.set_aside:
+		var card := h.ctx.state.registry.get_card(card_id)
+		if card != null and card.id.definition_id == definition_id:
+			count += 1
+	return count
+
+
+func _test_sc09_setup_scenario_layout() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var loc := h.ctx.state.registry.get_location(&"12113")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var dorm := h.ctx.state.registry.get_location(&"12117")
+	return (
+		h.ctx.state.scenario_layout_installed
+		and loc != null
+		and loc.revealed
+		and loc.shroud == 2
+		and loc.clues == 2
+		and inv != null
+		and inv.location_tag == &"12113"
+		and dorm != null
+		and not dorm.revealed
+		and _sf_set_aside_count(h, &"12129") == 5
+		and _sf_set_aside_count(h, &"12114") == 1
+		and _sf_set_aside_count(h, &"12115") == 1
+		and h.ctx.state.encounter_deck.size() >= 10
+		and h.ctx.state.per_investigator_count == 1
+	)
+
+
+func _test_sc10_setup_scenario_reference() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var ref := h.ctx.state.registry.get_card(h.ctx.state.scenario_reference_card_id)
+	return (
+		ref != null
+		and ref.id.definition_id == &"12105"
+		and ref.zone == AhcEnums.Zone.PLAY_AREA
+	)
+
+
+func _test_sc11_investigate_after_sf_setup() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	if not h.advance_to_action_phase():
+		return false
+	h.ctx.state.registry.get_investigator(&"inv_1").actions_remaining = 1
+	var loc := h.ctx.state.registry.get_location(&"12113")
+	var before_clues := loc.clues
+	var res := h.investigate_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and res.success
+		and loc.clues == before_clues - 1
+		and inv.clues_on_card == 1
+	)
+
+
+func _log_has_message(h: RuleTestHarness, message: String) -> bool:
+	for entry in h.ctx.log.get_entries():
+		if str(entry.get("message", "")) == message:
+			return true
+	return false
+
+
+func _encounter_discard_count(h: RuleTestHarness, definition_id: StringName) -> int:
+	var count := 0
+	for card_id in h.ctx.state.encounter_discard:
+		var card := h.ctx.state.registry.get_card(card_id)
+		if card != null and card.id.definition_id == definition_id:
+			count += 1
+	return count
+
+
+func _enemy_at_location(
+	h: RuleTestHarness,
+	definition_id: StringName,
+	location_id: StringName
+) -> EnemyState:
+	for enemy_id in h.ctx.state.registry.all_enemy_ids():
+		var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+		if enemy == null or enemy.location_tag != location_id:
+			continue
+		var card := h.ctx.state.registry.get_card(enemy_id)
+		if card != null and card.id.definition_id == definition_id:
+			return enemy
+	return null
+
+
+func _test_sc12_setup_game_begins_timing() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	return (
+		h.ctx.state.setup_game_begins_resolved
+		and _log_has_message(h, "setup:game_begins")
+		and _log_has_message(h, "timing:when_the_game_begins")
+	)
+
+
+func _test_sc13_act1_flip_spawns_layout() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.clues_on_card = 2
+	var advance := h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	var dorm := h.ctx.state.registry.get_location(&"12117")
+	var quad := h.ctx.state.registry.get_location(&"12116")
+	var room_card := h.ctx.state.registry.get_card(&"12113")
+	var servant := _enemy_at_location(h, &"12114", &"12117")
+	var current := h.ctx.state.registry.get_card(h.ctx.state.current_act_card_id)
+	return (
+		advance.get("advanced", false)
+		and h.ctx.state.current_act_number == 2
+		and current != null
+		and current.id.definition_id == &"12110"
+		and dorm != null
+		and dorm.revealed
+		and quad != null
+		and quad.revealed
+		and servant != null
+		and room_card != null
+		and room_card.attachments.size() == 1
+		and _encounter_discard_count(h, &"12129") == 4
+		and _sf_set_aside_count(h, &"12129") == 0
+		and _sf_set_aside_count(h, &"12114") == 0
+		and _sf_set_aside_count(h, &"12115") == 1
+		and inv.clues_on_card == 0
+	)
+
+
+func _test_sc14_agenda2_flip_discards_fire() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	h.ctx.state.doom_on_agenda = 3
+	var adv1 := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	if not adv1.get("advanced", false):
+		return false
+	h.ctx.state.doom_on_agenda = 5
+	var adv2 := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	return (
+		adv2.get("advanced", false)
+		and h.ctx.state.current_agenda_number == 3
+		and _encounter_discard_count(h, &"12129") == 4
+		and _sf_set_aside_count(h, &"12129") == 1
+	)
+
+
+func _test_sc15_act_agenda_back_composition_atoms() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.act_agenda.resolve_back"):
+		return false
+	_prepare_sf_act_agenda_defs()
+	var tree12107 := ActAgendaBackCompiler.compile(&"12107", CardRegistry.back_text(&"12107"))
+	if tree12107.kind != AhcEnums.CompositionNodeKind.SEQ or tree12107.children.size() != 2:
+		return false
+	var discard_atom: CompositionNode = tree12107.children[0]
+	var tree12109 := ActAgendaBackCompiler.compile(&"12109", CardRegistry.back_text(&"12109"))
+	return (
+		discard_atom.atom_name == &"discard_set_aside_to_encounter_discard"
+		and discard_atom.definition_id == &"12129"
+		and discard_atom.atom_count == 4
+		and tree12107.children[1].kind == AhcEnums.CompositionNodeKind.FOR_EACH
+		and tree12109.kind == AhcEnums.CompositionNodeKind.SEQ
+		and tree12109.children.size() == 5
+		and tree12109.children[0].atom_name == &"discard_all_enemies_in_play"
+		and tree12109.children[1].atom_name == &"put_locations_into_play"
+		and tree12109.children[2].atom_name == &"spawn_set_aside_enemy_at"
+		and tree12109.children[3].atom_name == &"attach_set_aside_to_host"
+		and tree12109.children[4].atom_name == &"discard_set_aside_to_encounter_discard"
+	)
+
+
+func _test_sc16_agenda1_flip_skill_horror() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.skill_willpower = 0
+	h.ctx.state.doom_on_agenda = 3
+	var adv := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	return adv.get("advanced", false) and inv.horror_taken == 1
+
+
+func _test_sc17_agenda2_flip_skill_damage() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.skill_agility = 0
+	inv.skill_willpower = 9
+	h.ctx.state.doom_on_agenda = 3
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	h.ctx.state.doom_on_agenda = 5
+	var adv2 := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	return adv2.get("advanced", false) and inv.damage_taken == 1
+
+
+func _test_sc18_agenda3_flip_defeat_trauma() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.skill_willpower = 9
+	inv.skill_agility = 9
+	h.ctx.state.doom_on_agenda = 3
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	h.ctx.state.doom_on_agenda = 5
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	h.ctx.state.doom_on_agenda = 10
+	var adv3 := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	return (
+		adv3.get("advanced", false)
+		and inv.eliminated
+		and inv.physical_trauma == 1
+		and h.ctx.state.current_agenda_number == 4
+	)
+
+
+func _test_sc19_objective_all_at_quad_advance() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.clues_on_card = 2
+	h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	if h.ctx.state.current_act_number != 2:
+		return false
+	inv.location_tag = &"12116"
+	var result := ScenarioObjectiveFlow.check_end_of_round(h.ctx)
+	return result.get("advanced", false) and h.ctx.state.current_act_number == 3
+
+
+func _test_sc20_objective_servant_defeated_advance() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.clues_on_card = 2
+	h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	inv.location_tag = &"12116"
+	ScenarioObjectiveFlow.check_end_of_round(h.ctx)
+	inv.clues_on_card = 3
+	inv.location_tag = &"12120"
+	ScenarioObjectiveFlow.check_end_of_round(h.ctx)
+	if h.ctx.state.current_act_number != 4:
+		return false
+	var servant_id := &""
+	for enemy_id in h.ctx.state.registry.all_enemy_ids():
+		var card := h.ctx.state.registry.get_card(enemy_id)
+		if card != null and card.id.definition_id == &"12114":
+			servant_id = enemy_id
+			break
+	if servant_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(servant_id)
+	if enemy == null:
+		return false
+	enemy.damage = enemy.health
+	var defeat := EnemyDefeatResolver.defeat(h.ctx, servant_id)
+	return (
+		defeat.get("defeated", false)
+		and h.ctx.state.current_act_number == 5
+		and h.ctx.state.scenario_resolution == 1
+	)
+
+
+func _test_sc21_act2_flip_layout() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.clues_on_card = 2
+	h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	inv.location_tag = &"12116"
+	ScenarioObjectiveFlow.check_end_of_round(h.ctx)
+	var orne := h.ctx.state.registry.get_location(&"12120")
+	var room_removed := h.ctx.state.removed_from_game.has(&"12113")
+	return (
+		h.ctx.state.current_act_number == 3
+		and orne != null
+		and orne.revealed
+		and room_removed
+		and _sf_set_aside_count(h, &"12114") >= 1
+	)
+
+
+func _test_sc22_act3_flip_armitage() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.clues_on_card = 2
+	h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	inv.location_tag = &"12116"
+	ScenarioObjectiveFlow.check_end_of_round(h.ctx)
+	inv.clues_on_card = 3
+	inv.location_tag = &"12120"
+	ScenarioObjectiveFlow.check_end_of_round(h.ctx)
+	var armitage_in_play := false
+	for card_id in inv.play_area:
+		var card := h.ctx.state.registry.get_card(card_id)
+		if card != null and card.id.definition_id == &"12115":
+			armitage_in_play = true
+			break
+	var quad := h.ctx.state.registry.get_location(&"12116")
+	var servant := _enemy_at_location(h, &"12114", &"12116")
+	return (
+		h.ctx.state.current_act_number == 4
+		and armitage_in_play
+		and quad != null
+		and quad.clues == 3
+		and servant != null
+	)
+
+
+func _test_sc23_agenda3_forced_draws_fire() -> bool:
+	## 12108 a 面 Forced：放置 doom 后 lead 抽遭遇弃牌堆顶 Fire!；翻面后不再触发。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.skill_willpower = 9
+	inv.skill_agility = 9
+	h.ctx.state.doom_on_agenda = 3
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	h.ctx.state.doom_on_agenda = 5
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	if h.ctx.state.current_agenda_number != 3:
+		return false
+	if not CardRegistry.has_triggered(&"12108"):
+		return false
+	if _encounter_discard_count(h, &"12129") < 1:
+		return false
+	var bound_before := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
+	h.ctx.sequence_catalog.run(h.ctx, &"seq.mythos.place_doom", {})
+	var bound_after := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
+	if bound_after <= bound_before:
+		return false
+	## 翻面卸下 Forced 后，再放置 doom 不应再 nest resolve_bound
+	h.ctx.state.doom_on_agenda = 10
+	var bound_mid := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	h.ctx.sequence_catalog.run(h.ctx, &"seq.mythos.place_doom", {})
+	return _sequence_kind_count(h, &"draw_encounter_resolve_bound") == bound_mid
+
+
+func _sequence_kind_count(h: RuleTestHarness, kind: StringName) -> int:
+	var n := 0
+	for rec in h.ctx.events.get_records():
+		if rec.kind != AhcEnums.EventRecordKind.SEQUENCE_STEP:
+			continue
+		if rec.payload.get("kind", &"") == kind:
+			n += 1
+	return n
+
+
+func _test_sc24_fire_revelation_attaches() -> bool:
+	## 12129 显现：抽 Fire! 后附着到最近无 Fire! 的地点（setup 仅 12113）。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	if not CardRegistry.has_revelation(&"12129"):
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.skill_willpower = 9
+	inv.skill_agility = 9
+	h.ctx.state.doom_on_agenda = 3
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	h.ctx.state.doom_on_agenda = 5
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	if _encounter_discard_count(h, &"12129") < 1:
+		return false
+	h.ctx.sequence_catalog.run(h.ctx, &"seq.mythos.place_doom", {})
+	var room := h.ctx.state.registry.get_card(&"12113")
+	if room == null or room.attachments.is_empty():
+		return false
+	var attached_id: StringName = room.attachments[0].instance_id
+	var fire := h.ctx.state.registry.get_card(attached_id)
+	return (
+		fire != null
+		and fire.id.definition_id == &"12129"
+		and fire.zone == AhcEnums.Zone.ATTACHED
+		and not h.ctx.state.encounter_discard.has(attached_id)
+	)
+
+
+func _test_sc25_fire_revelation_no_target_discards() -> bool:
+	## 全部在场地点已有 Fire! → 显现失败 → G4 弃入遭遇弃牌堆。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	if not CardRegistry.has_revelation(&"12129"):
+		return false
+	var aside := ScenarioSetAsideService.find_cards(h.ctx, &"12129")
+	if aside.is_empty():
+		return false
+	var first: StringName = aside[0]
+	ScenarioSetAsideService.remove_from_set_aside(h.ctx, first)
+	if not EncounterAttachment.attach_limbo_to_location(h.ctx, first, &"12113"):
+		return false
+	var second: StringName = aside[1] if aside.size() > 1 else &""
+	if second == &"":
+		return false
+	ScenarioSetAsideService.remove_from_set_aside(h.ctx, second)
+	h.ctx.state.encounter_discard.append(second)
+	var card := h.ctx.state.registry.get_card(second)
+	if card != null:
+		card.zone = AhcEnums.Zone.DISCARD
+	var lead := h.ctx.state.lead_investigator_id
+	if lead == &"":
+		lead = &"inv_1"
+	var result := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.draw.encounter.resolve_bound",
+		{"drawer_id": lead, "card_id": second}
+	)
+	return (
+		result.get("ok", false)
+		and h.ctx.state.encounter_discard.has(second)
+		and card != null
+		and card.zone == AhcEnums.Zone.DISCARD
 	)
 
 
@@ -2608,9 +3189,11 @@ func _test_act_fight_success() -> bool:
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
-	var res := h.fight_action({"enemy_id": &"enemy_1"})
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
-	return res.ok and res.success and enemy.damage == 1
+	enemy.health = 2
+	var res := h.fight_action({"enemy_id": &"enemy_1"})
+	enemy = h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy != null and enemy.damage == 1
 
 
 func _test_act_evade_success() -> bool:
@@ -3673,6 +4256,246 @@ func _test_en19_fight_elusive_flees() -> bool:
 		and not inv.threat_area.has(enemy_id)
 		and enemy.location_tag == &"flee_loc"
 	)
+
+
+func _test_en20_fight_fail_redirect_and_retaliate() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase([ChaosToken.auto_fail()]):
+		return false
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_ret_redirect",
+		&"test_loc",
+		{
+			"keywords": [&"retaliate"],
+			"enemy": {"fight": 2, "evade": 2, "health": 2, "damage": 2, "horror": 1},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	enemy.engaged_with = &"inv_2"
+	inv2.threat_area.append(enemy_id)
+	inv1.damage_taken = 0
+	inv1.horror_taken = 0
+	inv2.damage_taken = 0
+	inv2.horror_taken = 0
+	var res := h.fight_action({"enemy_id": enemy_id})
+	return (
+		res.ok
+		and not res.success
+		and inv1.damage_taken == 2
+		and inv1.horror_taken == 1
+		and inv2.damage_taken == 1
+		and inv2.horror_taken == 0
+		and enemy != null
+		and not enemy.exhausted
+	)
+
+
+func _test_en21_alert_aloof_unengaged() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase([ChaosToken.auto_fail()]):
+		return false
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_alert_aloof",
+		&"test_loc",
+		{
+			"keywords": [&"alert", &"aloof"],
+			"enemy": {"fight": 2, "evade": 2, "health": 2, "damage": 3, "horror": 0},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	if enemy.engaged_with != &"" or inv.threat_area.has(enemy_id):
+		return false
+	inv.damage_taken = 0
+	inv.horror_taken = 0
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.AGILITY, 2)
+	test.target_enemy_id = enemy_id
+	var result := st.run(test)
+	return (
+		not result.success
+		and inv.damage_taken == 3
+		and inv.horror_taken == 0
+		and not enemy.exhausted
+	)
+
+
+func _test_en22_fight_success_elusive_flees() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"flee_loc")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"flee_loc")
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_elusive_win",
+		&"test_loc",
+		{
+			"keywords": [&"elusive"],
+			"enemy": {"fight": 2, "evade": 2, "health": 2},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	var res := h.fight_action({"enemy_id": enemy_id})
+	return (
+		res.ok
+		and res.success
+		and enemy.damage == 1
+		and enemy.exhausted
+		and enemy.engaged_with == &""
+		and not inv.threat_area.has(enemy_id)
+		and enemy.location_tag == &"flee_loc"
+	)
+
+
+func _test_en23_defeat_doomed_places_doom() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	h.ctx.state.agenda_threshold = 7
+	h.ctx.state.doom_on_agenda = 0
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_doomed",
+		&"test_loc",
+		{
+			"keywords": [&"doomed"],
+			"enemy": {"fight": 1, "evade": 1, "health": 1},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var res := h.fight_action({"enemy_id": enemy_id})
+	return (
+		res.ok
+		and res.success
+		and h.ctx.state.doom_on_agenda == 1
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+		and h.ctx.state.encounter_discard.has(enemy_id)
+	)
+
+
+func _test_en24_discard_enemy_skips_doomed() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	h.ctx.state.doom_on_agenda = 0
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_doomed_disc",
+		&"test_loc",
+		{
+			"keywords": [&"doomed"],
+			"enemy": {"fight": 1, "evade": 1, "health": 1},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var discard := h.ctx.enemy.discard_enemy_from_play(h.ctx, enemy_id)
+	return (
+		discard.get("discarded", false)
+		and h.ctx.state.doom_on_agenda == 0
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+		and h.ctx.state.encounter_discard.has(enemy_id)
+	)
+
+
+func _test_en25_defeat_non_doomed_no_doom() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	h.ctx.state.doom_on_agenda = 0
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_plain",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 1}}
+	)
+	if enemy_id == &"":
+		return false
+	var res := h.fight_action({"enemy_id": enemy_id})
+	return (
+		res.ok
+		and res.success
+		and h.ctx.state.doom_on_agenda == 0
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+	)
+
+
+func _test_adb_import_bystander_doomed() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	return CardRegistry.is_doomed(&"12123")
+
+
+func _test_en26_defeat_victory_to_display() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_victory",
+		&"test_loc",
+		{
+			"victory": 2,
+			"enemy": {"fight": 1, "evade": 1, "health": 1},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var res := h.fight_action({"enemy_id": enemy_id})
+	var card := h.ctx.state.registry.get_card(enemy_id)
+	return (
+		res.ok
+		and res.success
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+		and h.ctx.state.victory_display.has(enemy_id)
+		and not h.ctx.state.encounter_discard.has(enemy_id)
+		and card != null
+		and card.zone == AhcEnums.Zone.VICTORY_DISPLAY
+		and h.ctx.state.total_victory_points() == 2
+	)
+
+
+func _test_en27_discard_victory_not_to_display() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_victory_disc",
+		&"test_loc",
+		{
+			"victory": 1,
+			"enemy": {"fight": 1, "evade": 1, "health": 1},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var discard := h.ctx.enemy.discard_enemy_from_play(h.ctx, enemy_id)
+	return (
+		discard.get("discarded", false)
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+		and not h.ctx.state.victory_display.has(enemy_id)
+		and h.ctx.state.encounter_discard.has(enemy_id)
+		and h.ctx.state.total_victory_points() == 0
+	)
+
+
+func _test_adb_import_elite_servant_victory() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	return CardRegistry.victory_points(&"12114") == 2
 
 
 func _test_adb_compile_aerial_pursuit() -> bool:
