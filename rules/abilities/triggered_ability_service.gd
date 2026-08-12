@@ -10,10 +10,11 @@ func bind_game_context(ctx: GameContext) -> void:
 
 
 func register(descriptor: TriggeredAbilityDescriptor) -> void:
-	if descriptor == null or _ctx == null or _ctx.sequences == null:
+	if descriptor == null or _ctx == null:
 		return
 	_descriptors.append(descriptor)
-	_install_handler(descriptor)
+	if descriptor.uses_timing_handler() and _ctx.sequences != null:
+		_install_handler(descriptor)
 
 
 func install_card(controller_id: StringName, card_id: StringName) -> void:
@@ -42,6 +43,56 @@ func uninstall_by_source(source_id: StringName) -> void:
 	for i in range(_descriptors.size() - 1, -1, -1):
 		if _descriptors[i].source_id == source_id:
 			_descriptors.remove_at(i)
+
+
+func list_free_abilities(controller_id: StringName) -> Array[TriggeredAbilityDescriptor]:
+	var out: Array[TriggeredAbilityDescriptor] = []
+	for desc in _descriptors:
+		if desc == null:
+			continue
+		if desc.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
+			continue
+		if desc.controller_id != controller_id:
+			continue
+		if not is_free_eligible(desc):
+			continue
+		out.append(desc)
+	return out
+
+
+func is_free_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or _ctx == null or _ctx.framework == null or _ctx.state == null:
+		return false
+	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
+		return false
+	if not _ctx.framework.waiting_player_window:
+		return false
+	var window: AhcEnums.PlayerWindow = _ctx.framework.pending_player_window
+	if not _window_allows(descriptor, window):
+		return false
+	if descriptor.source_id != &"":
+		var card := _ctx.state.registry.get_card(descriptor.source_id)
+		if card == null:
+			return false
+		if card.zone != AhcEnums.Zone.PLAY_AREA and card.zone != AhcEnums.Zone.THREAT_AREA:
+			return false
+		if card.exhausted:
+			return false
+	return true
+
+
+## Player Window 内已选定的免费触发能力；跳过二次 ask。
+func activate_free(ability_id: StringName) -> Dictionary:
+	var descriptor := _find_by_id(ability_id)
+	if descriptor == null:
+		return {"ok": false, "error": "unknown_ability"}
+	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
+		return {"ok": false, "error": "not_free"}
+	if not is_free_eligible(descriptor):
+		return {"ok": false, "error": "not_eligible"}
+	if descriptor.composition == null:
+		return {"ok": false, "error": "invalid_intent"}
+	return _resolve_via_initiation(descriptor)
 
 
 func resolve(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
@@ -121,11 +172,41 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 	match descriptor.ability_kind:
 		TriggeredAbilityDescriptor.AbilityKind.FORCED:
 			handler.tier = SequenceHandler.Tier.FORCED
-		TriggeredAbilityDescriptor.AbilityKind.FREE:
-			handler.tier = SequenceHandler.Tier.TRIGGERED
 		_:
 			handler.tier = SequenceHandler.Tier.TRIGGERED
 	var desc := descriptor
 	handler.callback = func() -> void:
 		resolve(desc)
 	_ctx.sequences.register_handler(handler)
+
+
+func _find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
+	for desc in _descriptors:
+		if desc != null and desc.id == ability_id:
+			return desc
+	return null
+
+
+func _window_allows(
+	descriptor: TriggeredAbilityDescriptor,
+	window: AhcEnums.PlayerWindow
+) -> bool:
+	var constraint := descriptor.window
+	if constraint == &"" or constraint == &"any_player_window":
+		return true
+	if constraint == &"during_your_turn":
+		if not _is_investigation_player_window(window):
+			return false
+		return _ctx.state.active_investigator_id == descriptor.controller_id
+	return true
+
+
+func _is_investigation_player_window(window: AhcEnums.PlayerWindow) -> bool:
+	match window:
+		AhcEnums.PlayerWindow.PW_INV_AFTER_PHASE_BEGIN, \
+		AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION, \
+		AhcEnums.PlayerWindow.PW_INV_AFTER_ACTION, \
+		AhcEnums.PlayerWindow.PW_INV_BEFORE_TURN_END:
+			return true
+		_:
+			return false

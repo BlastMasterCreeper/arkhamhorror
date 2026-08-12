@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 11,
+      "compiled_total": 12,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -17,6 +17,7 @@
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
+        "seq": 1,
         "take_horror": 1
       }
     }
@@ -1452,6 +1453,25 @@
         "kind": "fast",
         "body": "During your turn, exhaust Olivier Bishop: Move to a connecting location.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "free",
+        "ability_id": "free:0",
+        "ability_kind": "free",
+        "window": "during_your_turn",
+        "status": "full",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "exhaust_source"
+          },
+          {
+            "template": "nest_move_connecting"
+          }
+        ]
       }
     ]
   },

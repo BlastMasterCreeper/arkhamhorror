@@ -307,6 +307,24 @@ static func nest_enemy_attack_last() -> CompositionNode:
 	return n
 
 
+## L0 · 横置来源卡（Free / Action 费用常用）。
+static func exhaust_card(card_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"exhaust_card"
+	n.card_id = card_id
+	return n
+
+
+## L1 · 移动到连接地点（免费触发 / 效果；复用 BasicActionResolver.move 内核）。
+static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_move_connecting"
+	n.inv_id = controller_id
+	return n
+
+
 ## L1 · 按最近一次检定 fail_by 重复执行 body（12126 · 16 §7.2.1 must 在 body 内）。
 static func repeat_fail_by(body: CompositionNode) -> CompositionNode:
 	var n := CompositionNode.new()

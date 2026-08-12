@@ -144,11 +144,12 @@ python tools/analyze_arkhamdb_cards.py
 ### Phase 3 — 能力编译（P1）✅（竖切）
 
 - [x] 文本分段：`tools/arkhamdb_abilities.py` → `ability_segments`（revelation / forced / reaction / action / fast）
-- [x] 模板编译 → `compiled_abilities` JSON + `ArkhamDbAbilityCompiler` → `CardRegistry.register_revelation`
+- [x] 模板编译 → `compiled_abilities` JSON + `ArkhamDbAbilityCompiler` → `CardRegistry.register_revelation` / `register_triggered`
 - [x] 首批模板：`take_horror` / `take_damage` / `lose_resources` / `lose_all_resources` / `enter_threat_area`
-- [x] Core 2026 统计：162 段 / 18 条已编译（`ability_compile_summary` in `_meta`）
+- [x] Core 2026 统计：分段存档；模板可表达子集已编译（`ability_compile_summary` in `_meta`）
 - [ ] Forced → `TriggeredAbilityService` 直执 / LISTENER（效果模板已识别，触发器注册待接）
 - [ ] Reaction/Action → `register_triggered` + Initiation（分段已存，待模板/脚本）
+- [x] Free triggered（ArkhamDB `[fast]`）→ `register_as:free` + Player Window `list_free_abilities` / `activate_free`；锚 12046 ✅
 - [ ] 全量 32+29+49 能力覆盖（当前为模板可表达子集）
 
 **运行**：`python tools/arkhamdb_import.py` → `ArkhamDbCardLoader.load_core_2026()`

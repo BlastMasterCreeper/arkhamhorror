@@ -65,6 +65,10 @@ func _initialize() -> void:
 	_run_test("TRIG-03 reaction accepted resolves", _test_trig_reaction_accepted)
 	_run_test("TRIG-04 peril blocks teammate triggered", _test_trig_peril_blocks)
 	_run_test("TRIG-05 install triggered on asset play", _test_trig_install_on_play)
+	_run_test("TRIG-06 free listed in player window", _test_trig_free_listed_in_window)
+	_run_test("TRIG-07 free activate exhausts and moves", _test_trig_free_activate_move)
+	_run_test("ADB-25 compile olivier free move", _test_adb_compile_olivier_free)
+	_run_test("ADB-26 olivier free activate vertical", _test_adb_olivier_free_activate)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -1511,6 +1515,139 @@ func _test_trig_install_on_play() -> bool:
 	var pool_before := inv.resource_pool
 	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
 	return inv.resource_pool == pool_before + 2
+
+
+func _test_trig_free_listed_in_window() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.framework.waiting_player_window:
+		return false
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"free_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.play_area.append(card_id)
+	var desc := TriggeredAbilityDescriptor.free_triggered(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		),
+		&"during_your_turn",
+		card_id,
+		&"free_asset"
+	)
+	h.ctx.triggered_abilities.register(desc)
+	var listed := h.ctx.triggered_abilities.list_free_abilities(&"inv_1")
+	if listed.size() != 1:
+		return false
+	h.ctx.framework.close_player_window_and_continue()
+	while h.ctx.framework.waiting_player_window:
+		h.ctx.framework.close_player_window_and_continue()
+	return h.ctx.triggered_abilities.list_free_abilities(&"inv_1").is_empty()
+
+
+func _test_trig_free_activate_move() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"move_free_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.play_area.append(card_id)
+	var desc := TriggeredAbilityDescriptor.free_triggered(
+		&"inv_1",
+		CompositionNode.seq([
+			CompositionNode.exhaust_card(card_id),
+			CompositionNode.nest_move_connecting(&"inv_1"),
+		]),
+		&"during_your_turn",
+		card_id,
+		&"move_free_asset"
+	)
+	h.ctx.triggered_abilities.register(desc)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pick:move_connecting", "pick": &"loc_b"},
+	])
+	var actions_before := inv.actions_remaining
+	var result := h.ctx.triggered_abilities.activate_free(desc.id)
+	return (
+		bool(result.get("ok", false))
+		and card.exhausted
+		and inv.location_tag == &"loc_b"
+		and inv.actions_remaining == actions_before
+	)
+
+
+func _test_adb_compile_olivier_free() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var compiled := CardRegistry.compiled_abilities(&"12046")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var step0: Dictionary = steps[0]
+	var step1: Dictionary = steps[1]
+	return (
+		entry.get("register_as", "") == "free"
+		and entry.get("window", "") == "during_your_turn"
+		and entry.get("template", "") == "seq"
+		and step0.get("template", "") == "exhaust_source"
+		and step1.get("template", "") == "nest_move_connecting"
+		and CardRegistry.has_triggered(&"12046")
+	)
+
+
+func _test_adb_olivier_free_activate() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"12046")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	inv.resource_pool = 5
+	if not h.ctx.actions.play_card(&"inv_1", card_id).ok:
+		return false
+	# play_card may close/advance windows; re-open investigation player window if needed
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pick:move_connecting", "pick": &"loc_b"},
+	])
+	var free_list := h.ctx.triggered_abilities.list_free_abilities(&"inv_1")
+	if free_list.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_free(free_list[0].id)
+	return (
+		bool(result.get("ok", false))
+		and card.exhausted
+		and inv.location_tag == &"loc_b"
+	)
 
 
 func _test_adb_import_counts() -> bool:

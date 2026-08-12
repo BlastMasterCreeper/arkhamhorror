@@ -345,6 +345,10 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_move(node)
 		&"nest_enemy_attack":
 			return _execute_nest_enemy_attack(node)
+		&"exhaust_card":
+			return _execute_exhaust_card(node)
+		&"nest_move_connecting":
+			return _execute_nest_move_connecting(node)
 		&"take_horror":
 			var horror_inv := _resolve_inv(node)
 			if horror_inv == &"":
@@ -614,6 +618,56 @@ func _execute_nest_enemy_attack(node: CompositionNode) -> bool:
 		{"enemy_id": enemy_id, "target_investigator": target, "exhaust_after": false}
 	)
 	return bool(result.get("ok", false))
+
+
+func _execute_exhaust_card(node: CompositionNode) -> bool:
+	if _state == null or node.card_id == &"":
+		return false
+	var card := _state.registry.get_card(node.card_id)
+	if card == null or card.exhausted:
+		return false
+	card.exhausted = true
+	_log.log(AhcEnums.LogCategory.CARD, "composition:exhaust_card", {"card": node.card_id})
+	return true
+
+
+func _execute_nest_move_connecting(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null or _game_ctx.skill_tests == null:
+		return false
+	var inv_id := _resolve_inv(node)
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null or inv.location_tag == &"":
+		return false
+	var current := _state.registry.get_location(inv.location_tag)
+	if current == null:
+		return false
+	var candidates: Array = []
+	for conn in current.connections:
+		candidates.append(conn)
+	if candidates.is_empty():
+		return false
+	var dest_id: StringName = &""
+	if _game_ctx.interaction != null:
+		var picked: Variant = _game_ctx.interaction.ask_pick_target(
+			candidates, inv_id, &"pick:move_connecting", _game_ctx
+		)
+		if picked != null:
+			dest_id = picked as StringName
+	elif candidates.size() == 1:
+		dest_id = candidates[0] as StringName
+	if dest_id == &"":
+		return false
+	var resolver := BasicActionResolver.new(_state, _game_ctx.skill_tests)
+	var move_result := resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
+	if not bool(move_result.get("ok", false)):
+		return false
+	EngageFlow.nest_after_area_change(_game_ctx, dest_id)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:nest_move_connecting",
+		{"inv": inv_id, "destination": dest_id}
+	)
+	return true
 
 
 func _execute_if(node: CompositionNode) -> void:

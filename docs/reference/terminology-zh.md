@@ -19,6 +19,10 @@
 | **Reveal (card)** | **揭示（卡牌）** | L0 `AtomRevealCard` |
 | **Player Interaction** | **玩家交互** | `PlayerInteractionGate` |
 | **Hidden** | **隐私** | 秘密入手；见 [grimoire-glossary-extract §隐私](grimoire-glossary-extract.md) |
+| **Forced Ability** | **强制能力** | `Forced –`；引擎直执 |
+| **Free triggered ability** | **免费触发能力** | 魔典 `[free]`；ArkhamDB 玩家牌常标 `[fast]`；Player Window |
+| **Reaction triggered ability** | **反应触发能力** | `[reaction]` |
+| **Action triggered ability** | **激活触发能力** | `[action]`；经 Activate |
 
 ---
 

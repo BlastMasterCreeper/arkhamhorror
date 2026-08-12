@@ -81,6 +81,10 @@ static func build_composition(
 			return _build_nest_enemy_move(params, bind)
 		"nest_enemy_attack":
 			return CompositionNode.nest_enemy_attack_last()
+		"exhaust_source":
+			return CompositionNode.exhaust_card(bind.card_id)
+		"nest_move_connecting":
+			return CompositionNode.nest_move_connecting(bind.controller_id)
 	return null
 
 
@@ -218,20 +222,32 @@ static func _build_if_else(params: Dictionary, bind: AbilityBindContext) -> Comp
 
 
 static func _register_entry(definition_id: StringName, entry: Dictionary) -> bool:
-	if str(entry.get("register_as", "")) != "revelation":
-		return false
+	var register_as := str(entry.get("register_as", ""))
 	var template_id := str(entry.get("template", ""))
 	if template_id == "":
 		return false
-	var ability_id := StringName(str(entry.get("ability_id", "revelation:0")))
+	var ability_id := StringName(str(entry.get("ability_id", "%s:0" % register_as)))
 	var params := _params_from_entry(entry)
-	CardRegistry.register_revelation(
-		definition_id,
-		ability_id,
-		func(bind: AbilityBindContext) -> CompositionNode:
-			return build_composition(template_id, params, bind)
-	)
-	return true
+	var builder := func(bind: AbilityBindContext) -> CompositionNode:
+		return build_composition(template_id, params, bind)
+	if register_as == "revelation":
+		CardRegistry.register_revelation(definition_id, ability_id, builder)
+		return true
+	if register_as == "free":
+		CardRegistry.register_triggered(
+			definition_id,
+			ability_id,
+			&"",
+			AhcEnums.SequencePhase.AFTER,
+			&"free",
+			builder,
+			int(entry.get("resource_cost", 0)),
+			int(entry.get("action_cost", 0)),
+			bool(entry.get("optional", false)),
+			StringName(str(entry.get("window", "any_player_window")))
+		)
+		return true
+	return false
 
 
 static func _params_from_entry(entry: Dictionary) -> Dictionary:
@@ -254,6 +270,10 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"difficulty",
 		"st7_fail_by",
 		"st7",
+		"window",
+		"trait_exclude",
+		"target",
+		"may_advance_agenda",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

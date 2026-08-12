@@ -220,6 +220,18 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return false
 		&"nest_enemy_attack":
 			return sim.last_step_engaged_investigator != &""
+		&"exhaust_card":
+			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
+			if exh == null or exh.exhausted:
+				return false
+			exh.exhausted = true
+			return true
+		&"nest_move_connecting":
+			var move_free_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if move_free_inv == null or move_free_inv.location_tag == &"":
+				return false
+			var from_loc := sim.state.registry.get_location(move_free_inv.location_tag)
+			return from_loc != null and not from_loc.connections.is_empty()
 		&"take_horror", &"take_damage":
 			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
 		&"discard_all_enemies_in_play":

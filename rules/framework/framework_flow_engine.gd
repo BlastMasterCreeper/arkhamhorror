@@ -232,6 +232,11 @@ func _open_player_window(w: AhcEnums.PlayerWindow) -> void:
 	player_window_opened.emit(w)
 
 
+## 测试 / 沙盒：在行动阶段显式打开 Player Window（不推进步骤）。
+func open_player_window(w: AhcEnums.PlayerWindow) -> void:
+	_open_player_window(w)
+
+
 func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 	if step == AhcEnums.FrameworkStep.SETUP_10_SCENARIO_SETUP:
 		if _scenario:

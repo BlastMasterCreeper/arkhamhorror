@@ -38,6 +38,10 @@ alwaysApply: true
 | **Aloof** | **冷漠** | 敌人关键词；不自动 engage；spawn 默认 unengaged |
 | **Prey** | **猎物** | 敌人指令（`*Prey –`*）；engage / Hunter 等距 tie-break；**不 nest** |
 | **Hidden** | **隐私** | 关键词；秘密入手；见 [grimoire-glossary-extract §隐私](docs/reference/grimoire-glossary-extract.md) |
+| **Forced Ability** | **强制能力** | `Forced –`；引擎直执，无 Initiation 选用 |
+| **Free triggered ability** | **免费触发能力** | 魔典 `[free]`；ArkhamDB 玩家牌文本常标 `[fast]`；Player Window 内发起 |
+| **Reaction triggered ability** | **反应触发能力** | `[reaction]`；when/after 时点选用 |
+| **Action triggered ability** | **激活触发能力** | `[action]`；经 Activate 启动；勿笼统称「行动能力」 |
 
 ## 对话表述（已裁决）
 

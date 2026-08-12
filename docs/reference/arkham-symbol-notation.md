@@ -13,7 +13,7 @@
 | `[free]` | Free triggered ability；任意 player window |
 | `[reaction]` | Reaction triggered ability；when / after 条件 |
 | `[action]` | Action triggered ability；Activate 行动花费（可重复，如 `[action][action]` = 2 actions） |
-| `[fast]` | Fast 关键词；非 Play action 的打出/能力时机 |
+| `[fast]` | **ArkhamDB 文本**：Core 玩家牌用此标记 **Free triggered**（闪电图标）；引擎 `segment.kind=fast` → `register_as:free`。**另**：规则书 Fast **关键词**（快速打出）是独立 keyword，不经本触发分段。 |
 
 **Forced / Revelation** 在规则正文中为 **粗体前缀**（非方括号）：
 

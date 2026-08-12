@@ -57,6 +57,12 @@ FORBIDDEN_SECRETS_FAIL_BY = re.compile(
     re.I | re.S,
 )
 
+# ArkhamDB Core 玩家牌用 [fast] 标记 Free triggered（闪电图标）；≠ Fast 关键词打出。
+FAST_DURING_TURN_EXHAUST_MOVE = re.compile(
+    r"^During your turn,\s*exhaust\s+.+?:\s*Move to a connecting location\.?\s*$",
+    re.I,
+)
+
 # If 子句分类（编译元数据 · 07-composition §3.3）
 # 能力多要素：Forced When=timing、if=condition、能拆就拆（OQ-ADB-10）
 IF_TIMING_HINTS = re.compile(
@@ -289,6 +295,26 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     return None
 
 
+def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
+    """Compile ArkhamDB [fast] segment as Free triggered ability（免费触发能力）."""
+    body = str(segment.get("body", "")).strip()
+    if FAST_DURING_TURN_EXHAUST_MOVE.match(body):
+        return {
+            "segment_index": segment["index"],
+            "register_as": "free",
+            "ability_id": f"free:{segment['index']}",
+            "ability_kind": "free",
+            "window": "during_your_turn",
+            "status": "full",
+            "template": "seq",
+            "steps": [
+                {"template": "exhaust_source"},
+                {"template": "nest_move_connecting"},
+            ],
+        }
+    return None
+
+
 def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     kind = segment.get("kind", "")
     body = str(segment.get("body", ""))
@@ -328,6 +354,8 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         if segment.get("if_kind"):
             entry["if_kind"] = segment["if_kind"]
         return entry
+    if kind == "fast":
+        return compile_fast_segment(segment)
     return None
 
 
@@ -356,6 +384,12 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
                     "The nearest non-[[Elite]] enemy moves once toward your location. "
                     "If it engages an investigator, it makes an immediate attack."
                 )
+            if (
+                len(steps) >= 2
+                and first.get("template") == "exhaust_source"
+                and steps[1].get("template") == "nest_move_connecting"
+            ):
+                return "During your turn, exhaust …: Move to a connecting location."
         return "Place 1 doom on the nearest enemy…"
     if template == "choice_must":
         return "You must either (choose one)…"
