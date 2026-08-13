@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 12,
+      "compiled_total": 14,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -21,6 +21,7 @@
         "take_horror": 2,
         "if_else": 1,
         "take_damage": 1,
+        "gain_resources": 2,
         "seq": 2,
         "lose_resources": 1
       }
@@ -1697,6 +1698,21 @@
         "body": "After you discover 1 or more clues at this location: Gain 1 resource.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "full",
+        "trigger": "After you discover 1 or more clues at this location",
+        "template": "gain_resources",
+        "amount": 1,
+        "match_kind": "discover_clue",
+        "phase": "AFTER",
+        "timing": "after_discover_clue"
+      }
     ]
   },
   "12146": {
@@ -3351,6 +3367,18 @@
         "kind": "reaction",
         "body": "When you end your turn at this location: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "When you end your turn at this location",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },

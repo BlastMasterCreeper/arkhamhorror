@@ -72,6 +72,9 @@ func _initialize() -> void:
 	_run_test("ADB-27 compile 12125 forced discover horror", _test_adb_compile_12125_forced)
 	_run_test("ADB-28 12125 forced after discover", _test_adb_12125_forced_discover)
 	_run_test("ADB-29 compile 12108 forced place doom", _test_adb_compile_12108_forced)
+	_run_test("ADB-30 compile 12145 reaction discover resource", _test_adb_compile_12145_reaction)
+	_run_test("ADB-31 12145 reaction after discover", _test_adb_12145_reaction_discover)
+	_run_test("ADB-32 12145 reaction declined", _test_adb_12145_reaction_declined)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -1716,6 +1719,67 @@ func _test_adb_compile_12108_forced() -> bool:
 		and str(forced.get("phase", "")).to_upper() == "AFTER"
 		and str(forced.get("definition_id", "")) == "12129"
 	)
+
+
+func _test_adb_compile_12145_reaction() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12145")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	return (
+		CardRegistry.has_triggered(&"12145")
+		and entry.get("register_as", "") == "reaction"
+		and entry.get("template", "") == "gain_resources"
+		and entry.get("match_kind", "") == "discover_clue"
+		and str(entry.get("phase", "")).to_upper() == "AFTER"
+		and int(entry.get("amount", 0)) == 1
+	)
+
+
+func _adb_setup_downtown_location(h: RuleTestHarness) -> StringName:
+	GameBootstrap.setup_test_location(h.ctx, &"12145", 2, 1)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"12145"
+	var card_id := ScenarioLayoutSetup.materialize_card(
+		h.ctx, &"12145", AhcEnums.Zone.LOCATION_AREA, &"loc", &"12145"
+	)
+	ScenarioDeckSetup.install_triggered_abilities(h.ctx, card_id)
+	return card_id
+
+
+func _test_adb_12145_reaction_discover() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.prepare_action_phase():
+		return false
+	_adb_setup_downtown_location(h)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"reaction:use", "pick": true},
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	var loc := h.ctx.state.registry.get_location(&"12145")
+	var res := h.investigate_action()
+	return (
+		res.ok
+		and res.success
+		and loc.clues == 0
+		and inv.clues_on_card == 1
+		and inv.resource_pool == pool_before + 1
+	)
+
+
+func _test_adb_12145_reaction_declined() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.prepare_action_phase():
+		return false
+	_adb_setup_downtown_location(h)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	var res := h.investigate_action()
+	return res.ok and res.success and inv.resource_pool == pool_before
 
 
 func _test_adb_import_counts() -> bool:

@@ -325,6 +325,16 @@ static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
 	return n
 
 
+## L1 · 获得资源（反应/效果；nest `seq.gain_resource`）。
+static func nest_gain_resource(controller_id: StringName, amount: int = 1) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_gain_resource"
+	n.inv_id = controller_id
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
 ## L1 · 按最近一次检定 fail_by 重复执行 body（12126 · 16 §7.2.1 must 在 body 内）。
 static func repeat_fail_by(body: CompositionNode) -> CompositionNode:
 	var n := CompositionNode.new()

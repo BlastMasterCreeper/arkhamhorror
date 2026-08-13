@@ -351,6 +351,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_exhaust_card(node)
 		&"nest_move_connecting":
 			return _execute_nest_move_connecting(node)
+		&"nest_gain_resource":
+			return _execute_nest_gain_resource(node)
 		&"take_horror":
 			var horror_inv := _resolve_inv(node)
 			if horror_inv == &"":
@@ -670,6 +672,41 @@ func _execute_nest_move_connecting(node: CompositionNode) -> bool:
 		{"inv": inv_id, "destination": dest_id}
 	)
 	return true
+
+
+func _execute_nest_gain_resource(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var amount := maxi(node.marker_delta, 1)
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.gain_resource",
+		{
+			"controller_id": inv_id,
+			"base_amount": amount,
+			"source_tags": [&"card_ability"],
+		}
+	)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:nest_gain_resource",
+		{"inv": inv_id, "amount": int(result.get("amount", amount))}
+	)
+	return int(result.get("amount", 0)) > 0 or amount > 0
+
+
+func _ability_controller(inv_id: StringName) -> StringName:
+	if _state != null and _state.registry.get_investigator(inv_id) != null:
+		return inv_id
+	if _game_ctx != null and _game_ctx.sequences != null:
+		var trigger := _game_ctx.sequences.current_trigger()
+		if trigger != null and _state != null:
+			if _state.registry.get_investigator(trigger.controller_id) != null:
+				return trigger.controller_id
+	return inv_id
 
 
 func _execute_if(node: CompositionNode) -> void:

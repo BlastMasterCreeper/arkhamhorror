@@ -89,6 +89,10 @@ static func build_composition(
 			return CompositionNode.lead_draw_topmost_encounter_discard_copy(
 				StringName(str(params.get("definition_id", "12129")))
 			)
+		"gain_resources":
+			return CompositionNode.nest_gain_resource(
+				bind.controller_id, int(params.get("amount", 1))
+			)
 	return null
 
 
@@ -251,7 +255,7 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			StringName(str(entry.get("window", "any_player_window")))
 		)
 		return true
-	if register_as == "forced":
+	if register_as == "forced" or register_as == "reaction":
 		var match_kind := StringName(str(entry.get("match_kind", "")))
 		if match_kind == &"":
 			return false
@@ -260,7 +264,7 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			ability_id,
 			match_kind,
 			TriggeredAbilityDescriptor.phase_from_raw(entry.get("phase", "AFTER")),
-			&"forced",
+			StringName(register_as),
 			builder,
 			int(entry.get("resource_cost", 0)),
 			int(entry.get("action_cost", 0)),

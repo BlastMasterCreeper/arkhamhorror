@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 12,
+      "compiled_total": 16,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -17,6 +17,7 @@
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
+        "gain_resources": 4,
         "seq": 1,
         "take_horror": 1
       }
@@ -819,6 +820,18 @@
         "body": "After you defeat an enemy, exhaust Logan Hastings: Gain 1 resource.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you defeat an enemy, exhaust Logan Hastings",
+        "template": "gain_resources",
+        "amount": 1
+      }
     ]
   },
   "12019": {
@@ -1139,6 +1152,18 @@
         "kind": "reaction",
         "body": "After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },
@@ -1554,6 +1579,18 @@
         "body": "After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
+        "template": "gain_resources",
+        "amount": 1
+      }
     ]
   },
   "12051": {
@@ -1677,6 +1714,18 @@
         "kind": "reaction",
         "body": "After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },

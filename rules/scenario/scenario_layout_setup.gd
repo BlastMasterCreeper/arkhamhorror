@@ -129,13 +129,14 @@ static func _register_location(
 		loc.clues = 0
 	game_ctx.state.registry.register_location(loc)
 	if in_play:
-		materialize_card(
+		var card_id := materialize_card(
 			game_ctx,
 			definition_id,
 			AhcEnums.Zone.LOCATION_AREA,
 			&"loc",
 			definition_id
 		)
+		ScenarioDeckSetup.install_triggered_abilities(game_ctx, card_id)
 
 
 static func _build_encounter_deck(

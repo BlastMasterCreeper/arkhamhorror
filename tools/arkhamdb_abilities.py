@@ -49,6 +49,7 @@ TAKE_HORROR = re.compile(r"^Take (\d+) (direct )?horror\.?", re.I)
 TAKE_DAMAGE = re.compile(r"^Take (\d+) (direct )?damage\.?", re.I)
 LOSE_RESOURCES = re.compile(r"^Lose (\d+) resource", re.I)
 LOSE_ALL_RESOURCES = re.compile(r"^Lose all of your resources\.?", re.I)
+GAIN_RESOURCES = re.compile(r"^Gain (\d+) resource", re.I)
 ENTER_THREAT = re.compile(r"^Put .+ into play in your threat area\.?", re.I)
 
 # 12126 · If = L3 情景条件（非 timing）；Otherwise = 互斥效果支
@@ -311,6 +312,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     m = LOSE_RESOURCES.match(body)
     if m:
         return {"template": "lose_resources", "amount": int(m.group(1))}
+    m = GAIN_RESOURCES.match(body)
+    if m:
+        return {"template": "gain_resources", "amount": int(m.group(1))}
     m = TAKE_HORROR.match(body)
     if m:
         return {
@@ -401,7 +405,34 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         return entry
     if kind == "fast":
         return compile_fast_segment(segment)
+    if kind == "reaction":
+        return compile_reaction_segment(segment)
     return None
+
+
+def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
+    """Compile [reaction] as Reaction triggered ability（反应触发能力）."""
+    body = str(segment.get("body", "")).strip()
+    trigger, effect = split_forced_body(body)
+    compiled = compile_effect_body(effect if effect else body)
+    if compiled is None:
+        return None
+    entry: dict[str, Any] = {
+        "segment_index": segment["index"],
+        "register_as": "reaction",
+        "ability_id": f"reaction:{segment['index']}",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": trigger,
+        **compiled,
+    }
+    timing = match_trigger_phrase(trigger)
+    if timing is not None:
+        entry.update(timing)
+        entry["status"] = "full"
+    if segment.get("if_kind"):
+        entry["if_kind"] = segment["if_kind"]
+    return entry
 
 
 def _template_body_preview(compiled: dict[str, Any]) -> str:
@@ -414,6 +445,8 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return f"Take {amount} {direct}damage.".replace("  ", " ")
     if template == "lose_resources":
         return f"Lose {amount} resource."
+    if template == "gain_resources":
+        return f"Gain {amount} resource."
     if template == "lose_all_resources":
         return "Lose all of your resources."
     if template == "enter_threat_area":

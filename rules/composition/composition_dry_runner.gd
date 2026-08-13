@@ -232,6 +232,10 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			var from_loc := sim.state.registry.get_location(move_free_inv.location_tag)
 			return from_loc != null and not from_loc.connections.is_empty()
+		&"nest_gain_resource":
+			if sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null:
+				return true
+			return not sim.state.registry.all_investigator_ids().is_empty()
 		&"take_horror", &"take_damage":
 			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
 		&"discard_all_enemies_in_play":

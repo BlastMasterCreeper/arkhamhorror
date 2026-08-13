@@ -101,6 +101,8 @@ func activate_free(ability_id: StringName) -> Dictionary:
 func resolve(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
 	if descriptor == null or _ctx == null:
 		return {"ok": false, "error": "no_context"}
+	if not _trigger_applies(descriptor):
+		return {"ok": false, "error": "not_eligible"}
 	if not _should_use(descriptor):
 		return {"ok": false, "error": "declined"}
 	if descriptor.composition == null:
@@ -139,25 +141,26 @@ func _should_use(descriptor: TriggeredAbilityDescriptor) -> bool:
 		return true
 	if descriptor.is_player_initiated():
 		return _ctx.interaction.ask_use_ability(
-			descriptor, descriptor.controller_id, _ctx
+			descriptor, _effective_controller(descriptor), _ctx
 		)
 	if descriptor.optional:
 		return _ctx.interaction.ask_optional_effect(
-			descriptor.controller_id, descriptor.id, _ctx
+			_effective_controller(descriptor), descriptor.id, _ctx
 		)
 	return true
 
 
 func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 	var intent: InitiationIntent
+	var controller_id := _effective_controller(descriptor)
 	if descriptor.provokes_aoo():
 		intent = InitiationIntent.action_ability(
-			descriptor.controller_id,
+			controller_id,
 			descriptor.composition,
 			descriptor.action_cost
 		)
 	else:
-		intent = InitiationIntent.ability(descriptor.controller_id, descriptor.composition)
+		intent = InitiationIntent.ability(controller_id, descriptor.composition)
 		intent.resource_cost = descriptor.resource_cost
 		intent.action_cost = descriptor.action_cost
 	intent.source_id = descriptor.source_id
@@ -179,8 +182,36 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 			handler.tier = SequenceHandler.Tier.TRIGGERED
 	var desc := descriptor
 	handler.callback = func() -> void:
+		if not _trigger_applies(desc):
+			return
 		resolve(desc)
 	_ctx.sequences.register_handler(handler)
+
+
+func _effective_controller(descriptor: TriggeredAbilityDescriptor) -> StringName:
+	if _ctx != null and _ctx.state != null:
+		if _ctx.state.registry.get_investigator(descriptor.controller_id) != null:
+			return descriptor.controller_id
+	if _ctx != null and _ctx.sequences != null:
+		var trigger := _ctx.sequences.current_trigger()
+		if trigger != null and _ctx.state != null:
+			if _ctx.state.registry.get_investigator(trigger.controller_id) != null:
+				return trigger.controller_id
+	return descriptor.controller_id
+
+
+func _trigger_applies(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or _ctx == null or _ctx.sequences == null:
+		return true
+	if CardRegistry.card_type(descriptor.definition_id) != &"location":
+		return true
+	var trigger := _ctx.sequences.current_trigger()
+	if trigger == null:
+		return true
+	var loc: StringName = trigger.payload.get("location_id", &"") as StringName
+	if loc == &"":
+		return true
+	return loc == descriptor.definition_id or loc == descriptor.source_id
 
 
 func _find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
