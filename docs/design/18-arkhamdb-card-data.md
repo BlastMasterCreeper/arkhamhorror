@@ -147,7 +147,7 @@ python tools/analyze_arkhamdb_cards.py
 - [x] 模板编译 → `compiled_abilities` JSON + `ArkhamDbAbilityCompiler` → `CardRegistry.register_revelation` / `register_triggered`
 - [x] 首批模板：`take_horror` / `take_damage` / `lose_resources` / `lose_all_resources` / `enter_threat_area`
 - [x] Core 2026 统计：分段存档；模板可表达子集已编译（`ability_compile_summary` in `_meta`）
-- [ ] Forced → `TriggeredAbilityService` 直执 / LISTENER（效果模板已识别，触发器注册待接）
+- [x] Forced → `TriggeredAbilityService` 直执；`TRIGGER_PHRASE_MAP` → `match_kind`/`phase`；锚 12125 / 12108 ✅
 - [ ] Reaction/Action → `register_triggered` + Initiation（分段已存，待模板/脚本）
 - [x] Free triggered（ArkhamDB `[fast]`）→ `register_as:free` + Player Window `list_free_abilities` / `activate_free`；锚 12046 ✅
 - [ ] 全量 32+29+49 能力覆盖（当前为模板可表达子集）
@@ -180,7 +180,7 @@ Gained characteristics 统计：[`core_2026_gained_characteristics.md`](../data/
 |---|---|---|
 | 打出 asset/event | `Initiation` + `play_card` | on_play 编译（部分） |
 | Revelation treachery | `CardAbilityService` + G3/G4 | Phase 3 模板编译 + 注册 ✅（部分） |
-| Forced | `TriggeredAbilityService` 直执 | 分段+效果模板已识别，触发器注册待接 |
+| Forced | `TriggeredAbilityService` 直执 | `TRIGGER_PHRASE_MAP` + `register_triggered` ✅（12125 / 12108） |
 | Reaction/Action | Initiation + ResponseWindow | 分段已存，待模板/脚本 |
 | Spawn/Prey | `SpawnInstructionSpec` / `PreyInstructionSpec` | Phase 2 编译 + 运行时解析 ✅ |
 | Hidden | E4 + `FORBID_LEAVE_HAND` | 从 `hidden` 字段批量 |

@@ -205,13 +205,15 @@ func _execute_atom(node: CompositionNode) -> bool:
 			)
 			return true
 		&"enter_threat_area":
-			_mutator.commit_enter_threat_area(node.card_id, node.inv_id)
+			var entered := _mutator.commit_enter_threat_area(node.card_id, node.inv_id)
+			if entered and _game_ctx != null and _game_ctx.triggered_abilities != null:
+				_game_ctx.triggered_abilities.install_card(node.inv_id, node.card_id)
 			_log.log(
 				AhcEnums.LogCategory.CARD,
 				"composition:enter_threat_area",
 				{"inv": node.inv_id, "card": node.card_id}
 			)
-			return true
+			return entered
 		&"lose_all_resources":
 			var inv := _state.registry.get_investigator(node.inv_id)
 			if inv != null and inv.resource_pool > 0:

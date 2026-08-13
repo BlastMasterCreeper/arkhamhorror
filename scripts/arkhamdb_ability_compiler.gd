@@ -85,6 +85,10 @@ static func build_composition(
 			return CompositionNode.exhaust_card(bind.card_id)
 		"nest_move_connecting":
 			return CompositionNode.nest_move_connecting(bind.controller_id)
+		"lead_draw_topmost_encounter_discard_copy":
+			return CompositionNode.lead_draw_topmost_encounter_discard_copy(
+				StringName(str(params.get("definition_id", "12129")))
+			)
 	return null
 
 
@@ -247,6 +251,22 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			StringName(str(entry.get("window", "any_player_window")))
 		)
 		return true
+	if register_as == "forced":
+		var match_kind := StringName(str(entry.get("match_kind", "")))
+		if match_kind == &"":
+			return false
+		CardRegistry.register_triggered(
+			definition_id,
+			ability_id,
+			match_kind,
+			TriggeredAbilityDescriptor.phase_from_raw(entry.get("phase", "AFTER")),
+			&"forced",
+			builder,
+			int(entry.get("resource_cost", 0)),
+			int(entry.get("action_cost", 0)),
+			bool(entry.get("optional", false))
+		)
+		return true
 	return false
 
 
@@ -274,6 +294,10 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"trait_exclude",
 		"target",
 		"may_advance_agenda",
+		"definition_id",
+		"match_kind",
+		"phase",
+		"timing",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

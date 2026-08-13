@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 11,
+      "compiled_total": 12,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -15,6 +15,7 @@
         "revelation": 24
       },
       "by_template": {
+        "lead_draw_topmost_encounter_discard_copy": 1,
         "choice_must": 1,
         "enter_threat_area": 3,
         "take_horror": 2,
@@ -77,7 +78,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location. In player order, each investigator tests [willpower] (3). Each investigator who fails takes 1 horror.",
+        "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location.",
         "index": 0
       }
     ]
@@ -110,7 +111,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location. If they are still set aside, place 4 set-aside copies of Fire! in the encounter discard pile. In player order, each investigator tests [agility] (3). Each investigator who fails takes 1 damage.",
+        "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location.",
         "index": 0
       }
     ]
@@ -149,9 +150,24 @@
       },
       {
         "kind": "forced",
-        "body": "The lead investigator draws the topmost copy of Fire! in the encounter discard pile Each surviving investigator who has not resigned is defeated and suffers 1 physical trauma.",
+        "body": "The lead investigator draws the topmost copy of Fire! in the encounter discard pile",
         "trigger": "After doom is placed on the agenda",
         "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "ability_kind": "forced",
+        "status": "full",
+        "trigger": "After doom is placed on the agenda",
+        "template": "lead_draw_topmost_encounter_discard_copy",
+        "definition_id": "12129",
+        "match_kind": "mythos_place_doom",
+        "phase": "AFTER",
+        "timing": "after_mythos_place_doom"
       }
     ]
   },
@@ -823,11 +839,15 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
-        "status": "effect_only",
+        "ability_kind": "forced",
+        "status": "full",
         "trigger": "After you discover 1 or more clues",
         "template": "take_horror",
         "amount": 1,
-        "direct": false
+        "direct": false,
+        "match_kind": "discover_clue",
+        "phase": "AFTER",
+        "timing": "after_discover_clue"
       }
     ]
   },
@@ -1190,7 +1210,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts. One at a time, each investigator draws 1 copy of the set-aside Mark of Elokoss weakness. Each investigator is now the bearer of that weakness. (Add that card to that investigator's deck, ignoring deckbuilding restrictions. It does not count toward that investigator's deck size.",
+        "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts.",
         "index": 0
       }
     ]
@@ -1223,7 +1243,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts. Each investigator immediately resigns.",
+        "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts.",
         "index": 0
       }
     ]
@@ -1322,6 +1342,7 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "When your turn ends",
         "template": "take_damage",
@@ -2453,6 +2474,7 @@
         "segment_index": 0,
         "register_as": "forced",
         "ability_id": "forced:0",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After Rogue Gangster engages you",
         "template": "lose_resources",
@@ -2788,7 +2810,7 @@
       },
       {
         "kind": "forced",
-        "body": "Discard each ready non-[[Elite]] [[Cultist]] enemy at this location. Place 1 doom on the agenda for each enemy discarded in this way. As an additional cost to enter Underground Cistern, investigators must spend 3 [per_investigator] clues, as a group.",
+        "body": "Discard each ready non-[[Elite]] [[Cultist]] enemy at this location. Place 1 doom on the agenda for each enemy discarded in this way.",
         "trigger": "When the investigation phase ends",
         "index": 1
       }
@@ -2827,7 +2849,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "\"Stop them at all costs!\" You try to open the sluice valve. Test [agility] or [combat] (5). If you succeed, each enemy is defeated and each investigator who has not resigned is killed (→R3) (page 14) As an additional cost to enter Sluice Control, investigators must spend 1 [per_investigator] clues, as a group.",
+        "body": "\"Stop them at all costs!\" You try to open the sluice valve. Test [agility] or [combat] (5). If you succeed, each enemy is defeated and each investigator who has not resigned is killed (→R3) (page 14)",
         "index": 0
       }
     ]
@@ -3159,7 +3181,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Resign. \"I can't take it any more!\" You flee the sewers. Sewer Culvert is connected to each Sewer Tunnels location, and vice versa.",
+        "body": "Resign. \"I can't take it any more!\" You flee the sewers.",
         "index": 0
       }
     ]
@@ -3285,6 +3307,7 @@
         "segment_index": 0,
         "register_as": "forced",
         "ability_id": "forced:0",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "When you end your turn at this location",
         "template": "take_horror",

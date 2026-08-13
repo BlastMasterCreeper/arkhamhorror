@@ -411,3 +411,19 @@ static func enemy_attack(
 	t.after_timing = after_timing
 	t.payload = {"enemy_id": enemy_id, "target_investigator": target_investigator}
 	return t
+
+
+static func discover_clue(
+	inv_id: StringName,
+	location_id: StringName,
+	amount: int = 1,
+	after_timing: StringName = &"after_discover_clue"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("discover_clue_%s_%d" % [inv_id, Time.get_ticks_msec()])
+	t.kind = &"discover_clue"
+	t.controller_id = inv_id
+	t.tags = [&"discover_clue"]
+	t.after_timing = after_timing
+	t.payload = {"inv_id": inv_id, "location_id": location_id, "amount": amount}
+	return t

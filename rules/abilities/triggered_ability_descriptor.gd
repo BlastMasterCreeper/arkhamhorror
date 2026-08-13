@@ -108,7 +108,7 @@ static func from_registry_unit(
 	var desc := TriggeredAbilityDescriptor.new()
 	desc.id = unit.get("ability_id", &"") as StringName
 	desc.match_kind = unit.get("match_kind", &"") as StringName
-	desc.phase = int(unit.get("phase", AhcEnums.SequencePhase.AFTER)) as AhcEnums.SequencePhase
+	desc.phase = phase_from_raw(unit.get("phase", AhcEnums.SequencePhase.AFTER))
 	desc.controller_id = controller_id
 	desc.source_id = card_id
 	desc.definition_id = definition_id
@@ -132,3 +132,15 @@ static func _parse_kind(raw: Variant) -> AbilityKind:
 			return AbilityKind.ACTION
 		_:
 			return AbilityKind.FORCED
+
+
+static func phase_from_raw(raw: Variant) -> AhcEnums.SequencePhase:
+	if raw is int:
+		return raw as AhcEnums.SequencePhase
+	match str(raw).to_upper():
+		"WHEN":
+			return AhcEnums.SequencePhase.WHEN
+		"RESOLVE":
+			return AhcEnums.SequencePhase.RESOLVE
+		_:
+			return AhcEnums.SequencePhase.AFTER

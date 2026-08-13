@@ -69,6 +69,9 @@ func _initialize() -> void:
 	_run_test("TRIG-07 free activate exhausts and moves", _test_trig_free_activate_move)
 	_run_test("ADB-25 compile olivier free move", _test_adb_compile_olivier_free)
 	_run_test("ADB-26 olivier free activate vertical", _test_adb_olivier_free_activate)
+	_run_test("ADB-27 compile 12125 forced discover horror", _test_adb_compile_12125_forced)
+	_run_test("ADB-28 12125 forced after discover", _test_adb_12125_forced_discover)
+	_run_test("ADB-29 compile 12108 forced place doom", _test_adb_compile_12108_forced)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -1647,6 +1650,71 @@ func _test_adb_olivier_free_activate() -> bool:
 		bool(result.get("ok", false))
 		and card.exhausted
 		and inv.location_tag == &"loc_b"
+	)
+
+
+func _test_adb_compile_12125_forced() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12125")
+	var forced: Dictionary = {}
+	for entry in compiled:
+		if entry is Dictionary and str((entry as Dictionary).get("register_as", "")) == "forced":
+			forced = entry as Dictionary
+			break
+	return (
+		CardRegistry.has_revelation(&"12125")
+		and CardRegistry.has_triggered(&"12125")
+		and forced.get("template", "") == "take_horror"
+		and forced.get("match_kind", "") == "discover_clue"
+		and str(forced.get("phase", "")).to_upper() == "AFTER"
+		and int(forced.get("amount", 0)) == 1
+	)
+
+
+func _test_adb_12125_forced_discover() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.clues = 1
+	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12125")
+	var draw_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not bool(draw_res.get("ok", false)):
+		return false
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if card == null or inv == null:
+		return false
+	if card.zone != AhcEnums.Zone.PLAY_AREA:
+		return false
+	if not inv.threat_area.has(card_id):
+		return false
+	var horror_before := inv.horror_taken
+	var res := h.investigate_action()
+	return (
+		res.ok
+		and res.success
+		and loc.clues == 0
+		and inv.clues_on_card == 1
+		and inv.horror_taken == horror_before + 1
+	)
+
+
+func _test_adb_compile_12108_forced() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12108")
+	var forced: Dictionary = {}
+	for entry in compiled:
+		if entry is Dictionary and str((entry as Dictionary).get("register_as", "")) == "forced":
+			forced = entry as Dictionary
+			break
+	return (
+		CardRegistry.has_triggered(&"12108")
+		and forced.get("template", "") == "lead_draw_topmost_encounter_discard_copy"
+		and forced.get("match_kind", "") == "mythos_place_doom"
+		and str(forced.get("phase", "")).to_upper() == "AFTER"
+		and str(forced.get("definition_id", "")) == "12129"
 	)
 
 
@@ -3530,6 +3598,7 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.action.fight",
 		&"seq.action.engage",
 		&"seq.action.evade",
+		&"seq.effect.discover_clue",
 	]
 	for flow_id in flows:
 		if not catalog.has_flow(flow_id):

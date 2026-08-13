@@ -100,6 +100,25 @@ static func _register_flows(
 	_register_mythos_flows(catalog)
 	_register_act_agenda_back_flows(catalog)
 	_register_enemy_flows(catalog)
+	_register_effect_flows(catalog)
+
+
+static func _register_effect_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.effect.discover_clue",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", &"")
+			var location_id: StringName = params.get("location_id", &"")
+			var amount: int = int(params.get("amount", 1))
+			return TriggeringCondition.discover_clue(inv_id, location_id, amount),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return DiscoverClueFlow.run(
+				game_ctx,
+				params.get("inv_id", &"") as StringName,
+				params.get("location_id", &"") as StringName,
+				int(params.get("amount", 1))
+			)
+	)
 
 
 static func _register_enemy_flows(catalog: SequenceCatalog) -> void:

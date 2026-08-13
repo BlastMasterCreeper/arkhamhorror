@@ -26,8 +26,20 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	test.skill = AhcEnums.SkillType.INTELLECT
 	test.difficulty = loc.shroud
 	var location_id_copy := location_id
+	var inv_copy := inv_id
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		_apply_discover_clue(location_id_copy, inv_id)
+		if game_ctx != null and game_ctx.sequence_catalog != null:
+			game_ctx.sequence_catalog.nest(
+				game_ctx,
+				&"seq.effect.discover_clue",
+				{
+					"inv_id": inv_copy,
+					"location_id": location_id_copy,
+					"amount": 1,
+				}
+			)
+		else:
+			_apply_discover_clue(location_id_copy, inv_copy)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,

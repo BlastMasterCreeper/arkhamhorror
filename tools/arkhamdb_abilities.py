@@ -24,6 +24,27 @@ TRIGGERED = re.compile(
 
 STRIP_HTML = re.compile(r"<[^>]+>")
 
+# Forced / Reaction / LISTENER 共用触发短语 → match_kind / SequencePhase。
+# 仅映射已有命名流程 kind；未映射则 JSON 可带效果但不 register_triggered。
+TRIGGER_PHRASE_MAP: list[tuple[re.Pattern[str], str, str]] = [
+    (
+        re.compile(r"^After doom is placed on the agenda\.?$", re.I),
+        "mythos_place_doom",
+        "AFTER",
+    ),
+    (
+        re.compile(r"^After you discover 1 or more clues(?: at .+)?\.?$", re.I),
+        "discover_clue",
+        "AFTER",
+    ),
+]
+
+LEAD_DRAW_FIRE = re.compile(
+    r"^The lead investigator draws the topmost copy of Fire! "
+    r"in the encounter discard pile",
+    re.I,
+)
+
 TAKE_HORROR = re.compile(r"^Take (\d+) (direct )?horror\.?", re.I)
 TAKE_DAMAGE = re.compile(r"^Take (\d+) (direct )?damage\.?", re.I)
 LOSE_RESOURCES = re.compile(r"^Lose (\d+) resource", re.I)
@@ -76,6 +97,20 @@ IF_REVEAL_TOKEN = re.compile(r"if you reveal a \[", re.I)
 def plain_text(raw: str) -> str:
     text = STRIP_HTML.sub("", raw)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def match_trigger_phrase(trigger: str) -> dict[str, str] | None:
+    text = plain_text(trigger).rstrip(".").strip()
+    if not text:
+        return None
+    for pattern, match_kind, phase in TRIGGER_PHRASE_MAP:
+        if pattern.match(text):
+            return {
+                "match_kind": match_kind,
+                "phase": phase,
+                "timing": f"{phase.lower()}_{match_kind}",
+            }
+    return None
 
 
 def split_forced_body(body: str) -> tuple[str, str]:
@@ -292,6 +327,11 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
         }
     if ENTER_THREAT.match(body):
         return {"template": "enter_threat_area"}
+    if LEAD_DRAW_FIRE.match(body):
+        return {
+            "template": "lead_draw_topmost_encounter_discard_copy",
+            "definition_id": "12129",
+        }
     return None
 
 
@@ -347,10 +387,15 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             "segment_index": segment["index"],
             "register_as": "forced",
             "ability_id": f"forced:{segment['index']}",
+            "ability_kind": "forced",
             "status": "effect_only",
             "trigger": segment.get("trigger", ""),
             **effect,
         }
+        timing = match_trigger_phrase(str(segment.get("trigger", "")))
+        if timing is not None:
+            entry.update(timing)
+            entry["status"] = "full"
         if segment.get("if_kind"):
             entry["if_kind"] = segment["if_kind"]
         return entry
@@ -373,6 +418,11 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "Lose all of your resources."
     if template == "enter_threat_area":
         return "Put … into play in your threat area."
+    if template == "lead_draw_topmost_encounter_discard_copy":
+        return (
+            "The lead investigator draws the topmost copy of Fire! "
+            "in the encounter discard pile."
+        )
     if template == "if_else":
         return "If you have no clues, … gains surge."
     if template == "seq":

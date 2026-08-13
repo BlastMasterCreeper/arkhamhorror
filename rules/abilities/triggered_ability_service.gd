@@ -12,6 +12,9 @@ func bind_game_context(ctx: GameContext) -> void:
 func register(descriptor: TriggeredAbilityDescriptor) -> void:
 	if descriptor == null or _ctx == null:
 		return
+	for existing in _descriptors:
+		if existing != null and existing.source_id == descriptor.source_id and existing.id == descriptor.id:
+			return
 	_descriptors.append(descriptor)
 	if descriptor.uses_timing_handler() and _ctx.sequences != null:
 		_install_handler(descriptor)
