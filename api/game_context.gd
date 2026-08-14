@@ -30,6 +30,8 @@ var sequence_catalog: SequenceCatalog
 var resource_gain: ResourceGainService
 var draw_investigator: DrawInvestigatorService
 var draw_encounter: DrawEncounterService
+var mythos: MythosService
+var enemy_phase: EnemyPhaseService
 var action_sequences: ActionSequenceService
 var card_abilities: CardAbilityService
 var triggered_abilities: TriggeredAbilityService

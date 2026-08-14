@@ -20,6 +20,28 @@ alwaysApply: true
 | **effect** | **效果** | dry-run 可 CREATED：状态原语 + Register |
 | **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
 | **Player Interaction** | **玩家交互** | 能力选用 / Optional / 目标 / 队长排序；`PlayerInteractionGate` |
+| **Evade** | **躲避** | 调查员行动；`seq.action.evade`；≠「闪避」「规避」 |
+| **Exhaust** | **横置** | 官方简中习惯译法；`exhausted` = 已横置 |
+| **Ready** | **重整** | Framework Upkeep 4.3 重整横置卡；`set_exhausted(false)` 等；**未横置** = `!exhausted` 状态表述 |
+| **Doom** | **毁灭** | 场景/敌人上的 doom 标记；密谋推进相关 |
+| **Fight** | **攻击** | 调查员行动（Fight action）；`seq.action.fight`；≠ 敌人 perform attack |
+| **Investigate** | **调查** | 调查员行动；`seq.action.investigate` |
+| **Engage** | **接战** | 调查员行动；主动与敌人交战；`seq.action.engage` / `seq.engage` |
+| **Move** | **移动** | 调查员行动；`seq.action.move` |
+| **Attack of Opportunity** | **借机攻击** | AOO；`AttackKind.OPPORTUNITY`；付完 action cost 后、主体效果前 |
+| **Retaliate** | **反击** | 敌人关键词；Fight 检定失败 vs **未横置**带 retaliate → **ST.7 apply 完成后** `perform_attack(RETALIATE)`；不横置 |
+| **Alert** | **警戒** | 敌人关键词；Evade 检定失败 vs **未横置**带 alert → **ST.7 apply 完成后** `perform_attack(ALERT)`；不要求 engaged；不横置 |
+| **Hunter** | **猎手** | 敌人关键词；Enemy Phase 3.2 向最近调查员移动 1 步 |
+| **Patrol** | **巡逻** | 敌人关键词；Enemy Phase 3.2 向 designated target 移动 1 步 |
+| **Massive** | **庞大** | 敌人关键词；**未横置**时虚拟交战同地点全体；**永不**进威胁区 |
+| **Elusive** | **逃逸** | 敌人 **攻击**或被**攻击** resolve 后 flee；**借机攻击**属前者（敌人攻击） |
+| **Aloof** | **冷漠** | 敌人关键词；不自动 engage；spawn 默认 unengaged |
+| **Prey** | **猎物** | 敌人指令（`*Prey –`*）；engage / Hunter 等距 tie-break；**不 nest** |
+| **Hidden** | **隐私** | 关键词；秘密入手；见 [grimoire-glossary-extract §隐私](docs/reference/grimoire-glossary-extract.md) |
+| **Forced Ability** | **强制能力** | `Forced –`；引擎直执，无 Initiation 选用 |
+| **Free triggered ability** | **免费触发能力** | 魔典 `[free]`；ArkhamDB 玩家牌文本常标 `[fast]`；Player Window 内发起 |
+| **Reaction triggered ability** | **反应触发能力** | `[reaction]`；when/after 时点选用 |
+| **Action triggered ability** | **激活触发能力** | `[action]`；经 Activate 启动；勿笼统称「行动能力」 |
 
 ## 对话表述（已裁决）
 
@@ -40,4 +62,10 @@ alwaysApply: true
 - **显现（Revelation）** ≠ **弱点（Weakness 子类型）**；路由看 cardtype + `has_revelation`。
 - 避免把 Revelation 写成「揭示」「暴露」等非规范译法（除非引用第三方非官方文本并标明）。
 - **Skill 不能打出**：`FORBID_PLAY` 仅 asset/event；skill 走 `FORBID_COMMIT_TO_TEST`。险境与卡面 cannot 均经 **RESTRICTION Register**，无独立 Policy。
+- **躲避（Evade）** ≠ 闪避/规避；**横置（Exhaust）** ≠ 耗尽/疲劳（中文表述用「横置」）。
+- **重整（Ready）** = 将横置卡变为未横置（Framework 4.3 等）；**未横置** = `!exhausted`；≠「竖置」「就绪」。
+- **反击（Retaliate）** / **警戒（Alert）**：均在 skill test **全部 ST.7 结果 apply 完成后**（post-ST7、ST.8 前）才 `perform_attack`；均要求敌人 **未横置**；**不属于** ST.7 `on_fail` 链。见 [08 §6.4](docs/design/08-enemy-engagement.md)。
+- **失败转嫁**（Fight fail redirect）在 **ST.7 `on_fail`** 内结算，先于 post-ST7 的反击/警戒。
+- **攻击（Fight action）** ≠ 敌人 **perform attack**（含借机攻击 / 反击 / 警戒 / 阶段攻击）。
+- **毁灭（Doom）** = doom 标记；≠「厄运」等非规范译法（对话/文档）。
 - **Reveal 是效果**：`reveal_to_*` = L0 揭示状态原语，参与 dry-run CREATED。见 07-primitives §5.3、07-composition §4.1、01 §3.6。

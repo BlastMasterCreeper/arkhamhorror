@@ -278,7 +278,24 @@ TimingWindow close
 
 dry-run：**Choice** 仍 OR 任一支 CREATED 即可发起；**真实 resolve** 必须 `ask` 后执行选中支。
 
-### 7.3 Framework · SkillTest `PlayerWindow`
+#### 7.2.1 Must choose · 可执行选项（已裁决 2026-07-07）
+
+Grimoire / FAQ：**必须选择一项可以执行的选项**。
+
+| 阶段 | 行为 |
+|---|---|
+| **选项枚举** | 编译期分支 → 对每个 option `CompositionDryRunner.simulate` |
+| **过滤** | 剔除 **FIZZLE**（无任何 CREATED）的 option |
+| **仅一支可执行** | 自动选中，可不弹 UI（headless 默认） |
+| **多支可执行** | `PlayerInteractionGate.ask(PICK_OPTION)`；**Lead Investigator** 代选 tie-break 类目标时见 §7.4 |
+| **零支可执行** | 整个 Choice **跳过**或 ability fizzle（按外层 Initiation L7；Forced revelation 通常仍 resolve 可执行部分） |
+
+**12124** *You must either (choose one)* — 强制 Choice + 过滤。  
+**12126** fail-by *either … or …* — 印刷漏 must；按本表 **must** 语义。
+
+| **12160** *nearest enemy* 等距 → **当前交互玩家**（遭遇显现 = drawer / controller）`PICK_TARGET`。见 16 §7.2.1。
+
+---
 
 `FrameworkFlowEngine` / `SkillTestEngine` 的 `PlayerWindow` = **「允许发动 [action]/[reaction] 的开放区间」**，不是新决策类型。
 

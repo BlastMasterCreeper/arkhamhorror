@@ -55,6 +55,8 @@ func start_setup() -> void:
 func advance() -> void:
 	if waiting_player_window:
 		return
+	if current_step == AhcEnums.FrameworkStep.SCENARIO_RESOLUTION:
+		return
 	if not _setup_complete:
 		_advance_setup()
 		return
@@ -105,6 +107,14 @@ func end_investigator_turn() -> void:
 		return
 	pending_action_loop = false
 	_goto(AhcEnums.FrameworkStep.INV_2_2_2_TURN_ENDS)
+
+
+func trigger_scenario_resolution(resolution: int) -> void:
+	if resolution <= 0:
+		return
+	if _state != null:
+		_state.scenario_resolution = resolution
+	_goto(AhcEnums.FrameworkStep.SCENARIO_RESOLUTION)
 
 
 func advance_until(step: AhcEnums.FrameworkStep, max_hops: int = 256) -> bool:
@@ -222,13 +232,33 @@ func _open_player_window(w: AhcEnums.PlayerWindow) -> void:
 	player_window_opened.emit(w)
 
 
+## 测试 / 沙盒：在行动阶段显式打开 Player Window（不推进步骤）。
+func open_player_window(w: AhcEnums.PlayerWindow) -> void:
+	_open_player_window(w)
+
+
 func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
-	if step == AhcEnums.FrameworkStep.MYTHOS_1_2_PLACE_DOOM:
-		_state.doom_on_agenda += 1
+	if step == AhcEnums.FrameworkStep.SETUP_10_SCENARIO_SETUP:
+		if _scenario:
+			_scenario.run_setup_scenario_layout()
+	elif step == AhcEnums.FrameworkStep.SETUP_11_SET_AGENDA_DECK:
+		if _scenario:
+			_scenario.run_setup_agenda_deck()
+	elif step == AhcEnums.FrameworkStep.SETUP_12_SET_ACT_DECK:
+		if _scenario:
+			_scenario.run_setup_act_deck()
+	elif step == AhcEnums.FrameworkStep.SETUP_13_PLACE_SCENARIO_REFERENCE:
+		if _scenario:
+			_scenario.run_setup_scenario_reference()
+	elif step == AhcEnums.FrameworkStep.SETUP_14_GAME_BEGINS_ABOUT:
+		if _scenario:
+			_scenario.run_setup_game_begins()
+	elif step == AhcEnums.FrameworkStep.MYTHOS_1_2_PLACE_DOOM:
+		if _scenario:
+			_scenario.place_mythos_doom()
 	elif step == AhcEnums.FrameworkStep.MYTHOS_1_3_CHECK_DOOM_THRESHOLD:
-		if _state.doom_in_play() >= _state.agenda_threshold:
-			_log.log(AhcEnums.LogCategory.SCENARIO, "agenda_advance_needed", {})
-			_state.doom_on_agenda = 0
+		if _scenario:
+			_scenario.check_agenda_doom_threshold()
 	elif step == AhcEnums.FrameworkStep.MYTHOS_1_4_DRAW_ENCOUNTER_EACH:
 		investigators_remaining_this_phase = player_order.duplicate()
 	elif step == AhcEnums.FrameworkStep.INV_2_1_PHASE_BEGINS:
@@ -248,11 +278,18 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_PHASE)
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_ROUND)
+		if _game_ctx != null:
+			ScenarioObjectiveFlow.check_end_of_round(_game_ctx)
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_2_HUNTER_PATROL_MOVE:
 		if _enemy:
-			_enemy.hunter_patrol_move()
+			_enemy.enemy_phase_3_2_moves()
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_3_ENGAGED_ATTACKS:
+		if _enemy:
+			_enemy.resolve_massive_phase_attacks()
 		investigators_remaining_this_phase = player_order.duplicate()
+	elif step == AhcEnums.FrameworkStep.UPKEEP_4_3_READY_EXHAUSTED:
+		if _enemy and _game_ctx != null:
+			_enemy.ready_all_exhausted_enemies(_game_ctx)
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_4_DRAW_AND_RESOURCE:
 		_resolve_upkeep_draw_and_resource()
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_5_CHECK_HAND_SIZE:

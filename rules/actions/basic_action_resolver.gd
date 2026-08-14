@@ -26,8 +26,20 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	test.skill = AhcEnums.SkillType.INTELLECT
 	test.difficulty = loc.shroud
 	var location_id_copy := location_id
+	var inv_copy := inv_id
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		_apply_discover_clue(location_id_copy, inv_id)
+		if game_ctx != null and game_ctx.sequence_catalog != null:
+			game_ctx.sequence_catalog.nest(
+				game_ctx,
+				&"seq.effect.discover_clue",
+				{
+					"inv_id": inv_copy,
+					"location_id": location_id_copy,
+					"amount": 1,
+				}
+			)
+		else:
+			_apply_discover_clue(location_id_copy, inv_copy)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
@@ -86,11 +98,16 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	var commits := _commits_from_extra(extra)
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
+	test.target_enemy_id = enemy_id
 	test.skill = AhcEnums.SkillType.COMBAT
 	test.difficulty = enemy.fight
 	var enemy_id_copy := enemy_id
+	var inv_copy := inv_id
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		_apply_fight_damage(enemy_id_copy)
+		EnemyDefeatResolver.deal_damage(game_ctx, enemy_id_copy, 1)
+	test.on_fail = func(_ctx: SkillTestContext) -> void:
+		var fight_damage: int = int(extra.get("fight_damage", 1))
+		FightFailRedirectResolver.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
@@ -113,11 +130,12 @@ func evade(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	var commits := _commits_from_extra(extra)
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
+	test.target_enemy_id = enemy_id
 	test.skill = AhcEnums.SkillType.AGILITY
 	test.difficulty = enemy.evade
 	var enemy_id_copy := enemy_id
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		_apply_evade(enemy_id_copy)
+		game_ctx.enemy.disengage(game_ctx, enemy_id_copy, true)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
@@ -182,23 +200,3 @@ func _apply_discover_clue(location_id: StringName, inv_id: StringName) -> void:
 		return
 	loc.clues -= 1
 	inv.clues_on_card += 1
-
-
-func _apply_fight_damage(enemy_id: StringName) -> void:
-	var enemy := _state.registry.get_enemy(enemy_id)
-	if enemy == null:
-		return
-	enemy.damage += 1
-
-
-func _apply_evade(enemy_id: StringName) -> void:
-	var enemy := _state.registry.get_enemy(enemy_id)
-	if enemy == null:
-		return
-	var owner_id := enemy.engaged_with
-	enemy.exhausted = true
-	enemy.engaged_with = &""
-	if owner_id != &"":
-		var inv := _state.registry.get_investigator(owner_id)
-		if inv:
-			inv.threat_area.erase(enemy_id)

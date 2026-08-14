@@ -2,7 +2,8 @@
 
 > **Source:** `arkham-grimoire-v1.0.pdf`  
 > **Pages:** 48  
-> **Note:** Machine extraction for agent/search use; authoritative wording is the PDF.
+> **Note:** Machine extraction for agent/search use; authoritative wording is the PDF.  
+> **Symbols:** Custom PDF glyphs are escaped to ArkhamDB `[symbol]` notation (see [`arkham-symbol-notation.md`](arkham-symbol-notation.md)).
 
 ---
 
@@ -110,12 +111,12 @@ Generally, advancing the act deck is good for the investigators.
 clues, fulfilling an Objective ability, or resolving a Forced effect on its
 revealed side.
  Æ Act decks typically contain a requisite clue threshold to advance. As
-a  player ability, investigators may spend the requisite clues, as a
+a [free] player ability, investigators may spend the requisite clues, as a
 group, to advance during any player window.
  = An act card may indicate a flat value (such as “4”) or a per
-investigator value (as indicated by the  icon).
+investigator value (as indicated by the [per_investigator] icon).
  = Reminder: Even if 1 or more investigators are eliminated during a
-scenario, the  icon’s value stays the same.
+scenario, the [per_investigator] icon’s value stays the same.
  Æ Some act decks have additional objectives which must be met, which
 may specify when and how investigators must advance. “ Objective  –”
 instructions override or add additional requirements to advancing, in
@@ -125,7 +126,7 @@ specified timing point if its conditions are met, unless the ability
 specifies that players “may” advance.
  Æ If an Objective ability specifies players “may” advance, but does not
 specify a timing window for this advancement, it may be advanced
-during any  player window.
+during any [free] player window.
  Æ Any constant abilities and/or forced abilities on an act card’s “a” side
 are in effect while resolving the text on its “b” side.
 See “Act Deck and Agenda Deck” on page 3 and “Cardtypes” on page 6.
@@ -138,7 +139,7 @@ agenda deck is bad for the investigators.
  Æ The act deck advances if the investigators, as a group, spend the
 requisite number of clues (as indicated by the act card).  An act card
 may indicate a flat value (such as “4”) or a “per investigator” value
-(as indicated by the  icon). This is normally done as a  player
+(as indicated by the [per_investigator] icon). This is normally done as a [free] player
 ability. Any or all investigators may contribute any number of clues
 toward the total number of clues required to advance the act. If the act
 has an “Objective – ” instruction, that instruction overrides or adds
@@ -184,8 +185,8 @@ Evade, Investigate , or Move). Activating such an ability allows an
 investigator to perform the effects of the designated action(s) as described
 in the rules, modified according to that ability’s text.
  Æ If the ability requires a skill test, the skill being tested for that ability is
-indicated after the bold action designator. (For example,  Fight ()
-indicates that the skill being tested is .)
+indicated after the bold action designator. (For example, [action] Fight ([combat])
+indicates that the skill being tested is [combat].)
 
 ---
 
@@ -196,7 +197,7 @@ ARKHAM GRIMOIRE
 Activate Action
 “Activate” is an action an investigator may take during their turn.
 When this action is taken, the investigator initiates an ability that specifies
-one or more  icons as part of its ability cost. The number of  icons in
+one or more [action] icons as part of its ability cost. The number of [action] icons in
 the ability’s cost determines how many actions the investigator is required
 to use for this activate action. When performing an activate action, all of
 that action’s costs are simultaneously paid. Then, the consequences of that
@@ -210,7 +211,7 @@ at that location, and all encounter cards in the threat area of any
 investigator at that location.
  Æ The current act or current agenda card.
 An activate action provokes attacks of opportunity unless it is also another
-action type. (For example, triggering the  ability on Cosmic Flame counts
+action type. (For example, triggering the [action] ability on Cosmic Flame counts
 as both an activate action and a fight action, and thus does not provoke an
 attack of opportunity).
 Active Player
@@ -231,7 +232,7 @@ agenda cards, beginning with agenda 1a, 2a, etc.
 Agenda cards are part of the agenda deck, and represent the progress
 and objectives of the dark forces arrayed against the investigators during
 the current scenario. Generally, advancing the agenda deck is bad for
-the investigators.
+the investigators.
 See “Act Deck and Agenda Deck” on page 3 and “Cardtypes” on page 6.
 Alert
 Alert is a keyword ability.
@@ -281,10 +282,10 @@ action. Other card abilities or game effects resolve under consideration
 of the actual game state.
  = For example, Trish Scarborough uses a card ability to investigate “as
 if ” she is at a connecting location. While resolving the skill test, she may
-trigger the  action ability on Olivier Bishop (
+trigger the [free] action ability on Olivier Bishop (
  46) to move to a
 connecting location. Even though she is resolving a different ability “as
-if ” she is at another location, the  ability on Olivier Bishop may
+if ” she is at another location, the [free] ability on Olivier Bishop may
 only move her mini-card or investigator token to a location connected to
 the location where Trish is considered to be under the actual, un-altered
 game state (in other words, the location at which her mini-card or
@@ -326,7 +327,7 @@ treated as conditionally triggering “at” that timing point.
 “after” abilities with the same triggering condition.
 (For example, an ability that reads “At the end of the round” initiates and
 resolves simultaneously to the round ending, whereas an ability that reads “If
-you reveal a  token” initiates and resolves simultaneously to a chaos token
+you reveal a [skull] token” initiates and resolves simultaneously to a chaos token
 being revealed, but only if its specific triggering condition was met.)
 See “Ability” on page 3, “Priority of Simultaneous Resolution” on page
 19, and “Triggering Condition” on page 23.
@@ -369,7 +370,7 @@ action which provoked the attack.
  Æ Attacks of opportunity count as enemy attacks for the purposes of card
 abilities.
  Æ An investigator provokes an attack of opportunity if they spend 1 or
-more actions to perform an ability or action.  abilities with a bold
+more actions to perform an ability or action. [free] abilities with a bold
 action designator do not provoke attacks of opportunity.
 Automatic Failure/Success
 Some card or token abilities may cause a skill test to automatically fail or
@@ -399,9 +400,9 @@ abilities. Types of basic actions available to players are:
  Æ Gain 1 Resource .
  Æ Move to a connecting location.
  Æ Engage an enemy at their location.
- Æ Fight an enemy at their location using .
- Æ Evade an enemy they are engaged with using .
- Æ Investigate  their location using .
+ Æ Fight an enemy at their location using [combat].
+ Æ Evade an enemy they are engaged with using [agility].
+ Æ Investigate  their location using [intellect].
 Play, Activate , Parley, and Resign  actions are not basic actions, as they
 require cards or card abilities to initiate.
 
@@ -437,11 +438,11 @@ interrupt the initiation of an effect, and prevent the effect from initiating.
 If an effect is canceled, it is considered not to have happened for the
 purposes of card abilities. (For example, if all damage from a certain game
 effect is canceled, that investigator is not considered to have taken damage for
-the purposes of a card effect such as the  ability on Jim Culver  (
+the purposes of a card effect such as the [reaction] ability on Jim Culver  (
  6 0)).
 Cannot
 The word “cannot” is absolute, and cannot be countermanded by
-other abilities.
+other abilities.
 Cardtypes
 The game’s cardtypes are introduced in “Card Anatomy” on page 34.
 If an ability causes a card to change its cardtype, it loses all other cardtypes
@@ -463,7 +464,7 @@ Agenda Cards
 Agenda cards are part of the agenda deck, and represent the progress
 and objectives of the dark forces arrayed against the investigators during
 the current scenario. Generally, advancing the agenda deck is bad for
-the investigators. (See “Agenda Cards” on page 4.)
+the investigators. (See “Agenda Cards” on page 4.)
 Asset Cards
 Asset cards represent items, allies, talents, spells, and other reserves that
 may assist or be used by an investigator during the current scenario. When
@@ -528,13 +529,13 @@ ARKHAM GRIMOIRE
 Chaos Tokens
 Chaos tokens are revealed from the chaos bag during skill tests to modify
 or influence the results of a skill test. (See “Skill Tests” on page 21.)
- Æ Skull (), Cultist (), Tablet (), Elder Thing ()—If any of these
+ Æ Skull ([skull]), Cultist ([cultist]), Tablet ([tablet]), Elder Thing ([elder_thing])—If any of these
 tokens are revealed for a skill test, resolve the effect for that symbol as
 indicated on the scenario reference card for the current scenario.
- Æ Auto-fail ( )—If this token is revealed for a skill test, it indicates that
+ Æ Auto-fail ( [auto_fail])—If this token is revealed for a skill test, it indicates that
 the investigator automatically fails the test (see “Automatic Failure/
 Success” on page 5).
- Æ Elder Sign ()—If this token is revealed for a skill test, resolve the 
+ Æ Elder Sign ([elder_sign])—If this token is revealed for a skill test, resolve the [elder_sign]
 effect on the investigator card belonging to the player performing the
 skill test.
  Æ If a revealed chaos token (or the effect referenced by a chaos token) has
@@ -548,7 +549,7 @@ solving a mystery, unraveling a conspiracy, and/or advancing the story.
  Æ The first time an investigator enters an unrevealed location (even
 during setup), that location is revealed (turned faceup) and a number
 of clues equal to its clue value are placed on that location from the
-token pool. Most clue values use a “per investigator ( )” value. (see
+token pool. Most clue values use a “per investigator ( [per_investigator])” value. (see
 “Location Cards” on page 16.)
  Æ A clue on a location can be discovered by successfully investigating that
 location (see “Investigate Action” on page 14), or by a card ability. If
@@ -558,9 +559,9 @@ place it on their investigator card, under their control.
 investigator” value) and no “ Objective – ” requirements for advancing,
 during any investigator’s turn the investigators may, as a group, spend
 the requisite number of clues from their investigator cards to advance
-the act deck. This is normally done as a  player ability. Any
+the act deck. This is normally done as a [free] player ability. Any
 number of investigators may contribute clues toward the total number
-of clues required to advance the act.
+of clues required to advance the act.
  Æ A card ability that refers to clues “at a location” or “on a location” is
 referring to the undiscovered clue tokens that are currently on that
 location card.
@@ -569,12 +570,12 @@ undiscovered clues on it is added to the victory display. (See
 “Victory X” on page 24.)
  Æ If a player card such as an investigator or asset is defeated or discarded,
 place all clues that are on that player card on its current location.
-The Codex 
-Some cards have the codex symbol ( ) on them. During a scenario, some
+The Codex [codex]
+Some cards have the codex symbol ( [codex]) on them. During a scenario, some
 card effects and abilities may direct players to read a specific codex entry.
 While playing, keep the campaign guide on hand for easy reference.
 Certain locations, allies, enemies, and other game entities have codex
-entries, marked with (  X). To read a codex entry, pay all costs and/
+entries, marked with ( [codex] X). To read a codex entry, pay all costs and/
 or resolve all effects associated with its triggering ability, then read the
 corresponding entry for the current scenario in the campaign guide and
 resolve its text.
@@ -614,7 +615,7 @@ the card it is printed on is in play.
  Æ Some constant abilities require a specific condition to be met. These
 abilities are denoted by words such as “during” or “while,” and the
 effects of such abilities are active whenever the specified condition
-is met.
+is met.
  Æ Constant abilities do not trigger at any specific point.
 Control
 See “Ownership and Control” on page 17.
@@ -645,7 +646,7 @@ other conditions in order to trigger. In such a construct, the ability costs
 and triggering conditions precede the colon, and all of the text following
 the colon is that ability’s effect.
  Æ If playing a card or triggering an ability with multiple costs, those costs
-must be paid simultaneously.
+must be paid simultaneously.
  Æ Only the controller of the card or ability may pay its costs.
  Æ When a player is exhausting, discarding, or otherwise using cards to
 pay costs, only cards that are in play and under that player’s control may
@@ -740,10 +741,10 @@ page 37.)
  Æ If an enemy has damage on it equal to or greater than its health value,
 that enemy is defeated and placed in the encounter discard pile (or
 in its owner’s discard pile if it is a weakness). Defeated enemies with
-victory X are placed in the victory display.
+victory X are placed in the victory display.
  Æ If an asset has damage on it equal to or greater than its health value, it
 is defeated. If an asset has horror on it equal to or greater than its sanity
-value, it is defeated. A defeated asset is placed in its owner’s discard pile.
+value, it is defeated. A defeated asset is placed in its owner’s discard pile.
 
 ---
 
@@ -798,7 +799,7 @@ is the enemy’s evade value.
  Æ When resolving a skill test created by a card ability, the base difficulty
 is indicated as a parenthetical value following  the indication of which
 skill is being tested. (For example, an Intellect test with a difficulty of 3
-would be indicated by the following:  (3) ).
+would be indicated by the following: [intellect] (3) ).
 See “Skill Test Timing” on page 30 for the full rules on skill tests.
 Direct Damage, Direct Horror
 If an ability causes a card to take direct damage or direct horror, that
@@ -904,7 +905,7 @@ Elimination
 A player is eliminated from a scenario when their investigator is defeated,
 or if they resign. The only manner in which eliminated investigators
 continue to affect the game is when establishing “per investigator” values
-(see “Per Investigator ( )” on page 18). Any time a player is eliminated:
+(see “Per Investigator ( [per_investigator])” on page 18). Any time a player is eliminated:
  Æ For the purpose of resolving weakness cards, the game has ended for
 the eliminated investigator. Trigger any “when the game ends” abilities
 on each weakness the eliminated investigator owns that is in play (or, in
@@ -1019,7 +1020,7 @@ Evade, Evade Action
 “Evade” is an action an investigator may take during their turn in the
 investigation phase.
 To evade an enemy engaged with an investigator, that investigator makes
-an agility ( ) test against the enemy’s evade value. If the test is successful,
+an agility ( [agility]) test against the enemy’s evade value. If the test is successful,
 that investigator evades the enemy (during Step 7 of the skill test).
  Æ If the test fails, the investigator does not evade the enemy, and it
 remains engaged with them.
@@ -1133,7 +1134,7 @@ distance (by movement) to the subject of the ability is the highest out of
 all eligible entities or locations. In the event of a tie, the lead investigator
 decides which location or entity is the “farthest.”
 For example: Location A is 5 connections away from investigator A and
-1 connection away from investigator B. Location B is 3 connections away
+1 connection away from investigator B. Location B is 3 connections away
 from investigator A and 4 connections away from investigator B. Location B is
 therefore the “ farthest from all investigators,” because its distance to the nearest
 investigator is greater than that of location A. (This is true even though location
@@ -1162,7 +1163,7 @@ Fight Action
 “Fight” is an action an investigator may take during their turn in the
 investigation phase.
 To fight an enemy at their location, an investigator resolves an attack
-against that enemy by making a combat ( ) test against the enemy’s fight
+against that enemy by making a combat ( [combat]) test against the enemy’s fight
 value.
 If the test is successful, the attack succeeds and 1 damage is dealt to the
 attacked enemy (during Step 7 of the skill test).
@@ -1207,7 +1208,7 @@ but before that asset enters play.)
 immediately after that timing point’s impact upon the game resolves.
  Æ Forced abilities take precedence over player card abilities. All forced
 abilities triggered at a specific timing point must be resolved in full
-before triggering any  abilities referencing the same timing point.
+before triggering any [reaction] abilities referencing the same timing point.
 See “Ability” on page 3.
 “For each” or “for every”
 Some card effects instruct an investigator to perform an effect multiple
@@ -1250,7 +1251,7 @@ campaign, the beginning of a new scenario marks the start of a new game.
 Hand Size
 Each investigator’s maximum hand size is 8 by default. This value is
 checked only during the upkeep phase, after drawing 1 card and gaining
-1 resource.
+1 resource.
 See “Upkeep phase” on page 29.
 Haunted
 Haunted is an ability that appears on some locations.
@@ -1277,7 +1278,7 @@ physical harm that has been done to a card during a scenario.
 health value, that investigator is defeated. When an investigator is
 defeated, they are eliminated from the current scenario.
  Æ In campaign play, an investigator who is defeated by damage suffers
-1 physical trauma. Taking physical trauma may cause an investigator to
+1 physical trauma. Taking physical trauma may cause an investigator to
 be killed.
  Æ If an enemy has damage on it equal to or greater than its health value,
 that enemy is defeated.
@@ -1287,7 +1288,7 @@ is defeated.
  Æ A card’s remaining health is its health value, plus or minus any active
 health modifiers, minus the amount of damage on it.
  Æ If an investigator takes “direct damage” that damage must be assigned
-to their investigator card.
+to their investigator card.
 See “Dealing Damage/Horror” on page 8, “Defeat” on page 8, and
 “Elimination” on page 10.
 Hidden
@@ -1397,7 +1398,7 @@ the resolution of the triggering condition.
 abilities, and establishes a higher priority for those abilities than
 abilities referencing the same triggering condition without the
 word “would.” (For instance, “When X would occur” resolves before
-“When X occurs.”)
+“When X occurs.”)
  Æ If a replacement effect that uses the word “would” changes the nature
 of a triggering condition, the original triggering condition is replaced
 with the new triggering condition. No further abilities referencing the
@@ -1405,7 +1406,7 @@ original triggering condition may be used.
 Investigate Action
 “Investigate” is an action an investigator may take during their turn in the
 investigation phase.
-Each time an investigator takes this action, they make an intellect ( ) test
+Each time an investigator takes this action, they make an intellect ( [intellect]) test
 against the shroud value of that location.
 If the test is successful, the investigator has succeeded in investigating the
 location, and they discover one clue at the location (during step 7 of the
@@ -1418,7 +1419,7 @@ and no clues are discovered.
  Æ An investigator may take an investigate action even if their location has
 no clues on it. No clues are discovered if they succeed.
 See “Skill Tests” on page 21 and “ST.7 Apply skill test results.” on
-page 30.
+page 30.
 
 ---
 
@@ -1527,7 +1528,7 @@ from being used more than once within a given time period.
  Æ Unless stated otherwise, limits are player specific.
  Æ A “group limit” applies to the entire group of investigators. (For
 example, if an investigator triggers an ability that is “group limit once per
-game,” no other investigator may trigger that ability during that game.)
+game,” no other investigator may trigger that ability during that game.)
 
 ---
 
@@ -1539,7 +1540,7 @@ ARKHAM GRIMOIRE
 the number of times (X) an ability’s effect can be triggered over the
 designated period. If a copy of the card with “Limit X per [period]” leaves
 and re-enters play within the same period, the limit X for that card is reset,
-as if the card had just entered the game for the first time.
+as if the card had just entered the game for the first time.
 “Limit X  per [card/game element]” is a limit that appears on some cards,
 and restricts the number of copies of that card (by title) that can be in play
 at the same time.
@@ -1548,16 +1549,16 @@ of that card (by title) can be played during the designated time period.
  Æ If a maximum includes the word “committed” (for example, “Max 1
 committed per skill test”) , it imposes the maximum number of copies
 of that card (by title) that can be committed to skill tests during the
-designated period.
+designated period.
  Æ If a maximum is applied to an ability in its entirety, it imposes the
 maximum number of times that ability can be triggered from all
 copies (by title) of cards bearing that ability (including the card being
-resolved), during the designated period.
+resolved), during the designated period.
 “(Max X)” or “to a maximum of X” imposes the maximum number or
 quantity a scaling value is able to achieve.
 If the effect of a card or an ability with a limit or maximum is ignored,
 that effect still counts against the limit/maximum for that for that ability,
-because that ability has been triggered.
+because that ability has been triggered.
 Location Cards
 Location cards represent the places the investigators may explore during a
 scenario.
@@ -1573,7 +1574,7 @@ this time.
 location. Other abilities may also instruct players to reveal a location.
  Æ When a location is revealed, turn it to its other side and place a number
 of clues on it equal to its clue value (this may occur during setup). Most
-clue values are conveyed as a “per investigator” ( ) value.
+clue values are conveyed as a “per investigator” ( [per_investigator]) value.
 A location with its shroud/clue value side faceup is in a “revealed” state.
  Æ Some locations enter play already in a “revealed” state. When this
 occurs, clues are placed on that location as if it were just revealed (this
@@ -1589,7 +1590,7 @@ investigator’s threat area.
  Æ When an enemy with the massive keyword attacks during the enemy
 phase, resolve an attack against each investigator it is engaged with, one
 investigator at a time, in an order chosen by the lead investigator. The
-enemy with the massive keyword does not exhaust until each attack has
+enemy with the massive keyword does not exhaust until each attack has
 been resolved.
  = If an attacking enemy with the massive keyword is exhausted (by
 another ability) before it has resolved all of its attacks,the remaining
@@ -1625,14 +1626,14 @@ a trait or keyword) cannot be reduced so that it functions with a value
 below zero. Negative modifiers in excess of a value’s current quantity
 can be applied, but, after all active modifiers have been applied, any
 resultant value below zero is treated as zero.
-(For example: Danny tests  and reveals a –8 chaos token. When applied to
-his investigator’s  of 4, this would reduce his skill value to –4. However, his
- cannot be reduced so that it functions with a value below zero. While the –8
-modifier still exists, his  is treated as zero. If Danny were to commit Timely
+(For example: Danny tests [agility] and reveals a –8 chaos token. When applied to
+his investigator’s [agility] of 4, this would reduce his skill value to –4. However, his
+[agility] cannot be reduced so that it functions with a value below zero. While the –8
+modifier still exists, his [agility] is treated as zero. If Danny were to commit Timely
 Intervention  (  90) to receive a +2 bonus to the test, this bonus would not be
 applied to the functioning skill value of zero; rather, it is applied in conjunction
 with all active modifiers. Danny’s agility would then be calculated as follows:
-base skill 4, –8 from chaos token, +2 from Timely Intervention for a total of –2,
+base skill 4, –8 from chaos token, +2 from Timely Intervention for a total of –2,
 which is still treated as zero.)
 Move
 Any time an entity (an investigator or enemy) moves, transfer that enemy
@@ -1656,7 +1657,7 @@ to that location, and does not pass through other locations en route.
  Æ If an investigator moves to an unrevealed location, that location is
 revealed by turning it to its other side and placing a number of clues on
 it equal to its clue value. Most location clue values are conveyed as a
-“per investigator” ( ) value.
+“per investigator” ( [per_investigator]) value.
  Æ If an enemy moves to an unrevealed location, that location remains
 unrevealed.
  Æ When an entity or game element moves, it cannot move to its same
@@ -1684,8 +1685,8 @@ a mulligan, set it aside, and draw another card in its place. It will be
 shuffled back into the player’s deck along with any other cards set aside
 during this process.
 Multi-Class Cards
-Some player cards belong to more than one class—Guardian ( ), Seeker
-(), Rogue (), Mystic (), or Survivor ( ). These cards can be
+Some player cards belong to more than one class—Guardian ( [guardian]), Seeker
+([seeker]), Rogue ([rogue]), Mystic ([mystic]), or Survivor ( [survivor]). These cards can be
 identified by their gold color and by the presence of multiple class icons
 instead of one. A multi-class card is a card of each of those classes, and is
 not a neutral card. A multi-class card can be included in an investigator’s
@@ -1723,7 +1724,7 @@ Each time a triggering condition occurs, the following sequence occurs:
 that resolve simultaneously to that triggering condition.
 3. Execute “after…” effects in response to that triggering condition’s
 completed resolution.
-Within this sequence, if the use of a  or Forced ability leads to a new
+Within this sequence, if the use of a [reaction] or Forced ability leads to a new
 triggering condition, the game pauses and starts a new sequence, following
 the same steps 1–3 as outlined above, in response to the new triggering
 condition. This is called a nested sequence .
@@ -1757,12 +1758,12 @@ Arkham.
 Waterfront District
 © 2026 FFGIllus. Pixoloid Studios 7/12 151
 LOCATION
- During your turn, if there are exactly
+[free] During your turn, if there are exactly
 1 or 2 investigators in the game: Move to a
 connecting location. (Limit once per round.)
 Arkham. Central.
 Merchant District
-1133
+11[per_investigator][per_investigator]33
 © 2026 FFGIllus. Pixoloid Studios
 LOCATION
 With its streets perpetually flooded, the former
@@ -1781,7 +1782,7 @@ ARKHAM GRIMOIRE
 Permanent
 Permanent is a deckbuilding keyword ability.
  Æ A card with the permanent keyword does not count toward an
-investigator’s deck size.
+investigator’s deck size.
  Æ A card with the permanent keyword still counts as being part of an
 investigator deck and adheres to all deckbuilding restrictions.
  Æ A card with the permanent keyword starts each game in play and
@@ -1808,7 +1809,7 @@ and remains in play until an ability or game effect causes it to leave play.
  Æ Skill cards are not “played.” These cards are committed to a skill test
 from a player’s hand in order to use their abilities.
 See “Fast” on page 12, “Play Action” on page 18, “Play Restrictions,
-Permissions, and Instructions” on page 19, and “Initiation Sequence” on
+Permissions, and Instructions” on page 19, and “Initiation Sequence” on
 page 31.
 Play Action
 “Play” is an action an investigator may take during their turn in the
@@ -1824,7 +1825,7 @@ cost or in addition to other effects) , this also does not use the play action
 and therefore does not provoke attacks of opportunity.
  Æ Skill cards are not “played.” These cards are committed to a skill test
 from a player’s hand in order to use their abilities.
-See “Fast” on page 12, “Play” on page 18, and “Put Into Play” on page 19.
+See “Fast” on page 12, “Play” on page 18, and “Put Into Play” on page 19.
  Æ If a card would enter an out-of-play area that does not belong to that
 card’s owner, it is physically placed in its owner’s corresponding out-
 of-play area instead. The card is considered to have entered the original
@@ -1835,7 +1836,7 @@ Parley
 Parley is an action investigators may take during their turn.
 Parley abilities represent investigators’ attempts to negotiate a tense
 situation, trick enemies, or talk their way out of trouble. Parley abilities
-are exclusively resolved by playing cards or activating  abilities, and are
+are exclusively resolved by playing cards or activating [action] abilities, and are
 indicated by the bold Parley action designator.
 See “Activate Action” on page 4.
 Patrol
@@ -1843,7 +1844,7 @@ Patrol is a keyword ability.
 At the start of the enemy phase, each ready, unengaged enemy with the
 patrol keyword moves to a connecting location along the shortest path
 toward the designated target, indicated in the parentheses after the
-patrol keyword.
+patrol keyword.
  Æ If there are multiple locations that qualify as the designated target, the
 lead investigator chooses which target the enemy patrols toward.
  Æ If the designated target is not a location (and is instead another game
@@ -1860,8 +1861,8 @@ While an investigator is resolving an encounter card with the peril
 keyword, they cannot confer with the other players. Other players cannot
 play cards, trigger abilities, or commit cards to that investigator’s skill
 test(s) while the peril encounter card is being resolved.
-Per Investigator ()
-When the  symbol appears after a value, that value is multiplied by the
+Per Investigator ([per_investigator])
+When the [per_investigator] symbol appears after a value, that value is multiplied by the
 number of investigators who started the scenario.
  Æ The “per investigator” multiplication is done before all other modifiers,
 and the product of this multiplication is treated as the printed value of
@@ -1893,7 +1894,7 @@ Prey is a keyword ability.
 Given the opportunity, some enemies will pursue a designated investigator.
 These enemies are identified with the prey keyword.
  Æ The prey keyword is followed by a designated target with whom the
-enemy should engage in parentheses. For example, “Prey (highest )”
+enemy should engage in parentheses. For example, “Prey (highest [willpower])”
 means that the enemy will engage the investigator with the highest
 willpower if given more than one option.
  Æ Given the choice between multiple equidistant investigators (or
@@ -2035,28 +2036,28 @@ that card is added to the collection of player cards.
 deckbuilding options, new abilities, or unique restrictions to an
 investigator deck.
  Æ Investigators are not required to include any unlocked campaign
-reward cards in their decks.
+reward cards in their decks.
  Æ A deck cannot include more than one reward card with the permanent
 keyword.
 See “Permanent” on page 18.
 Sanity and Horror
 Sanity represents a character’s mental and emotional fortitude, or the emotional
 strength a card lends to an investigator. Horror tokens track the harm that has
-been done to the investigator’s psyche by exposure to the Mythos.
+been done to the investigator’s psyche by exposure to the Mythos.
  Æ When a card takes horror, place that many horror tokens on the card.
  Æ If an investigator card has horror on it equal to or in greater than its
 sanity value, that investigator is defeated. When an investigator is
 defeated, they are eliminated from the current scenario.
  Æ In campaign play, an investigator who is defeated by horror suffers
-1 mental trauma. Taking mental trauma may cause an investigator to be
+1 mental trauma. Taking mental trauma may cause an investigator to be
 driven insane .
  Æ If an asset has horror on it equal to or greater than its sanity value, it
-is defeated.
+is defeated.
  Æ An asset card without a sanity value cannot be assigned horror.
  Æ A card’s remaining sanity is its sanity value, plus or minus any active
 sanity modifiers, minus the amount of horror on it.
  Æ If an investigator takes “direct horror” that horror must be assigned to
-their investigator card.
+their investigator card.
 See “Dealing Damage/Horror” on page 8, “Defeat” on page 8, and
 “Elimination” on page 10.
 Seal
@@ -2118,7 +2119,7 @@ skill value by 1 for that test.
  Æ Skill, asset, and event cards can all be committed to a skill test, but the
 abilities on assets and events do not resolve if the card is committed,
 while those on skill cards do.
-A Wild () skill icon on a player card may be used to match any other
+A Wild ([wild]) skill icon on a player card may be used to match any other
 skill icon for the purposes of both card abilities and counting how many
 matching icons are committed to a skill test.
  Æ When using wild icons for the purpose of resolving a card ability, a
@@ -2127,8 +2128,8 @@ is used.
 See “Skill Cards” on page 21 and “Skill Test Timing” on page 30.
 Skill Tests
 A number of situations in the game require an investigator to make a skill test,
-using one of their four skills: willpower ( ), intellect (), combat (), or
-agility ( ). A skill test pits the investigator’s value in a specified skill against
+using one of their four skills: willpower ( [willpower]), intellect ([intellect]), combat ([combat]), or
+agility ( [agility]). A skill test pits the investigator’s value in a specified skill against
 a difficulty value that is determined by the ability or game step that initiated
 the test. The investigator is attempting to match or exceed this difficulty value
 in order to succeed at the test.
@@ -2328,7 +2329,7 @@ printed in bold italics.
 reference cards that possess specific traits.
 Trauma
 Trauma represents permanent damage that has been inflicted upon an
-investigator’s body and mind.
+investigator’s body and mind.
  Æ If an investigator is defeated by taking damage equal to their health,
 they suffer 1 physical trauma. If the investigator is defeated by taking
 horror equal to their sanity, they suffer 1 mental trauma.
@@ -2342,7 +2343,7 @@ are killed. If they have mental trauma equal to their printed sanity,
 they are driven insane.
  Æ For each physical and/or mental trauma an investigator has suffered,
 that investigator begins each subsequent scenario in the campaign with
-1 damage and/or horror, respectively.
+1 damage and/or horror, respectively.
 See “Campaign Play” on page 36.
 Treachery Cards
 Treachery cards represent curses, afflictions, madnesses, obstacles,
@@ -2356,8 +2357,8 @@ instructed by the ability.
 investigators while resolving its effects.
 See “1.4: Each investigator draws 1 encounter card.” on page 27.
 Triggered Abilities
-A triggered ability is an ability prefaced by a  icon, a  icon, or an
- icon. If the ability has one or more prerequisites, such as costs and/or
+A triggered ability is an ability prefaced by a [free] icon, a [reaction] icon, or an
+[action] icon. If the ability has one or more prerequisites, such as costs and/or
 conditions, these are listed in text immediately following the icon. A player
 must always meet the prerequisites of such an ability in order to trigger it.
 All triggered abilities are governed by the following rules:
@@ -2368,27 +2369,27 @@ and its ability cost (if any) can be paid in full.
  Æ Once an ability is initiated, players must resolve as much of the effect as
 possible, unless the effect uses the word “may.”
 There are three types of triggered abilities:
- Æ Free triggered abilities  ()— These abilities may be triggered as
+ Æ Free triggered abilities  ([free])— These abilities may be triggered as
 a player ability during any player window or as specified.
- Æ Reaction triggered abilities  ()— These abilities have a specific
+ Æ Reaction triggered abilities  ([reaction])— These abilities have a specific
 triggering condition and may be triggered at any time that triggering
-condition is met. (For example: “  After you defeat an enemy:”)
- = A  ability that triggers “when...” its timing point occurs may be
+condition is met. (For example: “ [reaction] After you defeat an enemy:”)
+ = A [reaction] ability that triggers “when...” its timing point occurs may be
 triggered as soon as the specified timing point is met, but before that
 timing point’s impact upon the game resolves.
- = A  ability that triggers “at...” its timing point, or “if...” its
+ = A [reaction] ability that triggers “at...” its timing point, or “if...” its
 timing point or triggering condition occurs, may be triggered
 simultaneously with the resolution of that timing point’s impact
 upon the game.
- = A  ability that triggers “after...” its timing point occurs may be
+ = A [reaction] ability that triggers “after...” its timing point occurs may be
 triggered immediately after the timing point’s impact upon the
-game resolves.
- = Each  ability may be triggered only once each time the specified
+game resolves.
+ = Each [reaction] ability may be triggered only once each time the specified
 condition on the ability is met. For example, an ability that is
 triggered “After X occurs,” may be used once each time “X” occurs.
- Æ Action triggered abilities ( )— These abilities may be triggered
+ Æ Action triggered abilities ( [action])— These abilities may be triggered
 through the use of the activate action by spending one action for each
- specified in that ability’s cost.
+[action] specified in that ability’s cost.
 Triggering Condition
 A triggering condition indicates the timing point at which an ability may
 be triggered. Most triggering conditions use the words “when,” “at,” “if,” or
@@ -2418,7 +2419,7 @@ ARKHAM GRIMOIRE
  Æ The word “after” refers to the timing point at which all effects
 pertaining to the specified timing point or triggering condition have
 been resolved, but before moving on to the next game step.
- Æ Reaction triggered abilities ( ) may only be used once per timing
+ Æ Reaction triggered abilities ( [reaction]) may only be used once per timing
 point.
  Æ If multiple instances of the same ability are eligible to initiate, each
 instance may be used once. (For example: 2 copies of Lucky Cigarette
@@ -2427,8 +2428,8 @@ Case (
 2 or more.)
 See “Ability” on page 3, “After” on page 4, “At” on page 5, and
 “When” on page 25.
-Unique ()
-A card with the  symbol before its title is a unique card. There can be no
+Unique ([unique])
+A card with the [unique] symbol before its title is a unique card. There can be no
 more than one copy of each unique card (by title) in play at any given time.
  Æ A player cannot bring a unique card into play if a copy of that card (by
 title) is already in play.
@@ -2450,7 +2451,7 @@ type, and are no longer considered resource tokens. (For example, Cosmic
 Flame (
  59) has “Uses (3 charges).” When it is played, 3 resources are placed
 on it from the token pool. Those resources are now charges, and may be used
-when resolving Cosmic Flame’s  ability.)
+when resolving Cosmic Flame’s [action] ability.)
  Æ Most cards with the uses (X) keyword also have an ability which
 references the uses on that card as a part of its cost. When such an
 ability spends a use, a token of that type must be removed from the
@@ -2473,7 +2474,7 @@ An encounter card worth victory points represents a formidable enemy, a
 particularly powerful curse, etc. Once they have been dealt with, encounter
 cards with victory X are added to the victory display until the end of the
 current scenario. The victory display is an out-of-play area shared by
-all players.
+all players.
 Some location cards also have victory X, marking them as particularly
 puzzling, dangerous, or significant. When the current scenario ends, each
 location with victory X that is in play, revealed, and has no clues on it is
@@ -2514,18 +2515,18 @@ card explicitly specifies otherwise.
 LOCATION
 Students have reported strange sounds
 coming from the empty archives at night…
-: Draw 3 cards. (Limit once per game.)
+[action][action]: Draw 3 cards. (Limit once per game.)
 Miskatonic.
 Orne Library
 Victory 1.
-1144
+11[per_investigator][per_investigator]44
 © 2026 FFG 141Illus. Nia Kovalevski 3/6
 ENEMY
 Retaliate. (After you fail a skill test while
 fighting this enemy, it attacks you.)
- Spend 1  resources: Parley. ( 3).
+[action] Spend 1 [per_investigator] resources: Parley. ([codex] 3).
 Humanoid. Syndicate. Elite.
-Naomi O’Bannion
+[unique]Naomi O’Bannion
 Runs This T own
 Victory 1.
 44 55 22
@@ -2665,8 +2666,8 @@ For example: Isabelle wants her fellow investigator, Joe, to fight an enemy
 engaged with her, and she wants to relay the fact that she can help. Instead of
 saying something like, “Take a fight action against that enemy; I can commit
 Unexpected Courage” or, “Fight the Servant of Flame; I can contribute two
-icons,” Isabelle stays in character by saying, “Be brave! I can help you take
-them down!”
+icons,” Isabelle stays in character by saying, “Be brave! I can help you take
+them down!”
 Scenario Resolution
 When any encounter card triggers a resolution—indicated by the text
 “(→R#)”—players have completed the scenario and they must refer to the
@@ -2692,7 +2693,7 @@ Each phase is outlined in detail followed by a timing chart.
  Æ Numbered items presented in the teal boxes are known as framework
 events. Framework events are mandatory occurrences dictated by the
 structure of the game.
- Æ The red boxes are player windows. Players may use  triggered
+ Æ The red boxes are player windows. Players may use [free] triggered
 abilities in these windows.
 Each time an investigator makes a skill test, use the skill test timing
 detailed in the “Skill Test Timing chart” on page 30.
@@ -2759,7 +2760,7 @@ Step 1.4: Each investigator draws 1
 encounter card.
 Step 1.3: Check doom threshold.
 Proceed to the Investigation Phase.
- Player Window
+[free] Player Window
 Step 1.5: Mythos phase ends.
 
 ---
@@ -2786,7 +2787,7 @@ During their turn, an investigator is permitted to take up to three actions
 (by default). An action can be used to do one of the following:
  = Draw 1 card.
  = Gain 1 Resource .
- = Activate  an  (action trigger) ability on an in-play card you
+ = Activate  an [action] (action trigger) ability on an in-play card you
 control, an in-play encounter card at your location, a card in your
 threat area, the current act card, or the current agenda card.
  = Play an asset or event card from your hand.
@@ -2795,8 +2796,8 @@ threat area, the current act card, or the current agenda card.
  = Engage an enemy at your current location.
  = Attempt to Evade  an enemy engaged with you.
  = Fight an engaged enemy at your current location.
- = Parley an enemy at your current location using an  ability.
- = Resign  from the scenario using an  ability.
+ = Parley an enemy at your current location using an [action] ability.
+ = Resign  from the scenario using an [action] ability.
 The three actions an investigator performs during their turn may be any of
 the above, in any order, and may even be the same action three times in a row.
 Important: When an investigator is engaged with one or more enemies and
@@ -2821,8 +2822,8 @@ Step 2.2.1: Active investigator may take
 an action, if able. If an action was taken,
 return to previous player window. If no
 action was taken, proceed to 2.2.2.
- Player Window
- Player Window
+[free] Player Window
+[free] Player Window
 Step 2.3: Investigation phase ends.
 Proceed to the Enemy Phase.
 Step 2.2.2: Investigator’s turn ends. If an
@@ -2879,7 +2880,7 @@ the end of the round. Any active “until the end of the round” lasting effect
 expire at this time.
 After this step is complete, play proceeds to the beginning of the mythos
 phase of the next game round.
- Player Window
+[free] Player Window
 Step 3.4: Enemy phase ends.
 Step 3.1: Enemy phase begins.
 Step 3.2:  Hunter and Patrol
@@ -2890,7 +2891,7 @@ has not resolved enemy attacks this phase,
 return to previous player window. After the
 final investigator resolves engaged enemy
 attacks, proceed to next player window.
- Player Window
+[free] Player Window
 Proceed to the Upkeep Phase.
 III. Enemy Phase
 Step 4.1: Upkeep phase begins.
@@ -2901,7 +2902,7 @@ Step 4.5: Check investigator hand size.
 Step 4.6: Upkeep phase ends.
 Round ends.
 Step 4.3: Ready exhausted cards.
- Player Window
+[free] Player Window
 Proceed to the Mythos Phase of the next
 game round.
 IV. Upkeep Phase
@@ -2925,7 +2926,7 @@ with a matching skill icon from their hand to this test.
 Each other investigator at the same location as the investigator performing
 the skill test may commit one card with a matching skill icon to this test.
 A matching skill icon is either one that matches the skill being tested, or
-a wild icon (). The investigator performing this test gets +1 to their skill
+a wild icon ([wild]). The investigator performing this test gets +1 to their skill
 value during this test for each matching skill icon that is committed to this
 test.
 Cards that lack a matching skill icon may not be committed to a skill test.
@@ -2936,8 +2937,8 @@ random from the chaos bag.
 ST.4 Apply chaos symbol effect(s).
 Apply any effects initiated by the symbol on the revealed chaos token. Each
 of the following symbols indicates that an ability on the scenario reference
-card must initiate: , , , .
-The  symbol indicates that the  ability on the investigator card
+card must initiate: [skull], [cultist], [tablet], [elder_thing].
+The [elder_sign] symbol indicates that the [elder_sign] ability on the investigator card
 belonging to the player performing the test must initiate.
 If a campaign-specific symbol token was revealed, refer to the campaign
 guide for instructions on how to initiate that token’s effect.
@@ -2960,7 +2961,7 @@ the total difficulty of that test is considered 0.
 If the investigator’s skill value is less than the difficulty for this test, the
 investigator fails at the test.
  = If an investigator automatically fails at a test via a card ability or
-by revealing the  symbol, their total skill value for that test is
+by revealing the [auto_fail] symbol, their total skill value for that test is
 considered to be 0. They fail this test even if their skill value equals
 its difficulty.
 ST.7 Apply skill test results.
@@ -2987,8 +2988,8 @@ modified skill value.
 Step 6: Determine
 success/failure of skill test.
 Step 3: Reveal chaos token.
- Player Window
- Player Window
+[free] Player Window
+[free] Player Window
 Step 7: Apply skill test results.
 Step 8: Skill test ends.
 
@@ -3107,7 +3108,7 @@ how it is used in the game.
 4. Traits: Flavorful
 attributes that may
 be referenced by
-card abilities.
+card abilities.
 5. Ability : This card’s text
 box, which may contain
 keywords or other effects
@@ -3146,12 +3147,12 @@ act/agenda deck order.
 15. Clue Threshold : The
 number of clues that
 must be spent to advance
-this act.
+this act.
 16. Doom Threshold : The
 amount of doom in play
 required to advance
 this agenda during the
-mythos phase.
+mythos phase.
 17. Product Set
 Information : This card’s
 unique ID, paired with its
@@ -3162,18 +3163,18 @@ the current card in the
 specific encounter set
 it belongs to and the
 total number of cards in
-that set.
+that set.
 Revealed Location
 © 2026 FFGIllus. Pixoloid Studios 9/11 113b
 LOCATION
 The dorm is quickly filling with smoke.
-: Engage. Choose an enemy at a
+[action]: Engage. Choose an enemy at a
 connecting location. That enemy moves to this
 location and engages you. This action does not
 provoke attacks of opportunity.
 Miskatonic.
 Your Friend’s Room
-2222
+22[per_investigator][per_investigator]22
 © 2026 FFG 113aIllus. Pixoloid Studios 9/11
 LOCATION
 Your friend’s room is in utter disarray. But are these signs of a
@@ -3204,7 +3205,7 @@ The campus is strangely quiet, and there
 is no sign of your friend. Hooded figures
 cross the quad as nervous students scurry
 under painfully bright streetlamps.
-: Parley. T est  (2). If you
+[action]: Parley. T est [intellect] (2). If you
 succeed, discard a Bystander enemy at
 your location.
 Past Curfew
@@ -3217,12 +3218,12 @@ Objective – At the end of the round,
 investigators may spend the requisite
 clues, as a group, to advance.
 Where There’s Smoke…
-22
+22[per_investigator][per_investigator]
 AGENDA
  1b The wind carries the scent of smoke from across campus.
 A plume of flame rises from a nearby building.
-In player order, each investigator tests  (3).
-Each investigator who fails takes 1 horror.
+In player order, each investigator tests [willpower] (3).
+Each investigator who fails takes 1 horror.
 Smoke on the Wind
 ACT 1b
 You find your friend’s satchel, scorched with a stylized
@@ -3251,13 +3252,13 @@ Omen.
 Cosmic Evils
 © 2026 FFG 114Illus. Peter Polach 10/11
 ENEMY
-Hunter. Prey (lowest ). Retaliate.
+Hunter. Prey (lowest [agility]). Retaliate.
 Humanoid. Elite.
-Servant of Flame
+[unique]Servant of Flame
 Raging Fury
 Victory 2.
 44 55
- 44
+[per_investigator][per_investigator] 44
 33 1414
 1414 1414
 1616
@@ -3299,13 +3300,13 @@ have no class symbol.
 identifier for a card.
 7. Skills : This investigator’s
 skill values, in order:
-Willpower (), Intellect
-(), Combat (),
-Agility ( ).
+Willpower ([willpower]), Intellect
+([intellect]), Combat ([combat]),
+Agility ( [agility]).
 8. Traits: Flavorful
 attributes that may
 be referenced by
-card abilities.
+card abilities.
 9. Ability : This card’s text
 box, which may contain
 keywords or other effects
@@ -3313,17 +3314,17 @@ that impact the game.
 10. Elder Sign Ability : The
 modifier and ability used
 when this investigator
-draws the  token.
+draws the [elder_sign] token.
 11. Health : This card’s
 health value, which
 determines how much
 damage it can take before
-being defeated.
+being defeated.
 12. Sanity : This card’s
 sanity value, which
 determines how much
 horror it can take before
-being defeated.
+being defeated.
 13. Skill Test Icons :
 Icons which modify
 an investigator’s skill
@@ -3341,14 +3342,14 @@ INVESTIGATOR
 “I can’t stop now.
 Not when I’m so close
 to the truth.”
- After you successfully
+[reaction] After you successfully
 investigate: Draw 1 card.
 (Limit once per round.)
- effect: +1. If you succeed,
-draw 1 card and gain
+[elder_sign] effect: +1. If you succeed,
+draw 1 card and gain
 1 resource.
 Detective.
-Joe Diamond
+[unique]Joe Diamond
 The Private Investigator 2 4 4 2
 7777
 1111 1212
@@ -3389,11 +3390,11 @@ Slippery
 ASSET
 “Preparing for Armageddon seems insane
 until it’s the end of the world!”
-Y ou get +1 .
- After you defeat an enemy, exhaust Logan
+Y ou get +1 [combat].
+[reaction] After you defeat an enemy, exhaust Logan
 Hastings: Gain 1 resource.
 Ally. Hunter.
-Logan Hastings
+[unique]Logan Hastings
 Bounty Hunter
 44
 1122
@@ -3543,7 +3544,7 @@ additional skill icons, and/or different costs. If a player has a lower level
 version of a card and wishes to purchase the higher level version, they
 may upgrade that card by spending experience equal to the difference in
 level between the two. The new version is added to the deck, and the older
-version is removed.
+version is removed.
 A player is not required to spend all of their earned experience between
 scenarios. They may record any leftover experience under “Unspent
 Experience” in the campaign log and spend it at a later time.
@@ -3551,7 +3552,7 @@ Trauma, Death, and Insanity
 Through their encounters with the Mythos, investigators may find
 themselves irreparably scarred, or even worse. Trauma represents
 permanent damage that has been inflicted upon an investigator’s body
-and mind.
+and mind.
  Æ If an investigator is defeated in a scenario, that investigator is
 eliminated from the scenario but not necessarily from the campaign.
  = If an investigator is defeated by taking damage equal to their health,
@@ -3578,7 +3579,7 @@ investigators remaining in the collection, the players have lost the
 campaign and the campaign ends.
  Æ For each physical and/or mental trauma an investigator has suffered,
 that investigator begins each subsequent scenario in the campaign with
-1 damage and/or horror, respectively.
+1 damage and/or horror, respectively.
 Defeat by Card Ability
 An investigator may be defeated by a card ability. A defeated investigator is
 eliminated from the game (see “Elimination” on page 10). Should this
@@ -3600,7 +3601,7 @@ investigator in the next campaign log as “ [investigator name]’s total
 experience earned: X. ” At the completion of a campaign, or if that
 investigator is killed , driven insane , or devoured , add this total to
 your final experience amount in order to determine how well you
-have performed.
+have performed.
  Æ Remove all cards of levels 1–5 from your deck, resetting the deck to
 only level 0 cards. You may rebuild your investigator deck using any
 cards from the collection as if you were just beginning a campaign.
@@ -3623,7 +3624,7 @@ However, other effects should be interpreted as if each campaign is being
 played as part of one continuous campaign. This includes rules that dictate
 how an earned weakness or story asset operates, or additional rules that
 a specific investigator must follow. (For example, “ for the remainder of the
-campaign, the bearer of X weakness must speak in riddles.”)
+campaign, the bearer of X weakness must speak in riddles.”)
 
 ---
 
@@ -3667,7 +3668,7 @@ Reward Cards
 Some campaigns contain a unique subtype of player card: the campaign
 reward card. Campaign reward cards are neutral (classless) cards
 that are added to a player’s collection once they have been unlocked
-through gameplay.
+through gameplay.
  Æ Reward cards are identified by the reward keyword as well as by the
 golden graphic in the upper left corner of the card, as indicated below.
  Æ Players cannot use a reward card in deckbuilding, and cannot
@@ -3705,8 +3706,8 @@ Permanent. Reward. Limit 1 per deck. Purchase
 only at deck creation.
 Y ou get +5 deck size.
 Y our investigator’s Deckbuilding Options gains:
-“one other Relic or Charm asset of any class
-(, , , , ) level 0–3. ”
+“one other Relic or Charm asset of any class
+([guardian], [seeker], [rogue], [mystic], [survivor]) level 0–3. ”
 T alent.
 Collector——
 
@@ -3781,7 +3782,7 @@ to that investigator, and cannot be included in another investigator’s
 deck. This includes player cards with the text “[Investigator Name]
 deck only,” as well as non-basic weaknesses that are listed under
 “Deckbuilding Requirements” and therefore can only be included in that
-investigator deck.
+investigator deck.
 Signature cards are governed by the following additional rules:
  Æ The number of each signature card listed under an investigator’s
 “Deckbuilding Requirements” are the exact number of copies of that
@@ -3813,7 +3814,7 @@ ASSET
 I’m here to keep you alive.”
 Bodyguard may be assigned damage dealt to other
 investigators at your location.
- When Bodyguard is defeated: Deal 2 damage to an
+[reaction] When Bodyguard is defeated: Deal 2 damage to an
 enemy at your location.
 Ally.
 Bodyguard33
@@ -3863,20 +3864,20 @@ Amnesia
 Classes
 Most player cards, including investigators, belong to one of five classes.
 Each class has its own distinct flavor and identity, as described below.
- Æ Guardians  () feel compelled to defend humanity, and thus go out of
+ Æ Guardians  ([guardian]) feel compelled to defend humanity, and thus go out of
 their way to combat the forces of the Mythos. They have a strong sense
 of duty and selflessness that drives them to protect others, and to hunt
 monsters down.
- Æ Seekers () are primarily concerned with learning more about the
+ Æ Seekers ([seeker]) are primarily concerned with learning more about the
 world and about the Mythos. They wish to research forgotten lore, map
 out uncharted areas, and study strange creatures.
- Æ Rogues  () are self-serving and out for themselves. Wily and
+ Æ Rogues  ([rogue]) are self-serving and out for themselves. Wily and
 opportunistic, they are always eager for a way to exploit their current
 situation.
- Æ Mystics  () are drawn to and influenced by the arcane forces of
+ Æ Mystics  ([mystic]) are drawn to and influenced by the arcane forces of
 the Mythos. Many have spell-casting abilities, allowing them to
 manipulate the forces of the universe through magical talent.
- Æ Survivors  () are everyday people in the wrong place at the wrong
+ Æ Survivors  ([survivor]) are everyday people in the wrong place at the wrong
 time, simply trying to survive. Ill-prepared and ill-equipped, Survivors
 are underdogs who rise to the occasion when their lives are threatened.
  Æ Some cards are not affiliated with any class; these cards are neutral.
@@ -4086,7 +4087,7 @@ may only be used to move.
 Boon of Osiris
 The first time each investigator would be defeated in a scenario, after
 suffering trauma, heal all damage and horror from that investigator. That
-investigator cannot be damaged until the beginning of their next turn.
+investigator cannot be damaged until the beginning of their next turn.
 Boon of Thoth
 Each investigator begins the game with 1 additional card in their opening
 hand.
@@ -4310,9 +4311,9 @@ Uses (X): The uses keyword indicates a number of resource tokens to be
 placed on the card when it enters play, of a specified type (ammo, charges,
 etc.). These tokens are used in conjunction with the rest of the card’s ability.
 Triggered Abilities
-Free Trigger  (): Does not cost an action to use this ability.
-Action Trigger  (): Costs an action to use this ability.
-Reaction Trigger  (): Does not cost an action, but this ability can only
+Free Trigger  ([free]): Does not cost an action to use this ability.
+Action Trigger  ([action]): Costs an action to use this ability.
+Reaction Trigger  ([reaction]): Does not cost an action, but this ability can only
 be used once when its triggering condition is met.
 Symbols and Icons
 Guardian
@@ -4320,19 +4321,19 @@ Seeker
 Mystic
 Rogue
 Survivor
-
-
-
-
-
+[guardian]
+[seeker]
+[mystic]
+[rogue]
+[survivor]
 Character Classes
-Willpower 
-Intellect 
-Combat 
-Agility 
-Wild 
+Willpower [willpower]
+Intellect [intellect]
+Combat [combat]
+Agility [agility]
+Wild [wild]
 Skills
-Per Investigator 
+Per Investigator [per_investigator]
 Reference the revealed
 token’s matching
 symbol on the
@@ -4340,20 +4341,20 @@ scenario reference
 card and resolve the
 corresponding ability.
 Reference the
-investigator’s ability. Elder Sign
+investigator’s ability. [elder_sign]Elder Sign
 The investigator
-automatically fails. Autofail
-Skull
-Cultist
-Tablet
-Elder Thing
+automatically fails. [auto_fail]Autofail
+[skull]Skull
+[cultist]Cultist
+[tablet]Tablet
+[elder_thing]Elder Thing
 Action Types
-Fight (). Fight an engaged enemy
-at your location, using .
-Evade (). Evade an engaged
-enemy at your location, using .
-Investigate  (). Investigate your
-location using .
+Fight ([combat]). Fight an engaged enemy
+at your location, using [combat].
+Evade ([agility]). Evade an engaged
+enemy at your location, using [agility].
+Investigate  ([intellect]). Investigate your
+location using [intellect].
 Engage. Engage an enemy at your
 current location.
 Draw. Draw 1 card.
@@ -4362,7 +4363,7 @@ Draw. Draw 1 card.
 Move. Move to a connecting
 location.
 Resource . Gain 1 resource.
-Activate . Activate an  ability.
+Activate . Activate an [action] ability.
 Play. Play a card from your hand,
 paying its cost.
 Parley. Parley an enemy at your
@@ -4384,7 +4385,7 @@ Index
 A
 Act Deck  ....................................................... 3
 Action  ........................................................... 3
-Action costed triggered abilities ( )
+Action costed triggered abilities ( [action])
 (see Ability)  ................................................. 3
 Action Designators
 (see Ability)  ................................................. 3
@@ -4482,7 +4483,7 @@ F
 Fast...............................................................12
 Fight Action  ..............................................12
 Forced Abilities  ........................................12
-Free triggered ability ()
+Free triggered ability ([free])
 (see Ability)
  ................................................. 3
 G
@@ -4554,7 +4555,7 @@ Ownership and Control  ......................... 17
 P
 Parley...........................................................18
 Peril  .............................................................18
-Per Investigator ( ) ...............................18
+Per Investigator ( [per_investigator]) ...............................18
 Permanent  .................................................18
 Play ..............................................................18
 Play Action  ................................................18
@@ -4578,7 +4579,7 @@ Put into Play  ..............................................19
 Q
 Qualifiers  ...................................................19
 R
-Reaction triggered abilities ( )
+Reaction triggered abilities ( [reaction])
 (see Ability)  ................................................. 3
 Ready  ..........................................................19
 Removed from Game  ..............................19
@@ -4621,7 +4622,7 @@ Trauma .......................................................37
 Treachery Cards .......................................23
 Triggering Condition  .............................23
 U
-Unique () .................................................24
+Unique ([unique]) .................................................24
 Unrevealed Locations
 (see Location Cards)
  ..............................16

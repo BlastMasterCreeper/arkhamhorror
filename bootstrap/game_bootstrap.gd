@@ -30,6 +30,8 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.resource_gain = ResourceGainService.new(ctx.sequence_catalog)
 	ctx.draw_investigator = DrawInvestigatorService.new(ctx.sequence_catalog)
 	ctx.draw_encounter = DrawEncounterService.new(ctx.sequence_catalog)
+	ctx.mythos = MythosService.new(ctx.sequence_catalog)
+	ctx.enemy_phase = EnemyPhaseService.new(ctx.sequence_catalog)
 	ctx.action_sequences = ActionSequenceService.new(ctx.sequence_catalog)
 	ctx.modifiers = ModifierEngine.new(ctx.registrations)
 	ctx.composition = CompositionExecutor.new(
@@ -46,10 +48,12 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.scenario = ScenarioSystem.new(ctx.state, ctx.log)
 	ctx.scenario.bind_context(ctx)
 	ctx.enemy = EnemySystem.new(ctx.state, ctx.log)
+	ctx.enemy.bind_context(ctx)
 	ctx.skill_tests = SkillTestEngine.new(
 		ctx.state, ctx.events, ctx.log, ctx.modifiers, ctx.mutator, ctx.timing
 	)
 	ctx.combat = CombatResolver.new(ctx.state, ctx.log, ctx.timing)
+	ctx.combat.bind_game_context(ctx)
 	ctx.framework = FrameworkFlowEngine.new(
 		ctx.state, ctx.events, ctx.log, ctx.config, ctx.scenario, ctx.enemy, ctx.registrations
 	)
@@ -276,10 +280,17 @@ static func add_encounter_enemy_to_deck(
 	var prey_instruction = opts.get("prey_instruction", null)
 	if prey_instruction is PreyInstructionSpec:
 		extra["prey_instruction"] = prey_instruction
+	var patrol_instruction = opts.get("patrol_instruction", null)
+	if patrol_instruction is PatrolTargetSpec:
+		extra["patrol_instruction"] = patrol_instruction
 	if opts.get("prey", false):
 		extra["keywords"] = keywords.duplicate()
 		if not (extra["keywords"] as Array).has(&"prey"):
 			(extra["keywords"] as Array).append(&"prey")
+	if opts.has("traits"):
+		extra["traits"] = opts.get("traits")
+	if opts.has("victory"):
+		extra["victory"] = int(opts.get("victory", 0))
 	return add_encounter_card_to_deck(ctx, definition_id, keywords, extra)
 
 
@@ -353,6 +364,12 @@ static func setup_test_enemy(
 	enemy.aloof = aloof
 	enemy.massive = massive
 	ctx.state.registry.register_enemy(enemy)
+
+
+static func config_spreading_flames() -> RulesConfig:
+	var cfg := RulesConfig.new()
+	cfg.setup_scenario_id = ScenarioSetupCatalog.SPREADING_FLAMES
+	return cfg
 
 
 static func run_setup_through_game_begins(ctx: GameContext) -> void:

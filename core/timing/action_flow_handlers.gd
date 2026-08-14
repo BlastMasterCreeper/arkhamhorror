@@ -52,7 +52,12 @@ static func resolve_basic_action(
 	var resolver := BasicActionResolver.new(game_ctx.state, game_ctx.skill_tests)
 	match action_type:
 		AhcEnums.ActionType.MOVE:
-			return resolver.move(game_ctx, inv_id, extra)
+			var move_result := resolver.move(game_ctx, inv_id, extra)
+			if bool(move_result.get("ok", false)):
+				var dest: StringName = move_result.get("destination_id", &"") as StringName
+				if dest != &"":
+					EngageFlow.nest_after_area_change(game_ctx, dest)
+			return move_result
 		AhcEnums.ActionType.INVESTIGATE:
 			return resolver.investigate(game_ctx, inv_id, extra)
 		AhcEnums.ActionType.FIGHT:

@@ -20,6 +20,20 @@ func register(template: RegistrationTemplate) -> StringName:
 	return reg_id
 
 
+func unregister_by_controller(controller_id: StringName) -> void:
+	if controller_id == &"":
+		return
+	var to_remove: Array[StringName] = []
+	for reg in _entries:
+		if reg.controller_id != controller_id:
+			continue
+		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_IN_PLAY:
+			continue
+		to_remove.append(reg.id)
+	for id in to_remove:
+		unregister(id)
+
+
 func unregister(id: StringName) -> void:
 	if _stat_projections != null:
 		_stat_projections.detach(id)

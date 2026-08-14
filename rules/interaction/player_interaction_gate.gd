@@ -81,6 +81,25 @@ func ask_order_simultaneous(
 	return items.duplicate()
 
 
+func ask_pick_option(
+	option_ids: Array,
+	controller_id: StringName,
+	prompt_id: StringName,
+	ctx: GameContext
+) -> Variant:
+	if option_ids.is_empty():
+		return null
+	if option_ids.size() == 1:
+		return option_ids[0]
+	var req: ChoiceRequest = ChoiceRequest.new()
+	req.kind = AhcEnums.ChoiceKind.PICK_OPTION
+	req.decider_id = controller_id
+	req.prompt_id = prompt_id
+	req.options = option_ids.duplicate()
+	var pick: Variant = ask(req, ctx)
+	return pick
+
+
 func ask_pick_target(
 	candidates: Array,
 	controller_id: StringName,

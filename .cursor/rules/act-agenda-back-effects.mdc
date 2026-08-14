@@ -1,0 +1,51 @@
+---
+description: Act/Agenda b 面 = 效果序列；优先用已有原子与 seq.* nest 拼接
+globs: rules/scenario/**,bootstrap/sequence_catalog_bootstrap.gd,docs/design/10-scenario-encounter.md
+alwaysApply: false
+---
+
+# Act/Agenda 背面 · 效果序列
+
+与 [effect-translation.mdc](effect-translation.mdc) 一致：**b 面指令是翻面 RESOLVE 时的效果序列**，不是 imperative 分支或专属 Service。
+
+## 翻译顺序
+
+1. **已有 `seq.*`** → `catalog.run` / `catalog.nest`（如 `seq.skill_test.*`、`seq.scenario.trigger_resolution`）
+2. **已有 Composition 原子/L1** → `CompositionNode` 树 + `CompositionExecutor`（`nest_skill_test`、`adjust_marker`、`ForEach`/`Seq`、`If` 等 · 见 [07-composition](docs/design/07-composition.md)）
+3. **仅当 1+2 无法表达** → 扩展 **场景域 L0 原子**（`ScenarioCompositionAtoms`）；禁止 act/agenda 专用 catalog step
+
+## 场景域 L0 原子（通用）
+
+| atom | 用途 |
+|---|---|
+| `discard_all_enemies_in_play` | 清场敌人 |
+| `put_locations_into_play` | 地点进场 |
+| `spawn_set_aside_enemy_at` | set-aside 敌人生成 |
+| `attach_set_aside_to_host` | set-aside 附着 |
+| `discard_set_aside_to_encounter_discard` | set-aside → 遭遇弃牌堆 |
+| `nest_scenario_resolution` | `(→R#)` |
+
+## 入口与编排
+
+- 翻面：`ActAgendaFlipFlow` → `seq.act_agenda.resolve_back` → `ActAgendaBackCompiler` → `composition.execute`
+
+## 示例（Spreading Flames）
+
+| b 面文本 | 优先译法 |
+|---|---|
+| Discard each enemy | nest / seq 复用敌人 discard 内核，或 L0 move + 已有 enemy defeat 路径 |
+| Put set-aside locations into play | L0 `move_card` / location 原语组合 |
+| Spawn set-aside enemy at X | nest `seq.encounter.spawn` 或已有 spawn 原子 |
+| Attach / discard set-aside Fire! | L0 `move_card` + attachment 原语；`count` 用 L1/参数 |
+| Each investigator tests [skill] (N); fail → damage/horror | `ForEach`(player_order) → `nest_skill_test` → `If`(fail) → `adjust_marker` |
+| (→R#) | `nest_scenario_resolution` |
+
+## 数据声明
+
+`scenario_deck_setup.gd` 的 `back_effects` 应逐步改为 **composition 编译输入** 或 **nest 步骤列表**；新增卡面先查 [CompositionNode](rules/composition/composition_node.gd) / [CompositionExecutor](rules/composition/composition_executor.gd) 是否已有原子，再考虑扩展编译器。
+
+## 禁止
+
+- 为单张 Act/Agenda 写 `match definition_id` 硬编码
+- 为可 nest 的效果新建平行 Policy/Service
+- 声称「需要新 skill test 序列」——检定应用已有 `seq.skill_test.*`

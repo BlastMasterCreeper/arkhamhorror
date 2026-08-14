@@ -75,7 +75,9 @@ enum BuffType {
 
 **动态 surge 生命周期**：**`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — 与本张遭遇 **结算期间** 绑定（G1 bind 起至 G5 evaluate 完成）；与险境 peril 同型 **不跨 Surge**（下一张 G1 无上一张 surge 标记）。
 
-**G3 内 Register 时机**：显现 composition 执行到「gains surge」效果步时 Register；**12124 Cosmic Evils** 仅在选择「受伤害+horror」分支时 Register；**12126 Forbidden Secrets** 在 G3 **入口**判定 `clue == 0` 时 Register 并 **跳过** intellect 分支（与印刷 surge 合并后仍只 surge 一次）。
+**G3 内 Register 时机**：显现 composition 执行到「gains surge」效果步时 Register；**12124 Cosmic Evils** 仅在选择「受伤害+horror」分支时 Register；**12126 Forbidden Secrets** 在 G3 **入口**判定 `clue == 0` 时 Register 并 **跳过** intellect 分支；**12160 Raising Suspicions** 在 place-doom 步 **未 CREATED** 后 Register（`after_step` 条件，见 [07 §3.3](07-composition.md)）。
+
+**Clues（已裁决）**：*your clues* 默认 = 调查员卡上 clue（`clues_on_card`）。
 
 **G5**：priority **70** — `should_surge = printed OR dynamic` → 若 true 再抽 G1 → **Unregister** 本张 `card_id` 的动态 surge 标记。
 

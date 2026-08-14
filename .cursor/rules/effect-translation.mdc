@@ -101,3 +101,9 @@ seq.enter_hand                 ← 命名流程（显现入口）
 - **Cannot** → Register RESTRICTION + [06 §16](docs/design/06-registration-buff-model.md) Intent 入口。
 - 薄 facade 仅 `catalog.run(flow_id, params)`。
 - 冲突：07 §3.2–§3.4（Cannot / 竞争 / tier / Silver Rule）。
+
+## ArkhamDB 编译（`tools/arkhamdb_abilities.py`）
+
+- **优先复用**已有 template / condition / `if_kind` / `evaluate` 锚点（07 §3.3、15 §17、已竖切卡如 12126/12160）。
+- **能拆就拆**：timing · condition · cost · effect 分编译单元；禁止无先例的新语义 atom。
+- **无可参考先例时**：先查设计文档与 imported JSON 同类卡；仍无法归类再询问是否扩展编译器。

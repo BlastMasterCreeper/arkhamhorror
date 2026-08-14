@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 7,
+      "compiled_total": 14,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -15,9 +15,14 @@
         "revelation": 24
       },
       "by_template": {
+        "lead_draw_topmost_encounter_discard_copy": 1,
+        "choice_must": 1,
         "enter_threat_area": 3,
         "take_horror": 2,
+        "if_else": 1,
         "take_damage": 1,
+        "gain_resources": 2,
+        "seq": 2,
         "lose_resources": 1
       }
     }
@@ -74,7 +79,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location. In player order, each investigator tests [willpower] (3). Each investigator who fails takes 1 horror.",
+        "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location.",
         "index": 0
       }
     ]
@@ -107,7 +112,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location. If they are still set aside, place 4 set-aside copies of Fire! in the encounter discard pile. In player order, each investigator tests [agility] (3). Each investigator who fails takes 1 damage.",
+        "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location.",
         "index": 0
       }
     ]
@@ -146,9 +151,24 @@
       },
       {
         "kind": "forced",
-        "body": "The lead investigator draws the topmost copy of Fire! in the encounter discard pile Each surviving investigator who has not resigned is defeated and suffers 1 physical trauma.",
+        "body": "The lead investigator draws the topmost copy of Fire! in the encounter discard pile",
         "trigger": "After doom is placed on the agenda",
         "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "ability_kind": "forced",
+        "status": "full",
+        "trigger": "After doom is placed on the agenda",
+        "template": "lead_draw_topmost_encounter_discard_copy",
+        "definition_id": "12129",
+        "match_kind": "mythos_place_doom",
+        "phase": "AFTER",
+        "timing": "after_mythos_place_doom"
       }
     ]
   },
@@ -723,6 +743,42 @@
         "body": "You must either (choose one): - Place 1 doom on the current agenda. This effect can cause the agenda to advance. - Take 1 direct damage and 1 direct horror. Cosmic Evils gains surge.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "choice_must",
+        "prompt_id": "12124:revelation",
+        "options": [
+          {
+            "id": "agenda",
+            "template": "place_doom_on_current_agenda",
+            "may_advance_agenda": true
+          },
+          {
+            "id": "punish",
+            "template": "seq",
+            "steps": [
+              {
+                "template": "take_damage",
+                "amount": 1,
+                "direct": true
+              },
+              {
+                "template": "take_horror",
+                "amount": 1,
+                "direct": true
+              },
+              {
+                "template": "grant_surge"
+              }
+            ]
+          }
+        ]
+      }
     ]
   },
   "12125": {
@@ -784,11 +840,15 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
-        "status": "effect_only",
+        "ability_kind": "forced",
+        "status": "full",
         "trigger": "After you discover 1 or more clues",
         "template": "take_horror",
         "amount": 1,
-        "direct": false
+        "direct": false,
+        "match_kind": "discover_clue",
+        "phase": "AFTER",
+        "timing": "after_discover_clue"
       }
     ]
   },
@@ -825,7 +885,45 @@
       {
         "kind": "revelation",
         "body": "If you have no clues, Forbidden Secrets gains surge. Otherwise, test [intellect] (3). For each point you fail by, you must either place 1 of your clues on your location, or take 1 horror.",
-        "index": 0
+        "index": 0,
+        "if_kind": "condition"
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "if_else",
+        "if_kind": "condition",
+        "evaluate": "at_entry",
+        "condition": "investigator_has_no_clues",
+        "then": {
+          "template": "grant_surge"
+        },
+        "else": {
+          "template": "skill_test",
+          "skill": "intellect",
+          "difficulty": 3,
+          "st7": {
+            "on_fail_by_each": {
+              "template": "choice_must",
+              "prompt_id": "12126:fail_by",
+              "options": [
+                {
+                  "id": "clue",
+                  "template": "place_clue_on_location"
+                },
+                {
+                  "id": "horror",
+                  "template": "take_horror",
+                  "amount": 1
+                }
+              ]
+            }
+          }
+        }
       }
     ]
   },
@@ -1113,7 +1211,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts. One at a time, each investigator draws 1 copy of the set-aside Mark of Elokoss weakness. Each investigator is now the bearer of that weakness. (Add that card to that investigator's deck, ignoring deckbuilding restrictions. It does not count toward that investigator's deck size.",
+        "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts.",
         "index": 0
       }
     ]
@@ -1146,7 +1244,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts. Each investigator immediately resigns.",
+        "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts.",
         "index": 0
       }
     ]
@@ -1245,6 +1343,7 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "When your turn ends",
         "template": "take_damage",
@@ -1598,6 +1697,21 @@
         "kind": "reaction",
         "body": "After you discover 1 or more clues at this location: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "full",
+        "trigger": "After you discover 1 or more clues at this location",
+        "template": "gain_resources",
+        "amount": 1,
+        "match_kind": "discover_clue",
+        "phase": "AFTER",
+        "timing": "after_discover_clue"
       }
     ]
   },
@@ -2166,6 +2280,29 @@
         "body": "Place 1 doom on the nearest enemy with no doom on it. If no doom was placed by this effect, Raising Suspicions gains surge.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "place_doom_nearest_enemy_without_doom"
+          },
+          {
+            "template": "if_else",
+            "if_kind": "condition",
+            "evaluate": "after_step",
+            "condition": "previous_step_not_created",
+            "then": {
+              "template": "grant_surge"
+            }
+          }
+        ]
+      }
     ]
   },
   "12161": {
@@ -2272,6 +2409,36 @@
         "body": "The nearest non-[[Elite]] enemy moves once toward your location. If it engages an investigator, it makes an immediate attack.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "resolve_location",
+            "target": "drawer_location"
+          },
+          {
+            "template": "nest_enemy_move",
+            "trait_exclude": [
+              "Elite"
+            ]
+          },
+          {
+            "template": "if_else",
+            "if_kind": "condition",
+            "evaluate": "after_step",
+            "condition": "previous_step_engaged_investigator",
+            "then": {
+              "template": "nest_enemy_attack"
+            }
+          }
+        ]
+      }
     ]
   },
   "12164": {
@@ -2323,6 +2490,7 @@
         "segment_index": 0,
         "register_as": "forced",
         "ability_id": "forced:0",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After Rogue Gangster engages you",
         "template": "lose_resources",
@@ -2658,7 +2826,7 @@
       },
       {
         "kind": "forced",
-        "body": "Discard each ready non-[[Elite]] [[Cultist]] enemy at this location. Place 1 doom on the agenda for each enemy discarded in this way. As an additional cost to enter Underground Cistern, investigators must spend 3 [per_investigator] clues, as a group.",
+        "body": "Discard each ready non-[[Elite]] [[Cultist]] enemy at this location. Place 1 doom on the agenda for each enemy discarded in this way.",
         "trigger": "When the investigation phase ends",
         "index": 1
       }
@@ -2697,7 +2865,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "\"Stop them at all costs!\" You try to open the sluice valve. Test [agility] or [combat] (5). If you succeed, each enemy is defeated and each investigator who has not resigned is killed (→R3) (page 14) As an additional cost to enter Sluice Control, investigators must spend 1 [per_investigator] clues, as a group.",
+        "body": "\"Stop them at all costs!\" You try to open the sluice valve. Test [agility] or [combat] (5). If you succeed, each enemy is defeated and each investigator who has not resigned is killed (→R3) (page 14)",
         "index": 0
       }
     ]
@@ -3029,7 +3197,7 @@
     "ability_segments": [
       {
         "kind": "action",
-        "body": "Resign. \"I can't take it any more!\" You flee the sewers. Sewer Culvert is connected to each Sewer Tunnels location, and vice versa.",
+        "body": "Resign. \"I can't take it any more!\" You flee the sewers.",
         "index": 0
       }
     ]
@@ -3155,6 +3323,7 @@
         "segment_index": 0,
         "register_as": "forced",
         "ability_id": "forced:0",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "When you end your turn at this location",
         "template": "take_horror",
@@ -3198,6 +3367,18 @@
         "kind": "reaction",
         "body": "When you end your turn at this location: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "When you end your turn at this location",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },

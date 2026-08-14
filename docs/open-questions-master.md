@@ -42,7 +42,7 @@
 | OQ-06-02 | [06-ability](design/06-ability-initiation.md) | Play restriction 是否需要 dry-run simulate？ | **需要。** L7 终端 dry-run；COLLECT 不批量 dry-run。见 06 §7.2。 |
 | OQ-07-02 | [07-effect](design/07-effect-resolution.md) | Moving damage/horror 是否独立 `EffectOp.TRANSFER_AFFLICTION` 且不算 heal？ | **是。** 独立 `TRANSFER_AFFLICTION`；**不算 heal**。见 07 §4.1。 |
 | OQ-07-06 | [07-effect](design/07-effect-resolution.md) | Replacement stack 与 Cancel 交互：cancel 已替换后的 effect 还是原始 trigger？ | **看触发先后。** Replacement 一般为 Delayed，与 Forced 同优先级。Replacement 先 → Cancel 无法发动；Cancel 先 → Replacement 不结算。见 07 §6.1。 |
-| OQ-08-02 | [08-enemy](design/08-enemy-engagement.md) | Massive 攻击中途 exhaust：剩余攻击取消时点？ | **batch 发起时锁定序列**，尽量全部结算；**中途横置不取消**后续攻击。见 08 §6.3。 |
+| OQ-08-02 | [08-enemy](design/08-enemy-engagement.md) | Massive 攻击中途横置：剩余攻击取消时点？ | **batch 进行中**若庞大敌人被横置（其他能力），**剩余攻击不发起**；全部攻击结算完才横置庞大敌人。魔典 p.16 + FAQ 2.29。见 08 §6.3。 |
 | OQ-10-01 | [10-scenario](design/10-scenario-encounter.md) | Setup surge：无 player window 时 nested surge 如何 UI？ | **场景不存在。** Setup 1–13 不结算显现 → 无 Surge 链。若有 setup 显现/涌动，仅在 **Setup 14 game begins** 结算。见 10 §2.1。 |
 | OQ-12-01 | [12-api](design/12-card-script-api.md) | AbilityTemplate vs CardScript 目标比例？ | **不设固定比例**；实现时 **逐卡选型**，优先 Template。见 12 §1.1。 |
 
@@ -119,7 +119,7 @@
 | OQ-01-04 | [01-state](design/01-game-state-zones.md) | `SET_ASIDE` 与 `REMOVED_FROM_GAME` 是否需子类型（campaign 指定 area）？ | |
 | OQ-01-06 | [01-state](design/01-game-state-zones.md) | Attachment 链（A attach B attach C）leave play 时 discard 顺序是否由 owner 选？ | |
 | OQ-02-05 | [02-framework](design/02-framework-flow.md) | Framework 与嵌套 Skill Test 的 EventRecord 层级如何缩进展示？ | |
-| OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发（AOO 算 attack）？ | |
+| OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），经 `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 |
 | OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | |
 | OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ | |
 | OQ-05-06 | [05-chaos-bag](design/05-chaos-bag.md) | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ | |
@@ -170,12 +170,17 @@
 | OQ-ADB-04 | [06 §16.4](design/06-registration-buff-model.md) / 12012 | Necronomicon：`cannot leave play` + threat area — Permanent Domain vs RESTRICTION | P2 |
 | OQ-ADB-05 | [15 §17.4.3](design/15-timing-entry-catalog.md) / 12179b | Hidden enemy 手牌 spawn — ENC-22/23 已竖切；多 copy 待补 | P2 |
 
-**已裁决（涌动）**：
+**已裁决（涌动 · 动态 surge 编译）**：
 
 | ID | 裁决 |
 |---|---|
 | OQ-ADB-02 | 动态 `gains surge` = KEYWORD 标记 · `WHILE_DRAWN_CARD_RESOLVING`；G5 与印刷 surge 合并 evaluate，**不叠加**。12124 选伤害分支时 G3 Register。见 [15 §17.4.5](design/15-timing-entry-catalog.md)。 |
 | OQ-ADB-03 | 12126：`clue==0` 在 **G3 显现入口**判定；Register surge 标记并跳过 intellect；与印刷 surge 仍只 G5 再抽 1 次。同 OQ-10-06。 |
+| OQ-ADB-06 | *your clues* 默认 = **调查员卡上** clue（`clues_on_card`）。见 [07 §3.3](design/07-composition.md)。 |
+| OQ-ADB-07 | 12160 *no doom was placed* = place 步 **未 CREATED**；`after_step` if；nearest 等距 **当前交互玩家**选。见 07 §3.3、16 §7.2.1。 |
+| OQ-ADB-08 | 12124 **must choose** 可执行项 + doom 支 **密谋推进框架**（阈值检测）。见 07 §3.3、16 §7.2.1。 |
+| OQ-ADB-09 | 12126 fail-by either/or：印刷漏 **must**，按 must choose 可执行项。见 07 §3.3。 |
+| OQ-ADB-10 | Forced **When + if** 等多要素 **能拆就拆**（timing · condition · cost · effect）。见 07 §3.3。 |
 
 ---
 
@@ -215,6 +220,7 @@
 | 2026-05-25 | v0.4.6 | OQ-12-01 裁决：Template/Script 逐卡选型，无固定比例 |
 | 2026-05-25 | v0.5.0 | 批次 P1：IDX-01/02、12-06、01-01、02-04、00-01 裁决 |
 | 2026-05-25 | v0.5.1 | 批次 B 部分：01-03、03-03、06-03、08-03 裁决 |
+| 2026-07-07 | v0.5.5 | OQ-ADB-06～10：clues 域、must choose、12160 after_step、多要素拆分 |
 | 2026-07-06 | v0.5.4 | OQ-ADB-02/03、OQ-10-06 裁决：涌动 KEYWORD 标记 · 不叠加 |
 | 2026-07-06 | v0.5.3 | 新增 OQ-ADB-01～05（ArkhamDB Phase 4 回填） |
 | 2026-05-25 | v0.5.2 | OQ-03-04、OQ-08-01 裁决 |

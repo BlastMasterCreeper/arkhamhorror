@@ -96,6 +96,169 @@ static func _register_flows(
 	_register_interrupt_flows(catalog)
 	_register_replace_flows(catalog)
 	_register_action_flows(catalog)
+	_register_skill_test_flows(catalog)
+	_register_mythos_flows(catalog)
+	_register_act_agenda_back_flows(catalog)
+	_register_enemy_flows(catalog)
+	_register_effect_flows(catalog)
+
+
+static func _register_effect_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.effect.discover_clue",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", &"")
+			var location_id: StringName = params.get("location_id", &"")
+			var amount: int = int(params.get("amount", 1))
+			return TriggeringCondition.discover_clue(inv_id, location_id, amount),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return DiscoverClueFlow.run(
+				game_ctx,
+				params.get("inv_id", &"") as StringName,
+				params.get("location_id", &"") as StringName,
+				int(params.get("amount", 1))
+			)
+	)
+
+
+static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.enemy.3_2_hunter_patrol",
+		func(_params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.enemy_3_2_hunter_patrol(),
+		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			return EnemyPhaseFlow.hunter_patrol_3_2(game_ctx)
+	)
+	catalog.register_run(
+		&"seq.enemy.3_2_patrol",
+		func(_params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.enemy_3_2_patrol(),
+		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			return EnemyPhaseFlow.patrol_3_2(game_ctx)
+	)
+	catalog.register_run(
+		&"seq.enemy.phase_attacks",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("investigator_id", &"")
+			return TriggeringCondition.enemy_phase_attacks(inv_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			var inv_id: StringName = params.get("investigator_id", &"")
+			return EnemyPhaseFlow.phase_attacks_for(game_ctx, inv_id)
+	)
+	catalog.register_run(
+		&"seq.enemy.massive_phase_attacks",
+		func(_params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.enemy_massive_phase_attacks(),
+		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			return EnemyPhaseFlow.massive_phase_attacks_all(game_ctx)
+	)
+	catalog.register_run(
+		&"seq.enemy.resolve_location",
+		func(params: Dictionary) -> TriggeringCondition:
+			var drawer_id: StringName = params.get(
+				"drawer_id", params.get("controller_id", &"")
+			)
+			return TriggeringCondition.enemy_resolve_location(drawer_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EnemyPhaseFlow.resolve_location(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.enemy.move",
+		func(params: Dictionary) -> TriggeringCondition:
+			var enemy_id: StringName = params.get("enemy_id", &"")
+			return TriggeringCondition.enemy_move(enemy_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EnemyPhaseFlow.move(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.engage",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.engage(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EngageFlow.resolve(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.enemy.attack",
+		func(params: Dictionary) -> TriggeringCondition:
+			var enemy_id: StringName = params.get("enemy_id", &"")
+			var target: StringName = params.get("target_investigator", &"")
+			return TriggeringCondition.enemy_attack(enemy_id, target),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EnemyPhaseFlow.attack(game_ctx, params)
+	)
+
+
+static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.mythos.place_doom",
+		func(_params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.mythos_place_doom(),
+		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			return MythosFlow.place_doom(game_ctx)
+	)
+	catalog.register_run(
+		&"seq.mythos.check_doom_threshold",
+		func(_params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.mythos_check_doom_threshold(),
+		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			return MythosFlow.check_doom_threshold(game_ctx)
+	)
+	catalog.register_run(
+		&"seq.agenda.advance",
+		func(params: Dictionary) -> TriggeringCondition:
+			var source: StringName = params.get("source", &"unknown")
+			var explicit: bool = bool(params.get("explicit", false))
+			return TriggeringCondition.agenda_advance(source, explicit),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return AgendaAdvanceFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.act.advance",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.act_advance(),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ActAdvanceFlow.run(game_ctx, params)
+	)
+
+
+static func _register_act_agenda_back_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.act_agenda.resolve_back",
+		func(params: Dictionary) -> TriggeringCondition:
+			var definition_id: StringName = params.get("definition_id", &"")
+			var flipped_card_id: StringName = params.get("flipped_card_id", &"")
+			var is_agenda: bool = bool(params.get("is_agenda", false))
+			return TriggeringCondition.act_agenda_back_resolve(
+				definition_id, flipped_card_id, is_agenda
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ActAgendaBackFlow.run_resolve_back(game_ctx, params)
+	)
+
+
+static func _register_skill_test_flows(catalog: SequenceCatalog) -> void:
+	for flow_id in [
+		&"seq.skill_test.willpower",
+		&"seq.skill_test.intellect",
+		&"seq.skill_test.combat",
+		&"seq.skill_test.agility",
+	]:
+		var bound_flow_id: StringName = flow_id
+		catalog.register_run(
+			bound_flow_id,
+			func(params: Dictionary) -> TriggeringCondition:
+				var inv_id: StringName = params.get("inv_id", params.get("controller_id", &""))
+				var skill := SkillTestFlowHandlers.skill_type_for_flow(bound_flow_id)
+				if params.has("skill"):
+					skill = int(params.get("skill", skill))
+				var difficulty: int = int(params.get("difficulty", 0))
+				var card_id: StringName = params.get("card_id", &"")
+				return TriggeringCondition.skill_test_revelation(inv_id, skill, difficulty, card_id),
+			func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+				var resolved := params.duplicate()
+				resolved["skill"] = SkillTestFlowHandlers.skill_type_for_flow(bound_flow_id)
+				return SkillTestFlowHandlers.run_revelation_test(game_ctx, resolved)
+		)
 
 
 static func _register_interrupt_flows(catalog: SequenceCatalog) -> void:

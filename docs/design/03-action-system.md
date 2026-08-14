@@ -222,7 +222,7 @@ func is_valid_fight_target(inv: StringName, enemy: EntityId, ability: AbilityDef
 
 - Combat vs fight value
 - 成功：deal 1 damage（可被武器修改）
-- 失败且 enemy engaged 他人：damage → 该调查员
+- **失败转嫁**（Grimoire *Fight Action*）：目标敌人位于 **另一名且仅一名** 调查员的 **威胁区** 时，攻击的伤害由该调查员承受。**庞大** 不进威胁区，不适用典型转嫁结构；魔典 *Massive* 另禁向其他虚拟交战调查员转嫁 — 见 [08 §6.6](08-enemy-engagement.md#66-fight-失败转嫁伤害--威胁区--庞大grimoire-fight-action)
 
 ### 6.9 Parley / Resign
 
@@ -276,7 +276,7 @@ class ActionSystem:
 | A-02 | [action] Fight 能力 | 无 AOO |
 | A-03 | Fast event 在他人 turn window | 不耗 action |
 | A-04 | Fight 打 aloof unengaged | 非法 |
-| A-05 | Fight fail，enemy engaged 队友 | 队友受伤 |
+| A-05 | Fight fail，enemy 在队友威胁区 | 队友承受攻击伤害（ACT-16） |
 | A-06 | [action][action] Activate | actions **一次 -2**；**至多 1 轮** AOO（非按 [action] 次数重复） |
 
 ---
@@ -285,13 +285,13 @@ class ActionSystem:
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-03-05 | P2 | Elusive 在 AOO 后是否仍触发（AOO 算 attack）？ |
 | OQ-03-06 | P1 | Play asset 时 slot 弃置：玩家选顺序还是引擎默认最旧 asset？ |
 
 ### 已裁决
 
 | ID | 裁决 | 日期 |
 |---|---|---|
+| OQ-03-05 | 借机攻击是敌人 **攻击**（非「被攻击」），**会**触发逃逸 → `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 | 2026-06-18 |
 | OQ-03-01 | **以 Grimoire 为准。** 基础 Fight 目标 = 调查员**当前地点**上的敌人（含 unengaged、自己 threat 区、同地点他人 engaged 的敌人）。特殊卡牌能力可扩展目标范围至地点外。Aloof 未 engage 不可打。 | 2026-05-25 |
 | OQ-03-02 | **攻击效果层**统一 `EnemyAttack` + `AttackKind`（PHASE / OPPORTUNITY / RETALIATE / ALERT），共用 `perform_attack()`，均属 enemy attack。**触发条件与时点**各 kind 独立（AOO→Action 管线、Retaliate/Alert→Skill Test、Phase→Enemy Phase）；不得把 provoke / ST.7 插入逻辑并入 `perform_attack()`。见 08 §6.1。 | 2026-05-25 |
 | OQ-03-03 | **Agenda 无地点概念**；可 Activate agenda 能力，**不**视为 Parley 同地点。见 §6.10。 | 2026-05-25 |

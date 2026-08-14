@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 11,
+      "compiled_total": 16,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -17,6 +17,8 @@
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
+        "gain_resources": 4,
+        "seq": 1,
         "take_horror": 1
       }
     }
@@ -171,6 +173,7 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After you deal damage to an enemy",
         "template": "take_damage",
@@ -817,6 +820,18 @@
         "body": "After you defeat an enemy, exhaust Logan Hastings: Gain 1 resource.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you defeat an enemy, exhaust Logan Hastings",
+        "template": "gain_resources",
+        "amount": 1
+      }
     ]
   },
   "12019": {
@@ -1138,6 +1153,18 @@
         "body": "After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons: Gain 1 resource.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons",
+        "template": "gain_resources",
+        "amount": 1
+      }
     ]
   },
   "12033": {
@@ -1453,6 +1480,25 @@
         "body": "During your turn, exhaust Olivier Bishop: Move to a connecting location.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "free",
+        "ability_id": "free:0",
+        "ability_kind": "free",
+        "window": "during_your_turn",
+        "status": "full",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "exhaust_source"
+          },
+          {
+            "template": "nest_move_connecting"
+          }
+        ]
+      }
     ]
   },
   "12047": {
@@ -1532,6 +1578,18 @@
         "kind": "reaction",
         "body": "After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },
@@ -1656,6 +1714,18 @@
         "kind": "reaction",
         "body": "After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },
@@ -2786,6 +2856,7 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After an enemy enters (moves into or spawns at) your location",
         "template": "take_horror",
@@ -2854,6 +2925,7 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After you spend 1 or more resources",
         "template": "take_damage",
@@ -2921,6 +2993,7 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "The first time you move each turn",
         "template": "take_damage",

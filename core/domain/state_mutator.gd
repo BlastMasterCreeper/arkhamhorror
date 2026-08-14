@@ -43,8 +43,19 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 			_remove_from_pile(card, owner_inv)
 		elif card.zone == AhcEnums.Zone.LIMBO:
 			pass
+		elif card.zone == AhcEnums.Zone.VICTORY_DISPLAY:
+			_state.victory_display.erase(card.id.instance_id)
+		elif card.zone == AhcEnums.Zone.PLAY_AREA and card.owner_id == &"encounter":
+			_state.encounter_deck.erase(card.id.instance_id)
+			_state.encounter_discard.erase(card.id.instance_id)
+			for inv_id in _state.registry.all_investigator_ids():
+				var inv := _state.registry.get_investigator(inv_id)
+				if inv != null:
+					inv.threat_area.erase(card.id.instance_id)
 	if to.owner_id == &"encounter":
 		return _insert_encounter_discard(card)
+	if to.owner_id == &"victory_display":
+		return _insert_victory_display(card)
 	var target_inv := _state.registry.get_investigator(to.owner_id)
 	if target_inv == null:
 		return false
@@ -320,6 +331,8 @@ func _enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
 	var inv := _state.registry.get_investigator(card.owner_id)
 	if inv != null:
 		_remove_from_pile(card, inv)
+	_state.encounter_deck.erase(card.id.instance_id)
+	_state.encounter_discard.erase(card.id.instance_id)
 	card.zone = AhcEnums.Zone.LIMBO
 	card.controller_id = controller_id
 	return true
@@ -328,6 +341,15 @@ func _enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
 func _insert_encounter_discard(card: CardInstance) -> bool:
 	_state.encounter_discard.append(card.id.instance_id)
 	card.zone = AhcEnums.Zone.DISCARD
+	return true
+
+
+func _insert_victory_display(card: CardInstance) -> bool:
+	_state.encounter_deck.erase(card.id.instance_id)
+	_state.encounter_discard.erase(card.id.instance_id)
+	_state.victory_display.erase(card.id.instance_id)
+	_state.victory_display.append(card.id.instance_id)
+	card.zone = AhcEnums.Zone.VICTORY_DISPLAY
 	return true
 
 
