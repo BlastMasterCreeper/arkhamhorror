@@ -31,6 +31,8 @@ python tools/pdf_to_markdown.py
 python tools/fetch_arkhamdb_rules.py
 ```
 
+PDF 抽出时，自定义图标字体会写成 Unicode 私用区（如 ``）。脚本按 [`arkham-symbol-notation.md`](arkham-symbol-notation.md) 转义为 `[reaction]` / `[action]` / `[free]` 等。已有 Markdown 可再跑 `python tools/pdf_to_markdown.py --rewrite-md`（无需 PDF）。
+
 ## 与 `design/` 文档的分工
 
 | 层次 | 位置 |
