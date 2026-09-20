@@ -1,9 +1,11 @@
 class_name EncounterDrawPriority
 extends RefCounted
 
-## ENCOUNTER_CARD_DRAWN · FrameworkPriority（15 §4.0.5.2 / §3.1）
-## Would（G1 pop 前，zone=DECK）与 When（95，默认 zone=LIMBO）对齐同一 TC。
-## 步骤差 = G1 发起 impact；100 险境是更高档剩余 impact；90 显现是 When 之后的剩余 impact。
+## ENCOUNTER_CARD_DRAWN · FrameworkPriority（15 §4.0.5.2 / §3）
+## Would / When / After 钉抽取步骤（G1）：Would 在 pop 前 zone=DECK；When 95 默认 zone=LIMBO。
+## 抽取步骤 After = G1 结束、显现/G4 前（与 When 窗紧邻；TimingCatalog 待 emit）。
+## AFTER_CARD 75 = after_encounter_card_resolved（该牌结算完毕），不是「抽取后」。
+## 100 险境属卡牌结算（先于 When）；90 显现是抽取步骤之后的后续步骤。
 
 const PERIL_REGISTER: int = 100
 const PLAYER_WHEN_DRAW: int = 95

@@ -3836,7 +3836,7 @@ func _test_draw_when_zones() -> bool:
 
 
 func _test_revelation_own_priority_class() -> bool:
-	## Would/When 对齐同一 TC：When 槽在 Forced 之后、显现剩余 impact 之前。
+	## 抽取步骤：When 95 在 Forced 之后、显现后续步骤 90 之前。
 	if EncounterDrawPriority.PLAYER_WHEN_DRAW != 95:
 		return false
 	if EncounterDrawPriority.REVELATION != 90:

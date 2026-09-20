@@ -113,7 +113,7 @@ class SequenceHandler:
 4. DELAYED
 5. LISTENER    ← AFTER-B
 
-显现（Revelation）← 独立类；抽牌 When 槽之后的剩余 impact nest，不进上列 Forced 批
+显现（Revelation）← 独立类；抽取步骤 When 之后的后续步骤 nest，不进上列 Forced 批
 ```
 
 **禁止**：用队长选序把 [reaction] 插到 Forced 之前或中间。**禁止**把显现当成 Forced 以得到假的「Forced 先于 When-draw Fast」跨类序。
@@ -237,3 +237,4 @@ sequences.end_ability_resolution()
 | 2026-06-18 | v0.4 | §11 补充 `SequenceCatalog`、draw 子 flow 实现映射 |
 | 2026-06-18 | v0.5 | **§5.2** 链 07 同时点竞争 / replacement |
 | 2026-09-20 | v0.5.1 | §5.2 显现独立类：不进 Forced → Triggered 同窗口批 |
+| 2026-09-20 | v0.5.2 | §5.2：显现是抽取步骤之后的后续步骤，不是抽取时窗内 |

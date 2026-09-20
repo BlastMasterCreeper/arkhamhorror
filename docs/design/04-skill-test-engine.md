@@ -205,7 +205,7 @@ class EncounterResolutionFrame:
 push frame (E0) — 可跨 Surge 圈（仅 drawer 上下文）
   per card: ENCOUNTER_CARD_DRAWN → priority 100 Register peril (card_id)
             → … 90 revelation → 80 G4 → Unregister peril(card_id)
-            → 75 AFTER → 70 surge?
+            → 75 AFTER(card) 该牌结算完毕 → 70 surge?
 pop frame (E7)
 ```
 
@@ -431,3 +431,4 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | 2026-06-18 | v0.5 | **§4 Peril 重设计**：持续 Cannot、L4/07 冲突链第 0 步；PERIL-01～06 |
 | 2026-06-18 | v0.5.1 | **§4.9–11** 帧栈 / AppContext / E3 catalog；`EncounterResolutionFrame`；PERIL-01/04/05 测试 |
 | 2026-09-20 | v0.6.1 | §4.4 E4 显现独立类（非 Forced nest） |
+| 2026-09-20 | v0.6.2 | §4.3：75 档 = 该牌结算完毕，不是抽取步骤 After |

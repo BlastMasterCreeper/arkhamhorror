@@ -50,9 +50,9 @@
 | # | 项 | 说明 |
 |---|---|---|
 | T1 | **WOULD** | PreImpact；牌仍在 **DECK**（pop 前） |
-| T2 | **WHEN** | 发起 impact **之后** 的打断槽（非覆盖剩余 impact 的长区间） |
-| T3 | **AFTER** | pop 时机；子 seq AFTER-B 先于父 AFTER-A |
-| T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)` — 同一命名流程的槽；**v1 未实现**，暂用手写 emit |
+| T2 | **WHEN** | **该步骤**发起 impact 之后的打断槽（抽牌：钉抽取步骤，不覆盖显现 / G4） |
+| T3 | **AFTER** | **该步骤**结束；管线 pop 是 **信封** After，须另钉（抽牌：抽取后 ≠ 该牌结算完毕） |
+| T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)` — 钉步骤的槽；**v1 未实现**，暂用手写 emit |
 | T5 | Listener 键 | `after_timing` 与 `RegistrationStore` 订阅一致 |
 
 ### 3.3 RESOLVE 砖块
@@ -120,7 +120,7 @@
 
 | 形态 | Catalog API | 栈行为 | 何时用 |
 |---|---|---|---|
-| **① 内联 G3** | handler 内顺序砖块 / Composition | **不** push 子帧 | **流程连续**；同一 TC（draw：发起 impact D2→D3 物理入手） |
+| **① 内联 G3** | handler 内顺序砖块 / Composition | **不** push 子帧 | **流程连续**；抽取步骤发起 impact（D2→D3 物理入手） |
 | **② SUBSEQUENCE** | `catalog.nest(flow_id)` | push **子帧** | **因果关系**；新 TC / 新 `(seq, slot)`（显现、defeated） |
 | **③ NEST_BATCH** | `catalog.nest_batch(flow_id)` | batch 本身无 RUN 帧；handler 内可 **循环 `sequences.nest`** | 同政策下一批（多张显现） |
 | **④ Delegate 入口** | 外层 `catalog.run(wrapper)` → 内层 `run(core)` | 顶层新根帧，或父 RESOLVE 内的 run | 多入口共享内核 |
@@ -161,13 +161,13 @@
 
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
-| **父 Would / When** | 同一 draw TC 的前后槽；SPLIT 在 RESOLVE **砖块边界** emit（15 §3） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
+| **父 Would / When / After** | 钉 **抽取步骤** 三槽；SPLIT 在该步骤砖块边界 emit（15 §3） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
 | **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |
 | **AFTER 顺序** | 子树 pop 后父 AFTER | 部分（stack pop ✅；defer ❌） |
 
-**Invariant**：Eligibility 订阅 **`(sequence_id, slot)`** 时，**子 kind 不继承父** unless 显式 tags。SPLIT 的 Would/When **不**用栈默认「RESOLVE 前 WHEN」代替。
+**Invariant**：Eligibility 订阅 **`(sequence_id, slot)`** 时，**子 kind 不继承父** unless 显式 tags。SPLIT 的 Would/When/After **不**用栈默认「RESOLVE 前 WHEN / pop 后 AFTER」代替抽取步骤三槽。
 
 **实例对照表** → [15 §16.3.1](15-timing-entry-catalog.md)（`seq.draw.investigator`）。
 
@@ -215,8 +215,8 @@
 |---|---|
 | **EligibilityPipeline** | L0–L5 COLLECT；与 RegistrationStore 订阅 |
 | **ResponseWindow** | 非 fire-all；接 `PlayerInteractionGate` |
-| **TimingCatalog** | 规范 WOULD/WHEN/AFTER emit（15 §18）；SPLIT 在砖块边界 |
-| **draw SPLIT 槽** | `seq.draw.*` 在 RESOLVE 内 emit WOULD/WHEN，非一次 RESOLVE 前的栈 WHEN |
+| **TimingCatalog** | 规范 WOULD/WHEN/AFTER emit（15 §18）；抽牌 SPLIT 钉抽取步骤砖块边界 |
+| **draw SPLIT 槽** | 抽取步骤 emit WOULD/WHEN/AFTER，非一次 RESOLVE 前的栈 WHEN，也非 pop 冒充抽取后 |
 | **卡面 → SequenceHandler** | Forced/[reaction] 从 Buff 自动注册，非测试手填 |
 
 ### 6.3 P2 — 丰富度 / 合规
@@ -272,7 +272,7 @@
 | OQ-SEQ-01 | v1 是否实现完整 `TimingCatalog` 类型，或 stack 内 hardcode 政策表 |
 | OQ-SEQ-02 | `seq.action.draw` 与 `seq.draw.investigator` 是否同一 RUN + 不同 params/tags |
 | OQ-SEQ-03 | Initiation resolve 一律 `sequences.nest(custom, composition_fn)` 还是统一 `seq.resolve.effect.*` |
-| OQ-SEQ-04 | SPLIT 的 Would/When 由 **seq 政策表在 RESOLVE 砖块边界 emit**（非栈挂起父 WHEN 长区间）。见 15 §3.1、§6。 |
+| OQ-SEQ-04 | SPLIT 的 Would/When/After 由 **seq 政策表在抽取步骤砖块边界 emit**（非栈挂起父 WHEN 长区间，非 pop 冒充抽取后）。见 15 §3.1、§6。 |
 | OQ-SEQ-05 | AFTER **defer**（15 §7 仅 SUBSEQUENCE 无 post brick）实现策略 |
 
 ---
@@ -288,4 +288,4 @@
 | 2026-06-18 | v0.2 | §4 包含关系四种形态、draw 实例 |
 | 2026-06-18 | v0.1 | 初稿：checklist、已注册 flow、缺口分层、实施顺序 |
 | 2026-09-20 | v0.4.2 | SPLIT Would/When 在 RESOLVE 砖块边界；OQ-SEQ-04 裁决 |
-| 2026-09-20 | v0.4.3 | T4：`(seq, slot)` = 同一命名流程的槽修饰 |
+| 2026-09-20 | v0.4.4 | T2/T3：Would/When/After 钉抽取步骤；信封 pop ≠ 抽取后 |

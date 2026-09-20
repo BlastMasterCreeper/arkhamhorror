@@ -689,7 +689,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 
 | 清单项 | 订阅键 | emit 责任 | 文档索引 |
 |---|---|---|---|
-| 框架 after fight / draw / … | `timing` 字符串 或 `(sequence_id, AFTER)` | 框架 / Combat / draw seq pop | [15 §17](15-timing-entry-catalog.md) |
+| 框架 after fight / draw / … | `timing` 字符串 或 `(sequence_id, AFTER)` | 框架 / Combat；抽牌：**步骤** After 钉抽取步骤，信封 pop 另钉 | [15 §3](15-timing-entry-catalog.md)、[15 §17](15-timing-entry-catalog.md) |
 | 命名 seq WHEN/AFTER | `(sequence_id, WOULD\|WHEN\|AFTER)` | 对应 `seq.*` 砖块边界 | [15 §4](15-timing-entry-catalog.md)、[14](14-nested-sequences.md) |
 | 卡面 [reaction] | `ListenerPayload.timing` + `player_initiated` | 同上；COLLECT 开窗 | [06-ability-initiation §5](06-ability-initiation.md) |
 | UNTIL_FIRED 延时 | 同 timing；Lifetime 摘 registration | listener 跑完 unregister | §4.1 |
@@ -787,7 +787,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-07-06 | v0.4.5 | **§3.2.4** KeywordProfile 挂载/消费填表（Core 2026） |
+| 2026-09-20 | v0.4.6 | §16.5：抽牌 After 钉抽取步骤，不靠 seq pop 冒充 |
 | 2026-07-06 | v0.4.4 | P0 实现：`EffectiveCharacteristicQuery` · KEYWORD Buff · G5 surge |
 | 2026-07-06 | v0.4.3 | **§3.2** Gained characteristics 总纲 + Core 2026 统计 |
 | 2026-07-06 | v0.4.2 | **§3.1** 涌动：动态 surge = KEYWORD 标记 · 不叠加；OQ-ADB-02/03 |

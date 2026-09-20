@@ -2,13 +2,13 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-buff-model.md](06-registration-buff-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
 > **符号记法**：[ArkhamDB 标准](../reference/arkham-symbol-notation.md)  
-> **状态**：v0.6 · 2026-06-18
+> **状态**：v0.6.9 · 2026-09-20
 
 ---
 
 ## 1. 目标
 
-为 Grimoire 的 **Would / When / After** 与卡牌能力订阅，提供 **唯一权威的 Timing Entry Catalog**。规则书行文可简略；**引擎以 catalog + Triggering Anchor Policy 为准**，不临时 `emit_timing` 字符串。
+为 Grimoire 的 **Would / When / After** 与卡牌能力订阅，提供 **唯一权威的 Timing Entry Catalog**。规则书行文可简略；**定义时钉到步骤**，不为原文不细把后续步骤吞进同一时点。**引擎以 catalog + Triggering Anchor Policy 为准**，不临时 `emit_timing` 字符串。
 
 ---
 
@@ -19,8 +19,8 @@
 | **RuleSequence（规则序列 / 事件族）** | 规则定义的、由 **brick**（效果 / 信息 / 子序列 / 框架步）组成的序列模板；运行时 `push → … → pop` |
 | **TimingEntry** | catalog 登记项：`(sequence_id, slot)` |
 | **TimingOffer** | 运行时一次 emit：`entry + ApplicationContext` |
-| **push / pop** | 嵌套栈压入 / 弹出；**pop 时** 发出 `AFTER`（遵守 merge 规则） |
-| **Triggering Anchor** | 序列 **WHEN** 槽在 RESOLVE 内的 **规范时刻**（**不**由 zone 坐标推导） |
+| **push / pop** | 嵌套栈压入 / 弹出；**pop 时** 发出 **信封** `AFTER`（遵守 merge）。**步骤** After 钉该步结束，**不**默认等于 pop |
+| **Triggering Anchor** | **该步骤** **WHEN** 槽在 RESOLVE 内的规范时刻（**不**由 zone 坐标推导） |
 
 ```gdscript
 enum TimingSlot { WOULD, WHEN, AFTER }
@@ -39,60 +39,71 @@ class TimingOffer:
 **订阅键（Eligibility L0）** = `(sequence_id, slot)`。  
 **情景、tags、framework_step** → `ApplicationContext` + Condition（L3），见 [06 §4.1](06-ability-initiation.md)、[06b §12](06-registration-buff-model.md)。
 
-**时点表述（已裁决）**：Grimoire / 卡面用 would、when、after **修饰同一条命名流程**，不是另开一套流程。  
-例：「将要抽取」与「抽取时」都是 `seq.draw.*`；差别只在 **槽**（`WOULD` vs `WHEN`）。读成两个抽牌时点 = 表述不清；引擎只认 `(flow_id, slot)`。
+**时点钉步骤，不钉信封（已裁决）**：定义「抽取时」时把它 **精确到抽取步骤**，不为魔典/卡面写得粗把整段抽牌管线（显现、G4、涌动）算进这个时点。
+
+| | 是 | 不是 |
+|---|---|---|
+| **抽取步骤** | 遭遇 **G1 Draw**；调查员 **离库 + 揭示 + 物理入手** | G2 险境、G3 显现、G4 进场/弃置、G5 涌动、`seq.enter_hand` 显现 nest |
+| **「将要抽取 / 抽取时 / 抽取后」** | 该 **步骤** 的 `WOULD` / `WHEN` / `AFTER` | 整条 `seq.draw.*` 信封的起止；G4 后「该牌结算完毕」 |
+| **「该牌结算完毕」After** | G4 完成后、涌动前（`after_encounter_card_resolved` · 75） | 抽取步骤的 After |
+
+`seq.draw.*` 仍可作 **管线**（里面 nest 显现等）；订阅「抽取时 / 抽取后」只认 **抽取步骤** 的 `WHEN` / `AFTER`。
 
 ---
 
 ## 3. 三槽语义：Would / When / After
 
-**已裁决**：would / when / after 是 **同一命名流程** 上的槽修饰，不是三套流程。抽牌只有 `seq.draw.*`；「将要抽取」=`(seq.draw.*, WOULD)`，「抽取时」=`(seq.draw.*, WHEN)`。槽与槽之间可以夹 **发起 impact**，因此不是同一瞬间，但仍是同一条 `seq.*`。
+**已裁决**：「抽取时」= **抽取步骤** 的 `WHEN`，不是整段抽牌管线的模糊窗。would / when / after 是 **该步骤** 的三槽；步骤自己的发起 impact 夹在 Would 与 When 之间。显现、G4 是 **别的步骤**，不靠原文不细而被吞进「抽取时 / 抽取后」。
 
 | 说法 | 算不算 | 含义 |
 |---|---|---|
-| **同一事件** | **算** | would-draw 与 when-draw 都挂「这一次抽牌」，不另开 `seq.*` |
-| **同一时刻** | **不算** | 中间有可观察 impact 时，两槽有先后；这是 SPLIT，不是 ALIAS |
+| 同一 **抽取步骤** | **算** | would/when/after 都钉 G1 / 离库入手这一步 |
+| 同一 **时刻** | **不算** | 该步骤的发起 impact 使 Would 与 When 有先后 |
+| 整段 `seq.draw.*` 管线 | **不算「抽取时 / 抽取后」** | 管线里后面的显现 / G4 / 涌动另钉 |
+| G4 后 After | **不算「抽取后」** | 「该牌结算完毕」；另钉 75 档 |
 
 | Slot | 语义 | 与序列 / pop 的关系 |
 |---|---|---|
-| **WOULD** | 将要；PreImpact；**发起 impact 尚未发生** | **不** bind pop |
-| **WHEN** | 当…时；**发起 impact 已发生**，打断 **剩余 impact** | **不** bind pop |
-| **AFTER** | …之后；剩余 impact + nest 完毕 | **bind pop**（遭遇单卡 AFTER 可在 Surge 前） |
+| **WOULD** | 将要；**该步骤** PreImpact；发起 impact 尚未发生 | **不** bind pop |
+| **WHEN** | 当该步骤发生时；发起 impact 已发生 | **不** bind pop；**不**覆盖后续别的步骤 |
+| **AFTER** | 该步骤结束之后 | **钉步骤结束**，不默认 bind 管线 pop |
 
 ```text
-同一事件 / 同一 sequence_id（非同一时刻）
+抽取步骤（遭遇 G1 / 调查员离库+揭示+入手）
 
-[WOULD]  PreImpact（事件尚未发生）
+[WOULD]  步骤尚未发生 · 牌在 DECK
    │
-   ├── 发起 impact（内联 L0 · 不另开 Would/When）
+   ├── 该步骤的发起 impact（pop / reveal / 物理入手）
    │
-[WHEN]   事件已发生；打断剩余 impact
-   │
-   ├── 剩余 impact（显现 nest、G4、险境 Register…）
-   │
-[AFTER]  bind 本卡结算完成 / 父 pop
+[WHEN]   抽取时 · 牌在 HAND 或 LIMBO
+[AFTER]  抽取步骤结束（显现 / G4 **尚未**开始）
+
+── 以下不是「抽取时」──
+显现 nest / G2 险境 / G4 进场或弃置 / G5 涌动
+「该牌结算完毕」After（G4 后）← 另钉，不冒充抽取步骤的 After
 ```
 
-**信封已 push ≠ 发起 impact。** 抽牌序列可以已经在栈上；Would 仍是该 **事件** 的 PreImpact，不是「未 push 信封」。
+**信封已 push ≠ 抽取步骤已发生。** 管线可以已经在栈上；Would 仍是 **抽取步骤** 的 PreImpact。
 
-**After** 是唯一与 **本卡结算完成 / 序列 pop** 强绑定的 slot。  
-Would / When 的砖块边界写在各 `RuleSequenceDef`。多数 action **ALIAS**（中间几乎无 impact，印刷可互换）；**draw 必须 SPLIT**（中间有发起 impact，would ≠ when），二者仍是同一事件的前后槽。
+**抽取步骤 After ≠ 信封 pop After ≠ 「该牌结算完毕」After。** 三者都要在 catalog 里分别钉死。
+
+**禁止**为原文把 when-draw / after-draw 写在一起，就把 When 或步骤 After 拉到 G4，或把显现算进「抽取时」。
 
 ### 3.1 发起 impact vs 剩余 impact（抽牌）
 
-使「将要抽」变成「已经抽」的那些写入 = **发起 impact**（Would 与 When **之间** 的步骤差）。
+使「将要抽」变成「已经抽」的那些写入 = **抽取步骤的发起 impact**（Would 与 When **之间**）。抽取步骤 **没有** 自己的剩余 impact；When 之后立刻是该步骤 After。显现、G4、涌动是 **管线后续步骤**，不是「抽取时」窗。
 
 **将要抽取时卡牌位于牌库。** 因此 WOULD 在 **pop 之前**；发起 impact 包含离库。
 
-| 序列 | Would 时 zone | 发起 impact（Would→When） | When 时 zone | When 之后的剩余 impact |
+| 序列 | Would 时 zone | 抽取步骤的发起 impact（Would→When） | When 时 zone | 步骤 After 之后（**不是**「抽取时」） |
 |---|---|---|---|---|
-| `seq.draw.investigator` | **DECK**（牌库顶） | D1 pop + D2 reveal + D3 物理 `commit_enter_hand` | **HAND** | `seq.enter_hand` 显现 nest |
-| `seq.draw.encounter` 默认 | **DECK** | G1 pop + reveal（Hidden 跳过公开 E2） | **LIMBO** | 险境 100 → When 95 → 显现 90 → G4 80 |
+| `seq.draw.investigator` | **DECK**（牌库顶） | D1 pop + D2 reveal + D3 物理 `commit_enter_hand` | **HAND** | `seq.enter_hand` 显现 nest；信封 D5 pop |
+| `seq.draw.encounter` 默认 | **DECK** | G1 pop + reveal（Hidden 跳过公开 E2） | **LIMBO** | 险境 100（卡牌结算、先于 When）→ 显现 90 → G4 80 → 75 该牌结算完毕 |
 | Hidden 遭遇 | **DECK** | G1 pop（跳过公开 reveal） | **LIMBO** | G3 秘密入手才进 HAND |
 
-遭遇 **险境 Register** 是剩余 impact，但 FrameworkPriority **高于** When 槽，故排在 When **之前** dequeue；仍属同一 `ENCOUNTER_CARD_DRAWN`。When 槽上默认遭遇牌 **已经在 LIMBO**（离库、未进场、未入手）。
+遭遇 **险境 Register** 属 **卡牌结算过程**（须在 When 窗内已生效），FrameworkPriority **高于** When，故排在 When **之前** dequeue；仍由 G1 commit 打开 `ENCOUNTER_CARD_DRAWN` 队列。**不是**抽取步骤本身。When 槽上默认遭遇牌 **已经在 LIMBO**（离库、未进场、未入手）。
 
-**禁止**：为 reveal / pop / 入手另开一条带三槽的 `seq.*`；把 WHEN 拉成覆盖显现 / G4 的长区间；在 Would 槽 pop 离库（那会让「将要抽」时牌已不在牌库）。
+**禁止**：为 reveal / pop / 入手另开一条带三槽的 `seq.*`；把 WHEN 或步骤 AFTER 拉成覆盖显现 / G4 的长区间；在 Would 槽 pop 离库（那会让「将要抽」时牌已不在牌库）。
 
 ---
 
@@ -242,14 +253,14 @@ Grimoire 规范流程
 | E3 peril | **100** | Register RESTRICTION |
 | E4 显现 | **90** | nest 显现类（非 Forced） |
 | E5 enemy / treachery | **80** | spawn 默认/指令 或 discard |
-| AFTER | **75** | emit |
+| AFTER(card) | **75** | 「该牌结算完毕」；**不是**抽取步骤 After |
 | E6 Surge | **70** | 再抽 G1 |
 
 **禁止**：为 Grimoire 段落 **proliferate** 平行 `seq.encounter.check_peril` 等 **命名流程**（handler 内 nest + `composition.execute(register)` 即可）；把 **已由子时点触发的 Register/显现** 压进内联（漏 slot / provenance）。
 
 #### 4.0.5.1 险境 / 显现 / 涌动：同锚点、异优先级（已裁决）
 
-三者均订阅 **`ENCOUNTER_CARD_DRAWN`（抽取遭遇牌时）**；Grimoire G2–G5 由 **FrameworkPriority** 排序（§4.0.5.2）。显现 = **独立类**（非 Forced；When 槽 95 之后剩余 impact 90）；险境 = Register RESTRICTION；涌动 = priority 70；**敌人进场（默认 / 指令 Spawn）与 treachery discard = 同档 priority 80**，指令只改 spawn 分支。
+G1 commit 打开 **`ENCOUNTER_CARD_DRAWN`** 队列；Grimoire G2–G5 由 **FrameworkPriority** 排序（§4.0.5.2）。**「抽取时」只等于该队列的 When 95**，不是整条队列。显现 = **独立类**（非 Forced；抽取步骤 After 之后的 **后续步骤** 90）；险境 = Register RESTRICTION（卡牌结算、先于 When）；涌动 = priority 70；**敌人进场（默认 / 指令 Spawn）与 treachery discard = 同档 priority 80**，指令只改 spawn 分支。
 
 #### 4.0.5.1a 险境 vs 显现（Buff 类型对照 · 保留）
 
@@ -280,17 +291,17 @@ resolve_card_body（时间线相近）
 
 #### 4.0.5.2 抽取遭遇牌：单一时点 + 优先级排序（已裁决）
 
-> **术语**：**ENCOUNTER_CARD_DRAWN** = 抽取遭遇牌时（G1 Draw commit 触发的 timing entry）；**FrameworkPriority** = 框架优先级（同 timed 下结算体的自动排序键）。
+> **术语**：**ENCOUNTER_CARD_DRAWN** = **G1 Draw commit** 打开的卡牌结算队列（timing entry）；**「抽取时」** = 该队列 **When 95**（抽取步骤），**不含** G3/G4/G5。**FrameworkPriority** = 框架优先级（同 emit 下结算体的自动排序键）。
 
-**已裁决**：**险境、显现、涌动、敌人进场（spawn）、诡雷弃置（discard）** 均锚在 **同一 timing entry — 抽取遭遇牌时**（`ENCOUNTER_CARD_DRAWN`）。Grimoire G2–G5 由 **FrameworkPriority** dequeue；**Spawn 指令（Spawn – 文本）只改进场方式，不另开 timing entry**。
+**已裁决**：险境、显现、涌动、敌人进场（spawn）、诡雷弃置（discard）由 **同一 G1 commit** 入队，**不是**都叫「抽取时」。Grimoire G2–G5 由 **FrameworkPriority** dequeue；**Spawn 指令（Spawn – 文本）只改进场方式，不另开 timing entry**。
 
 | 结算体 | Buff / 类型 | FrameworkPriority | Grimoire | 生命周期 / 备注 |
 |---|---|---|---|---|
 | **险境 Register** | RESTRICTION | **100** `PERIL_KEYWORD` | G2 | **`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — G4 完 Unregister |
 | 玩家 When draw [reaction] | LISTENER / TRIGGERED | **95** | When 示例 | peril 已生效 |
-| **显现** | Composition | **90** `REVELATION` | G3 | 独立类；When 槽之后的剩余 impact |
+| **显现** | Composition | **90** `REVELATION` | G3 | 独立类；抽取步骤之后的 **后续步骤**，不是「抽取时」 |
 | **G4 类型落点** | L0 Composition | **80** `ENCOUNTER_TYPE_RESOLVE` | G4 | 见下表；**含** 敌人进场 + treachery discard |
-| emit **AFTER(card)** | — | **75** | After draw | G4 后、Surge **前** |
+| emit **AFTER(card)** | — | **75** | 该牌结算完毕 | G4 后、Surge **前**；**不是**「抽取后」 |
 | **Surge 再抽** | keyword flow | **70** `SURGE_KEYWORD` | G5 | evaluate 印刷 **或** 动态 KEYWORD 标记（**不叠加**）· 见 [§17.4.5](#1745-涌动surge--已裁决) |
 
 **Priority 80 · G4 分支**（同一 dequeue 档；**非** 独立 timing）：
@@ -309,11 +320,12 @@ resolve_card_body（时间线相近）
 G1 Draw commit → emit ENCOUNTER_CARD_DRAWN
   priority_queue.dequeue_all():
     100 peril Register
-    95  player When draw
-    90  revelation（独立类 · 剩余 impact）
+    95  player When draw（抽取时）
+        抽取步骤 After（显现 / G4 尚未开始）
+    90  revelation（独立类 · 管线后续步骤）
     80  G4: treachery discard | enemy spawn（instruction 分支在 handler 内）
          → Unregister peril(card_id)
-    75  AFTER(card)
+    75  AFTER(card) 该牌结算完毕
     70  surge? → 下一张 G1
 ```
 
@@ -485,17 +497,20 @@ Would / When 由 TC 槽位决定；发起 impact **写入** zone，因此各槽�
 ### 5.1 全局 When 规则（默认）
 
 > **多数行动序列：`WHEN` = 发起 impact 极薄，push 后、首个 EFFECT 前 emit 一次（ALIAS）。**  
-> **例外：draw 为 SPLIT** — WOULD / WHEN 在 RESOLVE **砖块边界** emit（§3.1、§16、§17），不是把剩余 impact 包进 When 长区间。
+> **例外：draw 为 SPLIT** — WOULD / WHEN / AFTER 钉 **抽取步骤** 的砖块边界（§3.1、§16、§17），不是把管线后续步骤包进 When 长区间。
 
 ### 5.2 政策表（v0）
 
 | Policy | 适用 sequence | 含义 |
 |---|---|---|
-| **DRAW_WHEN_AFTER_INITIATING** | `seq.draw.investigator` | WHEN = 发起 impact 之后（已在 **HAND**）、显现 nest **前** |
+| **DRAW_WHEN_AFTER_INITIATING** | `seq.draw.investigator` | WHEN = 抽取步骤发起 impact 之后（已在 **HAND**）、显现 nest **前** |
+| **DRAW_AFTER_STEP** | `seq.draw.investigator` | AFTER = 抽取步骤结束（物理入手后、显现 nest **前**）；**不是** D5 信封 pop |
 | **DRAW_WOULD_BEFORE_POP** | `seq.draw.investigator` | WOULD = **D1 pop 前**；牌仍在 **DECK** |
 | **DRAW_ENCOUNTER_WOULD_BEFORE_G1** | `seq.draw.encounter` | WOULD = E0 意图后、**G1 pop 前**；牌仍在 **DECK** |
 | **DRAW_ENCOUNTER_WHEN_AFTER_G1** | `seq.draw.encounter` | WHEN = **G1 完成后**（默认已在 **LIMBO**）的 95 档 |
-| **ENCOUNTER_CARD_DRAWN** | `seq.draw.encounter` | **抽取遭遇牌时**（G1 commit）；险境/显现/涌动 **同锚点** + FrameworkPriority |
+| **DRAW_ENCOUNTER_AFTER_G1** | `seq.draw.encounter` | AFTER = **G1 步骤结束**（显现 / G4 **前**） |
+| **ENCOUNTER_CARD_DRAWN** | `seq.draw.encounter` | **G1 commit** 打开卡牌结算队列；「抽取时」= 其中 When 95 |
+| **ENCOUNTER_CARD_RESOLVED** | `seq.draw.encounter` G4 | 75 档 `after_encounter_card_resolved`；**不是**「抽取后」 |
 | **ENCOUNTER_REVELATION_COMMITTED** | `seq.encounter.revelation` | 遭遇显现 nest；priority **90**；**非** `seq.enter_hand` |
 | **MOVE_INTENT_COMMITTED** | `seq.action.move` | from/to **已确定**；leave+enter **规则上同时**（一个 brick） |
 | **FIGHT_COMMITTED** | `seq.action.fight` | Fight 行动 **开始 RESOLVE**；默认与内嵌 test 的 AFTER **merge**（§7） |
@@ -524,17 +539,17 @@ inv.location := to    # leave + enter 一次提交；不拆 leave/enter 两个 e
 
 **要点：**
 
-- **同一事件 ≠ 同一时刻。** Would / When 挂同一 `sequence_id`；中间有 impact 时两槽有先后（SPLIT），没有 impact 时才可互换（ALIAS）。
+- **同一抽取步骤 ≠ 同一时刻 ≠ 整段抽牌管线。** Would / When / After 钉该步骤；中间有发起 impact 时两槽有先后（SPLIT）。
 - ALIAS：发起 impact 无可观察分界；印刷 would/when 可互换。
-- SPLIT（draw）：发起 impact 有分界（离库 / 揭示 / 入手）；Would 在前、When 在后，**不可**当成同一瞬间。
+- SPLIT（draw）：抽取步骤的发起 impact 有分界（离库 / 揭示 / 入手）；Would 在前、When 在后，**不可**当成同一瞬间，也 **不可**把显现 / G4 算进这三槽。
 - **Cancel/Replace** 绑 **pending 生命周期**（`replaceable_until`），不绑 would/when 字面。
-- 运行时：ALIAS 可用栈默认 WHEN→RESOLVE；SPLIT 的 WOULD/WHEN 在 **RESOLVE 砖块边界** emit（[17 §3.2](17-seq-runtime.md)）。栈顶「整段 RESOLVE 之前的 WHEN」**不能** 代替 draw 的 When 槽。
+- 运行时：ALIAS 可用栈默认 WHEN→RESOLVE；SPLIT 的 WOULD/WHEN/AFTER 在 **抽取步骤砖块边界** emit（[17 §3.2](17-seq-runtime.md)）。栈顶「整段 RESOLVE 之前的 WHEN」**不能** 代替 draw 的 When 槽。
 
 ---
 
 ## 7. After 与嵌套 merge（Fight / ST.8）
 
-**原则：一个 pop 一次 AFTER offer**（同帧 merge 除外）。
+**原则：一个 pop 一次信封 AFTER offer**（同帧 merge 除外）。抽牌另有 **步骤 After**（§3），不靠 pop 冒充「抽取后」。
 
 | 情况 | 行为 |
 |---|---|
@@ -629,35 +644,39 @@ D3  ENTER_HAND — `enter_hand_batch`
     区域：→ **HAND**
     · 全部 pending **批量** reveal 后再 **批量** 入手
     [WHEN] 抽取时 · 牌在 HAND
-    · 然后 `nest_batch seq.enter_hand`（显现剩余 impact）
+    [AFTER] 抽取步骤结束
+    · 然后 `nest_batch seq.enter_hand`（显现 = **后续步骤**，不是抽取时）
 
-D5  pop → emit AFTER
+D5  pop → emit **信封** AFTER（**不是**「抽取后」）
 ```
 
-**无 D4。** 物理入手属 **发起 impact**；显现 nest 是 **剩余 impact**（仍由 D3 的 `seq.enter_hand` 在 When 槽之后执行），不是抽牌 pop 之后的附带步，也 **不是** When 窗本身。
+**无 D4。** 物理入手属 **抽取步骤的发起 impact**；显现 nest 是 **管线后续步骤**（D3 之后的 `seq.enter_hand`），不是抽牌 pop 之后的附带步，也 **不是** When / 步骤 After 窗本身。
 
 - **Weakness ⊄ Revelation**：弱点不一定有显现；无显现则仅 timing 跳过。
 - **Revelation ⊄ Weakness**：Dilemma 等玩家牌亦可有显现；同一 `seq.enter_hand` 规则。
 
 ### 16.3 Would / When / After 的 **准确位置**
 
-三槽挂在同一条 `seq.draw.investigator` 上（同一事件，**非**同一时刻）。Would→When 之间 = 发起 impact（离库 + 揭示 + 物理入手），不另开时点。
+三槽钉在 **抽取步骤**（离库 + 揭示 + 物理入手）上，不是整段 `seq.draw.investigator` 信封。Would→When 之间 = 该步骤发起 impact，不另开时点。
 
 | Slot | 步骤边界 | zone | 控制者牌面 | 说明 |
 |---|---|---|---|---|
 | **WOULD** | **D1 pop 前** | **DECK** | HIDDEN_ALL | 「将要抽」；牌仍在牌库顶 |
-| **WHEN** | **D3 物理入手之后 → 显现 nest 之前** | **HAND** | **CONTROLLER** | 「抽牌时」；已离库并入手 |
-| **AFTER** | **D5 pop 后** | HAND | CONTROLLER | 各 Revelation nest 已返回 |
+| **WHEN** | **D3 物理入手之后 → 步骤 After 之前** | **HAND** | **CONTROLLER** | 「抽取时」；已离库并入手 |
+| **AFTER** | **抽取步骤结束 → 显现 nest 之前** | **HAND** | CONTROLLER | 「抽取后」；显现 **尚未**开始 |
+| 信封 After | **D5 pop 后** | HAND | CONTROLLER | 管线结束；各 Revelation nest 已返回；**不是**「抽取后」 |
 
 ```text
 [WOULD]  牌在 DECK
-D1 pop + D2 reveal_to_controller + D3 commit_enter_hand   ← 发起 impact
+D1 pop + D2 reveal_to_controller + D3 commit_enter_hand   ← 抽取步骤发起 impact
 [WHEN]   牌在 HAND · Fast / [reaction] When you draw
-nest_batch seq.enter_hand                                  ← 剩余 impact（显现）
-[AFTER]  pop
+[AFTER]  抽取步骤结束
+nest_batch seq.enter_hand                                  ← 后续步骤（显现）
+信封 AFTER  pop
 ```
 
 **「When you draw」** 时调查员牌 **已在手牌**，显现 nest **尚未**开始。  
+**「After you draw」**（钉抽取步骤）= 物理入手之后、显现 **前**。  
 **「When you would draw」** → 订阅 **WOULD**；牌 **仍在牌库**。
 
 ### 16.3.1 Slot / 步骤 / 结构对照（模板）
@@ -671,16 +690,17 @@ nest_batch seq.enter_hand                                  ← 剩余 impact（�
 | D1 collect ×N | **内联** | **连续**（发起 impact 离库） | — | — | ✅ pop 过早于 Would（缺口） |
 | D1 两堆空 | **nest** | **因果**：空库 **导致** defeated | （abort；无父 AFTER） | — | ✅ |
 | D2 reveal | **内联** | **连续**：发起 impact | — | — | ❌ |
-| D3 物理入手 | **内联** | **连续**：发起 impact 完成 → **HAND** | 父 **WHEN** | when you draw | ❌ |
+| D3 物理入手 | **内联** | **连续**：抽取步骤完成 → **HAND** | 父 **WHEN** | when you draw | ❌ |
+| 抽取步骤 After | — | 步骤结束 | 父 **AFTER** | after you draw（钉步骤） | ❌ offer |
 | D3 显现 | **nest** | **因果**：入手 **触发** Revelation | 子 `(enter_hand, slot)` | Revelation | ✅ nest |
-| D5 pop | 父 pop | draw **结束** | 父 **AFTER** | after you draw | ✅ pop；❌ offer |
+| D5 pop | 父 pop | **信封**结束 | 信封 **AFTER** | **不是** after you draw | ✅ pop；❌ offer |
 
 **结构决策（因果优先）**：
 
 | 逻辑段 | 选择 | 理由 |
 |---|---|---|
-| D1 pop + D2 + D3 物理入手 | **内联** | **流程连续**，同一 draw TC 的 **发起 impact**（DECK→HAND） |
-| D3 显现 | **nest** | **因果关系**，新 `enter_hand` TC |
+| D1 pop + D2 + D3 物理入手 | **内联** | **流程连续**，抽取步骤的 **发起 impact**（DECK→HAND） |
+| D3 显现 | **nest** | **因果关系**，新 `enter_hand` TC（**不是**抽取时） |
 | D1 collect 循环 | **内联** | **流程连续**，G1 shuffle + G0 pop |
 
 新 `seq.*` 可复制本表格式写入对应 §16/§17 节。
@@ -714,9 +734,10 @@ seq.enter_hand                 # NEST_BATCH · 所有「进入手牌」来源共
 **Timing emit（目标，待 TimingCatalog）**：
 
 ```text
-  WOULD  — before D1 pop（牌在 DECK）
-  WHEN   — after D3 物理入手（牌在 HAND）、before nest_batch(seq.enter_hand)
-  AFTER  — on seq.draw.investigator pop
+  WOULD        — before D1 pop（牌在 DECK）
+  WHEN         — after D3 物理入手（牌在 HAND）
+  AFTER        — 抽取步骤结束、before nest_batch(seq.enter_hand)
+  信封 AFTER   — on seq.draw.investigator pop
 ```
 
 #### 16.4.2 框架 Upkeep 4.4（`UPKEEP_4_4_DRAW_AND_RESOURCE` · 已实现）
@@ -759,7 +780,7 @@ func nest_enter_hand(game_ctx, params):
 
 | 层 | enter_hand 语境 | v0 |
 |---|---|---|
-| **类别优先级** | 显现 nest 属 **REVELATION 类**（独立类，**不是** FORCED）；When 打断槽（Fast / `[reaction]` When you draw）在 **95**，显现剩余 impact 在 **90** | 引擎类；`SequenceHandler.Tier.REVELATION` |
+| **类别优先级** | 显现 nest 属 **REVELATION 类**（独立类，**不是** FORCED）；When 打断槽（Fast / `[reaction]` When you draw）在 **95**，显现后续步骤在 **90** | 引擎类；`SequenceHandler.Tier.REVELATION` |
 | **同类内顺序** | 多张牌 / 单卡多条显现单元 **均在 REVELATION 类内** 的自排 | 默认 `SOURCE_ORDER` + Registry 登记序 |
 
 | 维度 | v0 默认 | 预留（**仅同类内**） |
@@ -791,7 +812,9 @@ var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
 | Revelation | **D3** 经 `nest_batch seq.enter_hand` | E4 经 **`seq.encounter.revelation`** |
 | 空库 | 洗弃 + 1 horror | 洗遭遇弃牌堆，**无 horror** |
 | Surge | — | E6 同帧内回到 E1 |
-| WHEN 槽 | 发起 impact 后、显现 nest 前（§16.3） | G1 后、95 档（§17.3）；**不**包 G3/G4 |
+| WHEN 槽 | 抽取步骤后、显现 nest 前（§16.3） | G1 后、95 档（§17.3）；**不**包 G3/G4 |
+| 步骤 AFTER | 物理入手后、显现前 | G1 后、G3/G4 前 |
+| 信封 / 该牌结算完毕 | D5 pop | G4 后 75 档；E7 pop |
 
 **Weakness（卡子类型）** 与 **Revelation（能力类型）** 正交（Grimoire Glossary 分列）。  
 **Weakness 按 cardtype 分流**（Grimoire *Weakness*）：**仅 encounter cardtype**（enemy / treachery）走遭遇管线；**player cardtype**（asset / event / skill 等）走调查员 draw + 入手。
@@ -883,45 +906,48 @@ E1  G1 · Draw（内联 collect）
     · 空库 → shuffle_encounter_discard（无 horror）
     · 两堆皆空 → RULES_GAP（OQ-ENC-01）
     · E2 reveal_encounter — G1 子步（Hidden 跳过；非独立 Grimoire 步）
-    ← 以上 = 发起 impact（Would→When 的步骤差）
+    ← 以上 = 抽取步骤的发起 impact（Would→When）
 
-emit ENCOUNTER_CARD_DRAWN · 剩余 impact 按 FrameworkPriority：
-    100  E3 G2 nest Register RESTRICTION（peril）
-     95  [WHEN] Fast / [reaction] When you draw
+emit ENCOUNTER_CARD_DRAWN · 卡牌结算队列按 FrameworkPriority：
+    100  E3 G2 nest Register RESTRICTION（peril · 卡牌结算，先于 When）
+     95  [WHEN] 抽取时 · Fast / [reaction] When you draw
+         [AFTER] 抽取步骤结束（显现 / G4 **尚未**开始）
      90  E4 G3 nest revelation
      80  E5 G4 nest spawn / finalize_limbo_if_still（treachery）→ Unregister peril
 
 **G4 treachery 落点（已裁决）**：**不**单独 `move_card → encounter_discard`；与 `seq.enter_hand` 同原语 — **效果步结束后若仍在 limbo** → `finalize_limbo_discard`（`limbo_discard_pile: encounter_discard`）。Cancel revelation / 无显现后仍 limbo 亦走此路径。G4 仍负责 peril Unregister 与 enemy spawn 分支。
 
-     75  AFTER(card)    # 「After you draw an encounter card」— G4 后、G5 前
+     75  AFTER(card)    # `after_encounter_card_resolved` · 该牌结算完毕 · **不是**「抽取后」
      70  E6 G5 nest Surge（evaluate has_surge → 再抽 E1；同一帧）
 
-E7  无 Surge 且批量完成 → pop 帧 → 外层 AFTER
+E7  无 Surge 且批量完成 → pop 帧 → **信封** AFTER
 ```
 
 **无 enter_hand。** 玩家牌显现仍仅经 `seq.enter_hand`（§16）；遭遇显现 **永不** 复用该 nest。
 
-### 17.3 Would / When / After 的 **准确位置**（同一事件 · 非同一时刻）
+### 17.3 Would / When / After 的 **准确位置**（钉抽取步骤）
 
-三槽挂在同一条 `seq.draw.encounter` 上。Would→When 之间 = G1 发起 impact（pop + reveal），不另开时点。
+三槽钉在 **G1 Draw** 上，不是整段 `seq.draw.encounter` 信封。Would→When 之间 = G1 发起 impact（pop + reveal），不另开时点。
 
 | Slot | 步骤边界 | zone | 牌面（默认） | 说明 |
 |---|---|---|---|---|
 | **WOULD** | **E0 意图后 → G1 pop 前** | **DECK** | HIDDEN_ALL | 「将要抽」；牌仍在遭遇牌库顶 |
 | **WHEN** | **G1 Draw 完成后**（95 档） | **LIMBO** | 非 Hidden：**ALL**；Hidden：尚未公开 | 「抽取时」；已离库、未进场、默认未入手 |
-| **AFTER** | **G4 完成后 → G5 前** | 弃牌堆或在场 | ALL 或已落场 | 每张牌 **独立** AFTER |
+| **AFTER** | **G1 步骤结束**（显现 / G4 **前**） | **LIMBO** | 同上 | 「抽取后」；G3/G4 **尚未**开始 |
+| AFTER(card) | **G4 完成后 → G5 前** | 弃牌堆或在场 | ALL 或已落场 | 「该牌结算完毕」；每张 **独立**；**不是**抽取步骤 After |
+| 信封 After | **E7 pop** | — | — | 整链 Surge + 批量完成后 |
 
-**Mandatory 步 vs 玩家窗**：G2 peril、G3 revelation、G4 spawn/discard 为 **剩余 impact**（nest 结算）；玩家 **[reaction] When draw** 与 Fast 打出在 **95 档 When 槽**（G1 后、G3 前）。G3 显现是独立类剩余 impact，不是 Forced 批。险境 Register 为 100 档，先于 When 槽生效 → 他人 **仍 cannot** play/trigger/commit（与 When 槽 **并存**）。
+**Mandatory 步 vs 玩家窗**：G2 peril、G3 revelation、G4 spawn/discard 为 **卡牌结算队列**（G1 commit 打开）；玩家 **[reaction] When draw** 与 Fast 打出在 **95 档 When 槽**（抽取步骤）。G3 显现是独立类后续步骤，不是 Forced 批，也 **不是**「抽取时」。险境 Register 为 100 档，先于 When 槽生效 → 他人 **仍 cannot** play/trigger/commit（与 When 槽 **并存**）。
 
 **Surge 链**：每一圈 **独立** ENCOUNTER_CARD_DRAWN + priority 队列；`EncounterResolutionFrame` 仅保留 drawer / surge_depth 等 **诊断**，**不** 承载 peril 粘性。
 
-**peril 不跨 Surge（已裁决）**：G5 在 **上一张 G4 完成后**；该张 peril RESTRICTION 已在 priority **80 档结束** 时 Unregister → 下一张 G1 是 **全新** 抽取时点。
+**peril 不跨 Surge（已裁决）**：G5 在 **上一张 G4 完成后**；该张 peril RESTRICTION 已在 priority **80 档结束** 时 Unregister → 下一张 G1 是 **全新** 抽取步骤。
 
 ```text
 [WOULD] …
 G1 Draw → emit ENCOUNTER_CARD_DRAWN
-  priority dequeue: 100 peril → 95 When draw → 90 revelation → 80 spawn|discard（Unregister peril）
-  → 75 AFTER(card)
+  priority dequeue: 100 peril → 95 When 抽取时 → 抽取步骤 After → 90 revelation → 80 spawn|discard（Unregister peril）
+  → 75 AFTER(card) 该牌结算完毕
   → 70 surge? → 下一张 G1 …
 ```
 
@@ -934,8 +960,8 @@ class EncounterDrawPriorityPolicy:
     const PLAYER_WHEN_DRAW := 95
     const REVELATION := 90
     const ENCOUNTER_TYPE_RESOLVE := 80
+    const AFTER_CARD_RESOLVED := 75   # 该牌结算完毕；不是抽取步骤 After
     const SURGE_KEYWORD := 70
-    const AFTER_DRAW_EMIT := 75
 ```
 
 **配置入口**：`RulesConfig.encounter_draw_priority`（与 `enter_hand_timing` 同型占位）。
@@ -948,10 +974,11 @@ class EncounterDrawPriorityPolicy:
 |---|---|---|---|---|
 | E1+E2 | **G1 Draw** | （发起 impact） | L0 collect + reveal | Would 已关；emit ENCOUNTER_CARD_DRAWN |
 | **E3** | **G2 Peril** | **100** | nest Register RESTRICTION | `WHILE_DRAWN_CARD_RESOLVING(card_id)` |
-| — | When draw | **95** | 玩家 [reaction] | 可选 |
-| **E4** | **G3 Revelation** | **90** | nest 显现类 | 非 Forced；When 槽之后 |
+| — | When draw | **95** | 玩家 [reaction] | 「抽取时」 |
+| AFTER（抽取步骤） | G1 | （When 窗后） | 步骤结束 | 显现 / G4 **前**；「抽取后」 |
+| **E4** | **G3 Revelation** | **90** | nest 显现类 | 非 Forced；抽取步骤之后的后续步骤 |
 | **E5 G4** | **G4** | **80** | nest `seq.encounter.spawn` / 内联 treachery discard | enemy：**nest 生成**（无 Spawn→默认；有 Spawn→指令）；treachery：discard；**Unregister peril** |
-| AFTER | — | **75** | emit AFTER(card) | G4 后、Surge 再抽前 |
+| AFTER(card) | — | **75** | emit `after_encounter_card_resolved` | G4 后、Surge 再抽前；**不是**「抽取后」 |
 | **E6** | **G5 Surge** | **70** | evaluate + 再抽 G1 | 新 ENCOUNTER_CARD_DRAWN |
 
 **Hidden treachery**：G1 跳过 E2 公开 reveal → G3 nest revelation（Composition 内秘密 `commit_enter_hand`）→ G4 **跳过** 默认 discard。
@@ -1237,20 +1264,20 @@ func reveal_encounter_step(card_id: StringName, drawer_id: StringName) -> void:
 ```text
 单张牌生命周期（对齐 G1–G5）:
   [WOULD]
-  G1 Draw（E1+E2）→ open WHEN
+  G1 Draw（E1+E2）
   nest G2 peril
-  （When draw [reaction] — 可选，G3 前）
+  [WHEN] 抽取时（G3 前）
+  [AFTER] 抽取步骤结束
   nest G3 revelation
   G4 spawn | discard
-  close WHEN
-  emit AFTER(card)
+  emit AFTER(card) 该牌结算完毕
   nest G5 surge? → 下一圈 G1
 
 效果文本: 「Draw encounter. Then, X」
-  → G4 完成 → Then X → 然后 AFTER(card)（Grimoire Then 优先）
+  → G4 完成 → Then X → 然后 AFTER(card)（Grimoire Then 优先；此处 After = 该牌结算完毕）
 ```
 
-Surge **不**合并多张牌的 AFTER；每张 **独立** AFTER，均在 **G5 再抽 G1 之前**。
+Surge **不**合并多张牌的 AFTER(card)；每张 **独立**「该牌结算完毕」，均在 **G5 再抽 G1 之前**。
 
 ### 17.4.5 涌动（Surge）· 已裁决
 
@@ -1282,10 +1309,11 @@ G5 priority 70:
 **Timing emit（目标，待 TimingCatalog）**：
 
 ```text
-  WOULD  — E0 意图后、G1 pop 前
-  WHEN   — open after G1（E1+E2）；close after G4（E5）
-  AFTER  — per card, after G4, before G5 next G1
-  OUTER AFTER — on seq.draw.encounter pop (E7)
+  WOULD         — E0 意图后、G1 pop 前
+  WHEN          — G1 完成后（95）；开闭都在抽取步骤，**不**包 G3/G4
+  AFTER         — 抽取步骤结束（显现 / G4 前）
+  AFTER(card)   — G4 后、G5 前 · `after_encounter_card_resolved`
+  信封 AFTER    — on seq.draw.encounter pop (E7)
 ```
 
 **与调查员 draw 子 flow 对照**：
@@ -1643,14 +1671,14 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | VIS-02 | 抽牌后仅控制者 `face_known_to` |
 | TIM-01 | draw：WOULD 时 zone=DECK；WHEN 时调查员 HAND / 遭遇 LIMBO |
 | TIM-02 | draw：D2 后 REVEALED；D3 前尚未 HAND |
-| TIM-03 | 有 Revelation 的玩家牌：nest 在 ENTER_HAND（D3），非 draw AFTER 之后 |
-| TIM-04 | draw AFTER 在 D3 内各 Revelation nest pop 之后 |
+| TIM-03 | 有 Revelation 的玩家牌：nest 在 ENTER_HAND（D3），在抽取步骤 AFTER **之后** |
+| TIM-04 | 抽取步骤 AFTER 在物理入手后、显现 nest **前**；信封 AFTER 在 nest pop 之后 |
 | TIM-05 | move：单 brick；无 leave/enter 双 entry |
 | TIM-06 | fight 默认：仅一次 AFTER（merge） |
 | TIM-07 | 能力触发 **不** 断言 zone，只断言 entry + slot + information level |
 | ENC-01 | 遭遇空库洗弃；**无** horror |
 | ENC-02 | Surge：第二圈在 **同一 frame** 内 E1，外层不 pop |
-| ENC-03 | AFTER 在本张 E5 后、Surge 下一 E1 前 |
+| ENC-03 | AFTER(card) 在本张 E5 后、Surge 下一 E1 前（该牌结算完毕，**不是**抽取步骤 After） |
 | ENC-04 | peril per card_id；G4 后 Unregister；Surge 下一张无上一张 peril |
 | ENC-05 | 遭遇 revelation 走 `seq.encounter.revelation`，**非** `seq.enter_hand` |
 | ENC-21 | 遭遇 enemy 走 `seq.encounter.spawn` nest（`phase_trace` 含 `encounter_spawn`） |
@@ -1681,14 +1709,15 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 
 | ID | 问题 | v0 默认 |
 |---|---|---|
-| OQ-TIMING-01 | When you draw 锚点 | **发起 impact 之后**。调查员 zone=**HAND**；遭遇 zone=**LIMBO**（§3.1、§16.3） |
+| OQ-TIMING-01 | When you draw 锚点 | **抽取步骤**发起 impact 之后。调查员 zone=**HAND**；遭遇 zone=**LIMBO**（§3.1、§16.3）。**不**含显现 / G4 |
 | OQ-TIMING-02 | Move leave/enter | **MOVE_ATOMIC**，单 entry |
-| OQ-TIMING-03 | Draw would/when | **SPLIT**：同一事件、前后槽（中间有发起 impact，**非**同一时刻）。Would：pop 前 DECK；When：HAND / LIMBO |
+| OQ-TIMING-03 | Draw would/when/after | **SPLIT**：钉 **抽取步骤** 三槽（中间有发起 impact，**非**同一时刻）。Would：pop 前 DECK；When：HAND / LIMBO；After：步骤结束、显现/G4 前。**不为**原文不细把管线吞进这三槽 |
 | OQ-TIMING-04 | 玩家牌 **Revelation 能力** 于入手时 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按能力判定**，非 weakness 卡类型 |
 | OQ-TIMING-05 | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **待定**；属 **REVELATION** **类内** 自排；`EnterHandTimingPolicy`，默认 `SOURCE_ORDER`。跨类：显现不并入 FORCED，见 06 §8.1.1。 |
-| OQ-TIMING-06 | 遭遇 draw WHEN | **G1 后 95 档**（§17.3）；**不**包 G3/G4；Surge 每圈独立 TC |
-| OQ-TIMING-07 | 遭遇 draw WOULD 锚点 | **G1 pop 前**（发起 impact 前；§17.3）。**不是** E1 bind 后 |
+| OQ-TIMING-06 | 遭遇 draw WHEN | **G1 后 95 档**（§17.3）；**不**包 G3/G4；Surge 每圈独立抽取步骤 |
+| OQ-TIMING-07 | 遭遇 draw WOULD 锚点 | **G1 pop 前**（抽取步骤发起 impact 前；§17.3）。**不是** E1 bind 后 |
 | OQ-TIMING-08 | `amount > 1` encounter draw | **顺序** full resolve（含 Surge 链）再下一张；非 batch reveal |
+| OQ-TIMING-09 | 遭遇 after-draw vs 该牌结算完毕 | **抽取后** = G1 步骤 After。G4 后 75 档 = `after_encounter_card_resolved`。信封 E7 = 管线 pop。三者分钉 |
 | OQ-ENC-01 | 遭遇 deck + discard **皆空** | v0：**RULES_GAP**；非正常 scenario 状态 |
 | OQ-ENC-02 | drawer 无 location 时 `spawn_engaged` | v0：**`discard_spawn_failed`**（同 spawn 失败，[08 §7.4](08-enemy-engagement.md)） |
 | OQ-10-04 | Encounter deck shuffle mid-ability | v0：**collect 立即洗**；嵌套效果内抽空 → **defer 至子树 pop 后**（§17.11）。 |
@@ -1700,7 +1729,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 已有 | 待建 |
 |---|---|
 | `CardFaceVisibility`、`StateMutator` L0 原子 | `TimingCatalog` |
-| `CompositionExecutor` + `DrawInvestigatorComposition` | WOULD/WHEN 在 RESOLVE 砖块边界 emit（SPLIT） |
+| `CompositionExecutor` + `DrawInvestigatorComposition` | WOULD/WHEN/AFTER 钉抽取步骤砖块边界 emit（SPLIT） |
 | `SequenceCatalog` + `SequenceCatalogBootstrap`（draw 子 flow、`seq.enter_hand`、`seq.gain_resource`） | **`seq.draw.encounter` 全家桶**（§17.4） |
 | `ResolutionSequenceStack` push/pop/nest + `SequenceCatalog.nest` / `nest_batch` | `EncounterResolutionFrame` |
 | `DrawInvestigatorService` / `ResourceGainService` 薄 facade → `catalog.run` | `DrawEncounterFlow` / `DrawEncounterComposition` |
@@ -1735,4 +1764,4 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-09-20 | v0.6.5 | **§3/§6/§16.3/§17.3** Would/When 对齐同一 TC；步骤差=发起 impact；WHEN 不再包剩余 impact |
 | 2026-09-20 | v0.6.6 | Would 时 zone=DECK；When 时调查员 HAND、遭遇 LIMBO；Would 在 pop 前 |
 | 2026-09-20 | v0.6.7 | §3：同一事件 ≠ 同一时刻；中间有 impact 是 SPLIT 前后槽 |
-| 2026-09-20 | v0.6.8 | §2/§3：would/when 是同一 `seq.draw.*` 的槽修饰，不是两套抽牌时点 |
+| 2026-09-20 | v0.6.9 | **§2/§3/§16.3/§17.3**：时点钉抽取步骤，不钉信封；抽取后 ≠ G4 该牌结算完毕；不为原文不细买单 |

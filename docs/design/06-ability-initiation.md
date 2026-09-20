@@ -84,7 +84,7 @@ class AbilityHook:
 ```
 
 > **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot)`，见 [15 §2–§3](15-timing-entry-catalog.md)。  
-> would / when / after 修饰 **同一** `sequence_id`（如抽牌只有 `seq.draw.*`）；槽不同 ≠ 另一条命名流程。
+> would / when / after 钉 **同一抽取步骤**（遭遇 G1 / 调查员离库入手）；**不**钉 `seq.draw.*` 信封。槽不同 ≠ 另一条命名流程；信封后续步骤（显现、G4）≠ 「抽取时 / 抽取后」。
 
 | 部分 | 引擎含义 | 参与订阅？ | 参与门槛？ |
 |---|---|---|---|
@@ -383,7 +383,7 @@ enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 
 显现 **不是** 流程上的 Forced，也 **不** 并入 §8.1 同窗口 FORCED 批。`AbilityKind.REVELATION` 与 `SequenceHandler.Tier.REVELATION` 是 **独立优先级类**。
 
-抽牌 **When 打断槽**（Fast 打出 / `[reaction]` When you draw，FrameworkPriority **95** `PLAYER_WHEN_DRAW`）之后，显现作为该次抽取的 **剩余 impact** nest（FrameworkPriority **90** `REVELATION`）：
+抽牌 **When 打断槽**（Fast 打出 / `[reaction]` When you draw，FrameworkPriority **95** `PLAYER_WHEN_DRAW`）之后，显现作为抽牌 **管线后续步骤** nest（FrameworkPriority **90** `REVELATION`），**不是**「抽取时」窗内：
 
 | 入口 | 命名流程 | 档位 |
 |---|---|---|
@@ -409,12 +409,12 @@ enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 
 | 词 | 相对 timing |
 |---|---|
-| would | **发起 impact 前**（PreImpact）；与 when **同一事件、前后槽**（中间有 impact 则非同一时刻） |
-| when | 发起 impact **之后**、剩余 impact **前**；**打断** resolution |
+| would | **该步骤**发起 impact 前（PreImpact） |
+| when | 该步骤发起 impact **之后**；打断的是 **该步骤**尚未完成的剩余（抽取步骤无此类剩余） |
 | at / if | 与 impact **同时** |
-| after | 剩余 impact **之后**、下一步之前 |
+| after | **该步骤结束之后**、下一步之前 |
 
-抽牌 Would→When 的步骤差 = 该 TC 的 **发起 impact**（离库 / 揭示 / 调查员入手），不另开时点。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。中间有 impact **不是**同一时刻。见 [15 §3](15-timing-entry-catalog.md)。
+抽牌三槽钉 **抽取步骤**（遭遇 G1 / 调查员离库+揭示+物理入手），不为魔典写得粗把显现 / G4 算进「抽取时 / 抽取后」。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。**抽取后** = 该步骤 After（显现 / G4 前）。G4 后 75 档是「该牌结算完毕」，另钉。见 [15 §2–§3](15-timing-entry-catalog.md)。
 
 ### 8.4 Then 优先
 
@@ -499,7 +499,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | OQ-06-02 | 打出/发动须 **dry-run**（**L7 终端**）；COLLECT 不批量 dry-run。见 §7.2。 | 2026-05-25 |
 | OQ-06-03 | 多个 [reaction] 同时选用后：**Lead Investigator** 选顺序；选用权在控制者。见 §8.2。 | 2026-05-25 |
 | OQ-IDX-02 | Initiation 各步完整 **EventRecord**，与 Framework 同级。见 §4 pipeline。 | 2026-05-25 |
-| OQ-06-07 | 显现 **不是** 流程 Forced；独立 `REVELATION` 类；When 槽 95 之后剩余 impact 90。见 §8.1.1。 | 2026-09-20 |
+| OQ-06-07 | 显现 **不是** 流程 Forced；独立 `REVELATION` 类；抽取步骤 When 95 之后的后续步骤 90。见 §8.1.1。 | 2026-09-20 |
 
 ---
 
@@ -519,3 +519,4 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.6 | §8.3 Would=DECK；When 调查员 HAND / 遭遇 LIMBO |
 | 2026-09-20 | v0.4.7 | §8.3 中间有 impact 非同一时刻 |
 | 2026-09-20 | v0.4.8 | §4 Hook：would/when 为同一 seq 的槽，不是两套流程 |
+| 2026-09-20 | v0.4.9 | §4/§8.3：时点钉抽取步骤；抽取后 ≠ G4 该牌结算完毕 |

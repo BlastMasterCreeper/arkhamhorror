@@ -146,7 +146,7 @@ Replacement **是** 同时点上的 listener/能力；与 Forced、[reaction] �
 | **Triggered 类内** | 多个 [reaction] 均已选用 | 是（同属 TRIGGERED tier） | 队长选顺序（OQ-06-03） | 选用：控制者；顺序：队长 |
 | **跨类** | Forced vs [reaction] | **否** | FORCED 批 **整类先于** TRIGGERED 批（06 §8.1） | **不可**跨类对调 |
 
-显现（Revelation）**不是** Forced，也不走本表 Forced vs [reaction] 跨类。抽牌 When 槽（Fast / `[reaction]`）先于显现剩余 impact，见 [06 §8.1.1](06-ability-initiation.md)。
+显现（Revelation）**不是** Forced，也不走本表 Forced vs [reaction] 跨类。抽牌 When 槽（Fast / `[reaction]`）先于显现后续步骤，见 [06 §8.1.1](06-ability-initiation.md)。
 
 **Grimoire · Priority of Simultaneous Resolution**（与 Instead **配合**，非替代）：
 
@@ -547,9 +547,10 @@ seq.draw.encounter RUN
   [WOULD]  G1 pop 前
     → [Listener] seq.replace.instead 登记 replacement
     → winning replacement 改写 pop 来源：discard pile top 而非 deck top
-  G1 发起 impact（按改写后的路径 pop + reveal）
-  [WHEN] 95 档
-  剩余 impact（显现 / G4）砖块不变
+  G1 抽取步骤发起 impact（按改写后的路径 pop + reveal）
+  [WHEN] 95 档 · 抽取时
+  [AFTER] 抽取步骤结束
+  管线后续步骤（显现 / G4）砖块不变
 ```
 
 ### 7.0.2 样例对照：Instead 改 revelation（SEQUENCE · 非 Would）
@@ -792,5 +793,5 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 2026-07-05 | v0.6 | **§6.0.1** Ward Cancel 样例；**§7.0.1–§7.0.3** Instead/Would 样例与 Kind 选型 |
 | 2026-07-05 | v0.6.1 | **§6.0.1 / §6.1** Cancel revelation 后 G4 仍 discard（FAQ 不变量） |
 | 2026-09-20 | v0.6.2 | §3.3 显现不走 Forced vs [reaction] 跨类 |
-| 2026-09-20 | v0.6.3 | §7.0.1 Would 槽 = 遭遇 G1 pop 前；与 When 对齐同一 TC |
+| 2026-09-20 | v0.6.4 | §7.0.1：Would/When/After 钉 G1 抽取步骤；G4 后是该牌结算完毕 |
 | 2026-05-25 | v0.4 | OQ-07-02 裁决：TRANSFER_AFFLICTION 独立且不算 heal |
