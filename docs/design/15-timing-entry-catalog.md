@@ -43,7 +43,12 @@ class TimingOffer:
 
 ## 3. 三槽语义：Would / When / After
 
-**已裁决**：**Would / When / After 对齐同一条 TC**（同一 `sequence_id`）。中间若有步骤差，那是该 TC 的 **发起 impact**，**不是** 第二个时点、也不是第二条 `seq.*`。
+**已裁决**：Would / When / After 是 **同一条 TC** 上的三个槽（同一 `sequence_id`、同一事件）。中间若有 impact，**不是**「两个时点叠成同一瞬间」，而是该事件的 **发起 impact** 夹在 Would 与 When **之间**。
+
+| 说法 | 算不算 | 含义 |
+|---|---|---|
+| **同一事件** | **算** | would-draw 与 when-draw 都挂「这一次抽牌」，不另开 `seq.*` |
+| **同一时刻** | **不算** | 中间有可观察 impact 时，两槽有先后；这是 SPLIT，不是 ALIAS |
 
 | Slot | 语义 | 与序列 / pop 的关系 |
 |---|---|---|
@@ -52,11 +57,11 @@ class TimingOffer:
 | **AFTER** | …之后；剩余 impact + nest 完毕 | **bind pop**（遭遇单卡 AFTER 可在 Surge 前） |
 
 ```text
-同一 TC（同一 sequence_id）— 三槽对齐
+同一事件 / 同一 sequence_id（非同一时刻）
 
 [WOULD]  PreImpact（事件尚未发生）
    │
-   ├── 发起 impact（步骤差 · 内联 L0 · 不另开 Would/When）
+   ├── 发起 impact（内联 L0 · 不另开 Would/When）
    │
 [WHEN]   事件已发生；打断剩余 impact
    │
@@ -68,7 +73,7 @@ class TimingOffer:
 **信封已 push ≠ 发起 impact。** 抽牌序列可以已经在栈上；Would 仍是该 **事件** 的 PreImpact，不是「未 push 信封」。
 
 **After** 是唯一与 **本卡结算完成 / 序列 pop** 强绑定的 slot。  
-**Would / When** 的 **精确砖块边界** 写在各 `RuleSequenceDef`；多数 action 可 ALIAS，**draw 必须 SPLIT**（§6、§16）——SPLIT 只说明发起 impact **有可观察分界**，三槽仍对齐同一 TC。
+Would / When 的砖块边界写在各 `RuleSequenceDef`。多数 action **ALIAS**（中间几乎无 impact，印刷可互换）；**draw 必须 SPLIT**（中间有发起 impact，would ≠ when），二者仍是同一事件的前后槽。
 
 ### 3.1 发起 impact vs 剩余 impact（抽牌）
 
@@ -516,9 +521,9 @@ inv.location := to    # leave + enter 一次提交；不拆 leave/enter 两个 e
 
 **要点：**
 
-- 三槽 **始终对齐同一 TC**。ALIAS / SPLIT 只描述发起 impact 是否有分界，**不是** Would 与 When 漂到两条 seq。
-- ALIAS：步骤差 ≈ 空；印刷 would/when 可互换。
-- SPLIT（draw）：步骤差 = 牌面从未知到已知（及调查员物理入手）；Would 在分界前，When 在分界后。
+- **同一事件 ≠ 同一时刻。** Would / When 挂同一 `sequence_id`；中间有 impact 时两槽有先后（SPLIT），没有 impact 时才可互换（ALIAS）。
+- ALIAS：发起 impact 无可观察分界；印刷 would/when 可互换。
+- SPLIT（draw）：发起 impact 有分界（离库 / 揭示 / 入手）；Would 在前、When 在后，**不可**当成同一瞬间。
 - **Cancel/Replace** 绑 **pending 生命周期**（`replaceable_until`），不绑 would/when 字面。
 - 运行时：ALIAS 可用栈默认 WHEN→RESOLVE；SPLIT 的 WOULD/WHEN 在 **RESOLVE 砖块边界** emit（[17 §3.2](17-seq-runtime.md)）。栈顶「整段 RESOLVE 之前的 WHEN」**不能** 代替 draw 的 When 槽。
 
@@ -633,7 +638,7 @@ D5  pop → emit AFTER
 
 ### 16.3 Would / When / After 的 **准确位置**
 
-三槽对齐 `seq.draw.investigator`。Would→When 的步骤差 = 发起 impact（离库 + 揭示 + 物理入手），不另开时点。
+三槽挂在同一条 `seq.draw.investigator` 上（同一事件，**非**同一时刻）。Would→When 之间 = 发起 impact（离库 + 揭示 + 物理入手），不另开时点。
 
 | Slot | 步骤边界 | zone | 控制者牌面 | 说明 |
 |---|---|---|---|---|
@@ -893,9 +898,9 @@ E7  无 Surge 且批量完成 → pop 帧 → 外层 AFTER
 
 **无 enter_hand。** 玩家牌显现仍仅经 `seq.enter_hand`（§16）；遭遇显现 **永不** 复用该 nest。
 
-### 17.3 Would / When / After 的 **准确位置**（对齐同一 TC）
+### 17.3 Would / When / After 的 **准确位置**（同一事件 · 非同一时刻）
 
-三槽对齐 `seq.draw.encounter`。Would→When 的步骤差 = G1 发起 impact（pop + reveal），不另开时点。
+三槽挂在同一条 `seq.draw.encounter` 上。Would→When 之间 = G1 发起 impact（pop + reveal），不另开时点。
 
 | Slot | 步骤边界 | zone | 牌面（默认） | 说明 |
 |---|---|---|---|---|
@@ -1675,7 +1680,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 |---|---|---|
 | OQ-TIMING-01 | When you draw 锚点 | **发起 impact 之后**。调查员 zone=**HAND**；遭遇 zone=**LIMBO**（§3.1、§16.3） |
 | OQ-TIMING-02 | Move leave/enter | **MOVE_ATOMIC**，单 entry |
-| OQ-TIMING-03 | Draw would/when | **SPLIT** 且三槽对齐同一 TC。Would：**pop 前**、zone=**DECK**；When：HAND / LIMBO |
+| OQ-TIMING-03 | Draw would/when | **SPLIT**：同一事件、前后槽（中间有发起 impact，**非**同一时刻）。Would：pop 前 DECK；When：HAND / LIMBO |
 | OQ-TIMING-04 | 玩家牌 **Revelation 能力** 于入手时 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按能力判定**，非 weakness 卡类型 |
 | OQ-TIMING-05 | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **待定**；属 **REVELATION** **类内** 自排；`EnterHandTimingPolicy`，默认 `SOURCE_ORDER`。跨类：显现不并入 FORCED，见 06 §8.1.1。 |
 | OQ-TIMING-06 | 遭遇 draw WHEN | **G1 后 95 档**（§17.3）；**不**包 G3/G4；Surge 每圈独立 TC |
@@ -1726,3 +1731,4 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-09-20 | v0.6.4 | 显现独立优先级类：`REVELATION` 90；不并入 FORCED；When 槽 95 之后剩余 impact |
 | 2026-09-20 | v0.6.5 | **§3/§6/§16.3/§17.3** Would/When 对齐同一 TC；步骤差=发起 impact；WHEN 不再包剩余 impact |
 | 2026-09-20 | v0.6.6 | Would 时 zone=DECK；When 时调查员 HAND、遭遇 LIMBO；Would 在 pop 前 |
+| 2026-09-20 | v0.6.7 | §3：同一事件 ≠ 同一时刻；中间有 impact 是 SPLIT 前后槽 |

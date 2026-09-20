@@ -408,12 +408,12 @@ enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 
 | 词 | 相对 timing |
 |---|---|
-| would | **发起 impact 前**（PreImpact）；与 when **对齐同一 TC** |
+| would | **发起 impact 前**（PreImpact）；与 when **同一事件、前后槽**（中间有 impact 则非同一时刻） |
 | when | 发起 impact **之后**、剩余 impact **前**；**打断** resolution |
 | at / if | 与 impact **同时** |
 | after | 剩余 impact **之后**、下一步之前 |
 
-抽牌 Would→When 的步骤差 = 该 TC 的 **发起 impact**（离库 / 揭示 / 调查员入手），不另开时点。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。见 [15 §3.1](15-timing-entry-catalog.md)。
+抽牌 Would→When 的步骤差 = 该 TC 的 **发起 impact**（离库 / 揭示 / 调查员入手），不另开时点。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。中间有 impact **不是**同一时刻。见 [15 §3](15-timing-entry-catalog.md)。
 
 ### 8.4 Then 优先
 
@@ -516,3 +516,4 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.4 | **§8.1.1** 显现独立类：不并入 FORCED 批；When 槽 95 之后剩余 impact 90 |
 | 2026-09-20 | v0.4.5 | **§8.3** Would/When 对齐同一 TC；步骤差=发起 impact |
 | 2026-09-20 | v0.4.6 | §8.3 Would=DECK；When 调查员 HAND / 遭遇 LIMBO |
+| 2026-09-20 | v0.4.7 | §8.3 中间有 impact 非同一时刻 |

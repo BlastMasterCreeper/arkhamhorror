@@ -161,7 +161,7 @@
 
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
-| **父 Would / When** | 对齐同一 draw TC；SPLIT 在 RESOLVE **砖块边界** emit（15 §3.1） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
+| **父 Would / When** | 同一 draw TC 的前后槽；SPLIT 在 RESOLVE **砖块边界** emit（15 §3） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
 | **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |
