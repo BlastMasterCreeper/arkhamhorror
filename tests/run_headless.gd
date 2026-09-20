@@ -196,6 +196,7 @@ func _initialize() -> void:
 	_run_test("ENT-01 enter_hand revelation take horror", _test_ent_revelation_take_horror)
 	_run_test("ENT-02 enter_hand no revelation", _test_ent_no_revelation)
 	_run_test("ENT-03 enter_hand revelation order and limbo discard", _test_ent_revelation_order)
+	_run_test("TIMING-ZONE-01 would-deck when-hand-or-limbo", _test_draw_when_zones)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -3761,12 +3762,18 @@ func _test_ent_revelation_take_horror() -> bool:
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"rev_take_horror")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := h.ctx.state.registry.get_card(card_id)
+	if before == null or before.zone != AhcEnums.Zone.DECK:
+		return false
 	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
 	var revelations: Array = res.get("revelations", [])
+	var after := h.ctx.state.registry.get_card(card_id)
 	return (
 		res.ok
 		and res.drew
 		and inv.hand.has(card_id)
+		and after != null
+		and after.zone == AhcEnums.Zone.HAND
 		and inv.horror_taken == 1
 		and revelations.size() == 1
 		and revelations[0] == card_id
@@ -3808,6 +3815,24 @@ func _test_ent_revelation_order() -> bool:
 		and revelations[0] == first
 		and revelations[1] == second
 	)
+
+
+func _test_draw_when_zones() -> bool:
+	var h := RuleTestHarness.new(42)
+	var player_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"plain_weakness")
+	var player_card := h.ctx.state.registry.get_card(player_id)
+	if player_card == null or player_card.zone != AhcEnums.Zone.DECK:
+		return false
+	var player_res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	if not player_res.ok or player_card.zone != AhcEnums.Zone.HAND:
+		return false
+	var enc_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"zone_treachery")
+	var enc_card := h.ctx.state.registry.get_card(enc_id)
+	if enc_card == null or enc_card.zone != AhcEnums.Zone.DECK:
+		return false
+	if h.ctx.mutator.pop_encounter_deck_top() != enc_id:
+		return false
+	return enc_card.zone == AhcEnums.Zone.LIMBO
 
 
 func _test_revelation_own_priority_class() -> bool:

@@ -49,7 +49,7 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| T1 | **WOULD** | PreImpact；draw：D1 后 D2 前 / 遭遇 G1 pop 前 |
+| T1 | **WOULD** | PreImpact；牌仍在 **DECK**（pop 前） |
 | T2 | **WHEN** | 发起 impact **之后** 的打断槽（非覆盖剩余 impact 的长区间） |
 | T3 | **AFTER** | pop 时机；子 seq AFTER-B 先于父 AFTER-A |
 | T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)` — **v1 未实现**，暂用手写 emit |
