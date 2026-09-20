@@ -158,7 +158,7 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - 从 deck 顶抽 1；deck 空 → shuffle discard + take 1 horror + draw（同时发生）
 - discard 也空 → defeated + 1 mental trauma
-- **规范抽牌序列**（信息 D2 可见、WHEN=D2–D3、Weakness 显现于入手）：见 **[15-timing-entry-catalog §16](15-timing-entry-catalog.md)**
+- **规范抽牌序列**（信息 D2 可见、When 在发起 impact 后、Weakness 显现于入手后 nest）：见 **[15-timing-entry-catalog §16](15-timing-entry-catalog.md)**
 
 ### 6.2 Resource
 
@@ -308,3 +308,4 @@ class ActionSystem:
 | 2026-05-25 | v0.3 | OQ-03-02 裁决：EnemyAttack 统一攻击效果层 |
 | 2026-05-25 | v0.4 | OQ-03-02 补充：触发 / 时点 / 攻击效果三层结构 |
 | 2026-05-25 | v0.5 | OQ-03-03/04 裁决：Agenda 无地点；一次行动花费 + 一次 AOO |
+| 2026-09-20 | v0.5.1 | §6.1 抽牌 When 锚在发起 impact 之后（15 §16） |

@@ -76,6 +76,8 @@ func is_self_response_blocked(source_id: StringName) -> bool:
 
 
 func run(trigger: TriggeringCondition, resolve_fn: Callable) -> void:
+	# ALIAS 默认：WHEN 在整段 RESOLVE 前。draw SPLIT 的 Would/When 须在
+	# handler 砖块边界另 emit（15 §3.1）；本顺序不能代替。
 	_push_frame(trigger)
 	_run_response_loop(AhcEnums.SequencePhase.WHEN)
 	_run_phase(AhcEnums.SequencePhase.RESOLVE, resolve_fn)

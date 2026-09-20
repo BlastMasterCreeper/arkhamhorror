@@ -509,7 +509,7 @@ class ReplacementTarget:
 
 **译法要点**：
 
-- 卡面含 **would draw** → 订阅 **`seq.draw.encounter` 的 WOULD 槽**（D1 pop 前 · [15 §16.3.1](15-timing-entry-catalog.md)）。
+- 卡面含 **would draw** → 订阅 **`seq.draw.encounter` 的 WOULD 槽**（G1 pop 前 · [15 §17.3](15-timing-entry-catalog.md)）。
 - 替换的是 **「从哪里 pop 遭遇牌」** 这一 **triggering condition 的 resolve 路径**，子 seq 尚未 push → `ReplacementTarget.kind = **WOULD_TRIGGER**`。
 - `replacement` 载荷 = **另一条命名流程**（或带 `source: discard_pile` 参数的 draw 变体），**不是** `EffectRequest` 单 op。
 
@@ -544,10 +544,12 @@ provenance:
 
 ```text
 seq.draw.encounter RUN
-  D1 collect · emit WOULD
+  [WOULD]  G1 pop 前
     → [Listener] seq.replace.instead 登记 replacement
     → winning replacement 改写 pop 来源：discard pile top 而非 deck top
-  D2+ 按改写后的路径继续（reveal / spawn / discard 等砖块不变）
+  G1 发起 impact（按改写后的路径 pop + reveal）
+  [WHEN] 95 档
+  剩余 impact（显现 / G4）砖块不变
 ```
 
 ### 7.0.2 样例对照：Instead 改 revelation（SEQUENCE · 非 Would）
@@ -790,4 +792,5 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 2026-07-05 | v0.6 | **§6.0.1** Ward Cancel 样例；**§7.0.1–§7.0.3** Instead/Would 样例与 Kind 选型 |
 | 2026-07-05 | v0.6.1 | **§6.0.1 / §6.1** Cancel revelation 后 G4 仍 discard（FAQ 不变量） |
 | 2026-09-20 | v0.6.2 | §3.3 显现不走 Forced vs [reaction] 跨类 |
+| 2026-09-20 | v0.6.3 | §7.0.1 Would 槽 = 遭遇 G1 pop 前；与 When 对齐同一 TC |
 | 2026-05-25 | v0.4 | OQ-07-02 裁决：TRANSFER_AFFLICTION 独立且不算 heal |

@@ -1,8 +1,9 @@
 class_name EncounterDrawPriority
 extends RefCounted
 
-## ENCOUNTER_CARD_DRAWN · FrameworkPriority（15 §4.0.5.2）
-## 显现是独立类（非 Forced）：When 打断槽 95 之后，剩余 impact 90。
+## ENCOUNTER_CARD_DRAWN · FrameworkPriority（15 §4.0.5.2 / §3.1）
+## Would（G1 pop 前）与 When（95）对齐同一 TC。
+## 步骤差 = G1 发起 impact；100 险境是更高档剩余 impact；90 显现是 When 之后的剩余 impact。
 
 const PERIL_REGISTER: int = 100
 const PLAYER_WHEN_DRAW: int = 95

@@ -62,13 +62,13 @@
 | OQ-03-03 | [03-action](design/03-action-system.md) | Parley current agenda 是否同地点？ | **否。** Agenda **无地点**；可 Activate 其能力，不适用 Parley 同地点。见 03 §6.10。 |
 | OQ-06-03 | [06-ability](design/06-ability-initiation.md) | 多个 [reaction] 谁选顺序？ | **Lead Investigator**（均已选用后）；选用权在控制者。见 06 §8.2。 |
 | OQ-06-07 | [06-ability](design/06-ability-initiation.md) | 显现是否并入 Forced 优先级类？ | **否。** 独立 `REVELATION` 类；When 槽 95 之后剩余 impact 90。见 06 §8.1.1。 |
-| OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **D2–D3 区间**（§16.3）。 |
+| OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **发起 impact 之后**（调查员：D3 物理入手后、显现 nest 前）。见 15 §16.3。 |
 | OQ-TIMING-02 | [15-timing](design/15-timing-entry-catalog.md) | Move leave/enter | **MOVE_ATOMIC** 单 brick、单 entry。见 15 §5.3。 |
-| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when | **SPLIT**；WOULD=D1 后 D2 前；WHEN=D2–D3。见 15 §16。 |
+| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when | **SPLIT**（发起 impact 有分界）且 **三槽对齐同一 TC**。WOULD=D1 后 D2 前；WHEN=入手后、显现前。见 15 §3.1、§16。 |
 | OQ-TIMING-04 | [15-timing](design/15-timing-entry-catalog.md) | 玩家牌 **Revelation 能力** 于入手时的 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按 `has_revelation` 判定**，与 weakness 子类型无关。见 15 §16.2。 |
 | OQ-TIMING-05 | [15-timing](design/15-timing-entry-catalog.md) | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **设计师待定**；**REVELATION 类内**自排；`EnterHandTimingPolicy`。显现不并入 FORCED，见 06 §8.1.1。 |
-| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN 区间 | **E2–E5**（§17.3）；Surge 每圈独立 WHEN。 |
-| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | **E1 bind 后、E2 前**（§17.3）。 |
+| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN | **G1 后 95 档**（§17.3）；**不**包 G3/G4；Surge 每圈独立 TC。 |
+| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | **G1 pop 前**（发起 impact 前；§17.3）。**不是** E1 bind 后。 |
 | OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **顺序** full resolve（含 Surge 链）再下一张。见 15 §17.2 E6。 |
 | OQ-ENC-01 | [15-timing §17](design/15-timing-entry-catalog.md) | 遭遇 deck + discard 皆空 | v0：**RULES_GAP**。 |
 | OQ-ENC-02 | [08-enemy §7.4](design/08-enemy-engagement.md) | drawer 无 location 时 spawn_engaged | v0：**`discard_spawn_failed`**。 |
@@ -226,3 +226,4 @@
 | 2026-07-06 | v0.5.3 | 新增 OQ-ADB-01～05（ArkhamDB Phase 4 回填） |
 | 2026-05-25 | v0.5.2 | OQ-03-04、OQ-08-01 裁决 |
 | 2026-09-20 | v0.5.6 | OQ-06-07：显现独立类；OQ-TIMING-05 改为 REVELATION 类内 |
+| 2026-09-20 | v0.5.7 | OQ-TIMING-01/03/06/07：Would/When 对齐同一 TC；步骤差=发起 impact |
