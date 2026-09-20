@@ -181,7 +181,7 @@ Grimoire 规范流程
 |---|---|---|
 | **语义** | 同一 WHEN 内的 **then**（流程连续） | 子时点 **触发** 一段 **独立结算** |
 | **TriggeringCondition** | 不新建 | 新建（或 `sequences.nest` 等价 TC） |
-| **典型** | E2 reveal、E5 默认 discard | Register Buff、显现 Forced、spawn、涌动再抽 |
+| **典型** | E2 reveal、E5 默认 discard | Register Buff、显现 nest、spawn、涌动再抽 |
 
 ```text
 内联：  A ──then──► B ──then──► C     （B 无独立子时点锚；同一 WHEN 内连续）
@@ -190,7 +190,7 @@ Grimoire 规范流程
 
 **Register 也是结算**：向 `RegistrationStore` 写入 Buff（G2 Register）与 L0 move、卡面 Composition **同属 resolve**。**Buff 创建可 nest**，触发源是 **遭遇结算子时点**，不必等「有没有玩家响应窗」。
 
-**与旧判据的关系**：「上一步是否触发了 **响应** 时点」是子集；**Forced / Register / 关键词 LISTENER fire** 只要锚在子时点上，均 **nest**。
+**与旧判据的关系**：「上一步是否触发了 **响应** 时点」是子集；**Forced / 显现 / Register / 关键词 LISTENER fire** 只要锚在子时点上，均 **nest**。
 
 **示例（调查员 `seq.draw.investigator`）**：
 
@@ -206,16 +206,16 @@ Grimoire 规范流程
 |---|---|---|
 | E1+E2 Draw | emit timing | G1 → `ENCOUNTER_CARD_DRAWN` |
 | E3 peril | **100** | Register RESTRICTION |
-| E4 显现 | **90** | nest Forced |
+| E4 显现 | **90** | nest 显现类（非 Forced） |
 | E5 enemy / treachery | **80** | spawn 默认/指令 或 discard |
 | AFTER | **75** | emit |
 | E6 Surge | **70** | 再抽 G1 |
 
-**禁止**：为 Grimoire 段落 **proliferate** 平行 `seq.encounter.check_peril` 等 **命名流程**（handler 内 nest + `composition.execute(register)` 即可）；把 **已由子时点触发的 Register/Forced** 压进内联（漏 slot / provenance）。
+**禁止**：为 Grimoire 段落 **proliferate** 平行 `seq.encounter.check_peril` 等 **命名流程**（handler 内 nest + `composition.execute(register)` 即可）；把 **已由子时点触发的 Register/显现** 压进内联（漏 slot / provenance）。
 
 #### 4.0.5.1 险境 / 显现 / 涌动：同锚点、异优先级（已裁决）
 
-三者均订阅 **`ENCOUNTER_CARD_DRAWN`（抽取遭遇牌时）**；Grimoire G2–G5 由 **FrameworkPriority** 排序（§4.0.5.2）。显现 = Forced；险境 = Register RESTRICTION；涌动 = priority 70；**敌人进场（默认 / 指令 Spawn）与 treachery discard = 同档 priority 80**，指令只改 spawn 分支。
+三者均订阅 **`ENCOUNTER_CARD_DRAWN`（抽取遭遇牌时）**；Grimoire G2–G5 由 **FrameworkPriority** 排序（§4.0.5.2）。显现 = **独立类**（非 Forced；When 槽 95 之后剩余 impact 90）；险境 = Register RESTRICTION；涌动 = priority 70；**敌人进场（默认 / 指令 Spawn）与 treachery discard = 同档 priority 80**，指令只改 spawn 分支。
 
 #### 4.0.5.1a 险境 vs 显现（Buff 类型对照 · 保留）
 
@@ -225,12 +225,12 @@ Grimoire 规范流程
 
 | | **险境 E3** | **显现 E4** |
 |---|---|---|
-| **魔典语义** | 只规定结算期间限制 **已生效**（*while resolving*）；**未** 规定 Register 写入时刻 | Forced 能力须 **resolve**（结算）；订在 encounter draw / 入手等 entry |
-| **规则性质** | **帧内不变量**（frame-scoped invariant） | **完整 timing entry**（卡面 Forced / 订阅窗） |
-| **引擎做什么** | nest：**Register RESTRICTION** 结算（peril 检测子时点触发） | nest：Forced Composition 结算 |
+| **魔典语义** | 只规定结算期间限制 **已生效**（*while resolving*）；**未** 规定 Register 写入时刻 | 显现能力须 **resolve**（结算）；订在 encounter draw / 入手等 entry；**不是** Forced |
+| **规则性质** | **帧内不变量**（frame-scoped invariant） | **完整 timing entry**（显现类 / 订阅窗） |
+| **引擎做什么** | nest：**Register RESTRICTION** 结算（peril 检测子时点触发） | nest：显现 Composition 结算 |
 | **能力订阅** | RESTRICTION 供 L4 **查询**；子时点可登记 TimingCatalog | 卡面订 Revelation / encounter draw 等 entry |
 | **结构** | **nest** Register（非独立 `seq.check_peril`） | **nest** `seq.encounter.revelation` |
-| **内联/nest 判据** | **是** — 遭遇结算 **peril 子时点** 触发 Register 结算 | **是** — 显现 **子时点** 触发 Forced 结算 |
+| **内联/nest 判据** | **是** — 遭遇结算 **peril 子时点** 触发 Register 结算 | **是** — 显现 **子时点** 触发显现类结算 |
 
 **Grimoire 读法**：peril 只规定区间内限制 **成立**，未规定 Register 时刻；引擎在 **peril 检测子时点** nest Register 以满足不变量。RESTRICTION **生效**仍靠 L4 查询，不靠 nest 开窗给玩家响应。
 
@@ -240,7 +240,7 @@ resolve_card_body（时间线相近）
                            ──then──► nest E4 revelation（显现子时点 · 结算）
 ```
 
-**勿混淆**：E3 nest 的是 **Register 这段结算**，不是另开 Grimoire 命名 `seq.*`；与 E4 nest 显现 **同型**（子时点 → 独立结算入栈），Buff 类型不同（RESTRICTION vs Forced Composition）。
+**勿混淆**：E3 nest 的是 **Register 这段结算**，不是另开 Grimoire 命名 `seq.*`；与 E4 nest 显现 **同型**（子时点 → 独立结算入栈），Buff 类型不同（RESTRICTION vs 显现 Composition）。
 
 **帧边界（已裁决）**：险境 RESTRICTION **不跨 Surge** — 生命周期 **`WHILE_DRAWN_CARD_RESOLVING(card_id)`**，**G4 完成、G5 Surge 再抽前** Unregister；与魔典 *that peril encounter* / Surge *after resolves* 一致。
 
@@ -254,7 +254,7 @@ resolve_card_body（时间线相近）
 |---|---|---|---|---|
 | **险境 Register** | RESTRICTION | **100** `PERIL_KEYWORD` | G2 | **`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — G4 完 Unregister |
 | 玩家 When draw [reaction] | LISTENER / TRIGGERED | **95** | When 示例 | peril 已生效 |
-| **显现 Forced** | Composition | **90** `REVELATION_FORCED` | G3 | 同 timing |
+| **显现** | Composition | **90** `REVELATION` | G3 | 独立类；When 槽之后的剩余 impact |
 | **G4 类型落点** | L0 Composition | **80** `ENCOUNTER_TYPE_RESOLVE` | G4 | 见下表；**含** 敌人进场 + treachery discard |
 | emit **AFTER(card)** | — | **75** | After draw | G4 后、Surge **前** |
 | **Surge 再抽** | keyword flow | **70** `SURGE_KEYWORD` | G5 | evaluate 印刷 **或** 动态 KEYWORD 标记（**不叠加**）· 见 [§17.4.5](#1745-涌动surge--已裁决) |
@@ -276,7 +276,7 @@ G1 Draw commit → emit ENCOUNTER_CARD_DRAWN
   priority_queue.dequeue_all():
     100 peril Register
     95  player When draw
-    90  revelation Forced
+    90  revelation（独立类 · 剩余 impact）
     80  G4: treachery discard | enemy spawn（instruction 分支在 handler 内）
          → Unregister peril(card_id)
     75  AFTER(card)
@@ -720,21 +720,20 @@ func nest_enter_hand(game_ctx, params):
 
 | 层 | enter_hand 语境 | v0 |
 |---|---|---|
-| **类别优先级** | 显现（Revelation）nest 属 **FORCED 类**；整类先于同窗口 TRIGGERED [reaction] | 引擎 tier；`revelation_forced_sub_tier` 占位 |
-| **同类内顺序** | 多张牌 / 单卡多条显现单元 **均在 FORCED 类内** 的自排 | 默认 `SOURCE_ORDER` + Registry 登记序 |
+| **类别优先级** | 显现 nest 属 **REVELATION 类**（独立类，**不是** FORCED）；When 打断槽（Fast / `[reaction]` When you draw）在 **95**，显现剩余 impact 在 **90** | 引擎类；`SequenceHandler.Tier.REVELATION` |
+| **同类内顺序** | 多张牌 / 单卡多条显现单元 **均在 REVELATION 类内** 的自排 | 默认 `SOURCE_ORDER` + Registry 登记序 |
 
 | 维度 | v0 默认 | 预留（**仅同类内**） |
 |---|---|---|
 | **多张牌同时入手** | `SOURCE_ORDER`：按来源 `card_ids` 顺序 | `CONTROLLER_CHOICE`；`DEFINITION_PRIORITY` |
 | **单卡多条 Revelation 单元** | `CardRegistry` 登记序 | `order_ability_units()` |
-| **显现 vs 其他 enter_hand [reaction]** | **跨类**：FORCED 批整体先于 TRIGGERED | 非玩家自排；见 06 §8.1 |
+| **显现 vs When-draw Fast / [reaction]** | **不同档**：When 槽 95 **先于** 显现 nest 90；**不是** Forced 对 TRIGGERED 的同窗倒置 | 见 06 §8.1.1 |
 
 ```gdscript
 # rules/config/enter_hand_timing_policy.gd
 class EnterHandTimingPolicy:
     enum CardRevelationOrder { SOURCE_ORDER, CONTROLLER_CHOICE, DEFINITION_PRIORITY }
     var card_revelation_order = CardRevelationOrder.SOURCE_ORDER
-    var revelation_forced_sub_tier: int = 100   # ForcedSubTier.REVELATION_FORCED
 
 # RulesConfig
 var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
@@ -873,7 +872,7 @@ E7  无 Surge 且批量完成 → pop 帧 → 外层 AFTER
 | **WHEN** | **G1 Draw 完成后 → G4 完成后** | 非 Hidden：**ALL**（E2 后）；Hidden：drawer 见 E4 | 「When you draw…」；When 词条示例：**G1 后、G3 前**（*before revelation*） |
 | **AFTER** | **G4 完成后 → G5 Surge 再抽 G1 前** | ALL 或已落场 | 每张牌 **独立** AFTER；Surge **不**合并 |
 
-**Mandatory 步 vs 玩家窗**：G2 peril、G3 revelation、G4 spawn/discard 为 **框架强制步**（nest 结算）；玩家 **[reaction] When draw** 在 WHEN 窗内、**G3 nest 之前** initiate（Grimoire *When* p.24 示例）。G2 后 peril RESTRICTION 已生效 → 他人 **仍 cannot** play/trigger/commit（与 When 窗 **并存**）。
+**Mandatory 步 vs 玩家窗**：G2 peril、G3 revelation、G4 spawn/discard 为 **框架强制步**（nest 结算）；玩家 **[reaction] When draw** 与 Fast 打出在 WHEN 窗内、**G3 nest 之前** initiate（Grimoire *When* p.24 示例）。G3 显现是 **独立类剩余 impact**，不是 Forced 批。G2 后 peril RESTRICTION 已生效 → 他人 **仍 cannot** play/trigger/commit（与 When 窗 **并存**）。
 
 **Surge 链**：每一圈 **独立** ENCOUNTER_CARD_DRAWN + priority 队列；`EncounterResolutionFrame` 仅保留 drawer / surge_depth 等 **诊断**，**不** 承载 peril 粘性。
 
@@ -882,7 +881,7 @@ E7  无 Surge 且批量完成 → pop 帧 → 外层 AFTER
 ```text
 [WOULD] …
 G1 Draw → emit ENCOUNTER_CARD_DRAWN
-  priority dequeue: 100 peril → 90 revelation → 80 spawn|discard（Unregister peril）
+  priority dequeue: 100 peril → 95 When draw → 90 revelation → 80 spawn|discard（Unregister peril）
   → 75 AFTER(card)
   → 70 surge? → 下一张 G1 …
 ```
@@ -894,7 +893,7 @@ G1 Draw → emit ENCOUNTER_CARD_DRAWN
 class EncounterDrawPriorityPolicy:
     const PERIL_KEYWORD := 100
     const PLAYER_WHEN_DRAW := 95
-    const REVELATION_FORCED := 90
+    const REVELATION := 90
     const ENCOUNTER_TYPE_RESOLVE := 80
     const SURGE_KEYWORD := 70
     const AFTER_DRAW_EMIT := 75
@@ -911,7 +910,7 @@ class EncounterDrawPriorityPolicy:
 | E1+E2 | **G1 Draw** | （开 timing） | L0 collect + reveal | emit ENCOUNTER_CARD_DRAWN |
 | **E3** | **G2 Peril** | **100** | nest Register RESTRICTION | `WHILE_DRAWN_CARD_RESOLVING(card_id)` |
 | — | When draw | **95** | 玩家 [reaction] | 可选 |
-| **E4** | **G3 Revelation** | **90** | nest Forced | |
+| **E4** | **G3 Revelation** | **90** | nest 显现类 | 非 Forced；When 槽之后 |
 | **E5 G4** | **G4** | **80** | nest `seq.encounter.spawn` / 内联 treachery discard | enemy：**nest 生成**（无 Spawn→默认；有 Spawn→指令）；treachery：discard；**Unregister peril** |
 | AFTER | — | **75** | emit AFTER(card) | G4 后、Surge 再抽前 |
 | **E6** | **G5 Surge** | **70** | evaluate + 再抽 G1 | 新 ENCOUNTER_CARD_DRAWN |
@@ -1647,7 +1646,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | OQ-TIMING-02 | Move leave/enter | **MOVE_ATOMIC**，单 entry |
 | OQ-TIMING-03 | Draw would/when | **SPLIT**；WOULD=D1 后 D2 前；WHEN=D2–D3 |
 | OQ-TIMING-04 | 玩家牌 **Revelation 能力** 于入手时 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按能力判定**，非 weakness 卡类型 |
-| OQ-TIMING-05 | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **待定**；属 FORCED **类内** 自排；`EnterHandTimingPolicy`，默认 `SOURCE_ORDER`。跨类见 06 §8.1。 |
+| OQ-TIMING-05 | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **待定**；属 **REVELATION** **类内** 自排；`EnterHandTimingPolicy`，默认 `SOURCE_ORDER`。跨类：显现不并入 FORCED，见 06 §8.1.1。 |
 | OQ-TIMING-06 | 遭遇 draw WHEN 区间 | **E2–E5**（§17.3）；Surge 每圈独立 WHEN |
 | OQ-TIMING-07 | 遭遇 draw WOULD 锚点 | **E1 bind 后、E2 前**（§17.3） |
 | OQ-TIMING-08 | `amount > 1` encounter draw | **顺序** full resolve（含 Surge 链）再下一张；非 batch reveal |
@@ -1693,3 +1692,4 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-07-06 | v0.6.3 | 链 [06 §3.2](../../docs/design/06-registration-buff-model.md#32-gained-characteristics动态特征--总纲--已裁决) Gained characteristics |
 | 2026-07-06 | v0.6.2 | **§17.4.5** 涌动 KEYWORD 标记 · 不叠加；OQ-ADB-02/03、OQ-10-06 |
 | 2026-06-18 | v0.6.1 | **§17.4.1c** Prey **engage 内核**读参；禁止 nest/LISTENER；对齐 [07 §0.1.2](07-effect-primitives.md) |
+| 2026-09-20 | v0.6.4 | 显现独立优先级类：`REVELATION` 90；不并入 FORCED；When 槽 95 之后剩余 impact |

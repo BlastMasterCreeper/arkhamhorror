@@ -162,7 +162,7 @@ static func _run_priority_queue(
 			"fn": _step_peril_register.bind(ctx),
 		},
 		{
-			"priority": EncounterDrawPriority.REVELATION_FORCED,
+			"priority": EncounterDrawPriority.REVELATION,
 			"fn": _step_revelation.bind(ctx),
 		},
 		{

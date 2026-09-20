@@ -79,7 +79,7 @@ class TriggeringCondition:
 class SequenceHandler:
     var source_id: StringName         # 禁自响应（§9）
     var controller_id: StringName
-    var tier: Tier                    # FORCED | TRIGGERED | …
+    var tier: Tier                    # FORCED | TRIGGERED | REVELATION | …
 ```
 
 ---
@@ -103,8 +103,8 @@ class SequenceHandler:
 
 | 层 | 谁定 | 规则 |
 |---|---|---|
-| **类别优先级** | 引擎 | `AbilityCategoryTier`：FORCED → FRAMEWORK → TRIGGERED → DELAYED → LISTENER |
-| **同类内顺序** | 玩家 / 流程 | 仅 **同一 tier 内**：Forced 批内队长选序；[reaction] 控制者选用；均已选用后队长排 TRIGGERED 批内顺序 |
+| **类别优先级** | 引擎 | `AbilityCategoryTier`：FORCED → FRAMEWORK → TRIGGERED → DELAYED → LISTENER。**显现不在本链**（独立 `REVELATION` 类，06 §8.1.1） |
+| **同类内顺序** | 玩家 / 流程 | 仅 **同一 tier 内**：Forced 批内队长选序；[reaction] 控制者选用；均已选用后队长排 TRIGGERED 批内顺序；显现类内见 `EnterHandTimingPolicy` |
 
 ```text
 1. FORCED      ← 整类 resolve 完
@@ -112,9 +112,11 @@ class SequenceHandler:
 3. TRIGGERED   ← [reaction] 选用 + 类内队长选序
 4. DELAYED
 5. LISTENER    ← AFTER-B
+
+显现（Revelation）← 独立类；抽牌 When 槽之后的剩余 impact nest，不进上列 Forced 批
 ```
 
-**禁止**：用队长选序把 [reaction] 插到 Forced 之前或中间。
+**禁止**：用队长选序把 [reaction] 插到 Forced 之前或中间。**禁止**把显现当成 Forced 以得到假的「Forced 先于 When-draw Fast」跨类序。
 
 ### 5.3 窗口流水线
 
@@ -234,3 +236,4 @@ sequences.end_ability_resolution()
 | 2026-05-25 | v0.3 | Eligibility 分工；链到 15 TimingCatalog |
 | 2026-06-18 | v0.4 | §11 补充 `SequenceCatalog`、draw 子 flow 实现映射 |
 | 2026-06-18 | v0.5 | **§5.2** 链 07 同时点竞争 / replacement |
+| 2026-09-20 | v0.5.1 | §5.2 显现独立类：不进 Forced → Triggered 同窗口批 |

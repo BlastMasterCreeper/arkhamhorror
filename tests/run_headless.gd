@@ -196,6 +196,7 @@ func _initialize() -> void:
 	_run_test("ENT-01 enter_hand revelation take horror", _test_ent_revelation_take_horror)
 	_run_test("ENT-02 enter_hand no revelation", _test_ent_no_revelation)
 	_run_test("ENT-03 enter_hand revelation order and limbo discard", _test_ent_revelation_order)
+	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
 	_run_test("NS-02 after waits for nested child", _test_ns_after_order)
@@ -3807,6 +3808,37 @@ func _test_ent_revelation_order() -> bool:
 		and revelations[0] == first
 		and revelations[1] == second
 	)
+
+
+func _test_revelation_own_priority_class() -> bool:
+	if EncounterDrawPriority.PLAYER_WHEN_DRAW != 95:
+		return false
+	if EncounterDrawPriority.REVELATION != 90:
+		return false
+	if EncounterDrawPriority.PLAYER_WHEN_DRAW <= EncounterDrawPriority.REVELATION:
+		return false
+	if SequenceHandler.Tier.REVELATION == SequenceHandler.Tier.FORCED:
+		return false
+	if int(SequenceHandler.Tier.REVELATION) <= int(SequenceHandler.Tier.TRIGGERED):
+		return false
+	var h := RuleTestHarness.new(42)
+	var order: Array[String] = []
+	h.ctx.sequences.register_handler(
+		SequenceHandler.when_revelation(&"draw_timing", func() -> void: order.append("revelation"))
+	)
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"draw_timing"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: order.append("when_draw")
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.when_forced(&"draw_timing", func() -> void: order.append("forced"))
+	)
+	h.ctx.sequences.run(TriggeringCondition.custom(&"draw_timing", &"inv_1"), func() -> void: pass)
+	var policy := EnterHandTimingPolicy.new()
+	var ordered := policy.order_cards_for_revelation(h.ctx, &"inv_1", [&"a", &"b"])
+	return order == ["forced", "when_draw", "revelation"] and ordered == [&"a", &"b"]
 
 
 func _test_reg_turn_end_tick() -> bool:

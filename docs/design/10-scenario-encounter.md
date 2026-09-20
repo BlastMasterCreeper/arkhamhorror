@@ -40,7 +40,7 @@ seq.draw.encounter
 |---|---|
 | E1+E2 Draw | **G1** 内联 collect + reveal 子步 |
 | E3 Peril | **G2** priority **100** Register RESTRICTION |
-| E4 Revelation | **G3** priority **90** nest Forced |
+| E4 Revelation | **G3** priority **90** nest 显现类（非 Forced） |
 | E5 Treachery | **G4** priority **80** discard |
 | E5 Enemy | **G4** priority **80** · 默认/指令 `spawn_from_encounter_draw` |
 | E6 Surge | **G5** priority **70** evaluate + 再抽 G1 |
@@ -215,3 +215,4 @@ class ScenarioSystem:
 | 2026-06-18 | v0.3.1 | E5 enemy spawn 术语：`spawn_engaged` vs `auto_engage_at_location`（15 §17.4.1 / 08 §7） |
 | 2026-06-18 | v0.3.2 | `resolve_card` 共享子 flow；E5 dispatch / Hidden / Treachery（15 §17.4–12） |
 | 2026-07-06 | v0.3.3 | OQ-10-06 裁决：涌动 KEYWORD 标记 · 不叠加（15 §17.4.5） |
+| 2026-09-20 | v0.3.4 | E4 显现独立类：priority 90 nest 非 Forced |

@@ -80,7 +80,7 @@ class AbilitySpec:
 class AbilityHook:
     var sequence_id: StringName           # RuleSequence / 事件族 id（见 15）
     var slot: TimingSlot                  # WOULD | WHEN | AFTER
-    var tier: AbilityTier                 # FORCED | TRIGGERED | LISTENER
+    var tier: AbilityTier                 # FORCED | TRIGGERED | REVELATION | LISTENER
 ```
 
 > **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot)`，见 [15 §2–§3](15-timing-entry-catalog.md)。
@@ -354,6 +354,7 @@ COLLECT → eligible（按 tier 分组）
   → 再 resolve 整个 FRAMEWORK 类（类内自排）
   → 再 TRIGGERED 类 …
   → 禁止「一条 [reaction] 插进 Forced 批次中间」
+  → 显现（Revelation）**不在本批**：见 §8.1.1
 ```
 
 ### 8.1 类别优先级（跨类 · 引擎固定）
@@ -362,7 +363,7 @@ COLLECT → eligible（按 tier 分组）
 
 | 顺序 | `AbilityCategoryTier` | 典型能力 |
 |---|---|---|
-| 1 | **FORCED** | Forced – when/after/at；显现（Revelation）nest |
+| 1 | **FORCED** | Forced – when/after/at（**不含**显现） |
 | 2 | **FRAMEWORK** | 框架步内嵌 forced / 规则流程 |
 | 3 | **TRIGGERED** | `[reaction]` / `[action]` / `[free]` 触发 |
 | 4 | **DELAYED** | 延时替换、延时监听（timing 匹配时） |
@@ -370,10 +371,25 @@ COLLECT → eligible（按 tier 分组）
 
 ```gdscript
 ## 与 SequenceHandler.Tier 对齐；数值越小越先（整类 batch）。
+## REVELATION 不进入本表同窗口批（§8.1.1）；代码枚举见 SequenceHandler.Tier。
 enum AbilityCategoryTier { FORCED, FRAMEWORK, TRIGGERED, DELAYED, LISTENER }
+enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 ```
 
 > **与 Cannot / Silver Rule / Replacement 分工**：**Cannot** 非竞争、绝对拦截（07 §3.2）。**同时点竞争** 含 **替换竞争**（Instead：最后 initiate，§3.4）与 **能力竞争**（本节 tier + 类内自排）。**Silver Rule** 仅文本无法调和。
+
+#### 8.1.1 显现（Revelation）独立类（已裁决）
+
+显现 **不是** 流程上的 Forced，也 **不** 并入 §8.1 同窗口 FORCED 批。`AbilityKind.REVELATION` 与 `SequenceHandler.Tier.REVELATION` 是 **独立优先级类**。
+
+抽牌 **When 打断槽**（Fast 打出 / `[reaction]` When you draw，FrameworkPriority **95** `PLAYER_WHEN_DRAW`）之后，显现作为该次抽取的 **剩余 impact** nest（FrameworkPriority **90** `REVELATION`）：
+
+| 入口 | 命名流程 | 档位 |
+|---|---|---|
+| 遭遇 G3 | `seq.encounter.revelation` | 90 · 在 When 槽之后 |
+| 玩家 D3 | `seq.enter_hand` 内显现 nest | 入手子时点触发；**非** When 窗 Forced 批 |
+
+**禁止**：把显现收进 When 窗 Forced 批，从而得到「Forced 整类先于 [reaction]」的假跨类序（那会挡 Ward 等 When-draw Fast）。Fast 在 When 槽内是 **打出发起**，不是 TRIGGERED 对 Forced 的全局倒置。
 
 ### 8.2 同类内顺序（仅同 tier · 玩家自排）
 
@@ -386,7 +402,7 @@ enum AbilityCategoryTier { FORCED, FRAMEWORK, TRIGGERED, DELAYED, LISTENER }
 | 多个 **[reaction]** eligible | **控制者**对每条 **选用 / 不选用**（非队长） |
 | 多个 **[reaction]** **均已选用** | **Lead Investigator** 在 **TRIGGERED 类内** 排顺序（OQ-06-03） |
 | 多个 **LISTENER** | 默认注册顺序；若设计师要求可选则另定 |
-| **enter_hand** 多张牌显现（均属 FORCED 类） | `EnterHandTimingPolicy` 管 **类内** 牌序（见 [15 §16.4.1](15-timing-entry-catalog.md)） |
+| **enter_hand** 多张牌显现（均属 **REVELATION 类**） | `EnterHandTimingPolicy` 管 **类内** 牌序（见 [15 §16.4.1](15-timing-entry-catalog.md)） |
 
 ### 8.3 When / At / After
 
@@ -479,6 +495,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | OQ-06-02 | 打出/发动须 **dry-run**（**L7 终端**）；COLLECT 不批量 dry-run。见 §7.2。 | 2026-05-25 |
 | OQ-06-03 | 多个 [reaction] 同时选用后：**Lead Investigator** 选顺序；选用权在控制者。见 §8.2。 | 2026-05-25 |
 | OQ-IDX-02 | Initiation 各步完整 **EventRecord**，与 Framework 同级。见 §4 pipeline。 | 2026-05-25 |
+| OQ-06-07 | 显现 **不是** 流程 Forced；独立 `REVELATION` 类；When 槽 95 之后剩余 impact 90。见 §8.1.1。 | 2026-09-20 |
 
 ---
 
@@ -493,3 +510,4 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-06-18 | v0.4 | **§8** 两层优先级：类别整批 vs 同类内自排 |
 | 2026-06-18 | v0.4.1 | 移除 Replacement→Silver Rule 误链；指向 07 §3.2 Cannot |
 | 2026-06-18 | v0.4.2 | §8 链 07 同时点竞争；§8.2 replacement 类内自动最近 initiate |
+| 2026-09-20 | v0.4.4 | **§8.1.1** 显现独立类：不并入 FORCED 批；When 槽 95 之后剩余 impact 90 |

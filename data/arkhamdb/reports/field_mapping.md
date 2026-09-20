@@ -31,7 +31,7 @@
 
 | 卡面标记 | AbilityKind / 路由 | Initiation? |
 |---|---|---|
-| `<b>Revelation</b>` | REVELATION → `seq.enter_hand` / encounter revelation | 否（Forced 直执） |
+| `<b>Revelation</b>` | REVELATION → `seq.enter_hand` / encounter revelation | 否（显现类直执；**不是** Forced） |
 | `<b>Forced</b>` | FORCED | **否**（自动，不经 Initiation） |
 | `[reaction]` / `[action]` / `[fast]` | TRIGGERED_* | **是**（选用后 Initiation） |
 | `[action]` on asset | `[action]` + AOO | Initiation + action_cost |

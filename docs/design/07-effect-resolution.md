@@ -146,6 +146,8 @@ Replacement **是** 同时点上的 listener/能力；与 Forced、[reaction] �
 | **Triggered 类内** | 多个 [reaction] 均已选用 | 是（同属 TRIGGERED tier） | 队长选顺序（OQ-06-03） | 选用：控制者；顺序：队长 |
 | **跨类** | Forced vs [reaction] | **否** | FORCED 批 **整类先于** TRIGGERED 批（06 §8.1） | **不可**跨类对调 |
 
+显现（Revelation）**不是** Forced，也不走本表 Forced vs [reaction] 跨类。抽牌 When 槽（Fast / `[reaction]`）先于显现剩余 impact，见 [06 §8.1.1](06-ability-initiation.md)。
+
 **Grimoire · Priority of Simultaneous Resolution**（与 Instead **配合**，非替代）：
 
 - 遭遇 Forced **先于** 玩家 Forced initiate/resolve；
@@ -787,4 +789,5 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 2026-06-18 | v0.5 | **§3.2–§3.4** 同时点竞争分型；Replacement=最后 initiate；链 Grimoire Instead + Simultaneous Resolution |
 | 2026-07-05 | v0.6 | **§6.0.1** Ward Cancel 样例；**§7.0.1–§7.0.3** Instead/Would 样例与 Kind 选型 |
 | 2026-07-05 | v0.6.1 | **§6.0.1 / §6.1** Cancel revelation 后 G4 仍 discard（FAQ 不变量） |
+| 2026-09-20 | v0.6.2 | §3.3 显现不走 Forced vs [reaction] 跨类 |
 | 2026-05-25 | v0.4 | OQ-07-02 裁决：TRANSFER_AFFLICTION 独立且不算 heal |
