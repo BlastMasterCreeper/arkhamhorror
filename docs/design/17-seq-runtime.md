@@ -52,7 +52,7 @@
 | T1 | **WOULD** | PreImpact；牌仍在 **DECK**（pop 前） |
 | T2 | **WHEN** | 发起 impact **之后** 的打断槽（非覆盖剩余 impact 的长区间） |
 | T3 | **AFTER** | pop 时机；子 seq AFTER-B 先于父 AFTER-A |
-| T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)` — **v1 未实现**，暂用手写 emit |
+| T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)` — 同一命名流程的槽；**v1 未实现**，暂用手写 emit |
 | T5 | Listener 键 | `after_timing` 与 `RegistrationStore` 订阅一致 |
 
 ### 3.3 RESOLVE 砖块
@@ -288,3 +288,4 @@
 | 2026-06-18 | v0.2 | §4 包含关系四种形态、draw 实例 |
 | 2026-06-18 | v0.1 | 初稿：checklist、已注册 flow、缺口分层、实施顺序 |
 | 2026-09-20 | v0.4.2 | SPLIT Would/When 在 RESOLVE 砖块边界；OQ-SEQ-04 裁决 |
+| 2026-09-20 | v0.4.3 | T4：`(seq, slot)` = 同一命名流程的槽修饰 |

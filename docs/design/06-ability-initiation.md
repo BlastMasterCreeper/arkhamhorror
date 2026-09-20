@@ -83,7 +83,8 @@ class AbilityHook:
     var tier: AbilityTier                 # FORCED | TRIGGERED | REVELATION | LISTENER
 ```
 
-> **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot)`，见 [15 §2–§3](15-timing-entry-catalog.md)。
+> **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot)`，见 [15 §2–§3](15-timing-entry-catalog.md)。  
+> would / when / after 修饰 **同一** `sequence_id`（如抽牌只有 `seq.draw.*`）；槽不同 ≠ 另一条命名流程。
 
 | 部分 | 引擎含义 | 参与订阅？ | 参与门槛？ |
 |---|---|---|---|
@@ -517,3 +518,4 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.5 | **§8.3** Would/When 对齐同一 TC；步骤差=发起 impact |
 | 2026-09-20 | v0.4.6 | §8.3 Would=DECK；When 调查员 HAND / 遭遇 LIMBO |
 | 2026-09-20 | v0.4.7 | §8.3 中间有 impact 非同一时刻 |
+| 2026-09-20 | v0.4.8 | §4 Hook：would/when 为同一 seq 的槽，不是两套流程 |

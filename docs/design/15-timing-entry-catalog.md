@@ -39,11 +39,14 @@ class TimingOffer:
 **订阅键（Eligibility L0）** = `(sequence_id, slot)`。  
 **情景、tags、framework_step** → `ApplicationContext` + Condition（L3），见 [06 §4.1](06-ability-initiation.md)、[06b §12](06-registration-buff-model.md)。
 
+**时点表述（已裁决）**：Grimoire / 卡面用 would、when、after **修饰同一条命名流程**，不是另开一套流程。  
+例：「将要抽取」与「抽取时」都是 `seq.draw.*`；差别只在 **槽**（`WOULD` vs `WHEN`）。读成两个抽牌时点 = 表述不清；引擎只认 `(flow_id, slot)`。
+
 ---
 
 ## 3. 三槽语义：Would / When / After
 
-**已裁决**：Would / When / After 是 **同一条 TC** 上的三个槽（同一 `sequence_id`、同一事件）。中间若有 impact，**不是**「两个时点叠成同一瞬间」，而是该事件的 **发起 impact** 夹在 Would 与 When **之间**。
+**已裁决**：would / when / after 是 **同一命名流程** 上的槽修饰，不是三套流程。抽牌只有 `seq.draw.*`；「将要抽取」=`(seq.draw.*, WOULD)`，「抽取时」=`(seq.draw.*, WHEN)`。槽与槽之间可以夹 **发起 impact**，因此不是同一瞬间，但仍是同一条 `seq.*`。
 
 | 说法 | 算不算 | 含义 |
 |---|---|---|
@@ -1732,3 +1735,4 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-09-20 | v0.6.5 | **§3/§6/§16.3/§17.3** Would/When 对齐同一 TC；步骤差=发起 impact；WHEN 不再包剩余 impact |
 | 2026-09-20 | v0.6.6 | Would 时 zone=DECK；When 时调查员 HAND、遭遇 LIMBO；Would 在 pop 前 |
 | 2026-09-20 | v0.6.7 | §3：同一事件 ≠ 同一时刻；中间有 impact 是 SPLIT 前后槽 |
+| 2026-09-20 | v0.6.8 | §2/§3：would/when 是同一 `seq.draw.*` 的槽修饰，不是两套抽牌时点 |
