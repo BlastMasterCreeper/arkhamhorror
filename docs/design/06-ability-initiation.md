@@ -412,7 +412,7 @@ enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 | would | **该步骤**发起 impact 前（PreImpact） |
 | when | 该步骤发起 impact **之后**；打断的是 **该步骤**尚未完成的剩余（抽取步骤无此类剩余） |
 | at / if | 与 impact **同时** |
-| after | **该次抽取整段结算完毕** 之后、下一步之前 |
+| after | 该次结算 **整段完毕** 之后、下一步之前 |
 
 Would / When 钉 **抽取步骤**（遭遇 G1 / 调查员离库+揭示+物理入手），不为魔典写得粗把显现 / G4 算进「抽取时」。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。**抽取后** = 整段结算完毕（显现 nest / G4），不在步骤边界另开 After。见 [15 §2–§3](15-timing-entry-catalog.md)。
 
