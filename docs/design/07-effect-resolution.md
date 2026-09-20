@@ -549,8 +549,8 @@ seq.draw.encounter RUN
     → winning replacement 改写 pop 来源：discard pile top 而非 deck top
   G1 抽取步骤发起 impact（按改写后的路径 pop + reveal）
   [WHEN] 95 档 · 抽取时
-  [AFTER] 抽取步骤结束
-  管线后续步骤（显现 / G4）砖块不变
+  结算剩余（显现 / G4）
+  [AFTER] 抽取后 · G4 完
 ```
 
 ### 7.0.2 样例对照：Instead 改 revelation（SEQUENCE · 非 Would）
@@ -793,5 +793,5 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 2026-07-05 | v0.6 | **§6.0.1** Ward Cancel 样例；**§7.0.1–§7.0.3** Instead/Would 样例与 Kind 选型 |
 | 2026-07-05 | v0.6.1 | **§6.0.1 / §6.1** Cancel revelation 后 G4 仍 discard（FAQ 不变量） |
 | 2026-09-20 | v0.6.2 | §3.3 显现不走 Forced vs [reaction] 跨类 |
-| 2026-09-20 | v0.6.4 | §7.0.1：Would/When/After 钉 G1 抽取步骤；G4 后是该牌结算完毕 |
+| 2026-09-20 | v0.6.5 | §7.0.1：抽取后 = G4 整段结算完毕；When 仍钉 G1 |
 | 2026-05-25 | v0.4 | OQ-07-02 裁决：TRANSFER_AFFLICTION 独立且不算 heal |

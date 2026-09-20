@@ -84,7 +84,7 @@ class AbilityHook:
 ```
 
 > **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot)`，见 [15 §2–§3](15-timing-entry-catalog.md)。  
-> would / when / after 钉 **同一抽取步骤**（遭遇 G1 / 调查员离库入手）；**不**钉 `seq.draw.*` 信封。槽不同 ≠ 另一条命名流程；信封后续步骤（显现、G4）≠ 「抽取时 / 抽取后」。
+> would / when 钉 **抽取步骤**（遭遇 G1 / 调查员离库入手）。**抽取后** = 该次抽取整段结算完毕，不在步骤边界另开 After。槽不同 ≠ 另一条命名流程；显现 / G4 ≠ 「抽取时」。
 
 | 部分 | 引擎含义 | 参与订阅？ | 参与门槛？ |
 |---|---|---|---|
@@ -412,9 +412,9 @@ enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 | would | **该步骤**发起 impact 前（PreImpact） |
 | when | 该步骤发起 impact **之后**；打断的是 **该步骤**尚未完成的剩余（抽取步骤无此类剩余） |
 | at / if | 与 impact **同时** |
-| after | **该步骤结束之后**、下一步之前 |
+| after | **该次抽取整段结算完毕** 之后、下一步之前 |
 
-抽牌三槽钉 **抽取步骤**（遭遇 G1 / 调查员离库+揭示+物理入手），不为魔典写得粗把显现 / G4 算进「抽取时 / 抽取后」。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。**抽取后** = 该步骤 After（显现 / G4 前）。G4 后 75 档是「该牌结算完毕」，另钉。见 [15 §2–§3](15-timing-entry-catalog.md)。
+Would / When 钉 **抽取步骤**（遭遇 G1 / 调查员离库+揭示+物理入手），不为魔典写得粗把显现 / G4 算进「抽取时」。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。**抽取后** = 整段结算完毕（显现 nest / G4），不在步骤边界另开 After。见 [15 §2–§3](15-timing-entry-catalog.md)。
 
 ### 8.4 Then 优先
 
@@ -519,4 +519,5 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.6 | §8.3 Would=DECK；When 调查员 HAND / 遭遇 LIMBO |
 | 2026-09-20 | v0.4.7 | §8.3 中间有 impact 非同一时刻 |
 | 2026-09-20 | v0.4.8 | §4 Hook：would/when 为同一 seq 的槽，不是两套流程 |
-| 2026-09-20 | v0.4.9 | §4/§8.3：时点钉抽取步骤；抽取后 ≠ G4 该牌结算完毕 |
+| 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
+| 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |

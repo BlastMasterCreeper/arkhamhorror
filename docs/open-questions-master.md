@@ -64,13 +64,13 @@
 | OQ-06-07 | [06-ability](design/06-ability-initiation.md) | 显现是否并入 Forced 优先级类？ | **否。** 独立 `REVELATION` 类；抽取步骤 When 95 之后的后续步骤 90。见 06 §8.1.1。 |
 | OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **抽取步骤**发起 impact 之后。调查员：已在 **HAND**；遭遇：已在 **LIMBO**。**不**含显现 / G4。见 15 §3.1、§16.3。 |
 | OQ-TIMING-02 | [15-timing](design/15-timing-entry-catalog.md) | Move leave/enter | **MOVE_ATOMIC** 单 brick、单 entry。见 15 §5.3。 |
-| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when/after | **SPLIT**：钉 **抽取步骤** 三槽（中间有发起 impact，**非**同一时刻）。Would：pop 前 **DECK**；When：调查员 **HAND** / 遭遇 **LIMBO**；After：步骤结束、显现/G4 前。不为原文不细把管线吞进这三槽。 |
+| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when/after | **SPLIT**：Would / When 钉 **抽取步骤**。Would：pop 前 **DECK**；When：调查员 **HAND** / 遭遇 **LIMBO**。**抽取后** = 该次抽取整段结算完毕（显现 nest / G4），不在步骤边界另开 After。 |
 | OQ-TIMING-04 | [15-timing](design/15-timing-entry-catalog.md) | 玩家牌 **Revelation 能力** 于入手时的 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按 `has_revelation` 判定**，与 weakness 子类型无关。见 15 §16.2。 |
 | OQ-TIMING-05 | [15-timing](design/15-timing-entry-catalog.md) | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **设计师待定**；**REVELATION 类内**自排；`EnterHandTimingPolicy`。显现不并入 FORCED，见 06 §8.1.1。 |
 | OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN | **G1 后 95 档**（§17.3）；**不**包 G3/G4；Surge 每圈独立抽取步骤。 |
 | OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | **G1 pop 前**（抽取步骤发起 impact 前；§17.3）。**不是** E1 bind 后。 |
 | OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **顺序** full resolve（含 Surge 链）再下一张。见 15 §17.2 E6。 |
-| OQ-TIMING-09 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 after-draw vs 该牌结算完毕 | **抽取后** = G1 步骤 After。G4 后 75 档 = `after_encounter_card_resolved`。信封 E7 = 管线 pop。三者分钉。 |
+| OQ-TIMING-09 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 抽取后 | **抽取后** = G4 后 75 档 `after_encounter_card_resolved`。E7 = 批量信封。无步骤边界 After。 |
 | OQ-ENC-01 | [15-timing §17](design/15-timing-entry-catalog.md) | 遭遇 deck + discard 皆空 | v0：**RULES_GAP**。 |
 | OQ-ENC-02 | [08-enemy §7.4](design/08-enemy-engagement.md) | drawer 无 location 时 spawn_engaged | v0：**`discard_spawn_failed`**。 |
 | OQ-PERIL-01 | [04-skill-test §4](design/04-skill-test-engine.md) | drawer confer | **Presentation**；引擎不拦 drawer 行动。 |
@@ -229,4 +229,6 @@
 | 2026-09-20 | v0.5.6 | OQ-06-07：显现独立类；OQ-TIMING-05 改为 REVELATION 类内 |
 | 2026-09-20 | v0.5.7 | OQ-TIMING-01/03/06/07：Would/When 对齐同一 TC；步骤差=发起 impact |
 | 2026-09-20 | v0.5.8 | Would 时 DECK；When 时 HAND / LIMBO |
-| 2026-09-20 | v0.6.0 | OQ-TIMING-01/03/06/07/09：时点钉抽取步骤；抽取后 ≠ 该牌结算完毕 |
+| 2026-09-20 | v0.5.9 | OQ-TIMING-03：SPLIT=同一事件前后槽，非同一时刻 |
+| 2026-09-20 | v0.6.0 | OQ-TIMING-01/03/06/07：抽取时钉抽取步骤 |
+| 2026-09-20 | v0.6.1 | OQ-TIMING-03/09：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
