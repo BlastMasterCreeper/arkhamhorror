@@ -49,10 +49,10 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| T1 | **WOULD** | 该次流程 PreImpact（抽牌：与整次抽取同时点；pop 前牌在 **DECK**） |
-| T2 | **WHEN** | **抽取步骤**发起 impact 之后的打断槽（不覆盖显现 / G4） |
+| T1 | **WOULD** | 该次流程 PreImpact（抽牌转译：这次抽取尚未发生；pop 前牌在 **DECK**） |
+| T2 | **WHEN** | 发起 impact 之后的打断槽（抽牌转译：抽取步骤，不覆盖显现 / G4） |
 | T3 | **AFTER** | 该次流程整段结算完毕（抽牌：抽取后 = 显现 nest / G4 完；不在抽取步骤边界另开 After） |
-| T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)`；抽牌只有 When 钉步骤；**v1 未实现** |
+| T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)`；抽牌按卡面转译钉语义；**v1 未实现** |
 | T5 | Listener 键 | `after_timing` 与 `RegistrationStore` 订阅一致 |
 
 ### 3.3 RESOLVE 砖块
@@ -161,13 +161,13 @@
 
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
-| **父 Would / When** | Would = 这次抽取 PreImpact；When 钉抽取步骤（15 §3） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
+| **父 Would / When** | 卡面 draw 转译：Would = 这次抽取 PreImpact；When = 抽取步骤（15 §3） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
 | **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |
 | **AFTER 顺序** | 子树 pop 后父 AFTER | 部分（stack pop ✅；defer ❌） |
 
-**Invariant**：Eligibility 订阅 **`(sequence_id, slot)`** 时，**子 kind 不继承父** unless 显式 tags。SPLIT 的 When **不**用栈默认「RESOLVE 前 WHEN」代替抽取步骤 When。Would 是这次抽取 PreImpact。抽牌 After 是结算完毕。
+**Invariant**：Eligibility 订阅 **`(sequence_id, slot)`** 时，**子 kind 不继承父** unless 显式 tags。抽牌 When **不**用栈默认「RESOLVE 前 WHEN」代替抽取步骤 When。Would = 这次抽取 PreImpact。After = 结算完毕。
 
 **实例对照表** → [15 §16.3.1](15-timing-entry-catalog.md)（`seq.draw.investigator`）。
 
@@ -215,8 +215,8 @@
 |---|---|
 | **EligibilityPipeline** | L0–L5 COLLECT；与 RegistrationStore 订阅 |
 | **ResponseWindow** | 非 fire-all；接 `PlayerInteractionGate` |
-| **TimingCatalog** | 规范 WOULD/WHEN/AFTER emit（15 §18）；抽牌 WHEN 钉抽取步骤 |
-| **draw SPLIT 槽** | WOULD = 这次抽取 PreImpact；WHEN 钉抽取步骤；AFTER 在整段结算完毕 |
+| **TimingCatalog** | 规范 WOULD/WHEN/AFTER emit（15 §18）；抽牌按卡面转译钉语义 |
+| **draw SPLIT 槽** | WOULD = 这次抽取 PreImpact；WHEN = 抽取步骤；AFTER = 整段结算完毕 |
 | **卡面 → SequenceHandler** | Forced/[reaction] 从 Buff 自动注册，非测试手填 |
 
 ### 6.3 P2 — 丰富度 / 合规
@@ -243,7 +243,7 @@
 1. 框架接线（Upkeep gain/draw → catalog）     ← 证明「回合里 seq 被调用」
 2. seq.draw.encounter 竖切（E1–E5 + peril）   ← 神话阶段可玩
 3. Eligibility + ResponseWindow 最小版       ← 一条 Forced + 一条 [reaction] 走通
-4. draw SPLIT：WHEN 钉抽取步骤；WOULD = 这次抽取 PreImpact  ← 与 15 §3.1 一致
+4. draw SPLIT：卡面 draw 转译 WHEN=抽取步骤、WOULD=这次抽取 PreImpact  ← 与 15 §3.1 一致
 5. Initiation nest stack                     ← 卡面能力不再绕 stack
 6. seq.action.* + RESTRICTION 入口         ← 行动与 cannot 统一
 7. PlayerInteraction 按 16 §5 逐项接        ← 与 W3 并行
@@ -272,7 +272,7 @@
 | OQ-SEQ-01 | v1 是否实现完整 `TimingCatalog` 类型，或 stack 内 hardcode 政策表 |
 | OQ-SEQ-02 | `seq.action.draw` 与 `seq.draw.investigator` 是否同一 RUN + 不同 params/tags |
 | OQ-SEQ-03 | Initiation resolve 一律 `sequences.nest(custom, composition_fn)` 还是统一 `seq.resolve.effect.*` |
-| OQ-SEQ-04 | SPLIT 的 When 由 **seq 政策表在抽取步骤砖块边界 emit**；Would 是这次抽取 PreImpact（与整次抽取同时点）。见 15 §3.1、§6。 |
+| OQ-SEQ-04 | SPLIT 的 When 由 seq 政策表在抽取步骤砖块边界 emit；Would = 这次抽取 PreImpact。见 15 §3.1、§6。 |
 | OQ-SEQ-05 | AFTER **defer**（15 §7 仅 SUBSEQUENCE 无 post brick）实现策略 |
 
 ---
@@ -291,4 +291,5 @@
 | 2026-09-20 | v0.4.3 | T4：`(seq, slot)` = 同一命名流程的槽修饰 |
 | 2026-09-20 | v0.4.4 | T2：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.5 | T3：抽牌 After = 整段抽取结算完毕；抽取时仍只钉步骤 |
-| 2026-09-20 | v0.4.6 | T1：Would 与整次抽取同时点，不必另钉步骤 |
+| 2026-09-20 | v0.4.6 | T1：Would = 这次抽取 PreImpact |
+| 2026-09-20 | v0.4.7 | 抽牌：卡面时点不细、转译钉语义 |

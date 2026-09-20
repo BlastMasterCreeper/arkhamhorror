@@ -1,8 +1,8 @@
 class_name EncounterDrawPriority
 extends RefCounted
 
-## Would = 这次抽取 PreImpact（pop 前 zone=DECK；与整次抽取同时点，不必另钉 G1）。
-## When 钉抽取步骤：95 档，默认 zone=LIMBO。
+## 卡面 draw 转译：Would = 这次抽取 PreImpact（pop 前 zone=DECK）。
+## When = 抽取步骤（95 档，默认 zone=LIMBO）。
 ## AFTER_CARD 75 = 抽取后 = 该次抽取整段结算完毕（after_encounter_card_resolved）。
 ## 100 险境属卡牌结算（先于 When）；90 显现是 When 之后的结算剩余。
 

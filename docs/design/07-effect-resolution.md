@@ -509,7 +509,7 @@ class ReplacementTarget:
 
 **译法要点**：
 
-- 卡面含 **would draw** → 订阅 **`seq.draw.encounter` 的 WOULD 槽**（这次抽取 PreImpact · pop 前 · 与整次抽取同时点 · [15 §17.3](15-timing-entry-catalog.md)）。
+- 卡面含 **would draw** → 转译为 **`seq.draw.encounter` 的 WOULD 槽**（这次抽取 PreImpact · pop 前 · [15 §17.3](15-timing-entry-catalog.md)）。
 - 替换的是 **「从哪里 pop 遭遇牌」** 这一 **triggering condition 的 resolve 路径**，子 seq 尚未 push → `ReplacementTarget.kind = **WOULD_TRIGGER**`。
 - `replacement` 载荷 = **另一条命名流程**（或带 `source: discard_pile` 参数的 draw 变体），**不是** `EffectRequest` 单 op。
 
@@ -544,7 +544,7 @@ provenance:
 
 ```text
 seq.draw.encounter RUN
-  [WOULD]  这次抽取 PreImpact（pop 前 · 与整次抽取同时点）
+  [WOULD]  这次抽取 PreImpact（pop 前）
     → [Listener] seq.replace.instead 登记 replacement
     → winning replacement 改写 pop 来源：discard pile top 而非 deck top
   G1 抽取步骤发起 impact（按改写后的路径 pop + reveal）
@@ -794,5 +794,5 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 2026-07-05 | v0.6.1 | **§6.0.1 / §6.1** Cancel revelation 后 G4 仍 discard（FAQ 不变量） |
 | 2026-09-20 | v0.6.2 | §3.3 显现不走 Forced vs [reaction] 跨类 |
 | 2026-09-20 | v0.6.5 | §7.0.1：抽取后 = G4 整段结算完毕；When 仍钉 G1 |
-| 2026-09-20 | v0.6.6 | §7.0.1：Would 与整次抽取同时点，不必另钉 G1 步骤 |
+| 2026-09-20 | v0.6.7 | §7.0.1：卡面 would-draw 转译为这次抽取 WOULD |
 | 2026-05-25 | v0.4 | OQ-07-02 裁决：TRANSFER_AFFLICTION 独立且不算 heal |
