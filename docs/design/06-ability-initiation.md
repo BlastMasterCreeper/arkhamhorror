@@ -4,7 +4,7 @@
 > **引擎统一模型**：[06-registration-buff-model.md](06-registration-buff-model.md)（Register / Buff / Context）  
 > **规则来源**：Grimoire Ability, Triggered Abilities, Initiation Sequence (p.31)  
 > **符号记法**：[`[reaction]` / `[action]` 等](../reference/arkham-symbol-notation.md)（ArkhamDB 标准）  
-> **状态**：v0.3 · 2026-05-25
+> **状态**：v0.4.13 · 2026-09-21
 
 ---
 
@@ -37,7 +37,7 @@ enum AbilityKind {
 | Free `[free]` | 玩家 | Player Window 或文本指定 |
 | Reaction `[reaction]` | 玩家 | when/at/after 条件 |
 | Action `[action]` | 玩家 | Activate action |
-| Keyword | 引擎 | 规则 shorthand；**③** 编译 REGISTER/LISTENER（险境、涌动、Hunter/Patrol 移动…）；Patrol 括号 = **①** `PatrolTargetSpec`（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)） |
+| Keyword | 引擎 | 规则 shorthand；**③** 编译 REGISTER/LISTENER（险境、涌动、Hunter/Patrol 移动…）；Patrol 括号 = **①** `PatrolTargetSpec`（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)）。**Fast.** 快速 **不是** 本表独立 AbilityKind 消费者：打出走 §4.2 与触发对称的 Initiation |
 | **Spawn – 指令** | — | **非本表** — `CardDefinition.spawn_instruction`；G4 内联读 WHERE（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)、[15 §17.4.1b](15-timing-entry-catalog.md)） |
 | **Prey – 指令** | — | **非本表** — `CardDefinition.prey_instruction`（**①**）；**②** engage / **③** Hunter 等距 handler 内 `PreyResolver`；**不 nest**（[07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)） |
 
@@ -108,6 +108,34 @@ class AbilityHook:
 例：调查员「仅 Upkeep 4.4 框架 gain +1」→ 订阅 `seq.action.gain_resource`, `AFTER`；L3：`framework_step == UPKEEP_4_4` 且 tags 含 `framework`。
 
 详见 [06-registration-buff-model §12](06-registration-buff-model.md)。
+
+### 4.2 打出 ↔ 触发：同一条 Initiation（Fast 对称）
+
+事件和支援是对称设计：
+
+| | 支援（asset） | 事件（event） |
+|---|---|---|
+| 何时生效 | 进场后，其上的 **触发能力** 经 Initiation **发起** | **打出** 时经同一条 Initiation 结算 |
+| 规则把二者收成 | **发起**（initiate triggered ability） | **打出**（play） |
+
+因此 Grimoire 把 **Play** 与 **Initiation Sequence** 收成一条管线，而不是两套「打出引擎 / 触发引擎」。**快速（Fast）** 关键词就是为这套对称而设：改的是 **走哪一档玩家发起**，不是另开 FastPolicy。
+
+| 打出（手牌 asset / event） | 对齐的支援触发 | Initiation 档 | 窗口 / 花费 |
+|---|---|---|---|
+| **无 Fast** | **激活触发能力** `[action]` | 与 Play action / Activate 同档 | 耗 1 action（或文本标明的 action 数）；可引起借机攻击 |
+| **Fast、无时点**（常另有期间限制，如「你的回合」；无时点快速支援同此） | **免费触发能力** `[free]` | 同档 | Player Window（或文本指定的期间内窗口）；**不**耗 Play action；**不**引起借机攻击 |
+| **Fast、有时点**（`Play when/after …`） | **反应触发能力** `[reaction]` | 同档 | 该 when/after 槽内选用；**不**耗 Play action；**不**引起借机攻击 |
+
+「不耗 action / 不引起借机攻击」是 **没走 Play action 那一档** 的后果，不要把快速译成单独的成本 MODIFIER 政策。
+
+**禁止**：
+
+- 把规则书 **Fast.** 关键词与 ArkhamDB 文本 `[fast]` 合并——后者在玩家牌上标记的是 **免费触发**（`[free]` / `register_as:free`），见 [符号记法](../reference/arkham-symbol-notation.md)。
+- 为快速另建 `*FastPolicy` / 第二套打出总线。
+- 把有时点快速事件 Register 成场上 `WHILE_IN_PLAY` LISTENER；打出仍从 **HAND** 发起，结算进 limbo。
+- 把无 Fast 的事件当成免费触发（必须走行动打出，对齐激活触发）。
+
+编译：`has_fast` + 打出指示是否含 when/after → `KeywordProfileTable.play_initiation_kind`；无 Fast 的 Play 与 `[action]` 共用 Initiation 七步。
 
 ---
 
@@ -460,7 +488,8 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 
 ## 11. Play Restrictions 常见类型
 
-- Fast event：指定 window / when 条件
+- **快速** 打出：无时点 → Player Window / 期间限制（对齐 `[free]`）；有时点 → when/after 槽（对齐 `[reaction]`）。见 §4.2。
+- 无 Fast 的 event/asset：仅能用 Play action 打出（对齐 `[action]`）。
 - Asset：slots 可用、unique 不在场
 - Activate：来源合法、exhausted 否（若 cost 含 exhaust）
 - Target 存在且 valid
@@ -522,4 +551,5 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
+| 2026-09-21 | v0.4.13 | **§4.2** 快速：打出与触发对称；无 Fast≈激活、无时点 Fast≈免费、有时点 Fast≈反应 |
 | 2026-09-20 | v0.4.12 | §8.3：卡面时点不细、转译钉语义 |

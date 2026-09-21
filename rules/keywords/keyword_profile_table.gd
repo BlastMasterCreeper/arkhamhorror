@@ -48,6 +48,11 @@ const BUFF_RESTRICTION: StringName = &"RESTRICTION"
 const BUFF_MODIFIER: StringName = &"MODIFIER"
 const BUFF_DOMAIN: StringName = &"DOMAIN"
 const BUFF_DECKBUILDING: StringName = &"DECKBUILDING"
+const BUFF_INITIATION: StringName = &"INITIATION"
+
+const KIND_ACTION: StringName = &"TRIGGERED_ACTION"
+const KIND_FREE: StringName = &"TRIGGERED_FREE"
+const KIND_REACTION: StringName = &"TRIGGERED_REACTION"
 
 
 static func all_profiles() -> Array[KeywordProfile]:
@@ -83,6 +88,14 @@ static func profiles_for_unregister(flow_id: StringName, slot: StringName) -> Ar
 		if profile.unregister_flow_id == flow_id and profile.unregister_slot == slot:
 			matched.append(profile)
 	return matched
+
+
+static func play_initiation_kind(has_fast: bool, has_timing_point: bool) -> StringName:
+	if not has_fast:
+		return KIND_ACTION
+	if has_timing_point:
+		return KIND_REACTION
+	return KIND_FREE
 
 
 static func _all() -> Array[KeywordProfile]:
@@ -163,8 +176,8 @@ static func _all() -> Array[KeywordProfile]:
 		&"unique", BUFF_RESTRICTION,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
-	## MODIFIER · 不 Register LISTENER；Initiation 从手收集
-	profiles.append(_row(&"fast", BUFF_MODIFIER, &"", &"", &"", &"", ZONE_HAND, &""))
+	## 快速 · 打出 Initiation 档（非 LISTENER；勿与 ArkhamDB [fast]=免费触发符号合并）
+	profiles.append(_row(&"fast", BUFF_INITIATION, &"", &"", &"", &"", ZONE_HAND, &""))
 	## L0 / Domain
 	profiles.append(_row(
 		&"uses", BUFF_DOMAIN, &"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, &""

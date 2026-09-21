@@ -13,7 +13,7 @@
 | `[free]` | Free triggered ability；任意 player window |
 | `[reaction]` | Reaction triggered ability；when / after 条件 |
 | `[action]` | Action triggered ability；Activate 行动花费（可重复，如 `[action][action]` = 2 actions） |
-| `[fast]` | **ArkhamDB 文本**：Core 玩家牌用此标记 **Free triggered**（闪电图标）；引擎 `segment.kind=fast` → `register_as:free`。**另**：规则书 Fast **关键词**（快速打出）是独立 keyword，不经本触发分段。 |
+| `[fast]` | **ArkhamDB 文本**：Core 玩家牌用此标记 **免费触发**（闪电图标）；引擎 `segment.kind=fast` → `register_as:free`。**另**：规则书 **Fast.** 关键词（快速打出）走 Initiation 档对称（无 Fast≈激活、无时点≈免费、有时点≈反应），见 [06-ability-initiation §4.2](../design/06-ability-initiation.md#42-打出--触发同一条-initiationfast-对称)；不经本触发分段。 |
 
 **Forced / Revelation** 在规则正文中为 **粗体前缀**（非方括号）：
 

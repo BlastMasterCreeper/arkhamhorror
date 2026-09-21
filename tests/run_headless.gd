@@ -138,6 +138,7 @@ func _initialize() -> void:
 	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
 	_run_test("KW-OCC-03 leave hand unregisters hidden not in-play", _test_kw_occ_leave_hand_scoped)
 	_run_test("KW-OCC-04 peril finalize is not leave play", _test_kw_occ_peril_finalize)
+	_run_test("KW-FAST-01 play initiation kinds", _test_kw_fast_play_initiation_kind)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -2847,9 +2848,11 @@ func _test_kw_occ_profile_table() -> bool:
 	if bonded == null or bonded.armed_zone != KeywordProfileTable.ZONE_SET_ASIDE:
 		return false
 	var fast := KeywordProfileTable.profile_for(&"fast")
-	if fast == null or fast.buff_type != &"MODIFIER":
+	if fast == null or fast.buff_type != KeywordProfileTable.BUFF_INITIATION:
 		return false
 	if fast.register_slot != &"":
+		return false
+	if fast.armed_zone != KeywordProfileTable.ZONE_HAND:
 		return false
 	for profile in KeywordProfileTable.all_profiles():
 		if profile.buff_type != KeywordProfileTable.BUFF_LISTENER:
@@ -2956,6 +2959,23 @@ func _test_kw_occ_peril_finalize() -> bool:
 	store.on_leave_deck(&"starting_missing")
 	store.on_leave_set_aside(&"bonded_missing")
 	return store.count() == 2 and store.has_keyword_buff(&"treachery", &"surge")
+
+
+func _test_kw_fast_play_initiation_kind() -> bool:
+	if KeywordProfileTable.play_initiation_kind(false, false) != KeywordProfileTable.KIND_ACTION:
+		return false
+	if KeywordProfileTable.play_initiation_kind(false, true) != KeywordProfileTable.KIND_ACTION:
+		return false
+	if KeywordProfileTable.play_initiation_kind(true, false) != KeywordProfileTable.KIND_FREE:
+		return false
+	if KeywordProfileTable.play_initiation_kind(true, true) != KeywordProfileTable.KIND_REACTION:
+		return false
+	var fast := KeywordProfileTable.profile_for(&"fast")
+	return (
+		fast != null
+		and fast.buff_type == KeywordProfileTable.BUFF_INITIATION
+		and fast.armed_zone == KeywordProfileTable.ZONE_HAND
+	)
 
 
 func _test_enc_revelation_nest() -> bool:

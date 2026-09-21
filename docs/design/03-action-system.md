@@ -170,7 +170,10 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 - Event：resolve → discard
 - Asset：进 play area；检查 slots，不足则 discard 已有 asset
 - Skill **不可** Play
-- Fast：不耗 action，走 Initiation Pipeline，任意指定 player window
+- **无 Fast**：Play action，对齐激活触发；耗 action，可引起借机攻击
+- **Fast、无时点**：对齐免费触发；Player Window / 期间限制；不耗 Play action，不引起借机攻击
+- **Fast、有时点**：对齐反应触发；when/after 槽打出；不耗 Play action，不引起借机攻击
+- 见 [06-ability-initiation §4.2](06-ability-initiation.md#42-打出--触发同一条-initiationfast-对称)
 
 ### 6.4 Move
 
