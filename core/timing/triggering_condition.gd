@@ -587,6 +587,65 @@ static func effect_unregister(
 	)
 
 
+static func discard_card(
+	controller_id: StringName,
+	card_id: StringName = &"",
+	after_timing: StringName = &"after_discard_card"
+) -> TriggeringCondition:
+	return _effect(
+		&"discard_card",
+		controller_id,
+		[&"effect", &"discard_card"],
+		after_timing,
+		{"card_id": card_id}
+	)
+
+
+static func discard_from_hand(
+	controller_id: StringName,
+	amount: int = 1,
+	mode: StringName = &"random",
+	after_timing: StringName = &"after_discard_from_hand"
+) -> TriggeringCondition:
+	return _effect(
+		&"discard_from_hand",
+		controller_id,
+		[&"effect", &"discard_from_hand"],
+		after_timing,
+		{"amount": amount, "mode": mode}
+	)
+
+
+static func attach_card(
+	controller_id: StringName,
+	card_id: StringName = &"",
+	target: StringName = &"nearest_without_same",
+	after_timing: StringName = &"after_attach"
+) -> TriggeringCondition:
+	return _effect(
+		&"attach",
+		controller_id,
+		[&"effect", &"attach", target],
+		after_timing,
+		{"card_id": card_id, "target": target}
+	)
+
+
+static func deal_damage(
+	controller_id: StringName,
+	amount: int = 1,
+	target: StringName = &"controller",
+	after_timing: StringName = &"after_deal_damage"
+) -> TriggeringCondition:
+	return _effect(
+		&"deal_damage",
+		controller_id,
+		[&"effect", &"deal_damage", target],
+		after_timing,
+		{"amount": amount, "target": target}
+	)
+
+
 static func _effect(
 	kind: StringName,
 	controller_id: StringName,

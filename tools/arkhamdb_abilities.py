@@ -63,7 +63,46 @@ LOSE_OR_ATTACK = re.compile(
 )
 HEAL_SELF = re.compile(r"^Heal (\d+) (damage|horror)\.?$", re.I)
 HEAL_DAMAGE_AND_HORROR = re.compile(
-    r"^Heal (\d+) damage and (\d+) horror(?:\s*\(Limit once per game\))?\s*\.?$",
+    r"^Heal (\d+) damage and (\d+) horror\.?(?:\s*\(Limit once per game\.?\))?\s*\.?$",
+    re.I,
+)
+DISCARD_SOURCE = re.compile(
+    r"^(?:\[action\]:\s*)?Discard ([A-Za-z0-9'!\- ]+?)\.?$",
+    re.I,
+)
+ATTACH_NEAREST_WITHOUT = re.compile(
+    r"^Attach .+ to the nearest location without .+ attached\.?$",
+    re.I,
+)
+ATTACH_YOUR_LOCATION = re.compile(
+    r"^Attach .+ to your location(?:\. Limit 1 per location)?\.?$",
+    re.I,
+)
+TEST_SKILL_FAIL_DAMAGE = re.compile(
+    r"^Test \[(willpower|intellect|combat|agility)\] \((\d+)\)\. "
+    r"If you fail, each investigator at your location takes (\d+) damage\.?$",
+    re.I,
+)
+TEST_SKILL_FAIL_BY_DISCARD_OR_LOSE = re.compile(
+    r"^Test \[(willpower|intellect|combat|agility)\] \((\d+)\)\. "
+    r"For each point you fail by, you must either "
+    r"discard 1 card at random from your hand, or lose 1 resource\.?$",
+    re.I,
+)
+TEST_SKILL_FAIL_BY_ACTION_OR_CLUE = re.compile(
+    r"^Test \[(willpower|intellect|combat|agility)\] \((\d+)\)\. "
+    r"For each point you fail by, you must either "
+    r"lose 1 action or place 1 of your clues on your location\.?$",
+    re.I,
+)
+TEST_SKILL_SUCCEED_DISCARD_SOURCE = re.compile(
+    r"^Test \[(willpower|intellect|combat|agility)\] \((\d+)\)\. "
+    r"If you succeed, discard .+\.?$",
+    re.I,
+)
+TEST_WP_OR_INT_SUCCEED_DISCARD = re.compile(
+    r"^Test \[willpower\] or \[intellect\] \((\d+)\)\. "
+    r"If you succeed, discard .+\.?$",
     re.I,
 )
 TEST_WP_OR_AGI_FAIL_BY = re.compile(
@@ -381,6 +420,136 @@ def compile_heal_damage_and_horror(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_discard_source(body: str) -> dict[str, Any] | None:
+    m = DISCARD_SOURCE.match(body.strip())
+    if not m:
+        return None
+    return {"template": "discard_source"}
+
+
+def compile_attach(body: str) -> dict[str, Any] | None:
+    text = body.strip()
+    if ATTACH_NEAREST_WITHOUT.match(text):
+        return {"template": "attach_nearest_without_same"}
+    if ATTACH_YOUR_LOCATION.match(text):
+        return {"template": "attach_controller_location"}
+    # 显现段常附带 lasting / 附加句；只译首句 Attach（其余标 partial）
+    if text.lower().startswith("attach "):
+        parts = [p.strip() for p in text.split(".") if p.strip()]
+        for end in range(1, min(len(parts), 2) + 1):
+            prefix = ". ".join(parts[:end]) + "."
+            if ATTACH_NEAREST_WITHOUT.match(prefix):
+                return {"template": "attach_nearest_without_same"}
+            if ATTACH_YOUR_LOCATION.match(prefix):
+                return {"template": "attach_controller_location"}
+    return None
+
+
+def compile_test_wp_or_int_succeed_discard(body: str) -> dict[str, Any] | None:
+    m = TEST_WP_OR_INT_SUCCEED_DISCARD.match(body.strip())
+    if not m:
+        return None
+    difficulty = int(m.group(1))
+    st7 = {"on_success": {"template": "discard_source"}}
+    return {
+        "template": "choice_must",
+        "prompt_id": "skill_test:willpower_or_intellect",
+        "options": [
+            {
+                "id": "willpower",
+                "template": "skill_test",
+                "skill": "willpower",
+                "difficulty": difficulty,
+                "st7": dict(st7),
+            },
+            {
+                "id": "intellect",
+                "template": "skill_test",
+                "skill": "intellect",
+                "difficulty": difficulty,
+                "st7": {"on_success": {"template": "discard_source"}},
+            },
+        ],
+    }
+
+
+def compile_test_skill_fail_damage(body: str) -> dict[str, Any] | None:
+    m = TEST_SKILL_FAIL_DAMAGE.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "skill_test",
+        "skill": m.group(1).lower(),
+        "difficulty": int(m.group(2)),
+        "st7": {
+            "on_fail": {
+                "template": "deal_damage",
+                "amount": int(m.group(3)),
+                "target": "each_at_controller_location",
+            },
+        },
+    }
+
+
+def compile_test_fail_by_discard_or_lose(body: str) -> dict[str, Any] | None:
+    m = TEST_SKILL_FAIL_BY_DISCARD_OR_LOSE.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "skill_test",
+        "skill": m.group(1).lower(),
+        "difficulty": int(m.group(2)),
+        "st7": {
+            "on_fail_by_each": {
+                "template": "choice_must",
+                "prompt_id": "fail_by:discard_or_lose_resource",
+                "options": [
+                    {
+                        "id": "discard",
+                        "template": "discard_from_hand",
+                        "amount": 1,
+                        "mode": "random",
+                    },
+                    {"id": "resource", "template": "lose_resources", "amount": 1},
+                ],
+            },
+        },
+    }
+
+
+def compile_test_fail_by_action_or_clue(body: str) -> dict[str, Any] | None:
+    m = TEST_SKILL_FAIL_BY_ACTION_OR_CLUE.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "skill_test",
+        "skill": m.group(1).lower(),
+        "difficulty": int(m.group(2)),
+        "st7": {
+            "on_fail_by_each": {
+                "template": "choice_must",
+                "prompt_id": "fail_by:lose_action_or_clue",
+                "options": [
+                    {"id": "action", "template": "lose_action", "amount": 1},
+                    {"id": "clue", "template": "place_clue_on_location"},
+                ],
+            },
+        },
+    }
+
+
+def compile_test_succeed_discard_source(body: str) -> dict[str, Any] | None:
+    m = TEST_SKILL_SUCCEED_DISCARD_SOURCE.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "skill_test",
+        "skill": m.group(1).lower(),
+        "difficulty": int(m.group(2)),
+        "st7": {"on_success": {"template": "discard_source"}},
+    }
+
+
 def compile_effect_body(body: str) -> dict[str, Any] | None:
     if not body:
         return None
@@ -402,6 +571,27 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     skill_choice = compile_test_wp_or_agi_fail_by(body)
     if skill_choice is not None:
         return skill_choice
+    wp_or_int = compile_test_wp_or_int_succeed_discard(body)
+    if wp_or_int is not None:
+        return wp_or_int
+    fail_dmg = compile_test_skill_fail_damage(body)
+    if fail_dmg is not None:
+        return fail_dmg
+    fail_by_disc = compile_test_fail_by_discard_or_lose(body)
+    if fail_by_disc is not None:
+        return fail_by_disc
+    fail_by_act = compile_test_fail_by_action_or_clue(body)
+    if fail_by_act is not None:
+        return fail_by_act
+    succeed_disc = compile_test_succeed_discard_source(body)
+    if succeed_disc is not None:
+        return succeed_disc
+    attach = compile_attach(body)
+    if attach is not None:
+        return attach
+    discard_src = compile_discard_source(body)
+    if discard_src is not None:
+        return discard_src
     heal_both = compile_heal_damage_and_horror(body)
     if heal_both is not None:
         return heal_both
@@ -472,6 +662,34 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
+    """Compile [action] segment as Action ability（行动能力）."""
+    body = str(segment.get("body", "")).strip()
+    compiled = compile_effect_body(body)
+    if compiled is None:
+        return None
+    # 弱点自弃常为 [action][action]；分段后 body 可能只剩 Discard …
+    action_cost = 1
+    if body.lower().startswith("[action]") or compiled.get("template") == "discard_source":
+        action_cost = 2
+    status = "full"
+    if compiled.get("template") in ("if_else", "seq", "choice_must", "skill_test"):
+        status = "partial"
+    elif "(limit" in body.lower():
+        status = "partial"
+    entry: dict[str, Any] = {
+        "segment_index": segment["index"],
+        "register_as": "action",
+        "ability_id": f"action:{segment['index']}",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": action_cost,
+        "status": status,
+        **compiled,
+    }
+    return entry
+
+
 def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     kind = segment.get("kind", "")
     body = str(segment.get("body", ""))
@@ -482,7 +700,7 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         if compiled is None:
             return None
         status = "full"
-        if compiled.get("template") in ("if_else", "seq", "choice_must"):
+        if compiled.get("template") in ("if_else", "seq", "choice_must", "skill_test"):
             status = "partial"
         elif plain_text(body) != _template_body_preview(compiled):
             status = "partial"
@@ -518,6 +736,8 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         return entry
     if kind == "fast":
         return compile_fast_segment(segment)
+    if kind == "action":
+        return compile_action_segment(segment)
     if kind == "reaction":
         return compile_reaction_segment(segment)
     return None
@@ -573,6 +793,18 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "Place 1 doom on the enemy with no doom on it nearest to …"
     if template == "enter_threat_area":
         return "Put … into play in your threat area."
+    if template == "discard_source":
+        return "Discard …"
+    if template == "discard_from_hand":
+        return "Discard 1 card at random from your hand."
+    if template == "attach_nearest_without_same":
+        return "Attach … to the nearest location without … attached."
+    if template == "attach_controller_location":
+        return "Attach … to your location."
+    if template == "deal_damage":
+        return f"Deal {amount} damage."
+    if template == "skill_test":
+        return "Test …"
     if template == "lead_draw_topmost_encounter_discard_copy":
         return (
             "The lead investigator draws the topmost copy of Fire! "

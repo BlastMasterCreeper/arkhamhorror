@@ -80,10 +80,17 @@ func _initialize() -> void:
 	_run_test("SEQ-EFF-03 lose resources fizzle", _test_seq_eff_lose_resources_fizzle)
 	_run_test("SEQ-EFF-04 nest heal", _test_seq_eff_heal)
 	_run_test("SEQ-EFF-05 nest place doom source", _test_seq_eff_place_doom_source)
+	_run_test("SEQ-EFF-06 nest discard from hand", _test_seq_eff_discard_from_hand)
+	_run_test("SEQ-EFF-07 nest attach controller location", _test_seq_eff_attach_controller_location)
+	_run_test("SEQ-EFF-08 nest deal damage at location", _test_seq_eff_deal_damage_at_location)
 	_run_test("ADB-33 compile 12130 skill choice", _test_adb_compile_12130_skill_choice)
 	_run_test("ADB-34 compile 12164 lose or attack", _test_adb_compile_12164_lose_or_attack)
 	_run_test("ADB-35 compile 12188 place doom source", _test_adb_compile_12188_place_doom)
 	_run_test("ADB-36 compile 12184 lose action", _test_adb_compile_12184_lose_action)
+	_run_test("ADB-37 compile 12128 fail-by discard or resource", _test_adb_compile_12128_fail_by)
+	_run_test("ADB-38 compile 12159 flash flood attach", _test_adb_compile_12159_attach)
+	_run_test("ADB-39 compile 12117 heal damage and horror", _test_adb_compile_12117_heal)
+	_run_test("ADB-40 compile 12102 weakness discard action", _test_adb_compile_12102_discard_action)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -1881,6 +1888,72 @@ func _test_seq_eff_place_doom_source() -> bool:
 	)
 
 
+func _test_seq_eff_discard_from_hand() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.discard_from_hand"):
+		return false
+	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER)
+	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if inv == null or inv.hand.size() != 2:
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.nest_discard_from_hand(&"inv_1", 1, &"random"))
+	return inv.hand.size() == 1 and _sequence_kind_count(h, &"discard_from_hand") > 0
+
+
+func _test_seq_eff_attach_controller_location() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.attach"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_attach_flood", [])
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.zone = AhcEnums.Zone.LIMBO
+	card.controller_id = &"inv_1"
+	h.ctx.state.encounter_deck.erase(card_id)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_attach(card_id, &"inv_1", &"controller_location")
+	)
+	var host := h.ctx.state.registry.get_card(&"test_loc")
+	return (
+		card.zone == AhcEnums.Zone.ATTACHED
+		and host != null
+		and not host.attachments.is_empty()
+		and card.attached_to == host.id
+		and _sequence_kind_count(h, &"attach") > 0
+	)
+
+
+func _test_seq_eff_deal_damage_at_location() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.deal_damage"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv1.location_tag = &"test_loc"
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	if inv2 == null:
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_deal_damage(
+			&"inv_1", 1, &"each_at_controller_location"
+		)
+	)
+	return (
+		inv1.damage_taken == 1
+		and inv2.damage_taken == 1
+		and _sequence_kind_count(h, &"deal_damage") > 0
+	)
+
+
 func _test_adb_compile_12130_skill_choice() -> bool:
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	var compiled := CardRegistry.compiled_abilities(&"12130")
@@ -1933,6 +2006,69 @@ func _test_adb_compile_12184_lose_action() -> bool:
 	return (
 		entry.get("template", "") == "lose_action"
 		and int(entry.get("amount", 0)) == 1
+	)
+
+
+func _test_adb_compile_12128_fail_by() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12128")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	var st7: Dictionary = entry.get("st7", {})
+	var choice: Dictionary = st7.get("on_fail_by_each", {})
+	var options: Variant = choice.get("options", [])
+	return (
+		entry.get("template", "") == "skill_test"
+		and choice.get("template", "") == "choice_must"
+		and options is Array
+		and (options as Array).size() == 2
+		and ((options as Array)[0] as Dictionary).get("template", "") == "discard_from_hand"
+	)
+
+
+func _test_adb_compile_12159_attach() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12159")
+	if compiled.is_empty():
+		return false
+	var rev: Dictionary = compiled[0]
+	return (
+		CardRegistry.has_revelation(&"12159")
+		and rev.get("register_as", "") == "revelation"
+		and rev.get("template", "") == "attach_controller_location"
+	)
+
+
+func _test_adb_compile_12117_heal() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12117")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	var steps: Variant = entry.get("steps", [])
+	return (
+		entry.get("register_as", "") == "action"
+		and entry.get("template", "") == "seq"
+		and steps is Array
+		and (steps as Array).size() == 2
+		and ((steps as Array)[0] as Dictionary).get("template", "") == "heal"
+		and ((steps as Array)[1] as Dictionary).get("kind", "") == "horror"
+	)
+
+
+func _test_adb_compile_12102_discard_action() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var compiled := CardRegistry.compiled_abilities(&"12102")
+	var discard_action: Dictionary = {}
+	for entry in compiled:
+		if entry is Dictionary and (entry as Dictionary).get("template", "") == "discard_source":
+			discard_action = entry as Dictionary
+			break
+	return (
+		not discard_action.is_empty()
+		and discard_action.get("register_as", "") == "action"
+		and int(discard_action.get("action_cost", 0)) == 2
 	)
 
 

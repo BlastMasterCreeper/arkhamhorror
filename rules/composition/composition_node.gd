@@ -483,17 +483,13 @@ static func attach_set_aside_to_host(
 	return n
 
 
-## L0 · limbo treachery 附着到最近且无该 definition 附着的地点（Fire! 显现）。
+## limbo treachery 附着 · nest `seq.effect.attach`。
 static func attach_limbo_to_nearest_location_without(
 	card_id: StringName,
 	drawer_id: StringName,
 	exclude_attachment_definition_id: StringName = &""
 ) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"attach_limbo_to_nearest_location_without"
-	n.card_id = card_id
-	n.inv_id = drawer_id
+	var n := nest_attach(card_id, drawer_id, &"nearest_without_same")
 	n.definition_id = exclude_attachment_definition_id
 	return n
 
@@ -629,6 +625,49 @@ static func nest_effect_register(template: RegistrationTemplate) -> CompositionN
 static func nest_effect_unregister(reg_id: StringName) -> CompositionNode:
 	var n := _nest_leaf(&"nest_effect_unregister", &"seq.effect.unregister")
 	n.pending_id = reg_id
+	return n
+
+
+static func nest_discard_card(card_id: StringName, controller_id: StringName) -> CompositionNode:
+	var n := _nest_leaf(&"nest_discard_card", &"seq.effect.discard_card")
+	n.card_id = card_id
+	n.inv_id = controller_id
+	return n
+
+
+static func nest_discard_from_hand(
+	controller_id: StringName,
+	amount: int = 1,
+	mode: StringName = &"random"
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_discard_from_hand", &"seq.effect.discard_from_hand")
+	n.inv_id = controller_id
+	n.marker_delta = maxi(amount, 1)
+	n.location_target = mode
+	return n
+
+
+static func nest_attach(
+	card_id: StringName,
+	controller_id: StringName,
+	target: StringName = &"nearest_without_same"
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_attach", &"seq.effect.attach")
+	n.card_id = card_id
+	n.inv_id = controller_id
+	n.location_target = target
+	return n
+
+
+static func nest_deal_damage(
+	controller_id: StringName,
+	amount: int = 1,
+	target: StringName = &"controller"
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_deal_damage", &"seq.effect.deal_damage")
+	n.inv_id = controller_id
+	n.marker_delta = maxi(amount, 1)
+	n.location_target = target
 	return n
 
 

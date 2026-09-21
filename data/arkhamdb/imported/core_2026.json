@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 17,
+      "compiled_total": 21,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -17,10 +17,12 @@
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
+        "skill_test": 1,
         "gain_resources": 4,
         "seq": 1,
         "place_doom_on_source": 1,
-        "take_horror": 1
+        "take_horror": 1,
+        "discard_source": 3
       }
     }
   },
@@ -561,6 +563,23 @@
         "ability_id": "revelation:0",
         "status": "partial",
         "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "willpower",
+        "difficulty": 5,
+        "st7": {
+          "on_success": {
+            "template": "discard_source"
+          }
+        }
       }
     ]
   },
@@ -2875,6 +2894,16 @@
         "template": "take_horror",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -2944,6 +2973,16 @@
         "template": "take_damage",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -3012,6 +3051,16 @@
         "template": "take_damage",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   }

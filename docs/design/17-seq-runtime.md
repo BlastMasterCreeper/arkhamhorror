@@ -1,7 +1,7 @@
 # 17 — 命名流程运行时 (seq.* Runtime)
 
 > **依赖**：[14-nested-sequences.md](14-nested-sequences.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[06-ability-initiation.md](06-ability-initiation.md)、[16-player-interaction.md](16-player-interaction.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4.19 · 2026-09-21 — 铸造 seq.effect.take_horror / register / place_doom 等
+> **状态**：v0.4.20 · 2026-09-21 — 铸造 seq.effect.discard_* / attach / deal_damage
 
 ---
 
@@ -208,6 +208,10 @@
 | `seq.effect.place_clue` | 把调查员线索放到地点 | 检定 fail-by 等 |
 | `seq.effect.register` | **创建 Buff / Registration** | 卡面 lasting、gains surge、Cannot；参数 = template |
 | `seq.effect.unregister` | 卸 Buff | 与创建对称；不是 `on_card_leave_play` 那种管线注销场合 |
+| `seq.effect.discard_card` | 弃置指定牌（手牌 / 威胁区 / 遭遇） | 弱点自弃、成功弃附着 |
+| `seq.effect.discard_from_hand` | 弃手牌（`amount` / `mode=random|pick`） | fail-by 二选一 |
+| `seq.effect.attach` | limbo 附着地点（最近无同名 / 本地点） | Fire! / Flash Flood / Arcane Lock 显现 |
+| `seq.effect.deal_damage` | 对调查员或敌人造成伤害（`target` 参数） | 地点范围 fail 伤害 |
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 
@@ -295,6 +299,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.20 | §5：落地 `seq.effect.discard_card` / `discard_from_hand` / `attach` / `deal_damage`（A1） |
 | 2026-09-21 | v0.4.19 | §5：落地 `seq.effect.take_horror/damage/heal/lose_* /place_doom/place_clue/register/unregister` |
 | 2026-09-21 | v0.4.18 | §5：Buff 创建/注销 = `seq.effect.register` / `unregister` |
 | 2026-09-21 | v0.4.17 | §5：`seq.effect.*` 覆盖纸面无名的可解释效果；种类铸造、禁止 `seq.card…` |

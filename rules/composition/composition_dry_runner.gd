@@ -278,15 +278,25 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return ScenarioCompositionAtoms.dry_attach_set_aside_to_host(
 				sim, node.definition_id, node.card_id, node.atom_count
 			)
-		&"attach_limbo_to_nearest_location_without":
+		&"attach_limbo_to_nearest_location_without", &"nest_attach":
 			var exclude := node.definition_id
 			if exclude == &"" and node.card_id != &"":
 				var c := sim.state.registry.get_card(node.card_id) if sim.state != null else null
 				if c != null:
 					exclude = c.id.definition_id
+			if node.location_target == &"controller_location":
+				var att_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+				return att_inv != null and att_inv.location_tag != &""
 			return EncounterAttachment.dry_attach_limbo_to_nearest_location_without(
 				sim, _resolve_sim_inv(node, sim), exclude
 			)
+		&"nest_discard_card":
+			return sim.state.registry.get_card(node.card_id) != null
+		&"nest_discard_from_hand":
+			var disc_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			return disc_inv != null and not disc_inv.hand.is_empty()
+		&"nest_deal_damage":
+			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
 		&"discard_set_aside_to_encounter_discard":
 			return ScenarioCompositionAtoms.dry_discard_set_aside_to_encounter_discard(
 				sim, node.definition_id, node.atom_count

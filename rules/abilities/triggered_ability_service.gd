@@ -63,6 +63,21 @@ func list_free_abilities(controller_id: StringName) -> Array[TriggeredAbilityDes
 	return out
 
 
+func list_action_abilities(controller_id: StringName) -> Array[TriggeredAbilityDescriptor]:
+	var out: Array[TriggeredAbilityDescriptor] = []
+	for desc in _descriptors:
+		if desc == null:
+			continue
+		if desc.ability_kind != TriggeredAbilityDescriptor.AbilityKind.ACTION:
+			continue
+		if desc.controller_id != controller_id:
+			continue
+		if not is_action_eligible(desc):
+			continue
+		out.append(desc)
+	return out
+
+
 func is_free_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
 	if descriptor == null or _ctx == null or _ctx.framework == null or _ctx.state == null:
 		return false
@@ -73,14 +88,37 @@ func is_free_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
 	var window: AhcEnums.PlayerWindow = _ctx.framework.pending_player_window
 	if not _window_allows(descriptor, window):
 		return false
-	if descriptor.source_id != &"":
-		var card := _ctx.state.registry.get_card(descriptor.source_id)
-		if card == null:
-			return false
-		if card.zone != AhcEnums.Zone.PLAY_AREA and card.zone != AhcEnums.Zone.THREAT_AREA:
-			return false
-		if card.exhausted:
-			return false
+	return _source_playable(descriptor)
+
+
+func is_action_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or _ctx == null or _ctx.framework == null or _ctx.state == null:
+		return false
+	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.ACTION:
+		return false
+	if not _ctx.framework.waiting_player_window:
+		return false
+	var window: AhcEnums.PlayerWindow = _ctx.framework.pending_player_window
+	if not _is_investigation_player_window(window):
+		return false
+	if _ctx.state.active_investigator_id != descriptor.controller_id:
+		return false
+	var inv := _ctx.state.registry.get_investigator(descriptor.controller_id)
+	if inv == null or inv.actions_remaining < maxi(descriptor.action_cost, 1):
+		return false
+	return _source_playable(descriptor)
+
+
+func _source_playable(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor.source_id == &"":
+		return true
+	var card := _ctx.state.registry.get_card(descriptor.source_id)
+	if card == null:
+		return false
+	if card.zone != AhcEnums.Zone.PLAY_AREA and card.zone != AhcEnums.Zone.THREAT_AREA:
+		return false
+	if card.exhausted:
+		return false
 	return true
 
 
@@ -92,6 +130,19 @@ func activate_free(ability_id: StringName) -> Dictionary:
 	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
 		return {"ok": false, "error": "not_free"}
 	if not is_free_eligible(descriptor):
+		return {"ok": false, "error": "not_eligible"}
+	if descriptor.composition == null:
+		return {"ok": false, "error": "invalid_intent"}
+	return _resolve_via_initiation(descriptor)
+
+
+func activate_action(ability_id: StringName) -> Dictionary:
+	var descriptor := _find_by_id(ability_id)
+	if descriptor == null:
+		return {"ok": false, "error": "unknown_ability"}
+	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.ACTION:
+		return {"ok": false, "error": "not_action"}
+	if not is_action_eligible(descriptor):
 		return {"ok": false, "error": "not_eligible"}
 	if descriptor.composition == null:
 		return {"ok": false, "error": "invalid_intent"}

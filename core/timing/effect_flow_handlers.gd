@@ -170,6 +170,132 @@ static func unregister_buff(game_ctx: GameContext, params: Dictionary) -> Dictio
 	return {"ok": true, "reg_id": reg_id}
 
 
+static func discard_card(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	var card_id: StringName = params.get("card_id", &"")
+	var inv_id := _controller_id(game_ctx, params)
+	if game_ctx == null or card_id == &"":
+		return {"ok": false, "error": "invalid_params"}
+	var card := game_ctx.state.registry.get_card(card_id) if game_ctx.state != null else null
+	if card == null:
+		return {"ok": false, "error": "unknown_card"}
+	var ok := false
+	if card.owner_id == &"encounter":
+		ok = EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
+			game_ctx, card_id, inv_id if inv_id != &"" else card.controller_id
+		)
+	elif game_ctx.mutator != null:
+		ok = game_ctx.mutator.discard_from_hand(card_id, inv_id)
+		if not ok:
+			ok = game_ctx.mutator.move_card(card_id, CardSlot.discard_top(inv_id))
+	if ok and game_ctx.triggered_abilities != null:
+		game_ctx.triggered_abilities.uninstall_by_source(card_id)
+	_log(game_ctx, "effect:discard_card", {"card": card_id, "inv": inv_id})
+	return {"ok": ok, "card_id": card_id}
+
+
+static func discard_from_hand(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	var inv_id := _controller_id(game_ctx, params)
+	var amount := maxi(int(params.get("amount", 1)), 1)
+	var mode := StringName(str(params.get("mode", "random")))
+	if game_ctx == null or game_ctx.mutator == null or inv_id == &"":
+		return {"ok": false, "amount": 0}
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null or inv.hand.is_empty():
+		return {"ok": false, "amount": 0, "inv_id": inv_id}
+	var discarded: Array[StringName] = []
+	var n := mini(amount, inv.hand.size())
+	for _i in n:
+		var pick: StringName = &""
+		if mode == &"random":
+			pick = inv.hand[randi() % inv.hand.size()] as StringName
+		elif game_ctx.interaction != null:
+			var chosen: Variant = game_ctx.interaction.ask_pick_target(
+				inv.hand.duplicate(), inv_id, &"pick:discard_from_hand", game_ctx
+			)
+			if chosen != null:
+				pick = chosen as StringName
+		if pick == &"" and not inv.hand.is_empty():
+			pick = inv.hand[0] as StringName
+		if pick == &"":
+			break
+		if game_ctx.mutator.discard_from_hand(pick, inv_id):
+			discarded.append(pick)
+	_log(
+		game_ctx,
+		"effect:discard_from_hand",
+		{"inv": inv_id, "amount": discarded.size(), "mode": mode}
+	)
+	return {"ok": not discarded.is_empty(), "amount": discarded.size(), "cards": discarded}
+
+
+static func attach(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	var card_id: StringName = params.get("card_id", &"")
+	var inv_id := _controller_id(game_ctx, params)
+	var target := StringName(str(params.get("target", "nearest_without_same")))
+	if game_ctx == null or card_id == &"":
+		return {"ok": false}
+	var ok := false
+	match target:
+		&"controller_location":
+			var inv := game_ctx.state.registry.get_investigator(inv_id)
+			if inv != null and inv.location_tag != &"":
+				ok = EncounterAttachment.attach_limbo_to_location(
+					game_ctx, card_id, inv.location_tag
+				)
+		_:
+			ok = EncounterAttachment.attach_limbo_to_nearest_location_without(
+				game_ctx, card_id, inv_id
+			)
+	_log(game_ctx, "effect:attach", {"card": card_id, "target": target, "ok": ok})
+	return {"ok": ok, "card_id": card_id, "target": target}
+
+
+static func deal_damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	var amount := maxi(int(params.get("amount", 1)), 1)
+	var target := StringName(str(params.get("target", "controller")))
+	var inv_id := _controller_id(game_ctx, params)
+	if game_ctx == null or game_ctx.mutator == null:
+		return {"ok": false, "amount": 0}
+	var dealt := 0
+	match target:
+		&"each_at_controller_location":
+			var origin := game_ctx.state.registry.get_investigator(inv_id)
+			if origin == null or origin.location_tag == &"":
+				return {"ok": false, "amount": 0}
+			for other_id in game_ctx.state.registry.all_investigator_ids():
+				var other := game_ctx.state.registry.get_investigator(other_id)
+				if other == null or other.eliminated or other.resigned:
+					continue
+				if other.location_tag != origin.location_tag:
+					continue
+				game_ctx.mutator.adjust_marker(
+					MarkerSlot.investigator(other_id, AhcEnums.MarkerKind.DAMAGE),
+					amount
+				)
+				dealt += amount
+		&"enemy":
+			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+			var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+			if enemy == null:
+				return {"ok": false, "amount": 0}
+			enemy.damage += amount
+			dealt = amount
+		_:
+			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
+				return {"ok": false, "amount": 0}
+			game_ctx.mutator.adjust_marker(
+				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
+				amount
+			)
+			dealt = amount
+	_log(
+		game_ctx,
+		"effect:deal_damage",
+		{"target": target, "amount": dealt, "inv": inv_id}
+	)
+	return {"ok": dealt > 0, "amount": dealt, "target": target}
+
+
 static func _controller_id(game_ctx: GameContext, params: Dictionary) -> StringName:
 	var inv_id: StringName = params.get(
 		"controller_id", params.get("inv_id", params.get("drawer_id", &""))

@@ -223,6 +223,49 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.unregister_buff(game_ctx, params)
 	)
+	catalog.register_run(
+		&"seq.effect.discard_card",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.discard_card(
+				params.get("controller_id", &"") as StringName,
+				params.get("card_id", &"") as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.discard_card(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.discard_from_hand",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.discard_from_hand(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				int(params.get("amount", 1)),
+				StringName(str(params.get("mode", "random")))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.discard_from_hand(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.attach",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.attach_card(
+				params.get("controller_id", &"") as StringName,
+				params.get("card_id", &"") as StringName,
+				StringName(str(params.get("target", "nearest_without_same")))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.attach(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.deal_damage",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.deal_damage(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				int(params.get("amount", 1)),
+				StringName(str(params.get("target", "controller")))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.deal_damage(game_ctx, params)
+	)
 
 
 static func _register_enemy_flows(catalog: SequenceCatalog) -> void:

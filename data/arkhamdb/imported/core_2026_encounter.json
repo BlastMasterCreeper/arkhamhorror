@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 18,
+      "compiled_total": 32,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -16,13 +16,17 @@
       },
       "by_template": {
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "choice_must": 2,
+        "seq": 4,
+        "choice_must": 3,
         "enter_threat_area": 3,
         "take_horror": 2,
+        "discard_source": 5,
         "if_else": 1,
+        "skill_test": 4,
+        "attach_nearest_without_same": 1,
         "take_damage": 1,
         "gain_resources": 2,
-        "seq": 3,
+        "attach_controller_location": 2,
         "lose_action": 1,
         "place_doom_on_source": 1,
         "place_doom_nearest_to_source": 1
@@ -482,6 +486,30 @@
         "body": "Heal 1 damage and 1 horror. (Limit once per game.)",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "status": "partial",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "heal",
+            "kind": "damage",
+            "amount": 1
+          },
+          {
+            "template": "heal",
+            "kind": "horror",
+            "amount": 1
+          }
+        ]
+      }
     ]
   },
   "12118": {
@@ -851,6 +879,16 @@
         "match_kind": "discover_clue",
         "phase": "AFTER",
         "timing": "after_discover_clue"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -998,6 +1036,36 @@
         "body": "Test [willpower] (3). For each point you fail by, you must either discard 1 card at random from your hand, or lose 1 resource.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "willpower",
+        "difficulty": 3,
+        "st7": {
+          "on_fail_by_each": {
+            "template": "choice_must",
+            "prompt_id": "fail_by:discard_or_lose_resource",
+            "options": [
+              {
+                "id": "discard",
+                "template": "discard_from_hand",
+                "amount": 1,
+                "mode": "random"
+              },
+              {
+                "id": "resource",
+                "template": "lose_resources",
+                "amount": 1
+              }
+            ]
+          }
+        }
+      }
     ]
   },
   "12129": {
@@ -1045,6 +1113,32 @@
         "kind": "action",
         "body": "Test [agility] (3). If you succeed, discard Fire!",
         "index": 2
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "attach_nearest_without_same"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "agility",
+        "difficulty": 3,
+        "st7": {
+          "on_success": {
+            "template": "discard_source"
+          }
+        }
       }
     ]
   },
@@ -1387,6 +1481,16 @@
         "template": "take_damage",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -2204,6 +2308,50 @@
         "body": "Test [willpower] or [intellect] (4). If you succeed, discard Arcane Lock.",
         "index": 1
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "attach_controller_location"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "action",
+        "ability_id": "action:1",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "status": "partial",
+        "template": "choice_must",
+        "prompt_id": "skill_test:willpower_or_intellect",
+        "options": [
+          {
+            "id": "willpower",
+            "template": "skill_test",
+            "skill": "willpower",
+            "difficulty": 4,
+            "st7": {
+              "on_success": {
+                "template": "discard_source"
+              }
+            }
+          },
+          {
+            "id": "intellect",
+            "template": "skill_test",
+            "skill": "intellect",
+            "difficulty": 4,
+            "st7": {
+              "on_success": {
+                "template": "discard_source"
+              }
+            }
+          }
+        ]
+      }
     ]
   },
   "12158": {
@@ -2238,6 +2386,34 @@
         "kind": "revelation",
         "body": "Test [agility] (3). For each point you fail by, you must either lose 1 action or place 1 of your clues on your location.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "agility",
+        "difficulty": 3,
+        "st7": {
+          "on_fail_by_each": {
+            "template": "choice_must",
+            "prompt_id": "fail_by:lose_action_or_clue",
+            "options": [
+              {
+                "id": "action",
+                "template": "lose_action",
+                "amount": 1
+              },
+              {
+                "id": "clue",
+                "template": "place_clue_on_location"
+              }
+            ]
+          }
+        }
       }
     ]
   },
@@ -2280,6 +2456,24 @@
         "body": "Discard Flash Flood.",
         "trigger": "When the round ends",
         "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "attach_controller_location"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When the round ends",
+        "template": "discard_source"
       }
     ]
   },
@@ -2589,6 +2783,24 @@
         "kind": "revelation",
         "body": "Test [agility] (3). If you fail, each investigator at your location takes 1 damage.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "agility",
+        "difficulty": 3,
+        "st7": {
+          "on_fail": {
+            "template": "deal_damage",
+            "amount": 1,
+            "target": "each_at_controller_location"
+          }
+        }
       }
     ]
   },
@@ -3293,6 +3505,17 @@
         "trigger": "After you enter this location",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "After you enter this location",
+        "template": "discard_source"
+      }
     ]
   },
   "12184": {
@@ -3761,6 +3984,16 @@
         "ability_id": "revelation:0",
         "status": "partial",
         "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },

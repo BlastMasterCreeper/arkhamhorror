@@ -344,6 +344,12 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_effect_register(node)
 		&"nest_effect_unregister":
 			return _execute_nest_effect_unregister(node)
+		&"nest_discard_card":
+			return _execute_nest_discard_card(node)
+		&"nest_discard_from_hand":
+			return _execute_nest_discard_from_hand(node)
+		&"nest_deal_damage":
+			return _execute_nest_deal_damage(node)
 		&"discard_all_enemies_in_play":
 			return ScenarioCompositionAtoms.discard_all_enemies_in_play(_game_ctx)
 		&"put_locations_into_play":
@@ -358,13 +364,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return ScenarioCompositionAtoms.attach_set_aside_to_host(
 				_game_ctx, node.definition_id, node.card_id, node.atom_count
 			)
-		&"attach_limbo_to_nearest_location_without":
-			return EncounterAttachment.attach_limbo_to_nearest_location_without(
-				_game_ctx,
-				node.card_id,
-				_resolve_inv(node),
-				node.definition_id
-			)
+		&"attach_limbo_to_nearest_location_without", &"nest_attach":
+			return _execute_nest_attach(node)
 		&"discard_set_aside_to_encounter_discard":
 			return ScenarioCompositionAtoms.discard_set_aside_to_encounter_discard(
 				_game_ctx, node.definition_id, node.atom_count
@@ -817,6 +818,65 @@ func _execute_nest_effect_unregister(node: CompositionNode) -> bool:
 		_nest_or_direct(
 			&"seq.effect.unregister",
 			{"reg_id": node.pending_id, "controller_id": _resolve_inv(node)}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_discard_card(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.discard_card",
+			{"controller_id": inv_id, "card_id": node.card_id}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_discard_from_hand(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var mode := node.location_target if node.location_target != &"" else &"random"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.discard_from_hand",
+			{
+				"controller_id": inv_id,
+				"amount": maxi(node.marker_delta, 1),
+				"mode": mode,
+			}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_attach(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var target := node.location_target if node.location_target != &"" else &"nearest_without_same"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.attach",
+			{
+				"controller_id": inv_id,
+				"card_id": node.card_id,
+				"target": target,
+			}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_deal_damage(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var target := node.location_target if node.location_target != &"" else &"controller"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.deal_damage",
+			{
+				"controller_id": inv_id,
+				"amount": maxi(node.marker_delta, 1),
+				"target": target,
+				"enemy_id": node.enemy_ref_id,
+				"card_id": node.card_id,
+			}
 		).get("ok", false)
 	)
 

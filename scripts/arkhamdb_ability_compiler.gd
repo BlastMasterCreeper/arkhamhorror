@@ -62,6 +62,28 @@ static func build_composition(
 				StringName(str(params.get("kind", "damage"))),
 				int(params.get("amount", 1))
 			)
+		"discard_source":
+			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
+		"discard_from_hand":
+			return CompositionNode.nest_discard_from_hand(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				StringName(str(params.get("mode", "random")))
+			)
+		"attach_nearest_without_same":
+			return CompositionNode.nest_attach(
+				bind.card_id, bind.controller_id, &"nearest_without_same"
+			)
+		"attach_controller_location":
+			return CompositionNode.nest_attach(
+				bind.card_id, bind.controller_id, &"controller_location"
+			)
+		"deal_damage":
+			return CompositionNode.nest_deal_damage(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				StringName(str(params.get("target", "controller")))
+			)
 		"enter_threat_area":
 			return CompositionNode.enter_threat_area(bind.card_id, bind.controller_id)
 		"grant_surge":
@@ -270,13 +292,13 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 	if register_as == "revelation":
 		CardRegistry.register_revelation(definition_id, ability_id, builder)
 		return true
-	if register_as == "free":
+	if register_as == "free" or register_as == "action":
 		CardRegistry.register_triggered(
 			definition_id,
 			ability_id,
 			&"",
 			AhcEnums.SequencePhase.AFTER,
-			&"free",
+			StringName(register_as),
 			builder,
 			int(entry.get("resource_cost", 0)),
 			int(entry.get("action_cost", 0)),
@@ -328,6 +350,7 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"target",
 		"enemy",
 		"kind",
+		"mode",
 		"may_advance_agenda",
 		"definition_id",
 		"match_kind",
