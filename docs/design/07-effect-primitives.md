@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.9 · 2026-09-21 — Fast 改打出形式；种类仍是 PLAY_CARD
+> **状态**：v0.3.10 · 2026-09-21 — L2 宏 → seq.effect.*（纸面可无名）
 
 ---
 
@@ -192,7 +192,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 |---|---|---|---|
 | **L0** | Domain / `StateMutator` | 执行 **状态原语**；维护区域不变量 | `move_card`, `reveal_to_controller`, `transfer_marker` |
 | **L1** | Composition | 状态原语 + Register 组合（Seq / Choice…） | Then draw + horror |
-| **L2** | Semantics / Wrapper | 规则书语义；生成 L1 树；插入 Assign 等中间步骤 | DealDamage, PlayCard, RevealLocation |
+| **L2** | Semantics / Wrapper | 规则书语义；编译为 nest `seq.effect.*` / 已有 seq（纸面可无名） | DealDamage → `seq.effect.deal_damage`；PlayCard 仍是 Initiation |
 
 ```
 CardScript / YAML  →  L2 Wrapper/Macro  →  L1 CompositionTree  →  L0 Atoms  →  GameStateStore
@@ -619,6 +619,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.3.10 | §3：L2 宏展开为 `seq.effect.*`（纸面无名也铸造）；07-composition §1.3.3 |
 | 2026-09-21 | v0.3.9 | Fast 只改打出窗口/花费；种类始终 `PLAY_CARD`，不是能力 |
 | 2026-09-21 | v0.3.8 | Fast 打出与触发对称；不新增 BuffType |
 | 2026-09-21 | v0.3.7 | 链 06 §3.2.6：注册绑已有 seq 砖 / zone 变迁，禁止独立场合节点 |

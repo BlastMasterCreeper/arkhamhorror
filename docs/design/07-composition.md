@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9 · 2026-09-21 — 静态树：编译 / 装载 / 栈上解释
+> **状态**：v0.9.1 · 2026-09-21 — 可解释效果必须有 seq（纸面可无名）
 
 ---
 
@@ -146,7 +146,8 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 |---|---|
 | **禁止裸 execute** | 收 17 I2：Initiation / LISTENER 开火时，先确保有父 seq 帧，再 `execute` |
 | **节点完备** | 已有 Seq / Atom / Register / If / Choice / Repeat / ForEach。补 Simultaneous、Interrupt、Replace 为一等节点（或稳定 nest `seq.interrupt.*` / `seq.replace.instead`） |
-| **nest 是节点** | 「抽牌 / 检定 / 生成」不要长期靠 atom 名字符串分流；树里就是 nest 已有 `flow_id` |
+| **nest 是节点** | 凡可解释效果都指向 Catalog 里的 `flow_id`（含纸面无名的 `seq.effect.*`）；不要靠 atom 名字符串当效果落地 |
+| **铸造无名效果** | 见 §1.3.3：种类级 `seq.effect.*`，参数化 amount/目标；禁止 `seq.card…` |
 | **dry-run 同源** | L7 与真实解释同一套 kind；Then 真实结算顺序、dry-run 仍 OR |
 | **装载 API** | 框架：`load(spec) → bind hook + 把树交给该 seq 的 EFFECT 砖` |
 
@@ -159,7 +160,7 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 | When / After / Revelation / 打出窗口 | `hook`：`(sequence_id, slot)` + tier；打出另标 `play_form` |
 | If / While 情景 | `Condition` + `if_kind` / `evaluate` |
 | 费用 | `costs[]` |
-| Then / 同时 / 选择 / 造成伤害 / 注册 | `effect` 树（template 嵌套：`seq` / `if_else` / `choice_must` / nest 已有 seq） |
+| Then / 同时 / 选择 / 造成伤害 / 注册 | `effect` 树：控制流 + `nest: seq.effect.*`（或已有抽牌/检定 seq） |
 | 点名抽牌、检定、Cancel | effect 节点 `nest: seq.*`，不新开卡面 seq |
 
 现状：遭遇包约 90 段能力、14 段编出树（`core_2026_encounter.json` 摘要）；其余仍是 segment。工作流 B 的目标是扩大 **规范化覆盖**（复用已有 template / condition），不是另写运行时脚本。
@@ -187,6 +188,51 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 ```
 
 装载后这棵树只在 `seq.encounter.revelation` 的 RESOLVE 里被解释。
+
+#### 1.3.3 Catalog 必须覆盖一切可解释效果（纸面可以无名）
+
+难点：命名流程是 **解释器唯一能「当真效果」去跑的单位**。纸面没有章节名，不代表引擎可以不命名。
+
+「Take 1 horror」「Place 1 doom」在 Grimoire 里往往只是效果句，没有「Take Horror Sequence」。但它们 **能被解释**，而且会被「after you take horror」这类 hook 听到。因此 Catalog 里必须有对应的 `seq.*`，由引擎 **发明稳定 id**。
+
+| 纸面 | 引擎命名 | 不是 |
+|---|---|---|
+| Draw / Skill Test / Fight action | 沿用规则书手续名：`seq.draw.*`、`seq.skill_test.*`、`seq.action.fight` | — |
+| 无名但可独立解释的效果句 | **铸造** `seq.effect.*`（或已有 `seq.gain_resource`） | 真空跑 Atom |
+| 某张卡独有的整段故事 | 仍是 Composition 树，去 **组合** 上表条目 | `seq.card.12160` |
+| Then / If / Choice | 树的控制流，**不是** 效果，不铸造 seq | 把 Then 做成 `seq.then` |
+
+已有先例：`seq.effect.discover_clue`、`seq.gain_resource` — 纸面未必叫这个名字，引擎已经当命名流程压栈。
+
+**铸造判据（mint）**
+
+给一个 **效果种类** 登记 `seq.*`，当它同时满足：
+
+1. 解释器要把它当成一次可 CREATED 的效果跑完；
+2. 可能被 Would / When / After 订阅，或会在多张卡/多条手续里复用。
+
+用 **参数** 区分次数与目标（`amount`、`bearer`），不要为「造成 1 恐惧」和「造成 2 恐惧」开两条 seq。
+
+**不铸造**
+
+- 某张卡的段落（12160 整段仍是树：nest 放毁灭 + If + nest 涌动）。
+- 控制流节点本身。
+- seq 内部的 L0 碎步（`seq.effect.take_horror` 的 handler 里 `AdjustMarker` 仍内联，不升格成 `seq.atom.adjust`）。
+
+```text
+可解释效果  ⊂  Catalog 里的 seq.*
+              ├─ 纸面有名：seq.draw / seq.skill_test / seq.action…
+              └─ 纸面无名：seq.effect.take_horror / place_doom / heal / …
+                             （名字是引擎的，订阅键仍是 (flow_id, slot)）
+
+Composition 树  =  控制流 +「去装载哪几条 seq、带什么参数」
+解释器跑效果   =  nest/run 那条 seq（本帧只解释树，不私自当效果写 Domain）
+```
+
+工作流 A 补 Catalog + 让解释器 **只通过 seq 落地效果**。  
+工作流 B 把自然语言效果句 **规范到已有或待铸造的 `flow_id`**，而不是编成裸 atom 名。
+
+框架 1.3 `seq.mythos.place_doom` 与卡面「在最近敌人上放 1 毁灭」是 **两种** 手续（议程 vs 效果），不要合成一条。
 
 ---
 
@@ -500,6 +546,7 @@ Listener 触发   →  同上：父 seq 帧内解释 listener 上的静态树
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.9.1 | **§1.3.3** Catalog 覆盖一切可解释效果；纸面无名则铸造 `seq.effect.*`，不为每张卡开 seq |
 | 2026-09-21 | v0.9 | **§1.3** 效果组合=静态信息；编译→装载到 seq 栈→解释器；双工作流（解释器 / 文本规范化） |
 | 2026-09-21 | v0.8.1 | **§1.2.1** 命名流程=压栈运行形态；效果组合=当前帧 RESOLVE 的中间语言（内联写入 / nest 已有 seq） |
 | 2026-09-21 | v0.8 | **§1.2** 命名流程 vs 效果组合对照表（译什么、时点、嵌套、hook/effect） |

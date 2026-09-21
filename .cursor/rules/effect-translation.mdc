@@ -17,6 +17,7 @@ alwaysApply: true
 - 不为效果保留自然语言运行时分支（禁止 `match effect_text`、语义 atom id）。
 - 与规则书原文的唯一联系：**provenance**（`AbilityUnitRef`）。
 - **禁止**：Grimoire/卡面段落 → 专属 `*Policy` / `*Service`；为每张卡登记 `seq.card…`；与 Catalog 平行的第二套 dispatch。
+- **Catalog 完备**：凡解释器要当效果跑的，必须有 `seq.*`。纸面没有章节名 → 引擎铸造 `seq.effect.*`（种类 + 参数），不是裸 Atom，也不是 `seq.card…`。见 [07-composition §1.3.3](docs/design/07-composition.md)。
 
 ## 统一翻译模型
 
@@ -42,8 +43,9 @@ alwaysApply: true
 |------|------|------|
 | Grimoire 章节流程 | `seq.*` | `seq.draw.investigator`、`seq.draw.encounter` |
 | 行动 | `seq.action.*` nest 内核 seq | action draw → `seq.draw.investigator` |
-| 卡牌能力 / 显现体 / lasting | **Composition** | 12160：`Seq(place_doom → if_else(…, grant_surge))` |
-| 卡面调用已有手续 | Composition 节点 **nest** 已有 seq | 「抽 1 张」→ nest `seq.draw.*`；Cancel → nest `seq.interrupt.cancel` |
+| 卡牌能力 / 显现体 / lasting | **Composition** 树（控制流 + nest 已有/`seq.effect.*`） | 12160：nest 放毁灭 + if + nest 涌动 |
+| 纸面无名的效果句 | 铸造 **`seq.effect.*`** | take horror、place doom、heal；已有 `seq.effect.discover_clue` |
+| 卡面调用已有手续 | Composition 节点 **nest** 该 seq | 「抽 1 张」→ nest `seq.draw.*`；Cancel → nest `seq.interrupt.cancel` |
 | 子流程复用 | `catalog.nest(other_seq)` | 同一内核多入口 |
 
 **入口不同 ≠ 新机制**：耗 action、Forced、遭遇 E4 都是 **触发/nest 同一条或相关的 seq.***。卡面本身仍是 Composition。
@@ -59,14 +61,14 @@ alwaysApply: true
 ```text
 seq.draw.encounter             ← 命名流程（遭遇抽牌手续）
   G3 nest seq.encounter.revelation
-    composition.execute(...)   ← 这张阴谋的显现正文（卡面树）
+    解释已装载的静态树         ← 显现正文（不真空跑）
 
 InitiationIntent.PLAY_CARD     ← 打出（独立形式）
-    composition.execute(...)   ← 事件/支援打出后的卡面树
+    在已压栈手续里解释静态树   ← 打出后效果体
 
 AbilitySpec
   hook: (seq.draw.investigator, WHEN)   ← 订哪条手续的哪个槽
-  effect: Composition                   ← 卡面正文
+  effect: 静态 Composition              ← 待解释的卡面正文
 ```
 
 长规范流程 = **seq handler 顺序步骤 + nest 其它 seq**。不要为卡面短句另开 `seq.card…`。逐项对照见 [07-composition §1.2](docs/design/07-composition.md#12-与命名流程对照)。
