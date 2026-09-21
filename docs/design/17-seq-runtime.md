@@ -1,7 +1,7 @@
 # 17 — 命名流程运行时 (seq.* Runtime)
 
 > **依赖**：[14-nested-sequences.md](14-nested-sequences.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[06-ability-initiation.md](06-ability-initiation.md)、[16-player-interaction.md](16-player-interaction.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4.20 · 2026-09-21 — 铸造 seq.effect.discard_* / attach / deal_damage
+> **状态**：v0.4.21 · 2026-09-21 — investigation_phase_ends + discard/attach A1/A3
 
 ---
 
@@ -211,7 +211,8 @@
 | `seq.effect.discard_card` | 弃置指定牌（手牌 / 威胁区 / 遭遇） | 弱点自弃、成功弃附着 |
 | `seq.effect.discard_from_hand` | 弃手牌（`amount` / `mode=random|pick`） | fail-by 二选一 |
 | `seq.effect.attach` | limbo 附着地点（最近无同名 / 本地点） | Fire! / Flash Flood / Arcane Lock 显现 |
-| `seq.effect.deal_damage` | 对调查员或敌人造成伤害（`target` 参数） | 地点范围 fail 伤害 |
+| `seq.effect.deal_damage` | 对调查员或敌人造成伤害（`target` 参数） | 地点范围 fail 伤害；Fire! 附着地点 |
+| `seq.framework.investigation_phase_ends` | 调查阶段结束钩子（WHEN/AFTER） | Fire! / 地点 Forced |
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 
@@ -299,6 +300,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.21 | §5：`seq.framework.investigation_phase_ends`；deal_damage 附着地点非 Elite |
 | 2026-09-21 | v0.4.20 | §5：落地 `seq.effect.discard_card` / `discard_from_hand` / `attach` / `deal_damage`（A1） |
 | 2026-09-21 | v0.4.19 | §5：落地 `seq.effect.take_horror/damage/heal/lose_* /place_doom/place_clue/register/unregister` |
 | 2026-09-21 | v0.4.18 | §5：Buff 创建/注销 = `seq.effect.register` / `unregister` |

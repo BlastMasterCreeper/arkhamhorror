@@ -37,6 +37,11 @@ TRIGGER_PHRASE_MAP: list[tuple[re.Pattern[str], str, str]] = [
         "discover_clue",
         "AFTER",
     ),
+    (
+        re.compile(r"^When the investigation phase ends\.?$", re.I),
+        "investigation_phase_ends",
+        "WHEN",
+    ),
 ]
 
 LEAD_DRAW_FIRE = re.compile(
@@ -108,6 +113,21 @@ TEST_WP_OR_INT_SUCCEED_DISCARD = re.compile(
 TEST_WP_OR_AGI_FAIL_BY = re.compile(
     r"^Test \[willpower\] or \[agility\] \((\d+)\)\. "
     r"Take (\d+) damage for each point you fail by\.?$",
+    re.I,
+)
+EACH_INV_AT_LOCATION_HORROR = re.compile(
+    r"^Each investigator at (?:its|your|this|the attached) location "
+    r"takes (\d+) (direct )?horror\.?$",
+    re.I,
+)
+EACH_INV_AT_LOCATION_DAMAGE = re.compile(
+    r"^Each investigator at (?:its|your|this|the attached) location "
+    r"takes (\d+) (direct )?damage\.?$",
+    re.I,
+)
+FIRE_LOCATION_HEALTH_DAMAGE = re.compile(
+    r"^Each non-\[\[Elite\]\] card with health at this location "
+    r"takes (\d+) direct damage\.?$",
     re.I,
 )
 
@@ -473,6 +493,39 @@ def compile_test_wp_or_int_succeed_discard(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_each_investigator_at_location(body: str) -> dict[str, Any] | None:
+    text = body.strip()
+    m = EACH_INV_AT_LOCATION_HORROR.match(text)
+    if m:
+        return {
+            "template": "take_horror",
+            "amount": int(m.group(1)),
+            "direct": bool(m.group(2)),
+            "target": "each_at_source_location",
+        }
+    m = EACH_INV_AT_LOCATION_DAMAGE.match(text)
+    if m:
+        return {
+            "template": "take_damage",
+            "amount": int(m.group(1)),
+            "direct": bool(m.group(2)),
+            "target": "each_at_source_location",
+        }
+    return None
+
+
+def compile_fire_location_health_damage(body: str) -> dict[str, Any] | None:
+    m = FIRE_LOCATION_HEALTH_DAMAGE.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "deal_damage",
+        "amount": int(m.group(1)),
+        "direct": True,
+        "target": "non_elite_with_health_at_attached_location",
+    }
+
+
 def compile_test_skill_fail_damage(body: str) -> dict[str, Any] | None:
     m = TEST_SKILL_FAIL_DAMAGE.match(body.strip())
     if not m:
@@ -568,6 +621,12 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     lose_or_attack = compile_lose_or_attack(body)
     if lose_or_attack is not None:
         return lose_or_attack
+    each_loc = compile_each_investigator_at_location(body)
+    if each_loc is not None:
+        return each_loc
+    fire_dmg = compile_fire_location_health_damage(body)
+    if fire_dmg is not None:
+        return fire_dmg
     skill_choice = compile_test_wp_or_agi_fail_by(body)
     if skill_choice is not None:
         return skill_choice

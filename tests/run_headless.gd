@@ -83,6 +83,7 @@ func _initialize() -> void:
 	_run_test("SEQ-EFF-06 nest discard from hand", _test_seq_eff_discard_from_hand)
 	_run_test("SEQ-EFF-07 nest attach controller location", _test_seq_eff_attach_controller_location)
 	_run_test("SEQ-EFF-08 nest deal damage at location", _test_seq_eff_deal_damage_at_location)
+	_run_test("SEQ-EFF-09 nest deal damage attached fire", _test_seq_eff_deal_damage_attached)
 	_run_test("ADB-33 compile 12130 skill choice", _test_adb_compile_12130_skill_choice)
 	_run_test("ADB-34 compile 12164 lose or attack", _test_adb_compile_12164_lose_or_attack)
 	_run_test("ADB-35 compile 12188 place doom source", _test_adb_compile_12188_place_doom)
@@ -91,6 +92,9 @@ func _initialize() -> void:
 	_run_test("ADB-38 compile 12159 flash flood attach", _test_adb_compile_12159_attach)
 	_run_test("ADB-39 compile 12117 heal damage and horror", _test_adb_compile_12117_heal)
 	_run_test("ADB-40 compile 12102 weakness discard action", _test_adb_compile_12102_discard_action)
+	_run_test("ADB-41 compile 12129 fire forced phase ends", _test_adb_compile_12129_fire_forced)
+	_run_test("ADB-42 12102 activate_action discard", _test_adb_12102_activate_action_discard)
+	_run_test("ADB-43 12129 fire forced on phase ends", _test_adb_12129_fire_forced_phase_ends)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2069,6 +2073,121 @@ func _test_adb_compile_12102_discard_action() -> bool:
 		not discard_action.is_empty()
 		and discard_action.get("register_as", "") == "action"
 		and int(discard_action.get("action_cost", 0)) == 2
+	)
+
+
+func _test_adb_compile_12129_fire_forced() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12129")
+	var forced: Dictionary = {}
+	for entry in compiled:
+		if entry is Dictionary and str((entry as Dictionary).get("register_as", "")) == "forced":
+			forced = entry as Dictionary
+			break
+	return (
+		CardRegistry.has_triggered(&"12129")
+		and forced.get("template", "") == "deal_damage"
+		and forced.get("match_kind", "") == "investigation_phase_ends"
+		and str(forced.get("phase", "")).to_upper() == "WHEN"
+		and forced.get("target", "") == "non_elite_with_health_at_attached_location"
+	)
+
+
+func _test_adb_12102_activate_action_discard() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"12102")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.enter_threat_area(card_id, &"inv_1"))
+	if not inv.threat_area.has(card_id):
+		return false
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	inv.actions_remaining = 3
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	return (
+		bool(result.get("ok", false))
+		and not inv.threat_area.has(card_id)
+		and inv.discard.has(card_id)
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.actions_remaining == 1
+		and h.ctx.triggered_abilities.list_action_abilities(&"inv_1").is_empty()
+	)
+
+
+func _test_adb_12129_fire_forced_phase_ends() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.ctx.sequence_catalog.has_flow(&"seq.framework.investigation_phase_ends"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var fire_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"12129", [])
+	h.ctx.state.encounter_deck.erase(fire_id)
+	var fire := h.ctx.state.registry.get_card(fire_id)
+	fire.zone = AhcEnums.Zone.LIMBO
+	fire.controller_id = &"inv_1"
+	if not EncounterAttachment.attach_limbo_to_location(h.ctx, fire_id, &"test_loc"):
+		return false
+	h.ctx.triggered_abilities.install_card(&"inv_1", fire_id)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_fire_tgt", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_fire_tgt")
+	var horror_before := inv.horror_taken
+	var dmg_before := inv.damage_taken
+	var result := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.framework.investigation_phase_ends", {}
+	)
+	return (
+		bool(result.get("ok", false))
+		and inv.damage_taken == dmg_before + 1
+		and inv.horror_taken == horror_before
+		and enemy != null
+		and enemy.damage == 1
+	)
+
+
+func _test_seq_eff_deal_damage_attached() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var fire_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_fire_attach", [])
+	h.ctx.state.encounter_deck.erase(fire_id)
+	var fire := h.ctx.state.registry.get_card(fire_id)
+	fire.zone = AhcEnums.Zone.LIMBO
+	if not EncounterAttachment.attach_limbo_to_location(h.ctx, fire_id, &"test_loc"):
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_deal_damage(
+			&"inv_1",
+			1,
+			&"non_elite_with_health_at_attached_location",
+			fire_id
+		)
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_a")
+	return (
+		inv.damage_taken == 1
+		and enemy != null
+		and enemy.damage == 1
+		and _sequence_kind_count(h, &"deal_damage") > 0
 	)
 
 

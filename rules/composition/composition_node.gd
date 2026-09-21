@@ -538,24 +538,32 @@ static func _nest_leaf(atom_name: StringName, flow_id: StringName) -> Compositio
 static func nest_take_horror(
 	inv_id: StringName,
 	amount: int = 1,
-	is_direct: bool = false
+	is_direct: bool = false,
+	target: StringName = &"controller",
+	source_card_id: StringName = &""
 ) -> CompositionNode:
 	var n := _nest_leaf(&"nest_take_horror", &"seq.effect.take_horror")
 	n.inv_id = inv_id
 	n.marker_delta = maxi(amount, 1)
 	n.is_direct = is_direct
+	n.location_target = target
+	n.card_id = source_card_id
 	return n
 
 
 static func nest_take_damage(
 	inv_id: StringName,
 	amount: int = 1,
-	is_direct: bool = false
+	is_direct: bool = false,
+	target: StringName = &"controller",
+	source_card_id: StringName = &""
 ) -> CompositionNode:
 	var n := _nest_leaf(&"nest_take_damage", &"seq.effect.take_damage")
 	n.inv_id = inv_id
 	n.marker_delta = maxi(amount, 1)
 	n.is_direct = is_direct
+	n.location_target = target
+	n.card_id = source_card_id
 	return n
 
 
@@ -662,12 +670,14 @@ static func nest_attach(
 static func nest_deal_damage(
 	controller_id: StringName,
 	amount: int = 1,
-	target: StringName = &"controller"
+	target: StringName = &"controller",
+	source_card_id: StringName = &""
 ) -> CompositionNode:
 	var n := _nest_leaf(&"nest_deal_damage", &"seq.effect.deal_damage")
 	n.inv_id = controller_id
 	n.marker_delta = maxi(amount, 1)
 	n.location_target = target
+	n.card_id = source_card_id
 	return n
 
 

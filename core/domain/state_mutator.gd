@@ -403,6 +403,9 @@ func _remove_from_pile(card: CardInstance, inv: InvestigatorState) -> void:
 			inv.hand.erase(card.id.instance_id)
 		AhcEnums.Zone.DISCARD:
 			inv.discard.erase(card.id.instance_id)
+		AhcEnums.Zone.PLAY_AREA, AhcEnums.Zone.THREAT_AREA:
+			inv.threat_area.erase(card.id.instance_id)
+			inv.play_area.erase(card.id.instance_id)
 
 
 func _insert_into_pile(card: CardInstance, inv: InvestigatorState, to: CardSlot) -> bool:

@@ -38,13 +38,17 @@ static func build_composition(
 			return CompositionNode.nest_take_horror(
 				bind.controller_id,
 				int(params.get("amount", 1)),
-				bool(params.get("direct", false))
+				bool(params.get("direct", false)),
+				StringName(str(params.get("target", "controller"))),
+				bind.card_id
 			)
 		"take_damage":
 			return CompositionNode.nest_take_damage(
 				bind.controller_id,
 				int(params.get("amount", 1)),
-				bool(params.get("direct", false))
+				bool(params.get("direct", false)),
+				StringName(str(params.get("target", "controller"))),
+				bind.card_id
 			)
 		"lose_resources":
 			return CompositionNode.nest_lose_resources(
@@ -82,7 +86,8 @@ static func build_composition(
 			return CompositionNode.nest_deal_damage(
 				bind.controller_id,
 				int(params.get("amount", 1)),
-				StringName(str(params.get("target", "controller")))
+				StringName(str(params.get("target", "controller"))),
+				bind.card_id
 			)
 		"enter_threat_area":
 			return CompositionNode.enter_threat_area(bind.card_id, bind.controller_id)

@@ -27,6 +27,7 @@ func is_player_initiated() -> bool:
 	return (
 		ability_kind == AbilityKind.REACTION
 		or ability_kind == AbilityKind.FREE_TRIGGERED
+		or ability_kind == AbilityKind.ACTION
 	)
 
 

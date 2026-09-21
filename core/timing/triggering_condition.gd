@@ -247,6 +247,17 @@ static func mythos_check_doom_threshold(
 	return t
 
 
+static func investigation_phase_ends(
+	after_timing: StringName = &"after_investigation_phase_ends"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("investigation_phase_ends_%d" % Time.get_ticks_msec())
+	t.kind = &"investigation_phase_ends"
+	t.tags = [&"framework", &"investigation"]
+	t.after_timing = after_timing
+	return t
+
+
 static func agenda_advance(
 	source: StringName = &"unknown",
 	explicit: bool = false,

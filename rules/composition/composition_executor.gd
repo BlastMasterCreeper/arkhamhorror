@@ -667,17 +667,20 @@ func _execute_nest_gain_resource(node: CompositionNode) -> bool:
 
 func _execute_nest_take_horror(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
-	if inv_id == &"":
+	if inv_id == &"" and node.location_target == &"":
 		return false
+	var target := node.location_target if node.location_target != &"" else &"controller"
 	var result := _nest_or_direct(
 		&"seq.effect.take_horror",
 		{
 			"controller_id": inv_id,
 			"amount": maxi(node.marker_delta, 1),
 			"direct": node.is_direct,
+			"target": target,
+			"card_id": node.card_id,
 		}
 	)
-	if result.is_empty() and _mutator != null:
+	if result.is_empty() and _mutator != null and target == &"controller":
 		_mutator.take_horror(inv_id, maxi(node.marker_delta, 1))
 		return true
 	return bool(result.get("ok", false))
@@ -685,17 +688,20 @@ func _execute_nest_take_horror(node: CompositionNode) -> bool:
 
 func _execute_nest_take_damage(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
-	if inv_id == &"":
+	if inv_id == &"" and node.location_target == &"":
 		return false
+	var target := node.location_target if node.location_target != &"" else &"controller"
 	var result := _nest_or_direct(
 		&"seq.effect.take_damage",
 		{
 			"controller_id": inv_id,
 			"amount": maxi(node.marker_delta, 1),
 			"direct": node.is_direct,
+			"target": target,
+			"card_id": node.card_id,
 		}
 	)
-	if result.is_empty() and _mutator != null:
+	if result.is_empty() and _mutator != null and target == &"controller":
 		_mutator.adjust_marker(
 			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
 			maxi(node.marker_delta, 1)

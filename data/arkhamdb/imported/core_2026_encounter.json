@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 32,
+      "compiled_total": 34,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -19,11 +19,12 @@
         "seq": 4,
         "choice_must": 3,
         "enter_threat_area": 3,
-        "take_horror": 2,
+        "take_horror": 3,
         "discard_source": 5,
         "if_else": 1,
         "skill_test": 4,
         "attach_nearest_without_same": 1,
+        "deal_damage": 1,
         "take_damage": 1,
         "gain_resources": 2,
         "attach_controller_location": 2,
@@ -1124,6 +1125,21 @@
         "template": "attach_nearest_without_same"
       },
       {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "ability_kind": "forced",
+        "status": "full",
+        "trigger": "When the investigation phase ends",
+        "template": "deal_damage",
+        "amount": 1,
+        "direct": true,
+        "target": "non_elite_with_health_at_attached_location",
+        "match_kind": "investigation_phase_ends",
+        "phase": "WHEN",
+        "timing": "when_investigation_phase_ends"
+      },
+      {
         "segment_index": 2,
         "register_as": "action",
         "ability_id": "action:2",
@@ -1288,6 +1304,20 @@
         "body": "Each investigator at its location takes 1 horror.",
         "trigger": "When this enemy is defeated",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When this enemy is defeated",
+        "template": "take_horror",
+        "amount": 1,
+        "direct": false,
+        "target": "each_at_source_location"
       }
     ]
   },

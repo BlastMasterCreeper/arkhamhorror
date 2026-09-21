@@ -6,38 +6,75 @@ extends RefCounted
 
 
 static func take_horror(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	var inv_id := _controller_id(game_ctx, params)
 	var amount := maxi(int(params.get("amount", 1)), 1)
-	if game_ctx == null or game_ctx.mutator == null or inv_id == &"":
+	var target := StringName(str(params.get("target", "controller")))
+	if game_ctx == null or game_ctx.mutator == null:
 		return {"ok": false, "amount": 0}
-	if game_ctx.state.registry.get_investigator(inv_id) == null:
-		return {"ok": false, "amount": 0, "error": "unknown_investigator"}
-	game_ctx.mutator.take_horror(inv_id, amount)
+	var applied := 0
+	match target:
+		&"each_at_controller_location", &"each_at_source_location":
+			var loc_id := _location_for_target(game_ctx, params, target)
+			if loc_id == &"":
+				return {"ok": false, "amount": 0}
+			for other_id in game_ctx.state.registry.all_investigator_ids():
+				var other := game_ctx.state.registry.get_investigator(other_id)
+				if other == null or other.eliminated or other.resigned:
+					continue
+				if other.location_tag != loc_id:
+					continue
+				game_ctx.mutator.take_horror(other_id, amount)
+				applied += amount
+		_:
+			var inv_id := _controller_id(game_ctx, params)
+			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
+				return {"ok": false, "amount": 0, "error": "unknown_investigator"}
+			game_ctx.mutator.take_horror(inv_id, amount)
+			applied = amount
 	_log(
 		game_ctx,
 		"effect:take_horror",
-		{"inv": inv_id, "amount": amount, "direct": bool(params.get("direct", false))}
+		{"target": target, "amount": applied, "direct": bool(params.get("direct", false))}
 	)
-	return {"ok": true, "amount": amount, "inv_id": inv_id}
+	return {"ok": applied > 0, "amount": applied, "target": target}
 
 
 static func take_damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	var inv_id := _controller_id(game_ctx, params)
 	var amount := maxi(int(params.get("amount", 1)), 1)
-	if game_ctx == null or game_ctx.mutator == null or inv_id == &"":
+	var target := StringName(str(params.get("target", "controller")))
+	if game_ctx == null or game_ctx.mutator == null:
 		return {"ok": false, "amount": 0}
-	if game_ctx.state.registry.get_investigator(inv_id) == null:
-		return {"ok": false, "amount": 0, "error": "unknown_investigator"}
-	game_ctx.mutator.adjust_marker(
-		MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
-		amount
-	)
+	var applied := 0
+	match target:
+		&"each_at_controller_location", &"each_at_source_location":
+			var loc_id := _location_for_target(game_ctx, params, target)
+			if loc_id == &"":
+				return {"ok": false, "amount": 0}
+			for other_id in game_ctx.state.registry.all_investigator_ids():
+				var other := game_ctx.state.registry.get_investigator(other_id)
+				if other == null or other.eliminated or other.resigned:
+					continue
+				if other.location_tag != loc_id:
+					continue
+				game_ctx.mutator.adjust_marker(
+					MarkerSlot.investigator(other_id, AhcEnums.MarkerKind.DAMAGE),
+					amount
+				)
+				applied += amount
+		_:
+			var inv_id := _controller_id(game_ctx, params)
+			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
+				return {"ok": false, "amount": 0, "error": "unknown_investigator"}
+			game_ctx.mutator.adjust_marker(
+				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
+				amount
+			)
+			applied = amount
 	_log(
 		game_ctx,
 		"effect:take_damage",
-		{"inv": inv_id, "amount": amount, "direct": bool(params.get("direct", false))}
+		{"target": target, "amount": applied, "direct": bool(params.get("direct", false))}
 	)
-	return {"ok": true, "amount": amount, "inv_id": inv_id}
+	return {"ok": applied > 0, "amount": applied, "target": target}
 
 
 static func lose_resources(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -246,6 +283,10 @@ static func attach(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			ok = EncounterAttachment.attach_limbo_to_nearest_location_without(
 				game_ctx, card_id, inv_id
 			)
+	if ok and game_ctx.triggered_abilities != null:
+		game_ctx.triggered_abilities.install_card(
+			inv_id if inv_id != &"" else &"encounter", card_id
+		)
 	_log(game_ctx, "effect:attach", {"card": card_id, "target": target, "ok": ok})
 	return {"ok": ok, "card_id": card_id, "target": target}
 
@@ -273,13 +314,15 @@ static func deal_damage(game_ctx: GameContext, params: Dictionary) -> Dictionary
 					amount
 				)
 				dealt += amount
+		&"non_elite_with_health_at_attached_location":
+			dealt = _deal_non_elite_with_health_at_attached(game_ctx, params, amount)
 		&"enemy":
 			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
 			var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 			if enemy == null:
 				return {"ok": false, "amount": 0}
-			enemy.damage += amount
-			dealt = amount
+			var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
+			dealt = amount if bool(result.get("ok", false)) else 0
 		_:
 			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
 				return {"ok": false, "amount": 0}
@@ -294,6 +337,80 @@ static func deal_damage(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		{"target": target, "amount": dealt, "inv": inv_id}
 	)
 	return {"ok": dealt > 0, "amount": dealt, "target": target}
+
+
+static func _deal_non_elite_with_health_at_attached(
+	game_ctx: GameContext,
+	params: Dictionary,
+	amount: int
+) -> int:
+	var loc_id := _attached_location_id(game_ctx, params.get("card_id", &"") as StringName)
+	if loc_id == &"":
+		return 0
+	var dealt := 0
+	for other_id in game_ctx.state.registry.all_investigator_ids():
+		var other := game_ctx.state.registry.get_investigator(other_id)
+		if other == null or other.eliminated or other.resigned:
+			continue
+		if other.location_tag != loc_id:
+			continue
+		game_ctx.mutator.adjust_marker(
+			MarkerSlot.investigator(other_id, AhcEnums.MarkerKind.DAMAGE),
+			amount
+		)
+		dealt += amount
+	for enemy_id in game_ctx.state.registry.all_enemy_ids():
+		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+		if enemy == null or enemy.location_tag != loc_id:
+			continue
+		var card := game_ctx.state.registry.get_card(enemy_id)
+		if card != null and _has_elite_trait(card.id.definition_id):
+			continue
+		var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
+		if bool(result.get("ok", false)):
+			dealt += amount
+	return dealt
+
+
+static func _location_for_target(
+	game_ctx: GameContext,
+	params: Dictionary,
+	target: StringName
+) -> StringName:
+	if target == &"each_at_source_location":
+		var source_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+		var enemy := game_ctx.state.registry.get_enemy(source_id)
+		if enemy != null:
+			return enemy.location_tag
+		var card := game_ctx.state.registry.get_card(source_id)
+		if card != null and card.attached_to != null:
+			return _attached_location_id(game_ctx, source_id)
+	var inv_id := _controller_id(game_ctx, params)
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null:
+		return &""
+	return inv.location_tag
+
+
+static func _attached_location_id(game_ctx: GameContext, card_id: StringName) -> StringName:
+	if game_ctx == null or card_id == &"":
+		return &""
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card == null or card.attached_to == null:
+		return &""
+	var host_id := card.attached_to.instance_id
+	if game_ctx.state.registry.get_location(host_id) != null:
+		return host_id
+	if game_ctx.state.registry.get_location(card.attached_to.definition_id) != null:
+		return card.attached_to.definition_id
+	return host_id
+
+
+static func _has_elite_trait(definition_id: StringName) -> bool:
+	for trait_name in CardRegistry.traits(definition_id):
+		if str(trait_name).to_lower() == "elite":
+			return true
+	return false
 
 
 static func _controller_id(game_ctx: GameContext, params: Dictionary) -> StringName:

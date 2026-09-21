@@ -337,6 +337,14 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 
 static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
+		&"seq.framework.investigation_phase_ends",
+		func(_params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.investigation_phase_ends(),
+		func(_game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			## 仅提供 WHEN/AFTER 钩子供 Forced 订阅；框架步进本身已在 FrameworkFlowEngine。
+			return {"ok": true}
+	)
+	catalog.register_run(
 		&"seq.mythos.place_doom",
 		func(_params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.mythos_place_doom(),

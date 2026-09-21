@@ -1,7 +1,7 @@
 # 19 — Core 2026（2.0 基础）卡牌翻译路线图
 
 > **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.2 · 2026-09-21 — A1 铸造 + 编译落地；基线对照见 §2  
+> **状态**：v0.3 · 2026-09-21 — A1 + B1 运行时 + A3 Fire! Forced  
 > **范围**：`core_2026` + `core_2026_encounter`（约 166 张 / 162 段能力）
 
 ---
@@ -25,9 +25,10 @@
 | 开工前 | 玩家 `core_2026` | 72 | 17 | 55 |
 | 开工前 | 遭遇 `core_2026_encounter` | 90 | 18 | 72 |
 | 开工前 | **合计** | **162** | **35** | **127** |
-| **A1 后** | 玩家 | 72 | **21** | 51 |
-| **A1 后** | 遭遇 | 90 | **32** | 58 |
-| **A1 后** | **合计** | **162** | **53** | **109** |
+| A1 后 | 玩家 / 遭遇 | 72 / 90 | 21 / 32 | 51 / 58 |
+| A1 后 | **合计** | **162** | **53** | **109** |
+| **B1+A3 后** | 玩家 / 遭遇 | 72 / 90 | **21** / **34** | 51 / 56 |
+| **B1+A3 后** | **合计** | **162** | **55** | **107** |
 
 数据源：`data/arkhamdb/imported/*.json` · `_meta.ability_compile_summary`。
 
@@ -68,13 +69,20 @@
 
 ---
 
-## 6. 本轮实施（A1 + B1 起步）✅
+## 6. 本轮实施
 
-- 铸造：`seq.effect.discard_card`、`discard_from_hand`、`deal_damage`、`attach`（最近无同名 / 本地点）
-- 编译：检定失败伤害（12165）、fail-by 弃手/资源（12128）、fail-by 行动/线索（12158）、Fire!/Flood/Arcane Lock 附着、地点治疗（12117）、威胁区自弃 `[action][action]`（B1）
-- 指标：合计 35 → **53**；SEQ-EFF-06..08 / ADB-37..40
+### A1 + B1 起步 ✅
+- 铸造：`discard_card` / `discard_from_hand` / `deal_damage` / `attach`
+- 编译：fail-by、附着、地点治疗、弱点自弃
 
-**下一批**：B1 运行时 activate_action 闭环测例；A3 Forced 地点伤；C1 Fight ammo。
+### B1 运行时 + A3 ✅
+- 威胁区弃置：`StateMutator` 清 `threat_area` / `play_area`
+- `activate_action` 闭环（12102）：耗 2 行动 → 弃弱点 → 卸载触发
+- `seq.framework.investigation_phase_ends` + Fire! Forced（非 Elite 有生命值卡）
+- 附着后 `install_card`；地点调查员恐惧/伤害 template
+- 指标：53 → **55**；SEQ-EFF-09 / ADB-41..43
+
+**下一批**：C1 Fight ammo；敌人 defeated 触发（12132）；asset 承伤。
 
 ---
 
@@ -82,5 +90,6 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.3 | B1 activate_action；A3 Fire! Forced；55/162 |
 | 2026-09-21 | v0.2 | A1 落地；进度 53/162；heal Limit / Flood 首句 Attach |
 | 2026-09-21 | v0.1 | 初稿；基线 35/162；开工 A1 |
