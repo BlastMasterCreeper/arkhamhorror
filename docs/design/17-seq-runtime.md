@@ -1,7 +1,7 @@
 # 17 — 命名流程运行时 (seq.* Runtime)
 
 > **依赖**：[14-nested-sequences.md](14-nested-sequences.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[06-ability-initiation.md](06-ability-initiation.md)、[16-player-interaction.md](16-player-interaction.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4.15 · 2026-09-21 — 对照 07-composition §1.2
+> **状态**：v0.4.16 · 2026-09-21 — seq 才是压栈形态；I2 裸 resolve 待收
 
 ---
 
@@ -90,7 +90,7 @@
 | # | 项 | 说明 |
 |---|---|---|
 | I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **nest 进 stack** |
-| I2 | 禁止裸 resolve | `AbilityInitiationPipeline` 现 **直接** `composition.execute`，绕 stack |
+| I2 | 禁止裸 resolve | 按 07 §1.2.1：树在 **已压栈的手续** 里解释。现状 `AbilityInitiationPipeline` **直接** `composition.execute` 绕栈，待收 |
 | I3 | PlayerWindow | Framework / ST 开窗 → 窗口内走 W1–W3 |
 
 ### 3.7 测试
@@ -284,6 +284,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.16 | I2：裸 resolve 与「seq 才是压栈形态」对齐（07 §1.2.1） |
 | 2026-09-21 | v0.4.15 | §1 链 07-composition §1.2 对照表 |
 | 2026-09-21 | v0.4.14 | 命名流程 = 规则手续；卡牌正文 = Composition；裁决 OQ-SEQ-03 |
 | 2026-06-18 | v0.4.1 | D1 collect 内联；移除 `seq.draw.collect_one` |

@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.8 · 2026-09-21 — §1.2 与命名流程对照
+> **状态**：v0.8.1 · 2026-09-21 — seq 是压栈运行形态；Composition 是当前帧中间语言
 
 ---
 
@@ -88,6 +88,29 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 | Ward 取消显现 | hook 订显现相关槽 | Interrupt 节点 nest `seq.interrupt.cancel` |
 
 对照实现清单见 [17-seq-runtime](17-seq-runtime.md)；砖块 vs 原子见 [15 §4.0.1](15-timing-entry-catalog.md)。
+
+#### 1.2.1 运行形态 vs 中间语言（已裁决 2026-09-21）
+
+**命名流程是最后的运行形态**：只有 `seq.*` 压进结算堆栈，带 WOULD / WHEN / AFTER。游戏里「正在结算哪一条手续」以栈顶帧为准。
+
+**效果组合是中间语言**，给 **当前栈帧的 RESOLVE** 用，不是再包一层外壳，也不是整棵树编译没了只剩 seq：
+
+| 树节点做什么 | 运行时 |
+|---|---|
+| Then / If / Choice、放标记、移卡、Register | **留在本帧**解释执行（内联写入；不 push） |
+| 正文点名抽牌、检定、Cancel、Instead、生成… | **提供**一条已有 `seq.*` 去 `catalog.nest`（子帧压栈，跑完再回到树） |
+
+```text
+栈：  [seq.draw.encounter]          ← 运行形态（有时点）
+         RESOLVE 砖
+           解释 Composition 树      ← 中间语言（无自己的时点）
+             Atom / Then / If        本帧写完
+             nest seq.skill_test.*   再压一帧手续
+```
+
+**不是**：卡面 → 全部降成 `seq.card…` 再跑。  
+**也不是**：效果组合自己占一层堆栈。  
+**缺口**：Initiation 现仍 `composition.execute` 绕栈（17 I2）。按本条，resolve 应落在 **已经在栈上的手续**（打出/窗口/父 seq）里解释树，而不是真空执行，也不为每张卡新开 seq。
 
 ---
 
@@ -400,6 +423,7 @@ Listener 触发   →  CompositionExecutor.execute(listener.composition)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.8.1 | **§1.2.1** 命名流程=压栈运行形态；效果组合=当前帧 RESOLVE 的中间语言（内联写入 / nest 已有 seq） |
 | 2026-09-21 | v0.8 | **§1.2** 命名流程 vs 效果组合对照表（译什么、时点、嵌套、hook/effect） |
 | 2026-09-21 | v0.7 | **卡牌正文译 Composition**；不为每张卡建 `seq.card…`；命名流程只译规则手续 |
 | 2026-09-21 | v0.6 | **§1.1** Composition = seq/Initiation RESOLVE 步内的可执行树，不是第二调度；**§3.1.1** Then = 内联 Seq，不是时点 |
