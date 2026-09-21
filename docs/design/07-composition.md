@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.8.1 · 2026-09-21 — seq 是压栈运行形态；Composition 是当前帧中间语言
+> **状态**：v0.9 · 2026-09-21 — 静态树：编译 / 装载 / 栈上解释
 
 ---
 
@@ -111,6 +111,82 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 **不是**：卡面 → 全部降成 `seq.card…` 再跑。  
 **也不是**：效果组合自己占一层堆栈。  
 **缺口**：Initiation 现仍 `composition.execute` 绕栈（17 I2）。按本条，resolve 应落在 **已经在栈上的手续**（打出/窗口/父 seq）里解释树，而不是真空执行，也不为每张卡新开 seq。
+
+### 1.3 静态信息：编译、装载、解释（已裁决 2026-09-21）
+
+效果组合 **不该真空跑**。它是 **待解释的静态树**（数据），由游戏框架 **编译并装载** 到命名流程栈上，再由 **解释器** 在当前帧 RESOLVE 里走树。
+
+```text
+卡面自然语言
+    │  编译（初步翻译 / 规范化）
+    ▼
+静态效果组合（JSON / AbilitySpec.effect / CompositionNode 树）
+    │  装载：hook 订已有 seq 槽；树挂到该帧 RESOLVE
+    ▼
+结算堆栈上的命名流程
+    │  解释器（CompositionExecutor）
+    ▼
+本帧 Atom / Register / Then / If / Choice
+  或 nest 已有 seq.*（子帧压栈，跑完回到树）
+```
+
+| 阶段 | 做什么 | 现在落点 |
+|---|---|---|
+| **编译** | 自然语言 → 规范化静态树（hook + 情景 + 费用 + effect） | `tools/arkhamdb_abilities.py` → `compiled_abilities`；GDScript `ArkhamDbAbilityCompiler.build_composition` |
+| **装载** | 把树挂到已有手续：订阅 `(seq, slot)`，或打出 Initiation 的 resolve 砖 | `register_triggered` / `register_revelation`；**禁止**为每张卡 `seq.card…` |
+| **解释** | 栈帧内走树；dry-run 也走同一套节点 | `CompositionExecutor` / `CompositionDryRunner` |
+
+**CardScript / AbilityTemplate** 都是编译侧的作者工具，产物必须是 **同一类静态树**。`on_custom_effect` 在脚本里直接改局面 **不是** 目标运行时（对齐 [12](12-card-script-api.md)）。
+
+#### 1.3.1 工作流 A — 丰富框架解释器
+
+解释器只认识静态节点，不读自然语言。要补的是「这棵树在栈上怎么走完」：
+
+| 方向 | 说明 |
+|---|---|
+| **禁止裸 execute** | 收 17 I2：Initiation / LISTENER 开火时，先确保有父 seq 帧，再 `execute` |
+| **节点完备** | 已有 Seq / Atom / Register / If / Choice / Repeat / ForEach。补 Simultaneous、Interrupt、Replace 为一等节点（或稳定 nest `seq.interrupt.*` / `seq.replace.instead`） |
+| **nest 是节点** | 「抽牌 / 检定 / 生成」不要长期靠 atom 名字符串分流；树里就是 nest 已有 `flow_id` |
+| **dry-run 同源** | L7 与真实解释同一套 kind；Then 真实结算顺序、dry-run 仍 OR |
+| **装载 API** | 框架：`load(spec) → bind hook + 把树交给该 seq 的 EFFECT 砖` |
+
+#### 1.3.2 工作流 B — 自然语言初步翻译 / 规范化
+
+编译器把卡面切成已有字段，**不**在运行时 `match effect_text`：
+
+| 卡面段落 | 静态字段 |
+|---|---|
+| When / After / Revelation / 打出窗口 | `hook`：`(sequence_id, slot)` + tier；打出另标 `play_form` |
+| If / While 情景 | `Condition` + `if_kind` / `evaluate` |
+| 费用 | `costs[]` |
+| Then / 同时 / 选择 / 造成伤害 / 注册 | `effect` 树（template 嵌套：`seq` / `if_else` / `choice_must` / nest 已有 seq） |
+| 点名抽牌、检定、Cancel | effect 节点 `nest: seq.*`，不新开卡面 seq |
+
+现状：遭遇包约 90 段能力、14 段编出树（`core_2026_encounter.json` 摘要）；其余仍是 segment。工作流 B 的目标是扩大 **规范化覆盖**（复用已有 template / condition），不是另写运行时脚本。
+
+**编译产物形态**（与现 JSON 对齐，锚例 12160）：
+
+```json
+{
+  "register_as": "revelation",
+  "hook": { "sequence_id": "seq.encounter.revelation", "slot": "RESOLVE" },
+  "effect": {
+    "template": "seq",
+    "steps": [
+      { "template": "place_doom_nearest_enemy_without_doom" },
+      {
+        "template": "if_else",
+        "if_kind": "condition",
+        "evaluate": "after_step",
+        "condition": "previous_step_not_created",
+        "then": { "template": "grant_surge" }
+      }
+    ]
+  }
+}
+```
+
+装载后这棵树只在 `seq.encounter.revelation` 的 RESOLVE 里被解释。
 
 ---
 
@@ -412,9 +488,10 @@ class CompositionExecutor:
 ## 6. 与 Initiation 的关系
 
 ```
-Initiation Pre  →  RestrictionEvaluator + CompositionDryRunner
-Initiation 4    →  CompositionExecutor.execute(intent.composition)
-Listener 触发   →  CompositionExecutor.execute(listener.composition)
+装载     →  hook 订已有 seq；静态树挂上该帧 / 打出 resolve 砖
+Initiation Pre  →  RestrictionEvaluator + CompositionDryRunner（走同一棵静态树）
+Initiation 4    →  在已压栈的手续里 CompositionExecutor.execute（禁止真空跑 · 17 I2）
+Listener 触发   →  同上：父 seq 帧内解释 listener 上的静态树
 ```
 
 ---
@@ -423,6 +500,7 @@ Listener 触发   →  CompositionExecutor.execute(listener.composition)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.9 | **§1.3** 效果组合=静态信息；编译→装载到 seq 栈→解释器；双工作流（解释器 / 文本规范化） |
 | 2026-09-21 | v0.8.1 | **§1.2.1** 命名流程=压栈运行形态；效果组合=当前帧 RESOLVE 的中间语言（内联写入 / nest 已有 seq） |
 | 2026-09-21 | v0.8 | **§1.2** 命名流程 vs 效果组合对照表（译什么、时点、嵌套、hook/effect） |
 | 2026-09-21 | v0.7 | **卡牌正文译 Composition**；不为每张卡建 `seq.card…`；命名流程只译规则手续 |

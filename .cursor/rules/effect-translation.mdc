@@ -24,12 +24,19 @@ alwaysApply: true
 规则手续  →  seq.*（SequenceCatalog）
               ├─ handler 内顺序 RESOLVE（砖块：L0 / Register / 内联）
               ├─ catalog.nest / nest_batch → 另一条 seq.*
-              └─ EFFECT 砖：composition.execute（跑卡面树，或本步短树）
+              └─ EFFECT 砖：解释已装载的静态 Composition 树
 
-卡牌正文  →  Composition 树
+自然语言卡面
+  → 编译（规范化静态树）
+  → 装载到已有 seq 的 hook / RESOLVE 砖
+  → 解释器在栈帧内走树（内联写入，或 nest 已有 seq）
+
+卡牌正文  →  静态 Composition 树（待解释，不真空跑）
               ├─ Atom / Register / Seq(Then) / Simultaneous / If / Choice
               └─ 正文调用已有手续时 nest 那条 seq.*（抽牌、检定、Cancel…）
 ```
+
+编译 / 装载 / 解释分工见 [07-composition §1.3](docs/design/07-composition.md#13-静态信息编译装载解释已裁决-2026-09-21)。
 
 | 来源 | 译法 | 例子 |
 |------|------|------|
