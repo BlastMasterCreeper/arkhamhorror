@@ -35,22 +35,33 @@ static func build_composition(
 ) -> CompositionNode:
 	match template_id:
 		"take_horror":
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				int(params.get("amount", 1))
+			return CompositionNode.nest_take_horror(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				bool(params.get("direct", false))
 			)
 		"take_damage":
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.DAMAGE),
-				int(params.get("amount", 1))
+			return CompositionNode.nest_take_damage(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				bool(params.get("direct", false))
 			)
 		"lose_resources":
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.RESOURCE),
-				-int(params.get("amount", 1))
+			return CompositionNode.nest_lose_resources(
+				bind.controller_id, int(params.get("amount", 1))
 			)
 		"lose_all_resources":
-			return CompositionNode.lose_all_resources(bind.controller_id)
+			return CompositionNode.nest_lose_all_resources(bind.controller_id)
+		"lose_action":
+			return CompositionNode.nest_lose_action(
+				bind.controller_id, int(params.get("amount", 1))
+			)
+		"heal":
+			return CompositionNode.nest_heal(
+				bind.controller_id,
+				StringName(str(params.get("kind", "damage"))),
+				int(params.get("amount", 1))
+			)
 		"enter_threat_area":
 			return CompositionNode.enter_threat_area(bind.card_id, bind.controller_id)
 		"grant_surge":
@@ -60,17 +71,27 @@ static func build_composition(
 		"seq":
 			return _build_seq(params, bind)
 		"place_doom_nearest_enemy_without_doom":
-			return CompositionNode.place_doom_nearest_enemy_without_doom(
-				bind.card_id, bind.controller_id
+			return CompositionNode.nest_place_doom(
+				bind.controller_id, bind.card_id, &"nearest_enemy_without_doom"
+			)
+		"place_doom_on_source":
+			return CompositionNode.nest_place_doom(
+				bind.controller_id, bind.card_id, &"source"
+			)
+		"place_doom_nearest_to_source":
+			return CompositionNode.nest_place_doom(
+				bind.controller_id,
+				bind.card_id,
+				&"nearest_enemy_without_doom_to_source"
 			)
 		"choice_must":
 			return _build_choice_must(params, bind)
 		"place_doom_on_current_agenda":
-			return CompositionNode.place_doom_on_current_agenda(
+			return CompositionNode.nest_mythos_place_doom(
 				bool(params.get("may_advance_agenda", false))
 			)
 		"place_clue_on_location":
-			return CompositionNode.place_clue_on_investigator_location(bind.controller_id)
+			return CompositionNode.nest_place_clue(bind.controller_id)
 		"skill_test":
 			return _build_skill_test(params, bind)
 		"repeat_fail_by":
@@ -80,7 +101,7 @@ static func build_composition(
 		"nest_enemy_move":
 			return _build_nest_enemy_move(params, bind)
 		"nest_enemy_attack":
-			return CompositionNode.nest_enemy_attack_last()
+			return _build_nest_enemy_attack(params, bind)
 		"exhaust_source":
 			return CompositionNode.exhaust_card(bind.card_id)
 		"nest_move_connecting":
@@ -106,6 +127,14 @@ static func _build_nest_enemy_move(params: Dictionary, bind: AbilityBindContext)
 	for trait_name in params.get("trait_exclude", []):
 		exclude.append(StringName(str(trait_name)))
 	return CompositionNode.nest_enemy_move(bind.controller_id, exclude)
+
+
+static func _build_nest_enemy_attack(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	var enemy_spec := str(params.get("enemy", ""))
+	var target_spec := str(params.get("target", ""))
+	if enemy_spec == "source" or enemy_spec == "self" or target_spec == "controller":
+		return CompositionNode.nest_enemy_attack(bind.card_id, bind.controller_id)
+	return CompositionNode.nest_enemy_attack_last()
 
 
 static func _build_seq(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
@@ -297,6 +326,8 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"window",
 		"trait_exclude",
 		"target",
+		"enemy",
+		"kind",
 		"may_advance_agenda",
 		"definition_id",
 		"match_kind",

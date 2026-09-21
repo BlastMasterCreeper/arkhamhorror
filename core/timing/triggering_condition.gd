@@ -442,3 +442,163 @@ static func discover_clue(
 	t.after_timing = after_timing
 	t.payload = {"inv_id": inv_id, "location_id": location_id, "amount": amount}
 	return t
+
+
+static func take_horror(
+	controller_id: StringName,
+	amount: int = 1,
+	is_direct: bool = false,
+	after_timing: StringName = &"after_take_horror"
+) -> TriggeringCondition:
+	return _effect(
+		&"take_horror",
+		controller_id,
+		[&"effect", &"take_horror"],
+		after_timing,
+		{"amount": amount, "direct": is_direct}
+	)
+
+
+static func take_damage(
+	controller_id: StringName,
+	amount: int = 1,
+	is_direct: bool = false,
+	after_timing: StringName = &"after_take_damage"
+) -> TriggeringCondition:
+	return _effect(
+		&"take_damage",
+		controller_id,
+		[&"effect", &"take_damage"],
+		after_timing,
+		{"amount": amount, "direct": is_direct}
+	)
+
+
+static func lose_resources(
+	controller_id: StringName,
+	amount: int = 1,
+	after_timing: StringName = &"after_lose_resources"
+) -> TriggeringCondition:
+	return _effect(
+		&"lose_resources",
+		controller_id,
+		[&"effect", &"lose_resources"],
+		after_timing,
+		{"amount": amount}
+	)
+
+
+static func lose_all_resources(
+	controller_id: StringName,
+	after_timing: StringName = &"after_lose_all_resources"
+) -> TriggeringCondition:
+	return _effect(
+		&"lose_all_resources",
+		controller_id,
+		[&"effect", &"lose_resources"],
+		after_timing,
+		{}
+	)
+
+
+static func heal(
+	controller_id: StringName,
+	kind: StringName,
+	amount: int = 1,
+	after_timing: StringName = &"after_heal"
+) -> TriggeringCondition:
+	return _effect(
+		&"heal",
+		controller_id,
+		[&"effect", &"heal", kind],
+		after_timing,
+		{"kind": kind, "amount": amount}
+	)
+
+
+static func lose_action(
+	controller_id: StringName,
+	amount: int = 1,
+	after_timing: StringName = &"after_lose_action"
+) -> TriggeringCondition:
+	return _effect(
+		&"lose_action",
+		controller_id,
+		[&"effect", &"lose_action"],
+		after_timing,
+		{"amount": amount}
+	)
+
+
+static func place_doom(
+	controller_id: StringName,
+	target: StringName,
+	amount: int = 1,
+	card_id: StringName = &"",
+	after_timing: StringName = &"after_place_doom"
+) -> TriggeringCondition:
+	return _effect(
+		&"place_doom",
+		controller_id,
+		[&"effect", &"place_doom", target],
+		after_timing,
+		{"target": target, "amount": amount, "card_id": card_id}
+	)
+
+
+static func place_clue(
+	controller_id: StringName,
+	after_timing: StringName = &"after_place_clue"
+) -> TriggeringCondition:
+	return _effect(
+		&"place_clue",
+		controller_id,
+		[&"effect", &"place_clue"],
+		after_timing,
+		{}
+	)
+
+
+static func effect_register(
+	controller_id: StringName,
+	card_id: StringName = &"",
+	after_timing: StringName = &"after_effect_register"
+) -> TriggeringCondition:
+	return _effect(
+		&"effect_register",
+		controller_id,
+		[&"effect", &"register"],
+		after_timing,
+		{"card_id": card_id}
+	)
+
+
+static func effect_unregister(
+	controller_id: StringName,
+	reg_id: StringName = &"",
+	after_timing: StringName = &"after_effect_unregister"
+) -> TriggeringCondition:
+	return _effect(
+		&"effect_unregister",
+		controller_id,
+		[&"effect", &"unregister"],
+		after_timing,
+		{"reg_id": reg_id}
+	)
+
+
+static func _effect(
+	kind: StringName,
+	controller_id: StringName,
+	tags: Array[StringName],
+	after_timing: StringName,
+	payload: Dictionary
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("%s_%s_%d" % [kind, controller_id, Time.get_ticks_msec()])
+	t.kind = kind
+	t.controller_id = controller_id
+	t.tags = tags.duplicate()
+	t.after_timing = after_timing
+	t.payload = payload.duplicate()
+	return t

@@ -6,17 +6,20 @@ extends RefCounted
 
 static func candidates_without_doom(
 	game_ctx: GameContext,
-	drawer_id: StringName,
-	require_no_doom: bool = true
+	origin_id: StringName,
+	require_no_doom: bool = true,
+	exclude_ids: Array = []
 ) -> Array[StringName]:
 	if game_ctx == null or game_ctx.state == null:
 		return []
-	var from := _drawer_location_tag(game_ctx, drawer_id)
+	var from := origin_location_tag(game_ctx, origin_id)
 	if from == &"":
 		return []
 	var best_dist := 999999
 	var best: Array[StringName] = []
 	for enemy_id in game_ctx.state.registry.all_enemy_ids():
+		if exclude_ids.has(enemy_id):
+			continue
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 		if enemy == null:
 			continue
@@ -37,17 +40,20 @@ static func candidates_without_doom(
 
 static func pick_nearest_enemy_without_doom(
 	game_ctx: GameContext,
-	drawer_id: StringName
+	origin_id: StringName,
+	picker_id: StringName = &"",
+	exclude_ids: Array = []
 ) -> StringName:
-	var candidates := candidates_without_doom(game_ctx, drawer_id, true)
+	var candidates := candidates_without_doom(game_ctx, origin_id, true, exclude_ids)
 	if candidates.is_empty():
 		return &""
 	if candidates.size() == 1:
 		return candidates[0]
+	var picker := picker_id if picker_id != &"" else origin_id
 	if game_ctx.interaction != null:
 		var pick: Variant = game_ctx.interaction.ask_pick_target(
 			candidates,
-			drawer_id,
+			picker,
 			&"pick:nearest_enemy_tie",
 			game_ctx
 		)
@@ -66,7 +72,7 @@ static func candidates_toward_investigator(
 ) -> Array[StringName]:
 	if game_ctx == null or game_ctx.state == null:
 		return []
-	var from := _drawer_location_tag(game_ctx, drawer_id)
+	var from := origin_location_tag(game_ctx, drawer_id)
 	if from == &"":
 		return []
 	var best_dist := 999999
@@ -135,10 +141,15 @@ static func _has_excluded_trait(def_id: StringName, trait_exclude: Array[StringN
 	return false
 
 
-static func _drawer_location_tag(game_ctx: GameContext, drawer_id: StringName) -> StringName:
-	var inv := game_ctx.state.registry.get_investigator(drawer_id)
-	if inv == null or inv.location_tag == &"":
+static func origin_location_tag(game_ctx: GameContext, origin_id: StringName) -> StringName:
+	if game_ctx == null or game_ctx.state == null or origin_id == &"":
 		return &""
-	if game_ctx.state.registry.get_location(inv.location_tag) == null:
-		return &""
-	return inv.location_tag
+	var inv := game_ctx.state.registry.get_investigator(origin_id)
+	if inv != null and inv.location_tag != &"":
+		if game_ctx.state.registry.get_location(inv.location_tag) != null:
+			return inv.location_tag
+	var enemy := game_ctx.state.registry.get_enemy(origin_id)
+	if enemy != null and enemy.location_tag != &"":
+		if game_ctx.state.registry.get_location(enemy.location_tag) != null:
+			return enemy.location_tag
+	return &""

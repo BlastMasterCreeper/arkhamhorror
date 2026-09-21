@@ -169,18 +169,27 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return node.replace_target != null and node.effect_request != null
 		&"resolve_pending":
 			return node.pending_id != &""
-		&"place_doom_nearest_enemy_without_doom":
-			var inv := sim.state.registry.get_investigator(node.inv_id)
-			if inv == null or inv.location_tag == &"":
+		&"place_doom_nearest_enemy_without_doom", &"nest_place_doom":
+			var origin := node.inv_id
+			if node.place_doom_target == &"source":
+				return sim.state.registry.get_enemy(node.card_id) != null
+			var inv := sim.state.registry.get_investigator(origin)
+			if node.place_doom_target == &"nearest_enemy_without_doom_to_source":
+				var source_enemy := sim.state.registry.get_enemy(node.card_id)
+				if source_enemy == null or source_enemy.location_tag == &"":
+					return false
+			elif inv == null or inv.location_tag == &"":
 				return false
 			for enemy_id in sim.state.registry.all_enemy_ids():
+				if enemy_id == node.card_id and node.place_doom_target == &"nearest_enemy_without_doom_to_source":
+					continue
 				var enemy := sim.state.registry.get_enemy(enemy_id)
 				if enemy != null and enemy.doom == 0 and enemy.location_tag != &"":
 					return true
 			return false
-		&"place_doom_on_current_agenda":
+		&"place_doom_on_current_agenda", &"nest_mythos_place_doom":
 			return sim.state != null
-		&"place_clue_on_investigator_location":
+		&"place_clue_on_investigator_location", &"nest_place_clue":
 			var clue_inv := sim.state.registry.get_investigator(node.inv_id)
 			if clue_inv == null or clue_inv.clues_on_card <= 0 or clue_inv.location_tag == &"":
 				return false
@@ -219,6 +228,8 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 					return true
 			return false
 		&"nest_enemy_attack":
+			if node.enemy_ref_id != &"" and node.target_investigator_id != &"":
+				return true
 			return sim.last_step_engaged_investigator != &""
 		&"exhaust_card":
 			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
@@ -236,8 +247,25 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null:
 				return true
 			return not sim.state.registry.all_investigator_ids().is_empty()
-		&"take_horror", &"take_damage":
+		&"take_horror", &"take_damage", &"nest_take_horror", &"nest_take_damage":
 			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
+		&"nest_lose_resources", &"lose_all_resources", &"nest_lose_all_resources":
+			var lose_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			return lose_inv != null and lose_inv.resource_pool > 0
+		&"nest_heal":
+			var heal_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if heal_inv == null:
+				return false
+			if node.marker_slot != null and node.marker_slot.kind == AhcEnums.MarkerKind.HORROR_TAKEN:
+				return heal_inv.horror_taken > 0
+			return heal_inv.damage_taken > 0
+		&"nest_lose_action":
+			var act_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			return act_inv != null and act_inv.actions_remaining > 0
+		&"nest_effect_register":
+			return node.register_template != null
+		&"nest_effect_unregister":
+			return node.pending_id != &""
 		&"discard_all_enemies_in_play":
 			return ScenarioCompositionAtoms.dry_discard_all_enemies_in_play(sim)
 		&"put_locations_into_play":

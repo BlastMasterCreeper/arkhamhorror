@@ -120,6 +120,109 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 				int(params.get("amount", 1))
 			)
 	)
+	catalog.register_run(
+		&"seq.effect.take_horror",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.take_horror(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				int(params.get("amount", 1)),
+				bool(params.get("direct", false))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.take_horror(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.take_damage",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.take_damage(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				int(params.get("amount", 1)),
+				bool(params.get("direct", false))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.take_damage(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.lose_resources",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.lose_resources(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				int(params.get("amount", 1))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.lose_resources(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.lose_all_resources",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.lose_all_resources(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.lose_all_resources(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.heal",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.heal(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				StringName(str(params.get("kind", "damage"))),
+				int(params.get("amount", 1))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.heal(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.lose_action",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.lose_action(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				int(params.get("amount", 1))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.lose_action(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.place_doom",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.place_doom(
+				params.get("controller_id", params.get("drawer_id", &"")) as StringName,
+				StringName(str(params.get("target", "source"))),
+				int(params.get("amount", 1)),
+				params.get("card_id", &"") as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.place_doom(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.place_clue",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.place_clue(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.place_clue(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.register",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.effect_register(
+				params.get("controller_id", &"") as StringName,
+				params.get("card_id", &"") as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.register_buff(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.unregister",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.effect_unregister(
+				params.get("controller_id", &"") as StringName,
+				params.get("reg_id", &"") as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.unregister_buff(game_ctx, params)
+	)
 
 
 static func _register_enemy_flows(catalog: SequenceCatalog) -> void:

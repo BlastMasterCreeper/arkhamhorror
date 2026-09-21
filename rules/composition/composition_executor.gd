@@ -214,19 +214,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 				{"inv": node.inv_id, "card": node.card_id}
 			)
 			return entered
-		&"lose_all_resources":
-			var inv := _state.registry.get_investigator(node.inv_id)
-			if inv != null and inv.resource_pool > 0:
-				_mutator.adjust_marker(
-					MarkerSlot.investigator(node.inv_id, AhcEnums.MarkerKind.RESOURCE),
-					-inv.resource_pool
-				)
-			_log.log(
-				AhcEnums.LogCategory.CARD,
-				"composition:lose_all_resources",
-				{"inv": node.inv_id}
-			)
-			return inv != null
+		&"lose_all_resources", &"nest_lose_all_resources":
+			return _execute_nest_lose_all_resources(node)
 		&"commit_hidden_enter_hand":
 			_mutator.commit_hidden_enter_hand(node.card_id, node.inv_id)
 			if _game_ctx != null:
@@ -321,24 +310,12 @@ func _execute_atom(node: CompositionNode) -> bool:
 				_game_ctx.effects.resolve_pending(node.pending_id)
 				return node.pending_id != &""
 			return false
-		&"place_doom_nearest_enemy_without_doom":
-			if _game_ctx != null:
-				return EncounterDoomPlacement.place_on_nearest_enemy_without_doom(
-					_game_ctx, node.inv_id, node.card_id
-				)
-			return false
-		&"place_doom_on_current_agenda":
-			if _game_ctx != null:
-				return EncounterAgendaDoomPlacement.place_on_current_agenda(
-					_game_ctx, node.may_advance_agenda
-				)
-			return false
-		&"place_clue_on_investigator_location":
-			if _game_ctx != null:
-				return InvestigatorCluePlacement.place_one_on_investigator_location(
-					_game_ctx, node.inv_id
-				)
-			return false
+		&"place_doom_nearest_enemy_without_doom", &"nest_place_doom":
+			return _execute_nest_place_doom(node)
+		&"place_doom_on_current_agenda", &"nest_mythos_place_doom":
+			return _execute_nest_mythos_place_doom(node)
+		&"place_clue_on_investigator_location", &"nest_place_clue":
+			return _execute_nest_place_clue(node)
 		&"nest_skill_test":
 			return _execute_nest_skill_test(node)
 		&"nest_enemy_resolve_location":
@@ -353,31 +330,20 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_move_connecting(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
-		&"take_horror":
-			var horror_inv := _resolve_inv(node)
-			if horror_inv == &"":
-				return false
-			_mutator.take_horror(horror_inv, node.marker_delta)
-			_log.log(
-				AhcEnums.LogCategory.CARD,
-				"composition:take_horror",
-				{"inv": horror_inv, "amount": node.marker_delta}
-			)
-			return true
-		&"take_damage":
-			var dmg_inv := _resolve_inv(node)
-			if dmg_inv == &"":
-				return false
-			_mutator.adjust_marker(
-				MarkerSlot.investigator(dmg_inv, AhcEnums.MarkerKind.DAMAGE),
-				node.marker_delta
-			)
-			_log.log(
-				AhcEnums.LogCategory.CARD,
-				"composition:take_damage",
-				{"inv": dmg_inv, "amount": node.marker_delta}
-			)
-			return true
+		&"take_horror", &"nest_take_horror":
+			return _execute_nest_take_horror(node)
+		&"take_damage", &"nest_take_damage":
+			return _execute_nest_take_damage(node)
+		&"nest_lose_resources":
+			return _execute_nest_lose_resources(node)
+		&"nest_heal":
+			return _execute_nest_heal(node)
+		&"nest_lose_action":
+			return _execute_nest_lose_action(node)
+		&"nest_effect_register":
+			return _execute_nest_effect_register(node)
+		&"nest_effect_unregister":
+			return _execute_nest_effect_unregister(node)
 		&"discard_all_enemies_in_play":
 			return ScenarioCompositionAtoms.discard_all_enemies_in_play(_game_ctx)
 		&"put_locations_into_play":
@@ -696,6 +662,169 @@ func _execute_nest_gain_resource(node: CompositionNode) -> bool:
 		{"inv": inv_id, "amount": int(result.get("amount", amount))}
 	)
 	return int(result.get("amount", 0)) > 0 or amount > 0
+
+
+func _execute_nest_take_horror(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var result := _nest_or_direct(
+		&"seq.effect.take_horror",
+		{
+			"controller_id": inv_id,
+			"amount": maxi(node.marker_delta, 1),
+			"direct": node.is_direct,
+		}
+	)
+	if result.is_empty() and _mutator != null:
+		_mutator.take_horror(inv_id, maxi(node.marker_delta, 1))
+		return true
+	return bool(result.get("ok", false))
+
+
+func _execute_nest_take_damage(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var result := _nest_or_direct(
+		&"seq.effect.take_damage",
+		{
+			"controller_id": inv_id,
+			"amount": maxi(node.marker_delta, 1),
+			"direct": node.is_direct,
+		}
+	)
+	if result.is_empty() and _mutator != null:
+		_mutator.adjust_marker(
+			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
+			maxi(node.marker_delta, 1)
+		)
+		return true
+	return bool(result.get("ok", false))
+
+
+func _execute_nest_lose_resources(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.lose_resources",
+			{"controller_id": inv_id, "amount": maxi(node.marker_delta, 1)}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_lose_all_resources(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.lose_all_resources",
+			{"controller_id": inv_id}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_heal(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var kind := &"damage"
+	if node.marker_slot != null and node.marker_slot.kind == AhcEnums.MarkerKind.HORROR_TAKEN:
+		kind = &"horror"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.heal",
+			{"controller_id": inv_id, "kind": kind, "amount": maxi(node.marker_delta, 1)}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_lose_action(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.lose_action",
+			{"controller_id": inv_id, "amount": maxi(node.marker_delta, 1)}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_place_doom(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var target := node.place_doom_target
+	if target == &"":
+		target = &"nearest_enemy_without_doom"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.place_doom",
+			{
+				"controller_id": inv_id,
+				"drawer_id": inv_id,
+				"origin_id": inv_id,
+				"card_id": node.card_id,
+				"target": target,
+				"amount": maxi(node.marker_delta, 1),
+			}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_mythos_place_doom(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	return EncounterAgendaDoomPlacement.place_on_current_agenda(
+		_game_ctx, node.may_advance_agenda
+	)
+
+
+func _execute_nest_place_clue(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.place_clue",
+			{"controller_id": inv_id, "inv_id": inv_id}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_effect_register(node: CompositionNode) -> bool:
+	if node.register_template == null:
+		return false
+	var result := _nest_or_direct(
+		&"seq.effect.register",
+		{
+			"controller_id": node.register_template.controller_id,
+			"card_id": node.register_template.drawn_card_id,
+			"template": node.register_template,
+		}
+	)
+	if result.is_empty() and _registrations != null:
+		return _registrations.register(node.register_template) != &""
+	return bool(result.get("ok", false))
+
+
+func _execute_nest_effect_unregister(node: CompositionNode) -> bool:
+	if node.pending_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.unregister",
+			{"reg_id": node.pending_id, "controller_id": _resolve_inv(node)}
+		).get("ok", false)
+	)
+
+
+func _nest_or_direct(flow_id: StringName, params: Dictionary) -> Dictionary:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return {}
+	return _game_ctx.sequence_catalog.nest(_game_ctx, flow_id, params)
 
 
 func _ability_controller(inv_id: StringName) -> StringName:

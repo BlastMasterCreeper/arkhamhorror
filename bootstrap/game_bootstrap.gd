@@ -82,10 +82,7 @@ static func register_enter_hand_test_definitions() -> void:
 		&"rev_take_horror",
 		&"revelation:0",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				1
-			)
+			return CompositionNode.nest_take_horror(bind.controller_id, 1)
 	)
 	CardRegistry.register_definition(
 		&"rev_limbo_discard",
