@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.12 · 2026-09-21 — §3.2.5 指令 / 参数 / 关键词 Buff 实现路径
+> **状态**：v0.4.13 · 2026-09-21 — §3.2.6 关键词/能力 LISTENER 注册与注销场合
 
 ---
 
@@ -208,6 +208,10 @@ class KeywordProfile:
     var unmount: StringName
     var listener_trigger: StringName   # LISTENER 的 Catalog emit；否则 &""
     var consume_flow_id: StringName    # LISTENER 开火 payload 若是命名 seq；否则 &""
+    var register_occasion: StringName  # ENTER_PLAY | CARD_DRAWN | ENTER_HAND | SETUP | …
+    var unregister_occasion: StringName
+    var armed_zone: StringName         # PLAY | LIMBO | HAND | DECK | SET_ASIDE
+    var lifetime_kind: StringName      # WHILE_IN_PLAY | WHILE_IN_DECK | UNTIL_FIRED | …
 
 class KeywordMountService:
     static func mount_printed(ctx, card_id, profile) -> void  # 按 buff_types Register
@@ -379,6 +383,98 @@ G4  unmount Peril RESTRICTION（标记保留）
 AFTER 本条抽取
   LISTENER 涌动开火 → nest seq.draw.encounter → 卸标记
 ```
+
+#### 3.2.6 LISTENER / Buff 的注册与注销场合（已裁决）
+
+> **问题**：支援资产的 Forced / `[reaction]` 可以 **进场 Register、离场 Unregister**（`WHILE_IN_PLAY`）。关键词和不少能力 **不在场上** 也要生效（涌动在暂存区、隐私在手、起始在牌库）。`on_card_leave_play` **只卸** `WHILE_IN_PLAY`，不能当唯一注销钩。
+
+**与能力 LISTENER 同一套 API**：`RegistrationStore.register` / `unregister`；差别只在 **场合与 Lifetime**，不是第二套监听总线。
+
+##### 场合枚举（zone 变迁 + 框架钩）
+
+| 场合 | 何时 emit | 源卡当时 zone | 默认动作 |
+|---|---|---|---|
+| `SETUP` | 开局、牌组就位、Permanent 放入场 | DECK / SET_ASIDE / 随即 PLAY | Starting、Bonded set-aside、Permanent 进场 |
+| `AFTER_MULLIGAN` | 起手换牌结束 | DECK（Starting 仍在库） | 开火 Starting |
+| `CARD_DRAWN` | 抽取步骤完成（调查员 HAND / 遭遇 LIMBO） | HAND 或 LIMBO | 可挂涌动 LISTENER；**不是** 进场 |
+| `PERIL_CHECK` | 遭遇 G2 | LIMBO | Register 险境 RESTRICTION |
+| `REVELATION` | G3 / D3 显现 | LIMBO →（隐私）HAND | Hidden Register；显现本身 **不** 长期挂 LISTENER |
+| `ENTER_PLAY` | spawn / 打出资产落场 / 地点揭示进场 / 成为当前密谋或场景 | PLAY | 资产能力、敌人关键词 |
+| `LEAVE_PLAY` | 击败、弃置、翻转离场、淘汰 | 正在离场 | **只** Unregister `WHILE_IN_PLAY`；先跑 When defeated |
+| `ENTER_HAND` | 入手（含隐私秘密入手） | HAND | Hidden；手牌可打出的 Fast 不靠此挂 LISTENER |
+| `LEAVE_HAND` | 打出、弃置、expose、淘汰清手 | 离手 | Unregister `WHILE_HIDDEN_IN_HAND` / `WHILE_IN_HAND` |
+| `GRANT` | 「gains X」效果步 | 源卡当时所在 zone | 按该关键词同一场合再 Register 一套 Buff |
+| `DEFEAT` | 击败结算（仍视为在场直到 listener 跑完） | PLAY | 厄运降临开火；随后 `LEAVE_PLAY` |
+| `FIRED` | `UNTIL_FIRED` listener 跑完 | 任意 | Unregister 该条延时 |
+| `DRAWN_CARD_FINALIZE` | 遭遇 G4 初（牌可能从未进场） | LIMBO → discard 途中 | **只**卸该卡 `WHILE_DRAWN_CARD_RESOLVING` 的 Peril RESTRICTION |
+| `LEAVE_SET_ASIDE` | 离开 set-aside（宿主打出召唤等） | 正在离开 SET_ASIDE | Unregister `WHILE_SET_ASIDE` |
+
+```text
+on_card_leave_play(card)
+  先：COLLECT When/After defeated（仍 WHILE_IN_PLAY）
+  再：unregister lifetime == WHILE_IN_PLAY
+  不碰：WHILE_DRAWN_CARD_RESOLVING / WHILE_HIDDEN_IN_HAND / WHILE_IN_DECK
+        / WHILE_SET_ASIDE / UNTIL_FIRED / DURATION
+```
+
+##### 关键词：注册 / 注销 / 武装 zone
+
+| 关键词 | Buff | 注册场合 | 注销场合 | Lifetime | 武装时 zone |
+|---|---|---|---|---|---|
+| **Surge** 涌动 | LISTENER 延时 | 印刷：`CARD_DRAWN`（或 lazy 到 AFTER 查询）；gained：`GRANT` @ G3 | `FIRED`（本条抽取 AFTER 开火后） | `UNTIL_FIRED` 或绑 `WHILE_DRAWN_CARD_RESOLVING` 至开火 | **LIMBO**（从不要求在场） |
+| **Peril** 险境 | RESTRICTION | `PERIL_CHECK` G2 | `DRAWN_CARD_FINALIZE`（G4 初；**不是** `LEAVE_PLAY`） | `WHILE_DRAWN_CARD_RESOLVING` | **LIMBO** |
+| **Hidden** 隐私 | RESTRICTION（+ 手牌能力见下） | `REVELATION` → `ENTER_HAND` | `LEAVE_HAND`（expose / 卡面合法离手 / 淘汰） | `WHILE_HIDDEN_IN_HAND` | **HAND** |
+| **Aloof / Massive** | RESTRICTION | `ENTER_PLAY`（spawn 完成） | `LEAVE_PLAY` | `WHILE_IN_PLAY` | PLAY |
+| **Hunter / Patrol** | LISTENER | `ENTER_PLAY` | `LEAVE_PLAY` | `WHILE_IN_PLAY` | PLAY |
+| **Retaliate / Alert / Elusive** | LISTENER | `ENTER_PLAY` | `LEAVE_PLAY` | `WHILE_IN_PLAY` | PLAY |
+| **Doomed** 厄运降临 | LISTENER | `ENTER_PLAY` | `DEFEAT` 开火后随 `LEAVE_PLAY` | `WHILE_IN_PLAY` | PLAY（击败瞬间仍在场） |
+| **Swarming** | LISTENER 延时 | `ENTER_PLAY` | `FIRED`（进场结算之后垫牌） | `UNTIL_FIRED` | PLAY |
+| **Starting** 起始 | LISTENER 延时 | `SETUP`（牌在库中） | `AFTER_MULLIGAN` 开火 = `FIRED` | `WHILE_IN_DECK` + `UNTIL_FIRED` | **DECK** |
+| **Permanent** 常驻 | RESTRICTION | `SETUP` 放入场（**不是**从手打出） | 仅卡面允许离场或拥有者淘汰 | `WHILE_IN_PLAY`（几乎不卸） | PLAY（开局即在场） |
+| **Fast.** 快速 | MODIFIER | **不** Register LISTENER | — | 无 Registration | **HAND**；Initiation 从手收集 |
+| **Unique** 独一 | RESTRICTION | 第一份 copy `ENTER_PLAY` | 该 copy `LEAVE_PLAY` | `WHILE_IN_PLAY` | PLAY（禁第二份进场） |
+| **Uses / Victory / Seal** | L0 / Domain | 进场放记 / 击败改去向 / 打出封印 | Uses 随离场清 token；Seal 离场释放 | 不走 LISTENER | PLAY 或击败瞬间 |
+| **Bonded** 羁绊 | 构筑 + `WHILE_SET_ASIDE` | `SETUP` set-aside | `LEAVE_SET_ASIDE`（宿主打出后召唤） | `WHILE_SET_ASIDE` | **SET_ASIDE** |
+| **Exceptional / Myriad / Reward / Researched / Customizable** | 构筑 | **不** Register | — | 无 | 对局不武装 |
+
+**gained 关键词**：`GRANT` 时源卡在哪，Buff 就挂在哪。`gains surge` 在 LIMBO → 涌动 LISTENER，Lifetime 仍绑本条抽取，**不**改成 `WHILE_IN_PLAY`。`gains Retaliate` 在场 → 与印刷反击同一 `ENTER_PLAY` 模板。
+
+##### 能力 LISTENER（对照，同样不只有进场）
+
+§8 旧表「印刷 Forced = enter_play」只覆盖支援资产。完整场合：
+
+| 能力 | 注册场合 | 注销场合 | Lifetime | 武装时 zone |
+|---|---|---|---|---|
+| 资产 / 敌人 Constant、Forced、`[reaction]`、`[action]`、`[free]` | `ENTER_PLAY` | `LEAVE_PLAY` | `WHILE_IN_PLAY` | PLAY |
+| 地点 Constant / `[free]` | 地点揭示进场 | 地点离场 / 被替换 | `WHILE_IN_PLAY` | PLAY |
+| 密谋 / 场景 Forced、Constant | 成为当前卡（`SETUP` 或推进后进场） | **翻面离场**（a 面卸 `WHILE_IN_PLAY`；效果造的 `DURATION`/`UNTIL_FIRED` **保留**） | `WHILE_IN_PLAY` | PLAY（当前密谋/场景） |
+| 调查员卡能力 | `SETUP`（调查员开局即在场） | 淘汰 `LEAVE_PLAY` | `WHILE_IN_PLAY` | PLAY |
+| **显现** Revelation | **不**长期 Register；抽到时 nest `seq.encounter.revelation` / `seq.enter_hand` | 子流程 pop | 无 | LIMBO / 入手瞬间 |
+| 隐私牌上的 Constant / Forced / `[reaction]` | `ENTER_HAND`（与 Hidden 同时） | `LEAVE_HAND` | `WHILE_HIDDEN_IN_HAND` | **HAND**（视为威胁区，仅控制者） |
+| Fast 事件「Play when/after …」 | **不**挂场上 LISTENER | 打出后进 limbo 结算 | 无 | **HAND**；Initiation / When 槽收集 |
+| 效果创造的延时 | 效果 `GRANT` / Register 步 | `FIRED` | `UNTIL_FIRED` | 不绑源卡 zone |
+| 效果创造的持续 | 效果 Register 步 | Duration tick；**默认不**随源卡离场（`WHILE_SOURCE_IN_PLAY` 才绑） | `DURATION` / `WHILE_SOURCE_IN_PLAY` | 任意 |
+| Bonded 被召唤前 | `SETUP` set-aside | `LEAVE_SET_ASIDE` | `WHILE_SET_ASIDE` | **SET_ASIDE** |
+| 牌库里尚未抽出的弱点 Forced | **不** Register | 抽出后再按 cardtype 走显现/进场 | — | DECK（未武装） |
+
+**显现 vs 监听**：显现是抽牌流程里的一次性 nest，不是 `WHILE_IN_PLAY` LISTENER。不要在 `ENTER_PLAY` 给 treachery 挂显现。
+
+##### 接线（KeywordMountService / 能力安装）
+
+| Store 钩 | 卸哪些 Lifetime |
+|---|---|
+| `on_card_enter_play` | Register 模板里 `WHILE_IN_PLAY` 的关键词与能力 |
+| `on_card_leave_play` | **仅** `WHILE_IN_PLAY`（先跑 defeated LISTENER） |
+| `on_card_drawn` | 涌动 LISTENER（印刷）；不挂 Hunter |
+| `on_peril_check` | 险境 RESTRICTION |
+| `on_drawn_card_finalize` / `unregister_by_drawn_card` | **仅** 该卡的 Peril RESTRICTION；**不**卸 KEYWORD 标记 / 涌动 LISTENER |
+| `on_enter_hand` / `on_leave_hand` | `WHILE_HIDDEN_IN_HAND`、`WHILE_IN_HAND` |
+| `on_leave_deck` | `WHILE_IN_DECK`（Starting 离开牌库） |
+| `on_leave_set_aside` | `WHILE_SET_ASIDE`（Bonded 被召唤） |
+| `on_setup` / `on_after_mulligan` | `WHILE_IN_DECK` Starting；Permanent `ENTER_PLAY`；Bonded `WHILE_SET_ASIDE` |
+| listener 跑完 | `UNTIL_FIRED` 自卸 |
+
+**禁止**：用 `on_card_leave_play` 清涌动/险境；把 Fast 事件当成进场 LISTENER；把显现 Register 成 `WHILE_IN_PLAY`。注册/注销场合见 [§3.2.6](#326-listener--buff-的注册与注销场合已裁决)。
 
 ---
 
@@ -553,16 +649,22 @@ class ListenerPayload:
     var initiation_meta: Dictionary
 ```
 
-| 来源 | Register 时机 | 典型 Lifetime |
-|---|---|---|
-| 印刷 Forced | enter_play | WHILE_IN_PLAY |
-| 印刷 [reaction] | enter_play | WHILE_IN_PLAY |
-| 效果创建 lasting | effect resolve | DURATION |
-| 效果创建 delayed | effect resolve | UNTIL_FIRED |
+| 来源 | Register 场合 | 典型 Lifetime | 注销 |
+|---|---|---|---|
+| 资产 / 敌人印刷 Forced、`[reaction]`、`[free]` | `ENTER_PLAY` | `WHILE_IN_PLAY` | `LEAVE_PLAY` |
+| 密谋 / 场景印刷 Forced | 成为当前卡 | `WHILE_IN_PLAY` | 翻面离场（效果造的延时 **保留**） |
+| 隐私牌 Constant / Forced | `ENTER_HAND` | `WHILE_HIDDEN_IN_HAND` | `LEAVE_HAND` |
+| 显现 | **不**长期 Register；抽到 nest | — | 子流程 pop |
+| 关键词涌动 | `CARD_DRAWN` / `GRANT` | `UNTIL_FIRED` | 开火后 |
+| 关键词猎手等 | `ENTER_PLAY` | `WHILE_IN_PLAY` | `LEAVE_PLAY` |
+| 效果创建 lasting | 效果 resolve | `DURATION` | tick；默认不随离场 |
+| 效果创建 delayed | 效果 resolve | `UNTIL_FIRED` | 开火后 |
+
+完整场合表：[§3.2.6](#326-listener--buff-的注册与注销场合已裁决)。
 
 **TimingBus**（06 §5.1）：Forced/Delayed 级 Listener → Framework → [reaction]；`UNTIL_FIRED` 的 Registration 在 listener 执行后 Unregister。
 
-**Act flip**（OQ-02-02）：a 面 `WHILE_IN_PLAY` 注销；effect 创建的 `DURATION` / `UNTIL_FIRED` **保留**。
+**Act flip**（OQ-02-02）：a 面 `WHILE_IN_PLAY` 注销；效果创建的 `DURATION` / `UNTIL_FIRED` **保留**。
 
 ---
 
@@ -570,12 +672,17 @@ class ListenerPayload:
 
 ```gdscript
 enum LifetimeKind {
-    WHILE_IN_PLAY,
-    WHILE_SOURCE_IN_PLAY,
+    WHILE_IN_PLAY,                 # ENTER_PLAY 挂、LEAVE_PLAY 卸
+    WHILE_SOURCE_IN_PLAY,          # 效果 Buff 绑源卡在场
+    WHILE_DRAWN_CARD_RESOLVING,    # 险境 / 动态涌动标记；G4 只卸 RESTRICTION
+    WHILE_HIDDEN_IN_HAND,          # 隐私入手挂、离手卸
+    WHILE_IN_HAND,
+    WHILE_IN_DECK,                 # Starting
+    WHILE_SET_ASIDE,               # Bonded
+    WHILE_ENCOUNTER_FRAME,         # 旧帧级；新路径用 WHILE_DRAWN_CARD_RESOLVING
     DURATION,
     UNTIL_FIRED,
     UNTIL_CONDITION,
-    MANUAL,
 }
 
 class DurationAnchor {
@@ -593,6 +700,10 @@ class DurationAnchor {
 | for **this skill test** | `DURATION(THIS_SKILL_TEST)` |
 | at **start of next mythos**（一次） | `UNTIL_FIRED` |
 | 在场 Constant | `WHILE_IN_PLAY` |
+| 抽到后结算期间（险境） | `WHILE_DRAWN_CARD_RESOLVING` |
+| 隐私在手 | `WHILE_HIDDEN_IN_HAND` |
+| 起始在库 | `WHILE_IN_DECK` |
+| Bonded set-aside | `WHILE_SET_ASIDE` |
 
 **After / When** → Listener 的 `timing`；**until / for** → Registration 的 `lifetime`。
 
@@ -615,7 +726,14 @@ class RegistrationStore:
     func collect(type: BuffType, ctx: ApplicationContext) -> Array[BuffSpec]
     func tick_durations(anchor: DurationAnchor.Kind, ctx: ApplicationContext) -> void
     func on_card_enter_play(card_id, templates: Array[RegistrationTemplate]) -> void
-    func on_card_leave_play(card_id: StringName) -> void
+    func on_card_leave_play(card_id: StringName) -> void  # 只卸 WHILE_IN_PLAY
+    func on_card_drawn(card_id) -> void
+    func on_enter_hand(card_id) -> void
+    func on_leave_hand(card_id) -> void                   # WHILE_HIDDEN_IN_HAND / WHILE_IN_HAND
+    func on_leave_deck(card_id) -> void                   # WHILE_IN_DECK
+    func on_leave_set_aside(card_id) -> void              # WHILE_SET_ASIDE
+    func on_drawn_card_finalize(card_id) -> void          # 只卸 Peril RESTRICTION
+    func on_setup() -> void
 ```
 
 ---
@@ -915,6 +1033,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.13 | **§3.2.6** 关键词/能力 LISTENER 注册与注销场合；不只有进场/离场 |
 | 2026-09-21 | v0.4.12 | **§3.2.5** 分表：指令 / 参数 / 关键词三种 Buff 的实现路径 |
 | 2026-09-21 | v0.4.11 | **§3.2.5** 关键词编译为三种 Buff；猎物/生成为指令，不进 KeywordProfile |
 | 2026-09-21 | v0.4.10 | **§3.2.5** 关键词 `consume_shape`：仅 NEST_SEQ 才 nest `seq.keyword.*`；校正 Hidden/Hunter 导入误伤 |

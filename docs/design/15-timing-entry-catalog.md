@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-buff-model.md](06-registration-buff-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
 > **符号记法**：[ArkhamDB 标准](../reference/arkham-symbol-notation.md)  
-> **状态**：v0.6.16 · 2026-09-21
+> **状态**：v0.6.17 · 2026-09-21
 
 ---
 
@@ -1320,7 +1320,7 @@ G3 revelation:
 
 **测试**：ENC-SURGE-01（印刷）；ENC-SURGE-02（12124 两分支）；ENC-SURGE-03（12126 有/无 clue）。
 
-**不是所有关键词都走本槽**。涌动是 **LISTENER 延时** 的样板；险境是 RESTRICTION。猎物 / 生成是指令。见 [06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
+**不是所有关键词都走本槽**。涌动是 **LISTENER 延时** 的样板；险境是 RESTRICTION。猎物 / 生成是指令。注册/注销场合见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)（不只有进场/离场）。见 [06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
 
 **Timing emit（目标，待 TimingCatalog）**：
 
@@ -1782,6 +1782,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-09-20 | v0.6.9 | **§2/§3/§16.3/§17.3**：抽取时钉抽取步骤，不为原文不细买单 |
 | 2026-09-20 | v0.6.10 | 「抽取后」= 该次抽取整段结算完毕；不在步骤边界另开 After。抽取时仍只钉抽取步骤 |
 | 2026-09-20 | v0.6.11 | Would = 这次抽取 PreImpact；When = 抽取步骤；After = 整段结算 |
+| 2026-09-21 | v0.6.17 | 关键词 LISTENER 注册/注销场合见 06 §3.2.6（不只有进场/离场） |
 | 2026-09-21 | v0.6.16 | 涌动 = LISTENER 延时竖切；关键词编译三种 Buff；猎物/生成为指令（06 §3.2.5） |
 | 2026-09-21 | v0.6.15 | 涌动 nest 仅适用于 NEST_SEQ 关键词；全表分类见 06 §3.2.5 |
 | 2026-09-21 | v0.6.14 | 涌动消费 nest `seq.keyword.surge`（KeywordProfile 模块）；不再写入遭遇抽牌优先队列 |

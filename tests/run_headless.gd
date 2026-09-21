@@ -134,6 +134,10 @@ func _initialize() -> void:
 	_run_test("ENC-SURGE-06 raising suspicions places doom", _test_enc_surge_12160_places_doom)
 	_run_test("ENC-SURGE-07 raising suspicions no target gains surge", _test_enc_surge_12160_no_target_gained)
 	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
+	_run_test("KW-OCC-01 keyword listener occasions table", _test_kw_occ_profile_table)
+	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
+	_run_test("KW-OCC-03 leave hand unregisters hidden not in-play", _test_kw_occ_leave_hand_scoped)
+	_run_test("KW-OCC-04 peril finalize is not leave play", _test_kw_occ_peril_finalize)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -2787,6 +2791,153 @@ func _test_gain_effective_keyword() -> bool:
 		return false
 	EncounterGainedKeyword.register_surge(h.ctx, card_id)
 	return EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge")
+
+
+func _test_kw_occ_profile_table() -> bool:
+	if KeywordProfileTable.profile_for(&"prey") != null:
+		return false
+	if KeywordProfileTable.profile_for(&"spawn") != null:
+		return false
+	var surge := KeywordProfileTable.profile_for(&"surge")
+	if surge == null:
+		return false
+	if surge.buff_type != &"LISTENER":
+		return false
+	if surge.register_occasion != KeywordProfileTable.OCC_CARD_DRAWN:
+		return false
+	if surge.unregister_occasion != KeywordProfileTable.OCC_FIRED:
+		return false
+	if surge.armed_zone != KeywordProfileTable.ZONE_LIMBO:
+		return false
+	var hunter := KeywordProfileTable.profile_for(&"hunter")
+	if hunter == null or hunter.register_occasion != KeywordProfileTable.OCC_ENTER_PLAY:
+		return false
+	if hunter.unregister_occasion != KeywordProfileTable.OCC_LEAVE_PLAY:
+		return false
+	if hunter.armed_zone != KeywordProfileTable.ZONE_PLAY:
+		return false
+	var starting := KeywordProfileTable.profile_for(&"starting")
+	if starting == null or starting.register_occasion != KeywordProfileTable.OCC_SETUP:
+		return false
+	if starting.armed_zone != KeywordProfileTable.ZONE_DECK:
+		return false
+	if starting.unregister_occasion != KeywordProfileTable.OCC_FIRED:
+		return false
+	var peril := KeywordProfileTable.profile_for(&"peril")
+	if peril == null or peril.register_occasion != KeywordProfileTable.OCC_PERIL_CHECK:
+		return false
+	if peril.unregister_occasion != KeywordProfileTable.OCC_DRAWN_CARD_FINALIZE:
+		return false
+	if peril.armed_zone != KeywordProfileTable.ZONE_LIMBO:
+		return false
+	var hidden := KeywordProfileTable.profile_for(&"hidden")
+	if hidden == null or hidden.register_occasion != KeywordProfileTable.OCC_ENTER_HAND:
+		return false
+	if hidden.unregister_occasion != KeywordProfileTable.OCC_LEAVE_HAND:
+		return false
+	var bonded := KeywordProfileTable.profile_for(&"bonded")
+	if bonded == null or bonded.armed_zone != KeywordProfileTable.ZONE_SET_ASIDE:
+		return false
+	var fast := KeywordProfileTable.profile_for(&"fast")
+	if fast == null or fast.buff_type != &"MODIFIER":
+		return false
+	if fast.register_occasion != &"":
+		return false
+	for profile in KeywordProfileTable.all_profiles():
+		if profile.buff_type != KeywordProfileTable.BUFF_LISTENER:
+			continue
+		if profile.register_occasion == &"" or profile.unregister_occasion == &"":
+			return false
+		if profile.armed_zone == &"":
+			return false
+	var enter_play := KeywordProfileTable.profiles_for_register_occasion(
+		KeywordProfileTable.OCC_ENTER_PLAY
+	)
+	var hunter_in_enter := false
+	var surge_in_enter := false
+	for profile in enter_play:
+		if profile.keyword == &"hunter":
+			hunter_in_enter = true
+		if profile.keyword == &"surge":
+			surge_in_enter = true
+	return hunter_in_enter and not surge_in_enter
+
+
+func _kw_occ_bind(
+	store: RegistrationStore,
+	lifetime: AhcEnums.LifetimeKind,
+	card_id: StringName
+) -> StringName:
+	var template := RegistrationTemplate.new()
+	template.lifetime_kind = lifetime
+	template.drawn_card_id = card_id
+	template.buffs.append(
+		BuffSpec.listener_buff(ListenerPayload.at_timing(&"kw_occ_dummy", null))
+	)
+	return store.register(template)
+
+
+func _test_kw_occ_leave_play_scoped() -> bool:
+	var h := RuleTestHarness.new(42)
+	var store := h.ctx.registrations
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, &"hunter_card")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING, &"limbo_card")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND, &"hand_card")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.UNTIL_FIRED, &"delayed_card")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_DECK, &"starting_card")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_SET_ASIDE, &"bonded_card")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.DURATION, &"lasting_card")
+	if store.count() != 7:
+		return false
+	store.on_card_leave_play(&"hunter_card")
+	if store.count() != 6:
+		return false
+	store.on_card_leave_play(&"limbo_card")
+	store.on_card_leave_play(&"hand_card")
+	store.on_card_leave_play(&"starting_card")
+	store.on_card_leave_play(&"bonded_card")
+	return store.count() == 6
+
+
+func _test_kw_occ_leave_hand_scoped() -> bool:
+	var h := RuleTestHarness.new(42)
+	var store := h.ctx.registrations
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, &"asset_card")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND, &"hidden_card")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_HAND, &"hand_card")
+	store.on_leave_hand(&"hidden_card")
+	if store.count() != 2:
+		return false
+	store.on_leave_hand(&"hand_card")
+	if store.count() != 1:
+		return false
+	store.on_leave_hand(&"asset_card")
+	return store.count() == 1
+
+
+func _test_kw_occ_peril_finalize() -> bool:
+	var h := RuleTestHarness.new(42)
+	var store := h.ctx.registrations
+	store.register(RegistrationTemplate.peril_drawn_card_resolving(&"inv_1", &"treachery"))
+	EncounterGainedKeyword.register_surge(h.ctx, &"treachery")
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, &"hunter_card")
+	if store.count() != 3:
+		return false
+	if not store.has_peril_for_drawn_card(&"treachery"):
+		return false
+	if not store.has_keyword_buff(&"treachery", &"surge"):
+		return false
+	store.on_card_leave_play(&"treachery")
+	if store.count() != 3:
+		return false
+	store.on_drawn_card_finalize(&"treachery")
+	if store.has_peril_for_drawn_card(&"treachery"):
+		return false
+	if not store.has_keyword_buff(&"treachery", &"surge"):
+		return false
+	store.on_leave_deck(&"starting_missing")
+	store.on_leave_set_aside(&"bonded_missing")
+	return store.count() == 2 and store.has_keyword_buff(&"treachery", &"surge")
 
 
 func _test_enc_revelation_nest() -> bool:
