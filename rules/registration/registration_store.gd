@@ -25,7 +25,7 @@ func unregister_by_controller(controller_id: StringName) -> void:
 
 
 func on_card_leave_play(card_id: StringName) -> void:
-	## 06 §3.2.6 · 只卸 WHILE_IN_PLAY。不碰涌动 / 险境 / 隐私 / 起始 / Bonded / 延时。
+	## 06 §3.2.6 · 只卸 WHILE_IN_PLAY。不碰涌动 / 险境 / 隐私 / 起始 / 绑定 / 延时。
 	_unregister_matching(card_id, [
 		AhcEnums.LifetimeKind.WHILE_IN_PLAY,
 	])

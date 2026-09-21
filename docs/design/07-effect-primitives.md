@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.6 · 2026-09-21 — §0.1.6 链 06 §3.2.6 注册/注销场合
+> **状态**：v0.3.7 · 2026-09-21 — §0.1.6 链 06 §3.2.6：注册绑已有 seq 砖
 
 ---
 
@@ -154,7 +154,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 | Uses / Victory / Seal | L0 / Domain | 仍是关键词，不走三种 Buff |
 | 构筑关键词 | 11 | 对局不消费 |
 
-**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 BuffType。LISTENER 注册/注销场合见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)（不只有进场/离场）。
+**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 BuffType。LISTENER 注册/注销绑已有 `seq.*` 砖或 zone 变迁，禁止 `PERIL_CHECK` 一类独立场合节点。见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)。
 
 ---
 
@@ -618,6 +618,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.3.7 | 链 06 §3.2.6：注册绑已有 seq 砖 / zone 变迁，禁止独立场合节点 |
 | 2026-09-21 | v0.3.6 | 链 06 §3.2.6：关键词/能力 LISTENER 不只有进场/离场 |
 | 2026-09-21 | v0.3.5 | **§0.1.6** 指令 / 参数 / 关键词 Buff 分轨 |
 | 2026-09-21 | v0.3.4 | **§0.1.6** 关键词编译为三种 Buff；猎物/生成为指令 |

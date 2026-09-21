@@ -1,25 +1,33 @@
 class_name KeywordProfileTable
 extends RefCounted
 
-## 06 §3.2.6 · 关键词 Buff 的注册 / 注销场合。猎物 / 生成是指令，不进本表。
-## LISTENER 延时竖切仍按 consume_slot 过滤；其它行只供 MountService / Store 钩查询。
+## 06 §3.2.6 · 注册/注销绑已有流程砖或 zone 变迁。猎物 / 生成不进本表。
+## LISTENER 延时竖切仍按 consume_slot 过滤。
 
 const SLOT_AFTER_DRAWN_CARD: StringName = &"AFTER_DRAWN_CARD"
 
-const OCC_SETUP: StringName = &"SETUP"
-const OCC_AFTER_MULLIGAN: StringName = &"AFTER_MULLIGAN"
-const OCC_CARD_DRAWN: StringName = &"CARD_DRAWN"
-const OCC_PERIL_CHECK: StringName = &"PERIL_CHECK"
-const OCC_REVELATION: StringName = &"REVELATION"
-const OCC_ENTER_PLAY: StringName = &"ENTER_PLAY"
-const OCC_LEAVE_PLAY: StringName = &"LEAVE_PLAY"
-const OCC_ENTER_HAND: StringName = &"ENTER_HAND"
-const OCC_LEAVE_HAND: StringName = &"LEAVE_HAND"
-const OCC_GRANT: StringName = &"GRANT"
-const OCC_DEFEAT: StringName = &"DEFEAT"
-const OCC_FIRED: StringName = &"FIRED"
-const OCC_DRAWN_CARD_FINALIZE: StringName = &"DRAWN_CARD_FINALIZE"
-const OCC_LEAVE_SET_ASIDE: StringName = &"LEAVE_SET_ASIDE"
+const FLOW_DRAW_ENCOUNTER: StringName = &"seq.draw.encounter"
+const FLOW_DRAW_INVESTIGATOR: StringName = &"seq.draw.investigator"
+const FLOW_ENCOUNTER_REVELATION: StringName = &"seq.encounter.revelation"
+const FLOW_ENCOUNTER_SPAWN: StringName = &"seq.encounter.spawn"
+const FLOW_ENTER_HAND: StringName = &"seq.enter_hand"
+const FLOW_SETUP: StringName = &"seq.setup"
+const FLOW_KEYWORD_SURGE: StringName = &"seq.keyword.surge"
+
+const SLOT_G2: StringName = &"G2"
+const SLOT_G4: StringName = &"G4"
+const SLOT_WHEN: StringName = &"WHEN"
+const SLOT_AFTER: StringName = &"AFTER"
+const SLOT_ENTER_PLAY: StringName = &"ENTER_PLAY"
+const SLOT_LEAVE_PLAY: StringName = &"LEAVE_PLAY"
+const SLOT_ENTER_HAND: StringName = &"ENTER_HAND"
+const SLOT_LEAVE_HAND: StringName = &"LEAVE_HAND"
+const SLOT_ENTER_SET_ASIDE: StringName = &"ENTER_SET_ASIDE"
+const SLOT_LEAVE_SET_ASIDE: StringName = &"LEAVE_SET_ASIDE"
+const SLOT_GRANT: StringName = &"GRANT"
+const SLOT_DEFEAT: StringName = &"DEFEAT"
+const SLOT_FIRED: StringName = &"FIRED"
+const SLOT_SETUP: StringName = &"SETUP"
 
 const ZONE_PLAY: StringName = &"PLAY"
 const ZONE_LIMBO: StringName = &"LIMBO"
@@ -61,99 +69,133 @@ static func profiles_for_slot(slot: StringName) -> Array[KeywordProfile]:
 	return matched
 
 
-static func profiles_for_register_occasion(occasion: StringName) -> Array[KeywordProfile]:
+static func profiles_for_register(flow_id: StringName, slot: StringName) -> Array[KeywordProfile]:
 	var matched: Array[KeywordProfile] = []
 	for profile in _all():
-		if profile.register_occasion == occasion:
+		if profile.register_flow_id == flow_id and profile.register_slot == slot:
 			matched.append(profile)
 	return matched
 
 
-static func profiles_for_unregister_occasion(occasion: StringName) -> Array[KeywordProfile]:
+static func profiles_for_unregister(flow_id: StringName, slot: StringName) -> Array[KeywordProfile]:
 	var matched: Array[KeywordProfile] = []
 	for profile in _all():
-		if profile.unregister_occasion == occasion:
+		if profile.unregister_flow_id == flow_id and profile.unregister_slot == slot:
 			matched.append(profile)
 	return matched
 
 
 static func _all() -> Array[KeywordProfile]:
 	var profiles: Array[KeywordProfile] = []
-	## LISTENER · 不在场也可武装
+	## LISTENER · 绑 seq.draw.encounter 已有砖（不另开 PERIL_CHECK / CARD_DRAWN 节点）
 	profiles.append(_row(
-		&"surge", BUFF_LISTENER, OCC_CARD_DRAWN, OCC_FIRED, ZONE_LIMBO, LIFE_UNTIL_FIRED,
-		SLOT_AFTER_DRAWN_CARD, &"seq.keyword.surge"
+		&"surge", BUFF_LISTENER,
+		FLOW_DRAW_ENCOUNTER, SLOT_WHEN,
+		FLOW_DRAW_ENCOUNTER, SLOT_AFTER,
+		ZONE_LIMBO, LIFE_UNTIL_FIRED,
+		SLOT_AFTER_DRAWN_CARD, FLOW_KEYWORD_SURGE
 	))
 	profiles.append(_row(
-		&"starting", BUFF_LISTENER, OCC_SETUP, OCC_FIRED, ZONE_DECK, LIFE_IN_DECK
+		&"starting", BUFF_LISTENER,
+		FLOW_SETUP, SLOT_SETUP,
+		FLOW_SETUP, SLOT_AFTER,
+		ZONE_DECK, LIFE_IN_DECK
 	))
 	profiles.append(_row(
-		&"swarming", BUFF_LISTENER, OCC_ENTER_PLAY, OCC_FIRED, ZONE_PLAY, LIFE_UNTIL_FIRED
+		&"swarming", BUFF_LISTENER,
+		&"", SLOT_ENTER_PLAY,
+		&"", SLOT_FIRED,
+		ZONE_PLAY, LIFE_UNTIL_FIRED
 	))
-	## LISTENER · 在场
+	## LISTENER · zone 变迁（spawn / 打出等已有流程里的 L0）
 	profiles.append(_row(
-		&"hunter", BUFF_LISTENER, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
-	))
-	profiles.append(_row(
-		&"patrol", BUFF_LISTENER, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
-	))
-	profiles.append(_row(
-		&"retaliate", BUFF_LISTENER, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"hunter", BUFF_LISTENER,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
 	profiles.append(_row(
-		&"alert", BUFF_LISTENER, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"patrol", BUFF_LISTENER,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
 	profiles.append(_row(
-		&"elusive", BUFF_LISTENER, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"retaliate", BUFF_LISTENER,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
 	profiles.append(_row(
-		&"doomed", BUFF_LISTENER, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"alert", BUFF_LISTENER,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
-	## RESTRICTION · 不在场也可武装
 	profiles.append(_row(
-		&"peril", BUFF_RESTRICTION, OCC_PERIL_CHECK, OCC_DRAWN_CARD_FINALIZE,
+		&"elusive", BUFF_LISTENER,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+	))
+	profiles.append(_row(
+		&"doomed", BUFF_LISTENER,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+	))
+	## RESTRICTION · 险境 = 遭遇抽牌 G2 / G4 已有砖
+	profiles.append(_row(
+		&"peril", BUFF_RESTRICTION,
+		FLOW_DRAW_ENCOUNTER, SLOT_G2,
+		FLOW_DRAW_ENCOUNTER, SLOT_G4,
 		ZONE_LIMBO, LIFE_DRAWN_RESOLVING
 	))
 	profiles.append(_row(
-		&"hidden", BUFF_RESTRICTION, OCC_ENTER_HAND, OCC_LEAVE_HAND, ZONE_HAND, LIFE_HIDDEN_HAND
-	))
-	## RESTRICTION · 在场
-	profiles.append(_row(
-		&"aloof", BUFF_RESTRICTION, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
-	))
-	profiles.append(_row(
-		&"massive", BUFF_RESTRICTION, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"hidden", BUFF_RESTRICTION,
+		FLOW_ENCOUNTER_REVELATION, SLOT_ENTER_HAND,
+		&"", SLOT_LEAVE_HAND,
+		ZONE_HAND, LIFE_HIDDEN_HAND
 	))
 	profiles.append(_row(
-		&"permanent", BUFF_RESTRICTION, OCC_SETUP, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"aloof", BUFF_RESTRICTION,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
 	profiles.append(_row(
-		&"unique", BUFF_RESTRICTION, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"massive", BUFF_RESTRICTION,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+	))
+	profiles.append(_row(
+		&"permanent", BUFF_RESTRICTION,
+		FLOW_SETUP, SLOT_ENTER_PLAY,
+		&"", SLOT_LEAVE_PLAY,
+		ZONE_PLAY, LIFE_IN_PLAY
+	))
+	profiles.append(_row(
+		&"unique", BUFF_RESTRICTION,
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
 	## MODIFIER · 不 Register LISTENER；Initiation 从手收集
-	profiles.append(_row(&"fast", BUFF_MODIFIER, &"", &"", ZONE_HAND, &""))
-	## L0 / Domain · 不走 LISTENER
-	profiles.append(_row(&"uses", BUFF_DOMAIN, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, &""))
-	profiles.append(_row(&"victory", BUFF_DOMAIN, OCC_DEFEAT, &"", ZONE_PLAY, &""))
-	profiles.append(_row(&"vengeance", BUFF_DOMAIN, OCC_DEFEAT, &"", ZONE_PLAY, &""))
-	profiles.append(_row(&"seal", BUFF_DOMAIN, OCC_ENTER_PLAY, OCC_LEAVE_PLAY, ZONE_PLAY, &""))
-	## 构筑；Bonded 对局另挂 WHILE_SET_ASIDE
+	profiles.append(_row(&"fast", BUFF_MODIFIER, &"", &"", &"", &"", ZONE_HAND, &""))
+	## L0 / Domain
 	profiles.append(_row(
-		&"bonded", BUFF_DECKBUILDING, OCC_SETUP, OCC_LEAVE_SET_ASIDE, ZONE_SET_ASIDE, LIFE_SET_ASIDE
+		&"uses", BUFF_DOMAIN, &"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, &""
 	))
-	profiles.append(_row(&"exceptional", BUFF_DECKBUILDING, &"", &"", &"", &""))
-	profiles.append(_row(&"myriad", BUFF_DECKBUILDING, &"", &"", &"", &""))
-	profiles.append(_row(&"reward", BUFF_DECKBUILDING, &"", &"", &"", &""))
-	profiles.append(_row(&"researched", BUFF_DECKBUILDING, &"", &"", &"", &""))
-	profiles.append(_row(&"customizable", BUFF_DECKBUILDING, &"", &"", &"", &""))
+	profiles.append(_row(&"victory", BUFF_DOMAIN, &"", SLOT_DEFEAT, &"", &"", ZONE_PLAY, &""))
+	profiles.append(_row(&"vengeance", BUFF_DOMAIN, &"", SLOT_DEFEAT, &"", &"", ZONE_PLAY, &""))
+	profiles.append(_row(
+		&"seal", BUFF_DOMAIN, &"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, &""
+	))
+	## 构筑；绑定对局挂 WHILE_SET_ASIDE（setup 已有 set-aside 步）
+	profiles.append(_row(
+		&"bonded", BUFF_DECKBUILDING,
+		FLOW_SETUP, SLOT_ENTER_SET_ASIDE,
+		&"", SLOT_LEAVE_SET_ASIDE,
+		ZONE_SET_ASIDE, LIFE_SET_ASIDE
+	))
+	profiles.append(_row(&"exceptional", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
+	profiles.append(_row(&"myriad", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
+	profiles.append(_row(&"reward", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
+	profiles.append(_row(&"researched", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
+	profiles.append(_row(&"customizable", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	return profiles
 
 
 static func _row(
 	keyword: StringName,
 	buff_type: StringName,
-	register_occasion: StringName,
-	unregister_occasion: StringName,
+	register_flow_id: StringName,
+	register_slot: StringName,
+	unregister_flow_id: StringName,
+	unregister_slot: StringName,
 	armed_zone: StringName,
 	lifetime_kind: StringName,
 	consume_slot: StringName = &"",
@@ -162,8 +204,10 @@ static func _row(
 	var profile := KeywordProfile.new()
 	profile.keyword = keyword
 	profile.buff_type = buff_type
-	profile.register_occasion = register_occasion
-	profile.unregister_occasion = unregister_occasion
+	profile.register_flow_id = register_flow_id
+	profile.register_slot = register_slot
+	profile.unregister_flow_id = unregister_flow_id
+	profile.unregister_slot = unregister_slot
 	profile.armed_zone = armed_zone
 	profile.lifetime_kind = lifetime_kind
 	profile.consume_slot = consume_slot

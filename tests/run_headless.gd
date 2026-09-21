@@ -2803,37 +2803,45 @@ func _test_kw_occ_profile_table() -> bool:
 		return false
 	if surge.buff_type != &"LISTENER":
 		return false
-	if surge.register_occasion != KeywordProfileTable.OCC_CARD_DRAWN:
+	if surge.register_flow_id != KeywordProfileTable.FLOW_DRAW_ENCOUNTER:
 		return false
-	if surge.unregister_occasion != KeywordProfileTable.OCC_FIRED:
+	if surge.register_slot != KeywordProfileTable.SLOT_WHEN:
+		return false
+	if surge.unregister_flow_id != KeywordProfileTable.FLOW_DRAW_ENCOUNTER:
+		return false
+	if surge.unregister_slot != KeywordProfileTable.SLOT_AFTER:
 		return false
 	if surge.armed_zone != KeywordProfileTable.ZONE_LIMBO:
 		return false
 	var hunter := KeywordProfileTable.profile_for(&"hunter")
-	if hunter == null or hunter.register_occasion != KeywordProfileTable.OCC_ENTER_PLAY:
+	if hunter == null or hunter.register_slot != KeywordProfileTable.SLOT_ENTER_PLAY:
 		return false
-	if hunter.unregister_occasion != KeywordProfileTable.OCC_LEAVE_PLAY:
+	if hunter.unregister_slot != KeywordProfileTable.SLOT_LEAVE_PLAY:
 		return false
 	if hunter.armed_zone != KeywordProfileTable.ZONE_PLAY:
 		return false
 	var starting := KeywordProfileTable.profile_for(&"starting")
-	if starting == null or starting.register_occasion != KeywordProfileTable.OCC_SETUP:
+	if starting == null or starting.register_flow_id != KeywordProfileTable.FLOW_SETUP:
 		return false
 	if starting.armed_zone != KeywordProfileTable.ZONE_DECK:
 		return false
-	if starting.unregister_occasion != KeywordProfileTable.OCC_FIRED:
+	if starting.unregister_slot != KeywordProfileTable.SLOT_AFTER:
 		return false
 	var peril := KeywordProfileTable.profile_for(&"peril")
-	if peril == null or peril.register_occasion != KeywordProfileTable.OCC_PERIL_CHECK:
+	if peril == null or peril.register_flow_id != KeywordProfileTable.FLOW_DRAW_ENCOUNTER:
 		return false
-	if peril.unregister_occasion != KeywordProfileTable.OCC_DRAWN_CARD_FINALIZE:
+	if peril.register_slot != KeywordProfileTable.SLOT_G2:
+		return false
+	if peril.unregister_slot != KeywordProfileTable.SLOT_G4:
 		return false
 	if peril.armed_zone != KeywordProfileTable.ZONE_LIMBO:
 		return false
 	var hidden := KeywordProfileTable.profile_for(&"hidden")
-	if hidden == null or hidden.register_occasion != KeywordProfileTable.OCC_ENTER_HAND:
+	if hidden == null or hidden.register_flow_id != KeywordProfileTable.FLOW_ENCOUNTER_REVELATION:
 		return false
-	if hidden.unregister_occasion != KeywordProfileTable.OCC_LEAVE_HAND:
+	if hidden.register_slot != KeywordProfileTable.SLOT_ENTER_HAND:
+		return false
+	if hidden.unregister_slot != KeywordProfileTable.SLOT_LEAVE_HAND:
 		return false
 	var bonded := KeywordProfileTable.profile_for(&"bonded")
 	if bonded == null or bonded.armed_zone != KeywordProfileTable.ZONE_SET_ASIDE:
@@ -2841,26 +2849,36 @@ func _test_kw_occ_profile_table() -> bool:
 	var fast := KeywordProfileTable.profile_for(&"fast")
 	if fast == null or fast.buff_type != &"MODIFIER":
 		return false
-	if fast.register_occasion != &"":
+	if fast.register_slot != &"":
 		return false
 	for profile in KeywordProfileTable.all_profiles():
 		if profile.buff_type != KeywordProfileTable.BUFF_LISTENER:
 			continue
-		if profile.register_occasion == &"" or profile.unregister_occasion == &"":
+		if profile.register_slot == &"" or profile.unregister_slot == &"":
 			return false
 		if profile.armed_zone == &"":
 			return false
-	var enter_play := KeywordProfileTable.profiles_for_register_occasion(
-		KeywordProfileTable.OCC_ENTER_PLAY
+	var enter_play := KeywordProfileTable.profiles_for_register(
+		&"", KeywordProfileTable.SLOT_ENTER_PLAY
 	)
 	var hunter_in_enter := false
 	var surge_in_enter := false
+	var peril_in_enter := false
 	for profile in enter_play:
 		if profile.keyword == &"hunter":
 			hunter_in_enter = true
 		if profile.keyword == &"surge":
 			surge_in_enter = true
-	return hunter_in_enter and not surge_in_enter
+		if profile.keyword == &"peril":
+			peril_in_enter = true
+	var peril_g2 := KeywordProfileTable.profiles_for_register(
+		KeywordProfileTable.FLOW_DRAW_ENCOUNTER, KeywordProfileTable.SLOT_G2
+	)
+	var peril_on_g2 := false
+	for profile in peril_g2:
+		if profile.keyword == &"peril":
+			peril_on_g2 = true
+	return hunter_in_enter and not surge_in_enter and not peril_in_enter and peril_on_g2
 
 
 func _kw_occ_bind(

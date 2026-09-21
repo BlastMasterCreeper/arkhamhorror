@@ -36,6 +36,11 @@ alwaysApply: true
 | **Massive** | **庞大** | 敌人关键词；**未横置**时虚拟交战同地点全体；**永不**进威胁区 |
 | **Elusive** | **逃逸** | 敌人 **攻击**或被**攻击** resolve 后 flee；**借机攻击**属前者（敌人攻击） |
 | **Aloof** | **冷漠** | 敌人关键词；不自动 engage；spawn 默认 unengaged |
+| **Permanent** | **永久** | 关键词；开局放入场、不计牌组规模；≠「常驻」 |
+| **Bonded** | **绑定** | 关键词；setup 置于 set-aside，宿主打出后召唤；≠「羁绊」 |
+| **Unique** | **独特** | 关键词（标题 `[unique]`）；同名不得同时在场；≠「独一」 |
+| **Swarming** | **蜂拥** | 关键词 Swarming X；进场后垫 X 张 facedown swarm |
+| **Myriad** | **多重** | 构筑关键词；同名额外副本不计经验 |
 | **Prey** | **猎物** | 敌人指令（`*Prey –`*）；engage / Hunter 等距 tie-break；**不 nest** |
 | **Hidden** | **隐私** | 关键词；秘密入手；见 [grimoire-glossary-extract §隐私](docs/reference/grimoire-glossary-extract.md) |
 | **Forced Ability** | **强制能力** | `Forced –`；引擎直执，无 Initiation 选用 |
@@ -69,3 +74,4 @@ alwaysApply: true
 - **攻击（Fight action）** ≠ 敌人 **perform attack**（含借机攻击 / 反击 / 警戒 / 阶段攻击）。
 - **毁灭（Doom）** = doom 标记；≠「厄运」等非规范译法（对话/文档）。
 - **Reveal 是效果**：`reveal_to_*` = L0 揭示状态原语，参与 dry-run CREATED。见 07-primitives §5.3、07-composition §4.1、01 §3.6。
+- **永久（Permanent）** ≠ 常驻；**绑定（Bonded）** ≠ 羁绊；**独特（Unique）** ≠ 独一；**蜂拥（Swarming）**；**多重（Myriad）**。
