@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.11 · 2026-09-21 — §3.2.5 关键词编译为三种 Buff；猎物/生成为指令
+> **状态**：v0.4.12 · 2026-09-21 — §3.2.5 指令 / 参数 / 关键词 Buff 实现路径
 
 ---
 
@@ -235,117 +235,149 @@ class KeywordMountService:
 | **massive** | 2 | **RESTRICTION** + 交战修正 | **`AT_ENTER_PLAY`** | leave play | 永不进威胁区；虚拟交战 | 3.3 读交战结果，不另开 keyword seq |
 | **permanent** | 1 | **RESTRICTION** + 构筑 | **`AT_SETUP`** | 仅卡面允许离场 | REST-E-MOVE | 兼 Reward；不计牌组规模走构筑 |
 
-#### 3.2.5 关键词编译为三种 Buff（已裁决）
+#### 3.2.5 实现路径：指令 / 参数 / 关键词 Buff（已裁决）
 
-> **Buff 仅三种**（§3）：`MODIFIER` / `RESTRICTION` / `LISTENER`。关键词 **不是** 第四种 Buff，也 **不是** 一套平行的 consume_shape。  
-> **裁决**：对局关键词 = 拥有（印刷或 KEYWORD 标记）+ **编译成上述 Buff**（可叠加）。猎物、生成 **是指令，不是关键词**。
-
-##### 指令（禁止进 KeywordProfile）
-
-RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)：
-
-| 卡面 | 归类 | 引擎 |
-|---|---|---|
-| **Spawn –** | **①** 指令 | `SpawnInstructionSpec`；**②** G4 spawn 内核读 WHERE |
-| **Prey –** | **①** 指令 | `PreyInstructionSpec`；engage / 猎手等距 `PreyResolver` |
-| **Patrol (…)** 括号 | 巡逻关键词的 **①** 参数 | `PatrolTargetSpec`；**不是** 第三条指令，也不是独立 keyword |
-
-**禁止**：把 Prey / Spawn 写成 keyword；为指令 nest `seq.keyword.*` 或 Register Buff。
-
-##### 三种 Buff 怎么承担关键词
-
-| BuffType | 关键词做什么 | 典型 |
-|---|---|---|
-| **RESTRICTION** | 被动 Cannot / 必须 / 交战与离场禁则 | 险境、隐私离手、冷漠、庞大（威胁区）、常驻离场、独一 in-play |
-| **LISTENER** | 时点到了跑效果（持续或 `UNTIL_FIRED` 延时） | 猎手、巡逻、反击、警戒、逃逸、厄运降临、涌动、起始、Swarming |
-| **MODIFIER** | 被动改数值或结算修正 | 快速：Play 行动成本 0、不引起借机攻击 |
-
-**延时也是 LISTENER**：涌动 / 起始 / Swarming 的 *After … resolves* 不是新 BuffType。Lifetime = `UNTIL_FIRED`（或绑在本条抽取上）；开火 payload 才 nest `seq.draw.encounter` 等。`KeywordConsumer` 只是 Catalog 未 emit 该槽时的竖切。
-
-**可叠加**：一张卡可同时挂几种 Buff（Elokoss：庞大 RESTRICTION + 反击 LISTENER）。gains 某关键词 = 按该词的 `buff_types` **再挂一套同样的 Buff**（Surge 不叠加，§3.1）。
-
-##### 不走三种 Buff 的关键词
-
-这些仍是关键词，但行为不是 Registration Buff：
-
-| 类 | 关键词 | 落地 |
-|---|---|---|
-| **L0 / Domain** | Uses (X)、Victory X、Seal、Vengeance X | 进场放 token、击败改去向、封印混乱标记 |
-| **构筑** | Exceptional、Myriad、Reward、Researched、Permanent 的牌组规模、Bonded、Customizable | [11](11-investigator-campaign.md)；对局 `KeywordConsumer` 不遍历 |
-
-Uses 的 **(X type)** 是 ① 参数（不是猎物那种敌人指令）。Victory 的 **X** 是标量。
-
-##### 全表（玩家 + 遭遇）
-
-| 关键词 | 简中 | Core 2026 | Buff / 其它 | 路径 | 现状 |
-|---|---|---:|---|---|---|
-| **Surge** | 涌动 | 3+gained | LISTENER 延时 | After 本条抽取 → nest 再抽 | ✅ Consumer 竖切 |
-| **Peril** | 险境 | 2 | RESTRICTION | G2 mount；L4 查询 | ✅ |
-| **Hidden** | 隐私 | 0 印刷 | RESTRICTION + 揭示 Domain | E4 秘密入手；禁离手 | 运行时有；导入误伤 |
-| **Aloof** | 冷漠 | 6 | RESTRICTION | 禁自动交战；未交战 cannot Fight | ✅ |
-| **Hunter** | 猎手 | 12 | LISTENER | `@ 3.2` 移动 | △ 按名分支 |
-| **Patrol** | 巡逻 | 0 | LISTENER + ① 括号 | 同 3.2；括号 Resolver | △ |
-| **Retaliate** | 反击 | 9 | LISTENER | post-ST7 Fight 失败 | ✅ |
-| **Alert** | 警戒 | 1 | LISTENER | post-ST7 Evade 失败 | ✅ 未进 `keywords[]` |
-| **Elusive** | 逃逸 | 3 | LISTENER | 攻击 / 被攻击后 flee | ✅ 未进 `keywords[]` |
-| **Massive** | 庞大 | 2 | RESTRICTION | 虚拟交战、永不进威胁区 | ✅ |
-| **Doomed** | 厄运降临 | 1 | LISTENER | 击败 +1 毁灭 | ✅ 未进 `keywords[]` |
-| **Fast.** | 快速 | 6 | MODIFIER（打出成本 / AOO） | Initiation 读拥有 | △ **勿**与 `[fast]` 合并 |
-| **Permanent** | 常驻 | 1 | RESTRICTION + 构筑 | 开场进场；cannot leave | △ |
-| **Unique** | 独一 | 两侧各 14 | RESTRICTION | L5 同名 in-play | 待接线 |
-| **Starting** | 起始 | 0 | LISTENER 延时 | 换牌后检索 1 张 | 无 |
-| **Uses (X)** | 使用次数 | 12 | L0 token + ① | 进场放 typed uses | Domain 有 |
-| **Victory X** | 胜利点 | 24 | Domain 去向 | 击败 / 场景结束 | ✅ |
-| **Seal** | 封印 | 0 | L0 + ① | 打出/进场封印标记 | Choice 已列 |
-| **Exceptional / Myriad / Reward / Researched** | 构筑 | 0 或 Collector | 构筑 | 11 | — |
-
-**不是关键词**：Spawn –、Prey –、Exile、`[fast]` / `[reaction]` / `[action]`、Forced、Revelation。
-
-后续循环：Swarming X → LISTENER 延时 @ `AFTER_ENTER_PLAY`（X 为 ①）；Bonded / Customizable → 构筑；Vengeance X → 与 Victory 同 Domain 去向。
-
-**勿混**：
-
-| 易混对 | 区别 |
-|---|---|
-| 猎物 / 生成 vs 关键词 | **指令** ①；冷漠/猎手才是关键词 Buff |
-| **Fast.** vs `[fast]` | 关键词 MODIFIER vs 免费触发符号 |
-| ArkhamDB `hidden` vs 隐私 | 卡背数据旗标 vs RESTRICTION 关键词 |
-| KEYWORD 标记 vs Buff | 标记只表示 **拥有**；行为在三种 Buff |
-
-##### 实现路径
-
-1. **导入卫生** — 首行 `Name.`；指令段落进 Spec，不进 `keywords[]`；修 Hunter / hidden 误伤。
-2. **Profile 只填 `buff_types`** — AbilityCompiler 按模板 Register；**禁止**新 BuffType。
-3. **RESTRICTION 模板** — 险境已是样板；隐私、冷漠、庞大、常驻、独一共用 mount。
-4. **LISTENER 模板** — 猎手/巡逻收进 3.2 emit；反击/警戒/逃逸已有内核；涌动竖切日后收成 After-draw LISTENER。
-5. **MODIFIER** — 快速：Play 成本与 AOO。
-6. **L0 / 构筑** — Uses、Victory、Seal、牌组规模不进 Consumer。
-
-**实现状态**：涌动 = LISTENER 延时竖切 ✅；险境 RESTRICTION ✅；猎手/反击等 LISTENER 内核 △；MountService 按 BuffType 接线 — 待分批。
-
-##### 印刷 vs gained · 对照（同一 Buff 模板）
-
-| keyword | 印刷 | gained | 行为 Buff（共用） |
-|---|---|---|---|
-| **surge** | DEFINITION / lazy | KEYWORD 标记 + LISTENER | 延时再抽 |
-| **peril** | RESTRICTION | 同模板 RESTRICTION | L4 查询 |
-| **hunter** | LISTENER | LISTENER + `WHILE_IN_PLAY` | 3.2 移动 |
-| **retaliate** | LISTENER | LISTENER 或先标记再编译 | post-ST7 attack |
-| **aloof** | RESTRICTION | 同模板 RESTRICTION | Fight/Engage |
-| **[action] 文本** | AbilitySpec | LISTENER + AbilitySpec | 非关键词；对照用 |
-
-##### 时间线示意（Surge LISTENER vs Peril RESTRICTION）
+> **Buff 仅三种**（§3）：`MODIFIER` / `RESTRICTION` / `LISTENER`。关键词 **不是** 第四种 Buff。  
+> **先定档再接线**：指令 → Spec；参数 → Spec 挂在指令或关键词上；关键词 → 拥有 + 编译 Buff（可叠加）。
 
 ```text
-G1 Draw bind
-G2  Peril：mount RESTRICTION
-G3  Revelation · 可能 AT_GRANT surge → KEYWORD 标记
-G4  unmount RESTRICTION（peril）
-    （KEYWORD 标记保留）
-AFTER this card
-  LISTENER 涌动开火（竖切 KeywordConsumer）
-    nest seq.draw.encounter
-    unmount KEYWORD 标记
+卡面印刷
+ ├─ 指令   Spawn – / Prey –     → CardDefinition.*Spec → ② 内核 Resolver
+ ├─ 参数   括号 / X / type      → 挂在指令或关键词的 Spec 上 → handler 内同步读
+ └─ 关键词                      → 拥有（印刷 ∪ KEYWORD 标记）
+      ├─ RESTRICTION            Eligibility / Intent 查询
+      ├─ LISTENER               Catalog emit → Composition（延时 = UNTIL_FIRED）
+      ├─ MODIFIER               ModifierEngine / Initiation 成本
+      ├─ L0 / Domain            Uses 放 token、Victory 改去向、Seal 封印
+      └─ 构筑                   11；对局不消费
+```
+
+**禁止**：为关键词新增 BuffType；把指令/参数写成 keyword 或 nest `seq.keyword.*`；把所有关键词塞进 `AFTER_DRAWN_CARD`。
+
+##### A. 指令（不是关键词）
+
+RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)。
+
+| 指令 | 提供 | Spec | 读参内核（②） | 实现路径 | 现状 |
+|---|---|---|---|---|---|
+| **Spawn –** | **WHERE** 进场地点 | `SpawnInstructionSpec` | G4 / enters play · `SpawnLocationResolver` | 导入编译 Spec；无文本 → `FRAMEWORK_DEFAULT`；有文本 → 同内核改落点；L0 进场在 spawn 砖块 | ✅ |
+| **Prey –** | **WHO** 交战/等距人选 | `PreyInstructionSpec` | `auto_engage_at_location`；猎手 LISTENER 等距分支 · `PreyResolver` | 导入编译 Spec；**不**进 G4 落点；**禁止** LISTENER / Buff | ✅ |
+
+无 Spawn 文本不是「缺指令」，是默认生成。猎物对 spawn location **无效果**。
+
+##### B. 参数（① Spec，挂在指令或关键词上）
+
+只改 **已在进行的** 内核/LISTENER 里的选点、选人、数量、类型。本身不执行效果、无独立 timing。
+
+| 参数 | 挂在 | Spec | 谁读 | 实现路径 | 现状 |
+|---|---|---|---|---|---|
+| Spawn 地点选择器（farthest empty / named / …） | **指令** Spawn – | `SpawnInstructionSpec.selector` | `SpawnLocationResolver` | 与指令同一 Spec，不另开类型 | ✅ |
+| Prey `(lowest [agility])` 等 | **指令** Prey – | `PreyInstructionSpec` 比较/过滤 | `PreyResolver.best_match` | 等距或同地点子集内比较；并列 Lead | ✅ |
+| Patrol `(地点 / 目标)` | **关键词** 巡逻 | `PatrolTargetSpec` | 3.2 LISTENER handler 内 `PatrolTargetResolver` | **不是** 第三条指令；括号不 Register | △ 测试合成 |
+| Uses `(X type)` 的 X 与 type | **关键词** Uses | `UsesSpec {count, type}` | 进场 L0 放 token；能力 cost 扣同 type | 禁止把 ammo 当成 charges | Domain `uses` 有；Spec 未模块化 |
+| Victory **X** | **关键词** Victory | 标量 `victory: int` | 击败 / 场景结束改去向 | 不是 Buff | ✅ |
+| Swarming **X** | **关键词** Swarming | 标量 count | 延时 LISTENER payload | 垫 X 张 facedown swarm | Core 无 |
+| Seal 选哪个 token | **关键词** Seal | `SealSpec` | 打出成本 / 进场 L0 | `CHAOS_PICK` | Choice 已列；无卡 |
+
+**禁止**：为括号单独 nest、单独 Register；把 Prey 括号当 Forced。
+
+##### C. 关键词 → 三种 Buff
+
+**拥有 ≠ 行为**。gained 先 KEYWORD 标记（`has_effective_keyword`），再按同一 `buff_types` 挂 Buff。印刷可直接挂 Buff（或 lazy 到查询）。一张卡可叠加多种（Elokoss：庞大 RESTRICTION + 反击 LISTENER）。
+
+**C1 · RESTRICTION**（Eligibility / Intent 查询；mount 即生效）
+
+| 关键词 | mount | Lifetime | payload / Intent | 消费 | 现状 |
+|---|---|---|---|---|---|
+| **Peril** 险境 | `AT_DRAW_G2` | `WHILE_DRAWN_CARD_RESOLVING` | `FORBID_PLAY` / `TRIGGER` / `COMMIT`（非 drawer） | L4 | ✅ |
+| **Hidden** 隐私 | `AT_REVELATION` | 在手直至 expose | `FORBID_LEAVE_HAND`；另写 Domain `is_hidden` / FaceAudience | REST-E-MOVE；E4 秘密入手 | 运行时有；导入把 ArkhamDB `hidden` 旗标误当本词 |
+| **Aloof** 冷漠 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ |
+| **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 永不进威胁区；虚拟交战同地点全体 | Engage / AOO / 3.3 读交战结果 | ✅ |
+| **Permanent** 常驻（对局） | `AT_SETUP` 开场进场 | 直至卡面允许离场 | `FORBID_MOVE` 离场 | REST-E-MOVE | △ Domain 旗标 |
+| **Unique** 独一 | 打出/进场前查询 | in-play 期间 | 同名已在场 → 拒绝进场 | Initiation L5 | 待接线 |
+
+**C2 · LISTENER**（Catalog emit；延时用 `UNTIL_FIRED`）
+
+| 关键词 | mount | Lifetime | trigger | 开火 payload | 现状 |
+|---|---|---|---|---|---|
+| **Hunter** 猎手 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | `(seq.enemy.3_2, WHEN)` | 向最近调查员移 1 步；等距内读 **Prey 指令** | △ `enemy_phase_flow` 按名分支 |
+| **Patrol** 巡逻 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 同 3.2 | 向 **Patrol 参数** 移 1 步 | △ |
+| **Retaliate** 反击 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | `perform_attack(RETALIATE)` | ✅ |
+| **Alert** 警戒 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ 未进 `keywords[]` |
+| **Elusive** 逃逸 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ 未进 `keywords[]` |
+| **Doomed** 厄运降临 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 击败（非 discard） | 当前密谋 +1 毁灭 | ✅ 未进 `keywords[]` |
+| **Surge** 涌动 | 印刷 lazy；gained `AT_GRANT` | 绑本条抽取；开火后卸标记 | 本条抽取 **AFTER**（已结算） | nest `seq.draw.encounter` amount=1 | ✅ `KeywordConsumer` 竖切 |
+| **Starting** 起始 | `AT_SETUP` / 换牌后 | `UNTIL_FIRED` | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | 无 |
+| **Swarming** | `AFTER_ENTER_PLAY` | `UNTIL_FIRED` | 进场结算之后 | 垫 **X** 张 swarm 牌 | Core 无 |
+
+涌动不是新 BuffType。`KeywordConsumer` 只是该 LISTENER 尚未接入 TimingCatalog 时的竖切。
+
+**C3 · MODIFIER**
+
+| 关键词 | mount | 改什么 | 消费 | 现状 |
+|---|---|---|---|---|
+| **Fast.** 快速 | 印刷 / 打出前查询 | Play 行动成本 → 0；不引起借机攻击 | Initiation / ActionSystem | △ **勿**与 `[fast]` 免费触发符号合并 |
+
+**C4 · 不走三种 Buff 的关键词**
+
+| 关键词 | 落地 | 实现路径 | 现状 |
+|---|---|---|---|
+| **Uses (X)** | L0 进场放 typed token | 读 **B** 的 `UsesSpec`；扣 uses 走能力 cost | Domain 有 |
+| **Victory X** | Domain 去向 | 击败敌人 / 场景结束已揭示无线索地点 → 胜利展示区 | ✅ |
+| **Vengeance X** | 同去向，计分语义相反 | 与 Victory 共用展示区 | Core 无 |
+| **Seal** | L0 封印混乱标记 | 打出成本或进场；离场释放 | Choice 已列 |
+| **Permanent** 牌组规模 | 构筑 | 不计 deck size；开场进场见 C1 | △ |
+| **Exceptional / Myriad / Reward / Researched / Bonded / Customizable** | 构筑 | [11](11-investigator-campaign.md) | Collector 有 Reward |
+
+**不是关键词、也不是指令/参数**：Exile（能力）、`[fast]` / `[reaction]` / `[action]`、Forced、Revelation、Bearer。
+
+##### 同卡多轨（对照）
+
+```text
+Servant of Flame：Hunter. Prey (lowest [agility]). Retaliate. Victory 2.
+  猎手     → LISTENER @ 3.2
+  猎物     → 指令 Spec（3.2 等距 / auto engage 读）
+  反击     → LISTENER post-ST7
+  Victory 2 → Domain 标量，击败改去向
+
+巡逻敌人：Patrol (Miskatonic Quad). Prey (fewest remaining health).
+  巡逻     → LISTENER @ 3.2
+  括号地点 → PatrolTargetSpec（handler 内读）
+  猎物     → 指令 Spec（移动后 auto engage / 等距）
+
+资产：Fast. Uses (4 ammo).
+  快速     → MODIFIER 打出成本
+  Uses     → L0；参数 X=4 type=ammo
+```
+
+##### 接线顺序
+
+1. 导入：首行 `Name.` → `keywords[]`；`Spawn –` / `Prey –` / 括号 → 对应 Spec，**不**进 keywords。
+2. `KeywordProfile.buff_types` → AbilityCompiler 模板 Register；**禁止**新 BuffType。
+3. RESTRICTION 模板：险境为样板；隐私、冷漠、庞大、常驻、独一共用 mount。
+4. LISTENER 模板：3.2 猎手/巡逻收 emit；反击/警戒/逃逸已有内核；涌动竖切收成 After-draw LISTENER。
+5. MODIFIER：快速接入 Initiation。
+6. 参数 Spec：Uses / Seal 补齐；Patrol 括号已有测试路径。
+7. 构筑类不进 `KeywordConsumer`。
+
+##### 印刷 vs gained（同一 Buff 模板）
+
+| keyword | 印刷 | gained | 行为 |
+|---|---|---|---|
+| surge | lazy / LISTENER | KEYWORD 标记 + 同 LISTENER | 延时再抽 |
+| peril | RESTRICTION | 同模板立刻 | L4 |
+| hunter | LISTENER | LISTENER `WHILE_IN_PLAY` | 3.2 |
+| retaliate | LISTENER | 同 LISTENER | post-ST7 |
+| aloof | RESTRICTION | 同 RESTRICTION | Fight/Engage |
+
+##### 时间线（险境 RESTRICTION vs 涌动 LISTENER）
+
+```text
+G2  Peril mount RESTRICTION
+G3  可能 AT_GRANT surge → KEYWORD 标记
+G4  unmount Peril RESTRICTION（标记保留）
+AFTER 本条抽取
+  LISTENER 涌动开火 → nest seq.draw.encounter → 卸标记
 ```
 
 ---
@@ -883,6 +915,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.12 | **§3.2.5** 分表：指令 / 参数 / 关键词三种 Buff 的实现路径 |
 | 2026-09-21 | v0.4.11 | **§3.2.5** 关键词编译为三种 Buff；猎物/生成为指令，不进 KeywordProfile |
 | 2026-09-21 | v0.4.10 | **§3.2.5** 关键词 `consume_shape`：仅 NEST_SEQ 才 nest `seq.keyword.*`；校正 Hidden/Hunter 导入误伤 |
 | 2026-09-21 | v0.4.9 | 涌动消费改为 nest `seq.keyword.surge`；抽牌管线不再内联 G5 |

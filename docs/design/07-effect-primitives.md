@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.4 · 2026-09-21 — §0.1.6 关键词编译为三种 Buff；猎物/生成为指令
+> **状态**：v0.3.5 · 2026-09-21 — §0.1.6 指令 / 参数 / 关键词 Buff 路径
 
 ---
 
@@ -139,22 +139,22 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 |---|---|---|
 | Victory X、Bearer、My Collection | 静态 / 路由元数据 | defeat、weakness、构筑 |
 | 🧣 per investigator | 印刷值缩放 | setup 乘数 |
-| Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff（[06 §3.2.5](06-registration-buff-model.md#325-关键词编译为三种-buff已裁决)） | RESTRICTION / LISTENER / MODIFIER；KEYWORD 标记只表示拥有 |
+| Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff（[06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)） | RESTRICTION / LISTENER / MODIFIER；KEYWORD 标记只表示拥有 |
 | 技能图标 `[willpower]` 等 | `skills_icons` | commit / 检定，见 [04](04-skill-test-engine.md) |
 
-#### 0.1.6 关键词 → 三种 Buff（与三档正交）
+#### 0.1.6 指令 / 参数 / 关键词 Buff（与三档正交）
 
-关键词 **不是** 第四档，也 **不是** 第四种 Buff。对局关键词 = ① 拥有 + ③ 编译成 [06 §3](06-registration-buff-model.md#3-bufftype三种) 的 `MODIFIER` / `RESTRICTION` / `LISTENER`。
+详细接线表：[06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
 
-| 落地 | 三档 | 例子 |
+| 卡面 | 档 | 落地 |
 |---|---|---|
-| RESTRICTION Buff | ③ | 险境、隐私离手、冷漠、庞大、常驻离场 |
-| LISTENER Buff | ③ | 猎手、反击、涌动（延时 `UNTIL_FIRED`） |
-| MODIFIER Buff | ③ | 快速（Play 成本 / AOO） |
-| Spawn – / Prey – | **① 指令** | **不是关键词**；Spec + 内核 Resolver |
-| Uses / Victory / 构筑 | L0 / Domain / 11 | 仍是关键词，但不走三种 Buff |
+| **指令** Spawn – / Prey – | **①**（Spawn 的 L0 进场在 **②**） | Spec + 内核 Resolver；**不是关键词** |
+| **参数** 括号 / X / type | **①** | 挂在指令或关键词的 Spec 上；handler 内读 |
+| **关键词** 对局行为 | **③** | 编译为 `MODIFIER` / `RESTRICTION` / `LISTENER` |
+| Uses / Victory / Seal | L0 / Domain | 仍是关键词，不走三种 Buff |
+| 构筑关键词 | 11 | 对局不消费 |
 
-**禁止**：把猎物/生成写进 KeywordProfile；为关键词新增 BuffType；把所有 keyword 都做成 `AFTER_DRAWN_CARD` nest。
+**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 BuffType。
 
 ---
 
@@ -618,6 +618,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.3.5 | **§0.1.6** 指令 / 参数 / 关键词 Buff 分轨 |
 | 2026-09-21 | v0.3.4 | **§0.1.6** 关键词编译为三种 Buff；猎物/生成为指令 |
 | 2026-09-21 | v0.3.3 | **§0.1.6** 关键词 `consume_shape` 与三档正交；仅 NEST_SEQ nest `seq.keyword.*` |
 | 2026-06-18 | v0.3.2 | §0.1 **三档译法**；Prey **①** engage 内核读参（不 nest）；Spawn **②** G4；Hunter/Patrol **③** |

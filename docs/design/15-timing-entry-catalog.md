@@ -1166,7 +1166,7 @@ CardDefinition
   PreyResolver.best_match(prey_instruction, equidistant)
 ```
 
-**Keyword Prey 标签** → `PreyInstructionSpec`（**①**）；**不** 译 LISTENER。
+**Prey 指令** → `PreyInstructionSpec`（**①**）；**不** 译 LISTENER / 关键词 Buff。
 
 **禁止**：`PreyPolicy`；Prey 独立 timing / nest；G4 handler 读 `prey_instruction`；把 Prey 当 Forced Register。
 
@@ -1320,7 +1320,7 @@ G3 revelation:
 
 **测试**：ENC-SURGE-01（印刷）；ENC-SURGE-02（12124 两分支）；ENC-SURGE-03（12126 有/无 clue）。
 
-**不是所有关键词都走本槽**。涌动是 **LISTENER 延时** 的样板；险境是 RESTRICTION。猎物 / 生成是指令。见 [06 §3.2.5](06-registration-buff-model.md#325-关键词编译为三种-buff已裁决)。
+**不是所有关键词都走本槽**。涌动是 **LISTENER 延时** 的样板；险境是 RESTRICTION。猎物 / 生成是指令。见 [06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
 
 **Timing emit（目标，待 TimingCatalog）**：
 
