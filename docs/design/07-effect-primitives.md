@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.8 · 2026-09-21 — Fast 打出 = Initiation 档
+> **状态**：v0.3.9 · 2026-09-21 — Fast 改打出形式；种类仍是 PLAY_CARD
 
 ---
 
@@ -151,7 +151,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 | **指令** Spawn – / Prey – | **①**（Spawn 的 L0 进场在 **②**） | Spec + 内核 Resolver；**不是关键词** |
 | **参数** 括号 / X / type | **①** | 挂在指令或关键词的 Spec 上；handler 内读 |
 | **关键词** 对局行为 | **③** | 编译为 `MODIFIER` / `RESTRICTION` / `LISTENER` |
-| **Fast.** 快速 | Initiation 档 | 打出与触发对称（[06 §4.2](06-ability-initiation.md#42-打出--触发同一条-initiationfast-对称)）；**不**新增 BuffType |
+| **Fast.** 快速 | 打出形式（非能力） | 窗口/花费对称触发；种类始终 `PLAY_CARD`（[06 §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)） |
 | Uses / Victory / Seal | L0 / Domain | 仍是关键词，不走三种 Buff |
 | 构筑关键词 | 11 | 对局不消费 |
 
@@ -619,6 +619,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.3.9 | Fast 只改打出窗口/花费；种类始终 `PLAY_CARD`，不是能力 |
 | 2026-09-21 | v0.3.8 | Fast 打出与触发对称；不新增 BuffType |
 | 2026-09-21 | v0.3.7 | 链 06 §3.2.6：注册绑已有 seq 砖 / zone 变迁，禁止独立场合节点 |
 | 2026-09-21 | v0.3.6 | 链 06 §3.2.6：关键词/能力 LISTENER 不只有进场/离场 |

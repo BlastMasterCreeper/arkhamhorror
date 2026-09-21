@@ -170,10 +170,10 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 - Event：resolve → discard
 - Asset：进 play area；检查 slots，不足则 discard 已有 asset
 - Skill **不可** Play
-- **无 Fast**：Play action，对齐激活触发；耗 action，可引起借机攻击
-- **Fast、无时点**：对齐免费触发；Player Window / 期间限制；不耗 Play action，不引起借机攻击
-- **Fast、有时点**：对齐反应触发；when/after 槽打出；不耗 Play action，不引起借机攻击
-- 见 [06-ability-initiation §4.2](06-ability-initiation.md#42-打出--触发同一条-initiationfast-对称)
+- **无 Fast**：Play action，窗口/花费对称激活触发；耗 action，可引起借机攻击；种类仍是打出
+- **Fast、无时点**：窗口/花费对称免费触发；Player Window / 期间限制；不耗 Play action，不引起借机攻击；种类仍是打出
+- **Fast、有时点**：窗口/花费对称反应触发；when/after 槽打出；不耗 Play action，不引起借机攻击；种类仍是打出
+- 见 [06-ability-initiation §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)
 
 ### 6.4 Move
 
@@ -311,4 +311,5 @@ class ActionSystem:
 | 2026-05-25 | v0.3 | OQ-03-02 裁决：EnemyAttack 统一攻击效果层 |
 | 2026-05-25 | v0.4 | OQ-03-02 补充：触发 / 时点 / 攻击效果三层结构 |
 | 2026-05-25 | v0.5 | OQ-03-03/04 裁决：Agenda 无地点；一次行动花费 + 一次 AOO |
+| 2026-09-21 | v0.5.2 | §6.3 Fast 只改打出窗口/花费；种类仍是打出（06 §4.2） |
 | 2026-09-20 | v0.5.1 | §6.1 抽牌 When 锚在发起 impact 之后（15 §16） |

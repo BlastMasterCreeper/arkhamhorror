@@ -138,7 +138,7 @@ func _initialize() -> void:
 	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
 	_run_test("KW-OCC-03 leave hand unregisters hidden not in-play", _test_kw_occ_leave_hand_scoped)
 	_run_test("KW-OCC-04 peril finalize is not leave play", _test_kw_occ_peril_finalize)
-	_run_test("KW-FAST-01 play initiation kinds", _test_kw_fast_play_initiation_kind)
+	_run_test("KW-FAST-01 play forms stay PLAY_CARD", _test_kw_fast_play_form)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -2961,14 +2961,14 @@ func _test_kw_occ_peril_finalize() -> bool:
 	return store.count() == 2 and store.has_keyword_buff(&"treachery", &"surge")
 
 
-func _test_kw_fast_play_initiation_kind() -> bool:
-	if KeywordProfileTable.play_initiation_kind(false, false) != KeywordProfileTable.KIND_ACTION:
+func _test_kw_fast_play_form() -> bool:
+	if KeywordProfileTable.play_form(false, false) != KeywordProfileTable.PLAY_ACTION:
 		return false
-	if KeywordProfileTable.play_initiation_kind(false, true) != KeywordProfileTable.KIND_ACTION:
+	if KeywordProfileTable.play_form(false, true) != KeywordProfileTable.PLAY_ACTION:
 		return false
-	if KeywordProfileTable.play_initiation_kind(true, false) != KeywordProfileTable.KIND_FREE:
+	if KeywordProfileTable.play_form(true, false) != KeywordProfileTable.PLAY_FAST_WINDOW:
 		return false
-	if KeywordProfileTable.play_initiation_kind(true, true) != KeywordProfileTable.KIND_REACTION:
+	if KeywordProfileTable.play_form(true, true) != KeywordProfileTable.PLAY_FAST_TIMING:
 		return false
 	var fast := KeywordProfileTable.profile_for(&"fast")
 	return (

@@ -32,7 +32,7 @@
 |---|---|
 | **When** | `SequencePhase.WHEN` |
 | **After** | `SequencePhase.AFTER`（全部 pertaining 效果完成后） |
-| **Then** | Composition `Seq`；后段优先于前段间接产生的 after |
+| **Then** | Composition `Seq` **内联**（不是时点、不另开反应窗）；后段读前段 CREATED；整段 Seq 完后再 flush 前段 after |
 | **Forced 优先于 [reaction]** | WHEN/AFTER 窗口内 handler tier |
 | **Initiation Sequence** | 独立管线；费用 L6、dry_run L7（见 [06 §5–§7](06-ability-initiation.md)） |
 
@@ -237,4 +237,5 @@ sequences.end_ability_resolution()
 | 2026-06-18 | v0.4 | §11 补充 `SequenceCatalog`、draw 子 flow 实现映射 |
 | 2026-06-18 | v0.5 | **§5.2** 链 07 同时点竞争 / replacement |
 | 2026-09-20 | v0.5.1 | §5.2 显现独立类：不进 Forced → Triggered 同窗口批 |
+| 2026-09-21 | v0.5.3 | Then = 内联 Seq，不是 timing nest（07-composition §3.1.1） |
 | 2026-09-20 | v0.5.2 | §5.2：显现是抽取步骤之后的后续步骤，不是抽取时窗内 |

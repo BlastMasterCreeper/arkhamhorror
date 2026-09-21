@@ -2,18 +2,39 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.3 · 2026-06-18
+> **状态**：v0.6 · 2026-09-21 — Then 内联 Seq；定位：seq 步内的可执行树
 
 ---
 
 ## 1. 目标
 
-定义 **效果组合（Composition）**：可执行的组合树，连接卡面文本、Initiation resolve 与 **效果**（**状态原语** L0 Atom + **Register**）。
+定义 **效果组合（Composition）**：某条命名流程（named flow / `seq.*`）在 **RESOLVE 某一步**、或 Initiation 付完费后真正落地时，要执行的那棵 **可执行树**。叶子是 **效果**（**状态原语** L0 Atom + **Register**）；枝干是顺序 / 同时 / 条件 / 选择。
 
 **英文（代码）**：`Composition` / `CompositionNode` / `CompositionExecutor` / `CompositionDryRunner`  
 **中文（文档）**：效果组合 / 组合节点
 
 **揭示（Reveal）卡牌** 经 L0 **`AtomRevealCard`** 写入 Domain，**参与** §4 dry-run **CREATED** — 见 [07-effect-primitives §5.3](07-effect-primitives.md)、[01 §3.6](01-game-state-zones.md)。
+
+### 1.1 它是什么、不是什么
+
+| | |
+|---|---|
+| **是** | 卡面「这段效果怎么做」的编译产物：先放 1 毁灭、若没放成就获得涌动；Then 抽一张再造成 1 恐惧；Choice 二选一。 |
+| **不是** | 与 Catalog 并列的第二套调度。**不**决定何时开火、不开放 Would/When/After、不替代 `seq.*` 的 nest。 |
+| **谁编排时机** | **命名流程** `seq.*`（SequenceCatalog + 堆栈 + Timing）。抽牌、显现、检定走 seq；**打出**走独立的 `PLAY_CARD` Initiation（不是能力）。效果体都在某步 `composition.execute`。 |
+| **短效果 vs 长流程** | 「造成 3 伤害」= 本棵树里 nest `seq.effect.*` 或该能力注册的 `seq.card…`。长规范流程（抽牌 D1–D4）= handler 逐步 RESOLVE + nest 其它 seq，不是另写 Composition 调度器。 |
+
+```text
+seq.draw.investigator          ← 命名流程（何时抽、嵌套、时点）
+  RESOLVE 某步
+    composition.execute(...)   ← 效果组合（这一步具体写什么）
+
+InitiationIntent.PLAY_CARD     ← 打出（不是能力）
+  七步手续过后
+    composition.execute(...)   ← 事件/支援打出后的效果体
+
+AbilitySpec.effect             ← 能力的效果体 = 一棵 Composition
+```
 
 ---
 
@@ -67,13 +88,23 @@ flowchart TB
 | L2 | `Interrupt` | 统一 Cancel / Ignore（nest `seq.interrupt.*` 或 `CompositionNode.interrupt_*`） |
 | L2 | `Replace` | 统一 Instead（nest `seq.replace.instead` 或 `CompositionNode.replace_instead`） |
 | L2 | `ResolvePending` | 窗口结束后 resolve pending |
-| L1 | `Seq` | 顺序；Grimoire **Then** = 标记的 Seq |
+| L1 | `Seq` | 顺序。Grimoire **Then** = 同一棵树上的顺序 Seq（§3.1.1） |
 | L1 | `Simultaneous` | 同时组；组 commit 后才 flush after |
 | L1 | `ForEach` | 枚举目标 |
 | L1 | `Choice` / `Optional` | 玩家选择 — **`PlayerInteractionGate`**（[16](16-player-interaction.md)） |
 | L1 | `If` | 情景条件分支 · `CompositionNodeKind.IF`（§3.3） |
 
 **L3 宏不进入 serialized tree**；`CompositionBuilder` 在编译期或调用时展开。
+
+#### 3.1.1 Then = 内联 Seq（已裁决 2026-09-21）
+
+卡面 **Then** 不是时点，也不是 nest 另一条命名流程。
+
+| | |
+|---|---|
+| **是** | 同一棵 Composition 里的顺序 `Seq`。后一步读前一步已经 CREATED 的局面；前一步未 CREATED 则后一步不进（Grimoire Then）。 |
+| **不是** | Would / When / After 槽；Then 前后不另开反应窗。能否插入反应，沿用已有窗口规则（14 / 15），不因 Then 另开一条。 |
+| **与 After 的关系** | 前段间接产生的 **after** 等 **整段 Seq 跑完** 再 flush；后段优先于该 after（Grimoire Then 优先）。这是冲洗顺序，不是在 Then 中间插入反应。 |
 
 ### 3.2 RegisterNode
 
@@ -316,6 +347,7 @@ Listener 触发   →  CompositionExecutor.execute(listener.composition)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.6 | **§1.1** Composition = seq/Initiation RESOLVE 步内的可执行树，不是第二调度；**§3.1.1** Then = 内联 Seq，不是时点 |
 | 2026-07-07 | v0.5 | clues 域；after_step If；must choose；12124/12126/12160 编译锚；能力多要素拆分 |
 | 2026-07-07 | v0.4 | §3.3 卡面 If 消歧；`IF` kind + 12126 if_else 锚例 |
 | 2026-06-18 | v0.3 | **AtomRevealCard** 参与 CREATED；撤销 Information 非效果 |

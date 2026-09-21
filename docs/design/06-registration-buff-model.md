@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.15 · 2026-09-21 — Fast 打出与触发对称（06 §4.2）
+> **状态**：v0.4.16 · 2026-09-21 — 打出始终 PLAY_CARD；Fast 只选 play_form
 
 ---
 
@@ -318,21 +318,21 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 涌动不是新 BuffType。`KeywordConsumer` 只是该 LISTENER 尚未接入 TimingCatalog 时的竖切。
 
-**C3 · 快速：Initiation 档，不是单独成本政策**
+**C3 · 快速：打出形式，不是能力、也不是单独成本政策**
 
-快速（Fast）为 **事件打出 ↔ 支援触发** 的对称而设。打出与触发走 **同一条 Initiation**（[06-ability-initiation §4.2](06-ability-initiation.md#42-打出--触发同一条-initiationfast-对称)）。
+快速（Fast）为 **事件打出 ↔ 支援触发** 的窗口/花费对称而设。**打出始终是 `PLAY_CARD`，不是能力**（[06-ability-initiation §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)）。
 
-| 打出 | 对齐 | 不是 |
+| 打出形式 | 窗口/花费对称 | 种类 |
 |---|---|---|
-| 无 Fast | 激活触发 `[action]` | 免费触发 |
-| Fast、无时点（含无时点快速支援） | 免费触发 `[free]` | 另开 Fast 窗 |
-| Fast、有时点 | 反应触发 `[reaction]` | 场上 LISTENER |
+| 无 Fast | 激活触发 `[action]` | `PLAY_CARD` |
+| Fast、无时点（含无时点快速支援） | 免费触发 `[free]` | `PLAY_CARD` |
+| Fast、有时点 | 反应触发 `[reaction]` | `PLAY_CARD` |
 
-「行动成本 0 / 不引起借机攻击」= 没走 Play action 档的后果。编译读 `has_fast` + 打出指示是否含 when/after；**禁止** 与 ArkhamDB `[fast]` 文本符号合并。
+编译：`KeywordProfileTable.play_form`。**禁止** 把打出收成 `ABILITY`；**禁止** 与 ArkhamDB `[fast]` 文本符号合并。
 
 | 关键词 | mount | 改什么 | 消费 | 现状 |
 |---|---|---|---|---|
-| **Fast.** 快速 | 印刷；Initiation 从 **HAND** 收集 | 选 Initiation 档（上表） | 打出管线 | △ 接线 Initiation kind |
+| **Fast.** 快速 | 印刷；从 **HAND** 打出 | 选打出形式（上表） | 打出管线 | △ |
 
 **C4 · 不走三种 Buff 的关键词**
 
@@ -362,7 +362,7 @@ Servant of Flame：Hunter. Prey (lowest [agility]). Retaliate. Victory 2.
   猎物     → 指令 Spec（移动后 auto engage / 等距）
 
 资产：Fast. Uses (4 ammo).
-  快速     → 无时点 Fast 打出 = 免费触发档 Initiation（从手）
+  快速     → PLAY_FAST_WINDOW（无时点打出；种类仍是打出）
   Uses     → L0；参数 X=4 type=ammo
 ```
 
@@ -372,7 +372,7 @@ Servant of Flame：Hunter. Prey (lowest [agility]). Retaliate. Victory 2.
 2. `KeywordProfile.buff_types` → AbilityCompiler 模板 Register；**禁止**新 BuffType。
 3. RESTRICTION 模板：险境为样板；隐私、冷漠、庞大、永久、独特共用 mount。
 4. LISTENER 模板：3.2 猎手/巡逻收 emit；反击/警戒/逃逸已有内核；涌动竖切收成 After-draw LISTENER。
-5. 快速：打出编译进 Initiation 档（§4.2），不 Register LISTENER。
+5. 快速：打出形式（`play_form`），种类仍是 `PLAY_CARD`，不 Register LISTENER。
 6. 参数 Spec：Uses / Seal 补齐；Patrol 括号已有测试路径。
 7. 构筑类不进 `KeywordConsumer`。
 
@@ -437,7 +437,7 @@ on_card_leave_play(card)
 | **Swarming** 蜂拥 | LISTENER 延时 | **ENTER_PLAY** | 进场父流程 **AFTER** = `FIRED` | `UNTIL_FIRED` | PLAY |
 | **Starting** 起始 | LISTENER 延时 | `seq.setup` 开局（牌在库） | 同流程换牌后砖 **AFTER** = `FIRED` | `WHILE_IN_DECK` + `UNTIL_FIRED` | **DECK** |
 | **Permanent** 永久 | RESTRICTION | `seq.setup` 放入场 = **ENTER_PLAY**（**不是**从手打出） | 仅卡面允许离场或拥有者淘汰 | `WHILE_IN_PLAY` | PLAY |
-| **Fast.** 快速 | Initiation 档 | **不** Register LISTENER | — | 无 | **HAND**；无 Fast≈激活、无时点≈免费、有时点≈反应 |
+| **Fast.** 快速 | 打出形式 | **不** Register LISTENER | — | 无 | **HAND**；种类始终 `PLAY_CARD` |
 | **Unique** 独特 | RESTRICTION | 第一份 copy **ENTER_PLAY** | 该 copy **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | **Uses / Victory / Seal** | L0 / Domain | 进场放记 / 击败改去向 / 打出封印 | Uses 随离场清 token；Seal 离场释放 | 不走 LISTENER | PLAY 或击败瞬间 |
 | **Bonded** 绑定 | 构筑 + `WHILE_SET_ASIDE` | `seq.setup` **ENTER_SET_ASIDE** | 宿主打出后 **LEAVE_SET_ASIDE** | `WHILE_SET_ASIDE` | **SET_ASIDE** |
@@ -457,7 +457,7 @@ on_card_leave_play(card)
 | 调查员卡能力 | `seq.setup`（调查员开局即在场） | 淘汰 **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | **显现** Revelation | **不**长期 Register；抽到时 nest `seq.encounter.revelation` / `seq.enter_hand` | 子流程 pop | 无 | LIMBO / 入手瞬间 |
 | 隐私牌上的 Constant / Forced / `[reaction]` | **ENTER_HAND**（与 Hidden 同时） | **LEAVE_HAND** | `WHILE_HIDDEN_IN_HAND` | **HAND** |
-| Fast 事件「Play when/after …」 | **不**挂场上 LISTENER；打出走反应触发档 Initiation | 打出后进 limbo 结算 | 无 | **HAND** |
+| Fast 事件「Play when/after …」 | **不**挂场上 LISTENER；`PLAY_FAST_TIMING`，种类仍是 `PLAY_CARD` | 打出后进 limbo 结算 | 无 | **HAND** |
 | 效果创造的延时 | 效果 `GRANT` / Register 砖 | `FIRED` | `UNTIL_FIRED` | 不绑源卡 zone |
 | 效果创造的持续 | 效果 Register 砖 | Duration tick；**默认不**随源卡离场（`WHILE_SOURCE_IN_PLAY` 才绑） | `DURATION` / `WHILE_SOURCE_IN_PLAY` | 任意 |
 | 绑定 被召唤前 | `seq.setup` **ENTER_SET_ASIDE** | **LEAVE_SET_ASIDE** | `WHILE_SET_ASIDE` | **SET_ASIDE** |
@@ -1037,6 +1037,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.16 | 打出始终 `PLAY_CARD`；Fast 编译 `play_form`（窗口/花费对称），不收成 `ABILITY` |
 | 2026-09-21 | v0.4.15 | **Fast.** 打出与支援触发对称：无 Fast≈激活、无时点≈免费、有时点≈反应；非单独成本政策 |
 | 2026-09-21 | v0.4.14 | **§3.2.6** 注册/注销绑已有 `seq.*` 砖或 zone 变迁；禁止 `PERIL_CHECK` 等独立场合节点；译名：永久 / 绑定 / 独特 / 蜂拥 / 多重 |
 | 2026-09-21 | v0.4.13 | **§3.2.6** 关键词/能力 LISTENER 注册与注销场合；不只有进场/离场 |

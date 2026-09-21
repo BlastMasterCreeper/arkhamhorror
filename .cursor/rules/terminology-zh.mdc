@@ -15,7 +15,7 @@ alwaysApply: true
 | Surge | 涌动 | 项目文档已用（如 setup 显现/涌动） |
 | Peril | 险境 | 遭遇帧内持续 Cannot（04 §4） |
 | **Play (card)** | **打出** | **仅 asset / event** 从 hand 进入 play / 结算；≠ skill |
-| **Fast** | **快速** | 关键词；打出走与触发能力对称的 Initiation，**不是** ArkhamDB `[fast]` 文本符号（后者 = 免费触发） |
+| **Fast** | **快速** | 关键词；只改 **打出** 的窗口/花费，种类仍是打出；**不是** ArkhamDB `[fast]` 文本符号（后者 = 免费触发） |
 | Commit (skill) | **投入** / commit | skill 从 hand 投入检定；Grimoire：**不能**称 play |
 | **state primitive** | **状态原语** | L0 **三类** GameState 写入；③ 含 **Reveal** 与 SetFlag/SetRef |
 | **effect** | **效果** | dry-run 可 CREATED：状态原语 + Register |
@@ -76,4 +76,4 @@ alwaysApply: true
 - **毁灭（Doom）** = doom 标记；≠「厄运」等非规范译法（对话/文档）。
 - **Reveal 是效果**：`reveal_to_*` = L0 揭示状态原语，参与 dry-run CREATED。见 07-primitives §5.3、07-composition §4.1、01 §3.6。
 - **永久（Permanent）** ≠ 常驻；**绑定（Bonded）** ≠ 羁绊；**独特（Unique）** ≠ 独一；**蜂拥（Swarming）**；**多重（Myriad）**。
-- **快速（Fast 关键词）** ≠ ArkhamDB 文本 `[fast]`（玩家牌闪电 = **免费触发** `[free]`）。无快速的事件打出 ≈ 激活触发；无时点快速打出 ≈ 免费触发；有时点快速打出 ≈ 反应触发。
+- **快速（Fast 关键词）** ≠ ArkhamDB 文本 `[fast]`（玩家牌闪电 = **免费触发** `[free]`）。打出始终不是能力。无快速的事件打出 **窗口/花费对称** 激活触发；无时点快速打出对称免费触发；有时点快速打出对称反应触发。

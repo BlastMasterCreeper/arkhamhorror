@@ -4,7 +4,7 @@
 > **引擎统一模型**：[06-registration-buff-model.md](06-registration-buff-model.md)（Register / Buff / Context）  
 > **规则来源**：Grimoire Ability, Triggered Abilities, Initiation Sequence (p.31)  
 > **符号记法**：[`[reaction]` / `[action]` 等](../reference/arkham-symbol-notation.md)（ArkhamDB 标准）  
-> **状态**：v0.4.13 · 2026-09-21
+> **状态**：v0.4.14 · 2026-09-21 — 打出不是能力；Then 内联 Seq
 
 ---
 
@@ -109,33 +109,28 @@ class AbilityHook:
 
 详见 [06-registration-buff-model §12](06-registration-buff-model.md)。
 
-### 4.2 打出 ↔ 触发：同一条 Initiation（Fast 对称）
+### 4.2 打出与触发对称（Fast）；打出 **不是** 能力
 
-事件和支援是对称设计：
+事件和支援是对称设计，但 **打出（Play）始终不是能力**：
 
 | | 支援（asset） | 事件（event） |
 |---|---|---|
-| 何时生效 | 进场后，其上的 **触发能力** 经 Initiation **发起** | **打出** 时经同一条 Initiation 结算 |
-| 规则把二者收成 | **发起**（initiate triggered ability） | **打出**（play） |
+| 核心形式 | 进场后，其上的 **触发能力** 经 Initiation **发起** | **打出** 卡牌（游戏核心形式，独立入口） |
+| 引擎入口 | `InitiationIntent.Kind.ABILITY` | `InitiationIntent.Kind.PLAY_CARD`（**保持独立**） |
 
-因此 Grimoire 把 **Play** 与 **Initiation Sequence** 收成一条管线，而不是两套「打出引擎 / 触发引擎」。**快速（Fast）** 关键词就是为这套对称而设：改的是 **走哪一档玩家发起**，不是另开 FastPolicy。
+二者可以 **共用 Initiation Sequence 七步**（付费、AOO、resolve），因为打出和发起能力都要过这套手续；**不要**把 `PLAY_CARD` 收成 `ABILITY` + `[action]`/`[free]`/`[reaction]`。
 
-| 打出（手牌 asset / event） | 对齐的支援触发 | Initiation 档 | 窗口 / 花费 |
-|---|---|---|---|
-| **无 Fast** | **激活触发能力** `[action]` | 与 Play action / Activate 同档 | 耗 1 action（或文本标明的 action 数）；可引起借机攻击 |
-| **Fast、无时点**（常另有期间限制，如「你的回合」；无时点快速支援同此） | **免费触发能力** `[free]` | 同档 | Player Window（或文本指定的期间内窗口）；**不**耗 Play action；**不**引起借机攻击 |
-| **Fast、有时点**（`Play when/after …`） | **反应触发能力** `[reaction]` | 同档 | 该 when/after 槽内选用；**不**耗 Play action；**不**引起借机攻击 |
+**快速（Fast）** 只改 **何时允许打出** 以及 **这次打出是否耗 Play action**，与三种触发 **窗口/花费对称**，种类仍是打出：
 
-「不耗 action / 不引起借机攻击」是 **没走 Play action 那一档** 的后果，不要把快速译成单独的成本 MODIFIER 政策。
+| 打出 | 窗口 / 花费（对称） | 种类 |
+|---|---|---|
+| **无 Fast** | 对称 **激活触发** `[action]`：耗 1 Play action，可引起借机攻击 | 仍是 `PLAY_CARD` |
+| **Fast、无时点**（常有「你的回合」等期间限制；无时点快速支援同此） | 对称 **免费触发** `[free]`：Player Window；不耗 Play action，不引起借机攻击 | 仍是 `PLAY_CARD` |
+| **Fast、有时点**（`Play when/after …`） | 对称 **反应触发** `[reaction]`：该 when/after 槽；不耗 Play action，不引起借机攻击 | 仍是 `PLAY_CARD` |
 
-**禁止**：
+编译：`KeywordProfileTable.play_form(has_fast, has_timing_point)` → `PLAY_ACTION` / `PLAY_FAST_WINDOW` / `PLAY_FAST_TIMING`。
 
-- 把规则书 **Fast.** 关键词与 ArkhamDB 文本 `[fast]` 合并——后者在玩家牌上标记的是 **免费触发**（`[free]` / `register_as:free`），见 [符号记法](../reference/arkham-symbol-notation.md)。
-- 为快速另建 `*FastPolicy` / 第二套打出总线。
-- 把有时点快速事件 Register 成场上 `WHILE_IN_PLAY` LISTENER；打出仍从 **HAND** 发起，结算进 limbo。
-- 把无 Fast 的事件当成免费触发（必须走行动打出，对齐激活触发）。
-
-编译：`has_fast` + 打出指示是否含 when/after → `KeywordProfileTable.play_initiation_kind`；无 Fast 的 Play 与 `[action]` 共用 Initiation 七步。
+**禁止**：把打出改成 `AbilityKind`；把规则书 **Fast.** 与 ArkhamDB `[fast]`（= 免费触发符号）合并；为快速另建 `*FastPolicy`；把有时点快速事件 Register 成场上 LISTENER。
 
 ---
 
@@ -444,9 +439,11 @@ enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 
 卡面「draw」不细，**转译钉语义**，不为原文买单。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。见 [15 §2–§3](15-timing-entry-catalog.md)。
 
-### 8.4 Then 优先
+### 8.4 Then（内联顺序，不是时点）
 
-效果文本含 **then**：then 前段完全 resolve 后，then 后段优先于该前段间接产生的 **after** 触发（Grimoire Then）。
+卡面 **Then** = 同一棵效果组合（Composition）上的 `Seq`：**内联**顺序结算。后段读前段已 CREATED 的局面；前段未 CREATED 则后段不进。
+
+Then **不是** timing 槽，**不**在 Then 前后另开反应窗。前段间接产生的 **after** 等整段 Seq 跑完再 flush，后段优先于该 after（Grimoire Then 优先）——这是 After 冲洗顺序，不是在 Then 中间插入反应。见 [07-composition §3.1.1](07-composition.md)。
 
 ---
 
@@ -488,8 +485,8 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 
 ## 11. Play Restrictions 常见类型
 
-- **快速** 打出：无时点 → Player Window / 期间限制（对齐 `[free]`）；有时点 → when/after 槽（对齐 `[reaction]`）。见 §4.2。
-- 无 Fast 的 event/asset：仅能用 Play action 打出（对齐 `[action]`）。
+- **快速** 打出：无时点 → Player Window / 期间限制（窗口对称 `[free]`）；有时点 → when/after 槽（窗口对称 `[reaction]`）。种类仍是打出。见 §4.2。
+- 无 Fast 的 event/asset：仅能用 Play action 打出（花费对称 `[action]`）。种类仍是打出。
 - Asset：slots 可用、unique 不在场
 - Activate：来源合法、exhausted 否（若 cost 含 exhaust）
 - Target 存在且 valid
@@ -551,5 +548,6 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
+| 2026-09-21 | v0.4.14 | **§4.2** 打出始终 `PLAY_CARD`（不是能力）；Fast 只改窗口/花费。**§8.4** Then = 内联 Seq |
 | 2026-09-21 | v0.4.13 | **§4.2** 快速：打出与触发对称；无 Fast≈激活、无时点 Fast≈免费、有时点 Fast≈反应 |
 | 2026-09-20 | v0.4.12 | §8.3：卡面时点不细、转译钉语义 |

@@ -50,9 +50,9 @@ const BUFF_DOMAIN: StringName = &"DOMAIN"
 const BUFF_DECKBUILDING: StringName = &"DECKBUILDING"
 const BUFF_INITIATION: StringName = &"INITIATION"
 
-const KIND_ACTION: StringName = &"TRIGGERED_ACTION"
-const KIND_FREE: StringName = &"TRIGGERED_FREE"
-const KIND_REACTION: StringName = &"TRIGGERED_REACTION"
+const PLAY_ACTION: StringName = &"PLAY_ACTION"
+const PLAY_FAST_WINDOW: StringName = &"PLAY_FAST_WINDOW"
+const PLAY_FAST_TIMING: StringName = &"PLAY_FAST_TIMING"
 
 
 static func all_profiles() -> Array[KeywordProfile]:
@@ -90,12 +90,13 @@ static func profiles_for_unregister(flow_id: StringName, slot: StringName) -> Ar
 	return matched
 
 
-static func play_initiation_kind(has_fast: bool, has_timing_point: bool) -> StringName:
+static func play_form(has_fast: bool, has_timing_point: bool) -> StringName:
+	## 打出仍是 PLAY_CARD。返回值只选窗口/是否耗 action，对齐免费/反应的对称，不是 AbilityKind。
 	if not has_fast:
-		return KIND_ACTION
+		return PLAY_ACTION
 	if has_timing_point:
-		return KIND_REACTION
-	return KIND_FREE
+		return PLAY_FAST_TIMING
+	return PLAY_FAST_WINDOW
 
 
 static func _all() -> Array[KeywordProfile]:
