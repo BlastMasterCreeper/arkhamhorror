@@ -37,7 +37,7 @@ alwaysApply: true
               └─ 效果：nest seq.*（抽牌、检定、Cancel、**seq.effect.register** 创建 Buff、take horror…）
 ```
 
-编译 / 装载 / 解释分工见 [07-composition §1.3](docs/design/07-composition.md#13-静态信息编译装载解释已裁决-2026-09-21)。
+编译 / 装载 / 解释分工与 **树的力度、场面/输入放哪** 见 [07-composition §1.3–§1.4](docs/design/07-composition.md)。
 
 | 来源 | 译法 | 例子 |
 |------|------|------|

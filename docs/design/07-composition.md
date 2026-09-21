@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.2 · 2026-09-21 — Buff 创建也走 seq.effect.register
+> **状态**：v0.9.3 · 2026-09-21 — §1.4 树的力度与三层信息（场面/输入不进树）
 
 ---
 
@@ -19,8 +19,8 @@
 
 | | |
 |---|---|
-| **是** | **卡牌正文** 的编译产物：先放 1 毁灭、若没放成就获得涌动；Then 抽一张再造成 1 恐惧；Choice 二选一。 |
-| **不是** | 命名流程的外壳；不是第二套调度。**不**决定何时开火、不开放 Would/When/After。 |
+| **是** | **卡牌正文** 的编译产物：控制流 +「去装载哪几条命名流程」。Then / If / Choice 在树上；放毁灭、造成恐惧、创建 Buff 是 **nest 已铸造的 seq.***。 |
+| **不是** | 时点信封（那是 seq 的 Would/When/After）；不是现场局面快照；不含玩家已做的选择。 |
 | **谁编排时机** | **命名流程** `seq.*` = 规则书手续（抽牌、检定、显现入口…）。能力 **hook** 订 `(seq, slot)`；**effect** 仍是本棵树。**打出**走独立的 `PLAY_CARD`。 |
 | **调用规则手续** | 卡面写到「抽牌 / 检定 / Cancel」时，树节点 **nest** 已有 `seq.*`。禁止为每张卡登记 `seq.card…`。 |
 
@@ -237,6 +237,68 @@ Composition 树  =  控制流 +「去装载哪几条 seq、带什么参数」
 工作流 B 把「gains surge / until end of turn / cannot…」规范到 `seq.effect.register` + `RegistrationTemplate`，不是编成裸 Register 节点当运行时。
 
 框架 1.3 `seq.mythos.place_doom` 与卡面「在最近敌人上放 1 毁灭」是 **两种** 手续（议程 vs 效果），不要合成一条。
+
+### 1.4 树的力度、树上带什么、动态数据放哪（已裁决 2026-09-21）
+
+时点信封包的是 **命名流程栈帧**，一层 nest 一层。所以 seq 必须细到「能被 When/After 单独听到」的效果种类。效果组合 **不是** 另一套更细的信封：它只决定 **下一层压哪几条 seq、用什么静态规格、控制流怎么走**。
+
+#### 力度：两头都不要
+
+| 太粗 | 正好 | 太细 |
+|---|---|---|
+| 整张卡一段 `seq.card…` | 一个叶子 = **一条已铸造 seq**（`nest flow_id` + 参数规格） | 每个 L0 Atom 当叶子，又当信封 |
+| 没有 Then / If，整段当一步 | 控制流细到 Then、If、Choice、Simultaneous | 把 Then 做成 `seq.then` 去占时点 |
+
+```text
+seq.encounter.revelation          ← 信封：显现手续（有 When/After）
+  解释静态树
+    Seq
+      nest seq.effect.place_doom  ← 信封：放毁灭（可被 after place doom 听到）
+      If after_step 未 CREATED
+        nest seq.effect.register  ← 信封：创建涌动 Buff
+```
+
+叶子里的 L0 / `RegistrationStore.insert` 只出现在 **被 nest 的那条 seq 的 handler** 里，不出现在卡面树当「效果本身」。
+
+#### 树上只放静态规格（编译期 + 装载期）
+
+| 带什么 | 例子 | 何时填 |
+|---|---|---|
+| **控制流** | `Seq` / Then、`Simultaneous`、`If`（`if_kind`、`evaluate`）、`Choice`（must、option 子树） | 编译 |
+| **要 nest 的 `flow_id`** | `seq.effect.take_horror`、`seq.draw.investigator`、`seq.effect.register` | 编译 |
+| **字面参数** | `amount: 1`、`skill: intellect`、`difficulty: 3`、`keyword: surge` | 编译（卡面写死的数） |
+| **寻址规格** | `TargetSpec`（nearest enemy without doom）、`Condition` id、`RegistrationTemplate` 形状 | 编译（还不是具体 entity id） |
+| **provenance** | `definition_id`、`ability_id` | 编译 |
+| **装载绑定** | `AbilityBindContext`：`controller_id`、`card_id`（实例）、所挂父 `flow_id` | **装载 / 实例化**，不是编译 |
+
+**禁止写进树**：当前线索数、谁在哪个地点、这次选了哪名敌人、玩家点了哪一支。那些是解释当下的查询或输入。
+
+#### 动态场面：解释时查，不拷进树
+
+| 放哪 | 管什么 |
+|---|---|
+| **`GameStateStore`（Domain）** | 现态。`Condition.matches_domain`、`TargetSpec` 解析、Cannot 查询都 **读** 这里 |
+| **`RegistrationStore`** | 已经在场的 Buff。树只描述「将要创建哪份 template」 |
+| **`ApplicationContext`** | 这次手续的 tags、framework_step、performing investigator（给 MODIFIER 用） |
+| **`RulesMemory`** | **这一次** 跑树的步间指称：`last_step_created`、刚选中的敌人、pending 抽出牌。Then / after_step If 读这里，不读「编译时的局面」 |
+| **`EventRecord` / GameLog** | 已经发生的事；L3 历史谓词经 StatProjection，不把历史数组塞进树 |
+
+解释器 nest 子 seq 时：把 **字面参数 + 刚解析出的 id（来自 Domain 或 Memory）** 放进这次 `params`，子信封用完即弃，不回写卡面树。
+
+#### 用户输入：Gate，不进树、不进 Domain
+
+玩家交互（Player Interaction）只回答「在客观合法的前提下选哪支 / 选谁 / 是否发动」。入口只有 **`PlayerInteractionGate`**（[16](16-player-interaction.md)）。
+
+| | 静态树 | 运行时 |
+|---|---|---|
+| 二选一 / must choose | `Choice` 节点 + 各支子树 | `ask(ChoiceRequest)` → 选中支再解释 |
+| 目标「最近的敌人」并列 | `TargetSpec` + 等距规则 | `PICK_TARGET`；结果写入 `RulesMemory` 再交给 nest params |
+| 要不要用这条反应 | **不在 effect 树里** | hook 窗口的 `USE_ABILITY` |
+| 费用弃哪张、X 取多少 | **不在 effect 树里**（CostPipeline） | 费用交互；付完再解释 effect |
+
+**禁止**：把所选目标写回 `compiled_abilities` JSON；在 `StateMutator` 里 `if ui_clicked`。
+
+装载绑定（这张实例的控制者）≠ 用户输入。前者随卡进场填进 `AbilityBindContext`；后者每次解释向 Gate 再问。
 
 ---
 
@@ -550,6 +612,7 @@ Listener 触发   →  同上：父 seq 帧内解释 listener 上的静态树
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.9.3 | **§1.4** 树力度=控制流+nest 一条 seq；场面在 Domain/Memory；输入在 Gate |
 | 2026-09-21 | v0.9.2 | **§1.3.3** Buff 创建/注销也是可解释效果：铸造 `seq.effect.register` / `unregister`；禁止真空 Register |
 | 2026-09-21 | v0.9.1 | **§1.3.3** Catalog 覆盖一切可解释效果；纸面无名则铸造 `seq.effect.*`，不为每张卡开 seq |
 | 2026-09-21 | v0.9 | **§1.3** 效果组合=静态信息；编译→装载到 seq 栈→解释器；双工作流（解释器 / 文本规范化） |
