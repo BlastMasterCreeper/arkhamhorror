@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.17 · 2026-09-21 — 卡面创建 Buff 走 seq.effect.register
+> **状态**：v0.4.18 · 2026-09-21 — ApplicationContext.referents ≠ 历史
 
 ---
 
@@ -756,7 +756,7 @@ class ApplicationContext:
     var tags: Array[StringName]         # 开放集合；L3 情景，非封闭 enum
     var trigger: TriggeringCondition
     var payload: Dictionary
-    var referents: Dictionary           # RulesMemory；历史条件
+    var referents: Dictionary           # 从 RulesMemory 拷的本趟指称切片；≠ 对局历史
     var skill_test: SkillTestContext    # 检定时填充
     var pending: PendingResolution      # Cancel/Replace 窗口
     var initiation: InitiationIntent
@@ -1039,6 +1039,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.18 | §12：`referents` 是 Memory 切片，历史走 EventRecord / StatProjection（07 §1.4） |
 | 2026-09-21 | v0.4.17 | §4：卡面创建 Buff = nest `seq.effect.register`；管线 Register 仍是父 seq 砖 |
 | 2026-09-21 | v0.4.16 | 打出始终 `PLAY_CARD`；Fast 编译 `play_form`（窗口/花费对称），不收成 `ABILITY` |
 | 2026-09-21 | v0.4.15 | **Fast.** 打出与支援触发对称：无 Fast≈激活、无时点≈免费、有时点≈反应；非单独成本政策 |

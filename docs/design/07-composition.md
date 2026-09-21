@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.3 · 2026-09-21 — §1.4 树的力度与三层信息（场面/输入不进树）
+> **状态**：v0.9.4 · 2026-09-21 — Memory vs 场合快照 vs EventRecord 历史
 
 ---
 
@@ -275,15 +275,44 @@ seq.encounter.revelation          ← 信封：显现手续（有 When/After）
 
 #### 动态场面：解释时查，不拷进树
 
-| 放哪 | 管什么 |
-|---|---|
-| **`GameStateStore`（Domain）** | 现态。`Condition.matches_domain`、`TargetSpec` 解析、Cannot 查询都 **读** 这里 |
-| **`RegistrationStore`** | 已经在场的 Buff。树只描述「将要创建哪份 template」 |
-| **`ApplicationContext`** | 这次手续的 tags、framework_step、performing investigator（给 MODIFIER 用） |
-| **`RulesMemory`** | **这一次** 跑树的步间指称：`last_step_created`、刚选中的敌人、pending 抽出牌。Then / after_step If 读这里，不读「编译时的局面」 |
-| **`EventRecord` / GameLog** | 已经发生的事；L3 历史谓词经 StatProjection，不把历史数组塞进树 |
+四套东西，不要混：
 
-解释器 nest 子 seq 时：把 **字面参数 + 刚解析出的 id（来自 Domain 或 Memory）** 放进这次 `params`，子信封用完即弃，不回写卡面树。
+| | **是什么** | **寿命** | **典型读法** |
+|---|---|---|---|
+| **`GameStateStore`** | 现态 | 对局 | `Condition` / `TargetSpec` |
+| **`RegistrationStore`** | 已在场 Buff | 随 Lifetime | Cannot、修正值收集 |
+| **`RulesMemory`** | **本趟**手续的工作便笺 | 随栈帧 / 本条 seq 跑完 | Then、after_step If、pending 抽出牌 |
+| **`ApplicationContext`** | **这一次查询**的场合快照 | 一次 TimingOffer / modifier compute 用完即弃 | `Condition.matches`、MODIFIER |
+| **`EventRecord`（权威）+ `StatProjection`（读模型）** | **历史**：本回合第几次行动、本轮 Limit | 整局流水；投影随 Registration 热/冷 | Eligibility L3/L5 历史谓词 |
+
+`ApplicationContext.referents` 只是 **从 RulesMemory 拷来的切片**，给这次评 Buff 用，**不是**历史库。历史谓词 **禁止** 从 Domain 压扁字段推（如 `budget − actions_remaining`），也 **禁止** 塞进 RulesMemory 当「本回合行动史」。见 [06c](06c-stat-projections.md)。
+
+#### RulesMemory vs ApplicationContext
+
+| | **RulesMemory** | **ApplicationContext** |
+|---|---|---|
+| **角色** | 可变的 **工作记忆**（scratch） | 只读的 **场合信封**（这次问 Buff/条件时的拼凑维度） |
+| **谁写** | seq handler / 解释器 / Gate 选完目标 | 几乎不写业务；`from_sequence(stack 顶 trigger, phase)` **生成** |
+| **装什么** | 步间指称：`draw_pending`、`last_step_created`、遭遇帧栈、本 seq 已被 Cancel | `timing`、`framework_step`、`tags`、`controller_id`、`trigger`、`payload`、从 Memory **拷** 的 `referents` |
+| **范围** | 嵌套栈这一趟（抽这几张、显现这一张） | 当前 When/After/Resolve **这一窗** 评一次 Eligibility / MODIFIER |
+| **问「刚选中哪个敌人」** | 读这里 | 若需要，快照里带一份拷贝 |
+| **问「这是 Upkeep 4.4 的获得资源吗」** | 不负责 | `framework_step` + `tags` |
+| **问「你本回合第几次行动」** | **不负责** | **不负责**（走 EventRecord → StatProjection） |
+
+代码：`RulesMemory` 是 `GameContext.memory` 长住对象；`ApplicationContext.from_sequence` 每次开窗 new 一份。06 §12 旧注把 referents 写成「历史条件」是误导，历史不在这两处。
+
+#### 历史记录（没有漏组件，§1.4 原先写太短）
+
+| 层 | 职责 |
+|---|---|
+| **`EventRecordLog`** | append-only 权威流水（initiation 步、composition_step、行动花费…）。**写** 在效果落地 / Initiation / 交互时 |
+| **`StatProjectionStore`** | 按需从流水 **fold** 出「本回合 action 次数」等；随 Buff Registration attach/detach |
+| **`GameLog`** | 调试/叙述轨迹，不是 Eligibility 数据源 |
+| **`RulesMemory.phase_trace`** | 仅本趟栈的 WHEN/RESOLVE/AFTER 痕迹，给测试用，**不是** 对局史 |
+
+卡面「After your third action this turn」：编译成 `StatQuery`，COLLECT 时读投影，**不**把 action 列表写进 Composition 树或 Memory。
+
+解释器 nest 子 seq 时：把 **字面参数 + 刚解析出的 id（来自 Domain 或 Memory）** 放进这次 `params`，子信封用完即弃，不回写卡面树。历史次数仍只经投影读流水。
 
 #### 用户输入：Gate，不进树、不进 Domain
 
@@ -612,6 +641,7 @@ Listener 触发   →  同上：父 seq 帧内解释 listener 上的静态树
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.9.4 | §1.4：RulesMemory=本趟便笺；ApplicationContext=场合快照；历史=EventRecord+StatProjection |
 | 2026-09-21 | v0.9.3 | **§1.4** 树力度=控制流+nest 一条 seq；场面在 Domain/Memory；输入在 Gate |
 | 2026-09-21 | v0.9.2 | **§1.3.3** Buff 创建/注销也是可解释效果：铸造 `seq.effect.register` / `unregister`；禁止真空 Register |
 | 2026-09-21 | v0.9.1 | **§1.3.3** Catalog 覆盖一切可解释效果；纸面无名则铸造 `seq.effect.*`，不为每张卡开 seq |
