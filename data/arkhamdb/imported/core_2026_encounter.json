@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 14,
+      "compiled_total": 18,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -16,14 +16,16 @@
       },
       "by_template": {
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "choice_must": 1,
+        "choice_must": 2,
         "enter_threat_area": 3,
         "take_horror": 2,
         "if_else": 1,
         "take_damage": 1,
         "gain_resources": 2,
-        "seq": 2,
-        "lose_resources": 1
+        "seq": 3,
+        "lose_action": 1,
+        "place_doom_on_source": 1,
+        "place_doom_nearest_to_source": 1
       }
     }
   },
@@ -1078,6 +1080,42 @@
         "kind": "revelation",
         "body": "Test [willpower] or [agility] (3). Take 1 damage for each point you fail by.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "choice_must",
+        "prompt_id": "skill_test:willpower_or_agility",
+        "options": [
+          {
+            "id": "willpower",
+            "template": "skill_test",
+            "skill": "willpower",
+            "difficulty": 3,
+            "st7": {
+              "on_fail_by_each": {
+                "template": "take_damage",
+                "amount": 1
+              }
+            }
+          },
+          {
+            "id": "agility",
+            "template": "skill_test",
+            "skill": "agility",
+            "difficulty": 3,
+            "st7": {
+              "on_fail_by_each": {
+                "template": "take_damage",
+                "amount": 1
+              }
+            }
+          }
+        ]
       }
     ]
   },
@@ -2493,8 +2531,24 @@
         "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After Rogue Gangster engages you",
-        "template": "lose_resources",
-        "amount": 1
+        "template": "seq",
+        "steps": [
+          {
+            "template": "lose_resources",
+            "amount": 1
+          },
+          {
+            "template": "if_else",
+            "if_kind": "condition",
+            "evaluate": "after_step",
+            "condition": "previous_step_not_created",
+            "then": {
+              "template": "nest_enemy_attack",
+              "enemy": "source",
+              "target": "controller"
+            }
+          }
+        ]
       }
     ],
     "prey_instruction": {
@@ -3278,6 +3332,18 @@
         "trigger": "After you enter this location",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "After you enter this location",
+        "template": "lose_action",
+        "amount": 1
+      }
     ]
   },
   "12185": {
@@ -3463,6 +3529,18 @@
         "trigger": "After this enemy enters play",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "After this enemy enters play",
+        "template": "place_doom_on_source",
+        "amount": 1
+      }
     ]
   },
   "12189": {
@@ -3508,6 +3586,18 @@
         "body": "Place 1 doom on the enemy with no doom on it nearest to Dark Magician.",
         "trigger": "When the round ends",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When the round ends",
+        "template": "place_doom_nearest_to_source",
+        "amount": 1
       }
     ]
   },

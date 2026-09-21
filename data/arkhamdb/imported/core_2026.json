@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 16,
+      "compiled_total": 17,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -19,6 +19,7 @@
         "take_damage": 4,
         "gain_resources": 4,
         "seq": 1,
+        "place_doom_on_source": 1,
         "take_horror": 1
       }
     }
@@ -2791,6 +2792,18 @@
         "body": "Place 1 doom on it.",
         "trigger": "When the investigation phase ends, if The Nameless Lurker is ready and has no doom on it",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When the investigation phase ends, if The Nameless Lurker is ready and has no doom on it",
+        "template": "place_doom_on_source",
+        "amount": 1
       }
     ],
     "spawn_instruction": {

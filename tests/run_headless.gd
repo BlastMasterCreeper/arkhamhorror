@@ -75,6 +75,15 @@ func _initialize() -> void:
 	_run_test("ADB-30 compile 12145 reaction discover resource", _test_adb_compile_12145_reaction)
 	_run_test("ADB-31 12145 reaction after discover", _test_adb_12145_reaction_discover)
 	_run_test("ADB-32 12145 reaction declined", _test_adb_12145_reaction_declined)
+	_run_test("SEQ-EFF-01 nest take_horror", _test_seq_eff_nest_take_horror)
+	_run_test("SEQ-EFF-02 nest register unregister", _test_seq_eff_register_unregister)
+	_run_test("SEQ-EFF-03 lose resources fizzle", _test_seq_eff_lose_resources_fizzle)
+	_run_test("SEQ-EFF-04 nest heal", _test_seq_eff_heal)
+	_run_test("SEQ-EFF-05 nest place doom source", _test_seq_eff_place_doom_source)
+	_run_test("ADB-33 compile 12130 skill choice", _test_adb_compile_12130_skill_choice)
+	_run_test("ADB-34 compile 12164 lose or attack", _test_adb_compile_12164_lose_or_attack)
+	_run_test("ADB-35 compile 12188 place doom source", _test_adb_compile_12188_place_doom)
+	_run_test("ADB-36 compile 12184 lose action", _test_adb_compile_12184_lose_action)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -1142,7 +1151,8 @@ func _test_enc_st7_fail_by_timing() -> bool:
 				AhcEnums.SkillTestStep.ST_8_END:
 					st8_idx = i
 		if rec.kind == AhcEnums.EventRecordKind.COMPOSITION_STEP:
-			if str(rec.payload.get("atom", "")) == "adjust_marker":
+			var atom := str(rec.payload.get("atom", ""))
+			if atom == "adjust_marker" or atom == "nest_take_horror" or atom == "take_horror":
 				horror_idx = i
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
@@ -1788,6 +1798,142 @@ func _test_adb_12145_reaction_declined() -> bool:
 	var pool_before := inv.resource_pool
 	var res := h.investigate_action()
 	return res.ok and res.success and inv.resource_pool == pool_before
+
+
+func _test_seq_eff_nest_take_horror() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.take_horror"):
+		return false
+	var node := CompositionNode.nest_take_horror(&"inv_1", 2)
+	if node.nest_flow_id != &"seq.effect.take_horror":
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(node)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv.horror_taken == 2 and _sequence_kind_count(h, &"take_horror") > 0
+
+
+func _test_seq_eff_register_unregister() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.register"):
+		return false
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.unregister"):
+		return false
+	var card_id := &"surge_card"
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.grant_keyword(card_id, &"surge"))
+	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+		return false
+	if _sequence_kind_count(h, &"effect_register") == 0:
+		return false
+	var regs: Array = h.ctx.registrations.all_registrations()
+	if regs.is_empty():
+		return false
+	c.execute(CompositionNode.nest_effect_unregister((regs[0] as Registration).id))
+	return (
+		h.ctx.registrations.count() == 0
+		and _sequence_kind_count(h, &"effect_unregister") > 0
+	)
+
+
+func _test_seq_eff_lose_resources_fizzle() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 0
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.nest_lose_resources(&"inv_1", 1))
+	return inv.resource_pool == 0 and not h.ctx.composition.last_step_created()
+
+
+func _test_seq_eff_heal() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.damage_taken = 2
+	inv.horror_taken = 1
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.seq(
+			[
+				CompositionNode.nest_heal(&"inv_1", &"damage", 1),
+				CompositionNode.nest_heal(&"inv_1", &"horror", 1),
+			]
+		)
+	)
+	return (
+		inv.damage_taken == 1
+		and inv.horror_taken == 0
+		and _sequence_kind_count(h, &"heal") >= 2
+	)
+
+
+func _test_seq_eff_place_doom_source() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_place_doom(&"inv_1", &"enemy_a", &"source")
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_a")
+	return (
+		enemy != null
+		and enemy.doom == 1
+		and _sequence_kind_count(h, &"place_doom") > 0
+	)
+
+
+func _test_adb_compile_12130_skill_choice() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12130")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	var options: Variant = entry.get("options", [])
+	if not options is Array or (options as Array).size() != 2:
+		return false
+	return (
+		CardRegistry.has_revelation(&"12130")
+		and entry.get("template", "") == "choice_must"
+		and (options[0] as Dictionary).get("skill", "") == "willpower"
+		and (options[1] as Dictionary).get("skill", "") == "agility"
+	)
+
+
+func _test_adb_compile_12164_lose_or_attack() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12164")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var then_entry: Dictionary = (steps[1] as Dictionary).get("then", {})
+	return (
+		entry.get("template", "") == "seq"
+		and (steps[0] as Dictionary).get("template", "") == "lose_resources"
+		and then_entry.get("template", "") == "nest_enemy_attack"
+		and then_entry.get("enemy", "") == "source"
+	)
+
+
+func _test_adb_compile_12188_place_doom() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12188")
+	if compiled.is_empty():
+		return false
+	return (compiled[0] as Dictionary).get("template", "") == "place_doom_on_source"
+
+
+func _test_adb_compile_12184_lose_action() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12184")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	return (
+		entry.get("template", "") == "lose_action"
+		and int(entry.get("amount", 0)) == 1
+	)
 
 
 func _test_adb_import_counts() -> bool:

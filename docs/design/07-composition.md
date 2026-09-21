@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.4 · 2026-09-21 — Memory vs 场合快照 vs EventRecord 历史
+> **状态**：v0.9.5 · 2026-09-21 — 卡面叶子 nest seq.effect.*
 
 ---
 
@@ -641,6 +641,7 @@ Listener 触发   →  同上：父 seq 帧内解释 listener 上的静态树
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.9.5 | 解释器：已编译叶子改 nest `seq.effect.*`（take horror/damage、place doom、register、heal…）；ArkhamDB 增编 fail-by 检定 / 失去资源否则攻击 / 来源放毁灭 |
 | 2026-09-21 | v0.9.4 | §1.4：RulesMemory=本趟便笺；ApplicationContext=场合快照；历史=EventRecord+StatProjection |
 | 2026-09-21 | v0.9.3 | **§1.4** 树力度=控制流+nest 一条 seq；场面在 Domain/Memory；输入在 Gate |
 | 2026-09-21 | v0.9.2 | **§1.3.3** Buff 创建/注销也是可解释效果：铸造 `seq.effect.register` / `unregister`；禁止真空 Register |

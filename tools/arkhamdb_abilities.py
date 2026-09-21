@@ -51,6 +51,26 @@ LOSE_RESOURCES = re.compile(r"^Lose (\d+) resource", re.I)
 LOSE_ALL_RESOURCES = re.compile(r"^Lose all of your resources\.?", re.I)
 GAIN_RESOURCES = re.compile(r"^Gain (\d+) resource", re.I)
 ENTER_THREAT = re.compile(r"^Put .+ into play in your threat area\.?", re.I)
+LOSE_ACTION = re.compile(r"^Lose (\d+) actions?\.?$", re.I)
+PLACE_DOOM_ON_IT = re.compile(r"^Place (\d+) doom on it\.?$", re.I)
+PLACE_DOOM_NEAREST_TO_NAMED = re.compile(
+    r"^Place 1 doom on the enemy with no doom on it nearest to .+\.?$",
+    re.I,
+)
+LOSE_OR_ATTACK = re.compile(
+    r"^Lose (\d+) resource(?:s)?\. If you cannot, this enemy attacks you\.?$",
+    re.I,
+)
+HEAL_SELF = re.compile(r"^Heal (\d+) (damage|horror)\.?$", re.I)
+HEAL_DAMAGE_AND_HORROR = re.compile(
+    r"^Heal (\d+) damage and (\d+) horror(?:\s*\(Limit once per game\))?\s*\.?$",
+    re.I,
+)
+TEST_WP_OR_AGI_FAIL_BY = re.compile(
+    r"^Test \[willpower\] or \[agility\] \((\d+)\)\. "
+    r"Take (\d+) damage for each point you fail by\.?$",
+    re.I,
+)
 
 # 12126 · If = L3 情景条件（非 timing）；Otherwise = 互斥效果支
 FORBIDDEN_SECRETS_IF_ELSE = re.compile(
@@ -292,6 +312,75 @@ def compile_raising_suspicions(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_lose_or_attack(body: str) -> dict[str, Any] | None:
+    m = LOSE_OR_ATTACK.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "seq",
+        "steps": [
+            {"template": "lose_resources", "amount": int(m.group(1))},
+            {
+                "template": "if_else",
+                "if_kind": "condition",
+                "evaluate": "after_step",
+                "condition": "previous_step_not_created",
+                "then": {
+                    "template": "nest_enemy_attack",
+                    "enemy": "source",
+                    "target": "controller",
+                },
+            },
+        ],
+    }
+
+
+def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
+    m = TEST_WP_OR_AGI_FAIL_BY.match(body.strip())
+    if not m:
+        return None
+    difficulty = int(m.group(1))
+    amount = int(m.group(2))
+    st7 = {
+        "on_fail_by_each": {"template": "take_damage", "amount": amount},
+    }
+    return {
+        "template": "choice_must",
+        "prompt_id": "skill_test:willpower_or_agility",
+        "options": [
+            {
+                "id": "willpower",
+                "template": "skill_test",
+                "skill": "willpower",
+                "difficulty": difficulty,
+                "st7": dict(st7),
+            },
+            {
+                "id": "agility",
+                "template": "skill_test",
+                "skill": "agility",
+                "difficulty": difficulty,
+                "st7": {
+                    "on_fail_by_each": {"template": "take_damage", "amount": amount},
+                },
+            },
+        ],
+    }
+
+
+def compile_heal_damage_and_horror(body: str) -> dict[str, Any] | None:
+    m = HEAL_DAMAGE_AND_HORROR.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "seq",
+        "steps": [
+            {"template": "heal", "kind": "damage", "amount": int(m.group(1))},
+            {"template": "heal", "kind": "horror", "amount": int(m.group(2))},
+        ],
+    }
+
+
 def compile_effect_body(body: str) -> dict[str, Any] | None:
     if not body:
         return None
@@ -307,6 +396,30 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     aerial = compile_aerial_pursuit(body)
     if aerial is not None:
         return aerial
+    lose_or_attack = compile_lose_or_attack(body)
+    if lose_or_attack is not None:
+        return lose_or_attack
+    skill_choice = compile_test_wp_or_agi_fail_by(body)
+    if skill_choice is not None:
+        return skill_choice
+    heal_both = compile_heal_damage_and_horror(body)
+    if heal_both is not None:
+        return heal_both
+    m = HEAL_SELF.match(body.strip())
+    if m:
+        return {
+            "template": "heal",
+            "kind": m.group(2).lower(),
+            "amount": int(m.group(1)),
+        }
+    m = PLACE_DOOM_ON_IT.match(body.strip())
+    if m:
+        return {"template": "place_doom_on_source", "amount": int(m.group(1))}
+    if PLACE_DOOM_NEAREST_TO_NAMED.match(body.strip()):
+        return {"template": "place_doom_nearest_to_source", "amount": 1}
+    m = LOSE_ACTION.match(body.strip())
+    if m:
+        return {"template": "lose_action", "amount": int(m.group(1))}
     if LOSE_ALL_RESOURCES.match(body):
         return {"template": "lose_all_resources"}
     m = LOSE_RESOURCES.match(body)
@@ -449,6 +562,15 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return f"Gain {amount} resource."
     if template == "lose_all_resources":
         return "Lose all of your resources."
+    if template == "lose_action":
+        return f"Lose {amount} action." if amount == 1 else f"Lose {amount} actions."
+    if template == "heal":
+        kind = compiled.get("kind", "damage")
+        return f"Heal {amount} {kind}."
+    if template == "place_doom_on_source":
+        return f"Place {compiled.get('amount', 1)} doom on it."
+    if template == "place_doom_nearest_to_source":
+        return "Place 1 doom on the enemy with no doom on it nearest to …"
     if template == "enter_threat_area":
         return "Put … into play in your threat area."
     if template == "lead_draw_topmost_encounter_discard_copy":
@@ -467,6 +589,10 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
                     "The nearest non-[[Elite]] enemy moves once toward your location. "
                     "If it engages an investigator, it makes an immediate attack."
                 )
+            if first.get("template") == "lose_resources":
+                return "Lose 1 resource. If you cannot, this enemy attacks you."
+            if first.get("template") == "heal":
+                return "Heal 1 damage and 1 horror."
             if (
                 len(steps) >= 2
                 and first.get("template") == "exhaust_source"
@@ -475,6 +601,12 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
                 return "During your turn, exhaust …: Move to a connecting location."
         return "Place 1 doom on the nearest enemy…"
     if template == "choice_must":
+        prompt = str(compiled.get("prompt_id", ""))
+        if prompt == "skill_test:willpower_or_agility":
+            return (
+                "Test [willpower] or [agility] (3). "
+                "Take 1 damage for each point you fail by."
+            )
         return "You must either (choose one)…"
     return ""
 
