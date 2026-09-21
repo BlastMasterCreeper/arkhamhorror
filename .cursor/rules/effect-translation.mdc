@@ -17,7 +17,7 @@ alwaysApply: true
 - 不为效果保留自然语言运行时分支（禁止 `match effect_text`、语义 atom id）。
 - 与规则书原文的唯一联系：**provenance**（`AbilityUnitRef`）。
 - **禁止**：Grimoire/卡面段落 → 专属 `*Policy` / `*Service`；为每张卡登记 `seq.card…`；与 Catalog 平行的第二套 dispatch。
-- **Catalog 完备**：凡解释器要当效果跑的，必须有 `seq.*`。纸面没有章节名 → 引擎铸造 `seq.effect.*`（种类 + 参数），不是裸 Atom，也不是 `seq.card…`。见 [07-composition §1.3.3](docs/design/07-composition.md)。
+- **Catalog 完备**：凡解释器要当效果跑的，必须有 `seq.*`。含 **状态原语类** 与 **Buff 创建/注销**（`seq.effect.register` / `unregister`）。纸面没有章节名 → 引擎铸造 `seq.effect.*`（种类 + 参数），不是裸 Atom/Register，也不是 `seq.card…`。见 [07-composition §1.3.3](docs/design/07-composition.md)。
 
 ## 统一翻译模型
 
@@ -33,8 +33,8 @@ alwaysApply: true
   → 解释器在栈帧内走树（内联写入，或 nest 已有 seq）
 
 卡牌正文  →  静态 Composition 树（待解释，不真空跑）
-              ├─ Atom / Register / Seq(Then) / Simultaneous / If / Choice
-              └─ 正文调用已有手续时 nest 那条 seq.*（抽牌、检定、Cancel…）
+              ├─ 控制流：Seq(Then) / Simultaneous / If / Choice
+              └─ 效果：nest seq.*（抽牌、检定、Cancel、**seq.effect.register** 创建 Buff、take horror…）
 ```
 
 编译 / 装载 / 解释分工见 [07-composition §1.3](docs/design/07-composition.md#13-静态信息编译装载解释已裁决-2026-09-21)。
@@ -44,7 +44,7 @@ alwaysApply: true
 | Grimoire 章节流程 | `seq.*` | `seq.draw.investigator`、`seq.draw.encounter` |
 | 行动 | `seq.action.*` nest 内核 seq | action draw → `seq.draw.investigator` |
 | 卡牌能力 / 显现体 / lasting | **Composition** 树（控制流 + nest 已有/`seq.effect.*`） | 12160：nest 放毁灭 + if + nest 涌动 |
-| 纸面无名的效果句 | 铸造 **`seq.effect.*`** | take horror、place doom、heal；已有 `seq.effect.discover_clue` |
+| 纸面无名的效果句 | 铸造 **`seq.effect.*`** | take horror、place doom、heal；Buff 创建 = `seq.effect.register` |
 | 卡面调用已有手续 | Composition 节点 **nest** 该 seq | 「抽 1 张」→ nest `seq.draw.*`；Cancel → nest `seq.interrupt.cancel` |
 | 子流程复用 | `catalog.nest(other_seq)` | 同一内核多入口 |
 

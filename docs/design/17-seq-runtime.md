@@ -1,7 +1,7 @@
 # 17 — 命名流程运行时 (seq.* Runtime)
 
 > **依赖**：[14-nested-sequences.md](14-nested-sequences.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[06-ability-initiation.md](06-ability-initiation.md)、[16-player-interaction.md](16-player-interaction.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4.17 · 2026-09-21 — seq.effect.* 覆盖无名可解释效果
+> **状态**：v0.4.18 · 2026-09-21 — Buff 创建走 seq.effect.register
 
 ---
 
@@ -198,7 +198,9 @@
 | `seq.enter_hand` | 显现 batch | nest from investigator |
 | `seq.gain_resource` | 获资源 + MODIFIER | `ResourceGainService`、可框架 |
 | `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅 |
-| `seq.effect.*`（待补） | 其它可解释效果种类（take horror/damage、place doom、heal…） | 解释器 nest；禁止裸 Atom 当效果 |
+| `seq.effect.register`（待补） | **创建 Buff / Registration** | 卡面 lasting、gains surge、Cannot；参数 = template |
+| `seq.effect.unregister`（待补） | 卸 Buff | 与创建对称；不是 `on_card_leave_play` 那种管线注销场合 |
+| `seq.effect.*`（待补） | 其它状态原语类效果（take horror/damage、place doom、heal…） | 解释器 nest；禁止裸 Atom / 裸 Register |
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 
@@ -286,6 +288,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.18 | §5：Buff 创建/注销 = `seq.effect.register` / `unregister` |
 | 2026-09-21 | v0.4.17 | §5：`seq.effect.*` 覆盖纸面无名的可解释效果；种类铸造、禁止 `seq.card…` |
 | 2026-09-21 | v0.4.16 | I2：裸 resolve 与「seq 才是压栈形态」对齐（07 §1.2.1） |
 | 2026-09-21 | v0.4.15 | §1 链 07-composition §1.2 对照表 |

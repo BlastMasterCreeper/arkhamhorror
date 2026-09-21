@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.1 · 2026-09-21 — 可解释效果必须有 seq（纸面可无名）
+> **状态**：v0.9.2 · 2026-09-21 — Buff 创建也走 seq.effect.register
 
 ---
 
@@ -82,7 +82,8 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 | 来源 | 命名流程 | 效果组合 |
 |---|---|---|
 | 神话阶段抽遭遇 | `seq.draw.encounter` 整段 G0–G4 | 无「这张阶段」专用树 |
-| 12160 显现正文 | 跑在 `seq.encounter.revelation` 里 | `Seq(放毁灭 → if 没 CREATED 则涌动)` |
+| 12160 显现正文 | 跑在 `seq.encounter.revelation` 里 | `Seq(nest 放毁灭 → if 没 CREATED 则 nest 创建涌动)` |
+| 卡面「gains surge」 | nest `seq.effect.register`（KEYWORD/LISTENER 模板） | 创建；**开火**仍是 `seq.keyword.surge` |
 | Forced – When you draw, take 1 horror | hook = `(seq.draw.investigator, WHEN)` | 树 = 造成 1 恐惧 |
 | 事件「Draw 1 card. Then take 1 horror.」 | 树节点 nest `seq.draw.investigator` | `Seq(nest 抽牌, 恐惧)`；Then 不另开窗 |
 | Ward 取消显现 | hook 订显现相关槽 | Interrupt 节点 nest `seq.interrupt.cancel` |
@@ -199,6 +200,7 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 |---|---|---|
 | Draw / Skill Test / Fight action | 沿用规则书手续名：`seq.draw.*`、`seq.skill_test.*`、`seq.action.fight` | — |
 | 无名但可独立解释的效果句 | **铸造** `seq.effect.*`（或已有 `seq.gain_resource`） | 真空跑 Atom |
+| **创建 / 卸掉 Buff**（Register / Unregister） | **铸造** `seq.effect.register` / `seq.effect.unregister`（参数：template、lifetime、buff 种类） | 真空跑 `CompositionNode.REGISTER` |
 | 某张卡独有的整段故事 | 仍是 Composition 树，去 **组合** 上表条目 | `seq.card.12160` |
 | Then / If / Choice | 树的控制流，**不是** 效果，不铸造 seq | 把 Then 做成 `seq.then` |
 
@@ -211,26 +213,28 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 1. 解释器要把它当成一次可 CREATED 的效果跑完；
 2. 可能被 Would / When / After 订阅，或会在多张卡/多条手续里复用。
 
-用 **参数** 区分次数与目标（`amount`、`bearer`），不要为「造成 1 恐惧」和「造成 2 恐惧」开两条 seq。
+用 **参数** 区分次数与目标（`amount`、`bearer`），不要为「造成 1 恐惧」和「造成 2 恐惧」开两条 seq。Register 用参数区分 `MODIFIER` / `RESTRICTION` / `LISTENER` / KEYWORD 标记，不要为每个关键词各开一条 `seq.effect.register_surge`（消费涌动仍是已有的 `seq.keyword.surge`，那是 **开火**，不是创建）。
 
 **不铸造**
 
 - 某张卡的段落（12160 整段仍是树：nest 放毁灭 + If + nest 涌动）。
 - 控制流节点本身。
 - seq 内部的 L0 碎步（`seq.effect.take_horror` 的 handler 里 `AdjustMarker` 仍内联，不升格成 `seq.atom.adjust`）。
+- 管线里 **为父手续服务** 的 Register 砖（遭遇抽牌 G2 险境、ENTER_PLAY 挂 Hunter）：算该父 `seq.*` 已覆盖；**不要**另开 `PERIL_CHECK`。只有卡面「获得持续/延时/涌动」这种 **当效果写出来的创建** 才 nest `seq.effect.register`。
 
 ```text
 可解释效果  ⊂  Catalog 里的 seq.*
               ├─ 纸面有名：seq.draw / seq.skill_test / seq.action…
-              └─ 纸面无名：seq.effect.take_horror / place_doom / heal / …
-                             （名字是引擎的，订阅键仍是 (flow_id, slot)）
+              ├─ 状态原语类无名效果：seq.effect.take_horror / place_doom / heal / …
+              └─ Buff 创建 / 注销：seq.effect.register / unregister
+                             （handler 内才写 RegistrationStore；CREATED = 插入成功）
 
 Composition 树  =  控制流 +「去装载哪几条 seq、带什么参数」
-解释器跑效果   =  nest/run 那条 seq（本帧只解释树，不私自当效果写 Domain）
+解释器跑效果   =  nest/run 那条 seq（本帧只解释树，不私自 Atom 或 Register）
 ```
 
-工作流 A 补 Catalog + 让解释器 **只通过 seq 落地效果**。  
-工作流 B 把自然语言效果句 **规范到已有或待铸造的 `flow_id`**，而不是编成裸 atom 名。
+工作流 A 补 Catalog + 让解释器 **只通过 seq 落地效果**（含创建 Buff）。  
+工作流 B 把「gains surge / until end of turn / cannot…」规范到 `seq.effect.register` + `RegistrationTemplate`，不是编成裸 Register 节点当运行时。
 
 框架 1.3 `seq.mythos.place_doom` 与卡面「在最近敌人上放 1 毁灭」是 **两种** 手续（议程 vs 效果），不要合成一条。
 
@@ -546,6 +550,7 @@ Listener 触发   →  同上：父 seq 帧内解释 listener 上的静态树
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.9.2 | **§1.3.3** Buff 创建/注销也是可解释效果：铸造 `seq.effect.register` / `unregister`；禁止真空 Register |
 | 2026-09-21 | v0.9.1 | **§1.3.3** Catalog 覆盖一切可解释效果；纸面无名则铸造 `seq.effect.*`，不为每张卡开 seq |
 | 2026-09-21 | v0.9 | **§1.3** 效果组合=静态信息；编译→装载到 seq 栈→解释器；双工作流（解释器 / 文本规范化） |
 | 2026-09-21 | v0.8.1 | **§1.2.1** 命名流程=压栈运行形态；效果组合=当前帧 RESOLVE 的中间语言（内联写入 / nest 已有 seq） |
