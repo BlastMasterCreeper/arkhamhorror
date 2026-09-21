@@ -2147,6 +2147,9 @@ func _test_adb_12129_fire_forced_phase_ends() -> bool:
 	h.ctx.triggered_abilities.install_card(&"inv_1", fire_id)
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_fire_tgt", &"test_loc", 2, 2)
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_fire_tgt")
+	if enemy == null:
+		return false
+	enemy.health = 3
 	var horror_before := inv.horror_taken
 	var dmg_before := inv.damage_taken
 	var result := h.ctx.sequence_catalog.run(
@@ -2156,14 +2159,13 @@ func _test_adb_12129_fire_forced_phase_ends() -> bool:
 		bool(result.get("ok", false))
 		and inv.damage_taken == dmg_before + 1
 		and inv.horror_taken == horror_before
-		and enemy != null
 		and enemy.damage == 1
+		and h.ctx.state.registry.get_enemy(&"enemy_fire_tgt") != null
 	)
 
 
 func _test_seq_eff_deal_damage_attached() -> bool:
 	var h := RuleTestHarness.new(42)
-	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	inv.location_tag = &"test_loc"
 	var fire_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_fire_attach", [])
@@ -2173,21 +2175,25 @@ func _test_seq_eff_deal_damage_attached() -> bool:
 	if not EncounterAttachment.attach_limbo_to_location(h.ctx, fire_id, &"test_loc"):
 		return false
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc")
-	var c := CompositionTestHelper.new(h.ctx)
-	c.execute(
-		CompositionNode.nest_deal_damage(
-			&"inv_1",
-			1,
-			&"non_elite_with_health_at_attached_location",
-			fire_id
-		)
-	)
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_a")
+	if enemy == null:
+		return false
+	enemy.health = 3
+	var result := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.deal_damage",
+		{
+			"controller_id": &"inv_1",
+			"card_id": fire_id,
+			"amount": 1,
+			"target": &"non_elite_with_health_at_attached_location",
+		}
+	)
 	return (
-		inv.damage_taken == 1
-		and enemy != null
+		bool(result.get("ok", false))
+		and inv.damage_taken == 1
 		and enemy.damage == 1
-		and _sequence_kind_count(h, &"deal_damage") > 0
+		and h.ctx.state.registry.get_enemy(&"enemy_a") != null
 	)
 
 
