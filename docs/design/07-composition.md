@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.7 · 2026-09-21 — 卡牌正文译效果组合；命名流程是规则手续
+> **状态**：v0.8 · 2026-09-21 — §1.2 与命名流程对照
 
 ---
 
@@ -35,6 +35,59 @@ InitiationIntent.PLAY_CARD     ← 打出（不是能力）
 
 AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 seq.card）
 ```
+
+### 1.2 与命名流程对照
+
+两边最后都落到 **状态原语 + Register**（那才是效果）。差别在 **管什么**，不是两套互不相干的写入引擎。
+
+| | **命名流程（named flow / `seq.*`）** | **效果组合（Composition）** |
+|---|---|---|
+| **一句话** | 规则书里有名字、可复用、带时点的 **手续** | 卡牌正文「这段怎么做」的 **可执行树** |
+| **译什么** | Grimoire 章节、框架步、行动内核、检定、入手/显现入口、共享 Cancel/Instead | 能力体、显现体、打出后效果体、lasting 写入 |
+| **身份** | Catalog 里一条 `flow_id`（全游戏共用） | 某张卡某个 ability 编译出的树（按卡一份） |
+| **禁止** | 为每张卡登记 `seq.card…`；单卡 `*Policy` | 自己开放 Would/When/After；取代 Catalog 调度 |
+| **运行时** | 压进 `ResolutionSequenceStack` | `CompositionExecutor.execute`；不单独占一层堆栈 |
+| **结构** | 有序 **砖块**（Brick：EFFECT / REVEAL / SUBSEQUENCE / FRAMEWORK） | 节点树：Atom、Register、Seq/Then、Simultaneous、If、Choice、Interrupt、Replace |
+| **时点** | 有 WOULD / WHEN / AFTER（整段手续的槽） | **无**自己的时点槽。Then 是树内顺序，不是 After |
+| **谁启动** | 框架步、行动、另一条 seq nest、卡面树 nest 已有 seq | 某条 seq 的 EFFECT 砖、打出 Initiation resolve、LISTENER 开火 |
+| **嵌套** | `catalog.nest` 另一条 seq = 新 triggering condition、LIFO 子手续 | 树内顺序/同时/分支；**调用规则手续**时才 nest seq |
+| **内联** | 同 seq 内连续砖、不触发新时点 → 不 nest | Then / 普通 Seq：后段读前段 CREATED，不另开反应窗 |
+| **dry-run** | 一般不拿整条手续做 L7 | L7 在这棵树上问：有没有至少一项 CREATED |
+| **能力上的位置** | **hook**：订 `(sequence_id, slot)` + tier | **effect**：`AbilitySpec.effect` |
+| **打出** | 打出不是 seq 卡面。Play action 可 nest 内核 seq（进场等） | 打出后的效果体是树；种类仍是 `PLAY_CARD` |
+| **显现** | 入口手续：`seq.encounter.revelation` / `seq.enter_hand` | 该显现段落的树，在入口 RESOLVE 里 execute |
+| **Cancel / Instead** | 共享手续 `seq.interrupt.*` / `seq.replace.instead` | 卡面树里的 Interrupt / Replace 节点去 nest 上述手续 |
+| **provenance** | `flow_id` = 当前在哪条手续里 | `definition_id` + `ability_id`；跑的时候仍带着所在 `flow_id` |
+
+**怎么接在一起**
+
+```text
+规则手续（seq）打开时点、走砖块
+        │
+        ├─ 砖块自己写 L0 / Register（抽牌 D2 揭示等）
+        ├─ 砖块 nest 另一条 seq（显现入口、涌动再抽）
+        └─ 砖块 composition.execute ← 卡面树
+                 │
+                 ├─ Atom / Register / Then / If / Choice
+                 └─ 正文点名「抽牌 / 检定 / Cancel」→ 再 nest 已有 seq
+                          │
+                          └─ 子手续完整跑完（含自己的 When/After）再回到树
+
+打出 PLAY_CARD：七步手续（付费、AOO…）≠ seq 卡面
+        └─ resolve 步 composition.execute ← 同一类卡面树
+```
+
+**锚例**
+
+| 来源 | 命名流程 | 效果组合 |
+|---|---|---|
+| 神话阶段抽遭遇 | `seq.draw.encounter` 整段 G0–G4 | 无「这张阶段」专用树 |
+| 12160 显现正文 | 跑在 `seq.encounter.revelation` 里 | `Seq(放毁灭 → if 没 CREATED 则涌动)` |
+| Forced – When you draw, take 1 horror | hook = `(seq.draw.investigator, WHEN)` | 树 = 造成 1 恐惧 |
+| 事件「Draw 1 card. Then take 1 horror.」 | 树节点 nest `seq.draw.investigator` | `Seq(nest 抽牌, 恐惧)`；Then 不另开窗 |
+| Ward 取消显现 | hook 订显现相关槽 | Interrupt 节点 nest `seq.interrupt.cancel` |
+
+对照实现清单见 [17-seq-runtime](17-seq-runtime.md)；砖块 vs 原子见 [15 §4.0.1](15-timing-entry-catalog.md)。
 
 ---
 
@@ -347,6 +400,7 @@ Listener 触发   →  CompositionExecutor.execute(listener.composition)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.8 | **§1.2** 命名流程 vs 效果组合对照表（译什么、时点、嵌套、hook/effect） |
 | 2026-09-21 | v0.7 | **卡牌正文译 Composition**；不为每张卡建 `seq.card…`；命名流程只译规则手续 |
 | 2026-09-21 | v0.6 | **§1.1** Composition = seq/Initiation RESOLVE 步内的可执行树，不是第二调度；**§3.1.1** Then = 内联 Seq，不是时点 |
 | 2026-07-07 | v0.5 | clues 域；after_step If；must choose；12124/12126/12160 编译锚；能力多要素拆分 |

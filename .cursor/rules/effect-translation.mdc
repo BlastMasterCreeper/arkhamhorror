@@ -62,7 +62,7 @@ AbilitySpec
   effect: Composition                   ← 卡面正文
 ```
 
-长规范流程 = **seq handler 顺序步骤 + nest 其它 seq**。不要为卡面短句另开 `seq.card…`。
+长规范流程 = **seq handler 顺序步骤 + nest 其它 seq**。不要为卡面短句另开 `seq.card…`。逐项对照见 [07-composition §1.2](docs/design/07-composition.md#12-与命名流程对照)。
 
 ## 什么是「效果」（已裁决）
 

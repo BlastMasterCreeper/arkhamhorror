@@ -1,7 +1,7 @@
 # 17 — 命名流程运行时 (seq.* Runtime)
 
 > **依赖**：[14-nested-sequences.md](14-nested-sequences.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[06-ability-initiation.md](06-ability-initiation.md)、[16-player-interaction.md](16-player-interaction.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4.14 · 2026-09-21 — 命名流程 = 规则手续；卡牌正文 = Composition
+> **状态**：v0.4.15 · 2026-09-21 — 对照 07-composition §1.2
 
 ---
 
@@ -11,7 +11,7 @@
 
 **命名流程（named flow / `seq.*`）** = 规则书里那套 **有名字、可复用、带时点** 的手续：`SequenceCatalog` 条目 + `ResolutionSequenceStack` 上的 WOULD / WHEN → RESOLVE → AFTER + 可 `nest` 子 flow。抽牌、遭遇抽牌、检定、行动内核、入手/显现入口、共享 Cancel/Instead 都是命名流程。
 
-**不是命名流程**：卡牌正文（译效果组合）、打出（`PLAY_CARD`）。能力只 **订阅** 某条 seq 的槽当 hook；effect 仍是 Composition。禁止为每张卡登记 `seq.card…`。
+**不是命名流程**：卡牌正文（译效果组合）、打出（`PLAY_CARD`）。能力只 **订阅** 某条 seq 的槽当 hook；effect 仍是 Composition。禁止为每张卡登记 `seq.card…`。与效果组合的逐项对照见 [07-composition §1.2](07-composition.md#12-与命名流程对照)。
 
 ---
 
@@ -284,6 +284,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.15 | §1 链 07-composition §1.2 对照表 |
 | 2026-09-21 | v0.4.14 | 命名流程 = 规则手续；卡牌正文 = Composition；裁决 OQ-SEQ-03 |
 | 2026-06-18 | v0.4.1 | D1 collect 内联；移除 `seq.draw.collect_one` |
 | 2026-06-18 | v0.4 | §4.0.5 内联=流程连续、nest=因果关系 |
