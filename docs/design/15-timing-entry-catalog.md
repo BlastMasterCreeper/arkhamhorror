@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-buff-model.md](06-registration-buff-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
 > **符号记法**：[ArkhamDB 标准](../reference/arkham-symbol-notation.md)  
-> **状态**：v0.6.13 · 2026-09-21
+> **状态**：v0.6.14 · 2026-09-21
 
 ---
 
@@ -1303,10 +1303,11 @@ G3 revelation:
   · 12124：仅玩家选「伤害+horror」分支时 Register（无印刷 surge）
   · 12160：place doom 步未 CREATED → Register（after_step if · 07 §3.3）
 
-本条 AFTER 之后（延时）:
+本条 AFTER 之后（KeywordConsumer）:
+  nest seq.keyword.surge
   should_surge = CardRegistry.has_surge(def_id)
               OR RegistrationStore.has_keyword_buff(card_id, &"surge")
-  if should_surge: 另开 seq.draw.encounter（amount=1）
+  if should_surge: nest seq.draw.encounter（amount=1）
   Unregister KEYWORD(surge) for card_id   # 动态标记；印刷 surge 不 Register
 ```
 
@@ -1779,4 +1780,4 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-09-20 | v0.6.9 | **§2/§3/§16.3/§17.3**：抽取时钉抽取步骤，不为原文不细买单 |
 | 2026-09-20 | v0.6.10 | 「抽取后」= 该次抽取整段结算完毕；不在步骤边界另开 After。抽取时仍只钉抽取步骤 |
 | 2026-09-20 | v0.6.11 | Would = 这次抽取 PreImpact；When = 抽取步骤；After = 整段结算 |
-| 2026-09-21 | v0.6.13 | **§3.2**：同一指令抽多张 = 同时抽出；涌动 = 抽取并结算后的延时，另开指令。纠正 OQ-TIMING-08 |
+| 2026-09-21 | v0.6.14 | 涌动消费 nest `seq.keyword.surge`（KeywordProfile 模块）；不再写入遭遇抽牌优先队列 |

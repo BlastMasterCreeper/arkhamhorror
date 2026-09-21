@@ -118,6 +118,7 @@ func _initialize() -> void:
 	_run_test("ENC-07 no prey lead engages", _test_enc_no_prey_lead_engages)
 	_run_test("ENC-08 prey lowest agility", _test_enc_prey_lowest_agility)
 	_run_test("ENC-09 surge chain two treacheries", _test_enc_surge_chain)
+	_run_test("ENC-SURGE-01 keyword seq nest", _test_enc_surge_nests_keyword_seq)
 	_run_test("ENC-10 peril surge clears before second card", _test_enc_peril_surge_not_sticky)
 	_run_test("ENC-SURGE-02 dynamic keyword surge chain", _test_enc_surge_dynamic_keyword)
 	_run_test("ENC-SURGE-03 gained surge survives g4 peril unregister", _test_enc_surge_keyword_survives_g4)
@@ -2629,6 +2630,22 @@ func _test_enc_surge_dynamic_keyword() -> bool:
 	)
 
 
+func _test_enc_surge_nests_keyword_seq() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_surge_a", [&"surge"])
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_b", [])
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false) or int(res.get("surge_depth", 0)) != 1:
+		return false
+	var has_surge_seq := false
+	for entry in h.ctx.memory.phase_trace:
+		if str(entry).begins_with("RESOLVE:keyword_surge@"):
+			has_surge_seq = true
+			break
+	return has_surge_seq
+
+
 func _test_enc_surge_keyword_survives_g4() -> bool:
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_surge", [])
@@ -2639,11 +2656,11 @@ func _test_enc_surge_keyword_survives_g4() -> bool:
 	EncounterPeril.unregister_for_card(h.ctx, card_id)
 	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
 		return false
-	var tail := DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
-	return (
-		bool(tail.get("should_surge", false))
-		and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
-	)
+	DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
+	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+		return false
+	var consumed := KeywordConsumer.evaluate_keyword(h.ctx, card_id, &"surge")
+	return consumed and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
 
 
 func _adb_add_encounter_treachery_to_deck(h: RuleTestHarness, def_id: StringName) -> StringName:

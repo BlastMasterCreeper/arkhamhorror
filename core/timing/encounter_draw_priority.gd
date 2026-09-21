@@ -11,4 +11,4 @@ const PLAYER_WHEN_DRAW: int = 95
 const REVELATION: int = 90
 const G4_TYPE_RESOLVE: int = 80
 const AFTER_CARD: int = 75
-const SURGE_KEYWORD: int = 70
+## 涌动不再进本队列；消费槽见 KeywordProfileTable.SLOT_AFTER_DRAWN_CARD → seq.keyword.surge。

@@ -210,6 +210,21 @@ static func draw_encounter_resolve_bound(
 	return t
 
 
+static func keyword_surge(
+	drawer_id: StringName,
+	card_id: StringName,
+	after_timing: StringName = &"after_keyword_surge"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("keyword_surge_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"keyword_surge"
+	t.controller_id = drawer_id
+	t.tags = [&"keyword", &"surge"]
+	t.after_timing = after_timing
+	t.payload = {"drawer_id": drawer_id, "card_id": card_id}
+	return t
+
+
 static func mythos_place_doom(
 	after_timing: StringName = &"after_mythos_place_doom"
 ) -> TriggeringCondition:

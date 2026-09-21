@@ -1,7 +1,7 @@
 # 17 — 命名流程运行时 (seq.* Runtime)
 
 > **依赖**：[14-nested-sequences.md](14-nested-sequences.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[06-ability-initiation.md](06-ability-initiation.md)、[16-player-interaction.md](16-player-interaction.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4.8 · 2026-09-21
+> **状态**：v0.4.9 · 2026-09-21
 
 ---
 
@@ -190,7 +190,8 @@
 | flow_id | 用途 | 入口 |
 |---|---|---|
 | `seq.draw.investigator` | 调查员抽牌 D* | `DrawInvestigatorService`、`ActionSystem` DRAW、`Composition` draw |
-| `seq.draw.encounter` | 遭遇抽牌 G1–G5（P-ENC-1～3） | `DrawEncounterService`、Mythos 1.4 `ScenarioSystem` |
+| `seq.draw.encounter` | 遭遇抽牌（抽取步骤 + 卡牌结算；不含涌动） | `DrawEncounterService`、Mythos 1.4 `ScenarioSystem` |
+| `seq.keyword.surge` | 涌动消费：卸标记并 nest 新的遭遇抽牌 | `KeywordConsumer` @ `AFTER_DRAWN_CARD` |
 | `seq.draw.empty_piles_defeated` | 两堆空 defeated（因果 nest） | nest from D1 内联 collect |
 | `seq.enter_hand` | 显现 batch | nest from investigator |
 | `seq.gain_resource` | 获资源 + MODIFIER | `ResourceGainService`、可框架 |
@@ -292,4 +293,4 @@
 | 2026-09-20 | v0.4.4 | T2：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.5 | T3：抽牌 After = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.6 | T1：Would = 这次抽取 PreImpact |
-| 2026-09-21 | v0.4.8 | T1–T3：同一指令抽多张同时抽出；涌动是结算后延时 |
+| 2026-09-21 | v0.4.9 | 涌动消费 nest `seq.keyword.surge`；抽牌管线不再内联 G5 |

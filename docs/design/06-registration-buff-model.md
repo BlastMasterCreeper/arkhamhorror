@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.8 · 2026-09-21
+> **状态**：v0.4.9 · 2026-09-21
 
 ---
 
@@ -79,7 +79,7 @@ enum BuffType {
 
 **Clues（已裁决）**：*your clues* 默认 = 调查员卡上 clue（`clues_on_card`）。
 
-**本条 AFTER 之后**：`should_surge = printed OR dynamic` → 若 true **另开** `seq.draw.encounter`（amount=1）→ **Unregister** 本张 `card_id` 的动态 surge 标记。实现若仍在同帧循环再抽，属缺口（[15 §3.2](15-timing-entry-catalog.md)）。
+**本条 AFTER 之后**：`KeywordConsumer` @ `AFTER_DRAWN_CARD` → nest `seq.keyword.surge` → 若 `printed OR dynamic` 则再 nest `seq.draw.encounter`（amount=1）→ **Unregister** 本张动态 surge 标记。
 
 ### 3.2 Gained characteristics（动态特征 · 总纲 · 已裁决）
 
@@ -164,7 +164,7 @@ class EffectiveCharacteristicQuery:
 |---|---|---|
 | **① 挂载 mount** | 规则上从何时起 **算拥有** keyword？ | 可 **早于** Listener 首次触发（Hunter） |
 | **② 表征 representation** | 引擎如何存「有」？ | Listener 是表征之一，非全部 |
-| **③ 消费 consume** | 哪个 handler **读**并执行？ | 含 **纯查询**（Surge G5）与 **LISTENER fire** |
+| **③ 消费 consume** | 哪个 handler **读**并执行？ | **nest** 独立 `seq.keyword.*`（涌动）或 LISTENER fire（Hunter）；**禁止**写进父管线砖块 |
 
 ```text
 mount_moment     = 规则要求 card 最早具备 keyword 的 instant
@@ -179,7 +179,7 @@ listener_trigger = 若表征含 LISTENER，Catalog emit 名（无则 —）
 | 值 | 含义 | 典型 |
 |---|---|---|
 | `AT_PRINT` | 印刷在 `CardDefinition.keywords`；实例存活期有效 | Surge、Aloof 印刷 |
-| `LAZY_AT_CONSUMER` | 不单独挂载；consumer 读 Definition 即可 | Surge 印刷 @ G5 |
+| `LAZY_AT_CONSUMER` | 不单独挂载；consumer 读 Definition 即可 | 印刷涌动 @ `AFTER_DRAWN_CARD` |
 | `AT_DRAW_G2` | 遭遇 G2 check peril（priority 100） | Peril 印刷 |
 | `AT_ENTER_PLAY` | 进场 / enemy spawn 完成 | Hunter、Retaliate |
 | `AT_REVELATION` | 显现子流程内（E4 / D3） | Hidden treachery |
@@ -190,9 +190,9 @@ listener_trigger = 若表征含 LISTENER，Catalog emit 名（无则 —）
 
 1. **印刷 vs gained 共享 `consumer_slot`**，只改 `mount_moment` 与 `representation` 来源。  
 2. **`AT_DRAW_G2` 不是 keyword 通用挂载点** — 仅 **早生效** keyword（Peril）使用。  
-3. **晚判定 keyword**（Surge）：印刷 = `LAZY_AT_CONSUMER`；gained = `AT_GRANT` + `KEYWORD_BUFF`。  
-4. **G4 `unregister_by_drawn_card` 只卸 RESTRICTION**（Peril）；**不卸** `KEYWORD_BUFF`（Surge 须留到 G5）。  
-5. 新 keyword 先在增长表加一行 `KeywordProfile`，再实现 consumer；**禁止**为单卡 proliferate `seq.check_*`。
+3. **晚判定 keyword**（Surge）：印刷 = `LAZY_AT_CONSUMER`；gained = `AT_GRANT` + `KEYWORD_BUFF`；**消费** = nest `seq.keyword.surge`（`AFTER_DRAWN_CARD`）。  
+4. **G4 `unregister_by_drawn_card` 只卸 RESTRICTION**（Peril）；**不卸** `KEYWORD_BUFF`（涌动须留到 consume nest）。  
+5. 新 keyword 先在增长表加一行 `KeywordProfile` + consume `seq.*`，再实现 consumer；**禁止**写进 `seq.draw.encounter` 优先队列，**禁止**为单卡 proliferate `seq.check_*`。
 
 **目标 API（P1+）**：
 
@@ -219,7 +219,7 @@ class KeywordMountService:
 
 | keyword | Core 2026 约 qty | mount（印刷） | 表征（印刷） | unmount | consumer_slot | listener_trigger | 备注 |
 |---|---:|---|---|---|---|---|---|
-| **surge** | 3 首行 | `LAZY_AT_CONSUMER` | `DEFINITION` | —（G5 后本圈结束） | **G5** `SURGE_KEYWORD` · priority **70** | — | 不 Register；gained 见下行 |
+| **surge** | 3 首行 | `LAZY_AT_CONSUMER` | `DEFINITION` | consume nest 后 | **`seq.keyword.surge`** @ `AFTER_DRAWN_CARD` | — | 不进抽牌优先队列；gained 见下行 |
 | **peril** | 2 | **`AT_DRAW_G2`** | **RESTRICTION** Register | **G4 初** Unregister RESTRICTION | **L4** REST-E-PLAY/TRIGGER/COMMIT | — | 挂载即 peril 生效 |
 | **hidden** | 1 (+ enemy) | **`AT_REVELATION`** E4 | `is_hidden` + **RESTRICTION** `FORBID_LEAVE_HAND` | expose / 合法离手 / unregister | **REST-E-MOVE** · E4/E5 | — | JSON `hidden` 字段 |
 | **aloof** | 6 文本 | `AT_ENTER_PLAY` spawn | `DEFINITION` + **REST-E-FIGHT/ENGAGE** Condition | leave play | **FIGHT** / **ENGAGE** Intent | — | 与 engage 状态联动 |
@@ -232,7 +232,7 @@ class KeywordMountService:
 
 | keyword | mount（印刷） | mount（gained） | 表征（印刷） | 表征（gained） | consumer（共用） |
 |---|---|---|---|---|---|
-| **surge** | `LAZY_AT_CONSUMER` | **`AT_GRANT`**（G3 效果步） | `DEFINITION` | **KEYWORD_BUFF** | G5 `has_effective_keyword` → 再抽 |
+| **surge** | `LAZY_AT_CONSUMER` | **`AT_GRANT`**（G3 效果步） | `DEFINITION` | **KEYWORD_BUFF** | nest `seq.keyword.surge` → 再抽 |
 | **peril** | `AT_DRAW_G2` | **`AT_GRANT`**（立刻） | RESTRICTION | RESTRICTION（同模板） | L4 险境查询 |
 | **hunter** | `AT_ENTER_PLAY` | **`AT_GRANT`** | LISTENER | LISTENER + `DURATION`/`WHILE_IN_PLAY` | 3.2 Hunter 移动 |
 | **retaliate** | `AT_ENTER_PLAY` | **`AT_GRANT`** | LISTENER / attack 内核 | LISTENER 或 KEYWORD_BUFF | fight 后 perform_attack |
@@ -247,10 +247,13 @@ G2  Peril：mount RESTRICTION（仅 peril 类）
 G3  Revelation · 可能 AT_GRANT surge → KEYWORD_BUFF
 G4  unmount RESTRICTION（peril）· discard/spawn
     （KEYWORD_BUFF 保留）
-G5  consume Surge · unmount KEYWORD_BUFF · 可能再抽 G1
+AFTER this card
+KeywordConsumer @ AFTER_DRAWN_CARD
+  nest seq.keyword.surge · consume · unmount KEYWORD_BUFF
+    nest seq.draw.encounter（新指令）
 ```
 
-**实现状态**：Surge 行（印刷 LAZY + gained KEYWORD_BUFF + G5 consumer）✅ P0；`KeywordMountService` / 全表 consumer 接线 — 待 P1/P2。
+**实现状态**：涌动行（印刷 LAZY + gained KEYWORD_BUFF + nest `seq.keyword.surge`）✅；`KeywordMountService` / 全表 consumer 接线 — 待其余 keyword。
 
 ---
 
@@ -787,7 +790,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-09-21 | v0.4.8 | §3.1：涌动 = 抽取并结算后的延时，另开指令（15 §3.2） |
+| 2026-09-21 | v0.4.9 | 涌动消费改为 nest `seq.keyword.surge`；抽牌管线不再内联 G5 |
 | 2026-07-06 | v0.4.5 | **§3.2.4** KeywordProfile 挂载/消费填表（Core 2026） |
 | 2026-07-06 | v0.4.4 | P0 实现：`EffectiveCharacteristicQuery` · KEYWORD Buff · G5 surge |
 | 2026-07-06 | v0.4.3 | **§3.2** Gained characteristics 总纲 + Core 2026 统计 |

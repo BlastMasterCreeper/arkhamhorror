@@ -93,6 +93,7 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return _resolve_gain_resource(game_ctx, params, mutator)
 	)
+	_register_keyword_flows(catalog)
 	_register_interrupt_flows(catalog)
 	_register_replace_flows(catalog)
 	_register_action_flows(catalog)
@@ -259,6 +260,18 @@ static func _register_skill_test_flows(catalog: SequenceCatalog) -> void:
 				resolved["skill"] = SkillTestFlowHandlers.skill_type_for_flow(bound_flow_id)
 				return SkillTestFlowHandlers.run_revelation_test(game_ctx, resolved)
 		)
+
+
+static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.keyword.surge",
+		func(params: Dictionary) -> TriggeringCondition:
+			var drawer_id: StringName = params.get("drawer_id", &"")
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.keyword_surge(drawer_id, card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SurgeKeywordFlow.run(game_ctx, params)
+	)
 
 
 static func _register_interrupt_flows(catalog: SequenceCatalog) -> void:
