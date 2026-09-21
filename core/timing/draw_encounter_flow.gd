@@ -12,6 +12,8 @@ static func run(game_ctx: GameContext, drawer_id: StringName) -> Dictionary:
 	var resolved_cards: Array[StringName] = []
 	var revelations: Array[StringName] = []
 	var spawn_failed_discards: Array[StringName] = []
+	# 缺口（15 §3.2）：涌动应是本条抽取并结算后的延时、另开指令；
+	# amount≥2 应同时抽出。当前 while 把涌动再抽叠在同一 run。
 	while true:
 		var collect := DrawEncounterSubflowHandlers.collect_one_step(game_ctx, frame)
 		if collect.get("rules_gap", false):

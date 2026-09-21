@@ -23,17 +23,16 @@ func resolve_encounter_draw(drawer: StringName, amount: int = 1) -> void:
     })
 ```
 
-**引擎内 RESOLVE 形状**（Surge 同帧，不 proliferate Service）：
+**引擎内 RESOLVE 形状**（涌动是结算后延时，另开指令；**不是** 同帧再抽）：
 
 ```text
 seq.draw.encounter
   push EncounterResolutionFrame(drawer)
-  repeat amount times:
-    surge loop:
-      collect_one_step (内联 E1)
-      resolve_card_body (内联 E2/E3/E5 discard + nest E4/E5 spawn)
-      if surge: continue loop
-  pop frame → AFTER
+  同时抽出 amount 张（实现可逐张 pop，时点按一组发）
+  按抽出顺序 resolve_card_body（显现 / spawn / discard）
+  AFTER 本条指令
+  pop frame
+  已挂上的涌动延时 → 另开 seq.draw.encounter（通常 amount=1）
 ```
 
 | Step | Catalog / 说明 |
@@ -43,7 +42,7 @@ seq.draw.encounter
 | E4 Revelation | **G3** priority **90** nest 显现类（非 Forced） |
 | E5 Treachery | **G4** priority **80** discard |
 | E5 Enemy | **G4** priority **80** · 默认/指令 `spawn_from_encounter_draw` |
-| E6 Surge | **G5** priority **70** evaluate + 再抽 G1 |
+| 涌动 | 本条 AFTER **之后**的延时 → 另开 `seq.draw.encounter`（§3.2）；**不是** G5 同帧再抽 |
 | Weakness 重定向 | `seq.draw.encounter.resolve_bound` → 同 priority 队列（skip G1） |
 
 ### 2.1 Setup 与显现 / Surge（已裁决 OQ-10-01）
@@ -52,7 +51,7 @@ seq.draw.encounter
 |---|---|---|
 | **Setup 步骤 1–13** | **不结算**显现（Revelation） | **不存在**后续 Surge 链 — **原疑点场景不成立** |
 | **Setup 14「When the game begins」** | 若 setup 指令/卡牌需显现，**在此**结算 | 随显现在此结算；走正常 encounter 管线（仍无 player window，除非文本指定） |
-| **游戏中**（Mythos 1.4 等） | 正常 `resolve_encounter_draw` | 正常 Surge 递归 |
+| **游戏中**（Mythos 1.4 等） | 正常 `resolve_encounter_draw` | 抽取并结算后的涌动延时，另开指令 |
 
 ```gdscript
 func setup_step_14_game_begins() -> void:
@@ -179,7 +178,7 @@ class ScenarioSystem:
 | SC-05 | Defeat Victory 2 enemy | victory display +2 |
 | SC-06 | (→R1) on act 3b | resolution 1 |
 | ENC-01 | 遭遇空库洗弃，无 horror | discard → deck |
-| ENC-02 | Surge treachery | 同 frame 第二圈 E1 |
+| ENC-02 | Surge treachery | 抽取后延时另开指令，非同 frame 再抽 |
 | ENC-03 | Peril test | 他人不可 commit（04 §4.1） |
 | ENC-04 | encounter weakness 从 inv deck | `resolve_bound`，非 enter_hand |
 | ENC-08 | 无 Spawn enemy | spawn_engaged；无 Engage 子流程 |
@@ -215,4 +214,4 @@ class ScenarioSystem:
 | 2026-06-18 | v0.3.1 | E5 enemy spawn 术语：`spawn_engaged` vs `auto_engage_at_location`（15 §17.4.1 / 08 §7） |
 | 2026-06-18 | v0.3.2 | `resolve_card` 共享子 flow；E5 dispatch / Hidden / Treachery（15 §17.4–12） |
 | 2026-07-06 | v0.3.3 | OQ-10-06 裁决：涌动 KEYWORD 标记 · 不叠加（15 §17.4.5） |
-| 2026-09-20 | v0.3.4 | E4 显现独立类：priority 90 nest 非 Forced |
+| 2026-09-21 | v0.3.5 | 抽多张同时抽出；涌动改为结算后延时另开指令（对齐 15 §3.2） |

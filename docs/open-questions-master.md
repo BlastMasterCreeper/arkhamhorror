@@ -64,13 +64,13 @@
 | OQ-06-07 | [06-ability](design/06-ability-initiation.md) | 显现是否并入 Forced 优先级类？ | **否。** 独立 `REVELATION` 类；抽取步骤 When 95 之后的后续步骤 90。见 06 §8.1.1。 |
 | OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **抽取步骤**发起 impact 之后。调查员：已在 **HAND**；遭遇：已在 **LIMBO**。**不**含显现 / G4。见 15 §3.1、§16.3。 |
 | OQ-TIMING-02 | [15-timing](design/15-timing-entry-catalog.md) | Move leave/enter | **MOVE_ATOMIC** 单 brick、单 entry。见 15 §5.3。 |
-| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when/after | 卡面「draw」不细；**转译钉语义**。Would = 这次抽取 PreImpact（pop 前 **DECK**）。When = 抽取步骤（HAND / LIMBO）。After = 整段结算完毕（显现 nest / G4）。 |
+| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when/after | 卡面「draw」不细；**转译钉语义**。Would / When / After 绑在 **一条抽牌指令** 上。同一指令抽多张 = **同时抽出**。涌动 = 抽取并结算后的延时，另开指令。见 15 §3.2。 |
 | OQ-TIMING-04 | [15-timing](design/15-timing-entry-catalog.md) | 玩家牌 **Revelation 能力** 于入手时的 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按 `has_revelation` 判定**，与 weakness 子类型无关。见 15 §16.2。 |
 | OQ-TIMING-05 | [15-timing](design/15-timing-entry-catalog.md) | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **设计师待定**；**REVELATION 类内**自排；`EnterHandTimingPolicy`。显现不并入 FORCED，见 06 §8.1.1。 |
-| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN | **G1 后 95 档**（§17.3）；**不**包 G3/G4；Surge 每圈独立抽取步骤。 |
-| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | 转译为这次抽取 PreImpact（pop 前）。Emit 在 G1 pop 前。 |
-| OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **顺序** full resolve（含 Surge 链）再下一张。见 15 §17.2 E6。 |
-| OQ-TIMING-09 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 抽取后 | **抽取后** = G4 后 75 档 `after_encounter_card_resolved`。E7 = 批量信封。无步骤边界 After。 |
+| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN | **同时抽出之后** 95 档（§17.3）；**不**包 G3/G4。涌动是之后另开的指令。 |
+| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | 这条指令 PreImpact（任何一张 pop 前）。 |
+| OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **同时抽出**；显现等按抽出顺序结算。涌动是结算后延时，另开指令。**禁止**按张含涌动再抽下一张。见 15 §3.2。 |
+| OQ-TIMING-09 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 抽取后 | **抽取后** = 这条指令的同时抽出组都收完。涌动在此之后。 |
 | OQ-ENC-01 | [15-timing §17](design/15-timing-entry-catalog.md) | 遭遇 deck + discard 皆空 | v0：**RULES_GAP**。 |
 | OQ-ENC-02 | [08-enemy §7.4](design/08-enemy-engagement.md) | drawer 无 location 时 spawn_engaged | v0：**`discard_spawn_failed`**。 |
 | OQ-PERIL-01 | [04-skill-test §4](design/04-skill-test-engine.md) | drawer confer | **Presentation**；引擎不拦 drawer 行动。 |
@@ -233,4 +233,4 @@
 | 2026-09-20 | v0.6.0 | OQ-TIMING-01/03/06/07：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.6.1 | OQ-TIMING-03/09：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.6.2 | OQ-TIMING-03/07：Would = 这次抽取 PreImpact |
-| 2026-09-20 | v0.6.3 | OQ-TIMING-03：卡面时点不细、转译钉语义 |
+| 2026-09-21 | v0.6.4 | OQ-TIMING-08/03：同一指令抽多张 = 同时抽出；涌动 = 抽取并结算后的延时 |

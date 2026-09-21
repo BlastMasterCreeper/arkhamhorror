@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4 · 2026-06-18
+> **状态**：v0.4.8 · 2026-09-21
 
 ---
 
@@ -66,20 +66,20 @@ enum BuffType {
 
 ### 3.1 涌动（Surge）· 已裁决
 
-**涌动不叠加**：印刷 `surge` 与 G3 内「gains surge」动态赋予 **至多触发一次** G5 再抽（再抽 1 张，非 2 张）。
+**涌动** = 抽到并结算后挂上的 **延时效果**（Grimoire：*After … draws and resolves*）。印刷 `surge` 与 G3 内「gains surge」**不叠加**：至多再开 **一条** 抽 1 张的新指令。**不是** 本条抽牌指令队列里的下一圈 G1。
 
-| 来源 | 引擎表示 | G5 evaluate |
+| 来源 | 引擎表示 | 延时 evaluate |
 |---|---|---|
 | 牌面印刷 **Surge** | `CardDefinition.keywords` | `CardRegistry.has_surge(def_id)` |
 | 效果 **gains surge** | Register **KEYWORD 标记**（无 Composition payload） | `RegistrationStore.has_keyword_buff(card_id, &"surge")` |
 
-**动态 surge 生命周期**：**`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — 与本张遭遇 **结算期间** 绑定（G1 bind 起至 G5 evaluate 完成）；与险境 peril 同型 **不跨 Surge**（下一张 G1 无上一张 surge 标记）。
+**动态 surge 生命周期**：**`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — 与本张遭遇 **结算期间** 绑定（抽出起至本条抽取后）；涌动再抽是新指令，无上一张 surge 标记。
 
 **G3 内 Register 时机**：显现 composition 执行到「gains surge」效果步时 Register；**12124 Cosmic Evils** 仅在选择「受伤害+horror」分支时 Register；**12126 Forbidden Secrets** 在 G3 **入口**判定 `clue == 0` 时 Register 并 **跳过** intellect 分支；**12160 Raising Suspicions** 在 place-doom 步 **未 CREATED** 后 Register（`after_step` 条件，见 [07 §3.3](07-composition.md)）。
 
 **Clues（已裁决）**：*your clues* 默认 = 调查员卡上 clue（`clues_on_card`）。
 
-**G5**：priority **70** — `should_surge = printed OR dynamic` → 若 true 再抽 G1 → **Unregister** 本张 `card_id` 的动态 surge 标记。
+**本条 AFTER 之后**：`should_surge = printed OR dynamic` → 若 true **另开** `seq.draw.encounter`（amount=1）→ **Unregister** 本张 `card_id` 的动态 surge 标记。实现若仍在同帧循环再抽，属缺口（[15 §3.2](15-timing-entry-catalog.md)）。
 
 ### 3.2 Gained characteristics（动态特征 · 总纲 · 已裁决）
 
@@ -89,7 +89,7 @@ enum BuffType {
 **整合原则（已裁决）**：
 
 1. **Grant / Revoke 入口统一** — Composition L0 `EffectOp.GRANT_CHARACTERISTIC` / `REVOKE_CHARACTERISTIC`（或等价 Register 节点），带 `LifetimeSpec` + `source`。
-2. **存储按 kind 分路由** — 不合并 handler；Surge 仍 G5、Retaliate 仍 fight 后、Initiation 仍 COLLECT 能力。
+2. **存储按 kind 分路由** — 不合并 handler；Surge 仍走抽取并结算后的延时、Retaliate 仍 fight 后、Initiation 仍 COLLECT 能力。
 3. **查询统一** — `EffectiveCharacteristicQuery`（或 RegistrationStore 门面）：`has_effective_keyword` / `has_effective_trait` / `effective_abilities` / `effective_skill_icons` = **印刷 ∪ gained**（按 kind 叠加规则）。
 
 ```text
@@ -787,7 +787,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-09-20 | v0.4.7 | §16.5：抽牌 After = 整段抽取结算完毕 |
+| 2026-09-21 | v0.4.8 | §3.1：涌动 = 抽取并结算后的延时，另开指令（15 §3.2） |
 | 2026-07-06 | v0.4.5 | **§3.2.4** KeywordProfile 挂载/消费填表（Core 2026） |
 | 2026-07-06 | v0.4.4 | P0 实现：`EffectiveCharacteristicQuery` · KEYWORD Buff · G5 surge |
 | 2026-07-06 | v0.4.3 | **§3.2** Gained characteristics 总纲 + Core 2026 统计 |
