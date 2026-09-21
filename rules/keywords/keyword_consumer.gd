@@ -1,7 +1,7 @@
 class_name KeywordConsumer
 extends RefCounted
 
-## 只 nest NEST_SEQ 关键词的 consume seq（06 §3.2.5）。抽牌管线只在 AFTER_DRAWN_CARD 调一次分发。
+## 延时 LISTENER 的竖切（06 §3.2.5）：开火 payload 为命名 seq 时 nest。抽牌管线只在 AFTER_DRAWN_CARD 调一次。
 
 
 static func consume_after_drawn_card(
@@ -37,7 +37,7 @@ static func consume_at(
 	var def_id := _definition_id(game_ctx, card_id)
 	var catalog := game_ctx.sequence_catalog
 	for profile in KeywordProfileTable.profiles_for_slot(slot):
-		if profile.consume_shape != &"NEST_SEQ" or profile.consume_flow_id == &"":
+		if profile.buff_type != &"LISTENER" or profile.consume_flow_id == &"":
 			continue
 		if not EffectiveCharacteristicQuery.has_effective_keyword(
 			game_ctx, card_id, def_id, profile.keyword

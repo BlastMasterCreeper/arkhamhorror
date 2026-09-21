@@ -1,7 +1,8 @@
 class_name KeywordProfileTable
 extends RefCounted
 
-## 仅登记 consume_shape = NEST_SEQ 的关键词。其它形状见 06 §3.2.5，禁止写进抽牌优先队列。
+## LISTENER 延时竖切。其它关键词按 BuffType 由 MountService / Catalog emit；禁止写进抽牌优先队列。
+## 猎物 / 生成是指令，不进本表。
 
 const SLOT_AFTER_DRAWN_CARD: StringName = &"AFTER_DRAWN_CARD"
 
@@ -17,7 +18,7 @@ static func profiles_for_slot(slot: StringName) -> Array[KeywordProfile]:
 static func _all() -> Array[KeywordProfile]:
 	var surge := KeywordProfile.new()
 	surge.keyword = &"surge"
-	surge.consume_shape = &"NEST_SEQ"
+	surge.buff_type = &"LISTENER"
 	surge.consume_slot = SLOT_AFTER_DRAWN_CARD
 	surge.consume_flow_id = &"seq.keyword.surge"
 	var profiles: Array[KeywordProfile] = []

@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.3 · 2026-09-21 — §0.1.6 关键词消费形状；非一律 nest `seq.keyword.*`
+> **状态**：v0.3.4 · 2026-09-21 — §0.1.6 关键词编译为三种 Buff；猎物/生成为指令
 
 ---
 
@@ -113,7 +113,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
     pick := PreyResolver.best_match(prey_instruction, equidistant)  # ① 内联，非 Prey nest
 ```
 
-**Keyword Prey 标签**：魔典称 keyword ability；引擎 **不** 译 LISTENER — **标签 + 括号** → `PreyInstructionSpec`（**①**）。
+**Prey 标签**：魔典条目或写 keyword ability；**引擎裁定为指令**（与 Spawn 同列），**不** 译 LISTENER / 关键词 Buff — **标签 + 括号** → `PreyInstructionSpec`（**①**）。
 
 #### 0.1.3 Patrol：移动编译（③）+ 括号参数（①）
 
@@ -139,23 +139,22 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 |---|---|---|
 | Victory X、Bearer、My Collection | 静态 / 路由元数据 | defeat、weakness、构筑 |
 | 🧣 per investigator | 印刷值缩放 | setup 乘数 |
-| Hidden、险境、涌动等 keyword | 先定 `consume_shape`（[06 §3.2.5](06-registration-buff-model.md#325-消费形状-consume_shape已裁决非一律涌动式-nest)） | 仅涌动类 nest `seq.keyword.*`；其余 REGISTER / LISTENER / 内核读 |
+| Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff（[06 §3.2.5](06-registration-buff-model.md#325-关键词编译为三种-buff已裁决)） | RESTRICTION / LISTENER / MODIFIER；KEYWORD 标记只表示拥有 |
 | 技能图标 `[willpower]` 等 | `skills_icons` | commit / 检定，见 [04](04-skill-test-engine.md) |
 
-#### 0.1.6 关键词消费形状（与三档正交）
+#### 0.1.6 关键词 → 三种 Buff（与三档正交）
 
-[06 §3.2.5](06-registration-buff-model.md#325-消费形状-consume_shape已裁决非一律涌动式-nest) 的 `consume_shape` **不是**第四档，而是 **③ 编译订阅 / ② 内核 / ① Spec / 构筑元数据** 的落地方式：
+关键词 **不是** 第四档，也 **不是** 第四种 Buff。对局关键词 = ① 拥有 + ③ 编译成 [06 §3](06-registration-buff-model.md#3-bufftype三种) 的 `MODIFIER` / `RESTRICTION` / `LISTENER`。
 
-| shape | 落在三档 | nest `seq.keyword.*`？ |
+| 落地 | 三档 | 例子 |
 |---|---|---|
-| NEST_SEQ | ③（延时另开指令） | **是**（涌动、Starting、Swarming） |
-| REGISTER | ③ RESTRICTION | 否（险境、隐私） |
-| LISTENER | ③ @ catalog | 否（猎手移动、反击） |
-| KERNEL_QUERY | ② 已有内核读 keyword | 否（冷漠生成、庞大、快速） |
-| SPEC | ① | 否（猎物、Uses 的 X） |
-| DECKBUILDING | 静态 / 构筑 | 否 |
+| RESTRICTION Buff | ③ | 险境、隐私离手、冷漠、庞大、常驻离场 |
+| LISTENER Buff | ③ | 猎手、反击、涌动（延时 `UNTIL_FIRED`） |
+| MODIFIER Buff | ③ | 快速（Play 成本 / AOO） |
+| Spawn – / Prey – | **① 指令** | **不是关键词**；Spec + 内核 Resolver |
+| Uses / Victory / 构筑 | L0 / Domain / 11 | 仍是关键词，但不走三种 Buff |
 
-**禁止**：把所有 keyword 都做成 `AFTER_DRAWN_CARD` nest。
+**禁止**：把猎物/生成写进 KeywordProfile；为关键词新增 BuffType；把所有 keyword 都做成 `AFTER_DRAWN_CARD` nest。
 
 ---
 
@@ -619,6 +618,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.3.4 | **§0.1.6** 关键词编译为三种 Buff；猎物/生成为指令 |
 | 2026-09-21 | v0.3.3 | **§0.1.6** 关键词 `consume_shape` 与三档正交；仅 NEST_SEQ nest `seq.keyword.*` |
 | 2026-06-18 | v0.3.2 | §0.1 **三档译法**；Prey **①** engage 内核读参（不 nest）；Spawn **②** G4；Hunter/Patrol **③** |
 | 2026-06-18 | v0.3 | ③ **揭示与离散** 合并为三类 L0；AtomRevealCard（Grimoire Reveal） |
