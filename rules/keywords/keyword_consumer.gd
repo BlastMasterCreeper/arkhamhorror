@@ -1,7 +1,7 @@
 class_name KeywordConsumer
 extends RefCounted
 
-## 在规范消费槽 nest 已挂载关键词的 consume seq；抽牌管线只调这一次分发。
+## 只 nest NEST_SEQ 关键词的 consume seq（06 §3.2.5）。抽牌管线只在 AFTER_DRAWN_CARD 调一次分发。
 
 
 static func consume_after_drawn_card(
@@ -37,6 +37,8 @@ static func consume_at(
 	var def_id := _definition_id(game_ctx, card_id)
 	var catalog := game_ctx.sequence_catalog
 	for profile in KeywordProfileTable.profiles_for_slot(slot):
+		if profile.consume_shape != &"NEST_SEQ" or profile.consume_flow_id == &"":
+			continue
 		if not EffectiveCharacteristicQuery.has_effective_keyword(
 			game_ctx, card_id, def_id, profile.keyword
 		):

@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-buff-model.md](06-registration-buff-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
 > **符号记法**：[ArkhamDB 标准](../reference/arkham-symbol-notation.md)  
-> **状态**：v0.6.14 · 2026-09-21
+> **状态**：v0.6.15 · 2026-09-21
 
 ---
 
@@ -1320,6 +1320,8 @@ G3 revelation:
 
 **测试**：ENC-SURGE-01（印刷）；ENC-SURGE-02（12124 两分支）；ENC-SURGE-03（12126 有/无 clue）。
 
+**不是所有关键词都走本槽**。涌动是 `consume_shape = NEST_SEQ` 的样板；险境 / 猎手 / 冷漠 / 快速等见 [06 §3.2.5](06-registration-buff-model.md#325-消费形状-consume_shape已裁决非一律涌动式-nest)。
+
 **Timing emit（目标，待 TimingCatalog）**：
 
 ```text
@@ -1780,4 +1782,5 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-09-20 | v0.6.9 | **§2/§3/§16.3/§17.3**：抽取时钉抽取步骤，不为原文不细买单 |
 | 2026-09-20 | v0.6.10 | 「抽取后」= 该次抽取整段结算完毕；不在步骤边界另开 After。抽取时仍只钉抽取步骤 |
 | 2026-09-20 | v0.6.11 | Would = 这次抽取 PreImpact；When = 抽取步骤；After = 整段结算 |
+| 2026-09-21 | v0.6.15 | 涌动 nest 仅适用于 NEST_SEQ 关键词；全表分类见 06 §3.2.5 |
 | 2026-09-21 | v0.6.14 | 涌动消费 nest `seq.keyword.surge`（KeywordProfile 模块）；不再写入遭遇抽牌优先队列 |
