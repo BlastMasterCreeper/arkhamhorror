@@ -19,6 +19,8 @@ alwaysApply: true
 | Commit (skill) | **投入** / commit | skill 从 hand 投入检定；Grimoire：**不能**称 play |
 | **state primitive** | **状态原语** | L0 **三类** GameState 写入；③ 含 **Reveal** 与 SetFlag/SetRef |
 | **effect** | **效果** | dry-run 可 CREATED：状态原语 + Register |
+| **named flow** | **命名流程** | 规则书手续；`seq.*`；Catalog + 堆栈 + 时点。**不是**卡牌正文 |
+| **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |
 | **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
 | **Player Interaction** | **玩家交互** | 能力选用 / Optional / 目标 / 队长排序；`PlayerInteractionGate` |
 | **Evade** | **躲避** | 调查员行动；`seq.action.evade`；≠「闪避」「规避」 |
@@ -77,3 +79,4 @@ alwaysApply: true
 - **Reveal 是效果**：`reveal_to_*` = L0 揭示状态原语，参与 dry-run CREATED。见 07-primitives §5.3、07-composition §4.1、01 §3.6。
 - **永久（Permanent）** ≠ 常驻；**绑定（Bonded）** ≠ 羁绊；**独特（Unique）** ≠ 独一；**蜂拥（Swarming）**；**多重（Myriad）**。
 - **快速（Fast 关键词）** ≠ ArkhamDB 文本 `[fast]`（玩家牌闪电 = **免费触发** `[free]`）。打出始终不是能力。无快速的事件打出 **窗口/花费对称** 激活触发；无时点快速打出对称免费触发；有时点快速打出对称反应触发。
+- **命名流程** = 规则书手续（`seq.*`），**不是**卡牌正文。卡牌正文译 **效果组合**；禁止为每张卡登记 `seq.card…`。打出是 `PLAY_CARD`，两套都不是。

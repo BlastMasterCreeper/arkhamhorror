@@ -4,7 +4,7 @@
 > **引擎统一模型**：[06-registration-buff-model.md](06-registration-buff-model.md)（Register / Buff / Context）  
 > **规则来源**：Grimoire Ability, Triggered Abilities, Initiation Sequence (p.31)  
 > **符号记法**：[`[reaction]` / `[action]` 等](../reference/arkham-symbol-notation.md)（ArkhamDB 标准）  
-> **状态**：v0.4.14 · 2026-09-21 — 打出不是能力；Then 内联 Seq
+> **状态**：v0.4.15 · 2026-09-21 — 卡牌正文译 Composition；hook 只订 seq 槽
 
 ---
 
@@ -91,7 +91,7 @@ class AbilityHook:
 | **Hook** | catalog 入口 `(sequence_id, slot)` + tier | ✅ L0 | ✅ L2 |
 | **情景** | 卡面特殊情景 | ❌ | ✅ L3 |
 | **费用** | Initiation 支付 | ❌ | ✅ L6（Initiation 专段） |
-| **效果** | Composition resolve | ❌ | ✅ L7 dry_run |
+| **效果** | Composition resolve（**卡牌正文**；不为该能力另开 `seq.card…`） | ❌ | ✅ L7 dry_run |
 
 **修正值**无 Hook：仅在 `ModifierEngine.compute` 时用 **L3 情景** + scope。
 
@@ -548,6 +548,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
+| 2026-09-21 | v0.4.15 | §4：卡牌正文 = Composition；hook 只订阅已有 seq 槽，不建 `seq.card…` |
 | 2026-09-21 | v0.4.14 | **§4.2** 打出始终 `PLAY_CARD`（不是能力）；Fast 只改窗口/花费。**§8.4** Then = 内联 Seq |
 | 2026-09-21 | v0.4.13 | **§4.2** 快速：打出与触发对称；无 Fast≈激活、无时点 Fast≈免费、有时点 Fast≈反应 |
 | 2026-09-20 | v0.4.12 | §8.3：卡面时点不细、转译钉语义 |

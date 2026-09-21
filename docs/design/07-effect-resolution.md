@@ -266,7 +266,7 @@ EffectBuilder.transfer_horror(1).from(inv).to(enemy).submit(ctx)
 
 ### 6.0 统一译法（Cancel / Ignore 卡面）
 
-**一切** Cancel / Ignore 类 Card Ability 均译为 **`seq.interrupt.*` 命名流程**，携带同一 **`InterruptTarget`** 描述符；**禁止**为单卡保留 `cancel_revelation` 等平行 Service。
+Cancel / Ignore **卡面正文**译效果组合；其中 Interrupt 节点 nest 共享手续 **`seq.interrupt.*`**，携带同一 **`InterruptTarget`**。**禁止**为单卡保留 `cancel_revelation` 等平行 Service，也禁止把整张卡登记成独立 `seq.card…`。
 
 ```text
 Cancel / Ignore 卡面
@@ -448,7 +448,7 @@ func on_pending_effect(pending: EffectRequest) -> void:
 
 ### 7.0 统一译法（Instead / Would 卡面）
 
-**一切** Instead / Would 类 Card Ability 均译为 **`seq.replace.instead`**（Would 层见下），携带 **`ReplacementTarget`** + **`replacement` 载荷**；**禁止**单卡 `*InsteadPolicy`。
+Instead / Would **卡面正文**译效果组合；其中 Replace 节点 nest 共享手续 **`seq.replace.instead`**（Would 层见下），携带 **`ReplacementTarget`** + **`replacement` 载荷**。**禁止**单卡 `*InsteadPolicy`，也禁止 `seq.card…`。
 
 ```text
 Instead / Would 卡面
@@ -784,6 +784,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.6.8 | §6.0 / §7.0：卡面译 Composition，Cancel/Instead 节点 nest 共享 seq |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-06-01：Replacement 最近一条（对齐 Grimoire Instead） |
 | 2026-05-25 | v0.3 | OQ-07-06 裁决：Cancel vs Replacement 看触发先后 |

@@ -2,13 +2,13 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.6 · 2026-09-21 — Then 内联 Seq；定位：seq 步内的可执行树
+> **状态**：v0.7 · 2026-09-21 — 卡牌正文译效果组合；命名流程是规则手续
 
 ---
 
 ## 1. 目标
 
-定义 **效果组合（Composition）**：某条命名流程（named flow / `seq.*`）在 **RESOLVE 某一步**、或 Initiation 付完费后真正落地时，要执行的那棵 **可执行树**。叶子是 **效果**（**状态原语** L0 Atom + **Register**）；枝干是顺序 / 同时 / 条件 / 选择。
+定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**状态原语** L0 Atom + **Register**）；枝干是顺序 / 同时 / 条件 / 选择。运行时在某条命名流程的 RESOLVE 砖、打出 Initiation resolve、或 LISTENER 开火时 `execute`。
 
 **英文（代码）**：`Composition` / `CompositionNode` / `CompositionExecutor` / `CompositionDryRunner`  
 **中文（文档）**：效果组合 / 组合节点
@@ -19,10 +19,10 @@
 
 | | |
 |---|---|
-| **是** | 卡面「这段效果怎么做」的编译产物：先放 1 毁灭、若没放成就获得涌动；Then 抽一张再造成 1 恐惧；Choice 二选一。 |
-| **不是** | 与 Catalog 并列的第二套调度。**不**决定何时开火、不开放 Would/When/After、不替代 `seq.*` 的 nest。 |
-| **谁编排时机** | **命名流程** `seq.*`（SequenceCatalog + 堆栈 + Timing）。抽牌、显现、检定走 seq；**打出**走独立的 `PLAY_CARD` Initiation（不是能力）。效果体都在某步 `composition.execute`。 |
-| **短效果 vs 长流程** | 「造成 3 伤害」= 本棵树里 nest `seq.effect.*` 或该能力注册的 `seq.card…`。长规范流程（抽牌 D1–D4）= handler 逐步 RESOLVE + nest 其它 seq，不是另写 Composition 调度器。 |
+| **是** | **卡牌正文** 的编译产物：先放 1 毁灭、若没放成就获得涌动；Then 抽一张再造成 1 恐惧；Choice 二选一。 |
+| **不是** | 命名流程的外壳；不是第二套调度。**不**决定何时开火、不开放 Would/When/After。 |
+| **谁编排时机** | **命名流程** `seq.*` = 规则书手续（抽牌、检定、显现入口…）。能力 **hook** 订 `(seq, slot)`；**effect** 仍是本棵树。**打出**走独立的 `PLAY_CARD`。 |
+| **调用规则手续** | 卡面写到「抽牌 / 检定 / Cancel」时，树节点 **nest** 已有 `seq.*`。禁止为每张卡登记 `seq.card…`。 |
 
 ```text
 seq.draw.investigator          ← 命名流程（何时抽、嵌套、时点）
@@ -33,7 +33,7 @@ InitiationIntent.PLAY_CARD     ← 打出（不是能力）
   七步手续过后
     composition.execute(...)   ← 事件/支援打出后的效果体
 
-AbilitySpec.effect             ← 能力的效果体 = 一棵 Composition
+AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 seq.card）
 ```
 
 ---
@@ -347,6 +347,7 @@ Listener 触发   →  CompositionExecutor.execute(listener.composition)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.7 | **卡牌正文译 Composition**；不为每张卡建 `seq.card…`；命名流程只译规则手续 |
 | 2026-09-21 | v0.6 | **§1.1** Composition = seq/Initiation RESOLVE 步内的可执行树，不是第二调度；**§3.1.1** Then = 内联 Seq，不是时点 |
 | 2026-07-07 | v0.5 | clues 域；after_step If；must choose；12124/12126/12160 编译锚；能力多要素拆分 |
 | 2026-07-07 | v0.4 | §3.3 卡面 If 消歧；`IF` kind + 12126 if_else 锚例 |

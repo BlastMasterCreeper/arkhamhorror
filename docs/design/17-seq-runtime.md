@@ -1,7 +1,7 @@
 # 17 — 命名流程运行时 (seq.* Runtime)
 
 > **依赖**：[14-nested-sequences.md](14-nested-sequences.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[06-ability-initiation.md](06-ability-initiation.md)、[16-player-interaction.md](16-player-interaction.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4.13 · 2026-09-21
+> **状态**：v0.4.14 · 2026-09-21 — 命名流程 = 规则手续；卡牌正文 = Composition
 
 ---
 
@@ -9,14 +9,16 @@
 
 定义一条 **`seq.*` 要在游戏里真正跑起来**，除 handler 内 RESOLVE 砖块外，还必须具备哪些 **运行时横切件**；并列出 **当前实现缺口**（相对完整 LCG 回合）。
 
-**命名流程（named flow）** = `SequenceCatalog` 条目 + `ResolutionSequenceStack` 上的 WHEN → RESOLVE → AFTER + 可 `nest` 子 flow。
+**命名流程（named flow / `seq.*`）** = 规则书里那套 **有名字、可复用、带时点** 的手续：`SequenceCatalog` 条目 + `ResolutionSequenceStack` 上的 WOULD / WHEN → RESOLVE → AFTER + 可 `nest` 子 flow。抽牌、遭遇抽牌、检定、行动内核、入手/显现入口、共享 Cancel/Instead 都是命名流程。
+
+**不是命名流程**：卡牌正文（译效果组合）、打出（`PLAY_CARD`）。能力只 **订阅** 某条 seq 的槽当 hook；effect 仍是 Composition。禁止为每张卡登记 `seq.card…`。
 
 ---
 
 ## 2. 运行时栈（已裁决）
 
 ```text
-入口（Framework / Action / 卡面 / Composition 宏）
+入口（Framework / Action / Composition 树 nest 已有 seq）
   → SequenceCatalog.run / nest / nest_batch
        → ResolutionSequenceStack
             ├─ TriggeringCondition（锚点 + after_timing）
@@ -27,7 +29,7 @@
        → RulesMemory / ApplicationContext / EventRecord
 ```
 
-**原则**：长流程 = **seq handler 顺序 + nest**；卡面短效果 = **同 seq 内 Composition 步** 或 **nest 模板 seq**；禁止与 Catalog 平行的第二套 dispatch（见 effect-translation.mdc）。
+**原则**：规则手续 = **seq handler 顺序 + nest**；卡牌正文 = **Composition**（在 seq 的 EFFECT 砖或 Initiation resolve 里 execute；调用抽牌/检定等时再 nest 已有 seq）；禁止与 Catalog 平行的第二套 dispatch，也禁止 `seq.card…`（见 effect-translation.mdc）。
 
 ---
 
@@ -272,7 +274,7 @@
 |---|---|
 | OQ-SEQ-01 | v1 是否实现完整 `TimingCatalog` 类型，或 stack 内 hardcode 政策表 |
 | OQ-SEQ-02 | `seq.action.draw` 与 `seq.draw.investigator` 是否同一 RUN + 不同 params/tags |
-| OQ-SEQ-03 | Initiation resolve 一律 `sequences.nest(custom, composition_fn)` 还是统一 `seq.resolve.effect.*` |
+| OQ-SEQ-03 | **已裁决 2026-09-21**：卡牌正文 = Composition，Initiation resolve **直接** `composition.execute`；不为每张卡 nest custom seq，也不统一包一层 `seq.resolve.effect.*` / `seq.card…`。调用抽牌/检定等规则手续时，由树节点 nest 已有 seq。 |
 | OQ-SEQ-04 | SPLIT 的 When 由 seq 政策表在抽取步骤砖块边界 emit；Would = 这次抽取 PreImpact。见 15 §3.1、§6。 |
 | OQ-SEQ-05 | AFTER **defer**（15 §7 仅 SUBSEQUENCE 无 post brick）实现策略 |
 
@@ -282,6 +284,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4.14 | 命名流程 = 规则手续；卡牌正文 = Composition；裁决 OQ-SEQ-03 |
 | 2026-06-18 | v0.4.1 | D1 collect 内联；移除 `seq.draw.collect_one` |
 | 2026-06-18 | v0.4 | §4.0.5 内联=流程连续、nest=因果关系 |
 | 2026-06-18 | v0.4 | 移除 SequenceFlowTree；§4 改为 slot 驱动内联/nest |
