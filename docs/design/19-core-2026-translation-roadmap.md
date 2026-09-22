@@ -107,12 +107,19 @@
 - 12119 Reaction：discover → nest `seq.draw.investigator`（Limit once/round → partial）
 - 12120 Action×2：`draw` amount=3（Limit once/game → partial）
 
+### 12116 / 12122 / 12132 ✅
+- 12116 Free：`nest_move_connecting` + `investigators_in_game_1_or_2`（Group limit → partial）
+- 12132 Forced：`seq.enemy.defeat` WHEN → `take_horror` @ `each_at_source_location`
+- 12122 Forced：`seq.enemy.attack` AFTER → `discard_card` @ `controlled_assets`
+- 敌人进场 `install_triggered_abilities`；击败/弃置离场卸载
+
 ---
 
 ## 7. 变更记录
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-22 | v0.8 | `seq.enemy.defeat`；12116/22/32；controlled_assets discard；72/162 |
 | 2026-09-22 | v0.7 | 12118–20 弃手/反应抽/双行动抽；nest_draw_investigator；68/162 |
 | 2026-09-22 | v0.6 | 12113 Engage 连结；Engage 非借机豁免；`provokes_aoo` 覆盖；65/162 |
 | 2026-09-22 | v0.5 | 12112 Resign 内联；群体线索 stub；62/162 |

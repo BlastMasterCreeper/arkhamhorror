@@ -277,8 +277,10 @@ static func _discard_candidates(
 	var out: Array[StringName] = []
 	if game_ctx == null or game_ctx.state == null:
 		return out
-	var trait_filter := str(params.get("trait", "")).strip_edges()
 	var at_filter := StringName(str(params.get("at", "")))
+	if at_filter == &"controlled_assets":
+		return _controlled_asset_candidates(game_ctx, inv_id)
+	var trait_filter := str(params.get("trait", "")).strip_edges()
 	var loc_id := &""
 	if at_filter == &"controller_location" or at_filter == &"your_location":
 		var inv := game_ctx.state.registry.get_investigator(inv_id)
@@ -296,6 +298,24 @@ static func _discard_candidates(
 		if trait_filter != "" and not _matches_trait_or_title(card.id.definition_id, trait_filter):
 			continue
 		out.append(enemy_id)
+	return out
+
+
+static func _controlled_asset_candidates(
+	game_ctx: GameContext,
+	inv_id: StringName
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null:
+		return out
+	for card_id in inv.play_area:
+		var card := game_ctx.state.registry.get_card(card_id)
+		if card == null:
+			continue
+		if CardRegistry.card_type(card.id.definition_id) != &"asset":
+			continue
+		out.append(card_id)
 	return out
 
 

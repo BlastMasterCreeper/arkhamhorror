@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 46,
+      "compiled_total": 48,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -20,8 +20,10 @@
         "seq": 5,
         "resign": 4,
         "engage_from_connecting": 1,
+        "nest_move_connecting": 1,
         "discard_from_hand": 2,
         "draw": 2,
+        "discard_card": 1,
         "choice_must": 3,
         "enter_threat_area": 3,
         "take_horror": 3,
@@ -584,6 +586,18 @@
         "body": "During your turn, if there are exactly 1 or 2 investigators in the game: Move to a connecting location. (Group limit once per round.)",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "free",
+        "ability_id": "free:0",
+        "ability_kind": "free",
+        "window": "during_your_turn",
+        "status": "partial",
+        "condition": "investigators_in_game_1_or_2",
+        "template": "nest_move_connecting"
+      }
     ]
   },
   "12117": {
@@ -889,6 +903,23 @@
         "body": "Choose and discard 1 asset you control.",
         "trigger": "After Hellhound attacks you during the enemy phase",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "full",
+        "trigger": "After Hellhound attacks you during the enemy phase",
+        "template": "discard_card",
+        "amount": 1,
+        "mode": "choose",
+        "at": "controlled_assets",
+        "match_kind": "enemy_attack",
+        "phase": "AFTER",
+        "timing": "after_enemy_attack"
       }
     ]
   },
@@ -1503,12 +1534,15 @@
         "register_as": "forced",
         "ability_id": "forced:0",
         "ability_kind": "forced",
-        "status": "effect_only",
+        "status": "full",
         "trigger": "When this enemy is defeated",
         "template": "take_horror",
         "amount": 1,
         "direct": false,
-        "target": "each_at_source_location"
+        "target": "each_at_source_location",
+        "match_kind": "enemy_defeated",
+        "phase": "WHEN",
+        "timing": "when_enemy_defeated"
       }
     ]
   },

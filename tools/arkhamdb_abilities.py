@@ -42,6 +42,19 @@ TRIGGER_PHRASE_MAP: list[tuple[re.Pattern[str], str, str]] = [
         "investigation_phase_ends",
         "WHEN",
     ),
+    (
+        re.compile(r"^When this enemy is defeated\.?$", re.I),
+        "enemy_defeated",
+        "WHEN",
+    ),
+    (
+        re.compile(
+            r"^After .+ attacks you during the enemy phase\.?$",
+            re.I,
+        ),
+        "enemy_attack",
+        "AFTER",
+    ),
 ]
 
 LEAD_DRAW_FIRE = re.compile(
@@ -77,6 +90,10 @@ DISCARD_SOURCE = re.compile(
 )
 CHOOSE_DISCARD_FROM_HAND = re.compile(
     r"^Choose and discard (\d+) cards? from your hand\.?$",
+    re.I,
+)
+CHOOSE_DISCARD_ASSET = re.compile(
+    r"^Choose and discard (\d+) assets? you control\.?$",
     re.I,
 )
 DRAW_CARDS = re.compile(
@@ -198,6 +215,13 @@ NO_AOO_PHRASE = re.compile(
 # ArkhamDB Core 玩家牌用 [fast] 标记 Free triggered（闪电图标）；≠ Fast 关键词打出。
 FAST_DURING_TURN_EXHAUST_MOVE = re.compile(
     r"^During your turn,\s*exhaust\s+.+?:\s*Move to a connecting location\.?\s*$",
+    re.I,
+)
+FAST_DURING_TURN_MOVE_INV_COUNT = re.compile(
+    r"^During your turn,\s*"
+    r"if there are exactly 1 or 2 investigators in the game:\s*"
+    r"Move to a connecting location\."
+    r"(?:\s*\(Group limit once per round\.?\))?\s*$",
     re.I,
 )
 
@@ -566,6 +590,18 @@ def compile_choose_discard_from_hand(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_choose_discard_asset(body: str) -> dict[str, Any] | None:
+    m = CHOOSE_DISCARD_ASSET.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "discard_card",
+        "amount": int(m.group(1)),
+        "mode": "choose",
+        "at": "controlled_assets",
+    }
+
+
 def compile_draw_cards(body: str) -> dict[str, Any] | None:
     m = DRAW_CARDS.match(body.strip())
     if not m:
@@ -795,6 +831,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     discard_hand = compile_choose_discard_from_hand(body)
     if discard_hand is not None:
         return discard_hand
+    discard_asset = compile_choose_discard_asset(body)
+    if discard_asset is not None:
+        return discard_asset
     draw_cards = compile_draw_cards(body)
     if draw_cards is not None:
         return draw_cards
@@ -864,6 +903,18 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
                 {"template": "exhaust_source"},
                 {"template": "nest_move_connecting"},
             ],
+        }
+    if FAST_DURING_TURN_MOVE_INV_COUNT.match(body):
+        # 条件：场上恰 1–2 调查员；Group limit 运行时后补。
+        return {
+            "segment_index": segment["index"],
+            "register_as": "free",
+            "ability_id": f"free:{segment['index']}",
+            "ability_kind": "free",
+            "window": "during_your_turn",
+            "status": "partial",
+            "condition": "investigators_in_game_1_or_2",
+            "template": "nest_move_connecting",
         }
     group_clues = compile_group_spend_clues_deal_damage(body)
     if group_clues is not None:

@@ -215,6 +215,9 @@ func _mark_card_in_play(game_ctx: GameContext, card_id: StringName) -> void:
 	var card := _state.registry.get_card(card_id)
 	if card != null:
 		card.zone = AhcEnums.Zone.PLAY_AREA
+	## ENTER_PLAY：安装 Forced / Reaction 等 WHILE_IN_PLAY 触发能力。
+	if game_ctx != null and game_ctx.triggered_abilities != null:
+		ScenarioDeckSetup.install_triggered_abilities(game_ctx, card_id)
 
 
 func _drawer_location_tag(drawer_id: StringName) -> StringName:

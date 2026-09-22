@@ -439,6 +439,26 @@ static func enemy_attack(
 	return t
 
 
+## 敌人被击败（defeat）· WHEN/AFTER 在离场前收集（06 §3.2.4）。
+static func enemy_defeated(
+	enemy_id: StringName,
+	location_id: StringName = &"",
+	definition_id: StringName = &"",
+	after_timing: StringName = &"after_enemy_defeated"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("enemy_defeated_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"enemy_defeated"
+	t.tags = [&"enemy", &"defeat"]
+	t.after_timing = after_timing
+	t.payload = {
+		"enemy_id": enemy_id,
+		"location_id": location_id,
+		"definition_id": definition_id,
+	}
+	return t
+
+
 static func discover_clue(
 	inv_id: StringName,
 	location_id: StringName,

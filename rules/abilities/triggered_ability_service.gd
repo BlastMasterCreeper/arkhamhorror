@@ -317,10 +317,18 @@ func _effective_controller(descriptor: TriggeredAbilityDescriptor) -> StringName
 func _trigger_applies(descriptor: TriggeredAbilityDescriptor) -> bool:
 	if descriptor == null or _ctx == null or _ctx.sequences == null:
 		return true
-	if CardRegistry.card_type(descriptor.definition_id) != &"location":
-		return true
 	var trigger := _ctx.sequences.current_trigger()
 	if trigger == null:
+		return true
+	## 敌人击败 Forced：仅本实例源卡响应。
+	if descriptor.match_kind == &"enemy_defeated":
+		var defeated_id: StringName = trigger.payload.get("enemy_id", &"") as StringName
+		return defeated_id != &"" and defeated_id == descriptor.source_id
+	## 敌人攻击 AFTER：仅本实例攻击源。
+	if descriptor.match_kind == &"enemy_attack":
+		var attacker_id: StringName = trigger.payload.get("enemy_id", &"") as StringName
+		return attacker_id != &"" and attacker_id == descriptor.source_id
+	if CardRegistry.card_type(descriptor.definition_id) != &"location":
 		return true
 	var loc: StringName = trigger.payload.get("location_id", &"") as StringName
 	if loc == &"":

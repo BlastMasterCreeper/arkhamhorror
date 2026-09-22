@@ -107,6 +107,11 @@ func _initialize() -> void:
 	_run_test("ADB-52 compile 12119 reaction draw", _test_adb_compile_12119)
 	_run_test("ADB-53 compile 12120 draw three", _test_adb_compile_12120)
 	_run_test("ADB-54 12120 activate draws three", _test_adb_12120_draw_three)
+	_run_test("ADB-55 compile 12116 fast move inv count", _test_adb_compile_12116)
+	_run_test("ADB-56 compile 12132 enemy defeated forced", _test_adb_compile_12132)
+	_run_test("ADB-57 12132 defeat deals location horror", _test_adb_12132_defeat_horror)
+	_run_test("ADB-58 compile 12122 after attack discard asset", _test_adb_compile_12122)
+	_run_test("ADB-59 12122 phase attack discards asset", _test_adb_12122_discard_asset)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2403,6 +2408,124 @@ func _test_adb_12120_draw_three() -> bool:
 		bool(result.get("ok", false))
 		and inv.hand.size() == hand_before + 3
 		and inv.actions_remaining == 1
+	)
+
+
+func _test_adb_compile_12116() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12116")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	return (
+		entry.get("register_as", "") == "free"
+		and entry.get("template", "") == "nest_move_connecting"
+		and entry.get("condition", "") == "investigators_in_game_1_or_2"
+		and entry.get("window", "") == "during_your_turn"
+		and CardRegistry.has_triggered(&"12116")
+	)
+
+
+func _test_adb_compile_12132() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12132")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	return (
+		entry.get("register_as", "") == "forced"
+		and entry.get("template", "") == "take_horror"
+		and entry.get("target", "") == "each_at_source_location"
+		and entry.get("match_kind", "") == "enemy_defeated"
+		and str(entry.get("phase", "")).to_upper() == "WHEN"
+		and entry.get("status", "") == "full"
+		and CardRegistry.has_triggered(&"12132")
+	)
+
+
+func _test_adb_12132_defeat_horror() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.sequence_catalog.has_flow(&"seq.enemy.defeat"):
+		return false
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv1.horror_taken = 0
+	inv2.horror_taken = 0
+	var enemy_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"12132",
+		{"enemy": {"fight": 1, "evade": 1, "health": 1, "damage": 1, "horror": 0}}
+	)
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, enemy_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	## 致死伤 → defeat → Forced WHEN 同地点各 1 恐惧。
+	var defeat := EnemyDefeatResolver.deal_damage(h.ctx, enemy_id, 1)
+	return (
+		bool(defeat.get("defeated", false))
+		and inv1.horror_taken == 1
+		and inv2.horror_taken == 1
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+	)
+
+
+func _test_adb_compile_12122() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12122")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	return (
+		entry.get("register_as", "") == "forced"
+		and entry.get("template", "") == "discard_card"
+		and entry.get("at", "") == "controlled_assets"
+		and entry.get("match_kind", "") == "enemy_attack"
+		and str(entry.get("phase", "")).to_upper() == "AFTER"
+		and entry.get("status", "") == "full"
+		and CardRegistry.has_triggered(&"12122")
+	)
+
+
+func _test_adb_12122_discard_asset() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.prepare_action_phase():
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.damage_taken = 0
+	## 控制区放一张 asset。
+	var asset_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	CardRegistry.register_definition(&"test_asset_122", {"card_type": &"asset"})
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, asset_id, &"test_asset_122")
+	var asset := CardInstance.new()
+	asset.id = eid
+	asset.owner_id = &"inv_1"
+	asset.controller_id = &"inv_1"
+	asset.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(asset)
+	inv.play_area.append(asset_id)
+	var enemy_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"12122",
+		{"enemy": {"fight": 2, "evade": 2, "health": 2, "damage": 1, "horror": 0}}
+	)
+	var spawn := h.ctx.enemy.spawn_engaged(h.ctx, enemy_id, &"inv_1")
+	if not spawn.get("ok", false):
+		return false
+	h.ctx.enemy_phase.run_phase_attacks(h.ctx, &"inv_1")
+	var asset_card := h.ctx.state.registry.get_card(asset_id)
+	return (
+		inv.damage_taken == 1
+		and not inv.play_area.has(asset_id)
+		and asset_card != null
+		and asset_card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(asset_id)
 	)
 
 

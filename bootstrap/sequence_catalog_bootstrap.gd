@@ -306,6 +306,18 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EnemyPhaseFlow.attack(game_ctx, params)
 	)
+	catalog.register_run(
+		&"seq.enemy.defeat",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.enemy_defeated(
+				params.get("enemy_id", &"") as StringName,
+				params.get("location_id", &"") as StringName,
+				params.get("definition_id", &"") as StringName
+			),
+		func(_game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			## WHEN/AFTER 钩子：离场 L0 在 catalog.run 返回后由 EnemyDefeatResolver 执行。
+			return {"ok": true}
+	)
 
 
 static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
