@@ -237,6 +237,19 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			exh.exhausted = true
 			return true
+		&"resign":
+			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
+		&"spend_clues_group":
+			var need := maxi(node.marker_delta, 1)
+			if bool(node.flag_value):
+				need = maxi(need, 1)  # dry-run：至少能花到某个调查员的线索
+			var pool := 0
+			for inv_id in sim.state.registry.all_investigator_ids():
+				var ginv := sim.state.registry.get_investigator(inv_id)
+				if ginv != null and not ginv.eliminated and not ginv.resigned:
+					pool += ginv.clues_on_card
+			return pool >= need
 		&"nest_move_connecting":
 			var move_free_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if move_free_inv == null or move_free_inv.location_tag == &"":

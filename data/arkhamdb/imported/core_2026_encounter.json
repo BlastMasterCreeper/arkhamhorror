@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 36,
+      "compiled_total": 41,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -17,7 +17,8 @@
       "by_template": {
         "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "seq": 4,
+        "seq": 5,
+        "resign": 4,
         "choice_must": 3,
         "enter_threat_area": 3,
         "take_horror": 3,
@@ -371,6 +372,44 @@
         "kind": "action",
         "body": "Resign. You flee the burning campus. (This does not provoke attacks of opportunity.)",
         "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "free",
+        "ability_id": "free:0",
+        "ability_kind": "free",
+        "window": "during_your_turn",
+        "status": "partial",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "spend_clues_group",
+            "amount": 1,
+            "per_investigator": true
+          },
+          {
+            "template": "deal_damage",
+            "amount": 1,
+            "per_investigator": true,
+            "target": "enemy_at_controller_location"
+          }
+        ]
+      },
+      {
+        "segment_index": 1,
+        "register_as": "action",
+        "ability_id": "action:1",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "resign"
       }
     ]
   },
@@ -1461,6 +1500,22 @@
         "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "resign"
+      }
     ]
   },
   "12135": {
@@ -1493,6 +1548,22 @@
         "kind": "action",
         "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "resign"
       }
     ]
   },
@@ -3586,6 +3657,22 @@
         "kind": "action",
         "body": "Resign. \"I can't take it any more!\" You flee the sewers.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "resign"
       }
     ]
   },

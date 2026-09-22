@@ -689,9 +689,12 @@ static func nest_deal_damage(
 	controller_id: StringName,
 	amount: int = 1,
 	target: StringName = &"controller",
-	source_card_id: StringName = &""
+	source_card_id: StringName = &"",
+	per_investigator: bool = false
 ) -> CompositionNode:
-	return nest_damage(controller_id, &"damage", amount, false, target, source_card_id)
+	var n := nest_damage(controller_id, &"damage", amount, false, target, source_card_id)
+	n.flag_value = per_investigator
+	return n
 
 
 ## L2 · nest 场景结算 `(→R#)`。
@@ -704,6 +707,30 @@ static func nest_scenario_resolution(
 	n.atom_name = &"nest_scenario_resolution"
 	n.scenario_resolution = resolution
 	n.definition_id = source_definition_id
+	return n
+
+
+## L0 · Resign（撤退）· Initiation 效果体内联执行，非 nest 命名流程。
+static func resign(inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"resign"
+	n.inv_id = inv_id
+	return n
+
+
+## L0 · 群体花费线索（交互分配后补；现按玩家顺序各出 1 直至凑够）。
+static func spend_clues_group(
+	controller_id: StringName,
+	amount: int = 1,
+	per_investigator: bool = false
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"spend_clues_group"
+	n.inv_id = controller_id
+	n.marker_delta = maxi(amount, 1)
+	n.flag_value = per_investigator
 	return n
 
 

@@ -158,6 +158,13 @@ FORBIDDEN_SECRETS_FAIL_BY = re.compile(
     re.I | re.S,
 )
 
+RESIGN_ABILITY = re.compile(r"^Resign\b", re.I)
+GROUP_SPEND_CLUES_DEAL_DAMAGE = re.compile(
+    r"^Spend (\d+) \[per_investigator\] clues, as a group:\s*"
+    r"Deal (\d+) \[per_investigator\] damage to an enemy at your location\.?$",
+    re.I,
+)
+
 # Agenda Parley：检定成功后弃掉同地点旁人敌人（title/trait Bystander）
 PARLEY_TEST_DISCARD_BYSTANDER = re.compile(
     r"^Parley\.\s*Test \[intellect\] \((\d+)\)\.\s*"
@@ -434,6 +441,39 @@ def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_resign(body: str) -> dict[str, Any] | None:
+    if not RESIGN_ABILITY.match(body.strip()):
+        return None
+    return {
+        "template": "resign",
+        "action_types": ["activate", "resign"],
+    }
+
+
+def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
+    m = GROUP_SPEND_CLUES_DEAL_DAMAGE.match(body.strip())
+    if not m:
+        return None
+    spend_n = int(m.group(1))
+    dmg_n = int(m.group(2))
+    return {
+        "template": "seq",
+        "steps": [
+            {
+                "template": "spend_clues_group",
+                "amount": spend_n,
+                "per_investigator": True,
+            },
+            {
+                "template": "deal_damage",
+                "amount": dmg_n,
+                "per_investigator": True,
+                "target": "enemy_at_controller_location",
+            },
+        ],
+    }
+
+
 def compile_parley_discard_bystander(body: str) -> dict[str, Any] | None:
     m = PARLEY_TEST_DISCARD_BYSTANDER.match(body.strip())
     if not m:
@@ -679,6 +719,12 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     parley = compile_parley_discard_bystander(body)
     if parley is not None:
         return parley
+    resign = compile_resign(body)
+    if resign is not None:
+        return resign
+    group_clues = compile_group_spend_clues_deal_damage(body)
+    if group_clues is not None:
+        return group_clues
     attach = compile_attach(body)
     if attach is not None:
         return attach
@@ -752,6 +798,18 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
                 {"template": "nest_move_connecting"},
             ],
         }
+    group_clues = compile_group_spend_clues_deal_damage(body)
+    if group_clues is not None:
+        return {
+            "segment_index": segment["index"],
+            "register_as": "free",
+            "ability_id": f"free:{segment['index']}",
+            "ability_kind": "free",
+            "window": "during_your_turn",
+            # 群体线索分配交互后补；先落地效果骨架。
+            "status": "partial",
+            **group_clues,
+        }
     return None
 
 
@@ -777,6 +835,9 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         status = "partial"
     elif "(limit" in body.lower():
         status = "partial"
+    # Resign 正文常带 flavor；效果体为 resign atom，视为 full。
+    if compiled.get("template") == "resign":
+        status = "full"
     entry: dict[str, Any] = {
         "segment_index": segment["index"],
         "register_as": "action",

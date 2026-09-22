@@ -68,6 +68,14 @@ static func build_composition(
 			)
 		"discard_source":
 			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
+		"resign":
+			return CompositionNode.resign(bind.controller_id)
+		"spend_clues_group":
+			return CompositionNode.spend_clues_group(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				bool(params.get("per_investigator", false))
+			)
 		"discard_card":
 			return CompositionNode.nest_discard_card(
 				StringName(str(params.get("card_id", ""))),
@@ -95,7 +103,8 @@ static func build_composition(
 				bind.controller_id,
 				int(params.get("amount", 1)),
 				StringName(str(params.get("target", "controller"))),
-				bind.card_id
+				bind.card_id,
+				bool(params.get("per_investigator", false))
 			)
 		"enter_threat_area":
 			return CompositionNode.enter_threat_area(bind.card_id, bind.controller_id)
@@ -386,6 +395,7 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"at",
 		"card_id",
 		"action_types",
+		"per_investigator",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

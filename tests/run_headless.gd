@@ -98,6 +98,8 @@ func _initialize() -> void:
 	_run_test("ADB-44 compile 12106 parley action types", _test_adb_compile_12106_parley)
 	_run_test("ADB-45 parley action skips AOO", _test_adb_parley_skips_aoo)
 	_run_test("SEQ-EFF-10 discard_card bystander at location", _test_seq_eff_discard_bystander)
+	_run_test("ADB-46 compile 12112 resign and group clues", _test_adb_compile_12112)
+	_run_test("ADB-47 resign inline via initiation", _test_adb_resign_inline_initiation)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2152,6 +2154,68 @@ func _test_adb_parley_skips_aoo() -> bool:
 		and int(res.get("aoo_attacks", 0)) == 0
 		and inv.actions_remaining == 1
 		and not intent.provokes_aoo
+	)
+
+
+func _test_adb_compile_12112() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12112")
+	if compiled.size() < 2:
+		return false
+	var free_entry: Dictionary = {}
+	var resign_entry: Dictionary = {}
+	for entry in compiled:
+		if not entry is Dictionary:
+			continue
+		var e: Dictionary = entry
+		match str(e.get("register_as", "")):
+			"free":
+				free_entry = e
+			"action":
+				resign_entry = e
+	var types: Variant = resign_entry.get("action_types", [])
+	var steps: Variant = free_entry.get("steps", [])
+	return (
+		resign_entry.get("template", "") == "resign"
+		and types is Array
+		and (types as Array).has("activate")
+		and (types as Array).has("resign")
+		and free_entry.get("template", "") == "seq"
+		and steps is Array
+		and (steps as Array).size() == 2
+		and ((steps as Array)[0] as Dictionary).get("template", "") == "spend_clues_group"
+		and ((steps as Array)[1] as Dictionary).get("template", "") == "deal_damage"
+	)
+
+
+func _test_adb_resign_inline_initiation() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.clues_on_card = 2
+	inv.actions_remaining = 1
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	var clues_before := loc.clues
+	## Initiation 内联执行 resign Composition（非 nest 命名流程）。
+	var intent := InitiationIntent.action_ability(
+		&"inv_1",
+		CompositionNode.resign(&"inv_1"),
+		1,
+		AhcEnums.ActionType.ACTIVATE,
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.RESIGN]
+	)
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return (
+		res.ok
+		and not intent.provokes_aoo
+		and inv.resigned
+		and inv.eliminated
+		and inv.clues_on_card == 0
+		and loc.clues == clues_before + 2
+		and inv.actions_remaining == 0
 	)
 
 

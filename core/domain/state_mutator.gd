@@ -97,6 +97,12 @@ func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Variant) 
 				return false
 			inv.eliminated = bool(value)
 			return true
+		AhcEnums.FlagField.RESIGNED:
+			var resigned_inv := _state.registry.get_investigator(bearer_id)
+			if resigned_inv == null:
+				return false
+			resigned_inv.resigned = bool(value)
+			return true
 	return false
 
 

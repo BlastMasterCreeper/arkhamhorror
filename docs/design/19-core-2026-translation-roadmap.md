@@ -1,7 +1,7 @@
 # 19 — Core 2026（2.0 基础）卡牌翻译路线图
 
 > **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4 · 2026-09-22 — A1 + B1 + A3 + 12106–08 Parley  
+> **状态**：v0.5 · 2026-09-22 — A1–A3 + Parley + 12112 Resign  
 > **范围**：`core_2026` + `core_2026_encounter`（约 166 张 / 162 段能力）
 
 ---
@@ -31,6 +31,8 @@
 | **B1+A3 后** | **合计** | **162** | **55** | **107** |
 | **12106–08 Parley 后** | 玩家 / 遭遇 | 72 / 90 | **21** / **36** | 51 / 54 |
 | **12106–08 Parley 后** | **合计** | **162** | **57** | **105** |
+| **12112 Resign 后** | 玩家 / 遭遇 | 72 / 90 | **21** / **41** | 51 / 49 |
+| **12112 Resign 后** | **合计** | **162** | **62** | **100** |
 
 数据源：`data/arkhamdb/imported/*.json` · `_meta.ability_compile_summary`。
 
@@ -91,12 +93,17 @@
 - 借机：`AttackOfOpportunityResolver.provokes_for_types`；含 Parley/Resign/Fight/Evade 则不借机
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
+### 12112 Resign / 群体线索 ✅（线索交互后补）
+- Resign：`action_types: [activate, resign]`；效果为 Initiation `INIT_4` **内联** Composition atom（非 nest 命名流程）
+- Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
+
 ---
 
 ## 7. 变更记录
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-22 | v0.5 | 12112 Resign 内联；群体线索 stub；62/162 |
 | 2026-09-22 | v0.4 | 12106–08 Parley；action_types；discard 统一路由；57/162 |
 | 2026-09-21 | v0.3 | B1 activate_action；A3 Fire! Forced；55/162 |
 | 2026-09-21 | v0.2 | A1 落地；进度 53/162；heal Limit / Flood 首句 Attach |

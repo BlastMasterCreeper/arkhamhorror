@@ -268,7 +268,7 @@ enum BearerKind { CARD, INVESTIGATOR, GLOBAL }
 
 enum AtomOp { MOVE_CARD, TRANSFER_MARKER, ADJUST_MARKER, REVEAL_CARD, SET_FLAG, SET_REF }
 
-enum FlagField { ELIMINATED }
+enum FlagField { ELIMINATED, RESIGNED }
 
 enum RestrictionKind {
 	FORBID_DRAW,

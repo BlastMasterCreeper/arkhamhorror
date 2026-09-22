@@ -326,6 +326,10 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_attack(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
+		&"resign":
+			return _execute_resign(node)
+		&"spend_clues_group":
+			return _execute_spend_clues_group(node)
 		&"nest_move_connecting":
 			return _execute_nest_move_connecting(node)
 		&"nest_gain_resource":
@@ -598,6 +602,51 @@ func _execute_exhaust_card(node: CompositionNode) -> bool:
 	return true
 
 
+## Resign 效果：Initiation INIT_4 内联执行（非 catalog.nest）。
+func _execute_resign(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" or _game_ctx == null:
+		return false
+	var result := InvestigatorElimination.resign(_game_ctx, inv_id)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:resign",
+		{"inv": inv_id, "ok": bool(result.get("ok", false))}
+	)
+	return bool(result.get("ok", false))
+
+
+## 群体花费线索：按玩家顺序各出 1，直至凑够总量（交互分配后补）。
+func _execute_spend_clues_group(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null:
+		return false
+	var base := maxi(node.marker_delta, 1)
+	var need := base
+	if bool(node.flag_value):
+		need = PerInvestigatorScale.scale(_state, base)
+	var spent := 0
+	var order: Array = []
+	if _game_ctx != null and _game_ctx.framework != null and not _game_ctx.framework.player_order.is_empty():
+		order = _game_ctx.framework.player_order.duplicate()
+	else:
+		order = _state.registry.all_investigator_ids()
+	for inv_id in order:
+		if spent >= need:
+			break
+		var inv := _state.registry.get_investigator(inv_id)
+		if inv == null or inv.eliminated or inv.resigned or inv.clues_on_card <= 0:
+			continue
+		var take := mini(1, mini(inv.clues_on_card, need - spent))
+		inv.clues_on_card -= take
+		spent += take
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:spend_clues_group",
+		{"need": need, "spent": spent}
+	)
+	return spent >= need
+
+
 func _execute_nest_move_connecting(node: CompositionNode) -> bool:
 	if _game_ctx == null or _state == null or _game_ctx.skill_tests == null:
 		return false
@@ -673,29 +722,60 @@ func _execute_nest_damage(node: CompositionNode) -> bool:
 		and (node.atom_name == &"take_horror" or node.atom_name == &"nest_take_horror")
 	):
 		kind = &"horror"
+	var amount := maxi(node.marker_delta, 1)
+	if bool(node.flag_value) and _state != null:
+		amount = PerInvestigatorScale.scale(_state, amount)
+	var enemy_id := node.enemy_ref_id
+	if target == &"enemy_at_controller_location" and enemy_id == &"":
+		enemy_id = _pick_enemy_at_controller_location(inv_id)
+		target = &"enemy"
 	var result := _nest_or_direct(
 		&"seq.effect.damage",
 		{
 			"controller_id": inv_id,
 			"kind": kind,
-			"amount": maxi(node.marker_delta, 1),
+			"amount": amount,
 			"direct": node.is_direct,
 			"target": target,
 			"source": node.card_id,
 			"card_id": node.card_id,
-			"enemy_id": node.enemy_ref_id,
+			"enemy_id": enemy_id,
 		}
 	)
 	if result.is_empty() and _mutator != null and target == &"controller":
 		if kind == &"horror":
-			_mutator.take_horror(inv_id, maxi(node.marker_delta, 1))
+			_mutator.take_horror(inv_id, amount)
 		else:
 			_mutator.adjust_marker(
 				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
-				maxi(node.marker_delta, 1)
+				amount
 			)
 		return true
 	return bool(result.get("ok", false))
+
+
+func _pick_enemy_at_controller_location(inv_id: StringName) -> StringName:
+	if _state == null:
+		return &""
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null or inv.location_tag == &"":
+		return &""
+	var candidates: Array[StringName] = []
+	for enemy_id in _state.registry.all_enemy_ids():
+		var enemy := _state.registry.get_enemy(enemy_id)
+		if enemy != null and enemy.location_tag == inv.location_tag:
+			candidates.append(enemy_id)
+	if candidates.is_empty():
+		return &""
+	if candidates.size() == 1:
+		return candidates[0]
+	if _game_ctx != null and _game_ctx.interaction != null:
+		var chosen: Variant = _game_ctx.interaction.ask_pick_target(
+			candidates, inv_id, &"pick:enemy_at_location", _game_ctx
+		)
+		if chosen != null:
+			return chosen as StringName
+	return candidates[0]
 
 
 func _execute_nest_lose_resources(node: CompositionNode) -> bool:
