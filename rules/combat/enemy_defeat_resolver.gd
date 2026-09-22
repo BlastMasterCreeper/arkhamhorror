@@ -158,10 +158,3 @@ static func _route_to_discard(game_ctx: GameContext, enemy_id: StringName) -> vo
 	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
 	if not game_ctx.state.removed_from_game.has(enemy_id):
 		game_ctx.state.removed_from_game.append(enemy_id)
-
-
-static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
-	var card := game_ctx.state.registry.get_card(enemy_id)
-	if card == null:
-		return enemy_id
-	return card.id.definition_id
