@@ -50,7 +50,7 @@
 
 | 轨 | 内容 | 先铸的典型 `seq.effect.*` |
 |---|---|---|
-| **A** 遭遇显现 / Forced | 检定 fail / fail-by、Attach、弃手、地点直伤 | `discard_*`、`attach`、`deal_damage` |
+| **A** 遭遇显现 / Forced | 检定 fail / fail-by、Attach、弃手、地点直伤 | `discard_*`、`attach`、`damage`（take/deal 同 seq） |
 | **B** 弱点闭环 | 进威胁区 → Forced → `[action][action]` 自弃 | `discard_card`（来源） |
 | **C** Fight / Investigate 宏 | ammo/charge + 本检定 MODIFIER | `spend_token`、THIS_TEST register |
 | **D** Free / 搜库 | `[fast]` 费用窗、Search top N | `search_deck`、`add_to_hand` |
@@ -72,7 +72,7 @@
 ## 6. 本轮实施
 
 ### A1 + B1 起步 ✅
-- 铸造：`discard_card` / `discard_from_hand` / `deal_damage` / `attach`
+- 铸造：`discard_card` / `discard_from_hand` / `damage`（原 deal/take） / `attach`
 - 编译：fail-by、附着、地点治疗、弱点自弃
 
 ### B1 运行时 + A3 ✅
