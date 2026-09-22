@@ -227,7 +227,8 @@ static func add_encounter_card_to_deck(
 	def_data.merge(extra_def, true)
 	if not keywords.is_empty():
 		def_data["keywords"] = keywords
-	CardRegistry.register_definition(definition_id, def_data)
+	## 保留已 import 的 title/traits 等，仅补测试所需字段。
+	CardRegistry.patch_definition(definition_id, def_data)
 	return instance_id
 
 
@@ -253,7 +254,7 @@ static func add_encounter_card_to_discard(
 	def_data.merge(extra_def, true)
 	if not keywords.is_empty():
 		def_data["keywords"] = keywords
-	CardRegistry.register_definition(definition_id, def_data)
+	CardRegistry.patch_definition(definition_id, def_data)
 	return instance_id
 
 

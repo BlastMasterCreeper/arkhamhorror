@@ -2158,6 +2158,8 @@ func _test_adb_parley_skips_aoo() -> bool:
 func _test_seq_eff_discard_bystander() -> bool:
 	var h := RuleTestHarness.new(42)
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if CardRegistry.title(&"12123") != "Bystander":
+		return false
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
@@ -2169,7 +2171,7 @@ func _test_seq_eff_discard_bystander() -> bool:
 		&"test_loc",
 		{"enemy": {"fight": 1, "evade": 1, "health": 1}}
 	)
-	if enemy_id == &"":
+	if enemy_id == &"" or CardRegistry.title(&"12123") != "Bystander":
 		return false
 	var result := h.ctx.sequence_catalog.run(
 		h.ctx,
