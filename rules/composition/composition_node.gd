@@ -250,7 +250,7 @@ static func place_clue_on_investigator_location(controller_id: StringName) -> Co
 	return nest_place_clue(controller_id)
 
 
-## L2 · nest `seq.skill_test.*`（revelation 内检定 · 15 §17.5）。
+## L2 · nest `seq.skill_test`（revelation 内检定 · params.skill · 15 §17.5）。
 static func nest_skill_test(
 	controller_id: StringName,
 	skill: AhcEnums.SkillType,
@@ -517,12 +517,12 @@ static func for_each_player_order(body: CompositionNode) -> CompositionNode:
 	return n
 
 
-## 调查员受到 horror · nest `seq.effect.take_horror`。
+## 调查员受到 horror · nest `seq.effect.damage`（kind=horror）。
 static func take_horror(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_horror(inv_id, amount, is_direct)
 
 
-## 调查员受到 damage · nest `seq.effect.take_damage`。
+## 调查员受到 damage · nest `seq.effect.damage`（kind=damage）。
 static func take_damage(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_damage(inv_id, amount, is_direct)
 
@@ -535,6 +535,25 @@ static func _nest_leaf(atom_name: StringName, flow_id: StringName) -> Compositio
 	return n
 
 
+## 造成伤害/恐惧（Dealing Damage/Horror）· take/deal 同 seq。
+static func nest_damage(
+	controller_id: StringName,
+	kind: StringName = &"damage",
+	amount: int = 1,
+	is_direct: bool = false,
+	target: StringName = &"controller",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_damage", &"seq.effect.damage")
+	n.inv_id = controller_id
+	n.marker_delta = maxi(amount, 1)
+	n.is_direct = is_direct
+	n.location_target = target
+	n.card_id = source_card_id
+	n.definition_id = kind
+	return n
+
+
 static func nest_take_horror(
 	inv_id: StringName,
 	amount: int = 1,
@@ -542,13 +561,7 @@ static func nest_take_horror(
 	target: StringName = &"controller",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
-	var n := _nest_leaf(&"nest_take_horror", &"seq.effect.take_horror")
-	n.inv_id = inv_id
-	n.marker_delta = maxi(amount, 1)
-	n.is_direct = is_direct
-	n.location_target = target
-	n.card_id = source_card_id
-	return n
+	return nest_damage(inv_id, &"horror", amount, is_direct, target, source_card_id)
 
 
 static func nest_take_damage(
@@ -558,13 +571,7 @@ static func nest_take_damage(
 	target: StringName = &"controller",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
-	var n := _nest_leaf(&"nest_take_damage", &"seq.effect.take_damage")
-	n.inv_id = inv_id
-	n.marker_delta = maxi(amount, 1)
-	n.is_direct = is_direct
-	n.location_target = target
-	n.card_id = source_card_id
-	return n
+	return nest_damage(inv_id, &"damage", amount, is_direct, target, source_card_id)
 
 
 static func nest_lose_resources(inv_id: StringName, amount: int = 1) -> CompositionNode:
@@ -575,8 +582,10 @@ static func nest_lose_resources(inv_id: StringName, amount: int = 1) -> Composit
 
 
 static func nest_lose_all_resources(inv_id: StringName) -> CompositionNode:
-	var n := _nest_leaf(&"nest_lose_all_resources", &"seq.effect.lose_all_resources")
+	var n := _nest_leaf(&"nest_lose_resources", &"seq.effect.lose_resources")
 	n.inv_id = inv_id
+	n.marker_delta = 0
+	n.definition_id = &"all"
 	return n
 
 
@@ -673,12 +682,7 @@ static func nest_deal_damage(
 	target: StringName = &"controller",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
-	var n := _nest_leaf(&"nest_deal_damage", &"seq.effect.deal_damage")
-	n.inv_id = controller_id
-	n.marker_delta = maxi(amount, 1)
-	n.location_target = target
-	n.card_id = source_card_id
-	return n
+	return nest_damage(controller_id, &"damage", amount, false, target, source_card_id)
 
 
 ## L2 · nest 场景结算 `(→R#)`。

@@ -1163,7 +1163,12 @@ func _test_enc_st7_fail_by_timing() -> bool:
 					st8_idx = i
 		if rec.kind == AhcEnums.EventRecordKind.COMPOSITION_STEP:
 			var atom := str(rec.payload.get("atom", ""))
-			if atom == "adjust_marker" or atom == "nest_take_horror" or atom == "take_horror":
+			if (
+				atom == "adjust_marker"
+				or atom == "nest_damage"
+				or atom == "nest_take_horror"
+				or atom == "take_horror"
+			):
 				horror_idx = i
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
@@ -1813,15 +1818,15 @@ func _test_adb_12145_reaction_declined() -> bool:
 
 func _test_seq_eff_nest_take_horror() -> bool:
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.take_horror"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.damage"):
 		return false
 	var node := CompositionNode.nest_take_horror(&"inv_1", 2)
-	if node.nest_flow_id != &"seq.effect.take_horror":
+	if node.nest_flow_id != &"seq.effect.damage":
 		return false
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(node)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
-	return inv.horror_taken == 2 and _sequence_kind_count(h, &"take_horror") > 0
+	return inv.horror_taken == 2 and _sequence_kind_count(h, &"damage") > 0
 
 
 func _test_seq_eff_register_unregister() -> bool:
@@ -1936,7 +1941,7 @@ func _test_seq_eff_attach_controller_location() -> bool:
 
 func _test_seq_eff_deal_damage_at_location() -> bool:
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.deal_damage"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.damage"):
 		return false
 	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -1954,7 +1959,7 @@ func _test_seq_eff_deal_damage_at_location() -> bool:
 	return (
 		inv1.damage_taken == 1
 		and inv2.damage_taken == 1
-		and _sequence_kind_count(h, &"deal_damage") > 0
+		and _sequence_kind_count(h, &"damage") > 0
 	)
 
 
@@ -2181,10 +2186,12 @@ func _test_seq_eff_deal_damage_attached() -> bool:
 	enemy.health = 3
 	var result := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.deal_damage",
+		&"seq.effect.damage",
 		{
 			"controller_id": &"inv_1",
+			"source": fire_id,
 			"card_id": fire_id,
+			"kind": &"damage",
 			"amount": 1,
 			"target": &"non_elite_with_health_at_attached_location",
 		}

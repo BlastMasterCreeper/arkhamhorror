@@ -459,35 +459,42 @@ static func take_horror(
 	controller_id: StringName,
 	amount: int = 1,
 	is_direct: bool = false,
-	after_timing: StringName = &"after_take_horror"
+	after_timing: StringName = &"after_damage"
 ) -> TriggeringCondition:
-	return _effect(
-		&"take_horror",
-		controller_id,
-		[&"effect", &"take_horror"],
-		after_timing,
-		{"amount": amount, "direct": is_direct}
-	)
+	return damage(controller_id, &"horror", amount, is_direct, &"controller", &"", after_timing)
 
 
 static func take_damage(
 	controller_id: StringName,
 	amount: int = 1,
 	is_direct: bool = false,
-	after_timing: StringName = &"after_take_damage"
+	after_timing: StringName = &"after_damage"
+) -> TriggeringCondition:
+	return damage(controller_id, &"damage", amount, is_direct, &"controller", &"", after_timing)
+
+
+static func damage(
+	controller_id: StringName,
+	kind: StringName = &"damage",
+	amount: int = 1,
+	is_direct: bool = false,
+	target: StringName = &"controller",
+	source: StringName = &"",
+	after_timing: StringName = &"after_damage"
 ) -> TriggeringCondition:
 	return _effect(
-		&"take_damage",
+		&"damage",
 		controller_id,
-		[&"effect", &"take_damage"],
+		[&"effect", &"damage", kind],
 		after_timing,
-		{"amount": amount, "direct": is_direct}
+		{"kind": kind, "amount": amount, "direct": is_direct, "target": target, "source": source}
 	)
 
 
 static func lose_resources(
 	controller_id: StringName,
 	amount: int = 1,
+	all_mode: bool = false,
 	after_timing: StringName = &"after_lose_resources"
 ) -> TriggeringCondition:
 	return _effect(
@@ -495,21 +502,15 @@ static func lose_resources(
 		controller_id,
 		[&"effect", &"lose_resources"],
 		after_timing,
-		{"amount": amount}
+		{"amount": amount, "all": all_mode}
 	)
 
 
 static func lose_all_resources(
 	controller_id: StringName,
-	after_timing: StringName = &"after_lose_all_resources"
+	after_timing: StringName = &"after_lose_resources"
 ) -> TriggeringCondition:
-	return _effect(
-		&"lose_all_resources",
-		controller_id,
-		[&"effect", &"lose_resources"],
-		after_timing,
-		{}
-	)
+	return lose_resources(controller_id, 0, true, after_timing)
 
 
 static func heal(
@@ -646,15 +647,9 @@ static func deal_damage(
 	controller_id: StringName,
 	amount: int = 1,
 	target: StringName = &"controller",
-	after_timing: StringName = &"after_deal_damage"
+	after_timing: StringName = &"after_damage"
 ) -> TriggeringCondition:
-	return _effect(
-		&"deal_damage",
-		controller_id,
-		[&"effect", &"deal_damage", target],
-		after_timing,
-		{"amount": amount, "target": target}
-	)
+	return damage(controller_id, &"damage", amount, false, target, &"", after_timing)
 
 
 static func _effect(

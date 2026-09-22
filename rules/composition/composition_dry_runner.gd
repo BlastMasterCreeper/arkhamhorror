@@ -247,8 +247,11 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null:
 				return true
 			return not sim.state.registry.all_investigator_ids().is_empty()
-		&"take_horror", &"take_damage", &"nest_take_horror", &"nest_take_damage":
-			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
+		&"take_horror", &"take_damage", &"nest_take_horror", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
+			return (
+				sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
+				or node.location_target != &""
+			)
 		&"nest_lose_resources", &"lose_all_resources", &"nest_lose_all_resources":
 			var lose_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return lose_inv != null and lose_inv.resource_pool > 0
@@ -295,8 +298,6 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 		&"nest_discard_from_hand":
 			var disc_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return disc_inv != null and not disc_inv.hand.is_empty()
-		&"nest_deal_damage":
-			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
 		&"discard_set_aside_to_encounter_discard":
 			return ScenarioCompositionAtoms.dry_discard_set_aside_to_encounter_discard(
 				sim, node.definition_id, node.atom_count

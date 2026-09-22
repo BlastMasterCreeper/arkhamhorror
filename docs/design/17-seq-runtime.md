@@ -1,7 +1,7 @@
 # 17 — 命名流程运行时 (seq.* Runtime)
 
 > **依赖**：[14-nested-sequences.md](14-nested-sequences.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[06-ability-initiation.md](06-ability-initiation.md)、[16-player-interaction.md](16-player-interaction.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.4.21 · 2026-09-21 — investigation_phase_ends + discard/attach A1/A3
+> **状态**：v0.4.22 · 2026-09-22 — seq 时点 vs 条件；统一 damage / skill_test / lose_resources
 
 ---
 
@@ -12,6 +12,16 @@
 **命名流程（named flow / `seq.*`）** = 规则书里那套 **有名字、可复用、带时点** 的手续：`SequenceCatalog` 条目 + `ResolutionSequenceStack` 上的 WOULD / WHEN → RESOLVE → AFTER + 可 `nest` 子 flow。抽牌、遭遇抽牌、检定、行动内核、入手/显现入口、共享 Cancel/Instead 都是命名流程。
 
 **不是命名流程**：卡牌正文（译效果组合）、打出（`PLAY_CARD`）。能力只 **订阅** 某条 seq 的槽当 hook；effect 仍是 Composition。禁止为每张卡登记 `seq.card…`。与效果组合的逐项对照见 [07-composition §1.2](07-composition.md#12-与命名流程对照)。
+
+### 1.1 命名与粒度（已裁决 2026-09-22）
+
+1. **按魔典章节 / 词条分类** `flow_id` 前缀（`seq.skill_test`、`seq.draw.*`、`seq.framework.*`、`seq.effect.damage` …），勿把无关手续平铺成一串同级 `seq.effect.*` 而不标明词条归属。
+2. **`seq.*` 只做时点切分**（WOULD/WHEN/RESOLVE/AFTER 与因果 nest）。**禁止**把条件写进 `flow_id`（技能类型、目标过滤、Elite、pile、amount=all 等）。
+3. **条件 / 视角差异 → `params`**（及 Eligibility / Scope / 目标解析）。例：
+   - `seq.skill_test` + `params.skill`（勿 `seq.skill_test.willpower|…`）
+   - **造成伤害/恐惧**（Dealing Damage/Horror）：`seq.effect.damage` + `kind` + `source` + `target`；纸面 “take / deal” 只是视角，**同一条 seq**
+   - `seq.effect.lose_resources` + `all: true`（勿另开 `lose_all_resources`）
+4. Forced 订阅 **时点 seq 的 kind**；「是不是附着地点上的非 Elite」等过滤留在 params / 解析器，不铸造 `seq.fire_damage`。
 
 ---
 
@@ -198,10 +208,8 @@
 | `seq.enter_hand` | 显现 batch | nest from investigator |
 | `seq.gain_resource` | 获资源 + MODIFIER | `ResourceGainService`、可框架 |
 | `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅 |
-| `seq.effect.take_horror` | 造成恐惧 | 卡面 / 显现 / 场景 b 面 nest |
-| `seq.effect.take_damage` | 造成伤害 | 同上 |
-| `seq.effect.lose_resources` | 失去资源 | 卡面；CREATED = 实际扣到 |
-| `seq.effect.lose_all_resources` | 失去全部资源 | 卡面 |
+| `seq.effect.damage` | **造成伤害/恐惧**（Dealing Damage/Horror；take/deal 同 seq） | `kind` + `source` + `target`；卡面 / 显现 / Fire! |
+| `seq.effect.lose_resources` | 失去资源（含全部：`all: true`） | 卡面；CREATED = 实际扣到 |
 | `seq.effect.heal` | 治疗伤害或恐惧（`kind` 参数） | 卡面 |
 | `seq.effect.lose_action` | 失去行动 | 卡面 |
 | `seq.effect.place_doom` | 卡面放置毁灭（敌人 / 来源；**不是** `seq.mythos.place_doom`） | 显现 / Forced nest |
@@ -211,10 +219,12 @@
 | `seq.effect.discard_card` | 弃置指定牌（手牌 / 威胁区 / 遭遇） | 弱点自弃、成功弃附着 |
 | `seq.effect.discard_from_hand` | 弃手牌（`amount` / `mode=random|pick`） | fail-by 二选一 |
 | `seq.effect.attach` | limbo 附着地点（最近无同名 / 本地点） | Fire! / Flash Flood / Arcane Lock 显现 |
-| `seq.effect.deal_damage` | 对调查员或敌人造成伤害（`target` 参数） | 地点范围 fail 伤害；Fire! 附着地点 |
+| `seq.skill_test` | Skill Test Timing（**一条**；`params.skill`） | 显现内检定、行动检定 nest |
 | `seq.framework.investigation_phase_ends` | 调查阶段结束钩子（WHEN/AFTER） | Fire! / 地点 Forced |
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
+
+**已移除（并入 params）**：`seq.effect.take_horror` / `take_damage` / `deal_damage` → `seq.effect.damage`；`seq.effect.lose_all_resources` → `lose_resources`+`all`；`seq.skill_test.{willpower,intellect,combat,agility}` → `seq.skill_test`。
 
 ---
 
@@ -300,6 +310,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-22 | v0.4.22 | §1.1：时点 vs 条件；统一 `seq.effect.damage` / `seq.skill_test` / `lose_resources`+`all` |
 | 2026-09-21 | v0.4.21 | §5：`seq.framework.investigation_phase_ends`；deal_damage 附着地点非 Elite |
 | 2026-09-21 | v0.4.20 | §5：落地 `seq.effect.discard_card` / `discard_from_hand` / `attach` / `deal_damage`（A1） |
 | 2026-09-21 | v0.4.19 | §5：落地 `seq.effect.take_horror/damage/heal/lose_* /place_doom/place_clue/register/unregister` |

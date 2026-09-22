@@ -121,45 +121,29 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 			)
 	)
 	catalog.register_run(
-		&"seq.effect.take_horror",
+		&"seq.effect.damage",
 		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.take_horror(
+			return TriggeringCondition.damage(
 				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				StringName(str(params.get("kind", "damage"))),
 				int(params.get("amount", 1)),
-				bool(params.get("direct", false))
+				bool(params.get("direct", false)),
+				StringName(str(params.get("target", "controller"))),
+				params.get("source", params.get("card_id", &"")) as StringName
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.take_horror(game_ctx, params)
-	)
-	catalog.register_run(
-		&"seq.effect.take_damage",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.take_damage(
-				params.get("controller_id", params.get("inv_id", &"")) as StringName,
-				int(params.get("amount", 1)),
-				bool(params.get("direct", false))
-			),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.take_damage(game_ctx, params)
+			return EffectFlowHandlers.damage(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.effect.lose_resources",
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.lose_resources(
 				params.get("controller_id", params.get("inv_id", &"")) as StringName,
-				int(params.get("amount", 1))
+				int(params.get("amount", 1)),
+				bool(params.get("all", false))
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.lose_resources(game_ctx, params)
-	)
-	catalog.register_run(
-		&"seq.effect.lose_all_resources",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.lose_all_resources(
-				params.get("controller_id", params.get("inv_id", &"")) as StringName
-			),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.lose_all_resources(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.effect.heal",
@@ -254,17 +238,6 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.attach(game_ctx, params)
-	)
-	catalog.register_run(
-		&"seq.effect.deal_damage",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.deal_damage(
-				params.get("controller_id", params.get("inv_id", &"")) as StringName,
-				int(params.get("amount", 1)),
-				StringName(str(params.get("target", "controller")))
-			),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.deal_damage(game_ctx, params)
 	)
 
 
@@ -392,28 +365,19 @@ static func _register_act_agenda_back_flows(catalog: SequenceCatalog) -> void:
 
 
 static func _register_skill_test_flows(catalog: SequenceCatalog) -> void:
-	for flow_id in [
-		&"seq.skill_test.willpower",
-		&"seq.skill_test.intellect",
-		&"seq.skill_test.combat",
-		&"seq.skill_test.agility",
-	]:
-		var bound_flow_id: StringName = flow_id
-		catalog.register_run(
-			bound_flow_id,
-			func(params: Dictionary) -> TriggeringCondition:
-				var inv_id: StringName = params.get("inv_id", params.get("controller_id", &""))
-				var skill := SkillTestFlowHandlers.skill_type_for_flow(bound_flow_id)
-				if params.has("skill"):
-					skill = int(params.get("skill", skill))
-				var difficulty: int = int(params.get("difficulty", 0))
-				var card_id: StringName = params.get("card_id", &"")
-				return TriggeringCondition.skill_test_revelation(inv_id, skill, difficulty, card_id),
-			func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-				var resolved := params.duplicate()
-				resolved["skill"] = SkillTestFlowHandlers.skill_type_for_flow(bound_flow_id)
-				return SkillTestFlowHandlers.run_revelation_test(game_ctx, resolved)
-		)
+	catalog.register_run(
+		&"seq.skill_test",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", params.get("controller_id", &""))
+			var skill: AhcEnums.SkillType = int(
+				params.get("skill", AhcEnums.SkillType.WILLPOWER)
+			)
+			var difficulty: int = int(params.get("difficulty", 0))
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.skill_test_revelation(inv_id, skill, difficulty, card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SkillTestFlowHandlers.run_revelation_test(game_ctx, params)
+	)
 
 
 static func _register_keyword_flows(catalog: SequenceCatalog) -> void:

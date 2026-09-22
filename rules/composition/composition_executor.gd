@@ -215,7 +215,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 			)
 			return entered
 		&"lose_all_resources", &"nest_lose_all_resources":
-			return _execute_nest_lose_all_resources(node)
+			return _execute_nest_lose_resources(node)
 		&"commit_hidden_enter_hand":
 			_mutator.commit_hidden_enter_hand(node.card_id, node.inv_id)
 			if _game_ctx != null:
@@ -330,10 +330,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_move_connecting(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
-		&"take_horror", &"nest_take_horror":
-			return _execute_nest_take_horror(node)
-		&"take_damage", &"nest_take_damage":
-			return _execute_nest_take_damage(node)
+		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
+			return _execute_nest_damage(node)
 		&"nest_lose_resources":
 			return _execute_nest_lose_resources(node)
 		&"nest_heal":
@@ -348,8 +346,6 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_discard_card(node)
 		&"nest_discard_from_hand":
 			return _execute_nest_discard_from_hand(node)
-		&"nest_deal_damage":
-			return _execute_nest_deal_damage(node)
 		&"discard_all_enemies_in_play":
 			return ScenarioCompositionAtoms.discard_all_enemies_in_play(_game_ctx)
 		&"put_locations_into_play":
@@ -665,47 +661,39 @@ func _execute_nest_gain_resource(node: CompositionNode) -> bool:
 	return int(result.get("amount", 0)) > 0 or amount > 0
 
 
-func _execute_nest_take_horror(node: CompositionNode) -> bool:
+func _execute_nest_damage(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" and node.location_target == &"":
 		return false
 	var target := node.location_target if node.location_target != &"" else &"controller"
+	var kind := node.definition_id if node.definition_id == &"horror" else &"damage"
+	## 兼容旧 atom 名：take_horror / nest_take_horror 未写 definition_id 时仍为 horror。
+	if (
+		kind != &"horror"
+		and (node.atom_name == &"take_horror" or node.atom_name == &"nest_take_horror")
+	):
+		kind = &"horror"
 	var result := _nest_or_direct(
-		&"seq.effect.take_horror",
+		&"seq.effect.damage",
 		{
 			"controller_id": inv_id,
+			"kind": kind,
 			"amount": maxi(node.marker_delta, 1),
 			"direct": node.is_direct,
 			"target": target,
+			"source": node.card_id,
 			"card_id": node.card_id,
+			"enemy_id": node.enemy_ref_id,
 		}
 	)
 	if result.is_empty() and _mutator != null and target == &"controller":
-		_mutator.take_horror(inv_id, maxi(node.marker_delta, 1))
-		return true
-	return bool(result.get("ok", false))
-
-
-func _execute_nest_take_damage(node: CompositionNode) -> bool:
-	var inv_id := _ability_controller(_resolve_inv(node))
-	if inv_id == &"" and node.location_target == &"":
-		return false
-	var target := node.location_target if node.location_target != &"" else &"controller"
-	var result := _nest_or_direct(
-		&"seq.effect.take_damage",
-		{
-			"controller_id": inv_id,
-			"amount": maxi(node.marker_delta, 1),
-			"direct": node.is_direct,
-			"target": target,
-			"card_id": node.card_id,
-		}
-	)
-	if result.is_empty() and _mutator != null and target == &"controller":
-		_mutator.adjust_marker(
-			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
-			maxi(node.marker_delta, 1)
-		)
+		if kind == &"horror":
+			_mutator.take_horror(inv_id, maxi(node.marker_delta, 1))
+		else:
+			_mutator.adjust_marker(
+				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
+				maxi(node.marker_delta, 1)
+			)
 		return true
 	return bool(result.get("ok", false))
 
@@ -714,24 +702,15 @@ func _execute_nest_lose_resources(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"":
 		return false
-	return bool(
-		_nest_or_direct(
-			&"seq.effect.lose_resources",
-			{"controller_id": inv_id, "amount": maxi(node.marker_delta, 1)}
-		).get("ok", false)
+	var all_mode := (
+		node.definition_id == &"all"
+		or node.atom_name == &"lose_all_resources"
+		or node.atom_name == &"nest_lose_all_resources"
 	)
-
-
-func _execute_nest_lose_all_resources(node: CompositionNode) -> bool:
-	var inv_id := _ability_controller(_resolve_inv(node))
-	if inv_id == &"":
-		return false
-	return bool(
-		_nest_or_direct(
-			&"seq.effect.lose_all_resources",
-			{"controller_id": inv_id}
-		).get("ok", false)
-	)
+	var params := {"controller_id": inv_id, "all": all_mode}
+	if not all_mode:
+		params["amount"] = maxi(node.marker_delta, 1)
+	return bool(_nest_or_direct(&"seq.effect.lose_resources", params).get("ok", false))
 
 
 func _execute_nest_heal(node: CompositionNode) -> bool:
@@ -865,23 +844,6 @@ func _execute_nest_attach(node: CompositionNode) -> bool:
 				"controller_id": inv_id,
 				"card_id": node.card_id,
 				"target": target,
-			}
-		).get("ok", false)
-	)
-
-
-func _execute_nest_deal_damage(node: CompositionNode) -> bool:
-	var inv_id := _ability_controller(_resolve_inv(node))
-	var target := node.location_target if node.location_target != &"" else &"controller"
-	return bool(
-		_nest_or_direct(
-			&"seq.effect.deal_damage",
-			{
-				"controller_id": inv_id,
-				"amount": maxi(node.marker_delta, 1),
-				"target": target,
-				"enemy_id": node.enemy_ref_id,
-				"card_id": node.card_id,
 			}
 		).get("ok", false)
 	)

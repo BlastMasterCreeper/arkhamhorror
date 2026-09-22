@@ -1,7 +1,7 @@
 class_name SkillTestFlowHandlers
 extends RefCounted
 
-## seq.skill_test.* resolve · ST.1–ST.8 全窗口（04-skill-test-engine · 15 §17.5）。
+## seq.skill_test resolve · ST.1–ST.8 全窗口（params.skill · 04-skill-test-engine · 15 §17.5）。
 
 
 static func run_revelation_test(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -54,6 +54,7 @@ static func run_revelation_test(game_ctx: GameContext, params: Dictionary) -> Di
 
 
 static func skill_type_for_flow(flow_id: StringName) -> AhcEnums.SkillType:
+	## 兼容旧调用；统一后 skill 只来自 params。
 	match flow_id:
 		&"seq.skill_test.intellect":
 			return AhcEnums.SkillType.INTELLECT
@@ -65,13 +66,5 @@ static func skill_type_for_flow(flow_id: StringName) -> AhcEnums.SkillType:
 			return AhcEnums.SkillType.WILLPOWER
 
 
-static func flow_id_for_skill(skill: AhcEnums.SkillType) -> StringName:
-	match skill:
-		AhcEnums.SkillType.INTELLECT:
-			return &"seq.skill_test.intellect"
-		AhcEnums.SkillType.COMBAT:
-			return &"seq.skill_test.combat"
-		AhcEnums.SkillType.AGILITY:
-			return &"seq.skill_test.agility"
-		_:
-			return &"seq.skill_test.willpower"
+static func flow_id_for_skill(_skill: AhcEnums.SkillType) -> StringName:
+	return &"seq.skill_test"
