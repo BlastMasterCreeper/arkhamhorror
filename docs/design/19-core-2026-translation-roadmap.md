@@ -90,12 +90,17 @@
 
 ### 12106–08 Parley ✅
 - 编译：`action_types: [activate, parley]`；成功 → `discard_card`（trait/title=Bystander @ controller_location）
-- 借机：`AttackOfOpportunityResolver.provokes_for_types`；含 Parley/Resign/Fight/Evade 则不借机
+- 借机：`AttackOfOpportunityResolver.provokes_for_types`；含 Parley/Resign/Fight/Evade 则不借机（**Engage 不豁免**）
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
 ### 12112 Resign / 群体线索 ✅（线索交互后补）
 - Resign：`action_types: [activate, resign]`；效果为 Initiation `INIT_4` **内联** Composition atom（非 nest 命名流程）
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
+
+### 12113 Engage（连结地点）✅
+- `action_types: [activate, engage]`；效果 atom `engage_from_connecting`（选连结地点敌人 → 移入 → 交战；Initiation 内联）
+- **Engage 默认会借机**；卡面「does not provoke…」→ `provokes_aoo: false` 覆盖
+- 指标：ADB-48..50
 
 ---
 
@@ -103,6 +108,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-22 | v0.6 | 12113 Engage 连结；Engage 非借机豁免；`provokes_aoo` 覆盖；65/162 |
 | 2026-09-22 | v0.5 | 12112 Resign 内联；群体线索 stub；62/162 |
 | 2026-09-22 | v0.4 | 12106–08 Parley；action_types；discard 统一路由；57/162 |
 | 2026-09-21 | v0.3 | B1 activate_action；A3 Fire! Forced；55/162 |

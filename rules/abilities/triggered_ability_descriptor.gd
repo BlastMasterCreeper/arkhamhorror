@@ -21,8 +21,11 @@ var action_cost: int = 0
 var optional: bool = false
 ## Free：`during_your_turn` | `any_player_window`（空 = any）。
 var window: StringName = &""
-## 行动类型全集（可多选，如 Activate+Parley）；空 = 仅 Activate。
+## 行动类型全集（可多选，如 Activate+Parley）；借机攻击按全集判断。
 var action_types: Array = []
+## 卡面显式覆盖借机（如「不引发借机攻击」）；null = 按 action_types 判定。
+## Engage 类型本身会借机；仅卡面写明豁免时才覆盖为 false。
+var provokes_aoo_override: Variant = null
 
 
 func is_player_initiated() -> bool:
@@ -36,6 +39,8 @@ func is_player_initiated() -> bool:
 func provokes_aoo() -> bool:
 	if ability_kind != AbilityKind.ACTION:
 		return false
+	if provokes_aoo_override != null:
+		return bool(provokes_aoo_override)
 	var types := resolved_action_types()
 	return AttackOfOpportunityResolver.provokes_for_types(types)
 
@@ -133,6 +138,8 @@ static func from_registry_unit(
 	desc.window = unit.get("window", &"") as StringName
 	desc.ability_kind = _parse_kind(unit.get("ability_kind", &"forced"))
 	desc.action_types = _parse_action_types(unit.get("action_types", []))
+	if unit.has("provokes_aoo"):
+		desc.provokes_aoo_override = bool(unit.get("provokes_aoo"))
 	return desc
 
 

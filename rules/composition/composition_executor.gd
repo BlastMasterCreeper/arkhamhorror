@@ -328,6 +328,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_exhaust_card(node)
 		&"resign":
 			return _execute_resign(node)
+		&"engage_from_connecting":
+			return _execute_engage_from_connecting(node)
 		&"spend_clues_group":
 			return _execute_spend_clues_group(node)
 		&"nest_move_connecting":
@@ -614,6 +616,64 @@ func _execute_resign(node: CompositionNode) -> bool:
 		{"inv": inv_id, "ok": bool(result.get("ok", false))}
 	)
 	return bool(result.get("ok", false))
+
+
+## 选连结地点敌人 → 移至本地点 → 交战（Initiation 内联；Engage 类型默认会借机）。
+func _execute_engage_from_connecting(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null or _game_ctx.enemy == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return false
+	var here := _resolve_source_location(node, inv)
+	if here == &"":
+		return false
+	var here_loc := _state.registry.get_location(here)
+	if here_loc == null:
+		return false
+	var candidates: Array[StringName] = []
+	for conn in here_loc.connections:
+		for enemy_id in _state.registry.all_enemy_ids():
+			var enemy := _state.registry.get_enemy(enemy_id)
+			if enemy == null or enemy.location_tag != conn:
+				continue
+			if enemy.massive:
+				continue
+			candidates.append(enemy_id)
+	if candidates.is_empty():
+		return false
+	var pick: StringName = candidates[0]
+	if candidates.size() > 1 and _game_ctx.interaction != null:
+		var chosen: Variant = _game_ctx.interaction.ask_pick_target(
+			candidates, inv_id, &"pick:engage_connecting", _game_ctx
+		)
+		if chosen != null:
+			pick = chosen as StringName
+	var enemy := _state.registry.get_enemy(pick)
+	if enemy == null:
+		return false
+	enemy.location_tag = here
+	_game_ctx.enemy.apply_engage(pick, inv_id)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:engage_from_connecting",
+		{"inv": inv_id, "enemy": pick, "location": here}
+	)
+	return true
+
+
+func _resolve_source_location(node: CompositionNode, inv: InvestigatorState) -> StringName:
+	if node.card_id != &"":
+		var card := _state.registry.get_card(node.card_id)
+		if card != null:
+			if _state.registry.get_location(card.id.instance_id) != null:
+				return card.id.instance_id
+			if _state.registry.get_location(card.id.definition_id) != null:
+				return card.id.definition_id
+	if inv != null:
+		return inv.location_tag
+	return &""
 
 
 ## 群体花费线索：按玩家顺序各出 1，直至凑够总量（交互分配后补）。

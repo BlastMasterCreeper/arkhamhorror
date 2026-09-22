@@ -240,6 +240,12 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 		&"resign":
 			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
+		&"engage_from_connecting":
+			var eng_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if eng_inv == null or eng_inv.location_tag == &"":
+				return false
+			var eng_loc := sim.state.registry.get_location(eng_inv.location_tag)
+			return eng_loc != null and not eng_loc.connections.is_empty()
 		&"spend_clues_group":
 			var need := maxi(node.marker_delta, 1)
 			if bool(node.flag_value):

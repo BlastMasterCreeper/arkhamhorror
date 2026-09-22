@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 41,
+      "compiled_total": 42,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -19,6 +19,7 @@
         "lead_draw_topmost_encounter_discard_copy": 1,
         "seq": 5,
         "resign": 4,
+        "engage_from_connecting": 1,
         "choice_must": 3,
         "enter_threat_area": 3,
         "take_horror": 3,
@@ -448,6 +449,23 @@
         "kind": "action",
         "body": "Engage. Choose an enemy at a connecting location. That enemy moves to this location and engages you. This action does not provoke attacks of opportunity.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "engage"
+        ],
+        "status": "full",
+        "template": "engage_from_connecting",
+        "provokes_aoo": false
       }
     ]
   },

@@ -100,6 +100,9 @@ func _initialize() -> void:
 	_run_test("SEQ-EFF-10 discard_card bystander at location", _test_seq_eff_discard_bystander)
 	_run_test("ADB-46 compile 12112 resign and group clues", _test_adb_compile_12112)
 	_run_test("ADB-47 resign inline via initiation", _test_adb_resign_inline_initiation)
+	_run_test("ADB-48 compile 12113 engage connecting no AOO", _test_adb_compile_12113)
+	_run_test("ADB-49 engage types provoke AOO by default", _test_adb_engage_types_provoke_aoo)
+	_run_test("ADB-50 12113 engage connecting skips AOO", _test_adb_12113_engage_connecting)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2216,6 +2219,106 @@ func _test_adb_resign_inline_initiation() -> bool:
 		and inv.clues_on_card == 0
 		and loc.clues == clues_before + 2
 		and inv.actions_remaining == 0
+	)
+
+
+func _test_adb_compile_12113() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12113")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	var types: Variant = entry.get("action_types", [])
+	return (
+		entry.get("register_as", "") == "action"
+		and entry.get("template", "") == "engage_from_connecting"
+		and entry.get("status", "") == "full"
+		and int(entry.get("action_cost", 0)) == 1
+		and types is Array
+		and (types as Array).has("activate")
+		and (types as Array).has("engage")
+		and entry.has("provokes_aoo")
+		and bool(entry.get("provokes_aoo")) == false
+		and CardRegistry.has_triggered(&"12113")
+	)
+
+
+func _test_adb_engage_types_provoke_aoo() -> bool:
+	## Engage 不在借机豁免类型内（仅 Fight/Evade/Parley/Resign）。
+	if not AttackOfOpportunityResolver.provokes_for_types(
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
+	):
+		return false
+	if AttackOfOpportunityResolver.provokes_for_types(
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.FIGHT]
+	):
+		return false
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.threat_area.append(&"enemy_1")
+	inv.actions_remaining = 2
+	inv.damage_taken = 0
+	var intent := InitiationIntent.action_ability(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		),
+		1,
+		AhcEnums.ActionType.ACTIVATE,
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
+	)
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return (
+		res.ok
+		and intent.provokes_aoo
+		and inv.damage_taken == 1
+		and int(res.get("aoo_attacks", 0)) == 1
+		and inv.actions_remaining == 1
+	)
+
+
+func _test_adb_12113_engage_connecting() -> bool:
+	## 12113：选连结地点敌人移入并交战；卡面覆盖不借机。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	## 本地点已交战敌人：若未豁免借机则应受伤。
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_here", &"test_loc", 2, 2, &"inv_1")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_conn", &"loc_b", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.threat_area.append(&"enemy_here")
+	inv.actions_remaining = 2
+	inv.damage_taken = 0
+	var loc_card_id := ScenarioLayoutSetup.materialize_card(
+		h.ctx, &"12113", AhcEnums.Zone.LOCATION_AREA, &"loc", &"test_loc"
+	)
+	h.ctx.triggered_abilities.install_card(loc_card_id, loc_card_id)
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var desc: TriggeredAbilityDescriptor = listed[0]
+	if desc.provokes_aoo():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(desc.id)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_conn")
+	return (
+		bool(result.get("ok", false))
+		and inv.damage_taken == 0
+		and int(result.get("aoo_attacks", 0)) == 0
+		and enemy != null
+		and enemy.location_tag == &"test_loc"
+		and enemy.engaged_with == &"inv_1"
+		and inv.threat_area.has(&"enemy_conn")
+		and inv.actions_remaining == 1
 	)
 
 

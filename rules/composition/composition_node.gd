@@ -719,6 +719,19 @@ static func resign(inv_id: StringName) -> CompositionNode:
 	return n
 
 
+## L0 · 选连结地点敌人 → 移至本地点并交战（Initiation 内联）。
+static func engage_from_connecting(
+	controller_id: StringName,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"engage_from_connecting"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	return n
+
+
 ## L0 · 群体花费线索（交互分配后补；现按玩家顺序各出 1 直至凑够）。
 static func spend_clues_group(
 	controller_id: StringName,

@@ -172,6 +172,20 @@ PARLEY_TEST_DISCARD_BYSTANDER = re.compile(
     re.I,
 )
 
+# Location Engage：选连结地点敌人 → 移至本地点并交战；卡面可显式豁免借机。
+# Engage 类型本身会引发借机攻击；仅正文写明「does not provoke…」时才覆盖。
+ENGAGE_FROM_CONNECTING = re.compile(
+    r"^Engage\.\s*"
+    r"Choose an enemy at a connecting location\.\s*"
+    r"That enemy moves to this location and engages you\.?"
+    r"(?:\s*This action does not provoke attacks? of opportunity\.?)?$",
+    re.I,
+)
+NO_AOO_PHRASE = re.compile(
+    r"This action does not provoke attacks? of opportunity\.?",
+    re.I,
+)
+
 # ArkhamDB Core 玩家牌用 [fast] 标记 Free triggered（闪电图标）；≠ Fast 关键词打出。
 FAST_DURING_TURN_EXHAUST_MOVE = re.compile(
     r"^During your turn,\s*exhaust\s+.+?:\s*Move to a connecting location\.?\s*$",
@@ -474,6 +488,20 @@ def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
+    text = body.strip()
+    if not ENGAGE_FROM_CONNECTING.match(text):
+        return None
+    entry: dict[str, Any] = {
+        "template": "engage_from_connecting",
+        "action_types": ["activate", "engage"],
+    }
+    # Engage 不在借机豁免类型内；仅卡面显式声明时覆盖为 false。
+    if NO_AOO_PHRASE.search(text):
+        entry["provokes_aoo"] = False
+    return entry
+
+
 def compile_parley_discard_bystander(body: str) -> dict[str, Any] | None:
     m = PARLEY_TEST_DISCARD_BYSTANDER.match(body.strip())
     if not m:
@@ -719,6 +747,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     parley = compile_parley_discard_bystander(body)
     if parley is not None:
         return parley
+    engage_conn = compile_engage_from_connecting(body)
+    if engage_conn is not None:
+        return engage_conn
     resign = compile_resign(body)
     if resign is not None:
         return resign
@@ -835,8 +866,8 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         status = "partial"
     elif "(limit" in body.lower():
         status = "partial"
-    # Resign 正文常带 flavor；效果体为 resign atom，视为 full。
-    if compiled.get("template") == "resign":
+    # Resign / Engage-from-connecting 效果体为单 atom，视为 full。
+    if compiled.get("template") in ("resign", "engage_from_connecting"):
         status = "full"
     entry: dict[str, Any] = {
         "segment_index": segment["index"],

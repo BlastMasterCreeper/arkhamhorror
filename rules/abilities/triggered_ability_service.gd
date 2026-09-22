@@ -270,6 +270,8 @@ func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 			AhcEnums.ActionType.ACTIVATE,
 			action_types
 		)
+		## 尊重卡面覆盖（Engage 默认会借机；仅显式豁免时为 false）。
+		intent.provokes_aoo = descriptor.provokes_aoo()
 	else:
 		intent = InitiationIntent.ability(controller_id, descriptor.composition)
 		intent.resource_cost = descriptor.resource_cost

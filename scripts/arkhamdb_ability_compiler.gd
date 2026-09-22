@@ -70,6 +70,10 @@ static func build_composition(
 			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
 		"resign":
 			return CompositionNode.resign(bind.controller_id)
+		"engage_from_connecting":
+			return CompositionNode.engage_from_connecting(
+				bind.controller_id, bind.card_id
+			)
 		"spend_clues_group":
 			return CompositionNode.spend_clues_group(
 				bind.controller_id,
@@ -315,6 +319,9 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 		CardRegistry.register_revelation(definition_id, ability_id, builder)
 		return true
 	if register_as == "free" or register_as == "action":
+		var provokes: Variant = null
+		if entry.has("provokes_aoo"):
+			provokes = bool(entry.get("provokes_aoo"))
 		CardRegistry.register_triggered(
 			definition_id,
 			ability_id,
@@ -326,7 +333,8 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			int(entry.get("action_cost", 0)),
 			bool(entry.get("optional", false)),
 			StringName(str(entry.get("window", "any_player_window"))),
-			_action_types_from_entry(entry)
+			_action_types_from_entry(entry),
+			provokes
 		)
 		return true
 	if register_as == "forced" or register_as == "reaction":
@@ -344,7 +352,8 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			int(entry.get("action_cost", 0)),
 			bool(entry.get("optional", false)),
 			&"",
-			_action_types_from_entry(entry)
+			_action_types_from_entry(entry),
+			null
 		)
 		return true
 	return false
