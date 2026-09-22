@@ -14,10 +14,13 @@ alwaysApply: true
 | **Revelation** | **显现** | 官方简中；能力类型 `Revelation –`；≠ weakness 子类型 |
 | Surge | 涌动 | 项目文档已用（如 setup 显现/涌动） |
 | Peril | 险境 | 遭遇帧内持续 Cannot（04 §4） |
-| Play (card) | **打出** | **仅 asset / event** 从 hand 进入 play / 结算；≠ skill |
+| **Play (card)** | **打出** | **仅 asset / event** 从 hand 进入 play / 结算；≠ skill |
+| **Fast** | **快速** | 关键词；只改 **打出** 的窗口/花费，种类仍是打出；**不是** ArkhamDB `[fast]` 文本符号（后者 = 免费触发） |
 | Commit (skill) | **投入** / commit | skill 从 hand 投入检定；Grimoire：**不能**称 play |
 | **state primitive** | **状态原语** | L0 **三类** GameState 写入；③ 含 **Reveal** 与 SetFlag/SetRef |
 | **effect** | **效果** | dry-run 可 CREATED：状态原语 + Register |
+| **named flow** | **命名流程** | 规则书手续；`seq.*`；Catalog + 堆栈 + 时点。**不是**卡牌正文 |
+| **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |
 | **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
 | **Player Interaction** | **玩家交互** | 能力选用 / Optional / 目标 / 队长排序；`PlayerInteractionGate` |
 | **Evade** | **躲避** | 调查员行动；`seq.action.evade`；≠「闪避」「规避」 |
@@ -36,6 +39,11 @@ alwaysApply: true
 | **Massive** | **庞大** | 敌人关键词；**未横置**时虚拟交战同地点全体；**永不**进威胁区 |
 | **Elusive** | **逃逸** | 敌人 **攻击**或被**攻击** resolve 后 flee；**借机攻击**属前者（敌人攻击） |
 | **Aloof** | **冷漠** | 敌人关键词；不自动 engage；spawn 默认 unengaged |
+| **Permanent** | **永久** | 关键词；开局放入场、不计牌组规模；≠「常驻」 |
+| **Bonded** | **绑定** | 关键词；setup 置于 set-aside，宿主打出后召唤；≠「羁绊」 |
+| **Unique** | **独特** | 关键词（标题 `[unique]`）；同名不得同时在场；≠「独一」 |
+| **Swarming** | **蜂拥** | 关键词 Swarming X；进场后垫 X 张 facedown swarm |
+| **Myriad** | **多重** | 构筑关键词；同名额外副本不计经验 |
 | **Prey** | **猎物** | 敌人指令（`*Prey –`*）；engage / Hunter 等距 tie-break；**不 nest** |
 | **Hidden** | **隐私** | 关键词；秘密入手；见 [grimoire-glossary-extract §隐私](docs/reference/grimoire-glossary-extract.md) |
 | **Forced Ability** | **强制能力** | `Forced –`；引擎直执，无 Initiation 选用 |
@@ -69,3 +77,6 @@ alwaysApply: true
 - **攻击（Fight action）** ≠ 敌人 **perform attack**（含借机攻击 / 反击 / 警戒 / 阶段攻击）。
 - **毁灭（Doom）** = doom 标记；≠「厄运」等非规范译法（对话/文档）。
 - **Reveal 是效果**：`reveal_to_*` = L0 揭示状态原语，参与 dry-run CREATED。见 07-primitives §5.3、07-composition §4.1、01 §3.6。
+- **永久（Permanent）** ≠ 常驻；**绑定（Bonded）** ≠ 羁绊；**独特（Unique）** ≠ 独一；**蜂拥（Swarming）**；**多重（Myriad）**。
+- **快速（Fast 关键词）** ≠ ArkhamDB 文本 `[fast]`（玩家牌闪电 = **免费触发** `[free]`）。打出始终不是能力。无快速的事件打出 **窗口/花费对称** 激活触发；无时点快速打出对称免费触发；有时点快速打出对称反应触发。
+- **命名流程** = 规则书手续（`seq.*`），**不是**卡牌正文。卡牌正文译 **效果组合**；禁止为每张卡登记 `seq.card…`。打出是 `PLAY_CARD`，两套都不是。

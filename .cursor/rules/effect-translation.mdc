@@ -1,58 +1,77 @@
 ---
-description: 一切译为命名流程 seq.* 及其 nest；仅保留来源归属
+description: 规则手续译 seq.*；卡牌正文译效果组合；仅保留来源归属
 alwaysApply: true
 ---
 
 # 效果翻译原则
 
-## 核心（已裁决）
+## 核心（已裁决 2026-09-21）
 
-**一切**规则效果——Grimoire 规范流程、框架步、卡牌能力/显现、遭遇/检定子流程——均译为 **命名流程（`seq.*`）** 及其 **nest 组合**。无例外。
+两条轨道，不要混成「一切都是 seq」：
+
+| 来源 | 译法 |
+|------|------|
+| **规则书手续**（Grimoire 章节流程、框架步、行动内核、检定、入手/显现入口、共享 Cancel/Instead） | **命名流程（`seq.*`）** + nest |
+| **卡牌正文**（能力体、显现体、打出后效果体、lasting 写入） | **效果组合（Composition）** |
 
 - 不为效果保留自然语言运行时分支（禁止 `match effect_text`、语义 atom id）。
-- 与规则书原文的唯一联系：**provenance**（`AbilityUnitRef`：哪条 `flow_id`、哪张卡哪个 ability）。
-
-**禁止**：Grimoire/卡面段落 → 专属 `*Policy` / `*Service`；与 Catalog 平行的第二套 dispatch。
+- 与规则书原文的唯一联系：**provenance**（`AbilityUnitRef`）。
+- **禁止**：Grimoire/卡面段落 → 专属 `*Policy` / `*Service`；为每张卡登记 `seq.card…`；与 Catalog 平行的第二套 dispatch。
+- **Catalog 完备**：凡解释器要当效果跑的，必须有 `seq.*`。含 **状态原语类** 与 **Buff 创建/注销**（`seq.effect.register` / `unregister`）。纸面没有章节名 → 引擎铸造 `seq.effect.*`（种类 + 参数），不是裸 Atom/Register，也不是 `seq.card…`。见 [07-composition §1.3.3](docs/design/07-composition.md)。
 
 ## 统一翻译模型
 
 ```text
-一切效果  →  seq.*（SequenceCatalog 条目）
-              ├─ handler 内顺序 RESOLVE（mutator reveal / move / register…）
+规则手续  →  seq.*（SequenceCatalog）
+              ├─ handler 内顺序 RESOLVE（砖块：L0 / Register / 内联）
               ├─ catalog.nest / nest_batch → 另一条 seq.*
-              └─ 必要时在单步内 composition.execute（见下）
+              └─ EFFECT 砖：解释已装载的静态 Composition 树
 
-组合 = nest 命名流程，不是「框架用 seq、卡牌用别的东西」。
+自然语言卡面
+  → 编译（规范化静态树）
+  → 装载到已有 seq 的 hook / RESOLVE 砖
+  → 解释器在栈帧内走树（内联写入，或 nest 已有 seq）
+
+卡牌正文  →  静态 Composition 树（待解释，不真空跑）
+              ├─ 控制流：Seq(Then) / Simultaneous / If / Choice
+              └─ 效果：nest seq.*（抽牌、检定、Cancel、**seq.effect.register** 创建 Buff、take horror…）
 ```
+
+编译 / 装载 / 解释分工与 **树的力度、场面/输入放哪** 见 [07-composition §1.3–§1.4](docs/design/07-composition.md)。
 
 | 来源 | 译法 | 例子 |
 |------|------|------|
 | Grimoire 章节流程 | `seq.*` | `seq.draw.investigator`、`seq.draw.encounter` |
 | 行动 | `seq.action.*` nest 内核 seq | action draw → `seq.draw.investigator` |
-| 卡牌能力 / 显现 / lasting | **`seq.*` 或 nest 已有 seq** | 显现统一 `seq.enter_hand`；卡面体 = 该 seq 内 nest 或内联 RESOLVE |
+| 卡牌能力 / 显现体 / lasting | **Composition** 树（控制流 + nest 已有/`seq.effect.*`） | 12160：nest 放毁灭 + if + nest 涌动 |
+| 纸面无名的效果句 | 铸造 **`seq.effect.*`** | take horror、place doom、heal；Buff 创建 = `seq.effect.register` |
+| 卡面调用已有手续 | Composition 节点 **nest** 该 seq | 「抽 1 张」→ nest `seq.draw.*`；Cancel → nest `seq.interrupt.cancel` |
 | 子流程复用 | `catalog.nest(other_seq)` | 同一内核多入口 |
 
-**入口不同 ≠ 新机制**：耗 action、Forced、遭遇 E4 都是 **触发/nest 同一条或相关的 seq.*`。
+**入口不同 ≠ 新机制**：耗 action、Forced、遭遇 E4 都是 **触发/nest 同一条或相关的 seq.***。卡面本身仍是 Composition。
 
-## Composition 的定位（不是与 seq 并列的顶层）
+**打出** 不是能力、也不是卡面 seq：`PLAY_CARD` Initiation；效果体仍是 Composition。
 
-**Composition 不负责「命名流程」；命名流程也不只管框架。**
+## 命名流程 vs 效果组合
 
-- **命名流程（`seq.*`）** = 唯一 **翻译与运行时编排单元**（Catalog + Stack + Timing）。
-- **Composition** = **某条 seq 在 RESOLVE 某一步时** 的可执行树（卡面 YAML/脚本编译产物；含 Atom、Register、Seq/Choice）；用于 **dry-run（L7）** 与 **短效果体** 展开。
-- 长规范流程 = **seq handler 顺序步骤 + nest 其它 seq**；卡面「Deal 3 damage」= **nest `seq.effect.*` 模板** 或 **该 ability 注册的 `seq.card…` 条目**，不是绕过 Catalog 的独立通道。
+**命名流程（`seq.*`）** = 规则书手续，也是 **最后压栈的运行形态**（Catalog + 堆栈 + Timing）。
+
+**效果组合（Composition）** = **当前栈帧 RESOLVE 的中间语言**：描述本帧写什么（Atom / Register / Then / If / Choice），以及何时 **提供** 一条已有 seq 去 nest。它不占堆栈，也不整棵降成 `seq.card…`。
 
 ```text
-seq.draw.investigator          ← 命名流程（非「仅框架」）
-  handler: … nest seq.enter_hand …
-  D2: reveal_to_controller（L0 揭示原语，是效果）
-  某步: composition.execute（状态原语 / Register）
+seq.draw.encounter             ← 命名流程（遭遇抽牌手续）
+  G3 nest seq.encounter.revelation
+    解释已装载的静态树         ← 显现正文（不真空跑）
 
-seq.enter_hand                 ← 命名流程（显现入口）
-  nest 卡面 ability 对应 seq / composition
+InitiationIntent.PLAY_CARD     ← 打出（独立形式）
+    在已压栈手续里解释静态树   ← 打出后效果体
 
-卡面 ability                   ← 同样必须是 seq 或 nest 进 seq，不是第三体系
+AbilitySpec
+  hook: (seq.draw.investigator, WHEN)   ← 订哪条手续的哪个槽
+  effect: 静态 Composition              ← 待解释的卡面正文
 ```
+
+长规范流程 = **seq handler 顺序步骤 + nest 其它 seq**。不要为卡面短句另开 `seq.card…`。逐项对照见 [07-composition §1.2](docs/design/07-composition.md#12-与命名流程对照)。
 
 ## 什么是「效果」（已裁决）
 
@@ -70,33 +89,34 @@ seq.enter_hand                 ← 命名流程（显现入口）
 1. **状态原语** — L0 `StateMutator` **三类**写入（含 **`reveal_to_*`**、SetFlag/SetRef）  
 2. **Register** — `RegistrationStore` / Buff（**是效果**）；查询见 [06 §16](docs/design/06-registration-buff-model.md)  
 8. **`PlayerInteractionGate`** — 窗口内决策（[16](docs/design/16-player-interaction.md)；**晚于** Eligibility/ResponseWindow，见 [17](docs/design/17-seq-runtime.md) §6）  
-9. **`SequenceCatalog` + handler** — 每条译后的 `seq.*`  
+9. **`SequenceCatalog` + handler** — 每条规则手续 `seq.*`  
 10. **`ResolutionSequenceStack` + Timing** — push/pop、Would/When/After（15 D/E/ST）  
 11. **`RulesMemory`** — 步间 referents  
 12. **Initiation / Eligibility / TimingBus** — 窗口与能力  
 13. **`AbilityUnitRef`** — provenance  
+14. **`CompositionExecutor`** — 卡面树；L7 dry-run  
 
 ## 来源归属
 
 | 字段 | 含义 |
 |------|------|
-| `flow_id` | 命名流程 id |
+| `flow_id` | 当前所在命名流程 id（卡面挂在哪条手续里跑） |
 | `definition_id` | 卡牌定义 id |
 | `ability_id` | 能力/效果单元 id |
 | `instance_id` | 运行时实例 |
 
 ## 显现（Revelation）
 
-- **入口 seq**：`seq.enter_hand`（不区分 draw/add 来源）。
-- **卡面体**：该 ability 对应的 **seq 或 nest**；显现后 LIMBO 弃置等仍在 **同一命名流程** 内 RESOLVE。
+- **入口 seq**（规则手续）：遭遇 `seq.encounter.revelation`；玩家入手 `seq.enter_hand`（不区分 draw/add 来源）。
+- **卡面体**：该 ability 的 **Composition**；在入口 seq 的 RESOLVE 里 execute。显现后 LIMBO 弃置等仍在 **入口命名流程** 内 RESOLVE。
 - 顺序占位：`EnterHandTimingPolicy`；跨类优先级见 06 §8。
 
 ## 实现约定
 
-- **内联 vs nest**（[15 §4.0.5](docs/design/15-timing-entry-catalog.md)）：**上一步是否触发本步时点**？是 → nest；否 → 内联。
-- 新效果 → **`register_run` / `nest`**，不新建语义 Service。
-- **Cancel / Ignore** → **`seq.interrupt.cancel` / `seq.interrupt.ignore`** + `InterruptTarget`（[07 §6.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*CancelPolicy`。
-- **Instead / Would** → **`seq.replace.instead`** + `ReplacementTarget` + `replacement` 载荷（[07 §7.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*InsteadPolicy`。
+- **内联 vs nest**（[15 §4.0.5](docs/design/15-timing-entry-catalog.md)）：**上一步是否触发本步时点**？是 → nest 另一条 seq；否 → 内联。Then 是 Composition 内联 Seq，不是 nest。
+- 新规则手续 → **`register_run` / `nest`**，不新建语义 Service。
+- **Cancel / Ignore** → 卡面 Composition 的 Interrupt 节点 nest **`seq.interrupt.cancel` / `seq.interrupt.ignore`** + `InterruptTarget`（[07 §6.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*CancelPolicy`。
+- **Instead / Would** → Composition 的 Replace 节点 nest **`seq.replace.instead`** + `ReplacementTarget` + `replacement` 载荷（[07 §7.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*InsteadPolicy`。
 - **Cancel encounter revelation** → 仅注销 G3 显现；**G4 仍 discard** 至 encounter discard（FAQ · [07 §6.0.1](docs/design/07-effect-resolution.md)）。
 - **Cannot** → Register RESTRICTION + [06 §16](docs/design/06-registration-buff-model.md) Intent 入口。
 - 薄 facade 仅 `catalog.run(flow_id, params)`。
@@ -104,6 +124,7 @@ seq.enter_hand                 ← 命名流程（显现入口）
 
 ## ArkhamDB 编译（`tools/arkhamdb_abilities.py`）
 
+- 卡面 effect 段编译为 **Composition 树**（template / Atom / Register / If / Choice / nest 已有 seq）。
 - **优先复用**已有 template / condition / `if_kind` / `evaluate` 锚点（07 §3.3、15 §17、已竖切卡如 12126/12160）。
 - **能拆就拆**：timing · condition · cost · effect 分编译单元；禁止无先例的新语义 atom。
 - **无可参考先例时**：先查设计文档与 imported JSON 同类卡；仍无法归类再询问是否扩展编译器。

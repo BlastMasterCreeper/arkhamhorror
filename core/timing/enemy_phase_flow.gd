@@ -94,14 +94,19 @@ static func phase_attacks_for(
 			continue
 		if enemy.engaged_with != investigator_id:
 			continue
-		attack(
-			game_ctx,
-			{
-				"enemy_id": enemy_id,
-				"target_investigator": investigator_id,
-				"exhaust_after": true,
-			}
-		)
+		var params := {
+			"enemy_id": enemy_id,
+			"target_investigator": investigator_id,
+			"exhaust_after": true,
+		}
+		## 经 catalog.nest 发出 enemy_attack WHEN/AFTER（卡面 Forced 可订阅）。
+		if (
+			game_ctx.sequence_catalog != null
+			and game_ctx.sequence_catalog.has_flow(&"seq.enemy.attack")
+		):
+			game_ctx.sequence_catalog.nest(game_ctx, &"seq.enemy.attack", params)
+		else:
+			attack(game_ctx, params)
 		attack_count += 1
 	if game_ctx.log != null:
 		game_ctx.log.log(

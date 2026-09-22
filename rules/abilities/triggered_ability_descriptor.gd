@@ -21,17 +21,36 @@ var action_cost: int = 0
 var optional: bool = false
 ## Free：`during_your_turn` | `any_player_window`（空 = any）。
 var window: StringName = &""
+## 行动类型全集（可多选，如 Activate+Parley）；借机攻击按全集判断。
+var action_types: Array = []
+## 卡面显式覆盖借机（如「不引发借机攻击」）；null = 按 action_types 判定。
+## Engage 类型本身会借机；仅卡面写明豁免时才覆盖为 false。
+var provokes_aoo_override: Variant = null
 
 
 func is_player_initiated() -> bool:
 	return (
 		ability_kind == AbilityKind.REACTION
 		or ability_kind == AbilityKind.FREE_TRIGGERED
+		or ability_kind == AbilityKind.ACTION
 	)
 
 
 func provokes_aoo() -> bool:
-	return ability_kind == AbilityKind.ACTION
+	if ability_kind != AbilityKind.ACTION:
+		return false
+	if provokes_aoo_override != null:
+		return bool(provokes_aoo_override)
+	var types := resolved_action_types()
+	return AttackOfOpportunityResolver.provokes_for_types(types)
+
+
+func resolved_action_types() -> Array:
+	if not action_types.is_empty():
+		return action_types.duplicate()
+	if ability_kind == AbilityKind.ACTION:
+		return [AhcEnums.ActionType.ACTIVATE]
+	return []
 
 
 func uses_timing_handler() -> bool:
@@ -118,7 +137,51 @@ static func from_registry_unit(
 	desc.optional = bool(unit.get("optional", false))
 	desc.window = unit.get("window", &"") as StringName
 	desc.ability_kind = _parse_kind(unit.get("ability_kind", &"forced"))
+	desc.action_types = _parse_action_types(unit.get("action_types", []))
+	if unit.has("provokes_aoo"):
+		desc.provokes_aoo_override = bool(unit.get("provokes_aoo"))
 	return desc
+
+
+static func _parse_action_types(raw: Variant) -> Array:
+	var out: Array = []
+	if not raw is Array:
+		return out
+	for entry in raw:
+		var parsed := action_type_from_raw(entry)
+		if parsed >= 0:
+			out.append(parsed)
+	return out
+
+
+static func action_type_from_raw(raw: Variant) -> int:
+	if raw is int:
+		return int(raw)
+	match str(raw).to_lower():
+		"draw":
+			return AhcEnums.ActionType.DRAW
+		"resource":
+			return AhcEnums.ActionType.RESOURCE
+		"activate":
+			return AhcEnums.ActionType.ACTIVATE
+		"play":
+			return AhcEnums.ActionType.PLAY
+		"move":
+			return AhcEnums.ActionType.MOVE
+		"investigate":
+			return AhcEnums.ActionType.INVESTIGATE
+		"engage":
+			return AhcEnums.ActionType.ENGAGE
+		"evade":
+			return AhcEnums.ActionType.EVADE
+		"fight":
+			return AhcEnums.ActionType.FIGHT
+		"parley":
+			return AhcEnums.ActionType.PARLEY
+		"resign":
+			return AhcEnums.ActionType.RESIGN
+		_:
+			return -1
 
 
 static func _parse_kind(raw: Variant) -> AbilityKind:

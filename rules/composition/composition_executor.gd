@@ -214,19 +214,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 				{"inv": node.inv_id, "card": node.card_id}
 			)
 			return entered
-		&"lose_all_resources":
-			var inv := _state.registry.get_investigator(node.inv_id)
-			if inv != null and inv.resource_pool > 0:
-				_mutator.adjust_marker(
-					MarkerSlot.investigator(node.inv_id, AhcEnums.MarkerKind.RESOURCE),
-					-inv.resource_pool
-				)
-			_log.log(
-				AhcEnums.LogCategory.CARD,
-				"composition:lose_all_resources",
-				{"inv": node.inv_id}
-			)
-			return inv != null
+		&"lose_all_resources", &"nest_lose_all_resources":
+			return _execute_nest_lose_resources(node)
 		&"commit_hidden_enter_hand":
 			_mutator.commit_hidden_enter_hand(node.card_id, node.inv_id)
 			if _game_ctx != null:
@@ -321,24 +310,12 @@ func _execute_atom(node: CompositionNode) -> bool:
 				_game_ctx.effects.resolve_pending(node.pending_id)
 				return node.pending_id != &""
 			return false
-		&"place_doom_nearest_enemy_without_doom":
-			if _game_ctx != null:
-				return EncounterDoomPlacement.place_on_nearest_enemy_without_doom(
-					_game_ctx, node.inv_id, node.card_id
-				)
-			return false
-		&"place_doom_on_current_agenda":
-			if _game_ctx != null:
-				return EncounterAgendaDoomPlacement.place_on_current_agenda(
-					_game_ctx, node.may_advance_agenda
-				)
-			return false
-		&"place_clue_on_investigator_location":
-			if _game_ctx != null:
-				return InvestigatorCluePlacement.place_one_on_investigator_location(
-					_game_ctx, node.inv_id
-				)
-			return false
+		&"place_doom_nearest_enemy_without_doom", &"nest_place_doom":
+			return _execute_nest_place_doom(node)
+		&"place_doom_on_current_agenda", &"nest_mythos_place_doom":
+			return _execute_nest_mythos_place_doom(node)
+		&"place_clue_on_investigator_location", &"nest_place_clue":
+			return _execute_nest_place_clue(node)
 		&"nest_skill_test":
 			return _execute_nest_skill_test(node)
 		&"nest_enemy_resolve_location":
@@ -349,35 +326,34 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_attack(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
+		&"resign":
+			return _execute_resign(node)
+		&"engage_from_connecting":
+			return _execute_engage_from_connecting(node)
+		&"spend_clues_group":
+			return _execute_spend_clues_group(node)
 		&"nest_move_connecting":
 			return _execute_nest_move_connecting(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
-		&"take_horror":
-			var horror_inv := _resolve_inv(node)
-			if horror_inv == &"":
-				return false
-			_mutator.take_horror(horror_inv, node.marker_delta)
-			_log.log(
-				AhcEnums.LogCategory.CARD,
-				"composition:take_horror",
-				{"inv": horror_inv, "amount": node.marker_delta}
-			)
-			return true
-		&"take_damage":
-			var dmg_inv := _resolve_inv(node)
-			if dmg_inv == &"":
-				return false
-			_mutator.adjust_marker(
-				MarkerSlot.investigator(dmg_inv, AhcEnums.MarkerKind.DAMAGE),
-				node.marker_delta
-			)
-			_log.log(
-				AhcEnums.LogCategory.CARD,
-				"composition:take_damage",
-				{"inv": dmg_inv, "amount": node.marker_delta}
-			)
-			return true
+		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
+			return _execute_nest_damage(node)
+		&"nest_lose_resources":
+			return _execute_nest_lose_resources(node)
+		&"nest_heal":
+			return _execute_nest_heal(node)
+		&"nest_lose_action":
+			return _execute_nest_lose_action(node)
+		&"nest_effect_register":
+			return _execute_nest_effect_register(node)
+		&"nest_effect_unregister":
+			return _execute_nest_effect_unregister(node)
+		&"nest_discard_card":
+			return _execute_nest_discard_card(node)
+		&"nest_discard_from_hand":
+			return _execute_nest_discard_from_hand(node)
+		&"nest_draw_investigator":
+			return _execute_nest_draw_investigator(node)
 		&"discard_all_enemies_in_play":
 			return ScenarioCompositionAtoms.discard_all_enemies_in_play(_game_ctx)
 		&"put_locations_into_play":
@@ -392,13 +368,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return ScenarioCompositionAtoms.attach_set_aside_to_host(
 				_game_ctx, node.definition_id, node.card_id, node.atom_count
 			)
-		&"attach_limbo_to_nearest_location_without":
-			return EncounterAttachment.attach_limbo_to_nearest_location_without(
-				_game_ctx,
-				node.card_id,
-				_resolve_inv(node),
-				node.definition_id
-			)
+		&"attach_limbo_to_nearest_location_without", &"nest_attach":
+			return _execute_nest_attach(node)
 		&"discard_set_aside_to_encounter_discard":
 			return ScenarioCompositionAtoms.discard_set_aside_to_encounter_discard(
 				_game_ctx, node.definition_id, node.atom_count
@@ -635,6 +606,109 @@ func _execute_exhaust_card(node: CompositionNode) -> bool:
 	return true
 
 
+## Resign 效果：Initiation INIT_4 内联执行（非 catalog.nest）。
+func _execute_resign(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" or _game_ctx == null:
+		return false
+	var result := InvestigatorElimination.resign(_game_ctx, inv_id)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:resign",
+		{"inv": inv_id, "ok": bool(result.get("ok", false))}
+	)
+	return bool(result.get("ok", false))
+
+
+## 选连结地点敌人 → 移至本地点 → 交战（Initiation 内联；Engage 类型默认会借机）。
+func _execute_engage_from_connecting(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null or _game_ctx.enemy == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return false
+	var here := _resolve_source_location(node, inv)
+	if here == &"":
+		return false
+	var here_loc := _state.registry.get_location(here)
+	if here_loc == null:
+		return false
+	var candidates: Array[StringName] = []
+	for conn in here_loc.connections:
+		for enemy_id in _state.registry.all_enemy_ids():
+			var enemy := _state.registry.get_enemy(enemy_id)
+			if enemy == null or enemy.location_tag != conn:
+				continue
+			if enemy.massive:
+				continue
+			candidates.append(enemy_id)
+	if candidates.is_empty():
+		return false
+	var pick: StringName = candidates[0]
+	if candidates.size() > 1 and _game_ctx.interaction != null:
+		var chosen: Variant = _game_ctx.interaction.ask_pick_target(
+			candidates, inv_id, &"pick:engage_connecting", _game_ctx
+		)
+		if chosen != null:
+			pick = chosen as StringName
+	var enemy := _state.registry.get_enemy(pick)
+	if enemy == null:
+		return false
+	enemy.location_tag = here
+	_game_ctx.enemy.apply_engage(pick, inv_id)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:engage_from_connecting",
+		{"inv": inv_id, "enemy": pick, "location": here}
+	)
+	return true
+
+
+func _resolve_source_location(node: CompositionNode, inv: InvestigatorState) -> StringName:
+	if node.card_id != &"":
+		var card := _state.registry.get_card(node.card_id)
+		if card != null:
+			if _state.registry.get_location(card.id.instance_id) != null:
+				return card.id.instance_id
+			if _state.registry.get_location(card.id.definition_id) != null:
+				return card.id.definition_id
+	if inv != null:
+		return inv.location_tag
+	return &""
+
+
+## 群体花费线索：按玩家顺序各出 1，直至凑够总量（交互分配后补）。
+func _execute_spend_clues_group(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null:
+		return false
+	var base := maxi(node.marker_delta, 1)
+	var need := base
+	if bool(node.flag_value):
+		need = PerInvestigatorScale.scale(_state, base)
+	var spent := 0
+	var order: Array = []
+	if _game_ctx != null and _game_ctx.framework != null and not _game_ctx.framework.player_order.is_empty():
+		order = _game_ctx.framework.player_order.duplicate()
+	else:
+		order = _state.registry.all_investigator_ids()
+	for inv_id in order:
+		if spent >= need:
+			break
+		var inv := _state.registry.get_investigator(inv_id)
+		if inv == null or inv.eliminated or inv.resigned or inv.clues_on_card <= 0:
+			continue
+		var take := mini(1, mini(inv.clues_on_card, need - spent))
+		inv.clues_on_card -= take
+		spent += take
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:spend_clues_group",
+		{"need": need, "spent": spent}
+	)
+	return spent >= need
+
+
 func _execute_nest_move_connecting(node: CompositionNode) -> bool:
 	if _game_ctx == null or _state == null or _game_ctx.skill_tests == null:
 		return false
@@ -696,6 +770,264 @@ func _execute_nest_gain_resource(node: CompositionNode) -> bool:
 		{"inv": inv_id, "amount": int(result.get("amount", amount))}
 	)
 	return int(result.get("amount", 0)) > 0 or amount > 0
+
+
+func _execute_nest_damage(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" and node.location_target == &"":
+		return false
+	var target := node.location_target if node.location_target != &"" else &"controller"
+	var kind := node.definition_id if node.definition_id == &"horror" else &"damage"
+	## 兼容旧 atom 名：take_horror / nest_take_horror 未写 definition_id 时仍为 horror。
+	if (
+		kind != &"horror"
+		and (node.atom_name == &"take_horror" or node.atom_name == &"nest_take_horror")
+	):
+		kind = &"horror"
+	var amount := maxi(node.marker_delta, 1)
+	if bool(node.flag_value) and _state != null:
+		amount = PerInvestigatorScale.scale(_state, amount)
+	var enemy_id := node.enemy_ref_id
+	if target == &"enemy_at_controller_location" and enemy_id == &"":
+		enemy_id = _pick_enemy_at_controller_location(inv_id)
+		target = &"enemy"
+	var result := _nest_or_direct(
+		&"seq.effect.damage",
+		{
+			"controller_id": inv_id,
+			"kind": kind,
+			"amount": amount,
+			"direct": node.is_direct,
+			"target": target,
+			"source": node.card_id,
+			"card_id": node.card_id,
+			"enemy_id": enemy_id,
+		}
+	)
+	if result.is_empty() and _mutator != null and target == &"controller":
+		if kind == &"horror":
+			_mutator.take_horror(inv_id, amount)
+		else:
+			_mutator.adjust_marker(
+				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
+				amount
+			)
+		return true
+	return bool(result.get("ok", false))
+
+
+func _pick_enemy_at_controller_location(inv_id: StringName) -> StringName:
+	if _state == null:
+		return &""
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null or inv.location_tag == &"":
+		return &""
+	var candidates: Array[StringName] = []
+	for enemy_id in _state.registry.all_enemy_ids():
+		var enemy := _state.registry.get_enemy(enemy_id)
+		if enemy != null and enemy.location_tag == inv.location_tag:
+			candidates.append(enemy_id)
+	if candidates.is_empty():
+		return &""
+	if candidates.size() == 1:
+		return candidates[0]
+	if _game_ctx != null and _game_ctx.interaction != null:
+		var chosen: Variant = _game_ctx.interaction.ask_pick_target(
+			candidates, inv_id, &"pick:enemy_at_location", _game_ctx
+		)
+		if chosen != null:
+			return chosen as StringName
+	return candidates[0]
+
+
+func _execute_nest_lose_resources(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var all_mode := (
+		node.definition_id == &"all"
+		or node.atom_name == &"lose_all_resources"
+		or node.atom_name == &"nest_lose_all_resources"
+	)
+	var params := {"controller_id": inv_id, "all": all_mode}
+	if not all_mode:
+		params["amount"] = maxi(node.marker_delta, 1)
+	return bool(_nest_or_direct(&"seq.effect.lose_resources", params).get("ok", false))
+
+
+func _execute_nest_heal(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var kind := &"damage"
+	if node.marker_slot != null and node.marker_slot.kind == AhcEnums.MarkerKind.HORROR_TAKEN:
+		kind = &"horror"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.heal",
+			{"controller_id": inv_id, "kind": kind, "amount": maxi(node.marker_delta, 1)}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_lose_action(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.lose_action",
+			{"controller_id": inv_id, "amount": maxi(node.marker_delta, 1)}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_place_doom(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var target := node.place_doom_target
+	if target == &"":
+		target = &"nearest_enemy_without_doom"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.place_doom",
+			{
+				"controller_id": inv_id,
+				"drawer_id": inv_id,
+				"origin_id": inv_id,
+				"card_id": node.card_id,
+				"target": target,
+				"amount": maxi(node.marker_delta, 1),
+			}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_mythos_place_doom(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	return EncounterAgendaDoomPlacement.place_on_current_agenda(
+		_game_ctx, node.may_advance_agenda
+	)
+
+
+func _execute_nest_place_clue(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.place_clue",
+			{"controller_id": inv_id, "inv_id": inv_id}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_effect_register(node: CompositionNode) -> bool:
+	if node.register_template == null:
+		return false
+	var result := _nest_or_direct(
+		&"seq.effect.register",
+		{
+			"controller_id": node.register_template.controller_id,
+			"card_id": node.register_template.drawn_card_id,
+			"template": node.register_template,
+		}
+	)
+	if result.is_empty() and _registrations != null:
+		return _registrations.register(node.register_template) != &""
+	return bool(result.get("ok", false))
+
+
+func _execute_nest_effect_unregister(node: CompositionNode) -> bool:
+	if node.pending_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.unregister",
+			{"reg_id": node.pending_id, "controller_id": _resolve_inv(node)}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_discard_card(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.discard_card",
+			{
+				"controller_id": inv_id,
+				"card_id": node.card_id,
+				"trait": node.definition_id,
+				"at": node.location_target,
+				"mode": node.place_doom_target if node.place_doom_target != &"" else &"choose",
+			}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_discard_from_hand(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var mode := node.location_target if node.location_target != &"" else &"random"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.discard_from_hand",
+			{
+				"controller_id": inv_id,
+				"amount": maxi(node.marker_delta, 1),
+				"mode": mode,
+			}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_draw_investigator(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	if RestrictionEvaluator.blocks_draw(inv_id, _registrations):
+		_log.log(AhcEnums.LogCategory.CARD, "composition:draw_blocked", {"inv": inv_id})
+		return false
+	var amount := maxi(node.draw_amount, 1)
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.draw.investigator",
+		{
+			"inv_id": inv_id,
+			"amount": amount,
+			"source_tags": [&"card_ability"],
+		}
+	)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:nest_draw_investigator",
+		{"inv": inv_id, "amount": amount, "ok": bool(result.get("ok", false))}
+	)
+	return bool(result.get("ok", false))
+
+
+func _execute_nest_attach(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var target := node.location_target if node.location_target != &"" else &"nearest_without_same"
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.attach",
+			{
+				"controller_id": inv_id,
+				"card_id": node.card_id,
+				"target": target,
+			}
+		).get("ok", false)
+	)
+
+
+func _nest_or_direct(flow_id: StringName, params: Dictionary) -> Dictionary:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return {}
+	return _game_ctx.sequence_catalog.nest(_game_ctx, flow_id, params)
 
 
 func _ability_controller(inv_id: StringName) -> StringName:

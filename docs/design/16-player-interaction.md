@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility / ResponseWindow）、[07-composition.md](07-composition.md)（Choice / Optional）、[14-nested-sequences.md](14-nested-sequences.md)（同窗口多响应）、[00-architecture-overview.md](../00-architecture-overview.md)  
 > **规则来源**：Grimoire Initiation、Effects · Target、Simultaneously；ArkhamDB RR · Lead Investigator / Choices  
-> **状态**：v0.2 · 2026-06-18 — 扩展 **完整交互目录** §5
+> **状态**：v0.2.1 · 2026-09-21 — 选择不进静态树（07 §1.4）
 
 ---
 
@@ -53,7 +53,7 @@
 | Deal 1 damage — **打谁**？ | Interaction | `ChoiceKind.PICK_TARGET` |
 | 3 点伤害 — **怎么分**？ | Interaction | `ChoiceKind.ASSIGN_DAMAGE` |
 
-**禁止**：在 `StateMutator`、Buff 查询或 Eligibility 内写 `if ui_clicked`；**禁止** Presentation 直接改 `GameStateStore`。
+**禁止**：在 `StateMutator`、Buff 查询或 Eligibility 内写 `if ui_clicked`；**禁止** Presentation 直接改 `GameStateStore`；**禁止** 把本次选择写进静态效果组合树（树只描述问什么，答在 Gate，指称进 `RulesMemory`）。见 [07-composition §1.4](07-composition.md#14-树的力度树上带什么动态数据放哪已裁决-2026-09-21)。
 
 ---
 
@@ -442,5 +442,6 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.2.1 | §2：Gate 的答不写进 Composition 树；指称进 RulesMemory（07 §1.4） |
 | 2026-06-18 | v0.2 | **§5 完整交互目录**（10 域）；扩展 `ChoiceKind`；决策者矩阵 |
 | 2026-06-18 | v0.1 | 初稿：Interaction vs Eligibility；Gate / Resolver |

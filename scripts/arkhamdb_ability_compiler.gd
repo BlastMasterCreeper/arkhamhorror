@@ -35,22 +35,86 @@ static func build_composition(
 ) -> CompositionNode:
 	match template_id:
 		"take_horror":
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				int(params.get("amount", 1))
+			return CompositionNode.nest_take_horror(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				bool(params.get("direct", false)),
+				StringName(str(params.get("target", "controller"))),
+				bind.card_id
 			)
 		"take_damage":
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.DAMAGE),
-				int(params.get("amount", 1))
+			return CompositionNode.nest_take_damage(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				bool(params.get("direct", false)),
+				StringName(str(params.get("target", "controller"))),
+				bind.card_id
 			)
 		"lose_resources":
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.RESOURCE),
-				-int(params.get("amount", 1))
+			return CompositionNode.nest_lose_resources(
+				bind.controller_id, int(params.get("amount", 1))
 			)
 		"lose_all_resources":
-			return CompositionNode.lose_all_resources(bind.controller_id)
+			return CompositionNode.nest_lose_all_resources(bind.controller_id)
+		"lose_action":
+			return CompositionNode.nest_lose_action(
+				bind.controller_id, int(params.get("amount", 1))
+			)
+		"heal":
+			return CompositionNode.nest_heal(
+				bind.controller_id,
+				StringName(str(params.get("kind", "damage"))),
+				int(params.get("amount", 1))
+			)
+		"discard_source":
+			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
+		"resign":
+			return CompositionNode.resign(bind.controller_id)
+		"engage_from_connecting":
+			return CompositionNode.engage_from_connecting(
+				bind.controller_id, bind.card_id
+			)
+		"spend_clues_group":
+			return CompositionNode.spend_clues_group(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				bool(params.get("per_investigator", false))
+			)
+		"discard_card":
+			return CompositionNode.nest_discard_card(
+				StringName(str(params.get("card_id", ""))),
+				bind.controller_id,
+				StringName(str(params.get("trait", ""))),
+				StringName(str(params.get("at", ""))),
+				StringName(str(params.get("mode", "choose")))
+			)
+		"discard_from_hand":
+			return CompositionNode.nest_discard_from_hand(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				StringName(str(params.get("mode", "random")))
+			)
+		"draw":
+			return CompositionNode.nest_draw_investigator(
+				bind.controller_id,
+				int(params.get("amount", 1))
+			)
+		"attach_nearest_without_same":
+			return CompositionNode.nest_attach(
+				bind.card_id, bind.controller_id, &"nearest_without_same"
+			)
+		"attach_controller_location":
+			return CompositionNode.nest_attach(
+				bind.card_id, bind.controller_id, &"controller_location"
+			)
+		"deal_damage":
+			return CompositionNode.nest_deal_damage(
+				bind.controller_id,
+				int(params.get("amount", 1)),
+				StringName(str(params.get("target", "controller"))),
+				bind.card_id,
+				bool(params.get("per_investigator", false))
+			)
 		"enter_threat_area":
 			return CompositionNode.enter_threat_area(bind.card_id, bind.controller_id)
 		"grant_surge":
@@ -60,17 +124,27 @@ static func build_composition(
 		"seq":
 			return _build_seq(params, bind)
 		"place_doom_nearest_enemy_without_doom":
-			return CompositionNode.place_doom_nearest_enemy_without_doom(
-				bind.card_id, bind.controller_id
+			return CompositionNode.nest_place_doom(
+				bind.controller_id, bind.card_id, &"nearest_enemy_without_doom"
+			)
+		"place_doom_on_source":
+			return CompositionNode.nest_place_doom(
+				bind.controller_id, bind.card_id, &"source"
+			)
+		"place_doom_nearest_to_source":
+			return CompositionNode.nest_place_doom(
+				bind.controller_id,
+				bind.card_id,
+				&"nearest_enemy_without_doom_to_source"
 			)
 		"choice_must":
 			return _build_choice_must(params, bind)
 		"place_doom_on_current_agenda":
-			return CompositionNode.place_doom_on_current_agenda(
+			return CompositionNode.nest_mythos_place_doom(
 				bool(params.get("may_advance_agenda", false))
 			)
 		"place_clue_on_location":
-			return CompositionNode.place_clue_on_investigator_location(bind.controller_id)
+			return CompositionNode.nest_place_clue(bind.controller_id)
 		"skill_test":
 			return _build_skill_test(params, bind)
 		"repeat_fail_by":
@@ -80,7 +154,7 @@ static func build_composition(
 		"nest_enemy_move":
 			return _build_nest_enemy_move(params, bind)
 		"nest_enemy_attack":
-			return CompositionNode.nest_enemy_attack_last()
+			return _build_nest_enemy_attack(params, bind)
 		"exhaust_source":
 			return CompositionNode.exhaust_card(bind.card_id)
 		"nest_move_connecting":
@@ -106,6 +180,14 @@ static func _build_nest_enemy_move(params: Dictionary, bind: AbilityBindContext)
 	for trait_name in params.get("trait_exclude", []):
 		exclude.append(StringName(str(trait_name)))
 	return CompositionNode.nest_enemy_move(bind.controller_id, exclude)
+
+
+static func _build_nest_enemy_attack(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	var enemy_spec := str(params.get("enemy", ""))
+	var target_spec := str(params.get("target", ""))
+	if enemy_spec == "source" or enemy_spec == "self" or target_spec == "controller":
+		return CompositionNode.nest_enemy_attack(bind.card_id, bind.controller_id)
+	return CompositionNode.nest_enemy_attack_last()
 
 
 static func _build_seq(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
@@ -241,18 +323,23 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 	if register_as == "revelation":
 		CardRegistry.register_revelation(definition_id, ability_id, builder)
 		return true
-	if register_as == "free":
+	if register_as == "free" or register_as == "action":
+		var provokes: Variant = null
+		if entry.has("provokes_aoo"):
+			provokes = bool(entry.get("provokes_aoo"))
 		CardRegistry.register_triggered(
 			definition_id,
 			ability_id,
 			&"",
 			AhcEnums.SequencePhase.AFTER,
-			&"free",
+			StringName(register_as),
 			builder,
 			int(entry.get("resource_cost", 0)),
 			int(entry.get("action_cost", 0)),
 			bool(entry.get("optional", false)),
-			StringName(str(entry.get("window", "any_player_window")))
+			StringName(str(entry.get("window", "any_player_window"))),
+			_action_types_from_entry(entry),
+			provokes
 		)
 		return true
 	if register_as == "forced" or register_as == "reaction":
@@ -268,10 +355,23 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			builder,
 			int(entry.get("resource_cost", 0)),
 			int(entry.get("action_cost", 0)),
-			bool(entry.get("optional", false))
+			bool(entry.get("optional", false)),
+			&"",
+			_action_types_from_entry(entry),
+			null
 		)
 		return true
 	return false
+
+
+static func _action_types_from_entry(entry: Dictionary) -> Array:
+	var out: Array = []
+	var raw: Variant = entry.get("action_types", [])
+	if not raw is Array:
+		return out
+	for item in raw:
+		out.append(str(item).to_lower())
+	return out
 
 
 static func _params_from_entry(entry: Dictionary) -> Dictionary:
@@ -297,11 +397,19 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"window",
 		"trait_exclude",
 		"target",
+		"enemy",
+		"kind",
+		"mode",
 		"may_advance_agenda",
 		"definition_id",
 		"match_kind",
 		"phase",
 		"timing",
+		"trait",
+		"at",
+		"card_id",
+		"action_types",
+		"per_investigator",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

@@ -169,18 +169,27 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return node.replace_target != null and node.effect_request != null
 		&"resolve_pending":
 			return node.pending_id != &""
-		&"place_doom_nearest_enemy_without_doom":
-			var inv := sim.state.registry.get_investigator(node.inv_id)
-			if inv == null or inv.location_tag == &"":
+		&"place_doom_nearest_enemy_without_doom", &"nest_place_doom":
+			var origin := node.inv_id
+			if node.place_doom_target == &"source":
+				return sim.state.registry.get_enemy(node.card_id) != null
+			var inv := sim.state.registry.get_investigator(origin)
+			if node.place_doom_target == &"nearest_enemy_without_doom_to_source":
+				var source_enemy := sim.state.registry.get_enemy(node.card_id)
+				if source_enemy == null or source_enemy.location_tag == &"":
+					return false
+			elif inv == null or inv.location_tag == &"":
 				return false
 			for enemy_id in sim.state.registry.all_enemy_ids():
+				if enemy_id == node.card_id and node.place_doom_target == &"nearest_enemy_without_doom_to_source":
+					continue
 				var enemy := sim.state.registry.get_enemy(enemy_id)
 				if enemy != null and enemy.doom == 0 and enemy.location_tag != &"":
 					return true
 			return false
-		&"place_doom_on_current_agenda":
+		&"place_doom_on_current_agenda", &"nest_mythos_place_doom":
 			return sim.state != null
-		&"place_clue_on_investigator_location":
+		&"place_clue_on_investigator_location", &"nest_place_clue":
 			var clue_inv := sim.state.registry.get_investigator(node.inv_id)
 			if clue_inv == null or clue_inv.clues_on_card <= 0 or clue_inv.location_tag == &"":
 				return false
@@ -219,6 +228,8 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 					return true
 			return false
 		&"nest_enemy_attack":
+			if node.enemy_ref_id != &"" and node.target_investigator_id != &"":
+				return true
 			return sim.last_step_engaged_investigator != &""
 		&"exhaust_card":
 			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
@@ -226,6 +237,25 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			exh.exhausted = true
 			return true
+		&"resign":
+			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
+		&"engage_from_connecting":
+			var eng_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if eng_inv == null or eng_inv.location_tag == &"":
+				return false
+			var eng_loc := sim.state.registry.get_location(eng_inv.location_tag)
+			return eng_loc != null and not eng_loc.connections.is_empty()
+		&"spend_clues_group":
+			var need := maxi(node.marker_delta, 1)
+			if bool(node.flag_value):
+				need = maxi(need, 1)  # dry-run：至少能花到某个调查员的线索
+			var pool := 0
+			for inv_id in sim.state.registry.all_investigator_ids():
+				var ginv := sim.state.registry.get_investigator(inv_id)
+				if ginv != null and not ginv.eliminated and not ginv.resigned:
+					pool += ginv.clues_on_card
+			return pool >= need
 		&"nest_move_connecting":
 			var move_free_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if move_free_inv == null or move_free_inv.location_tag == &"":
@@ -236,8 +266,28 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null:
 				return true
 			return not sim.state.registry.all_investigator_ids().is_empty()
-		&"take_horror", &"take_damage":
-			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
+		&"take_horror", &"take_damage", &"nest_take_horror", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
+			return (
+				sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
+				or node.location_target != &""
+			)
+		&"nest_lose_resources", &"lose_all_resources", &"nest_lose_all_resources":
+			var lose_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			return lose_inv != null and lose_inv.resource_pool > 0
+		&"nest_heal":
+			var heal_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if heal_inv == null:
+				return false
+			if node.marker_slot != null and node.marker_slot.kind == AhcEnums.MarkerKind.HORROR_TAKEN:
+				return heal_inv.horror_taken > 0
+			return heal_inv.damage_taken > 0
+		&"nest_lose_action":
+			var act_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			return act_inv != null and act_inv.actions_remaining > 0
+		&"nest_effect_register":
+			return node.register_template != null
+		&"nest_effect_unregister":
+			return node.pending_id != &""
 		&"discard_all_enemies_in_play":
 			return ScenarioCompositionAtoms.dry_discard_all_enemies_in_play(sim)
 		&"put_locations_into_play":
@@ -250,15 +300,34 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return ScenarioCompositionAtoms.dry_attach_set_aside_to_host(
 				sim, node.definition_id, node.card_id, node.atom_count
 			)
-		&"attach_limbo_to_nearest_location_without":
+		&"attach_limbo_to_nearest_location_without", &"nest_attach":
 			var exclude := node.definition_id
 			if exclude == &"" and node.card_id != &"":
 				var c := sim.state.registry.get_card(node.card_id) if sim.state != null else null
 				if c != null:
 					exclude = c.id.definition_id
+			if node.location_target == &"controller_location":
+				var att_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+				return att_inv != null and att_inv.location_tag != &""
 			return EncounterAttachment.dry_attach_limbo_to_nearest_location_without(
 				sim, _resolve_sim_inv(node, sim), exclude
 			)
+		&"nest_discard_card":
+			if node.card_id != &"":
+				return sim.state.registry.get_card(node.card_id) != null
+			## 过滤选目标（如旁人敌人）时，只要有 controller 即可尝试。
+			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
+		&"nest_discard_from_hand":
+			var disc_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			return disc_inv != null and not disc_inv.hand.is_empty()
+		&"nest_draw_investigator":
+			var draw_inv_id := _resolve_sim_inv(node, sim)
+			var draw_inv := sim.state.registry.get_investigator(draw_inv_id)
+			if draw_inv == null:
+				return false
+			if RestrictionEvaluator.blocks_draw(draw_inv_id, sim.registrations):
+				return false
+			return not draw_inv.deck.is_empty() or not draw_inv.discard.is_empty()
 		&"discard_set_aside_to_encounter_discard":
 			return ScenarioCompositionAtoms.dry_discard_set_aside_to_encounter_discard(
 				sim, node.definition_id, node.atom_count

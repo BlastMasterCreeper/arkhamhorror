@@ -81,7 +81,10 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 	_events.append_initiation(AhcEnums.InitiationStep.INIT_2B_AOO, hash, payload)
 	var aoo_attacks := 0
 	if intent.provokes_aoo and _aoo != null:
-		var aoo_result := _aoo.resolve(intent.controller_id, intent.aoo_action_type)
+		var types: Array = intent.action_types
+		if types.is_empty():
+			types = [intent.aoo_action_type]
+		var aoo_result := _aoo.resolve_for_types(intent.controller_id, types)
 		aoo_attacks = int(aoo_result.get("attacks", 0))
 
 	if not _passes_dry_run(intent, ctx):

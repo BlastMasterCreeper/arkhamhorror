@@ -146,6 +146,8 @@ Replacement **是** 同时点上的 listener/能力；与 Forced、[reaction] �
 | **Triggered 类内** | 多个 [reaction] 均已选用 | 是（同属 TRIGGERED tier） | 队长选顺序（OQ-06-03） | 选用：控制者；顺序：队长 |
 | **跨类** | Forced vs [reaction] | **否** | FORCED 批 **整类先于** TRIGGERED 批（06 §8.1） | **不可**跨类对调 |
 
+显现（Revelation）**不是** Forced，也不走本表 Forced vs [reaction] 跨类。抽牌 When 槽（Fast / `[reaction]`）先于显现后续步骤，见 [06 §8.1.1](06-ability-initiation.md)。
+
 **Grimoire · Priority of Simultaneous Resolution**（与 Instead **配合**，非替代）：
 
 - 遭遇 Forced **先于** 玩家 Forced initiate/resolve；
@@ -264,7 +266,7 @@ EffectBuilder.transfer_horror(1).from(inv).to(enemy).submit(ctx)
 
 ### 6.0 统一译法（Cancel / Ignore 卡面）
 
-**一切** Cancel / Ignore 类 Card Ability 均译为 **`seq.interrupt.*` 命名流程**，携带同一 **`InterruptTarget`** 描述符；**禁止**为单卡保留 `cancel_revelation` 等平行 Service。
+Cancel / Ignore **卡面正文**译效果组合；其中 Interrupt 节点 nest 共享手续 **`seq.interrupt.*`**，携带同一 **`InterruptTarget`**。**禁止**为单卡保留 `cancel_revelation` 等平行 Service，也禁止把整张卡登记成独立 `seq.card…`。
 
 ```text
 Cancel / Ignore 卡面
@@ -446,7 +448,7 @@ func on_pending_effect(pending: EffectRequest) -> void:
 
 ### 7.0 统一译法（Instead / Would 卡面）
 
-**一切** Instead / Would 类 Card Ability 均译为 **`seq.replace.instead`**（Would 层见下），携带 **`ReplacementTarget`** + **`replacement` 载荷**；**禁止**单卡 `*InsteadPolicy`。
+Instead / Would **卡面正文**译效果组合；其中 Replace 节点 nest 共享手续 **`seq.replace.instead`**（Would 层见下），携带 **`ReplacementTarget`** + **`replacement` 载荷**。**禁止**单卡 `*InsteadPolicy`，也禁止 `seq.card…`。
 
 ```text
 Instead / Would 卡面
@@ -507,7 +509,7 @@ class ReplacementTarget:
 
 **译法要点**：
 
-- 卡面含 **would draw** → 订阅 **`seq.draw.encounter` 的 WOULD 槽**（D1 pop 前 · [15 §16.3.1](15-timing-entry-catalog.md)）。
+- 卡面含 **would draw** → 转译为 **`seq.draw.encounter` 的 WOULD 槽**（这次抽取 PreImpact · pop 前 · [15 §17.3](15-timing-entry-catalog.md)）。
 - 替换的是 **「从哪里 pop 遭遇牌」** 这一 **triggering condition 的 resolve 路径**，子 seq 尚未 push → `ReplacementTarget.kind = **WOULD_TRIGGER**`。
 - `replacement` 载荷 = **另一条命名流程**（或带 `source: discard_pile` 参数的 draw 变体），**不是** `EffectRequest` 单 op。
 
@@ -542,10 +544,13 @@ provenance:
 
 ```text
 seq.draw.encounter RUN
-  D1 collect · emit WOULD
+  [WOULD]  这次抽取 PreImpact（pop 前）
     → [Listener] seq.replace.instead 登记 replacement
     → winning replacement 改写 pop 来源：discard pile top 而非 deck top
-  D2+ 按改写后的路径继续（reveal / spawn / discard 等砖块不变）
+  G1 抽取步骤发起 impact（按改写后的路径 pop + reveal）
+  [WHEN] 95 档 · 抽取时
+  结算剩余（显现 / G4）
+  [AFTER] 抽取后 · G4 完
 ```
 
 ### 7.0.2 样例对照：Instead 改 revelation（SEQUENCE · 非 Would）
@@ -779,6 +784,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.6.8 | §6.0 / §7.0：卡面译 Composition，Cancel/Instead 节点 nest 共享 seq |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-06-01：Replacement 最近一条（对齐 Grimoire Instead） |
 | 2026-05-25 | v0.3 | OQ-07-06 裁决：Cancel vs Replacement 看触发先后 |
@@ -787,4 +793,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 2026-06-18 | v0.5 | **§3.2–§3.4** 同时点竞争分型；Replacement=最后 initiate；链 Grimoire Instead + Simultaneous Resolution |
 | 2026-07-05 | v0.6 | **§6.0.1** Ward Cancel 样例；**§7.0.1–§7.0.3** Instead/Would 样例与 Kind 选型 |
 | 2026-07-05 | v0.6.1 | **§6.0.1 / §6.1** Cancel revelation 后 G4 仍 discard（FAQ 不变量） |
+| 2026-09-20 | v0.6.2 | §3.3 显现不走 Forced vs [reaction] 跨类 |
+| 2026-09-20 | v0.6.5 | §7.0.1：抽取后 = G4 整段结算完毕；When 仍钉 G1 |
+| 2026-09-20 | v0.6.7 | §7.0.1：卡面 would-draw 转译为这次抽取 WOULD |
 | 2026-05-25 | v0.4 | OQ-07-02 裁决：TRANSFER_AFFLICTION 独立且不算 heal |

@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 14,
+      "compiled_total": 48,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -15,15 +15,28 @@
         "revelation": 24
       },
       "by_template": {
+        "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "choice_must": 1,
+        "seq": 5,
+        "resign": 4,
+        "engage_from_connecting": 1,
+        "nest_move_connecting": 1,
+        "discard_from_hand": 2,
+        "draw": 2,
+        "discard_card": 1,
+        "choice_must": 3,
         "enter_threat_area": 3,
-        "take_horror": 2,
+        "take_horror": 3,
+        "discard_source": 4,
         "if_else": 1,
+        "attach_nearest_without_same": 1,
+        "deal_damage": 1,
         "take_damage": 1,
         "gain_resources": 2,
-        "seq": 2,
-        "lose_resources": 1
+        "attach_controller_location": 2,
+        "lose_action": 1,
+        "place_doom_on_source": 1,
+        "place_doom_nearest_to_source": 1
       }
     }
   },
@@ -82,6 +95,32 @@
         "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "parley"
+        ],
+        "status": "full",
+        "template": "skill_test",
+        "skill": "intellect",
+        "difficulty": 2,
+        "st7": {
+          "on_success": {
+            "template": "discard_card",
+            "trait": "Bystander",
+            "at": "controller_location",
+            "mode": "choose"
+          }
+        }
+      }
     ]
   },
   "12107": {
@@ -114,6 +153,32 @@
         "kind": "action",
         "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "parley"
+        ],
+        "status": "full",
+        "template": "skill_test",
+        "skill": "intellect",
+        "difficulty": 2,
+        "st7": {
+          "on_success": {
+            "template": "discard_card",
+            "trait": "Bystander",
+            "at": "controller_location",
+            "mode": "choose"
+          }
+        }
       }
     ]
   },
@@ -157,6 +222,30 @@
       }
     ],
     "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "parley"
+        ],
+        "status": "full",
+        "template": "skill_test",
+        "skill": "intellect",
+        "difficulty": 2,
+        "st7": {
+          "on_success": {
+            "template": "discard_card",
+            "trait": "Bystander",
+            "at": "controller_location",
+            "mode": "choose"
+          }
+        }
+      },
       {
         "segment_index": 1,
         "register_as": "forced",
@@ -289,6 +378,44 @@
         "body": "Resign. You flee the burning campus. (This does not provoke attacks of opportunity.)",
         "index": 1
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "free",
+        "ability_id": "free:0",
+        "ability_kind": "free",
+        "window": "during_your_turn",
+        "status": "partial",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "spend_clues_group",
+            "amount": 1,
+            "per_investigator": true
+          },
+          {
+            "template": "deal_damage",
+            "amount": 1,
+            "per_investigator": true,
+            "target": "enemy_at_controller_location"
+          }
+        ]
+      },
+      {
+        "segment_index": 1,
+        "register_as": "action",
+        "ability_id": "action:1",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "resign"
+      }
     ]
   },
   "12113": {
@@ -326,6 +453,23 @@
         "kind": "action",
         "body": "Engage. Choose an enemy at a connecting location. That enemy moves to this location and engages you. This action does not provoke attacks of opportunity.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "engage"
+        ],
+        "status": "full",
+        "template": "engage_from_connecting",
+        "provokes_aoo": false
       }
     ]
   },
@@ -442,6 +586,18 @@
         "body": "During your turn, if there are exactly 1 or 2 investigators in the game: Move to a connecting location. (Group limit once per round.)",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "free",
+        "ability_id": "free:0",
+        "ability_kind": "free",
+        "window": "during_your_turn",
+        "status": "partial",
+        "condition": "investigators_in_game_1_or_2",
+        "template": "nest_move_connecting"
+      }
     ]
   },
   "12117": {
@@ -479,6 +635,33 @@
         "kind": "action",
         "body": "Heal 1 damage and 1 horror. (Limit once per game.)",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
+        "status": "partial",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "heal",
+            "kind": "damage",
+            "amount": 1
+          },
+          {
+            "template": "heal",
+            "kind": "horror",
+            "amount": 1
+          }
+        ]
       }
     ]
   },
@@ -519,6 +702,22 @@
         "trigger": "After you discover 1 or more clues at Science Hall",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "full",
+        "trigger": "After you discover 1 or more clues at Science Hall",
+        "template": "discard_from_hand",
+        "amount": 1,
+        "mode": "choose",
+        "match_kind": "discover_clue",
+        "phase": "AFTER",
+        "timing": "after_discover_clue"
+      }
     ]
   },
   "12119": {
@@ -557,6 +756,21 @@
         "body": "After you discover 1 or more clues at this location: Draw 1 card. (Limit once per round.)",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "partial",
+        "trigger": "After you discover 1 or more clues at this location",
+        "template": "draw",
+        "amount": 1,
+        "match_kind": "discover_clue",
+        "phase": "AFTER",
+        "timing": "after_discover_clue"
+      }
     ]
   },
   "12120": {
@@ -594,6 +808,22 @@
         "kind": "action",
         "body": "[action]: Draw 3 cards. (Limit once per game.)",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "partial",
+        "template": "draw",
+        "amount": 3
       }
     ]
   },
@@ -673,6 +903,23 @@
         "body": "Choose and discard 1 asset you control.",
         "trigger": "After Hellhound attacks you during the enemy phase",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "full",
+        "trigger": "After Hellhound attacks you during the enemy phase",
+        "template": "discard_card",
+        "amount": 1,
+        "mode": "choose",
+        "at": "controlled_assets",
+        "match_kind": "enemy_attack",
+        "phase": "AFTER",
+        "timing": "after_enemy_attack"
       }
     ]
   },
@@ -849,6 +1096,19 @@
         "match_kind": "discover_clue",
         "phase": "AFTER",
         "timing": "after_discover_clue"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -996,6 +1256,36 @@
         "body": "Test [willpower] (3). For each point you fail by, you must either discard 1 card at random from your hand, or lose 1 resource.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "willpower",
+        "difficulty": 3,
+        "st7": {
+          "on_fail_by_each": {
+            "template": "choice_must",
+            "prompt_id": "fail_by:discard_or_lose_resource",
+            "options": [
+              {
+                "id": "discard",
+                "template": "discard_from_hand",
+                "amount": 1,
+                "mode": "random"
+              },
+              {
+                "id": "resource",
+                "template": "lose_resources",
+                "amount": 1
+              }
+            ]
+          }
+        }
+      }
     ]
   },
   "12129": {
@@ -1044,6 +1334,50 @@
         "body": "Test [agility] (3). If you succeed, discard Fire!",
         "index": 2
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "attach_nearest_without_same"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "ability_kind": "forced",
+        "status": "full",
+        "trigger": "When the investigation phase ends",
+        "template": "deal_damage",
+        "amount": 1,
+        "direct": true,
+        "target": "non_elite_with_health_at_attached_location",
+        "match_kind": "investigation_phase_ends",
+        "phase": "WHEN",
+        "timing": "when_investigation_phase_ends"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "agility",
+        "difficulty": 3,
+        "st7": {
+          "on_success": {
+            "template": "discard_source"
+          }
+        }
+      }
     ]
   },
   "12130": {
@@ -1078,6 +1412,42 @@
         "kind": "revelation",
         "body": "Test [willpower] or [agility] (3). Take 1 damage for each point you fail by.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "choice_must",
+        "prompt_id": "skill_test:willpower_or_agility",
+        "options": [
+          {
+            "id": "willpower",
+            "template": "skill_test",
+            "skill": "willpower",
+            "difficulty": 3,
+            "st7": {
+              "on_fail_by_each": {
+                "template": "take_damage",
+                "amount": 1
+              }
+            }
+          },
+          {
+            "id": "agility",
+            "template": "skill_test",
+            "skill": "agility",
+            "difficulty": 3,
+            "st7": {
+              "on_fail_by_each": {
+                "template": "take_damage",
+                "amount": 1
+              }
+            }
+          }
+        ]
       }
     ]
   },
@@ -1157,6 +1527,23 @@
         "trigger": "When this enemy is defeated",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "full",
+        "trigger": "When this enemy is defeated",
+        "template": "take_horror",
+        "amount": 1,
+        "direct": false,
+        "target": "each_at_source_location",
+        "match_kind": "enemy_defeated",
+        "phase": "WHEN",
+        "timing": "when_enemy_defeated"
+      }
     ]
   },
   "12133": {
@@ -1214,6 +1601,22 @@
         "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "resign"
+      }
     ]
   },
   "12135": {
@@ -1246,6 +1649,22 @@
         "kind": "action",
         "body": "Resign. You return to compare notes with Dr. Armitage on your friend's whereabouts.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "resign"
       }
     ]
   },
@@ -1349,6 +1768,19 @@
         "template": "take_damage",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -2166,6 +2598,53 @@
         "body": "Test [willpower] or [intellect] (4). If you succeed, discard Arcane Lock.",
         "index": 1
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "attach_controller_location"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "action",
+        "ability_id": "action:1",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
+        "status": "partial",
+        "template": "choice_must",
+        "prompt_id": "skill_test:willpower_or_intellect",
+        "options": [
+          {
+            "id": "willpower",
+            "template": "skill_test",
+            "skill": "willpower",
+            "difficulty": 4,
+            "st7": {
+              "on_success": {
+                "template": "discard_source"
+              }
+            }
+          },
+          {
+            "id": "intellect",
+            "template": "skill_test",
+            "skill": "intellect",
+            "difficulty": 4,
+            "st7": {
+              "on_success": {
+                "template": "discard_source"
+              }
+            }
+          }
+        ]
+      }
     ]
   },
   "12158": {
@@ -2200,6 +2679,34 @@
         "kind": "revelation",
         "body": "Test [agility] (3). For each point you fail by, you must either lose 1 action or place 1 of your clues on your location.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "agility",
+        "difficulty": 3,
+        "st7": {
+          "on_fail_by_each": {
+            "template": "choice_must",
+            "prompt_id": "fail_by:lose_action_or_clue",
+            "options": [
+              {
+                "id": "action",
+                "template": "lose_action",
+                "amount": 1
+              },
+              {
+                "id": "clue",
+                "template": "place_clue_on_location"
+              }
+            ]
+          }
+        }
       }
     ]
   },
@@ -2242,6 +2749,24 @@
         "body": "Discard Flash Flood.",
         "trigger": "When the round ends",
         "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "attach_controller_location"
+      },
+      {
+        "segment_index": 1,
+        "register_as": "forced",
+        "ability_id": "forced:1",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When the round ends",
+        "template": "discard_source"
       }
     ]
   },
@@ -2493,8 +3018,24 @@
         "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After Rogue Gangster engages you",
-        "template": "lose_resources",
-        "amount": 1
+        "template": "seq",
+        "steps": [
+          {
+            "template": "lose_resources",
+            "amount": 1
+          },
+          {
+            "template": "if_else",
+            "if_kind": "condition",
+            "evaluate": "after_step",
+            "condition": "previous_step_not_created",
+            "then": {
+              "template": "nest_enemy_attack",
+              "enemy": "source",
+              "target": "controller"
+            }
+          }
+        ]
       }
     ],
     "prey_instruction": {
@@ -2535,6 +3076,24 @@
         "kind": "revelation",
         "body": "Test [agility] (3). If you fail, each investigator at your location takes 1 damage.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "agility",
+        "difficulty": 3,
+        "st7": {
+          "on_fail": {
+            "template": "deal_damage",
+            "amount": 1,
+            "target": "each_at_controller_location"
+          }
+        }
       }
     ]
   },
@@ -3200,6 +3759,22 @@
         "body": "Resign. \"I can't take it any more!\" You flee the sewers.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "resign"
+      }
     ]
   },
   "12183": {
@@ -3277,6 +3852,18 @@
         "body": "Lose 1 action.",
         "trigger": "After you enter this location",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "After you enter this location",
+        "template": "lose_action",
+        "amount": 1
       }
     ]
   },
@@ -3419,6 +4006,19 @@
         "trigger": "When you end your turn at this location",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When you end your turn at this location",
+        "template": "discard_from_hand",
+        "amount": 1,
+        "mode": "choose"
+      }
     ]
   },
   "12188": {
@@ -3462,6 +4062,18 @@
         "body": "Place 1 doom on it.",
         "trigger": "After this enemy enters play",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "After this enemy enters play",
+        "template": "place_doom_on_source",
+        "amount": 1
       }
     ]
   },
@@ -3508,6 +4120,18 @@
         "body": "Place 1 doom on the enemy with no doom on it nearest to Dark Magician.",
         "trigger": "When the round ends",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When the round ends",
+        "template": "place_doom_nearest_to_source",
+        "amount": 1
       }
     ]
   },
@@ -3671,6 +4295,19 @@
         "ability_id": "revelation:0",
         "status": "partial",
         "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },

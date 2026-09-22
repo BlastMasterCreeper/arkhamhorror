@@ -276,6 +276,10 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_TURN)
 	elif step == AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_PHASE)
+		if _game_ctx != null and _game_ctx.sequence_catalog != null:
+			_game_ctx.sequence_catalog.run(
+				_game_ctx, &"seq.framework.investigation_phase_ends", {}
+			)
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_ROUND)
 		if _game_ctx != null:

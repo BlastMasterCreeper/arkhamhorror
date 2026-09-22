@@ -45,6 +45,9 @@ var location_ids: Array[StringName] = []
 var atom_count: int = -1
 var scenario_resolution: int = -1
 var for_each_source: StringName = &"player_order"
+var nest_flow_id: StringName = &""
+var is_direct: bool = false
+var place_doom_target: StringName = &""
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -167,11 +170,7 @@ static func enter_threat_area(card_id: StringName, inv_id: StringName) -> Compos
 
 
 static func lose_all_resources(inv_id: StringName) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"lose_all_resources"
-	n.inv_id = inv_id
-	return n
+	return nest_lose_all_resources(inv_id)
 
 
 ## L0 · 隐私（Hidden）暴露显现（清 is_hidden + ALL；须先于 spawn_encounter_enemy）。
@@ -210,9 +209,11 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 	return n
 
 
-## L0 · 动态 keyword（06 §3.2 · G3 gains surge 等）。
+## 卡面 gains keyword · nest `seq.effect.register`（不是真空 REGISTER）。
 static func grant_keyword(card_id: StringName, keyword: StringName) -> CompositionNode:
-	return register(RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword))
+	return nest_effect_register(
+		RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword)
+	)
 
 
 ## L1 · must choose（07 §3.3 · 16 §7.2.1）：resolve 前 dry-run 过滤 FIZZLE 分支。
@@ -239,25 +240,17 @@ static func must_choose(
 	return n
 
 
-## L0 · 12124 等：当前密谋放置 1 doom。
+## 当前密谋放置 1 doom · nest `seq.mythos.place_doom`（议程信封，供 Forced AFTER 订阅）。
 static func place_doom_on_current_agenda(may_advance_agenda: bool = false) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"place_doom_on_current_agenda"
-	n.may_advance_agenda = may_advance_agenda
-	return n
+	return nest_mythos_place_doom(may_advance_agenda)
 
 
-## L0 · 12126 fail-by：卡上 1 clue 放到调查员所在地点。
+## 调查员线索放到所在地点 · nest `seq.effect.place_clue`。
 static func place_clue_on_investigator_location(controller_id: StringName) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"place_clue_on_investigator_location"
-	n.inv_id = controller_id
-	return n
+	return nest_place_clue(controller_id)
 
 
-## L2 · nest `seq.skill_test.*`（revelation 内检定 · 15 §17.5）。
+## L2 · nest `seq.skill_test`（revelation 内检定 · params.skill · 15 §17.5）。
 static func nest_skill_test(
 	controller_id: StringName,
 	skill: AhcEnums.SkillType,
@@ -304,6 +297,14 @@ static func nest_enemy_attack_last() -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"nest_enemy_attack"
+	n.nest_flow_id = &"seq.enemy.attack"
+	return n
+
+
+static func nest_enemy_attack(enemy_id: StringName, target: StringName) -> CompositionNode:
+	var n := nest_enemy_attack_last()
+	n.enemy_ref_id = enemy_id
+	n.target_investigator_id = target
 	return n
 
 
@@ -361,17 +362,12 @@ static func if_else(
 	return n
 
 
-## L0 · 12160 等：最近无 doom 敌人放置 1 doom（CREATED → CompositionExecutor · 07 §4.4）。
+## 最近无 doom 敌人放置 1 doom · nest `seq.effect.place_doom`。
 static func place_doom_nearest_enemy_without_doom(
 	card_id: StringName,
 	controller_id: StringName
 ) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"place_doom_nearest_enemy_without_doom"
-	n.card_id = card_id
-	n.inv_id = controller_id
-	return n
+	return nest_place_doom(controller_id, card_id, &"nearest_enemy_without_doom")
 
 
 ## L2 · 统一打断节点（07 §6.0：Cancel / Ignore 均 nest seq.interrupt.* 或本节点）。
@@ -487,17 +483,13 @@ static func attach_set_aside_to_host(
 	return n
 
 
-## L0 · limbo treachery 附着到最近且无该 definition 附着的地点（Fire! 显现）。
+## limbo treachery 附着 · nest `seq.effect.attach`。
 static func attach_limbo_to_nearest_location_without(
 	card_id: StringName,
 	drawer_id: StringName,
 	exclude_attachment_definition_id: StringName = &""
 ) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"attach_limbo_to_nearest_location_without"
-	n.card_id = card_id
-	n.inv_id = drawer_id
+	var n := nest_attach(card_id, drawer_id, &"nearest_without_same")
 	n.definition_id = exclude_attachment_definition_id
 	return n
 
@@ -525,23 +517,194 @@ static func for_each_player_order(body: CompositionNode) -> CompositionNode:
 	return n
 
 
-## L0 · 调查员受到 horror（场景 b 面 fail 等）。
-static func take_horror(inv_id: StringName, amount: int = 1) -> CompositionNode:
+## 调查员受到 horror · nest `seq.effect.damage`（kind=horror）。
+static func take_horror(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
+	return nest_take_horror(inv_id, amount, is_direct)
+
+
+## 调查员受到 damage · nest `seq.effect.damage`（kind=damage）。
+static func take_damage(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
+	return nest_take_damage(inv_id, amount, is_direct)
+
+
+static func _nest_leaf(atom_name: StringName, flow_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"take_horror"
+	n.atom_name = atom_name
+	n.nest_flow_id = flow_id
+	return n
+
+
+## 造成伤害/恐惧（Dealing Damage/Horror）· take/deal 同 seq。
+static func nest_damage(
+	controller_id: StringName,
+	kind: StringName = &"damage",
+	amount: int = 1,
+	is_direct: bool = false,
+	target: StringName = &"controller",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_damage", &"seq.effect.damage")
+	n.inv_id = controller_id
+	n.marker_delta = maxi(amount, 1)
+	n.is_direct = is_direct
+	n.location_target = target
+	n.card_id = source_card_id
+	n.definition_id = kind
+	return n
+
+
+static func nest_take_horror(
+	inv_id: StringName,
+	amount: int = 1,
+	is_direct: bool = false,
+	target: StringName = &"controller",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	return nest_damage(inv_id, &"horror", amount, is_direct, target, source_card_id)
+
+
+static func nest_take_damage(
+	inv_id: StringName,
+	amount: int = 1,
+	is_direct: bool = false,
+	target: StringName = &"controller",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	return nest_damage(inv_id, &"damage", amount, is_direct, target, source_card_id)
+
+
+static func nest_lose_resources(inv_id: StringName, amount: int = 1) -> CompositionNode:
+	var n := _nest_leaf(&"nest_lose_resources", &"seq.effect.lose_resources")
 	n.inv_id = inv_id
 	n.marker_delta = maxi(amount, 1)
 	return n
 
 
-## L0 · 调查员受到 damage。
-static func take_damage(inv_id: StringName, amount: int = 1) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"take_damage"
+static func nest_lose_all_resources(inv_id: StringName) -> CompositionNode:
+	var n := _nest_leaf(&"nest_lose_resources", &"seq.effect.lose_resources")
+	n.inv_id = inv_id
+	n.marker_delta = 0
+	n.definition_id = &"all"
+	return n
+
+
+static func nest_heal(inv_id: StringName, kind: StringName, amount: int = 1) -> CompositionNode:
+	var n := _nest_leaf(&"nest_heal", &"seq.effect.heal")
 	n.inv_id = inv_id
 	n.marker_delta = maxi(amount, 1)
+	var marker := AhcEnums.MarkerKind.DAMAGE
+	if kind == &"horror":
+		marker = AhcEnums.MarkerKind.HORROR_TAKEN
+	n.marker_slot = MarkerSlot.investigator(inv_id, marker)
+	return n
+
+
+static func nest_lose_action(inv_id: StringName, amount: int = 1) -> CompositionNode:
+	var n := _nest_leaf(&"nest_lose_action", &"seq.effect.lose_action")
+	n.inv_id = inv_id
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
+static func nest_place_doom(
+	controller_id: StringName,
+	card_id: StringName,
+	target: StringName,
+	amount: int = 1
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_place_doom", &"seq.effect.place_doom")
+	n.inv_id = controller_id
+	n.card_id = card_id
+	n.place_doom_target = target
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
+static func nest_mythos_place_doom(may_advance_agenda: bool = false) -> CompositionNode:
+	var n := _nest_leaf(&"nest_mythos_place_doom", &"seq.mythos.place_doom")
+	n.may_advance_agenda = may_advance_agenda
+	return n
+
+
+static func nest_place_clue(controller_id: StringName) -> CompositionNode:
+	var n := _nest_leaf(&"nest_place_clue", &"seq.effect.place_clue")
+	n.inv_id = controller_id
+	return n
+
+
+static func nest_effect_register(template: RegistrationTemplate) -> CompositionNode:
+	var n := _nest_leaf(&"nest_effect_register", &"seq.effect.register")
+	n.register_template = template
+	return n
+
+
+static func nest_effect_unregister(reg_id: StringName) -> CompositionNode:
+	var n := _nest_leaf(&"nest_effect_unregister", &"seq.effect.unregister")
+	n.pending_id = reg_id
+	return n
+
+
+static func nest_discard_card(
+	card_id: StringName,
+	controller_id: StringName,
+	trait_filter: StringName = &"",
+	at_filter: StringName = &"",
+	mode: StringName = &"choose"
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_discard_card", &"seq.effect.discard_card")
+	n.card_id = card_id
+	n.inv_id = controller_id
+	n.definition_id = trait_filter
+	n.location_target = at_filter
+	n.place_doom_target = mode
+	return n
+
+
+## 调查员抽牌 · nest `seq.draw.investigator`。
+static func nest_draw_investigator(
+	controller_id: StringName,
+	amount: int = 1
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_draw_investigator", &"seq.draw.investigator")
+	n.inv_id = controller_id
+	n.draw_amount = maxi(amount, 1)
+	return n
+
+
+static func nest_discard_from_hand(
+	controller_id: StringName,
+	amount: int = 1,
+	mode: StringName = &"random"
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_discard_from_hand", &"seq.effect.discard_from_hand")
+	n.inv_id = controller_id
+	n.marker_delta = maxi(amount, 1)
+	n.location_target = mode
+	return n
+
+
+static func nest_attach(
+	card_id: StringName,
+	controller_id: StringName,
+	target: StringName = &"nearest_without_same"
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_attach", &"seq.effect.attach")
+	n.card_id = card_id
+	n.inv_id = controller_id
+	n.location_target = target
+	return n
+
+
+static func nest_deal_damage(
+	controller_id: StringName,
+	amount: int = 1,
+	target: StringName = &"controller",
+	source_card_id: StringName = &"",
+	per_investigator: bool = false
+) -> CompositionNode:
+	var n := nest_damage(controller_id, &"damage", amount, false, target, source_card_id)
+	n.flag_value = per_investigator
 	return n
 
 
@@ -555,6 +718,43 @@ static func nest_scenario_resolution(
 	n.atom_name = &"nest_scenario_resolution"
 	n.scenario_resolution = resolution
 	n.definition_id = source_definition_id
+	return n
+
+
+## L0 · Resign（撤退）· Initiation 效果体内联执行，非 nest 命名流程。
+static func resign(inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"resign"
+	n.inv_id = inv_id
+	return n
+
+
+## L0 · 选连结地点敌人 → 移至本地点并交战（Initiation 内联）。
+static func engage_from_connecting(
+	controller_id: StringName,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"engage_from_connecting"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	return n
+
+
+## L0 · 群体花费线索（交互分配后补；现按玩家顺序各出 1 直至凑够）。
+static func spend_clues_group(
+	controller_id: StringName,
+	amount: int = 1,
+	per_investigator: bool = false
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"spend_clues_group"
+	n.inv_id = controller_id
+	n.marker_delta = maxi(amount, 1)
+	n.flag_value = per_investigator
 	return n
 
 

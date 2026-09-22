@@ -2,7 +2,7 @@
 
 > **用途**：供资深玩家审阅并裁决；裁决结果将回填各子系统设计文档。  
 > **版本**：v0.3 · 2026-05-25（OQ-00-06 ~ OQ-10-01 等已裁决）  
-> **合计**：81 条（P0: 16 · P1: 43 · P2: 22）  
+> **合计**：82 条（P0: 16 · P1: 44 · P2: 22）  
 > **同步来源**：`00-architecture-overview.md` + `design/00`–`12` 各文档 Open Questions 节
 
 ---
@@ -48,7 +48,7 @@
 
 ---
 
-## P1 — 影响大量卡牌或 UX（43 条）
+## P1 — 影响大量卡牌或 UX（44 条）
 
 | ID | 来源 | 问题 | 裁决 |
 |---|---|---|---|
@@ -61,14 +61,16 @@
 | OQ-01-03 | [01-state](design/01-game-state-zones.md) | Committed skill：LIMBO 还是 Context？ | **`SkillTestContext.committed`**；zone 留 **HAND** 至 ST.8；不进 LIMBO。 |
 | OQ-03-03 | [03-action](design/03-action-system.md) | Parley current agenda 是否同地点？ | **否。** Agenda **无地点**；可 Activate 其能力，不适用 Parley 同地点。见 03 §6.10。 |
 | OQ-06-03 | [06-ability](design/06-ability-initiation.md) | 多个 [reaction] 谁选顺序？ | **Lead Investigator**（均已选用后）；选用权在控制者。见 06 §8.2。 |
-| OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **D2–D3 区间**（§16.3）。 |
+| OQ-06-07 | [06-ability](design/06-ability-initiation.md) | 显现是否并入 Forced 优先级类？ | **否。** 独立 `REVELATION` 类；抽取步骤 When 95 之后的后续步骤 90。见 06 §8.1.1。 |
+| OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **抽取步骤**发起 impact 之后。调查员：已在 **HAND**；遭遇：已在 **LIMBO**。**不**含显现 / G4。见 15 §3.1、§16.3。 |
 | OQ-TIMING-02 | [15-timing](design/15-timing-entry-catalog.md) | Move leave/enter | **MOVE_ATOMIC** 单 brick、单 entry。见 15 §5.3。 |
-| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when | **SPLIT**；WOULD=D1 后 D2 前；WHEN=D2–D3。见 15 §16。 |
+| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when/after | 卡面「draw」不细；**转译钉语义**。Would / When / After 绑在 **一条抽牌指令** 上。同一指令抽多张 = **同时抽出**。涌动 = 抽取并结算后的延时，另开指令。见 15 §3.2。 |
 | OQ-TIMING-04 | [15-timing](design/15-timing-entry-catalog.md) | 玩家牌 **Revelation 能力** 于入手时的 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按 `has_revelation` 判定**，与 weakness 子类型无关。见 15 §16.2。 |
-| OQ-TIMING-05 | [15-timing](design/15-timing-entry-catalog.md) | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **设计师待定**；FORCED 类内自排；`EnterHandTimingPolicy`。跨类优先级见 06 §8.1。 |
-| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN 区间 | **E2–E5**（§17.3）；Surge 每圈独立 WHEN。 |
-| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | **E1 bind 后、E2 前**（§17.3）。 |
-| OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **顺序** full resolve（含 Surge 链）再下一张。见 15 §17.2 E6。 |
+| OQ-TIMING-05 | [15-timing](design/15-timing-entry-catalog.md) | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **设计师待定**；**REVELATION 类内**自排；`EnterHandTimingPolicy`。显现不并入 FORCED，见 06 §8.1.1。 |
+| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN | **同时抽出之后** 95 档（§17.3）；**不**包 G3/G4。涌动是之后另开的指令。 |
+| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | 这条指令 PreImpact（任何一张 pop 前）。 |
+| OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **同时抽出**；显现等按抽出顺序结算。涌动是结算后延时，另开指令。**禁止**按张含涌动再抽下一张。见 15 §3.2。 |
+| OQ-TIMING-09 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 抽取后 | **抽取后** = 这条指令的同时抽出组都收完。涌动在此之后。 |
 | OQ-ENC-01 | [15-timing §17](design/15-timing-entry-catalog.md) | 遭遇 deck + discard 皆空 | v0：**RULES_GAP**。 |
 | OQ-ENC-02 | [08-enemy §7.4](design/08-enemy-engagement.md) | drawer 无 location 时 spawn_engaged | v0：**`discard_spawn_failed`**。 |
 | OQ-PERIL-01 | [04-skill-test §4](design/04-skill-test-engine.md) | drawer confer | **Presentation**；引擎不拦 drawer 行动。 |
@@ -224,3 +226,11 @@
 | 2026-07-06 | v0.5.4 | OQ-ADB-02/03、OQ-10-06 裁决：涌动 KEYWORD 标记 · 不叠加 |
 | 2026-07-06 | v0.5.3 | 新增 OQ-ADB-01～05（ArkhamDB Phase 4 回填） |
 | 2026-05-25 | v0.5.2 | OQ-03-04、OQ-08-01 裁决 |
+| 2026-09-20 | v0.5.6 | OQ-06-07：显现独立类；OQ-TIMING-05 改为 REVELATION 类内 |
+| 2026-09-20 | v0.5.7 | OQ-TIMING-01/03/06/07：Would/When 对齐同一 TC；步骤差=发起 impact |
+| 2026-09-20 | v0.5.8 | Would 时 DECK；When 时 HAND / LIMBO |
+| 2026-09-20 | v0.5.9 | OQ-TIMING-03：SPLIT=同一事件前后槽，非同一时刻 |
+| 2026-09-20 | v0.6.0 | OQ-TIMING-01/03/06/07：抽取时钉抽取步骤 |
+| 2026-09-20 | v0.6.1 | OQ-TIMING-03/09：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
+| 2026-09-20 | v0.6.2 | OQ-TIMING-03/07：Would = 这次抽取 PreImpact |
+| 2026-09-21 | v0.6.4 | OQ-TIMING-08/03：同一指令抽多张 = 同时抽出；涌动 = 抽取并结算后的延时 |
