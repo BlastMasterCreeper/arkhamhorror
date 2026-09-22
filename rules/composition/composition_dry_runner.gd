@@ -320,6 +320,14 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 		&"nest_discard_from_hand":
 			var disc_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return disc_inv != null and not disc_inv.hand.is_empty()
+		&"nest_draw_investigator":
+			var draw_inv_id := _resolve_sim_inv(node, sim)
+			var draw_inv := sim.state.registry.get_investigator(draw_inv_id)
+			if draw_inv == null:
+				return false
+			if RestrictionEvaluator.blocks_draw(draw_inv_id, sim.registrations):
+				return false
+			return not draw_inv.deck.is_empty() or not draw_inv.discard.is_empty()
 		&"discard_set_aside_to_encounter_discard":
 			return ScenarioCompositionAtoms.dry_discard_set_aside_to_encounter_discard(
 				sim, node.definition_id, node.atom_count

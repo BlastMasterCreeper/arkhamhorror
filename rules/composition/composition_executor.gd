@@ -352,6 +352,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_discard_card(node)
 		&"nest_discard_from_hand":
 			return _execute_nest_discard_from_hand(node)
+		&"nest_draw_investigator":
+			return _execute_nest_draw_investigator(node)
 		&"discard_all_enemies_in_play":
 			return ScenarioCompositionAtoms.discard_all_enemies_in_play(_game_ctx)
 		&"put_locations_into_play":
@@ -978,6 +980,33 @@ func _execute_nest_discard_from_hand(node: CompositionNode) -> bool:
 			}
 		).get("ok", false)
 	)
+
+
+func _execute_nest_draw_investigator(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	if RestrictionEvaluator.blocks_draw(inv_id, _registrations):
+		_log.log(AhcEnums.LogCategory.CARD, "composition:draw_blocked", {"inv": inv_id})
+		return false
+	var amount := maxi(node.draw_amount, 1)
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.draw.investigator",
+		{
+			"inv_id": inv_id,
+			"amount": amount,
+			"source_tags": [&"card_ability"],
+		}
+	)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:nest_draw_investigator",
+		{"inv": inv_id, "amount": amount, "ok": bool(result.get("ok", false))}
+	)
+	return bool(result.get("ok", false))
 
 
 func _execute_nest_attach(node: CompositionNode) -> bool:

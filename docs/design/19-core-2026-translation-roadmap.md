@@ -102,12 +102,18 @@
 - **Engage 默认会借机**；卡面「does not provoke…」→ `provokes_aoo: false` 覆盖
 - 指标：ADB-48..50
 
+### 12118–20 地点能力 ✅（Limit 运行时后补）
+- 12118 Forced：discover → `discard_from_hand`（mode=choose）
+- 12119 Reaction：discover → nest `seq.draw.investigator`（Limit once/round → partial）
+- 12120 Action×2：`draw` amount=3（Limit once/game → partial）
+
 ---
 
 ## 7. 变更记录
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-22 | v0.7 | 12118–20 弃手/反应抽/双行动抽；nest_draw_investigator；68/162 |
 | 2026-09-22 | v0.6 | 12113 Engage 连结；Engage 非借机豁免；`provokes_aoo` 覆盖；65/162 |
 | 2026-09-22 | v0.5 | 12112 Resign 内联；群体线索 stub；62/162 |
 | 2026-09-22 | v0.4 | 12106–08 Parley；action_types；discard 统一路由；57/162 |

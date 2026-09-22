@@ -94,6 +94,11 @@ static func build_composition(
 				int(params.get("amount", 1)),
 				StringName(str(params.get("mode", "random")))
 			)
+		"draw":
+			return CompositionNode.nest_draw_investigator(
+				bind.controller_id,
+				int(params.get("amount", 1))
+			)
 		"attach_nearest_without_same":
 			return CompositionNode.nest_attach(
 				bind.card_id, bind.controller_id, &"nearest_without_same"

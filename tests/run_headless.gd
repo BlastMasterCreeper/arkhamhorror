@@ -103,6 +103,10 @@ func _initialize() -> void:
 	_run_test("ADB-48 compile 12113 engage connecting no AOO", _test_adb_compile_12113)
 	_run_test("ADB-49 engage types provoke AOO by default", _test_adb_engage_types_provoke_aoo)
 	_run_test("ADB-50 12113 engage connecting skips AOO", _test_adb_12113_engage_connecting)
+	_run_test("ADB-51 compile 12118 discard hand after discover", _test_adb_compile_12118)
+	_run_test("ADB-52 compile 12119 reaction draw", _test_adb_compile_12119)
+	_run_test("ADB-53 compile 12120 draw three", _test_adb_compile_12120)
+	_run_test("ADB-54 12120 activate draws three", _test_adb_12120_draw_three)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2318,6 +2322,86 @@ func _test_adb_12113_engage_connecting() -> bool:
 		and enemy.location_tag == &"test_loc"
 		and enemy.engaged_with == &"inv_1"
 		and inv.threat_area.has(&"enemy_conn")
+		and inv.actions_remaining == 1
+	)
+
+
+func _test_adb_compile_12118() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12118")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	return (
+		entry.get("register_as", "") == "forced"
+		and entry.get("template", "") == "discard_from_hand"
+		and entry.get("mode", "") == "choose"
+		and int(entry.get("amount", 0)) == 1
+		and entry.get("match_kind", "") == "discover_clue"
+		and str(entry.get("phase", "")).to_upper() == "AFTER"
+		and entry.get("status", "") == "full"
+		and CardRegistry.has_triggered(&"12118")
+	)
+
+
+func _test_adb_compile_12119() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12119")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	return (
+		entry.get("register_as", "") == "reaction"
+		and entry.get("template", "") == "draw"
+		and int(entry.get("amount", 0)) == 1
+		and entry.get("match_kind", "") == "discover_clue"
+		and str(entry.get("phase", "")).to_upper() == "AFTER"
+		and CardRegistry.has_triggered(&"12119")
+	)
+
+
+func _test_adb_compile_12120() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12120")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	var types: Variant = entry.get("action_types", [])
+	return (
+		entry.get("register_as", "") == "action"
+		and entry.get("template", "") == "draw"
+		and int(entry.get("amount", 0)) == 3
+		and int(entry.get("action_cost", 0)) == 2
+		and types is Array
+		and (types as Array).has("activate")
+		and CardRegistry.has_triggered(&"12120")
+	)
+
+
+func _test_adb_12120_draw_three() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.prepare_action_phase():
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.actions_remaining = 3
+	for _i in 5:
+		GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var hand_before := inv.hand.size()
+	var loc_card_id := ScenarioLayoutSetup.materialize_card(
+		h.ctx, &"12120", AhcEnums.Zone.LOCATION_AREA, &"loc", &"test_loc"
+	)
+	h.ctx.triggered_abilities.install_card(loc_card_id, loc_card_id)
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	return (
+		bool(result.get("ok", false))
+		and inv.hand.size() == hand_before + 3
 		and inv.actions_remaining == 1
 	)
 

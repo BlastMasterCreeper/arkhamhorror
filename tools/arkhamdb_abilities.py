@@ -75,6 +75,15 @@ DISCARD_SOURCE = re.compile(
     r"^(?:\[action\]:\s*)?Discard ([A-Za-z0-9'!\-]+(?:\s+[A-Za-z0-9'!\-]+){0,4})\.?$",
     re.I,
 )
+CHOOSE_DISCARD_FROM_HAND = re.compile(
+    r"^Choose and discard (\d+) cards? from your hand\.?$",
+    re.I,
+)
+DRAW_CARDS = re.compile(
+    r"^(?:\[action\]:\s*)?Draw (\d+) cards?\."
+    r"(?:\s*\(Limit once per (?:game|round|phase)\.?\))?\s*$",
+    re.I,
+)
 ATTACH_NEAREST_WITHOUT = re.compile(
     r"^Attach .+ to the nearest location without .+ attached\.?$",
     re.I,
@@ -546,6 +555,27 @@ def compile_discard_source(body: str) -> dict[str, Any] | None:
     return {"template": "discard_source"}
 
 
+def compile_choose_discard_from_hand(body: str) -> dict[str, Any] | None:
+    m = CHOOSE_DISCARD_FROM_HAND.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "discard_from_hand",
+        "amount": int(m.group(1)),
+        "mode": "choose",
+    }
+
+
+def compile_draw_cards(body: str) -> dict[str, Any] | None:
+    m = DRAW_CARDS.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "draw",
+        "amount": int(m.group(1)),
+    }
+
+
 def compile_attach(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if ATTACH_NEAREST_WITHOUT.match(text):
@@ -762,6 +792,12 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     discard_src = compile_discard_source(body)
     if discard_src is not None:
         return discard_src
+    discard_hand = compile_choose_discard_from_hand(body)
+    if discard_hand is not None:
+        return discard_hand
+    draw_cards = compile_draw_cards(body)
+    if draw_cards is not None:
+        return draw_cards
     heal_both = compile_heal_damage_and_horror(body)
     if heal_both is not None:
         return heal_both
@@ -956,6 +992,8 @@ def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     if timing is not None:
         entry.update(timing)
         entry["status"] = "full"
+    if "(limit" in body.lower():
+        entry["status"] = "partial"
     if segment.get("if_kind"):
         entry["if_kind"] = segment["if_kind"]
     return entry
@@ -989,7 +1027,15 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
     if template == "discard_source":
         return "Discard …"
     if template == "discard_from_hand":
-        return "Discard 1 card at random from your hand."
+        mode = str(compiled.get("mode", "random")).lower()
+        n = int(compiled.get("amount", 1))
+        card_word = "card" if n == 1 else "cards"
+        if mode == "choose":
+            return f"Choose and discard {n} {card_word} from your hand."
+        return f"Discard {n} {card_word} at random from your hand."
+    if template == "draw":
+        n = int(compiled.get("amount", 1))
+        return f"Draw {n} card." if n == 1 else f"Draw {n} cards."
     if template == "attach_nearest_without_same":
         return "Attach … to the nearest location without … attached."
     if template == "attach_controller_location":

@@ -661,6 +661,17 @@ static func nest_discard_card(
 	return n
 
 
+## 调查员抽牌 · nest `seq.draw.investigator`。
+static func nest_draw_investigator(
+	controller_id: StringName,
+	amount: int = 1
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_draw_investigator", &"seq.draw.investigator")
+	n.inv_id = controller_id
+	n.draw_amount = maxi(amount, 1)
+	return n
+
+
 static func nest_discard_from_hand(
 	controller_id: StringName,
 	amount: int = 1,
