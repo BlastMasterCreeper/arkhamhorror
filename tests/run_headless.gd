@@ -95,6 +95,9 @@ func _initialize() -> void:
 	_run_test("ADB-41 compile 12129 fire forced phase ends", _test_adb_compile_12129_fire_forced)
 	_run_test("ADB-42 12102 activate_action discard", _test_adb_12102_activate_action_discard)
 	_run_test("ADB-43 12129 fire forced on phase ends", _test_adb_12129_fire_forced_phase_ends)
+	_run_test("ADB-44 compile 12106 parley action types", _test_adb_compile_12106_parley)
+	_run_test("ADB-45 parley action skips AOO", _test_adb_parley_skips_aoo)
+	_run_test("SEQ-EFF-10 discard_card bystander at location", _test_seq_eff_discard_bystander)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2095,6 +2098,93 @@ func _test_adb_compile_12129_fire_forced() -> bool:
 		and forced.get("match_kind", "") == "investigation_phase_ends"
 		and str(forced.get("phase", "")).to_upper() == "WHEN"
 		and forced.get("target", "") == "non_elite_with_health_at_attached_location"
+	)
+
+
+func _test_adb_compile_12106_parley() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12106")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	var types: Variant = entry.get("action_types", [])
+	var st7: Dictionary = entry.get("st7", {})
+	var on_ok: Dictionary = st7.get("on_success", {})
+	return (
+		entry.get("register_as", "") == "action"
+		and entry.get("template", "") == "skill_test"
+		and entry.get("skill", "") == "intellect"
+		and int(entry.get("difficulty", 0)) == 2
+		and int(entry.get("action_cost", 0)) == 1
+		and types is Array
+		and (types as Array).has("activate")
+		and (types as Array).has("parley")
+		and on_ok.get("template", "") == "discard_card"
+		and on_ok.get("trait", "") == "Bystander"
+		and on_ok.get("at", "") == "controller_location"
+		and CardRegistry.compiled_abilities(&"12107").size() == 1
+		and CardRegistry.compiled_abilities(&"12108").size() >= 1
+	)
+
+
+func _test_adb_parley_skips_aoo() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.threat_area.append(&"enemy_1")
+	inv.actions_remaining = 2
+	inv.damage_taken = 0
+	var intent := InitiationIntent.action_ability(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		),
+		1,
+		AhcEnums.ActionType.ACTIVATE,
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.PARLEY]
+	)
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return (
+		res.ok
+		and inv.damage_taken == 0
+		and int(res.get("aoo_attacks", 0)) == 0
+		and inv.actions_remaining == 1
+		and not intent.provokes_aoo
+	)
+
+
+func _test_seq_eff_discard_bystander() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"12123",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 1}}
+	)
+	if enemy_id == &"":
+		return false
+	var result := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.discard_card",
+		{
+			"controller_id": &"inv_1",
+			"trait": &"Bystander",
+			"at": &"controller_location",
+			"mode": &"choose",
+		}
+	)
+	return (
+		bool(result.get("ok", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+		and h.ctx.state.encounter_discard.has(enemy_id)
 	)
 
 

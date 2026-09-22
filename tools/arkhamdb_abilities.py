@@ -72,7 +72,7 @@ HEAL_DAMAGE_AND_HORROR = re.compile(
     re.I,
 )
 DISCARD_SOURCE = re.compile(
-    r"^(?:\[action\]:\s*)?Discard ([A-Za-z0-9'!\- ]+?)\.?$",
+    r"^(?:\[action\]:\s*)?Discard ([A-Za-z0-9'!\-]+(?:\s+[A-Za-z0-9'!\-]+){0,4})\.?$",
     re.I,
 )
 ATTACH_NEAREST_WITHOUT = re.compile(
@@ -156,6 +156,13 @@ FORBIDDEN_SECRETS_FAIL_BY = re.compile(
     r"^test \[intellect\] \(3\)\. For each point you fail by, you must either "
     r"place 1 of your clues on your location, or take 1 horror\.?\s*$",
     re.I | re.S,
+)
+
+# Agenda Parley：检定成功后弃掉同地点旁人敌人（title/trait Bystander）
+PARLEY_TEST_DISCARD_BYSTANDER = re.compile(
+    r"^Parley\.\s*Test \[intellect\] \((\d+)\)\.\s*"
+    r"If you succeed, discard a (?:\[\[)?Bystander(?:\]\])? enemy at your location\.?$",
+    re.I,
 )
 
 # ArkhamDB Core 玩家牌用 [fast] 标记 Free triggered（闪电图标）；≠ Fast 关键词打出。
@@ -427,6 +434,26 @@ def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_parley_discard_bystander(body: str) -> dict[str, Any] | None:
+    m = PARLEY_TEST_DISCARD_BYSTANDER.match(body.strip())
+    if not m:
+        return None
+    return {
+        "template": "skill_test",
+        "skill": "intellect",
+        "difficulty": int(m.group(1)),
+        "action_types": ["activate", "parley"],
+        "st7": {
+            "on_success": {
+                "template": "discard_card",
+                "trait": "Bystander",
+                "at": "controller_location",
+                "mode": "choose",
+            },
+        },
+    }
+
+
 def compile_heal_damage_and_horror(body: str) -> dict[str, Any] | None:
     m = HEAL_DAMAGE_AND_HORROR.match(body.strip())
     if not m:
@@ -443,6 +470,10 @@ def compile_heal_damage_and_horror(body: str) -> dict[str, Any] | None:
 def compile_discard_source(body: str) -> dict[str, Any] | None:
     m = DISCARD_SOURCE.match(body.strip())
     if not m:
+        return None
+    name = m.group(1).strip().lower()
+    # 排除「弃遭遇牌库顶直至…」等手续句，仅匹配弃置具名来源卡。
+    if any(tok in name for tok in ("from the", "until", "cards", "top of")):
         return None
     return {"template": "discard_source"}
 
@@ -645,6 +676,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     succeed_disc = compile_test_succeed_discard_source(body)
     if succeed_disc is not None:
         return succeed_disc
+    parley = compile_parley_discard_bystander(body)
+    if parley is not None:
+        return parley
     attach = compile_attach(body)
     if attach is not None:
         return attach
@@ -728,11 +762,18 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     if compiled is None:
         return None
     # 弱点自弃常为 [action][action]；分段后 body 可能只剩 Discard …
-    action_cost = 1
-    if body.lower().startswith("[action]") or compiled.get("template") == "discard_source":
+    action_cost = 2 if compiled.get("template") == "discard_source" else 1
+    if body.lower().startswith("[action]"):
         action_cost = 2
+    action_types = compiled.pop("action_types", ["activate"])
+    if not isinstance(action_types, list) or not action_types:
+        action_types = ["activate"]
     status = "full"
-    if compiled.get("template") in ("if_else", "seq", "choice_must", "skill_test"):
+    if compiled.get("template") in ("if_else", "seq", "choice_must"):
+        status = "partial"
+    elif compiled.get("template") == "skill_test" and "parley" not in [
+        str(t).lower() for t in action_types
+    ]:
         status = "partial"
     elif "(limit" in body.lower():
         status = "partial"
@@ -743,6 +784,7 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": action_cost,
+        "action_types": action_types,
         "status": status,
         **compiled,
     }

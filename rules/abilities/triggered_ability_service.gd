@@ -63,21 +63,6 @@ func list_free_abilities(controller_id: StringName) -> Array[TriggeredAbilityDes
 	return out
 
 
-func list_action_abilities(controller_id: StringName) -> Array[TriggeredAbilityDescriptor]:
-	var out: Array[TriggeredAbilityDescriptor] = []
-	for desc in _descriptors:
-		if desc == null:
-			continue
-		if desc.ability_kind != TriggeredAbilityDescriptor.AbilityKind.ACTION:
-			continue
-		if desc.controller_id != controller_id:
-			continue
-		if not is_action_eligible(desc):
-			continue
-		out.append(desc)
-	return out
-
-
 func is_free_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
 	if descriptor == null or _ctx == null or _ctx.framework == null or _ctx.state == null:
 		return false
@@ -101,12 +86,50 @@ func is_action_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
 	var window: AhcEnums.PlayerWindow = _ctx.framework.pending_player_window
 	if not _is_investigation_player_window(window):
 		return false
-	if _ctx.state.active_investigator_id != descriptor.controller_id:
+	var activator := _action_activator(descriptor)
+	if activator == &"" or _ctx.state.active_investigator_id != activator:
 		return false
-	var inv := _ctx.state.registry.get_investigator(descriptor.controller_id)
+	var inv := _ctx.state.registry.get_investigator(activator)
 	if inv == null or inv.actions_remaining < maxi(descriptor.action_cost, 1):
 		return false
 	return _source_playable(descriptor)
+
+
+func list_action_abilities(controller_id: StringName) -> Array[TriggeredAbilityDescriptor]:
+	var out: Array[TriggeredAbilityDescriptor] = []
+	for desc in _descriptors:
+		if desc == null:
+			continue
+		if desc.ability_kind != TriggeredAbilityDescriptor.AbilityKind.ACTION:
+			continue
+		if _action_activator(desc) != controller_id:
+			continue
+		if not is_action_eligible(desc):
+			continue
+		out.append(desc)
+	return out
+
+
+func _action_activator(descriptor: TriggeredAbilityDescriptor) -> StringName:
+	if _ctx != null and _ctx.state != null:
+		if _ctx.state.registry.get_investigator(descriptor.controller_id) != null:
+			return descriptor.controller_id
+		if _is_shared_activate_source(descriptor):
+			return _ctx.state.active_investigator_id
+	return descriptor.controller_id
+
+
+func _is_shared_activate_source(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or descriptor.source_id == &"" or _ctx == null:
+		return false
+	var card := _ctx.state.registry.get_card(descriptor.source_id)
+	if card == null:
+		return false
+	match card.zone:
+		AhcEnums.Zone.CURRENT_AGENDA, AhcEnums.Zone.CURRENT_ACT, AhcEnums.Zone.LOCATION_AREA:
+			return true
+		_:
+			return false
 
 
 func _source_playable(descriptor: TriggeredAbilityDescriptor) -> bool:
@@ -115,8 +138,13 @@ func _source_playable(descriptor: TriggeredAbilityDescriptor) -> bool:
 	var card := _ctx.state.registry.get_card(descriptor.source_id)
 	if card == null:
 		return false
-	if card.zone != AhcEnums.Zone.PLAY_AREA and card.zone != AhcEnums.Zone.THREAT_AREA:
-		return false
+	match card.zone:
+		AhcEnums.Zone.PLAY_AREA, AhcEnums.Zone.THREAT_AREA, \
+		AhcEnums.Zone.CURRENT_AGENDA, AhcEnums.Zone.CURRENT_ACT, \
+		AhcEnums.Zone.LOCATION_AREA:
+			pass
+		_:
+			return false
 	if card.exhausted:
 		return false
 	return true
@@ -144,9 +172,38 @@ func activate_action(ability_id: StringName) -> Dictionary:
 		return {"ok": false, "error": "not_action"}
 	if not is_action_eligible(descriptor):
 		return {"ok": false, "error": "not_eligible"}
+	var activator := _action_activator(descriptor)
+	if _is_shared_activate_source(descriptor) and activator != &"":
+		descriptor = _rebind_descriptor(descriptor, activator)
 	if descriptor.composition == null:
 		return {"ok": false, "error": "invalid_intent"}
 	return _resolve_via_initiation(descriptor)
+
+
+func _rebind_descriptor(
+	descriptor: TriggeredAbilityDescriptor,
+	controller_id: StringName
+) -> TriggeredAbilityDescriptor:
+	if descriptor == null or _ctx == null:
+		return descriptor
+	var units := CardRegistry.triggered_units_at(descriptor.definition_id)
+	for unit in units:
+		if not unit is Dictionary:
+			continue
+		if (unit as Dictionary).get("ability_id", &"") != descriptor.id:
+			continue
+		var bind := AbilityBindContext.new()
+		bind.controller_id = controller_id
+		bind.card_id = descriptor.source_id
+		return TriggeredAbilityDescriptor.from_registry_unit(
+			unit as Dictionary,
+			controller_id,
+			descriptor.source_id,
+			descriptor.definition_id,
+			bind
+		)
+	descriptor.controller_id = controller_id
+	return descriptor
 
 
 func resolve(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
@@ -204,16 +261,20 @@ func _should_use(descriptor: TriggeredAbilityDescriptor) -> bool:
 func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 	var intent: InitiationIntent
 	var controller_id := _effective_controller(descriptor)
-	if descriptor.provokes_aoo():
+	var action_types := descriptor.resolved_action_types()
+	if descriptor.ability_kind == TriggeredAbilityDescriptor.AbilityKind.ACTION:
 		intent = InitiationIntent.action_ability(
 			controller_id,
 			descriptor.composition,
-			descriptor.action_cost
+			descriptor.action_cost,
+			AhcEnums.ActionType.ACTIVATE,
+			action_types
 		)
 	else:
 		intent = InitiationIntent.ability(controller_id, descriptor.composition)
 		intent.resource_cost = descriptor.resource_cost
 		intent.action_cost = descriptor.action_cost
+		intent.action_types = action_types
 	intent.source_id = descriptor.source_id
 	intent.ability_id = descriptor.id
 	return intent

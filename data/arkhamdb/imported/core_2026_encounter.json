@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 34,
+      "compiled_total": 36,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -15,14 +15,14 @@
         "revelation": 24
       },
       "by_template": {
+        "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
         "seq": 4,
         "choice_must": 3,
         "enter_threat_area": 3,
         "take_horror": 3,
-        "discard_source": 5,
+        "discard_source": 4,
         "if_else": 1,
-        "skill_test": 4,
         "attach_nearest_without_same": 1,
         "deal_damage": 1,
         "take_damage": 1,
@@ -89,6 +89,32 @@
         "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "parley"
+        ],
+        "status": "full",
+        "template": "skill_test",
+        "skill": "intellect",
+        "difficulty": 2,
+        "st7": {
+          "on_success": {
+            "template": "discard_card",
+            "trait": "Bystander",
+            "at": "controller_location",
+            "mode": "choose"
+          }
+        }
+      }
     ]
   },
   "12107": {
@@ -121,6 +147,32 @@
         "kind": "action",
         "body": "Parley. Test [intellect] (2). If you succeed, discard a Bystander enemy at your location.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "parley"
+        ],
+        "status": "full",
+        "template": "skill_test",
+        "skill": "intellect",
+        "difficulty": 2,
+        "st7": {
+          "on_success": {
+            "template": "discard_card",
+            "trait": "Bystander",
+            "at": "controller_location",
+            "mode": "choose"
+          }
+        }
       }
     ]
   },
@@ -164,6 +216,30 @@
       }
     ],
     "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "parley"
+        ],
+        "status": "full",
+        "template": "skill_test",
+        "skill": "intellect",
+        "difficulty": 2,
+        "st7": {
+          "on_success": {
+            "template": "discard_card",
+            "trait": "Bystander",
+            "at": "controller_location",
+            "mode": "choose"
+          }
+        }
+      },
       {
         "segment_index": 1,
         "register_as": "forced",
@@ -496,6 +572,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
         "status": "partial",
         "template": "seq",
         "steps": [
@@ -888,6 +967,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
         "status": "full",
         "template": "discard_source"
       }
@@ -1146,6 +1228,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
         "status": "partial",
         "template": "skill_test",
         "skill": "agility",
@@ -1519,6 +1604,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
         "status": "full",
         "template": "discard_source"
       }
@@ -2354,6 +2442,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
         "status": "partial",
         "template": "choice_must",
         "prompt_id": "skill_test:willpower_or_intellect",
@@ -3535,17 +3626,6 @@
         "trigger": "After you enter this location",
         "index": 0
       }
-    ],
-    "compiled_abilities": [
-      {
-        "segment_index": 0,
-        "register_as": "forced",
-        "ability_id": "forced:0",
-        "ability_kind": "forced",
-        "status": "effect_only",
-        "trigger": "After you enter this location",
-        "template": "discard_source"
-      }
     ]
   },
   "12184": {
@@ -4022,6 +4102,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
         "status": "full",
         "template": "discard_source"
       }

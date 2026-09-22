@@ -110,8 +110,14 @@ static func _route_to_discard(game_ctx: GameContext, enemy_id: StringName) -> vo
 		return
 	if card.owner_id == &"encounter":
 		game_ctx.mutator.move_card(enemy_id, CardSlot.encounter_discard_top())
-	else:
+		return
+	if game_ctx.state.registry.get_investigator(card.owner_id) != null:
 		game_ctx.mutator.move_card(enemy_id, CardSlot.discard_top(card.owner_id))
+		return
+	## 无弃牌堆去向 → 从游戏中移除。
+	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
+	if not game_ctx.state.removed_from_game.has(enemy_id):
+		game_ctx.state.removed_from_game.append(enemy_id)
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:

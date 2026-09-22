@@ -18,6 +18,8 @@ var modified_resource_cost: int = 0
 var modified_action_cost: int = 0
 var provokes_aoo: bool = false
 var aoo_action_type: AhcEnums.ActionType = AhcEnums.ActionType.ACTIVATE
+## 一次行动可具有多种行动类型（如 Activate+Parley）；借机攻击按全集判断。
+var action_types: Array = []
 
 
 static func create(controller_id: StringName, composition: CompositionNode) -> InitiationIntent:
@@ -36,12 +38,17 @@ static func action_ability(
 	controller_id: StringName,
 	composition: CompositionNode,
 	action_cost: int = 1,
-	aoo_action_type: AhcEnums.ActionType = AhcEnums.ActionType.ACTIVATE
+	aoo_action_type: AhcEnums.ActionType = AhcEnums.ActionType.ACTIVATE,
+	action_types: Array = []
 ) -> InitiationIntent:
 	var intent := ability(controller_id, composition)
-	intent.provokes_aoo = true
 	intent.action_cost = action_cost
 	intent.aoo_action_type = aoo_action_type
+	if action_types.is_empty():
+		intent.action_types = [aoo_action_type]
+	else:
+		intent.action_types = action_types.duplicate()
+	intent.provokes_aoo = AttackOfOpportunityResolver.provokes_for_types(intent.action_types)
 	return intent
 
 
@@ -59,6 +66,7 @@ static func play_card(
 	intent.composition = composition
 	intent.resource_cost = resource_cost
 	intent.action_cost = action_cost
-	intent.provokes_aoo = true
+	intent.action_types = [AhcEnums.ActionType.ACTIVATE]
 	intent.aoo_action_type = AhcEnums.ActionType.ACTIVATE
+	intent.provokes_aoo = AttackOfOpportunityResolver.provokes_for_types(intent.action_types)
 	return intent

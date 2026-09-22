@@ -193,26 +193,120 @@ static func unregister_buff(game_ctx: GameContext, params: Dictionary) -> Dictio
 
 
 static func discard_card(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	var card_id: StringName = params.get("card_id", &"")
 	var inv_id := _controller_id(game_ctx, params)
-	if game_ctx == null or card_id == &"":
+	var card_id: StringName = params.get("card_id", &"")
+	if game_ctx == null:
 		return {"ok": false, "error": "invalid_params"}
+	if card_id == &"":
+		card_id = _pick_discard_target(game_ctx, params, inv_id)
+	if card_id == &"":
+		return {"ok": false, "error": "no_target", "amount": 0}
 	var card := game_ctx.state.registry.get_card(card_id) if game_ctx.state != null else null
 	if card == null:
 		return {"ok": false, "error": "unknown_card"}
-	var ok := false
-	if card.owner_id == &"encounter":
-		ok = EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
-			game_ctx, card_id, inv_id if inv_id != &"" else card.controller_id
-		)
-	elif game_ctx.mutator != null:
-		ok = game_ctx.mutator.discard_from_hand(card_id, inv_id)
-		if not ok:
-			ok = game_ctx.mutator.move_card(card_id, CardSlot.discard_top(inv_id))
+	var ok := _discard_card_instance(game_ctx, card, inv_id)
 	if ok and game_ctx.triggered_abilities != null:
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
-	_log(game_ctx, "effect:discard_card", {"card": card_id, "inv": inv_id})
+	_log(
+		game_ctx,
+		"effect:discard_card",
+		{"card": card_id, "inv": inv_id, "zone": card.zone if card != null else &""}
+	)
 	return {"ok": ok, "card_id": card_id}
+
+
+## 统一弃牌去向：遭遇单面→遭遇弃牌堆；玩家所属单面→其弃牌堆；否则从游戏中移除。
+static func _discard_card_instance(
+	game_ctx: GameContext,
+	card: CardInstance,
+	inv_id: StringName
+) -> bool:
+	if card == null or game_ctx == null:
+		return false
+	var card_id := card.id.instance_id if card.id != null else &""
+	if card_id == &"":
+		return false
+	## 场上敌人：先清交战再按归属路由（不算 defeat）。
+	if game_ctx.state != null and game_ctx.state.registry.get_enemy(card_id) != null:
+		var routed := EnemyDefeatResolver.discard_from_play(game_ctx, card_id)
+		return bool(routed.get("ok", false))
+	if card.owner_id == &"encounter":
+		return EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
+			game_ctx, card_id, inv_id if inv_id != &"" else card.controller_id
+		)
+	if game_ctx.state != null and game_ctx.state.registry.get_investigator(card.owner_id) != null:
+		if game_ctx.mutator == null:
+			return false
+		if game_ctx.mutator.discard_from_hand(card_id, card.owner_id):
+			return true
+		return game_ctx.mutator.move_card(card_id, CardSlot.discard_top(card.owner_id))
+	## 无弃牌堆去向（双面议程/场景等）→ 从游戏中移除。
+	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
+	if game_ctx.state != null and not game_ctx.state.removed_from_game.has(card_id):
+		game_ctx.state.removed_from_game.append(card_id)
+	return true
+
+
+static func _pick_discard_target(
+	game_ctx: GameContext,
+	params: Dictionary,
+	inv_id: StringName
+) -> StringName:
+	var candidates := _discard_candidates(game_ctx, params, inv_id)
+	if candidates.is_empty():
+		return &""
+	if candidates.size() == 1:
+		return candidates[0]
+	var mode := StringName(str(params.get("mode", "choose")))
+	if mode == &"random":
+		return candidates[randi() % candidates.size()]
+	if game_ctx.interaction != null:
+		var chosen: Variant = game_ctx.interaction.ask_pick_target(
+			candidates, inv_id, &"pick:discard_card", game_ctx
+		)
+		if chosen != null:
+			return chosen as StringName
+	return candidates[0]
+
+
+static func _discard_candidates(
+	game_ctx: GameContext,
+	params: Dictionary,
+	inv_id: StringName
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if game_ctx == null or game_ctx.state == null:
+		return out
+	var trait_filter := str(params.get("trait", "")).strip_edges()
+	var at_filter := StringName(str(params.get("at", "")))
+	var loc_id := &""
+	if at_filter == &"controller_location" or at_filter == &"your_location":
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv != null:
+			loc_id = inv.location_tag
+	for enemy_id in game_ctx.state.registry.all_enemy_ids():
+		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+		if enemy == null:
+			continue
+		if loc_id != &"" and enemy.location_tag != loc_id:
+			continue
+		var card := game_ctx.state.registry.get_card(enemy_id)
+		if card == null:
+			continue
+		if trait_filter != "" and not _matches_trait_or_title(card.id.definition_id, trait_filter):
+			continue
+		out.append(enemy_id)
+	return out
+
+
+static func _matches_trait_or_title(definition_id: StringName, needle: String) -> bool:
+	var want := needle.to_lower()
+	if str(CardRegistry.title(definition_id)).to_lower() == want:
+		return true
+	for trait_name in CardRegistry.traits(definition_id):
+		if str(trait_name).to_lower() == want:
+			return true
+	return false
 
 
 static func discard_from_hand(game_ctx: GameContext, params: Dictionary) -> Dictionary:

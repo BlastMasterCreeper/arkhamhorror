@@ -294,7 +294,10 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				sim, _resolve_sim_inv(node, sim), exclude
 			)
 		&"nest_discard_card":
-			return sim.state.registry.get_card(node.card_id) != null
+			if node.card_id != &"":
+				return sim.state.registry.get_card(node.card_id) != null
+			## 过滤选目标（如旁人敌人）时，只要有 controller 即可尝试。
+			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
 		&"nest_discard_from_hand":
 			var disc_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return disc_inv != null and not disc_inv.hand.is_empty()

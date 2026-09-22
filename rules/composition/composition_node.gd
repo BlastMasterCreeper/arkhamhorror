@@ -645,10 +645,19 @@ static func nest_effect_unregister(reg_id: StringName) -> CompositionNode:
 	return n
 
 
-static func nest_discard_card(card_id: StringName, controller_id: StringName) -> CompositionNode:
+static func nest_discard_card(
+	card_id: StringName,
+	controller_id: StringName,
+	trait_filter: StringName = &"",
+	at_filter: StringName = &"",
+	mode: StringName = &"choose"
+) -> CompositionNode:
 	var n := _nest_leaf(&"nest_discard_card", &"seq.effect.discard_card")
 	n.card_id = card_id
 	n.inv_id = controller_id
+	n.definition_id = trait_filter
+	n.location_target = at_filter
+	n.place_doom_target = mode
 	return n
 
 

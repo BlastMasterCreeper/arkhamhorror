@@ -154,7 +154,8 @@ static func register_triggered(
 	resource_cost: int = 0,
 	action_cost: int = 0,
 	optional: bool = false,
-	window: StringName = &""
+	window: StringName = &"",
+	action_types: Array = []
 ) -> void:
 	if not _triggered.has(definition_id):
 		_triggered[definition_id] = []
@@ -168,6 +169,7 @@ static func register_triggered(
 			"action_cost": action_cost,
 			"optional": optional,
 			"window": window,
+			"action_types": action_types.duplicate(),
 			"builder": builder,
 		}
 	)

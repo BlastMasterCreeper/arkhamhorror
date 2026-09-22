@@ -812,7 +812,13 @@ func _execute_nest_discard_card(node: CompositionNode) -> bool:
 	return bool(
 		_nest_or_direct(
 			&"seq.effect.discard_card",
-			{"controller_id": inv_id, "card_id": node.card_id}
+			{
+				"controller_id": inv_id,
+				"card_id": node.card_id,
+				"trait": node.definition_id,
+				"at": node.location_target,
+				"mode": node.place_doom_target if node.place_doom_target != &"" else &"choose",
+			}
 		).get("ok", false)
 	)
 

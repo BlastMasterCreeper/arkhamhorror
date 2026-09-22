@@ -1,7 +1,7 @@
 # 19 — Core 2026（2.0 基础）卡牌翻译路线图
 
 > **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.3 · 2026-09-21 — A1 + B1 运行时 + A3 Fire! Forced  
+> **状态**：v0.4 · 2026-09-22 — A1 + B1 + A3 + 12106–08 Parley  
 > **范围**：`core_2026` + `core_2026_encounter`（约 166 张 / 162 段能力）
 
 ---
@@ -29,6 +29,8 @@
 | A1 后 | **合计** | **162** | **53** | **109** |
 | **B1+A3 后** | 玩家 / 遭遇 | 72 / 90 | **21** / **34** | 51 / 56 |
 | **B1+A3 后** | **合计** | **162** | **55** | **107** |
+| **12106–08 Parley 后** | 玩家 / 遭遇 | 72 / 90 | **21** / **36** | 51 / 54 |
+| **12106–08 Parley 后** | **合计** | **162** | **57** | **105** |
 
 数据源：`data/arkhamdb/imported/*.json` · `_meta.ability_compile_summary`。
 
@@ -84,12 +86,18 @@
 
 **下一批**：C1 Fight ammo；敌人 defeated 触发（12132）；asset 承伤。
 
+### 12106–08 Parley ✅
+- 编译：`action_types: [activate, parley]`；成功 → `discard_card`（trait/title=Bystander @ controller_location）
+- 借机：`AttackOfOpportunityResolver.provokes_for_types`；含 Parley/Resign/Fight/Evade 则不借机
+- `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
+
 ---
 
 ## 7. 变更记录
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-22 | v0.4 | 12106–08 Parley；action_types；discard 统一路由；57/162 |
 | 2026-09-21 | v0.3 | B1 activate_action；A3 Fire! Forced；55/162 |
 | 2026-09-21 | v0.2 | A1 落地；进度 53/162；heal Limit / Flood 首句 Attach |
 | 2026-09-21 | v0.1 | 初稿；基线 35/162；开工 A1 |

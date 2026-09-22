@@ -571,6 +571,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
         "status": "partial",
         "template": "skill_test",
         "skill": "willpower",
@@ -2902,6 +2905,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
         "status": "full",
         "template": "discard_source"
       }
@@ -2981,6 +2987,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
         "status": "full",
         "template": "discard_source"
       }
@@ -3059,6 +3068,9 @@
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
         "status": "full",
         "template": "discard_source"
       }

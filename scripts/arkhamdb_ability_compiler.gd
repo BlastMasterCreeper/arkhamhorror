@@ -68,6 +68,14 @@ static func build_composition(
 			)
 		"discard_source":
 			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
+		"discard_card":
+			return CompositionNode.nest_discard_card(
+				StringName(str(params.get("card_id", ""))),
+				bind.controller_id,
+				StringName(str(params.get("trait", ""))),
+				StringName(str(params.get("at", ""))),
+				StringName(str(params.get("mode", "choose")))
+			)
 		"discard_from_hand":
 			return CompositionNode.nest_discard_from_hand(
 				bind.controller_id,
@@ -308,7 +316,8 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			int(entry.get("resource_cost", 0)),
 			int(entry.get("action_cost", 0)),
 			bool(entry.get("optional", false)),
-			StringName(str(entry.get("window", "any_player_window")))
+			StringName(str(entry.get("window", "any_player_window"))),
+			_action_types_from_entry(entry)
 		)
 		return true
 	if register_as == "forced" or register_as == "reaction":
@@ -324,10 +333,22 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			builder,
 			int(entry.get("resource_cost", 0)),
 			int(entry.get("action_cost", 0)),
-			bool(entry.get("optional", false))
+			bool(entry.get("optional", false)),
+			&"",
+			_action_types_from_entry(entry)
 		)
 		return true
 	return false
+
+
+static func _action_types_from_entry(entry: Dictionary) -> Array:
+	var out: Array = []
+	var raw: Variant = entry.get("action_types", [])
+	if not raw is Array:
+		return out
+	for item in raw:
+		out.append(str(item).to_lower())
+	return out
 
 
 static func _params_from_entry(entry: Dictionary) -> Dictionary:
@@ -361,6 +382,10 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"match_kind",
 		"phase",
 		"timing",
+		"trait",
+		"at",
+		"card_id",
+		"action_types",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]
