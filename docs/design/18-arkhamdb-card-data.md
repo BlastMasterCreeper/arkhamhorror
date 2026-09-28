@@ -144,7 +144,7 @@ python tools/analyze_arkhamdb_cards.py
 ### Phase 3 — 能力编译（P1）✅（竖切）
 
 - [x] 文本分段：`tools/arkhamdb_abilities.py` → `ability_segments`（revelation / forced / reaction / action / fast）
-- [x] 模板编译 → `compiled_abilities` JSON + `ArkhamDbAbilityCompiler` → `CardRegistry.register_revelation` / `register_triggered`
+- [x] 模板编译 → `compiled_abilities` JSON + `ArkhamDbAbilityCompiler` → `CardRegistry.register_revelation` / `register_triggered`（字段与 A/B/C/D 构件见 [20-card-translation-schema](20-card-translation-schema.md)）
 - [x] 首批模板：`take_horror` / `take_damage` / `lose_resources` / `lose_all_resources` / `enter_threat_area` / `gain_resources`
 - [x] Core 2026 统计：分段存档；模板可表达子集已编译（`ability_compile_summary` in `_meta`）
 - [x] Forced → `TriggeredAbilityService` 直执；`TRIGGER_PHRASE_MAP` → `match_kind`/`phase`；锚 12125 / 12108 ✅

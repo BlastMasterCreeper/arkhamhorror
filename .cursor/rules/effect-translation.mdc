@@ -175,6 +175,7 @@ AbilitySpec
 ## ArkhamDB 编译（`tools/arkhamdb_abilities.py`）
 
 - 卡面 effect 段编译为 **Composition 树**（控制流 + 内联叶子 / nest 已有 seq / PI 确认规格）；**禁止** 多步糖 Atom。
+- **字段与构件词汇**（目标确认 / Buff 创建 / nest `flow_id` / 效果参数指称）见 **[20-card-translation-schema](docs/design/20-card-translation-schema.md)**：白名单增长、禁机制布尔、`memory:` 生产/消费。
 - **优先复用**已有 template / condition / `if_kind` / `evaluate` 锚点（07 §3.3、15 §17、已竖切卡如 12126/12160）。
 - **能拆就拆**：timing · condition · cost · effect · **PI 确认** 分编译单元；禁止无先例的新语义 atom。
 - **无可参考先例时**：先查设计文档与 imported JSON 同类卡；仍无法归类再询问是否扩展编译器。

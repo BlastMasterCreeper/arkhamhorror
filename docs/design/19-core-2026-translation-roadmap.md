@@ -1,7 +1,7 @@
 # 19 — Core 2026（2.0 基础）卡牌翻译路线图
 
-> **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.9 · 2026-09-28 — 翻译硬门槛（禁真空 / 三分法 / 应展尽展）  
+> **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[20-card-translation-schema](20-card-translation-schema.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
+> **状态**：v0.17 · 2026-09-28 — 卡面翻译层规范（目标/Buff/参数）  
 > **范围**：`core_2026` + `core_2026_encounter`（约 166 张 / 162 段能力）
 
 ---
@@ -50,6 +50,7 @@
 5. Hook：`register_as` + `match_kind` / `window` / `action_cost`
 6. Headless：compile 形状 + 至少一条运行时路径（含默认确认路径）
 7. 选型可查（template vs 手写同等树 · OQ-12-01）
+8. **翻译层字段** — `steps[]` ⊆ [20 §2.1 白名单](20-card-translation-schema.md)；目标/Buff/nest/`memory:` 走 A/B/C/D，无机制布尔
 
 ### 3.1 翻译债（糖 / 真空）
 
@@ -133,6 +134,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.17 | 新增 [20-card-translation-schema](20-card-translation-schema.md)：目标确认 / Buff 创建 / nest·参数指称；DoD §8 |
 | 2026-09-28 | v0.16 | `SUPPRESS_AUTO_ENGAGE` 限制类：auto-engage 入口读取分支；12113 去掉翻译层 auto_engage 开关 |
 | 2026-09-28 | v0.15 | 12112/12113 显式 nest 信封：`seq.effect.resign` / `seq.enemy.move` / `seq.engage` |
 | 2026-09-28 | v0.14 | 12112 撤退拆糖：留置线索 / set_flag / eliminate（后收入信封） |
