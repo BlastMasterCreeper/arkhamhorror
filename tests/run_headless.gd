@@ -2189,22 +2189,19 @@ func _test_adb_compile_12112() -> bool:
 	var types: Variant = resign_entry.get("action_types", [])
 	var steps: Variant = free_entry.get("steps", [])
 	var resign_steps: Variant = resign_entry.get("steps", [])
-	if not resign_steps is Array or (resign_steps as Array).size() < 2:
+	if not resign_steps is Array or (resign_steps as Array).size() != 1:
 		return false
 	if not steps is Array or (steps as Array).size() != 2:
 		return false
 	if not types is Array:
 		return false
-	var rs := resign_steps as Array
-	var r0: Dictionary = rs[0]
-	var r1: Dictionary = rs[1]
+	var r0: Dictionary = (resign_steps as Array)[0]
 	return (
 		str(resign_entry.get("template", "")) == "seq"
 		and str(resign_entry.get("translation", "")) == "full_expand"
 		and not resign_entry.has("provokes_aoo")
-		and str(r0.get("template", "")) == "no_provoke_aoo"
-		and str(r1.get("template", "")) == "nest_resign"
-		and str(r1.get("flow_id", "")) == "seq.effect.resign"
+		and str(r0.get("template", "")) == "nest_resign"
+		and str(r0.get("flow_id", "")) == "seq.effect.resign"
 		and (types as Array).has("activate")
 		and (types as Array).has("resign")
 		and str(free_entry.get("template", "")) == "seq"

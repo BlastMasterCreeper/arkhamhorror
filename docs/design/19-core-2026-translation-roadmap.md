@@ -56,7 +56,7 @@
 | 债 | 状态 | 备注 |
 |---|---|---|
 | 12113 `engage_from_connecting` | ✅ 已展 | `no_provoke_aoo` → PI → nest `seq.enemy.move` → nest `seq.engage` |
-| 12112 `resign` 糖 Atom | ✅ 已展 | `no_provoke_aoo` → nest `seq.effect.resign` |
+| 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign`（Resign 类型本身不借机，不挂 SKIP_AOO） |
 | Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
 | `nest_move_connecting` 内嵌 PI | 待拆 | 12116：选地点确认应独立为 pick_target 步 |
 | LISTENER / peril / act-agenda-back | 部分 | 仍有直 `execute` 路径；优先复用 `seq.ability.resolve` |
@@ -108,7 +108,7 @@
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
 ### 12112 Resign / 群体线索 ✅（应展尽展）
-- Resign：`no_provoke_aoo` → nest **`seq.effect.resign`**（信封内：留置线索 / resigned / eliminate；叙事句不译）
+- Resign：nest **`seq.effect.resign`**（类型层已不借机；卡面括号复述不另挂 SKIP_AOO）
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
 ### 12113 Engage（连结地点）✅（应展尽展）

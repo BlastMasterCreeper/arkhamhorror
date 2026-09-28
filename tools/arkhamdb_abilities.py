@@ -493,22 +493,17 @@ def compile_resign(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not RESIGN_ABILITY.match(text):
         return None
-    # 信封：限制类 no_provoke_aoo → nest seq.effect.resign（after_resign 可听）。
-    # 留置线索 / resigned / eliminate 在信封 handler 内，不摊进卡面树。
-    # 叙事句（You flee…）不译效果。
-    steps: list[dict[str, Any]] = []
-    if NO_AOO_PHRASE.search(text):
-        steps.append({"template": "no_provoke_aoo"})
-    steps.append(
-        {
-            "template": "nest_resign",
-            "flow_id": "seq.effect.resign",
-        }
-    )
+    # Resign 类型本身不借机；卡面「does not provoke…」只是复述，不另挂 SKIP_AOO。
+    # 信封：nest seq.effect.resign（after_resign 可听）。叙事句不译效果。
     return {
         "template": "seq",
         "action_types": ["activate", "resign"],
-        "steps": steps,
+        "steps": [
+            {
+                "template": "nest_resign",
+                "flow_id": "seq.effect.resign",
+            }
+        ],
         "translation": "full_expand",
     }
 

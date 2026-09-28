@@ -415,9 +415,6 @@
         "template": "seq",
         "steps": [
           {
-            "template": "no_provoke_aoo"
-          },
-          {
             "template": "nest_resign",
             "flow_id": "seq.effect.resign"
           }
