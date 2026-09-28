@@ -118,7 +118,7 @@ static func build_composition(
 			return CompositionNode.nest_engage(
 				bind.controller_id,
 				StringName(str(params.get("enemy", "memory:picked_enemy"))),
-				StringName(str(params.get("mode", "effect"))),
+				StringName(str(params.get("mode", params.get("engage_mode", "effect")))),
 				bind.card_id
 			)
 		"engage_from_connecting":
@@ -470,6 +470,8 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"translation",
 		"field",
 		"value",
+		"flow_id",
+		"mode",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

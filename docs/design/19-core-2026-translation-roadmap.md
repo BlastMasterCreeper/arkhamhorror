@@ -55,8 +55,8 @@
 
 | 债 | 状态 | 备注 |
 |---|---|---|
-| 12113 `engage_from_connecting` | ✅ 已展 | `no_provoke_aoo`（行动开始 SKIP_AOO Buff）+ PI `pick_target` → 内联移入 → 内联交战 |
-| 12112 `resign` 糖 Atom | ✅ 已展 | `no_provoke_aoo` → 留置线索 → `set_flag resigned` → `eliminate` |
+| 12113 `engage_from_connecting` | ✅ 已展 | `no_provoke_aoo` → PI → nest `seq.enemy.move` → nest `seq.engage` |
+| 12112 `resign` 糖 Atom | ✅ 已展 | `no_provoke_aoo` → nest `seq.effect.resign` |
 | Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
 | `nest_move_connecting` 内嵌 PI | 待拆 | 12116：选地点确认应独立为 pick_target 步 |
 | LISTENER / peril / act-agenda-back | 部分 | 仍有直 `execute` 路径；优先复用 `seq.ability.resolve` |
@@ -108,12 +108,12 @@
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
 ### 12112 Resign / 群体线索 ✅（应展尽展）
-- Resign：禁糖 Atom → `no_provoke_aoo` → `leave_clues_at_location` → `set_flag(resigned)` → `eliminate`（叙事句不译）
+- Resign：`no_provoke_aoo` → nest **`seq.effect.resign`**（信封内：留置线索 / resigned / eliminate；叙事句不译）
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
 ### 12113 Engage（连结地点）✅（应展尽展）
-- `seq`：`no_provoke_aoo` → PI `pick_target` → 内联 `move_enemy_to` → 内联 `engage_target`
-- 卡面「This action does not provoke…」→ 行动开始 Register **限制类** `SKIP_AOO`；INIT_2B 由 AOO **原流程读取** 后分支（非 Listener、非 Cancel/Ignore、非 `provokes_aoo: false`）
+- `seq`：`no_provoke_aoo` → PI `pick_target` → nest **`seq.enemy.move`**（`auto_engage:false`）→ nest **`seq.engage`**
+- 卡面「This action does not provoke…」→ 行动开始 Register **限制类** `SKIP_AOO`；INIT_2B 由 AOO **原流程读取** 后分支
 - Engage 类型层仍 `provokes_aoo=true`；指标：ADB-48..50、ADB-60
 
 ### 12118–20 地点能力 ✅（Limit 运行时后补）
@@ -133,7 +133,8 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-09-28 | v0.14 | 12112 撤退拆糖：留置线索 / set_flag / eliminate |
+| 2026-09-28 | v0.15 | 12112/12113 显式 nest 信封：`seq.effect.resign` / `seq.enemy.move` / `seq.engage` |
+| 2026-09-28 | v0.14 | 12112 撤退拆糖：留置线索 / set_flag / eliminate（后收入信封） |
 | 2026-09-28 | v0.13 | 明确 `SKIP_AOO` = 限制类读取分支（非 Listener / 非 Cancel） |
 | 2026-09-28 | v0.12 | 「does not provoke AOO」→ 行动开始 `SKIP_AOO` Buff；INIT_2B 原流程读取分支 |
 | 2026-09-28 | v0.11 | 12112/12113 改内联（PI+L0）；纠正「有 Catalog 就 nest」 |

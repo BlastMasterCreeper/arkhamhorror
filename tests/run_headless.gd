@@ -2189,7 +2189,7 @@ func _test_adb_compile_12112() -> bool:
 	var types: Variant = resign_entry.get("action_types", [])
 	var steps: Variant = free_entry.get("steps", [])
 	var resign_steps: Variant = resign_entry.get("steps", [])
-	if not resign_steps is Array or (resign_steps as Array).size() < 4:
+	if not resign_steps is Array or (resign_steps as Array).size() < 2:
 		return false
 	if not steps is Array or (steps as Array).size() != 2:
 		return false
@@ -2198,18 +2198,13 @@ func _test_adb_compile_12112() -> bool:
 	var rs := resign_steps as Array
 	var r0: Dictionary = rs[0]
 	var r1: Dictionary = rs[1]
-	var r2: Dictionary = rs[2]
-	var r3: Dictionary = rs[3]
 	return (
 		str(resign_entry.get("template", "")) == "seq"
 		and str(resign_entry.get("translation", "")) == "full_expand"
 		and not resign_entry.has("provokes_aoo")
 		and str(r0.get("template", "")) == "no_provoke_aoo"
-		and str(r1.get("template", "")) == "leave_clues_at_location"
-		and str(r2.get("template", "")) == "set_flag"
-		and str(r2.get("field", "")) == "resigned"
-		and bool(r2.get("value", false)) == true
-		and str(r3.get("template", "")) == "eliminate"
+		and str(r1.get("template", "")) == "nest_resign"
+		and str(r1.get("flow_id", "")) == "seq.effect.resign"
 		and (types as Array).has("activate")
 		and (types as Array).has("resign")
 		and str(free_entry.get("template", "")) == "seq"
@@ -2229,15 +2224,11 @@ func _test_adb_resign_inline_initiation() -> bool:
 	inv.actions_remaining = 1
 	var loc := h.ctx.state.registry.get_location(&"test_loc")
 	var clues_before := loc.clues
-	## 展开：leave_clues → set_flag → eliminate；经 seq.ability.resolve（禁真空）。
-	var body := CompositionNode.resign(&"inv_1")
-	if body.kind != AhcEnums.CompositionNodeKind.SEQ or body.children.size() != 3:
+	## nest seq.effect.resign 信封；经 seq.ability.resolve 装载（禁真空）。
+	var body := CompositionNode.nest_resign(&"inv_1")
+	if str(body.atom_name) != "nest_resign":
 		return false
-	if str(body.children[0].atom_name) != "leave_clues_at_location":
-		return false
-	if str(body.children[1].atom_name) != "set_flag":
-		return false
-	if str(body.children[2].atom_name) != "eliminate":
+	if body.nest_flow_id != &"seq.effect.resign":
 		return false
 	var intent := InitiationIntent.action_ability(
 		&"inv_1",
@@ -2256,6 +2247,7 @@ func _test_adb_resign_inline_initiation() -> bool:
 		and loc.clues == clues_before + 2
 		and inv.actions_remaining == 0
 		and h.ctx.sequence_catalog.has_flow(&"seq.ability.resolve")
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.resign")
 	)
 
 
@@ -2287,8 +2279,11 @@ func _test_adb_compile_12113() -> bool:
 		and str(s0.get("template", "")) == "no_provoke_aoo"
 		and str(s1.get("template", "")) == "pick_target"
 		and str(s1.get("filter", "")) == "enemy_at_connecting"
-		and str(s2.get("template", "")) == "move_enemy_to"
-		and str(s3.get("template", "")) == "engage_target"
+		and str(s2.get("template", "")) == "nest_enemy_move_to"
+		and str(s2.get("flow_id", "")) == "seq.enemy.move"
+		and bool(s2.get("auto_engage", true)) == false
+		and str(s3.get("template", "")) == "nest_engage"
+		and str(s3.get("flow_id", "")) == "seq.engage"
 		and CardRegistry.has_triggered(&"12113")
 	)
 

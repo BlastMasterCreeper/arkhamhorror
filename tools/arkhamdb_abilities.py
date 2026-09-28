@@ -493,18 +493,17 @@ def compile_resign(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not RESIGN_ABILITY.match(text):
         return None
-    # 应展尽展：禁 resign 糖 Atom。
-    # no_provoke_aoo（限制类）→ 留置线索 → set_flag resigned → 淘汰清理。
-    # §4.0.5 无新时点锚 → 同帧内联；叙事句（You flee…）不译效果。
+    # 信封：限制类 no_provoke_aoo → nest seq.effect.resign（after_resign 可听）。
+    # 留置线索 / resigned / eliminate 在信封 handler 内，不摊进卡面树。
+    # 叙事句（You flee…）不译效果。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
-    steps.extend(
-        [
-            {"template": "leave_clues_at_location"},
-            {"template": "set_flag", "field": "resigned", "value": True},
-            {"template": "eliminate"},
-        ]
+    steps.append(
+        {
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign",
+        }
     )
     return {
         "template": "seq",
@@ -542,8 +541,9 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
-    # 应展尽展：不借机 → PI → 内联移入 → 内联交战（§4.0.5 连续 then）。
-    # Engage 类型会借机；no_provoke_aoo = 限制类 SKIP_AOO，INIT_2B 原流程读取后分支。
+    # 信封：限制类 → PI → nest seq.enemy.move → nest seq.engage。
+    # Engage 类型会借机；no_provoke_aoo = SKIP_AOO，INIT_2B 原流程读取后分支。
+    # 移入不自动交战（auto_engage=false）；交战单独 nest，保留各自 AFTER 信封。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
@@ -556,14 +556,18 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
                 "memory_key": "picked_enemy",
             },
             {
-                "template": "move_enemy_to",
+                "template": "nest_enemy_move_to",
+                "flow_id": "seq.enemy.move",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
+                "auto_engage": False,
             },
             {
-                "template": "engage_target",
+                "template": "nest_engage",
+                "flow_id": "seq.engage",
                 "enemy": "memory:picked_enemy",
                 "investigator": "controller",
+                "mode": "effect",
             },
         ]
     )

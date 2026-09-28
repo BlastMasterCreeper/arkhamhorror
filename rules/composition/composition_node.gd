@@ -739,14 +739,10 @@ static func no_provoke_aoo(controller_id: StringName = &"") -> CompositionNode:
 	return n
 
 
-## 撤退展开（应展尽展）：留置线索 → 标记 resigned → 淘汰清理。
-## 无新时点锚时同帧内联；勿再包一层糖 Atom。
+## 卡面「Resign」→ nest `seq.effect.resign` 信封（after_resign 可听）。
+## 留置线索 / resigned / eliminate 在信封 handler 内。
 static func resign(inv_id: StringName) -> CompositionNode:
-	return seq([
-		leave_clues_at_location(inv_id),
-		set_flag(inv_id, AhcEnums.FlagField.RESIGNED, true),
-		eliminate(inv_id),
-	])
+	return nest_resign(inv_id)
 
 
 ## L0 · 调查员线索留在所在地点（Resign 第一步）。
@@ -868,13 +864,13 @@ static func nest_engage(
 	return n
 
 
-## 12113：不借机声明 → PI → 内联移入 → 内联交战（非 nest）。
+## 12113：限制类 → PI → nest seq.enemy.move → nest seq.engage。
 static func engage_from_connecting(
 	controller_id: StringName,
 	source_card_id: StringName = &""
 ) -> CompositionNode:
 	return seq([
-		no_provoke_aoo(),
+		no_provoke_aoo(controller_id),
 		pick_target(
 			controller_id,
 			&"enemy_at_connecting",
@@ -882,13 +878,14 @@ static func engage_from_connecting(
 			&"picked_enemy",
 			source_card_id
 		),
-		move_enemy_to(
+		nest_enemy_move_to(
 			controller_id,
 			&"memory:picked_enemy",
 			&"source_location",
+			false,
 			source_card_id
 		),
-		engage_target(controller_id, &"memory:picked_enemy", source_card_id),
+		nest_engage(controller_id, &"memory:picked_enemy", &"effect", source_card_id),
 	])
 
 

@@ -418,15 +418,8 @@
             "template": "no_provoke_aoo"
           },
           {
-            "template": "leave_clues_at_location"
-          },
-          {
-            "template": "set_flag",
-            "field": "resigned",
-            "value": true
-          },
-          {
-            "template": "eliminate"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
@@ -496,14 +489,18 @@
             "memory_key": "picked_enemy"
           },
           {
-            "template": "move_enemy_to",
+            "template": "nest_enemy_move_to",
+            "flow_id": "seq.enemy.move",
             "enemy": "memory:picked_enemy",
-            "location": "source_location"
+            "location": "source_location",
+            "auto_engage": false
           },
           {
-            "template": "engage_target",
+            "template": "nest_engage",
+            "flow_id": "seq.engage",
             "enemy": "memory:picked_enemy",
-            "investigator": "controller"
+            "investigator": "controller",
+            "mode": "effect"
           }
         ]
       }
@@ -1654,15 +1651,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "leave_clues_at_location"
-          },
-          {
-            "template": "set_flag",
-            "field": "resigned",
-            "value": true
-          },
-          {
-            "template": "eliminate"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
@@ -1717,15 +1707,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "leave_clues_at_location"
-          },
-          {
-            "template": "set_flag",
-            "field": "resigned",
-            "value": true
-          },
-          {
-            "template": "eliminate"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
@@ -3840,15 +3823,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "leave_clues_at_location"
-          },
-          {
-            "template": "set_flag",
-            "field": "resigned",
-            "value": true
-          },
-          {
-            "template": "eliminate"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
