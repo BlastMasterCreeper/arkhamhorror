@@ -2189,18 +2189,27 @@ func _test_adb_compile_12112() -> bool:
 	var types: Variant = resign_entry.get("action_types", [])
 	var steps: Variant = free_entry.get("steps", [])
 	var resign_steps: Variant = resign_entry.get("steps", [])
-	if not resign_steps is Array or (resign_steps as Array).size() < 2:
+	if not resign_steps is Array or (resign_steps as Array).size() < 4:
 		return false
 	if not steps is Array or (steps as Array).size() != 2:
 		return false
 	if not types is Array:
 		return false
+	var rs := resign_steps as Array
+	var r0: Dictionary = rs[0]
+	var r1: Dictionary = rs[1]
+	var r2: Dictionary = rs[2]
+	var r3: Dictionary = rs[3]
 	return (
 		str(resign_entry.get("template", "")) == "seq"
 		and str(resign_entry.get("translation", "")) == "full_expand"
 		and not resign_entry.has("provokes_aoo")
-		and str(((resign_steps as Array)[0] as Dictionary).get("template", "")) == "no_provoke_aoo"
-		and str(((resign_steps as Array)[1] as Dictionary).get("template", "")) == "resign"
+		and str(r0.get("template", "")) == "no_provoke_aoo"
+		and str(r1.get("template", "")) == "leave_clues_at_location"
+		and str(r2.get("template", "")) == "set_flag"
+		and str(r2.get("field", "")) == "resigned"
+		and bool(r2.get("value", false)) == true
+		and str(r3.get("template", "")) == "eliminate"
 		and (types as Array).has("activate")
 		and (types as Array).has("resign")
 		and str(free_entry.get("template", "")) == "seq"
@@ -2220,10 +2229,19 @@ func _test_adb_resign_inline_initiation() -> bool:
 	inv.actions_remaining = 1
 	var loc := h.ctx.state.registry.get_location(&"test_loc")
 	var clues_before := loc.clues
-	## 内联 resign；经 seq.ability.resolve 装载（禁真空）；不 nest seq.effect.resign。
+	## 展开：leave_clues → set_flag → eliminate；经 seq.ability.resolve（禁真空）。
+	var body := CompositionNode.resign(&"inv_1")
+	if body.kind != AhcEnums.CompositionNodeKind.SEQ or body.children.size() != 3:
+		return false
+	if str(body.children[0].atom_name) != "leave_clues_at_location":
+		return false
+	if str(body.children[1].atom_name) != "set_flag":
+		return false
+	if str(body.children[2].atom_name) != "eliminate":
+		return false
 	var intent := InitiationIntent.action_ability(
 		&"inv_1",
-		CompositionNode.resign(&"inv_1"),
+		body,
 		1,
 		AhcEnums.ActionType.ACTIVATE,
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.RESIGN]

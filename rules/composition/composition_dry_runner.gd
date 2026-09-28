@@ -245,7 +245,26 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 					RegistrationTemplate.skip_aoo_for_action(skip_ctrl)
 				)
 			return true
+		&"leave_clues_at_location":
+			var leave_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if leave_inv == null or leave_inv.eliminated:
+				return false
+			if leave_inv.clues_on_card <= 0 or leave_inv.location_tag == &"":
+				return false
+			var leave_loc := sim.state.registry.get_location(leave_inv.location_tag)
+			if leave_loc == null:
+				return false
+			leave_loc.clues += leave_inv.clues_on_card
+			leave_inv.clues_on_card = 0
+			return true
+		&"eliminate":
+			var elim_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if elim_inv == null or elim_inv.eliminated:
+				return false
+			elim_inv.eliminated = true
+			return true
 		&"resign", &"nest_resign":
+			## 兼容旧单 Atom；新树应为 leave_clues → set_flag → eliminate。
 			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
 		&"pick_target":

@@ -493,12 +493,19 @@ def compile_resign(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not RESIGN_ABILITY.match(text):
         return None
-    # 应展尽展：同帧内联撤退 L0（§4.0.5 无新时点锚 → 不 nest）。
-    # no_provoke_aoo → 限制类 SKIP_AOO（INIT_2B 读取分支）；Resign 类型本身不借机。
+    # 应展尽展：禁 resign 糖 Atom。
+    # no_provoke_aoo（限制类）→ 留置线索 → set_flag resigned → 淘汰清理。
+    # §4.0.5 无新时点锚 → 同帧内联；叙事句（You flee…）不译效果。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
-    steps.append({"template": "resign"})
+    steps.extend(
+        [
+            {"template": "leave_clues_at_location"},
+            {"template": "set_flag", "field": "resigned", "value": True},
+            {"template": "eliminate"},
+        ]
+    )
     return {
         "template": "seq",
         "action_types": ["activate", "resign"],

@@ -4,8 +4,8 @@ extends RefCounted
 ## 调查员淘汰 / 撤退 · 遭遇牌清理（威胁区 + 手牌隐私遭遇 → 遭遇弃牌堆）。
 
 
-## Resign（撤退）：线索留在所在地点，再按淘汰清理；标记 resigned。
-## 由 Initiation INIT_4 内联执行 Composition atom，不另开 nest 帧。
+## Resign（撤退）：线索留地点 → resigned → eliminate。
+## 卡面编译应展为三步 Composition；本函数供 `seq.effect.resign` / 旧单 Atom 兼容。
 static func resign(game_ctx: GameContext, inv_id: StringName) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false, "resigned": false}

@@ -332,7 +332,12 @@ func _execute_atom(node: CompositionNode) -> bool:
 				"controller": node.inv_id,
 			})
 			return true
+		&"leave_clues_at_location":
+			return _execute_leave_clues_at_location(node)
+		&"eliminate":
+			return _execute_eliminate(node)
 		&"resign":
+			## 兼容旧树：整段撤退；新编译应已是三步展开。
 			return _execute_resign_inline(node)
 		&"nest_resign":
 			return _execute_nest_resign(node)
@@ -622,7 +627,43 @@ func _execute_exhaust_card(node: CompositionNode) -> bool:
 	return true
 
 
-## 同帧内联撤退（无新时点锚）。
+## Resign 第一步：线索留在所在地点。
+func _execute_leave_clues_at_location(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" or _game_ctx == null or _game_ctx.state == null:
+		return false
+	var inv := _game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null or inv.eliminated:
+		return false
+	var clues_left := inv.clues_on_card
+	if clues_left > 0 and inv.location_tag != &"":
+		var loc := _game_ctx.state.registry.get_location(inv.location_tag)
+		if loc != null:
+			loc.clues += clues_left
+		inv.clues_on_card = 0
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:leave_clues_at_location",
+		{"inv": inv_id, "clues": clues_left}
+	)
+	return true
+
+
+## Resign 第三步：淘汰清理（威胁区/手牌隐私遭遇 + ELIMINATED）。
+func _execute_eliminate(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" or _game_ctx == null:
+		return false
+	var result := InvestigatorElimination.eliminate(_game_ctx, inv_id)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:eliminate",
+		{"inv": inv_id, "ok": bool(result.get("eliminated", false))}
+	)
+	return bool(result.get("eliminated", false))
+
+
+## 兼容旧单 Atom 撤退（无新时点锚）。
 func _execute_resign_inline(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" or _game_ctx == null:

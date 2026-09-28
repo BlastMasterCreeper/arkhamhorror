@@ -739,11 +739,30 @@ static func no_provoke_aoo(controller_id: StringName = &"") -> CompositionNode:
 	return n
 
 
-## 同帧内联撤退（L0 · InvestigatorElimination）；无新时点锚时不 nest。
+## 撤退展开（应展尽展）：留置线索 → 标记 resigned → 淘汰清理。
+## 无新时点锚时同帧内联；勿再包一层糖 Atom。
 static func resign(inv_id: StringName) -> CompositionNode:
+	return seq([
+		leave_clues_at_location(inv_id),
+		set_flag(inv_id, AhcEnums.FlagField.RESIGNED, true),
+		eliminate(inv_id),
+	])
+
+
+## L0 · 调查员线索留在所在地点（Resign 第一步）。
+static func leave_clues_at_location(inv_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"resign"
+	n.atom_name = &"leave_clues_at_location"
+	n.inv_id = inv_id
+	return n
+
+
+## L0 · 淘汰清理（威胁区/手牌隐私遭遇弃置 + ELIMINATED）。
+static func eliminate(inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"eliminate"
 	n.inv_id = inv_id
 	return n
 

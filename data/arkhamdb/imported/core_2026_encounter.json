@@ -418,7 +418,15 @@
             "template": "no_provoke_aoo"
           },
           {
-            "template": "resign"
+            "template": "leave_clues_at_location"
+          },
+          {
+            "template": "set_flag",
+            "field": "resigned",
+            "value": true
+          },
+          {
+            "template": "eliminate"
           }
         ],
         "translation": "full_expand"
@@ -1646,7 +1654,15 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "leave_clues_at_location"
+          },
+          {
+            "template": "set_flag",
+            "field": "resigned",
+            "value": true
+          },
+          {
+            "template": "eliminate"
           }
         ],
         "translation": "full_expand"
@@ -1701,7 +1717,15 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "leave_clues_at_location"
+          },
+          {
+            "template": "set_flag",
+            "field": "resigned",
+            "value": true
+          },
+          {
+            "template": "eliminate"
           }
         ],
         "translation": "full_expand"
@@ -3816,7 +3840,15 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "leave_clues_at_location"
+          },
+          {
+            "template": "set_flag",
+            "field": "resigned",
+            "value": true
+          },
+          {
+            "template": "eliminate"
           }
         ],
         "translation": "full_expand"

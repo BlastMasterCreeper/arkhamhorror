@@ -70,7 +70,18 @@ static func build_composition(
 			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
 		"no_provoke_aoo":
 			return CompositionNode.no_provoke_aoo(bind.controller_id)
+		"leave_clues_at_location":
+			return CompositionNode.leave_clues_at_location(bind.controller_id)
+		"eliminate":
+			return CompositionNode.eliminate(bind.controller_id)
+		"set_flag":
+			return CompositionNode.set_flag(
+				bind.controller_id,
+				_flag_field_from_raw(params.get("field", "resigned")),
+				bool(params.get("value", true))
+			)
 		"resign":
+			## 兼容旧 JSON；新编译应已是 leave_clues → set_flag → eliminate。
 			return CompositionNode.resign(bind.controller_id)
 		"nest_resign":
 			return CompositionNode.nest_resign(bind.controller_id)
@@ -457,7 +468,17 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"location",
 		"investigator",
 		"translation",
+		"field",
+		"value",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]
 	return params
+
+
+static func _flag_field_from_raw(raw: Variant) -> AhcEnums.FlagField:
+	match str(raw).to_lower():
+		"eliminated":
+			return AhcEnums.FlagField.ELIMINATED
+		_:
+			return AhcEnums.FlagField.RESIGNED
