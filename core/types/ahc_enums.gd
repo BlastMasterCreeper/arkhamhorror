@@ -276,8 +276,9 @@ enum RestrictionKind {
 	FORBID_TRIGGER,
 	FORBID_COMMIT_TO_TEST,
 	FORBID_LEAVE_HAND,
-	## 卡面「This action does not provoke attacks of opportunity」：
-	## 行动开始 Register；INIT_2B AOO 入口 consume 后跳过借机流程。
+	## 限制类：卡面「This action does not provoke attacks of opportunity」。
+	## 行动开始 Register；INIT_2B 由 AOO **原流程读取** 后自行分支（不跑借机）。
+	## 不是 LISTENER，不是 Cancel/Ignore。
 	SKIP_AOO,
 }
 

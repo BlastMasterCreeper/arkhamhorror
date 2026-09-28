@@ -83,26 +83,30 @@ func unregister_by_drawn_card(card_id: StringName) -> void:
 		unregister(id)
 
 
-## INIT_2B：若有 SKIP_AOO Buff 则消费（Unregister）并返回 true。
-func consume_skip_aoo(controller_id: StringName) -> bool:
-	if controller_id == &"":
-		return false
-	for reg in _entries:
-		if reg.controller_id != controller_id:
-			continue
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
-				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.SKIP_AOO:
-				continue
-			unregister(reg.id)
-			return true
-	return false
-
-
+## 读取：是否存在 SKIP_AOO 限制类 Buff（不卸）。
 func has_skip_aoo(controller_id: StringName) -> bool:
-	if controller_id == &"":
+	return _find_skip_aoo_reg_id(controller_id) != &""
+
+
+## 入口读完后卸掉本行动的 SKIP_AOO（lifetime）；不是 Cancel/Ignore。
+func clear_skip_aoo(controller_id: StringName) -> void:
+	var reg_id := _find_skip_aoo_reg_id(controller_id)
+	if reg_id != &"":
+		unregister(reg_id)
+
+
+## INIT_2B：读取 SKIP_AOO → 供原流程分支；读后 clear lifetime。
+## 返回 true = 原流程应跳过借机攻击（限制生效），不是 interrupt。
+func read_skip_aoo(controller_id: StringName) -> bool:
+	if not has_skip_aoo(controller_id):
 		return false
+	clear_skip_aoo(controller_id)
+	return true
+
+
+func _find_skip_aoo_reg_id(controller_id: StringName) -> StringName:
+	if controller_id == &"":
+		return &""
 	for reg in _entries:
 		if reg.controller_id != controller_id:
 			continue
@@ -110,8 +114,8 @@ func has_skip_aoo(controller_id: StringName) -> bool:
 			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
 				continue
 			if buff.restriction.kind == AhcEnums.RestrictionKind.SKIP_AOO:
-				return true
-	return false
+				return reg.id
+	return &""
 
 
 func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:

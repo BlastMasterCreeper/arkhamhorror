@@ -40,9 +40,10 @@ func resolve_for_types(
 ) -> Dictionary:
 	if not provokes_for_types(action_types):
 		return {"ok": true, "attacks": 0}
-	## 卡面「does not provoke…」：行动开始挂的 SKIP_AOO Buff，此处消费并跳过借机。
-	if registrations != null and registrations.consume_skip_aoo(investigator_id):
-		return {"ok": true, "attacks": 0, "skipped_by_buff": true}
+	## 限制类 Buff：本流程在 INIT_2B **读取** SKIP_AOO 后自行分支（不跑借机）。
+	## 不是 LISTENER，不是 seq.interrupt.cancel / ignore。
+	if registrations != null and registrations.read_skip_aoo(investigator_id):
+		return {"ok": true, "attacks": 0, "restricted_by_skip_aoo": true}
 	var enemies := get_ready_engaged_enemies(investigator_id)
 	var count := 0
 	for enemy_id in enemies:

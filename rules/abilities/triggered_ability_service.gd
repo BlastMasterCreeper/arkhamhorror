@@ -291,7 +291,7 @@ func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 			AhcEnums.ActionType.ACTIVATE,
 			action_types
 		)
-		## 类型层判定；卡面「does not provoke…」靠行动开始 SKIP_AOO Buff，不靠 override 短路。
+		## 类型层判定；卡面「does not provoke…」靠限制类 SKIP_AOO（INIT_2B 读取分支）。
 		intent.provokes_aoo = descriptor.provokes_aoo()
 	else:
 		intent = InitiationIntent.ability(controller_id, descriptor.composition)

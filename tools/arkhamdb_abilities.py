@@ -494,7 +494,7 @@ def compile_resign(body: str) -> dict[str, Any] | None:
     if not RESIGN_ABILITY.match(text):
         return None
     # 应展尽展：同帧内联撤退 L0（§4.0.5 无新时点锚 → 不 nest）。
-    # no_provoke_aoo → 行动开始 Register SKIP_AOO；Resign 类型本身不借机，Buff 仅作 provenance。
+    # no_provoke_aoo → 限制类 SKIP_AOO（INIT_2B 读取分支）；Resign 类型本身不借机。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
@@ -536,7 +536,7 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
     # 应展尽展：不借机 → PI → 内联移入 → 内联交战（§4.0.5 连续 then）。
-    # Engage 类型会借机；no_provoke_aoo = 行动开始 Register SKIP_AOO，INIT_2B 消费跳过。
+    # Engage 类型会借机；no_provoke_aoo = 限制类 SKIP_AOO，INIT_2B 原流程读取后分支。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})

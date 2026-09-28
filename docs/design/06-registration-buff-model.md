@@ -893,8 +893,18 @@ Grimoire 条文 / 卡面效果
 | **REST-E-ACTION** | `ActionSystem.execute` | 耗 action、发起 basic action 前 | `MOVE` `ENGAGE` `FIGHT` …（待扩） |
 | **REST-E-EFFECT** | `EffectResolutionGraph` step 4 / Composition 等价点 | submit `EffectRequest` 前 | 按 `EffectOp`→Intent（待接） |
 | **REST-E-ACTIVATE** | Asset `[action]` / `[free]` initiation | Pre-restrictions | `ACTIVATE`（待 enum） |
+| **REST-E-AOO** | `AttackOfOpportunityResolver` @ INIT_2B | 付完 cost、跑借机前 | —（读 `SKIP_AOO` 供 **原流程分支**） |
 
 L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **同一 Intent** 均可；payload / `drawer_id` 豁免在 `_matches` 内处理。
+
+**限制类 Buff 的两种用法**（均 ≠ LISTENER、≠ Cancel/Ignore）：
+
+| 用法 | 入口行为 | 例子 |
+|---|---|---|
+| **拦 Intent** | `RestrictionEvaluator.block_reason` → 拒绝发起 | `FORBID_PLAY` / peril |
+| **原流程读取分支** | 规范时刻 **读** Restriction → 该流程自己改道（仍在同一 handler） | `SKIP_AOO` @ REST-E-AOO：不跑借机攻击 |
+
+禁止把「原流程分支」译成 `seq.interrupt.cancel` / `ignore`，也禁止用 LISTENER 去「消掉」借机。
 
 #### 16.4.2 Intent 与 RestrictionKind（增长表）
 
@@ -905,7 +915,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `TRIGGER` | initiate 能力 | `FORBID_TRIGGER` | peril E3；[reaction]/Forced | REST-E-TRIGGER | Kind **已实现**；**L4 待接** |
 | `COMMIT_TO_TEST` | commit skill | `FORBID_COMMIT_TO_TEST` | peril E3 | REST-E-COMMIT | **已实现** |
 | `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
-| —（非 Intent 拦） | 借机流程跳过 | `SKIP_AOO` | 「This action does not provoke…」 | INIT_2B AOO：`consume_skip_aoo` | **已实现** |
+| —（原流程分支） | 借机不跑 | `SKIP_AOO` | 「This action does not provoke…」 | REST-E-AOO：`read_skip_aoo` | **已实现** |
 | `MOVE` | 移动行动 / 效果移动调查员 | `FORBID_MOVE` | 「不能离开地点」 | REST-E-ACTION / REST-E-EFFECT | 待 enum + 接线 |
 | `ENGAGE` | engage 行动 | `FORBID_ENGAGE` | aloof 等（常配合 Condition） | REST-E-ACTION | 待 |
 | `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION | 待 |

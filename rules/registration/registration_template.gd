@@ -47,13 +47,20 @@ static func delayed_listener(
 	return t
 
 
-## 卡面「does not provoke AOO」：行动开始 Register；AOO 入口 consume = FIRED。
-static func skip_aoo_until_fired(controller_id: StringName) -> RegistrationTemplate:
+## 限制类 SKIP_AOO：行动开始 Register；INIT_2B 入口读取后卸掉。
+## 非 LISTENER（无 Catalog emit）；非 Cancel/Ignore。
+static func skip_aoo_for_action(controller_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = controller_id
+	## 与延时 LISTENER 的 UNTIL_FIRED 同枚举，语义是「入口读完即卸」，不是 listener 开火。
 	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
 	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.skip_aoo(controller_id)))
 	return t
+
+
+## @deprecated 使用 skip_aoo_for_action
+static func skip_aoo_until_fired(controller_id: StringName) -> RegistrationTemplate:
+	return skip_aoo_for_action(controller_id)
 
 
 ## G2 peril Register：`WHILE_DRAWN_CARD_RESOLVING(card_id)` — G4 完 Unregister；不跨 Surge。

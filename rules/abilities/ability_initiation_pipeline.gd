@@ -78,7 +78,7 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 	if not _cost.pay(intent):
 		return {"ok": false, "error": "cannot_pay"}
 
-	## 行动开始：卡面「does not provoke AOO」→ Register SKIP_AOO（在 INIT_2B 消费）。
+	## 行动开始：卡面「does not provoke AOO」→ Register 限制类 SKIP_AOO（INIT_2B 读取分支）。
 	_mount_skip_aoo_buff(intent, ctx)
 
 	_events.append_initiation(AhcEnums.InitiationStep.INIT_2B_AOO, hash, payload)
@@ -116,7 +116,8 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 	return result
 
 
-## 卡面 no_provoke_aoo：仅当类型本身会借机时挂 Buff（Resign 等类型豁免无需挂）。
+## 卡面 no_provoke_aoo：挂限制类 Buff（非 Listener / 非 Cancel）。
+## 仅当类型本身会借机时挂（Resign 等类型豁免无需挂）。
 func _mount_skip_aoo_buff(intent: InitiationIntent, ctx: GameContext) -> void:
 	if intent == null or ctx == null or ctx.registrations == null:
 		return
@@ -127,7 +128,7 @@ func _mount_skip_aoo_buff(intent: InitiationIntent, ctx: GameContext) -> void:
 	if ctx.registrations.has_skip_aoo(intent.controller_id):
 		return
 	ctx.registrations.register(
-		RegistrationTemplate.skip_aoo_until_fired(intent.controller_id)
+		RegistrationTemplate.skip_aoo_for_action(intent.controller_id)
 	)
 
 

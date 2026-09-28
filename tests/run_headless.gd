@@ -112,7 +112,7 @@ func _initialize() -> void:
 	_run_test("ADB-57 12132 defeat deals location horror", _test_adb_12132_defeat_horror)
 	_run_test("ADB-58 compile 12122 after attack discard asset", _test_adb_compile_12122)
 	_run_test("ADB-59 12122 phase attack discards asset", _test_adb_12122_discard_asset)
-	_run_test("ADB-60 SKIP_AOO buff consume at INIT_2B", _test_adb_skip_aoo_buff_consume)
+	_run_test("ADB-60 SKIP_AOO restriction read branches AOO", _test_adb_skip_aoo_buff_consume)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2313,14 +2313,14 @@ func _test_adb_engage_types_provoke_aoo() -> bool:
 
 
 func _test_adb_12113_engage_connecting() -> bool:
-	## 12113：Engage 类型会借机；卡面 no_provoke_aoo → 行动开始 SKIP_AOO Buff，AOO 消费跳过。
+	## 12113：Engage 类型会借机；限制类 SKIP_AOO 在 INIT_2B 被原流程读取后分支。
 	var h := RuleTestHarness.new(42)
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
 	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
-	## 本地点已交战敌人：无 Buff 时应受伤；有 SKIP_AOO 则伤害为 0。
+	## 本地点已交战敌人：无限制时应受伤；读取到 SKIP_AOO 则原流程不跑借机。
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_here", &"test_loc", 2, 2, &"inv_1")
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_conn", &"loc_b", 2, 2)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -2338,7 +2338,7 @@ func _test_adb_12113_engage_connecting() -> bool:
 	if listed.is_empty():
 		return false
 	var desc: TriggeredAbilityDescriptor = listed[0]
-	## 类型层仍会借机；豁免靠 Buff 消费，不是 provokes_aoo override。
+	## 类型层仍会借机；豁免靠限制类读取分支，不是 provokes_aoo override / Cancel。
 	if not desc.provokes_aoo():
 		return false
 	var result := h.ctx.triggered_abilities.activate_action(desc.id)
@@ -2357,7 +2357,7 @@ func _test_adb_12113_engage_connecting() -> bool:
 
 
 func _test_adb_skip_aoo_buff_consume() -> bool:
-	## 行动开始 Register SKIP_AOO；INIT_2B 消费后跳过借机（Engage 类型本身会借机）。
+	## 限制类 SKIP_AOO：行动开始 Register；INIT_2B 原流程读取后分支（Engage 类型会借机）。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false

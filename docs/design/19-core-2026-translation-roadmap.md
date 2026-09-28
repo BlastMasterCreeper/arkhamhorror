@@ -113,7 +113,7 @@
 
 ### 12113 Engage（连结地点）✅（应展尽展）
 - `seq`：`no_provoke_aoo` → PI `pick_target` → 内联 `move_enemy_to` → 内联 `engage_target`
-- 卡面「This action does not provoke…」→ 行动开始 Register `SKIP_AOO`（UNTIL_FIRED）；INIT_2B AOO **消费**后跳过借机（非 `provokes_aoo: false` 短路）
+- 卡面「This action does not provoke…」→ 行动开始 Register **限制类** `SKIP_AOO`；INIT_2B 由 AOO **原流程读取** 后分支（非 Listener、非 Cancel/Ignore、非 `provokes_aoo: false`）
 - Engage 类型层仍 `provokes_aoo=true`；指标：ADB-48..50、ADB-60
 
 ### 12118–20 地点能力 ✅（Limit 运行时后补）
@@ -133,7 +133,8 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-09-28 | v0.12 | 「does not provoke AOO」→ 行动开始 `SKIP_AOO` Buff；INIT_2B 消费跳过 |
+| 2026-09-28 | v0.13 | 明确 `SKIP_AOO` = 限制类读取分支（非 Listener / 非 Cancel） |
+| 2026-09-28 | v0.12 | 「does not provoke AOO」→ 行动开始 `SKIP_AOO` Buff；INIT_2B 原流程读取分支 |
 | 2026-09-28 | v0.11 | 12112/12113 改内联（PI+L0）；纠正「有 Catalog 就 nest」 |
 | 2026-09-28 | v0.10 | 12112/12113 应展尽展；`seq.effect.resign` / `seq.ability.resolve`；债清两笔 |
 | 2026-09-28 | v0.9 | **翻译硬门槛**：禁真空；三分法（内联/nest/PI）；应展尽展禁糖；§3.1 债清单 |

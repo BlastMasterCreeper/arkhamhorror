@@ -729,8 +729,8 @@ static func nest_scenario_resolution(
 
 
 ## 卡面「does not provoke attacks of opportunity」：
-## 译为行动开始 Register SKIP_AOO Buff；INIT_2B AOO 消费后跳过借机。
-## 节点留在效果体作 provenance；Initiation 在付费后、AOO 前挂载，resolve 时不再重复 Register。
+## 译为行动开始 Register **限制类** SKIP_AOO；INIT_2B 由 AOO 原流程 **读取** 后分支。
+## 不是 LISTENER，不是 Cancel/Ignore。节点留作 provenance；付费后挂载，resolve 不重复 Register。
 static func no_provoke_aoo(controller_id: StringName = &"") -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
