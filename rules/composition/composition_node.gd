@@ -826,12 +826,13 @@ static func engage_target(
 	return n
 
 
-## 仅当 §4.0.5「是」时用：nest `seq.enemy.move`。
+## 卡面效果「移入地点」：nest `seq.enemy.move`，**不含**自动交战。
+## 交战另 nest `seq.engage`（与猎手/阶段移动默认 auto engage 入口不同）。
 static func nest_enemy_move_to(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
 	location_spec: StringName = &"source_location",
-	auto_engage_after: bool = true,
+	_auto_engage_after: bool = false,
 	source_card_id: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
@@ -842,7 +843,7 @@ static func nest_enemy_move_to(
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec
 	n.location_target = location_spec
-	n.auto_engage = auto_engage_after
+	n.auto_engage = false
 	return n
 
 
@@ -884,7 +885,7 @@ static func engage_from_connecting(
 			&"source_location",
 			false,
 			source_card_id
-		),
+		),  ## 模板默认无自动交战；交战见下一步 nest_engage
 		nest_engage(controller_id, &"memory:picked_enemy", &"effect", source_card_id),
 	])
 

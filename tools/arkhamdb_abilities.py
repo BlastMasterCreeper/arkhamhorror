@@ -537,8 +537,7 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
     # 信封：限制类 → PI → nest seq.enemy.move → nest seq.engage。
-    # Engage 类型会借机；no_provoke_aoo = SKIP_AOO，INIT_2B 原流程读取后分支。
-    # 移入不自动交战（auto_engage=false）；交战单独 nest，保留各自 AFTER 信封。
+    # nest_enemy_move_to = 效果移入（模板本身不含自动交战）；交战另 nest。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
@@ -555,7 +554,6 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
                 "flow_id": "seq.enemy.move",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
-                "auto_engage": False,
             },
             {
                 "template": "nest_engage",

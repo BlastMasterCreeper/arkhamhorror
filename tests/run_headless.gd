@@ -2278,7 +2278,7 @@ func _test_adb_compile_12113() -> bool:
 		and str(s1.get("filter", "")) == "enemy_at_connecting"
 		and str(s2.get("template", "")) == "nest_enemy_move_to"
 		and str(s2.get("flow_id", "")) == "seq.enemy.move"
-		and bool(s2.get("auto_engage", true)) == false
+		and not s2.has("auto_engage")
 		and str(s3.get("template", "")) == "nest_engage"
 		and str(s3.get("flow_id", "")) == "seq.engage"
 		and CardRegistry.has_triggered(&"12113")

@@ -112,7 +112,7 @@
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
 ### 12113 Engage（连结地点）✅（应展尽展）
-- `seq`：`no_provoke_aoo` → PI `pick_target` → nest **`seq.enemy.move`**（`auto_engage:false`）→ nest **`seq.engage`**
+- `seq`：`no_provoke_aoo` → PI `pick_target` → nest **`seq.enemy.move`**（`nest_enemy_move_to` 模板语义：无自动交战）→ nest **`seq.engage`**
 - 卡面「This action does not provoke…」→ 行动开始 Register **限制类** `SKIP_AOO`；INIT_2B 由 AOO **原流程读取** 后分支
 - Engage 类型层仍 `provokes_aoo=true`；指标：ADB-48..50、ADB-60
 

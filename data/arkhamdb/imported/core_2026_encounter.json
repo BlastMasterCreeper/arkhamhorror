@@ -489,8 +489,7 @@
             "template": "nest_enemy_move_to",
             "flow_id": "seq.enemy.move",
             "enemy": "memory:picked_enemy",
-            "location": "source_location",
-            "auto_engage": false
+            "location": "source_location"
           },
           {
             "template": "nest_engage",

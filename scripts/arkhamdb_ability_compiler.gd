@@ -107,11 +107,12 @@ static func build_composition(
 				bind.card_id
 			)
 		"nest_enemy_move_to":
+			## 卡面效果移入：模板语义不含自动交战；交战另 nest seq.engage。
 			return CompositionNode.nest_enemy_move_to(
 				bind.controller_id,
 				StringName(str(params.get("enemy", "memory:picked_enemy"))),
 				StringName(str(params.get("location", "source_location"))),
-				bool(params.get("auto_engage", true)),
+				false,
 				bind.card_id
 			)
 		"nest_engage":
