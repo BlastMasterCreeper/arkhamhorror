@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.2 · 2026-06-18 — §0.1 三档译法；Prey **仅 engage 内核**读参（不 nest）
+> **状态**：v0.3.10 · 2026-09-21 — L2 宏 → seq.effect.*（纸面可无名）
 
 ---
 
@@ -113,7 +113,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
     pick := PreyResolver.best_match(prey_instruction, equidistant)  # ① 内联，非 Prey nest
 ```
 
-**Keyword Prey 标签**：魔典称 keyword ability；引擎 **不** 译 LISTENER — **标签 + 括号** → `PreyInstructionSpec`（**①**）。
+**Prey 标签**：魔典条目或写 keyword ability；**引擎裁定为指令**（与 Spawn 同列），**不** 译 LISTENER / 关键词 Buff — **标签 + 括号** → `PreyInstructionSpec`（**①**）。
 
 #### 0.1.3 Patrol：移动编译（③）+ 括号参数（①）
 
@@ -139,8 +139,23 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 |---|---|---|
 | Victory X、Bearer、My Collection | 静态 / 路由元数据 | defeat、weakness、构筑 |
 | 🧣 per investigator | 印刷值缩放 | setup 乘数 |
-| Hidden、险境、涌动等 keyword | **③** 编译 | REGISTER / LISTENER @ catalog |
+| Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff（[06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)） | RESTRICTION / LISTENER / MODIFIER；KEYWORD 标记只表示拥有 |
 | 技能图标 `[willpower]` 等 | `skills_icons` | commit / 检定，见 [04](04-skill-test-engine.md) |
+
+#### 0.1.6 指令 / 参数 / 关键词 Buff（与三档正交）
+
+详细接线表：[06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
+
+| 卡面 | 档 | 落地 |
+|---|---|---|
+| **指令** Spawn – / Prey – | **①**（Spawn 的 L0 进场在 **②**） | Spec + 内核 Resolver；**不是关键词** |
+| **参数** 括号 / X / type | **①** | 挂在指令或关键词的 Spec 上；handler 内读 |
+| **关键词** 对局行为 | **③** | 编译为 `MODIFIER` / `RESTRICTION` / `LISTENER` |
+| **Fast.** 快速 | 打出形式（非能力） | 窗口/花费对称触发；种类始终 `PLAY_CARD`（[06 §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)） |
+| Uses / Victory / Seal | L0 / Domain | 仍是关键词，不走三种 Buff |
+| 构筑关键词 | 11 | 对局不消费 |
+
+**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 BuffType。LISTENER 注册/注销绑已有 `seq.*` 砖或 zone 变迁，禁止 `PERIL_CHECK` 一类独立场合节点。见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)。
 
 ---
 
@@ -177,7 +192,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 |---|---|---|---|
 | **L0** | Domain / `StateMutator` | 执行 **状态原语**；维护区域不变量 | `move_card`, `reveal_to_controller`, `transfer_marker` |
 | **L1** | Composition | 状态原语 + Register 组合（Seq / Choice…） | Then draw + horror |
-| **L2** | Semantics / Wrapper | 规则书语义；生成 L1 树；插入 Assign 等中间步骤 | DealDamage, PlayCard, RevealLocation |
+| **L2** | Semantics / Wrapper | 规则书语义；编译为 nest `seq.effect.*` / 已有 seq（纸面可无名） | DealDamage → `seq.effect.deal_damage`；PlayCard 仍是 Initiation |
 
 ```
 CardScript / YAML  →  L2 Wrapper/Macro  →  L1 CompositionTree  →  L0 Atoms  →  GameStateStore
@@ -604,6 +619,14 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.3.10 | §3：L2 宏展开为 `seq.effect.*`（纸面无名也铸造）；07-composition §1.3.3 |
+| 2026-09-21 | v0.3.9 | Fast 只改打出窗口/花费；种类始终 `PLAY_CARD`，不是能力 |
+| 2026-09-21 | v0.3.8 | Fast 打出与触发对称；不新增 BuffType |
+| 2026-09-21 | v0.3.7 | 链 06 §3.2.6：注册绑已有 seq 砖 / zone 变迁，禁止独立场合节点 |
+| 2026-09-21 | v0.3.6 | 链 06 §3.2.6：关键词/能力 LISTENER 不只有进场/离场 |
+| 2026-09-21 | v0.3.5 | **§0.1.6** 指令 / 参数 / 关键词 Buff 分轨 |
+| 2026-09-21 | v0.3.4 | **§0.1.6** 关键词编译为三种 Buff；猎物/生成为指令 |
+| 2026-09-21 | v0.3.3 | **§0.1.6** 关键词 `consume_shape` 与三档正交；仅 NEST_SEQ nest `seq.keyword.*` |
 | 2026-06-18 | v0.3.2 | §0.1 **三档译法**；Prey **①** engage 内核读参（不 nest）；Spawn **②** G4；Hunter/Patrol **③** |
 | 2026-06-18 | v0.3 | ③ **揭示与离散** 合并为三类 L0；AtomRevealCard（Grimoire Reveal） |
 | 2026-05-25 | v0.1 | 初稿：地址模型 + 非原子清单 |

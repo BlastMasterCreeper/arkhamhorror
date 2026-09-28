@@ -12,3 +12,5 @@ var min_picks: int = 1
 var max_picks: int = 1
 var context: Dictionary = {}
 var default_index: int = 0
+## >0 = 有限期确认（毫秒）；-1 = 策略层默认（headless 立即走 default）。
+var deadline_ms: int = -1

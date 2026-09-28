@@ -11,15 +11,30 @@ func _init(state: GameStateStore, combat: CombatResolver) -> void:
 
 
 static func provokes(action_type: AhcEnums.ActionType) -> bool:
-	match action_type:
-		AhcEnums.ActionType.FIGHT, AhcEnums.ActionType.EVADE, AhcEnums.ActionType.RESIGN:
-			return false
-		_:
-			return true
+	return provokes_for_types([action_type])
+
+
+## 一次行动可带多种行动类型；任一豁免类型（Fight/Evade/Parley/Resign）则不借机。
+static func provokes_for_types(action_types: Array) -> bool:
+	if action_types.is_empty():
+		return true
+	for raw in action_types:
+		var action_type: AhcEnums.ActionType = int(raw) as AhcEnums.ActionType
+		match action_type:
+			AhcEnums.ActionType.FIGHT, \
+			AhcEnums.ActionType.EVADE, \
+			AhcEnums.ActionType.PARLEY, \
+			AhcEnums.ActionType.RESIGN:
+				return false
+	return true
 
 
 func resolve(investigator_id: StringName, action_type: AhcEnums.ActionType) -> Dictionary:
-	if not provokes(action_type):
+	return resolve_for_types(investigator_id, [action_type])
+
+
+func resolve_for_types(investigator_id: StringName, action_types: Array) -> Dictionary:
+	if not provokes_for_types(action_types):
 		return {"ok": true, "attacks": 0}
 	var enemies := get_ready_engaged_enemies(investigator_id)
 	var count := 0

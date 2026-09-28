@@ -21,17 +21,37 @@ func register(template: RegistrationTemplate) -> StringName:
 
 
 func unregister_by_controller(controller_id: StringName) -> void:
-	if controller_id == &"":
-		return
-	var to_remove: Array[StringName] = []
-	for reg in _entries:
-		if reg.controller_id != controller_id:
-			continue
-		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_IN_PLAY:
-			continue
-		to_remove.append(reg.id)
-	for id in to_remove:
-		unregister(id)
+	on_card_leave_play(controller_id)
+
+
+func on_card_leave_play(card_id: StringName) -> void:
+	## 06 §3.2.6 · 只卸 WHILE_IN_PLAY。不碰涌动 / 险境 / 隐私 / 起始 / 绑定 / 延时。
+	_unregister_matching(card_id, [
+		AhcEnums.LifetimeKind.WHILE_IN_PLAY,
+	])
+
+
+func on_leave_hand(card_id: StringName) -> void:
+	_unregister_matching(card_id, [
+		AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND,
+		AhcEnums.LifetimeKind.WHILE_IN_HAND,
+	])
+
+
+func on_leave_deck(card_id: StringName) -> void:
+	_unregister_matching(card_id, [
+		AhcEnums.LifetimeKind.WHILE_IN_DECK,
+	])
+
+
+func on_leave_set_aside(card_id: StringName) -> void:
+	_unregister_matching(card_id, [
+		AhcEnums.LifetimeKind.WHILE_SET_ASIDE,
+	])
+
+
+func on_drawn_card_finalize(card_id: StringName) -> void:
+	unregister_by_drawn_card(card_id)
 
 
 func unregister(id: StringName) -> void:
@@ -98,13 +118,19 @@ func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:
 
 
 func unregister_by_hidden_in_hand_card(card_id: StringName) -> void:
+	on_leave_hand(card_id)
+
+
+func _unregister_matching(card_id: StringName, kinds: Array) -> void:
 	if card_id == &"":
 		return
 	var to_remove: Array[StringName] = []
 	for reg in _entries:
-		if reg.lifetime_kind == AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND \
-				and reg.drawn_card_id == card_id:
-			to_remove.append(reg.id)
+		if not kinds.has(reg.lifetime_kind):
+			continue
+		if reg.drawn_card_id != card_id and reg.controller_id != card_id:
+			continue
+		to_remove.append(reg.id)
 	for id in to_remove:
 		unregister(id)
 

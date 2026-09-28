@@ -154,23 +154,27 @@ static func register_triggered(
 	resource_cost: int = 0,
 	action_cost: int = 0,
 	optional: bool = false,
-	window: StringName = &""
+	window: StringName = &"",
+	action_types: Array = [],
+	provokes_aoo: Variant = null
 ) -> void:
 	if not _triggered.has(definition_id):
 		_triggered[definition_id] = []
-	(_triggered[definition_id] as Array).append(
-		{
-			"ability_id": ability_id,
-			"match_kind": match_kind,
-			"phase": phase,
-			"ability_kind": ability_kind,
-			"resource_cost": resource_cost,
-			"action_cost": action_cost,
-			"optional": optional,
-			"window": window,
-			"builder": builder,
-		}
-	)
+	var unit := {
+		"ability_id": ability_id,
+		"match_kind": match_kind,
+		"phase": phase,
+		"ability_kind": ability_kind,
+		"resource_cost": resource_cost,
+		"action_cost": action_cost,
+		"optional": optional,
+		"window": window,
+		"action_types": action_types.duplicate(),
+		"builder": builder,
+	}
+	if provokes_aoo != null:
+		unit["provokes_aoo"] = bool(provokes_aoo)
+	(_triggered[definition_id] as Array).append(unit)
 
 
 static func triggered_units_at(definition_id: StringName) -> Array:

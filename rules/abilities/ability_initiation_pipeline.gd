@@ -81,7 +81,10 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 	_events.append_initiation(AhcEnums.InitiationStep.INIT_2B_AOO, hash, payload)
 	var aoo_attacks := 0
 	if intent.provokes_aoo and _aoo != null:
-		var aoo_result := _aoo.resolve(intent.controller_id, intent.aoo_action_type)
+		var types: Array = intent.action_types
+		if types.is_empty():
+			types = [intent.aoo_action_type]
+		var aoo_result := _aoo.resolve_for_types(intent.controller_id, types)
 		aoo_attacks = int(aoo_result.get("attacks", 0))
 
 	if not _passes_dry_run(intent, ctx):
@@ -95,8 +98,8 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 			return {"ok": false, "error": "commence_failed"}
 
 	_events.append_initiation(AhcEnums.InitiationStep.INIT_4_RESOLVE, hash, payload)
-	if intent.composition != null and _composition:
-		_composition.execute(intent.composition)
+	if intent.composition != null:
+		_resolve_composition_on_stack(intent, ctx)
 
 	if intent.kind == InitiationIntent.Kind.PLAY_CARD:
 		_finalize_play_card(intent, ctx)
@@ -107,6 +110,30 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 	if intent.provokes_aoo:
 		result["aoo_attacks"] = aoo_attacks
 	return result
+
+
+## 禁止真空：优先 nest `seq.ability.resolve`；Catalog 缺失时才直 execute。
+func _resolve_composition_on_stack(intent: InitiationIntent, ctx: GameContext) -> void:
+	if intent == null or intent.composition == null:
+		return
+	if (
+		ctx != null
+		and ctx.sequence_catalog != null
+		and ctx.sequence_catalog.has_flow(&"seq.ability.resolve")
+	):
+		ctx.sequence_catalog.nest(
+			ctx,
+			&"seq.ability.resolve",
+			{
+				"composition": intent.composition,
+				"controller_id": intent.controller_id,
+				"ability_id": intent.ability_id,
+				"source_id": intent.source_id,
+			}
+		)
+		return
+	if _composition != null:
+		_composition.execute(intent.composition)
 
 
 func _intent_payload(intent: InitiationIntent) -> Dictionary:

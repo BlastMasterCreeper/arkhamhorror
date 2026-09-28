@@ -97,6 +97,12 @@ func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Variant) 
 				return false
 			inv.eliminated = bool(value)
 			return true
+		AhcEnums.FlagField.RESIGNED:
+			var resigned_inv := _state.registry.get_investigator(bearer_id)
+			if resigned_inv == null:
+				return false
+			resigned_inv.resigned = bool(value)
+			return true
 	return false
 
 
@@ -403,6 +409,9 @@ func _remove_from_pile(card: CardInstance, inv: InvestigatorState) -> void:
 			inv.hand.erase(card.id.instance_id)
 		AhcEnums.Zone.DISCARD:
 			inv.discard.erase(card.id.instance_id)
+		AhcEnums.Zone.PLAY_AREA, AhcEnums.Zone.THREAT_AREA:
+			inv.threat_area.erase(card.id.instance_id)
+			inv.play_area.erase(card.id.instance_id)
 
 
 func _insert_into_pile(card: CardInstance, inv: InvestigatorState, to: CardSlot) -> bool:

@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility L0–L7）、[06-registration-buff-model.md](06-registration-buff-model.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[00-architecture-overview.md](../00-architecture-overview.md) §7  
 > **被依赖**：`AbilityCompiler`、`EligibilityPipeline`、`Condition`、Emitter 目录  
-> **状态**：v0.1 · 2026-06-18 — Register 对齐 · 首次 demand cold fold · HOT 增量 · Unregister 降温
+> **状态**：v0.1.1 · 2026-09-21 — 历史不进 Memory；权威源 EventRecord
 
 ---
 
@@ -27,7 +27,7 @@
 | **ApplicationContext** | 单次 TimingOffer 场合快照 | 派生 `EvaluationContext` |
 | **RulesMemory.referents** | 单 seq 步间 pending | **不**承担 turn 级 action 史 |
 | **EventRecord** | 权威流水 | cold fold 数据源 |
-| **StatProjectionStore** | 懒 HOT 读模型 | **本文** |
+| **StatProjectionStore** | 懒 HOT 读模型 | **本文**；Composition 树 / RulesMemory **不**存对局史（07 §1.4） |
 | **PlayerInteractionGate** | 玩家选择 | 无关 |
 
 ---
@@ -272,4 +272,5 @@ v1 可 L3/L5 均走 StatProjection；优化时再拆 LimitCounter。
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.1.1 | §2：对局史不进 RulesMemory / Composition；权威源仍是 EventRecord（07 §1.4） |
 | 2026-06-18 | v0.1 | 初稿：Register 对齐 · demand 升温 · Unregister 降温 |

@@ -2,8 +2,9 @@ class_name SequenceHandler
 extends RefCounted
 
 ## 能力**类别**优先级（跨类整批；见 06 §8.1 / 14 §5.2）。
+## 显现（Revelation）是独立类，**不是** FORCED；不进同窗口 Forced 批（06 §8.1.1）。
 ## 同类内选用、队长选序不由 tier 表达，见 ResponseWindow（待建）。
-enum Tier { FORCED, FRAMEWORK, TRIGGERED, LISTENER }
+enum Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 
 var match_kind: StringName = &""
 var phase: AhcEnums.SequencePhase = AhcEnums.SequencePhase.WHEN
@@ -47,6 +48,15 @@ static func after_reaction(
 	h.source_id = source_id
 	h.controller_id = controller_id
 	h.player_initiated = true
+	h.callback = fn
+	return h
+
+
+static func when_revelation(kind: StringName, fn: Callable) -> SequenceHandler:
+	var h := SequenceHandler.new()
+	h.match_kind = kind
+	h.phase = AhcEnums.SequencePhase.WHEN
+	h.tier = Tier.REVELATION
 	h.callback = fn
 	return h
 

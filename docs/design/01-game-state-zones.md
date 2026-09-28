@@ -135,7 +135,7 @@ Rules / headless **始终保留完整 `definition_id`**；可见性决定 **某�
 
 > **已裁决 · Reveal（揭示）是 L0 状态原语**  
 > Grimoire **Reveal 卡牌** 写入 `FaceAudience`（经 `StateMutator.reveal_to_*` / `AtomRevealCard`），**是效果施加**：改 Domain 揭示状态，Presentation 据此向用户 **公开牌面**；**参与** Composition dry-run **CREATED**。  
-> Headless 规则层始终保留完整 `definition_id`；与 UI 的差异仅在 **谁被视作已知牌面**。抽牌 **D2** = 规则 Reveal 步，同时锚定 **WHEN draw** 区间。见 [07-effect-primitives §5.3](07-effect-primitives.md)、[07-composition §4.1](07-composition.md)。
+> Headless 规则层始终保留完整 `definition_id`；与 UI 的差异仅在 **谁被视作已知牌面**。抽牌 **D2** = 规则 Reveal 步（zone 仍未 HAND）；**WHEN draw** 在 D3 入手之后，牌在 **HAND**。见 [15 §3.1](15-timing-entry-catalog.md)、[07-effect-primitives §5.3](07-effect-primitives.md)。
 
 #### 3.6.1 三档受众（FaceAudience）
 
@@ -182,8 +182,8 @@ class CardFaceVisibility:
 
 | 操作 | 改什么 | 是否效果 | 是否改 zone |
 |---|---|---|---|
-| **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | `audience → CONTROLLER` | **是**（**AtomRevealCard**） | 否（D3 才入手） |
-| **遭遇抽 E2**（[15 §17](15-timing-entry-catalog.md)） | 默认 `audience → ALL`；**隐私（Hidden）** 跳过公开 | **是**（Reveal） | 否（G4 才落场/弃） |
+| **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | `audience → CONTROLLER` | **是**（**AtomRevealCard**） | 否（D3 才 HAND） |
+| **遭遇抽 E2**（[15 §17](15-timing-entry-catalog.md)） | 默认 `audience → ALL`；**隐私（Hidden）** 跳过公开 | **是**（Reveal） | G1 pop 已 **LIMBO**；G4 才落场/弃 |
 | **窥探牌库/弃牌堆顶** | `audience → CONTROLLER` 或 **ALL** | **是**（Reveal） | 否 |
 | **Search 展示** | 按文本设 audience | **是**（Reveal） | 视后续是否 MoveCard |
 | **ENTER_HAND** | zone 变更 | **是**（MoveCard） | 是 |
@@ -392,3 +392,4 @@ class LocationState:
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-01-02 裁决：SimultaneousEffectGroup 同时效果语义 |
 | 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |
+| 2026-09-20 | v0.4.1 | 抽牌 When 时调查员 HAND、遭遇 LIMBO；Would 时仍 DECK（15 §3.1） |

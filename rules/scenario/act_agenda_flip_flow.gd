@@ -35,7 +35,7 @@ static func _flip(game_ctx: GameContext, is_agenda: bool) -> Dictionary:
 	if game_ctx.triggered_abilities != null:
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
-		game_ctx.registrations.unregister_by_controller(card_id)
+		game_ctx.registrations.on_card_leave_play(card_id)
 	card.face = AhcEnums.CardFace.B
 	var back := CardRegistry.back_text(def_id)
 	var back_result := ActAgendaBackResolver.resolve(game_ctx, def_id, back, card_id, is_agenda)

@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 16,
+      "compiled_total": 23,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -17,9 +17,13 @@
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
+        "draw": 2,
+        "skill_test": 1,
         "gain_resources": 4,
         "seq": 1,
-        "take_horror": 1
+        "place_doom_on_source": 1,
+        "take_horror": 1,
+        "discard_source": 3
       }
     }
   },
@@ -222,6 +226,18 @@
         "kind": "reaction",
         "body": "After you successfully investigate: Draw 1 card. (Limit once per round.)",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "partial",
+        "trigger": "After you successfully investigate",
+        "template": "draw",
+        "amount": 1
       }
     ]
   },
@@ -560,6 +576,26 @@
         "ability_id": "revelation:0",
         "status": "partial",
         "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "willpower",
+        "difficulty": 5,
+        "st7": {
+          "on_success": {
+            "template": "discard_source"
+          }
+        }
       }
     ]
   },
@@ -1902,6 +1938,18 @@
         "body": "After you take damage and/or horror, exhaust Jim Culver: Draw 1 card.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you take damage and/or horror, exhaust Jim Culver",
+        "template": "draw",
+        "amount": 1
+      }
     ]
   },
   "12061": {
@@ -2793,6 +2841,18 @@
         "index": 0
       }
     ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When the investigation phase ends, if The Nameless Lurker is ready and has no doom on it",
+        "template": "place_doom_on_source",
+        "amount": 1
+      }
+    ],
     "spawn_instruction": {
       "selector": "farthest_empty"
     }
@@ -2862,6 +2922,19 @@
         "template": "take_horror",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -2931,6 +3004,19 @@
         "template": "take_damage",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -2999,6 +3085,19 @@
         "template": "take_damage",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   }

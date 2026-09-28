@@ -82,10 +82,7 @@ static func register_enter_hand_test_definitions() -> void:
 		&"rev_take_horror",
 		&"revelation:0",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				1
-			)
+			return CompositionNode.nest_take_horror(bind.controller_id, 1)
 	)
 	CardRegistry.register_definition(
 		&"rev_limbo_discard",
@@ -230,7 +227,8 @@ static func add_encounter_card_to_deck(
 	def_data.merge(extra_def, true)
 	if not keywords.is_empty():
 		def_data["keywords"] = keywords
-	CardRegistry.register_definition(definition_id, def_data)
+	## 保留已 import 的 title/traits 等，仅补测试所需字段。
+	CardRegistry.patch_definition(definition_id, def_data)
 	return instance_id
 
 
@@ -256,7 +254,7 @@ static func add_encounter_card_to_discard(
 	def_data.merge(extra_def, true)
 	if not keywords.is_empty():
 		def_data["keywords"] = keywords
-	CardRegistry.register_definition(definition_id, def_data)
+	CardRegistry.patch_definition(definition_id, def_data)
 	return instance_id
 
 
