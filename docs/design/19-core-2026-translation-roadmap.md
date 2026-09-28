@@ -55,7 +55,7 @@
 
 | 债 | 状态 | 备注 |
 |---|---|---|
-| 12113 `engage_from_connecting` | ✅ 已展 | `no_provoke_aoo` → PI → nest `seq.enemy.move` → nest `seq.engage` |
+| 12113 `engage_from_connecting` | ✅ 已展 | SKIP_AOO → PI → `suppress_auto_engage` → nest move → nest engage |
 | 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign`（Resign 类型本身不借机，不挂 SKIP_AOO） |
 | Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
 | `nest_move_connecting` 内嵌 PI | 待拆 | 12116：选地点确认应独立为 pick_target 步 |
@@ -112,9 +112,9 @@
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
 ### 12113 Engage（连结地点）✅（应展尽展）
-- `seq`：`no_provoke_aoo` → PI `pick_target` → nest **`seq.enemy.move`**（`nest_enemy_move_to` 模板语义：无自动交战）→ nest **`seq.engage`**
-- 卡面「This action does not provoke…」→ 行动开始 Register **限制类** `SKIP_AOO`；INIT_2B 由 AOO **原流程读取** 后分支
-- Engage 类型层仍 `provokes_aoo=true`；指标：ADB-48..50、ADB-60
+- `seq`：`no_provoke_aoo` → PI → Register **`SUPPRESS_AUTO_ENGAGE`** → nest **`seq.enemy.move`** → nest **`seq.engage`**
+- 移入仍走 auto-engage 入口；限制类在 REST-E-AUTO-ENGAGE **读取后分支**（不跑 Prey/Lead）；明示交战不受影响
+- 「does not provoke…」→ 行动开始 `SKIP_AOO`；指标：ADB-48..50、ADB-60
 
 ### 12118–20 地点能力 ✅（Limit 运行时后补）
 - 12118 Forced：discover → `discard_from_hand`（mode=choose）
@@ -133,6 +133,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.16 | `SUPPRESS_AUTO_ENGAGE` 限制类：auto-engage 入口读取分支；12113 去掉翻译层 auto_engage 开关 |
 | 2026-09-28 | v0.15 | 12112/12113 显式 nest 信封：`seq.effect.resign` / `seq.enemy.move` / `seq.engage` |
 | 2026-09-28 | v0.14 | 12112 撤退拆糖：留置线索 / set_flag / eliminate（后收入信封） |
 | 2026-09-28 | v0.13 | 明确 `SKIP_AOO` = 限制类读取分支（非 Listener / 非 Cancel） |

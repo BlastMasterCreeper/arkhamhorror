@@ -113,6 +113,7 @@ func _initialize() -> void:
 	_run_test("ADB-58 compile 12122 after attack discard asset", _test_adb_compile_12122)
 	_run_test("ADB-59 12122 phase attack discards asset", _test_adb_12122_discard_asset)
 	_run_test("ADB-60 SKIP_AOO restriction read branches AOO", _test_adb_skip_aoo_buff_consume)
+	_run_test("ADB-61 SUPPRESS_AUTO_ENGAGE after move keeps explicit engage", _test_adb_suppress_auto_engage_explicit)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2256,12 +2257,13 @@ func _test_adb_compile_12113() -> bool:
 	var entry: Dictionary = compiled[0]
 	var types: Variant = entry.get("action_types", [])
 	var steps: Variant = entry.get("steps", [])
-	if not steps is Array or (steps as Array).size() != 4:
+	if not steps is Array or (steps as Array).size() != 5:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
 	var s1: Dictionary = (steps as Array)[1]
 	var s2: Dictionary = (steps as Array)[2]
 	var s3: Dictionary = (steps as Array)[3]
+	var s4: Dictionary = (steps as Array)[4]
 	if not types is Array:
 		return false
 	return (
@@ -2276,11 +2278,11 @@ func _test_adb_compile_12113() -> bool:
 		and str(s0.get("template", "")) == "no_provoke_aoo"
 		and str(s1.get("template", "")) == "pick_target"
 		and str(s1.get("filter", "")) == "enemy_at_connecting"
-		and str(s2.get("template", "")) == "nest_enemy_move_to"
-		and str(s2.get("flow_id", "")) == "seq.enemy.move"
-		and not s2.has("auto_engage")
-		and str(s3.get("template", "")) == "nest_engage"
-		and str(s3.get("flow_id", "")) == "seq.engage"
+		and str(s2.get("template", "")) == "suppress_auto_engage"
+		and str(s3.get("template", "")) == "nest_enemy_move_to"
+		and str(s3.get("flow_id", "")) == "seq.enemy.move"
+		and str(s4.get("template", "")) == "nest_engage"
+		and str(s4.get("flow_id", "")) == "seq.engage"
 		and CardRegistry.has_triggered(&"12113")
 	)
 
@@ -2363,6 +2365,42 @@ func _test_adb_12113_engage_connecting() -> bool:
 		and enemy.engaged_with == &"inv_1"
 		and inv.threat_area.has(&"enemy_conn")
 		and inv.actions_remaining == 1
+	)
+
+
+func _test_adb_suppress_auto_engage_explicit() -> bool:
+	## 移入仍走 auto-engage 入口；SUPPRESS_AUTO_ENGAGE 读取后跳过；明示交战绑定 controller。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_conn", &"loc_b", 2, 2)
+	## 第二调查员同地点：若走 Prey/Lead 自动交战可能交战到他人。
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.actions_remaining = 2
+	var body := CompositionNode.seq([
+		CompositionNode.suppress_auto_engage(&"inv_1", &"enemy_conn"),
+		CompositionNode.nest_enemy_move_to(
+			&"inv_1", &"enemy_conn", &"test_loc", true
+		),
+		CompositionNode.nest_engage(&"inv_1", &"enemy_conn", &"effect"),
+	])
+	var intent := InitiationIntent.action_ability(
+		&"inv_1", body, 1, AhcEnums.ActionType.ACTIVATE,
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
+	)
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_conn")
+	return (
+		res.ok
+		and enemy != null
+		and enemy.location_tag == &"test_loc"
+		and enemy.engaged_with == &"inv_1"
+		and inv.threat_area.has(&"enemy_conn")
+		and not h.ctx.registrations.has_suppress_auto_engage(&"enemy_conn")
 	)
 
 

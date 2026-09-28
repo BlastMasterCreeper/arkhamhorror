@@ -118,6 +118,41 @@ func _find_skip_aoo_reg_id(controller_id: StringName) -> StringName:
 	return &""
 
 
+## 读取：该敌人是否有 SUPPRESS_AUTO_ENGAGE（不卸）。
+func has_suppress_auto_engage(enemy_id: StringName) -> bool:
+	return _find_suppress_auto_engage_reg_id(enemy_id) != &""
+
+
+## auto-engage 入口：读取限制 → 原流程跳过自动交战；读后 clear。
+func read_suppress_auto_engage(enemy_id: StringName) -> bool:
+	var reg_id := _find_suppress_auto_engage_reg_id(enemy_id)
+	if reg_id == &"":
+		return false
+	unregister(reg_id)
+	return true
+
+
+## 明示交战后清掉残留（若移入未触发 auto-engage 入口）。
+func clear_suppress_auto_engage(enemy_id: StringName) -> void:
+	var reg_id := _find_suppress_auto_engage_reg_id(enemy_id)
+	if reg_id != &"":
+		unregister(reg_id)
+
+
+func _find_suppress_auto_engage_reg_id(enemy_id: StringName) -> StringName:
+	if enemy_id == &"":
+		return &""
+	for reg in _entries:
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind != AhcEnums.RestrictionKind.SUPPRESS_AUTO_ENGAGE:
+				continue
+			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+				return reg.id
+	return &""
+
+
 func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
 	if card_id == &"" or keyword == &"":
 		return false

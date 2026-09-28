@@ -287,6 +287,19 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 							return true
 				return false
 			return true
+		&"suppress_auto_engage":
+			## Register SUPPRESS_AUTO_ENGAGE 是效果（CREATED）。
+			var sup_enemy := sim.last_step_enemy_id
+			var sup_spec := str(node.enemy_ref_id)
+			if sup_spec != "" and not sup_spec.begins_with("memory:"):
+				sup_enemy = node.enemy_ref_id
+			if sup_enemy == &"" or sim.state.registry.get_enemy(sup_enemy) == null:
+				return false
+			if sim.registrations != null:
+				sim.registrations.register(
+					RegistrationTemplate.suppress_auto_engage_until_fired(sup_enemy)
+				)
+			return true
 		&"move_enemy_to", &"engage_target", &"nest_enemy_move_to", &"nest_engage":
 			var move_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if move_inv == null:

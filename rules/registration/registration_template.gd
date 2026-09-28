@@ -63,6 +63,16 @@ static func skip_aoo_until_fired(controller_id: StringName) -> RegistrationTempl
 	return skip_aoo_for_action(controller_id)
 
 
+## 限制类 SUPPRESS_AUTO_ENGAGE：效果移入前 Register；auto-engage 入口读取后卸掉。
+static func suppress_auto_engage_until_fired(enemy_id: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
+	t.drawn_card_id = enemy_id
+	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.suppress_auto_engage(enemy_id)))
+	return t
+
+
 ## G2 peril Register：`WHILE_DRAWN_CARD_RESOLVING(card_id)` — G4 完 Unregister；不跨 Surge。
 static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()

@@ -332,6 +332,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 				"controller": node.inv_id,
 			})
 			return true
+		&"suppress_auto_engage":
+			return _execute_suppress_auto_engage(node)
 		&"leave_clues_at_location":
 			return _execute_leave_clues_at_location(node)
 		&"eliminate":
@@ -870,6 +872,9 @@ func _execute_nest_engage(node: CompositionNode) -> bool:
 			"investigator_id": inv_id,
 		}
 	)
+	## 明示交战完成：清掉未在 auto-engage 入口读掉的抑制限制。
+	if _game_ctx.registrations != null:
+		_game_ctx.registrations.clear_suppress_auto_engage(enemy_id)
 	_last_step_enemy_id = enemy_id
 	_last_step_engaged_investigator = inv_id if bool(result.get("ok", false)) else &""
 	_log.log(
@@ -878,6 +883,27 @@ func _execute_nest_engage(node: CompositionNode) -> bool:
 		{"enemy": enemy_id, "inv": inv_id, "mode": mode, "ok": bool(result.get("ok", false))}
 	)
 	return bool(result.get("ok", false))
+
+
+## Register SUPPRESS_AUTO_ENGAGE（限制类）；auto-engage 入口读取后分支。
+func _execute_suppress_auto_engage(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.registrations == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	if _game_ctx.registrations.has_suppress_auto_engage(enemy_id):
+		return true
+	var reg_id := _game_ctx.registrations.register(
+		RegistrationTemplate.suppress_auto_engage_until_fired(enemy_id)
+	)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:suppress_auto_engage",
+		{"enemy": enemy_id, "reg": reg_id}
+	)
+	return reg_id != &""
 
 
 func _resolve_enemy_spec(node: CompositionNode, controller_id: StringName) -> StringName:

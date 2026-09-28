@@ -826,13 +826,29 @@ static func engage_target(
 	return n
 
 
-## 卡面效果「移入地点」：nest `seq.enemy.move`，**不含**自动交战。
-## 交战另 nest `seq.engage`（与猎手/阶段移动默认 auto engage 入口不同）。
+## 限制类：对该敌人 Register SUPPRESS_AUTO_ENGAGE（auto-engage 入口读取后跳过）。
+## 用于「移入后由卡面明示交战」——移入仍走正常自动交战入口，由限制分支。
+static func suppress_auto_engage(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"suppress_auto_engage"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	return n
+
+
+## 卡面效果「移入地点」：nest `seq.enemy.move`（移入后仍走 auto-engage 入口）。
+## 若需抑制自动交战、改由明示交战：先 `suppress_auto_engage`，再 nest `seq.engage`。
 static func nest_enemy_move_to(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
 	location_spec: StringName = &"source_location",
-	_auto_engage_after: bool = false,
+	auto_engage_after: bool = true,
 	source_card_id: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
@@ -843,7 +859,7 @@ static func nest_enemy_move_to(
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec
 	n.location_target = location_spec
-	n.auto_engage = false
+	n.auto_engage = auto_engage_after
 	return n
 
 
@@ -865,7 +881,7 @@ static func nest_engage(
 	return n
 
 
-## 12113：限制类 → PI → nest seq.enemy.move → nest seq.engage。
+## 12113：SKIP_AOO → PI → 抑制自动交战 → nest move → nest 明示交战。
 static func engage_from_connecting(
 	controller_id: StringName,
 	source_card_id: StringName = &""
@@ -879,13 +895,14 @@ static func engage_from_connecting(
 			&"picked_enemy",
 			source_card_id
 		),
+		suppress_auto_engage(controller_id, &"memory:picked_enemy", source_card_id),
 		nest_enemy_move_to(
 			controller_id,
 			&"memory:picked_enemy",
 			&"source_location",
-			false,
+			true,
 			source_card_id
-		),  ## 模板默认无自动交战；交战见下一步 nest_engage
+		),
 		nest_engage(controller_id, &"memory:picked_enemy", &"effect", source_card_id),
 	])
 

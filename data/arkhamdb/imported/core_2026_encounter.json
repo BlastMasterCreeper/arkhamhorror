@@ -486,6 +486,10 @@
             "memory_key": "picked_enemy"
           },
           {
+            "template": "suppress_auto_engage",
+            "enemy": "memory:picked_enemy"
+          },
+          {
             "template": "nest_enemy_move_to",
             "flow_id": "seq.enemy.move",
             "enemy": "memory:picked_enemy",

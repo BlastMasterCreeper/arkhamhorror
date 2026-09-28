@@ -106,13 +106,19 @@ static func build_composition(
 				StringName(str(params.get("enemy", "memory:picked_enemy"))),
 				bind.card_id
 			)
+		"suppress_auto_engage":
+			return CompositionNode.suppress_auto_engage(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
+				bind.card_id
+			)
 		"nest_enemy_move_to":
-			## 卡面效果移入：模板语义不含自动交战；交战另 nest seq.engage。
+			## 移入走正常 auto-engage 入口；抑制靠先前的 SUPPRESS_AUTO_ENGAGE 限制。
 			return CompositionNode.nest_enemy_move_to(
 				bind.controller_id,
 				StringName(str(params.get("enemy", "memory:picked_enemy"))),
 				StringName(str(params.get("location", "source_location"))),
-				false,
+				true,
 				bind.card_id
 			)
 		"nest_engage":
