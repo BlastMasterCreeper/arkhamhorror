@@ -90,6 +90,8 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		inv.deck = inv_src.deck.duplicate()
 		inv.hand = inv_src.hand.duplicate()
 		inv.discard = inv_src.discard.duplicate()
+		inv.threat_area = inv_src.threat_area.duplicate()
+		inv.play_area = inv_src.play_area.duplicate()
 		copy.registry.register_investigator(inv)
 	for card_id in src.registry.all_card_ids():
 		var card_src: CardInstance = src.registry.get_card(card_id)
@@ -109,4 +111,25 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		loc.revealed = loc_src.revealed
 		loc.connections = loc_src.connections.duplicate()
 		copy.registry.register_location(loc)
+	## dry-run 需要敌人场面（pick_target / nest_engage 等）。
+	for enemy_id in src.registry.all_enemy_ids():
+		var enemy_src := src.registry.get_enemy(enemy_id)
+		if enemy_src == null:
+			continue
+		var enemy := EnemyState.new()
+		enemy.id = enemy_src.id
+		enemy.location_tag = enemy_src.location_tag
+		enemy.fight = enemy_src.fight
+		enemy.evade = enemy_src.evade
+		enemy.health = enemy_src.health
+		enemy.damage = enemy_src.damage
+		enemy.doom = enemy_src.doom
+		enemy.attack_damage = enemy_src.attack_damage
+		enemy.attack_horror = enemy_src.attack_horror
+		enemy.exhausted = enemy_src.exhausted
+		enemy.aloof = enemy_src.aloof
+		enemy.massive = enemy_src.massive
+		enemy.engaged_with = enemy_src.engaged_with
+		enemy.auto_engage_suppressed = enemy_src.auto_engage_suppressed
+		copy.registry.register_enemy(enemy)
 	return copy

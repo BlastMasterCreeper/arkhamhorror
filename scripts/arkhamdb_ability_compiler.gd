@@ -434,6 +434,12 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"card_id",
 		"action_types",
 		"per_investigator",
+		"filter",
+		"memory_key",
+		"auto_engage",
+		"location",
+		"investigator",
+		"translation",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

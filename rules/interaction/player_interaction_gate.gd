@@ -30,8 +30,14 @@ func ask(request: ChoiceRequest, ctx: GameContext) -> Variant:
 func _looks_like_default(request: ChoiceRequest, picked: Variant) -> bool:
 	if request.options.is_empty() or picked == null:
 		return true
+	## USE_ABILITY 等返回 bool，options 里是 handler——不能 bool == Object。
+	if typeof(picked) == TYPE_BOOL:
+		return (picked == true) == (request.default_index > 0)
 	var idx := clampi(request.default_index, 0, request.options.size() - 1)
-	return picked == request.options[idx]
+	var opt: Variant = request.options[idx]
+	if typeof(picked) != typeof(opt):
+		return false
+	return is_same(picked, opt) or str(picked) == str(opt)
 
 
 func ask_use_ability(
