@@ -224,11 +224,32 @@ func _resolve_forced(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
 	var source_id := descriptor.source_id
 	if source_id != &"" and _ctx.sequences != null:
 		_ctx.sequences.begin_ability_resolution(source_id)
-	if _ctx.composition != null:
-		_ctx.composition.execute(descriptor.composition)
+	_execute_composition_on_stack(descriptor)
 	if source_id != &"" and _ctx.sequences != null:
 		_ctx.sequences.end_ability_resolution()
 	return {"ok": true}
+
+
+func _execute_composition_on_stack(descriptor: TriggeredAbilityDescriptor) -> void:
+	if descriptor == null or descriptor.composition == null or _ctx == null:
+		return
+	if (
+		_ctx.sequence_catalog != null
+		and _ctx.sequence_catalog.has_flow(&"seq.ability.resolve")
+	):
+		_ctx.sequence_catalog.nest(
+			_ctx,
+			&"seq.ability.resolve",
+			{
+				"composition": descriptor.composition,
+				"controller_id": _effective_controller(descriptor),
+				"ability_id": descriptor.id,
+				"source_id": descriptor.source_id,
+			}
+		)
+		return
+	if _ctx.composition != null:
+		_ctx.composition.execute(descriptor.composition)
 
 
 func _resolve_via_initiation(descriptor: TriggeredAbilityDescriptor) -> Dictionary:

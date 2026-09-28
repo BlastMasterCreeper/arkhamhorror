@@ -239,6 +239,34 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.attach(game_ctx, params)
 	)
+	catalog.register_run(
+		&"seq.effect.resign",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.resign(
+				params.get("investigator_id", params.get("controller_id", &"")) as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return InvestigatorElimination.resign(
+				game_ctx,
+				params.get("investigator_id", params.get("controller_id", &"")) as StringName
+			)
+	)
+	## Initiation / Forced 效果体装载帧：树在此 RESOLVE 内解释（禁真空）。
+	catalog.register_run(
+		&"seq.ability.resolve",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.ability_resolve(
+				params.get("controller_id", &"") as StringName,
+				params.get("ability_id", &"") as StringName,
+				params.get("source_id", &"") as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			var tree: Variant = params.get("composition", null)
+			if tree is CompositionNode and game_ctx != null and game_ctx.composition != null:
+				game_ctx.composition.execute(tree as CompositionNode)
+				return {"ok": true}
+			return {"ok": false, "reason": &"no_composition"}
+	)
 
 
 static func _register_enemy_flows(catalog: SequenceCatalog) -> void:

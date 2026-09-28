@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 21,
+      "compiled_total": 23,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -17,6 +17,7 @@
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
+        "draw": 2,
         "skill_test": 1,
         "gain_resources": 4,
         "seq": 1,
@@ -225,6 +226,18 @@
         "kind": "reaction",
         "body": "After you successfully investigate: Draw 1 card. (Limit once per round.)",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "partial",
+        "trigger": "After you successfully investigate",
+        "template": "draw",
+        "amount": 1
       }
     ]
   },
@@ -1924,6 +1937,18 @@
         "kind": "reaction",
         "body": "After you take damage and/or horror, exhaust Jim Culver: Draw 1 card.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you take damage and/or horror, exhaust Jim Culver",
+        "template": "draw",
+        "amount": 1
       }
     ]
   },

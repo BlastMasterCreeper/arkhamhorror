@@ -48,6 +48,13 @@ var for_each_source: StringName = &"player_order"
 var nest_flow_id: StringName = &""
 var is_direct: bool = false
 var place_doom_target: StringName = &""
+## PI / 步间指称：RulesMemory key（如 picked_enemy）。
+var memory_key: StringName = &""
+## pick_target 候选过滤（如 enemy_at_connecting）。
+var target_filter: StringName = &""
+## nest_engage / nest_enemy_move_to 等模式或开关载荷。
+var engage_mode: StringName = &"effect"
+var auto_engage: bool = true
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -721,26 +728,100 @@ static func nest_scenario_resolution(
 	return n
 
 
-## L0 · Resign（撤退）· Initiation 效果体内联执行，非 nest 命名流程。
-static func resign(inv_id: StringName) -> CompositionNode:
+## nest `seq.effect.resign`（撤退效果信封）。
+static func nest_resign(inv_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"resign"
+	n.atom_name = &"nest_resign"
+	n.nest_flow_id = &"seq.effect.resign"
 	n.inv_id = inv_id
 	return n
 
 
-## L0 · 选连结地点敌人 → 移至本地点并交战（Initiation 内联）。
-static func engage_from_connecting(
+## @deprecated 兼容旧测例；等价 nest_resign。
+static func resign(inv_id: StringName) -> CompositionNode:
+	return nest_resign(inv_id)
+
+
+## PI：有限期确认目标 → 写入 RulesMemory（默认 = 合法集首项）。
+static func pick_target(
 	controller_id: StringName,
+	target_filter: StringName,
+	prompt_id: StringName,
+	memory_key: StringName = &"picked_enemy",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"engage_from_connecting"
+	n.atom_name = &"pick_target"
 	n.inv_id = controller_id
 	n.card_id = source_card_id
+	n.target_filter = target_filter
+	n.choice_prompt_id = prompt_id
+	n.memory_key = memory_key
 	return n
+
+
+## nest `seq.enemy.move`：把 memory/显式敌人移到目标地点。
+static func nest_enemy_move_to(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	location_spec: StringName = &"source_location",
+	auto_engage_after: bool = true,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_enemy_move_to"
+	n.nest_flow_id = &"seq.enemy.move"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.location_target = location_spec
+	n.auto_engage = auto_engage_after
+	return n
+
+
+## nest `seq.engage`（mode=effect/action/auto）。
+static func nest_engage(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	mode: StringName = &"effect",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_engage"
+	n.nest_flow_id = &"seq.engage"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.engage_mode = mode
+	return n
+
+
+## 12113 应展尽展树：PI → nest 移动 → nest 交战。
+static func engage_from_connecting(
+	controller_id: StringName,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	return seq([
+		pick_target(
+			controller_id,
+			&"enemy_at_connecting",
+			&"pick:engage_connecting",
+			&"picked_enemy",
+			source_card_id
+		),
+		nest_enemy_move_to(
+			controller_id,
+			&"memory:picked_enemy",
+			&"source_location",
+			false,
+			source_card_id
+		),
+		nest_engage(controller_id, &"memory:picked_enemy", &"effect", source_card_id),
+	])
 
 
 ## L0 · 群体花费线索（交互分配后补；现按玩家顺序各出 1 直至凑够）。

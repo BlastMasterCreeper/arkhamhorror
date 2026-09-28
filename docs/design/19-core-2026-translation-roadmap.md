@@ -51,17 +51,16 @@
 6. Headless：compile 形状 + 至少一条运行时路径（含默认确认路径）
 7. 选型可查（template vs 手写同等树 · OQ-12-01）
 
-### 3.1 翻译债（糖 / 真空 · 待拆）
+### 3.1 翻译债（糖 / 真空）
 
-下列 **不满足** 现 DoD，后续批次优先拆开，不得再新增同类：
-
-| 债 | 现状 | 应展为 |
+| 债 | 状态 | 备注 |
 |---|---|---|
-| `engage_from_connecting` | 单 Atom：选敌+移入+交战；Initiation 内联真空倾向 | PI `PICK_TARGET`（连结地点敌人，default）→ 移入 → 交战内核（§4.0.5） |
-| `resign` 糖 Atom | Initiation 内联 atom | 展为标准 resign 手续步 / 已有 seq |
-| `AbilityInitiationPipeline` 裸 `execute` | 17 I2 绕栈 | 先压/复用父 seq 帧再解释 |
-| LISTENER / peril / act-agenda-back 裸 `execute` | 同上家族 | 同帧归属明确的父 seq |
-| 编译侧「叶子一律 nest」习惯 | 旧 07 §1.4 | 先判三分法再写节点 |
+| 12113 `engage_from_connecting` | ✅ 已展 | PI `pick_target` → nest `seq.enemy.move`(auto_engage=false) → nest `seq.engage` |
+| 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign` |
+| Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
+| `nest_move_connecting` 内嵌 PI | 待拆 | 12116：选地点确认应独立为 pick_target 步 |
+| LISTENER / peril / act-agenda-back | 部分 | 仍有直 `execute` 路径；优先复用 `seq.ability.resolve` |
+| 编译侧「叶子一律 nest」习惯 | 文档已裁 | 新译先判三分法 |
 
 ---
 
@@ -108,12 +107,12 @@
 - 借机：`AttackOfOpportunityResolver.provokes_for_types`；含 Parley/Resign/Fight/Evade 则不借机（**Engage 不豁免**）
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
-### 12112 Resign / 群体线索 ⚠️ 糖债
-- Resign：`action_types: [activate, resign]`；现为 Initiation 内联糖 Atom → **列入 §3.1 债**，应展尽展
+### 12112 Resign / 群体线索 ✅（应展尽展）
+- Resign：`seq(nest_resign)` → nest `seq.effect.resign`；经 `seq.ability.resolve` 装载
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
-### 12113 Engage（连结地点）⚠️ 糖债
-- `action_types: [activate, engage]`；现 atom `engage_from_connecting` → **列入 §3.1 债**（应拆：PI 确认 + 移入 + 交战）
+### 12113 Engage（连结地点）✅（应展尽展）
+- `seq`：`pick_target(enemy_at_connecting)` → `nest_enemy_move_to(auto_engage=false)` → `nest_engage(effect)`
 - **Engage 默认会借机**；卡面「does not provoke…」→ `provokes_aoo: false` 覆盖
 - 指标：ADB-48..50
 
@@ -134,6 +133,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.10 | 12112/12113 应展尽展；`seq.effect.resign` / `seq.ability.resolve`；债清两笔 |
 | 2026-09-28 | v0.9 | **翻译硬门槛**：禁真空；三分法（内联/nest/PI）；应展尽展禁糖；§3.1 债清单 |
 | 2026-09-22 | v0.8 | `seq.enemy.defeat`；12116/22/32；controlled_assets discard；72/162 |
 | 2026-09-22 | v0.7 | 12118–20 弃手/反应抽/双行动抽；nest_draw_investigator；68/162 |

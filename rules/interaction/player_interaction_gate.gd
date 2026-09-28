@@ -10,6 +10,7 @@ func ask(request: ChoiceRequest, ctx: GameContext) -> Variant:
 	if request == null:
 		return null
 	var picked: Variant = resolver.resolve(request)
+	var used_default := _looks_like_default(request, picked)
 	if ctx != null and ctx.log != null:
 		ctx.log.log(
 			AhcEnums.LogCategory.SYSTEM,
@@ -19,9 +20,18 @@ func ask(request: ChoiceRequest, ctx: GameContext) -> Variant:
 				"prompt_id": request.prompt_id,
 				"decider": request.decider_id,
 				"picked": picked,
+				"used_default": used_default,
+				"deadline_ms": request.deadline_ms,
 			}
 		)
 	return picked
+
+
+func _looks_like_default(request: ChoiceRequest, picked: Variant) -> bool:
+	if request.options.is_empty() or picked == null:
+		return true
+	var idx := clampi(request.default_index, 0, request.options.size() - 1)
+	return picked == request.options[idx]
 
 
 func ask_use_ability(
@@ -108,12 +118,17 @@ func ask_pick_target(
 ) -> Variant:
 	if candidates.is_empty():
 		return null
-	if candidates.size() == 1:
-		return candidates[0]
+	## 唯一候选 = 默认确认；多候选走有限期确认（逾期/headless → default_index）。
 	var req: ChoiceRequest = ChoiceRequest.new()
 	req.kind = AhcEnums.ChoiceKind.PICK_TARGET
 	req.decider_id = controller_id
 	req.prompt_id = prompt_id
 	req.options = candidates.duplicate()
+	req.default_index = 0
+	req.deadline_ms = -1
+	if candidates.size() == 1:
+		return candidates[0]
 	var pick: Variant = ask(req, ctx)
+	if pick == null:
+		return candidates[0]
 	return pick

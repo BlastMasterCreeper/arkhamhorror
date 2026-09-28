@@ -491,9 +491,12 @@ def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
 def compile_resign(body: str) -> dict[str, Any] | None:
     if not RESIGN_ABILITY.match(body.strip()):
         return None
+    # 应展尽展：nest seq.effect.resign（非糖 Atom）。
     return {
-        "template": "resign",
+        "template": "seq",
         "action_types": ["activate", "resign"],
+        "steps": [{"template": "nest_resign"}],
+        "translation": "full_expand",
     }
 
 
@@ -525,9 +528,31 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
+    # 应展尽展：PI 确认目标 → nest 移动（关自动交战）→ nest seq.engage。
     entry: dict[str, Any] = {
-        "template": "engage_from_connecting",
+        "template": "seq",
         "action_types": ["activate", "engage"],
+        "translation": "full_expand",
+        "steps": [
+            {
+                "template": "pick_target",
+                "filter": "enemy_at_connecting",
+                "prompt_id": "pick:engage_connecting",
+                "memory_key": "picked_enemy",
+            },
+            {
+                "template": "nest_enemy_move_to",
+                "enemy": "memory:picked_enemy",
+                "location": "source_location",
+                "auto_engage": False,
+            },
+            {
+                "template": "nest_engage",
+                "mode": "effect",
+                "enemy": "memory:picked_enemy",
+                "investigator": "controller",
+            },
+        ],
     }
     # Engage 不在借机豁免类型内；仅卡面显式声明时覆盖为 false。
     if NO_AOO_PHRASE.search(text):
@@ -953,8 +978,8 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         status = "partial"
     elif "(limit" in body.lower():
         status = "partial"
-    # Resign / Engage-from-connecting 效果体为单 atom，视为 full。
-    if compiled.get("template") in ("resign", "engage_from_connecting"):
+    # 应展尽展的 Resign / Engage-from-connecting 视为 full。
+    if compiled.get("translation") == "full_expand":
         status = "full"
     entry: dict[str, Any] = {
         "segment_index": segment["index"],

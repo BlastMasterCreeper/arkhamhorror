@@ -219,6 +219,8 @@
 | `seq.effect.discard_card` | 弃置指定牌（手牌 / 威胁区 / 遭遇） | 弱点自弃、成功弃附着 |
 | `seq.effect.discard_from_hand` | 弃手牌（`amount` / `mode=random|pick`） | fail-by 二选一 |
 | `seq.effect.attach` | limbo 附着地点（最近无同名 / 本地点） | Fire! / Flash Flood / Arcane Lock 显现 |
+| `seq.effect.resign` | 撤退（线索留地点 + resigned + eliminate） | 12112；nest 自 Composition |
+| `seq.ability.resolve` | Initiation / Forced 效果体装载帧 | 禁真空：树在此 RESOLVE 内解释 |
 | `seq.skill_test` | Skill Test Timing（**一条**；`params.skill`） | 显现内检定、行动检定 nest |
 | `seq.framework.investigation_phase_ends` | 调查阶段结束钩子（WHEN/AFTER） | Fire! / 地点 Forced |
 

@@ -6,6 +6,7 @@ var registrations: RegistrationStore
 var mutator: StateMutator
 var last_step_created: bool = false
 var last_step_engaged_investigator: StringName = &""
+var last_step_enemy_id: StringName = &""
 var last_resolved_location: StringName = &""
 var last_skill_test_fail_by: int = 0
 var for_each_inv_override: StringName = &""
@@ -24,6 +25,9 @@ func fork() -> GameSimulator:
 	copy.state = _duplicate_state(state)
 	copy.registrations = registrations.duplicate_store()
 	copy.last_skill_test_fail_by = last_skill_test_fail_by
+	copy.last_step_enemy_id = last_step_enemy_id
+	copy.last_step_engaged_investigator = last_step_engaged_investigator
+	copy.last_resolved_location = last_resolved_location
 	copy.for_each_inv_override = for_each_inv_override
 	copy._bind_mutator()
 	return copy

@@ -17,9 +17,7 @@
       "by_template": {
         "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "seq": 5,
-        "resign": 4,
-        "engage_from_connecting": 1,
+        "seq": 10,
         "nest_move_connecting": 1,
         "discard_from_hand": 2,
         "draw": 2,
@@ -414,7 +412,13 @@
           "resign"
         ],
         "status": "full",
-        "template": "resign"
+        "template": "seq",
+        "steps": [
+          {
+            "template": "nest_resign"
+          }
+        ],
+        "translation": "full_expand"
       }
     ]
   },
@@ -468,7 +472,28 @@
           "engage"
         ],
         "status": "full",
-        "template": "engage_from_connecting",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "pick_target",
+            "filter": "enemy_at_connecting",
+            "prompt_id": "pick:engage_connecting",
+            "memory_key": "picked_enemy"
+          },
+          {
+            "template": "nest_enemy_move_to",
+            "enemy": "memory:picked_enemy",
+            "location": "source_location",
+            "auto_engage": false
+          },
+          {
+            "template": "nest_engage",
+            "mode": "effect",
+            "enemy": "memory:picked_enemy",
+            "investigator": "controller"
+          }
+        ],
         "provokes_aoo": false
       }
     ]
@@ -1615,7 +1640,13 @@
           "resign"
         ],
         "status": "full",
-        "template": "resign"
+        "template": "seq",
+        "steps": [
+          {
+            "template": "nest_resign"
+          }
+        ],
+        "translation": "full_expand"
       }
     ]
   },
@@ -1664,7 +1695,13 @@
           "resign"
         ],
         "status": "full",
-        "template": "resign"
+        "template": "seq",
+        "steps": [
+          {
+            "template": "nest_resign"
+          }
+        ],
+        "translation": "full_expand"
       }
     ]
   },
@@ -3773,7 +3810,13 @@
           "resign"
         ],
         "status": "full",
-        "template": "resign"
+        "template": "seq",
+        "steps": [
+          {
+            "template": "nest_resign"
+          }
+        ],
+        "translation": "full_expand"
       }
     ]
   },

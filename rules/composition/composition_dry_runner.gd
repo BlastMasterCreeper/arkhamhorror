@@ -237,9 +237,37 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			exh.exhausted = true
 			return true
-		&"resign":
+		&"nest_resign", &"resign":
 			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
+		&"pick_target":
+			var pick_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if pick_inv == null or pick_inv.location_tag == &"":
+				return false
+			if node.target_filter == &"enemy_at_connecting":
+				## 与 executor：优先来源地点卡，否则控制者所在地点。
+				var here_id := pick_inv.location_tag
+				if node.card_id != &"" and sim.state.registry.get_location(node.card_id) != null:
+					here_id = node.card_id
+				var pick_loc := sim.state.registry.get_location(here_id)
+				if pick_loc == null:
+					return false
+				for conn in pick_loc.connections:
+					for enemy_id in sim.state.registry.all_enemy_ids():
+						var enemy := sim.state.registry.get_enemy(enemy_id)
+						if enemy != null and enemy.location_tag == conn and not enemy.massive:
+							sim.last_step_enemy_id = enemy_id
+							return true
+				return false
+			return true
+		&"nest_enemy_move_to", &"nest_engage":
+			var move_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if move_inv == null:
+				return false
+			var spec := str(node.enemy_ref_id)
+			if spec != "" and not spec.begins_with("memory:"):
+				return sim.state.registry.get_enemy(node.enemy_ref_id) != null
+			return sim.last_step_enemy_id != &""
 		&"engage_from_connecting":
 			var eng_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if eng_inv == null or eng_inv.location_tag == &"":

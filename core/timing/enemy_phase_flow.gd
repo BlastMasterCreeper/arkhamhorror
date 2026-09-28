@@ -133,13 +133,15 @@ static func move(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if enemy_id == &"" or target_loc == &"":
 		return {"ok": false, "reason": &"missing_enemy_or_location"}
 	var steps: int = maxi(1, int(params.get("steps", 1)))
+	## 卡面「移入后再明示交战」时可关自动交战，避免 Prey 抢先。
+	var do_auto_engage: bool = bool(params.get("auto_engage", true))
 	var last := {"ok": true, "enemy_id": enemy_id, "target_location": target_loc}
 	for _i in steps:
 		last = EnemyMovement.move_one_step_toward_location(game_ctx, enemy_id, target_loc)
 		if not bool(last.get("moved", false)):
 			break
 		var to_loc: StringName = last.get("to_location", &"") as StringName
-		if to_loc != &"":
+		if to_loc != &"" and do_auto_engage:
 			var engage := EngageFlow.nest_after_area_change(game_ctx, to_loc, enemy_id)
 			last["engaged_investigator"] = engage.get("investigator_id", &"")
 			var moved_enemy := game_ctx.state.registry.get_enemy(enemy_id)

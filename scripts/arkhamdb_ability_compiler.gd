@@ -68,9 +68,33 @@ static func build_composition(
 			)
 		"discard_source":
 			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
-		"resign":
-			return CompositionNode.resign(bind.controller_id)
+		"nest_resign", "resign":
+			return CompositionNode.nest_resign(bind.controller_id)
+		"pick_target":
+			return CompositionNode.pick_target(
+				bind.controller_id,
+				StringName(str(params.get("filter", "enemy_at_connecting"))),
+				StringName(str(params.get("prompt_id", "pick:target"))),
+				StringName(str(params.get("memory_key", "picked_enemy"))),
+				bind.card_id
+			)
+		"nest_enemy_move_to":
+			return CompositionNode.nest_enemy_move_to(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
+				StringName(str(params.get("location", "source_location"))),
+				bool(params.get("auto_engage", true)),
+				bind.card_id
+			)
+		"nest_engage":
+			return CompositionNode.nest_engage(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
+				StringName(str(params.get("mode", "effect"))),
+				bind.card_id
+			)
 		"engage_from_connecting":
+			## 兼容旧 JSON；编译产物应已是 seq 三步。
 			return CompositionNode.engage_from_connecting(
 				bind.controller_id, bind.card_id
 			)

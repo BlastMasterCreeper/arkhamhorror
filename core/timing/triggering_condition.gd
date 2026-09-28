@@ -672,6 +672,35 @@ static func deal_damage(
 	return damage(controller_id, &"damage", amount, false, target, &"", after_timing)
 
 
+static func resign(
+	investigator_id: StringName,
+	after_timing: StringName = &"after_resign"
+) -> TriggeringCondition:
+	return _effect(
+		&"resign",
+		investigator_id,
+		[&"effect", &"resign"],
+		after_timing,
+		{"investigator_id": investigator_id}
+	)
+
+
+## Initiation / Forced 效果体装载帧（禁止真空 execute）。
+static func ability_resolve(
+	controller_id: StringName,
+	ability_id: StringName = &"",
+	source_id: StringName = &"",
+	after_timing: StringName = &"after_ability_resolve"
+) -> TriggeringCondition:
+	return _effect(
+		&"ability_resolve",
+		controller_id,
+		[&"ability", &"resolve"],
+		after_timing,
+		{"ability_id": ability_id, "source_id": source_id}
+	)
+
+
 static func _effect(
 	kind: StringName,
 	controller_id: StringName,
