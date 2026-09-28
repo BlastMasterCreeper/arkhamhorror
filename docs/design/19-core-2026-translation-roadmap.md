@@ -55,8 +55,8 @@
 
 | 债 | 状态 | 备注 |
 |---|---|---|
-| 12113 `engage_from_connecting` | ✅ 已展 | `no_provoke_aoo` + PI `pick_target` → 内联移入 → 内联交战；`provokes_aoo: false` |
-| 12112 `resign` 糖 Atom | ✅ 已展 | `no_provoke_aoo` + 内联 `resign`；`provokes_aoo: false` |
+| 12113 `engage_from_connecting` | ✅ 已展 | `no_provoke_aoo`（行动开始 SKIP_AOO Buff）+ PI `pick_target` → 内联移入 → 内联交战 |
+| 12112 `resign` 糖 Atom | ✅ 已展 | `no_provoke_aoo` + 内联 `resign`（Resign 类型本身不借机） |
 | Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
 | `nest_move_connecting` 内嵌 PI | 待拆 | 12116：选地点确认应独立为 pick_target 步 |
 | LISTENER / peril / act-agenda-back | 部分 | 仍有直 `execute` 路径；优先复用 `seq.ability.resolve` |
@@ -108,13 +108,13 @@
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
 ### 12112 Resign / 群体线索 ✅（应展尽展）
-- Resign：`no_provoke_aoo` + 内联 `resign`；`provokes_aoo: false`；经 `seq.ability.resolve` 装载
+- Resign：`no_provoke_aoo` + 内联 `resign`；经 `seq.ability.resolve` 装载
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
 ### 12113 Engage（连结地点）✅（应展尽展）
 - `seq`：`no_provoke_aoo` → PI `pick_target` → 内联 `move_enemy_to` → 内联 `engage_target`
-- 卡面「This action does not provoke…」→ 步内声明 + `provokes_aoo: false`（Engage 默认会借机，须覆盖）
-- 指标：ADB-48..50
+- 卡面「This action does not provoke…」→ 行动开始 Register `SKIP_AOO`（UNTIL_FIRED）；INIT_2B AOO **消费**后跳过借机（非 `provokes_aoo: false` 短路）
+- Engage 类型层仍 `provokes_aoo=true`；指标：ADB-48..51
 
 ### 12118–20 地点能力 ✅（Limit 运行时后补）
 - 12118 Forced：discover → `discard_from_hand`（mode=choose）
@@ -133,6 +133,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.12 | 「does not provoke AOO」→ 行动开始 `SKIP_AOO` Buff；INIT_2B 消费跳过 |
 | 2026-09-28 | v0.11 | 12112/12113 改内联（PI+L0）；纠正「有 Catalog 就 nest」 |
 | 2026-09-28 | v0.10 | 12112/12113 应展尽展；`seq.effect.resign` / `seq.ability.resolve`；债清两笔 |
 | 2026-09-28 | v0.9 | **翻译硬门槛**：禁真空；三分法（内联/nest/PI）；应展尽展禁糖；§3.1 债清单 |

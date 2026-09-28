@@ -421,8 +421,7 @@
             "template": "resign"
           }
         ],
-        "translation": "full_expand",
-        "provokes_aoo": false
+        "translation": "full_expand"
       }
     ]
   },
@@ -498,8 +497,7 @@
             "enemy": "memory:picked_enemy",
             "investigator": "controller"
           }
-        ],
-        "provokes_aoo": false
+        ]
       }
     ]
   },

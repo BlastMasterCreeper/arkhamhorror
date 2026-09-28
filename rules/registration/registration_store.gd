@@ -83,6 +83,37 @@ func unregister_by_drawn_card(card_id: StringName) -> void:
 		unregister(id)
 
 
+## INIT_2B：若有 SKIP_AOO Buff 则消费（Unregister）并返回 true。
+func consume_skip_aoo(controller_id: StringName) -> bool:
+	if controller_id == &"":
+		return false
+	for reg in _entries:
+		if reg.controller_id != controller_id:
+			continue
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind != AhcEnums.RestrictionKind.SKIP_AOO:
+				continue
+			unregister(reg.id)
+			return true
+	return false
+
+
+func has_skip_aoo(controller_id: StringName) -> bool:
+	if controller_id == &"":
+		return false
+	for reg in _entries:
+		if reg.controller_id != controller_id:
+			continue
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind == AhcEnums.RestrictionKind.SKIP_AOO:
+				return true
+	return false
+
+
 func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
 	if card_id == &"" or keyword == &"":
 		return false

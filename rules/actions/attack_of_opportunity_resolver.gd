@@ -33,9 +33,16 @@ func resolve(investigator_id: StringName, action_type: AhcEnums.ActionType) -> D
 	return resolve_for_types(investigator_id, [action_type])
 
 
-func resolve_for_types(investigator_id: StringName, action_types: Array) -> Dictionary:
+func resolve_for_types(
+	investigator_id: StringName,
+	action_types: Array,
+	registrations: RegistrationStore = null
+) -> Dictionary:
 	if not provokes_for_types(action_types):
 		return {"ok": true, "attacks": 0}
+	## 卡面「does not provoke…」：行动开始挂的 SKIP_AOO Buff，此处消费并跳过借机。
+	if registrations != null and registrations.consume_skip_aoo(investigator_id):
+		return {"ok": true, "attacks": 0, "skipped_by_buff": true}
 	var enemies := get_ready_engaged_enemies(investigator_id)
 	var count := 0
 	for enemy_id in enemies:

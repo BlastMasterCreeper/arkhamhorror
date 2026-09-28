@@ -47,6 +47,15 @@ static func delayed_listener(
 	return t
 
 
+## 卡面「does not provoke AOO」：行动开始 Register；AOO 入口 consume = FIRED。
+static func skip_aoo_until_fired(controller_id: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = controller_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
+	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.skip_aoo(controller_id)))
+	return t
+
+
 ## G2 peril Register：`WHILE_DRAWN_CARD_RESOLVING(card_id)` — G4 完 Unregister；不跨 Surge。
 static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()

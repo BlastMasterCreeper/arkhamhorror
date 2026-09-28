@@ -44,3 +44,11 @@ static func forbid_leave_hand(card_id: StringName, controller_id: StringName = &
 	p.drawn_card_id = card_id
 	p.drawer_id = controller_id
 	return p
+
+
+## 本行动不引发借机：行动开始挂载，AOO 入口消费一次。
+static func skip_aoo(controller_id: StringName = &"") -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.SKIP_AOO
+	p.drawer_id = controller_id
+	return p

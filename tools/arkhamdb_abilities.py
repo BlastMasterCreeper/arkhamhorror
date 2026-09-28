@@ -494,19 +494,17 @@ def compile_resign(body: str) -> dict[str, Any] | None:
     if not RESIGN_ABILITY.match(text):
         return None
     # 应展尽展：同帧内联撤退 L0（§4.0.5 无新时点锚 → 不 nest）。
+    # no_provoke_aoo → 行动开始 Register SKIP_AOO；Resign 类型本身不借机，Buff 仅作 provenance。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
     steps.append({"template": "resign"})
-    entry: dict[str, Any] = {
+    return {
         "template": "seq",
         "action_types": ["activate", "resign"],
         "steps": steps,
         "translation": "full_expand",
     }
-    if NO_AOO_PHRASE.search(text):
-        entry["provokes_aoo"] = False
-    return entry
 
 
 def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
@@ -537,7 +535,8 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
-    # 应展尽展：不借机声明 → PI → 内联移入 → 内联交战（§4.0.5 连续 then）。
+    # 应展尽展：不借机 → PI → 内联移入 → 内联交战（§4.0.5 连续 then）。
+    # Engage 类型会借机；no_provoke_aoo = 行动开始 Register SKIP_AOO，INIT_2B 消费跳过。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
@@ -561,16 +560,12 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
             },
         ]
     )
-    entry: dict[str, Any] = {
+    return {
         "template": "seq",
         "action_types": ["activate", "engage"],
         "translation": "full_expand",
         "steps": steps,
     }
-    # Engage 默认会借机；卡面「does not provoke…」→ 覆盖为 false（Initiation 读此字段）。
-    if NO_AOO_PHRASE.search(text):
-        entry["provokes_aoo"] = False
-    return entry
 
 
 def compile_parley_discard_bystander(body: str) -> dict[str, Any] | None:

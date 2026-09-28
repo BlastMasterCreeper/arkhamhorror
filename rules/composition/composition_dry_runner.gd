@@ -238,8 +238,13 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			exh.exhausted = true
 			return true
 		&"no_provoke_aoo":
-			## 纯声明，不 CREATED；dry-run 由后续效果叶决定合法性。
-			return false
+			## Register SKIP_AOO 是效果（CREATED）；行动开始挂载的 dry-run 等价。
+			var skip_ctrl := _resolve_sim_inv(node, sim)
+			if sim.registrations != null and skip_ctrl != &"":
+				sim.registrations.register(
+					RegistrationTemplate.skip_aoo_until_fired(skip_ctrl)
+				)
+			return true
 		&"resign", &"nest_resign":
 			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned

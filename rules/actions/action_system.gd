@@ -142,7 +142,8 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 func _resolve_aoo(investigator_id: StringName, action_type: AhcEnums.ActionType) -> Dictionary:
 	if _aoo == null:
 		return {"ok": true, "attacks": 0}
-	return _aoo.resolve(investigator_id, action_type)
+	var regs: RegistrationStore = _game_ctx.registrations if _game_ctx != null else null
+	return _aoo.resolve_for_types(investigator_id, [action_type], regs)
 
 
 func _run_resolved_action(

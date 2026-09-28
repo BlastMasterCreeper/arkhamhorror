@@ -103,6 +103,7 @@ func _initialize() -> void:
 	_run_test("ADB-48 compile 12113 engage connecting no AOO", _test_adb_compile_12113)
 	_run_test("ADB-49 engage types provoke AOO by default", _test_adb_engage_types_provoke_aoo)
 	_run_test("ADB-50 12113 engage connecting skips AOO", _test_adb_12113_engage_connecting)
+	_run_test("ADB-51 SKIP_AOO buff consume at INIT_2B", _test_adb_skip_aoo_buff_consume)
 	_run_test("ADB-51 compile 12118 discard hand after discover", _test_adb_compile_12118)
 	_run_test("ADB-52 compile 12119 reaction draw", _test_adb_compile_12119)
 	_run_test("ADB-53 compile 12120 draw three", _test_adb_compile_12120)
@@ -2197,8 +2198,7 @@ func _test_adb_compile_12112() -> bool:
 	return (
 		str(resign_entry.get("template", "")) == "seq"
 		and str(resign_entry.get("translation", "")) == "full_expand"
-		and resign_entry.has("provokes_aoo")
-		and bool(resign_entry.get("provokes_aoo")) == false
+		and not resign_entry.has("provokes_aoo")
 		and str(((resign_steps as Array)[0] as Dictionary).get("template", "")) == "no_provoke_aoo"
 		and str(((resign_steps as Array)[1] as Dictionary).get("template", "")) == "resign"
 		and (types as Array).has("activate")
@@ -2265,8 +2265,7 @@ func _test_adb_compile_12113() -> bool:
 		and int(entry.get("action_cost", 0)) == 1
 		and (types as Array).has("activate")
 		and (types as Array).has("engage")
-		and entry.has("provokes_aoo")
-		and bool(entry.get("provokes_aoo")) == false
+		and not entry.has("provokes_aoo")
 		and str(s0.get("template", "")) == "no_provoke_aoo"
 		and str(s1.get("template", "")) == "pick_target"
 		and str(s1.get("filter", "")) == "enemy_at_connecting"
@@ -2314,14 +2313,14 @@ func _test_adb_engage_types_provoke_aoo() -> bool:
 
 
 func _test_adb_12113_engage_connecting() -> bool:
-	## 12113：选连结地点敌人移入并交战；卡面覆盖不借机。
+	## 12113：Engage 类型会借机；卡面 no_provoke_aoo → 行动开始 SKIP_AOO Buff，AOO 消费跳过。
 	var h := RuleTestHarness.new(42)
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
 	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
-	## 本地点已交战敌人：若未豁免借机则应受伤。
+	## 本地点已交战敌人：无 Buff 时应受伤；有 SKIP_AOO 则伤害为 0。
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_here", &"test_loc", 2, 2, &"inv_1")
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_conn", &"loc_b", 2, 2)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -2339,7 +2338,8 @@ func _test_adb_12113_engage_connecting() -> bool:
 	if listed.is_empty():
 		return false
 	var desc: TriggeredAbilityDescriptor = listed[0]
-	if desc.provokes_aoo():
+	## 类型层仍会借机；豁免靠 Buff 消费，不是 provokes_aoo override。
+	if not desc.provokes_aoo():
 		return false
 	var result := h.ctx.triggered_abilities.activate_action(desc.id)
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_conn")
@@ -2347,10 +2347,46 @@ func _test_adb_12113_engage_connecting() -> bool:
 		bool(result.get("ok", false))
 		and inv.damage_taken == 0
 		and int(result.get("aoo_attacks", 0)) == 0
+		and not h.ctx.registrations.has_skip_aoo(&"inv_1")
 		and enemy != null
 		and enemy.location_tag == &"test_loc"
 		and enemy.engaged_with == &"inv_1"
 		and inv.threat_area.has(&"enemy_conn")
+		and inv.actions_remaining == 1
+	)
+
+
+func _test_adb_skip_aoo_buff_consume() -> bool:
+	## 行动开始 Register SKIP_AOO；INIT_2B 消费后跳过借机（Engage 类型本身会借机）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.threat_area.append(&"enemy_1")
+	inv.actions_remaining = 2
+	inv.damage_taken = 0
+	var body := CompositionNode.seq([
+		CompositionNode.no_provoke_aoo(&"inv_1"),
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		),
+	])
+	var intent := InitiationIntent.action_ability(
+		&"inv_1",
+		body,
+		1,
+		AhcEnums.ActionType.ACTIVATE,
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
+	)
+	if not intent.provokes_aoo:
+		return false
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return (
+		res.ok
+		and inv.damage_taken == 0
+		and int(res.get("aoo_attacks", 0)) == 0
+		and not h.ctx.registrations.has_skip_aoo(&"inv_1")
 		and inv.actions_remaining == 1
 	)
 

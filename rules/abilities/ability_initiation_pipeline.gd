@@ -78,13 +78,17 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 	if not _cost.pay(intent):
 		return {"ok": false, "error": "cannot_pay"}
 
+	## 行动开始：卡面「does not provoke AOO」→ Register SKIP_AOO（在 INIT_2B 消费）。
+	_mount_skip_aoo_buff(intent, ctx)
+
 	_events.append_initiation(AhcEnums.InitiationStep.INIT_2B_AOO, hash, payload)
 	var aoo_attacks := 0
 	if intent.provokes_aoo and _aoo != null:
 		var types: Array = intent.action_types
 		if types.is_empty():
 			types = [intent.aoo_action_type]
-		var aoo_result := _aoo.resolve_for_types(intent.controller_id, types)
+		var regs: RegistrationStore = ctx.registrations if ctx != null else null
+		var aoo_result := _aoo.resolve_for_types(intent.controller_id, types, regs)
 		aoo_attacks = int(aoo_result.get("attacks", 0))
 
 	if not _passes_dry_run(intent, ctx):
@@ -110,6 +114,38 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 	if intent.provokes_aoo:
 		result["aoo_attacks"] = aoo_attacks
 	return result
+
+
+## 卡面 no_provoke_aoo：仅当类型本身会借机时挂 Buff（Resign 等类型豁免无需挂）。
+func _mount_skip_aoo_buff(intent: InitiationIntent, ctx: GameContext) -> void:
+	if intent == null or ctx == null or ctx.registrations == null:
+		return
+	if not intent.provokes_aoo:
+		return
+	if not _composition_declares_skip_aoo(intent.composition):
+		return
+	if ctx.registrations.has_skip_aoo(intent.controller_id):
+		return
+	ctx.registrations.register(
+		RegistrationTemplate.skip_aoo_until_fired(intent.controller_id)
+	)
+
+
+static func _composition_declares_skip_aoo(node: CompositionNode) -> bool:
+	if node == null:
+		return false
+	if node.kind == AhcEnums.CompositionNodeKind.ATOM and node.atom_name == &"no_provoke_aoo":
+		return true
+	if node.kind == AhcEnums.CompositionNodeKind.REGISTER and node.register_template != null:
+		for buff in node.register_template.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind == AhcEnums.RestrictionKind.SKIP_AOO:
+				return true
+	for child in node.children:
+		if _composition_declares_skip_aoo(child):
+			return true
+	return false
 
 
 ## 禁止真空：优先 nest `seq.ability.resolve`；Catalog 缺失时才直 execute。

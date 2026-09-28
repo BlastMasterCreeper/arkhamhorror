@@ -69,7 +69,7 @@ static func build_composition(
 		"discard_source":
 			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
 		"no_provoke_aoo":
-			return CompositionNode.no_provoke_aoo()
+			return CompositionNode.no_provoke_aoo(bind.controller_id)
 		"resign":
 			return CompositionNode.resign(bind.controller_id)
 		"nest_resign":

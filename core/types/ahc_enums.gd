@@ -276,6 +276,9 @@ enum RestrictionKind {
 	FORBID_TRIGGER,
 	FORBID_COMMIT_TO_TEST,
 	FORBID_LEAVE_HAND,
+	## 卡面「This action does not provoke attacks of opportunity」：
+	## 行动开始 Register；INIT_2B AOO 入口 consume 后跳过借机流程。
+	SKIP_AOO,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }

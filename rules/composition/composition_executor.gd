@@ -327,8 +327,10 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
 		&"no_provoke_aoo":
-			## 声明节点：豁免已在 Initiation.provokes_aoo 生效；此处仅记日志。
-			_log.log(AhcEnums.LogCategory.CARD, "composition:no_provoke_aoo", {})
+			## 行动开始已 Register SKIP_AOO；AOO 入口已消费。resolve 体不再重复挂载。
+			_log.log(AhcEnums.LogCategory.CARD, "composition:no_provoke_aoo", {
+				"controller": node.inv_id,
+			})
 			return true
 		&"resign":
 			return _execute_resign_inline(node)
