@@ -1,7 +1,7 @@
 # 19 — Core 2026（2.0 基础）卡牌翻译路线图
 
 > **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.5 · 2026-09-22 — A1–A3 + Parley + 12112 Resign  
+> **状态**：v0.9 · 2026-09-28 — 翻译硬门槛（禁真空 / 三分法 / 应展尽展）  
 > **范围**：`core_2026` + `core_2026_encounter`（约 166 张 / 162 段能力）
 
 ---
@@ -11,10 +11,11 @@
 | 来源 | 译法 |
 |---|---|
 | 规则书手续 | 命名流程 `seq.*` |
-| 卡牌正文 | 效果组合（Composition）静态树 → 装载到已有 seq → 解释 |
-| 纸面无名可解释效果 | 铸造 `seq.effect.*`（参数化），禁止 `seq.card…`、真空 Atom/Register |
+| 卡牌正文 | 效果组合（Composition）静态树 → 装载到已有 seq → 解释（**禁止真空**） |
+| 纸面无名可解释效果 | 铸造 `seq.effect.*`（参数化）；**铸造 ≠ nest**；禁止 `seq.card…`、真空 Atom/Register |
+| 玩家选择 | `PlayerInteractionGate` 有限期确认 + 默认；**≠ nest / 内联** |
 
-覆盖率**不是 KPI**。完成度看：段落实例能 dry-run、能 nest、能被 When/After 听到。
+覆盖率**不是 KPI**。完成度看：段落实例满足 §3 DoD（能在栈上 dry-run/resolve、三分法正确、无糖外壳）。
 
 ---
 
@@ -40,13 +41,27 @@
 
 ## 3. 完成定义（DoD）
 
-每段能力：
+每段能力（与 [effect-translation DoD](../../.cursor/rules/effect-translation.mdc) 对齐；**硬门槛**）：
 
-1. 静态树：控制流 + 叶子 `nest flow_id`
-2. 所需 `seq.effect.*` / 规则 seq 已在 Catalog
-3. Hook：`register_as` + `match_kind` / `window` / `action_cost`
-4. Headless：compile 形状 + 至少一条运行时路径
-5. 选型可查（template vs 手写同等树 · OQ-12-01）
+1. **禁止真空** — 解释落在已压栈 `seq.*` RESOLVE；无裸 `composition.execute` / 糖 Atom 直改局面
+2. **三分法** — 每步标注：内联 | nest（仅 §4.0.5「是」）| PI 有限期确认（含 default）
+3. **应展尽展** — 无多步糖；静态树逐步可读（控制流 + 效果叶 + PI 规格）
+4. 所需 `seq.effect.*` / 规则 seq 已在 Catalog（若该叶可被 When/After 听到）
+5. Hook：`register_as` + `match_kind` / `window` / `action_cost`
+6. Headless：compile 形状 + 至少一条运行时路径（含默认确认路径）
+7. 选型可查（template vs 手写同等树 · OQ-12-01）
+
+### 3.1 翻译债（糖 / 真空 · 待拆）
+
+下列 **不满足** 现 DoD，后续批次优先拆开，不得再新增同类：
+
+| 债 | 现状 | 应展为 |
+|---|---|---|
+| `engage_from_connecting` | 单 Atom：选敌+移入+交战；Initiation 内联真空倾向 | PI `PICK_TARGET`（连结地点敌人，default）→ 移入 → 交战内核（§4.0.5） |
+| `resign` 糖 Atom | Initiation 内联 atom | 展为标准 resign 手续步 / 已有 seq |
+| `AbilityInitiationPipeline` 裸 `execute` | 17 I2 绕栈 | 先压/复用父 seq 帧再解释 |
+| LISTENER / peril / act-agenda-back 裸 `execute` | 同上家族 | 同帧归属明确的父 seq |
+| 编译侧「叶子一律 nest」习惯 | 旧 07 §1.4 | 先判三分法再写节点 |
 
 ---
 
@@ -66,10 +81,10 @@
 
 ## 5. 迭代形状（每批固定）
 
-1. **Mint** Catalog + TC + handler  
-2. **Compiler** Python template → JSON；GDScript nest 节点  
+1. **Mint** Catalog + TC + handler（仅当种类需被听到 / 复用）  
+2. **Compiler** 应展尽展：Python → JSON；每步标内联 / nest / PI；**禁糖**  
 3. **Retarget / import** `python3 tools/arkhamdb_import.py`  
-4. **Prove** headless；同步 17 §5  
+4. **Prove** headless（含默认确认路径）；同步 17 §5  
 
 ---
 
@@ -93,12 +108,12 @@
 - 借机：`AttackOfOpportunityResolver.provokes_for_types`；含 Parley/Resign/Fight/Evade 则不借机（**Engage 不豁免**）
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
-### 12112 Resign / 群体线索 ✅（线索交互后补）
-- Resign：`action_types: [activate, resign]`；效果为 Initiation `INIT_4` **内联** Composition atom（非 nest 命名流程）
+### 12112 Resign / 群体线索 ⚠️ 糖债
+- Resign：`action_types: [activate, resign]`；现为 Initiation 内联糖 Atom → **列入 §3.1 债**，应展尽展
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
-### 12113 Engage（连结地点）✅
-- `action_types: [activate, engage]`；效果 atom `engage_from_connecting`（选连结地点敌人 → 移入 → 交战；Initiation 内联）
+### 12113 Engage（连结地点）⚠️ 糖债
+- `action_types: [activate, engage]`；现 atom `engage_from_connecting` → **列入 §3.1 债**（应拆：PI 确认 + 移入 + 交战）
 - **Engage 默认会借机**；卡面「does not provoke…」→ `provokes_aoo: false` 覆盖
 - 指标：ADB-48..50
 
@@ -119,6 +134,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.9 | **翻译硬门槛**：禁真空；三分法（内联/nest/PI）；应展尽展禁糖；§3.1 债清单 |
 | 2026-09-22 | v0.8 | `seq.enemy.defeat`；12116/22/32；controlled_assets discard；72/162 |
 | 2026-09-22 | v0.7 | 12118–20 弃手/反应抽/双行动抽；nest_draw_investigator；68/162 |
 | 2026-09-22 | v0.6 | 12113 Engage 连结；Engage 非借机豁免；`provokes_aoo` 覆盖；65/162 |

@@ -99,8 +99,8 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **nest 进 stack** |
-| I2 | 禁止裸 resolve | 按 07 §1.2.1：树在 **已压栈的手续** 里解释。现状 `AbilityInitiationPipeline` **直接** `composition.execute` 绕栈，待收 |
+| I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **落在已压栈手续** 内解释（§4.0.5 为「是」才 nest 子帧） |
+| I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3 |
 | I3 | PlayerWindow | Framework / ST 开窗 → 窗口内走 W1–W3 |
 
 ### 3.7 测试
@@ -300,7 +300,7 @@
 |---|---|
 | OQ-SEQ-01 | v1 是否实现完整 `TimingCatalog` 类型，或 stack 内 hardcode 政策表 |
 | OQ-SEQ-02 | `seq.action.draw` 与 `seq.draw.investigator` 是否同一 RUN + 不同 params/tags |
-| OQ-SEQ-03 | **已裁决 2026-09-21**：卡牌正文 = Composition，Initiation resolve **直接** `composition.execute`；不为每张卡 nest custom seq，也不统一包一层 `seq.resolve.effect.*` / `seq.card…`。调用抽牌/检定等规则手续时，由树节点 nest 已有 seq。 |
+| OQ-SEQ-03 | **修订 2026-09-28**：卡牌正文 = Composition（不为每张卡 nest `seq.card…` / 不统一包 `seq.resolve.effect.*`）。**禁止真空**：Initiation resolve 必须在 **已压栈** 父手续内解释树（I2 硬门槛）；旧文「直接 `composition.execute`」废止。调用抽牌/检定等：仅 §4.0.5「是」时 nest；玩家选择走 Gate（16 §3.1）。 |
 | OQ-SEQ-04 | SPLIT 的 When 由 seq 政策表在抽取步骤砖块边界 emit；Would = 这次抽取 PreImpact。见 15 §3.1、§6。 |
 | OQ-SEQ-05 | AFTER **defer**（15 §7 仅 SUBSEQUENCE 无 post brick）实现策略 |
 
@@ -310,6 +310,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.4.23 | I2 升硬门槛；OQ-SEQ-03 修订（禁真空；nest 仅 §4.0.5；PI≠nest） |
 | 2026-09-22 | v0.4.22 | §1.1：时点 vs 条件；统一 `seq.effect.damage` / `seq.skill_test` / `lose_resources`+`all` |
 | 2026-09-21 | v0.4.21 | §5：`seq.framework.investigation_phase_ends`；deal_damage 附着地点非 Elite |
 | 2026-09-21 | v0.4.20 | §5：落地 `seq.effect.discard_card` / `discard_from_hand` / `attach` / `deal_damage`（A1） |

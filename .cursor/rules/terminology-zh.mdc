@@ -23,6 +23,7 @@ alwaysApply: true
 | **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |
 | **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
 | **Player Interaction** | **玩家交互** | 能力选用 / Optional / 目标 / 队长排序；`PlayerInteractionGate` |
+| **timed confirmation** | **有限期确认** | PI：期内确认目标/分支；逾期用默认选择；≠ nest/内联 |
 | **Evade** | **躲避** | 调查员行动；`seq.action.evade`；≠「闪避」「规避」 |
 | **Exhaust** | **横置** | 官方简中习惯译法；`exhausted` = 已横置 |
 | **Ready** | **重整** | Framework Upkeep 4.3 重整横置卡；`set_exhausted(false)` 等；**未横置** = `!exhausted` 状态表述 |

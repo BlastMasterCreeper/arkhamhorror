@@ -2,27 +2,36 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.5 · 2026-09-21 — 卡面叶子 nest seq.effect.*
+> **状态**：v0.9.6 · 2026-09-28 — 硬门槛：禁真空 / 三分法 / 应展尽展
 
 ---
 
 ## 1. 目标
 
-定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**状态原语** L0 Atom + **Register**）；枝干是顺序 / 同时 / 条件 / 选择。运行时在某条命名流程的 RESOLVE 砖、打出 Initiation resolve、或 LISTENER 开火时 `execute`。
+定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**状态原语** L0 Atom + **Register**，或指向已铸造 `seq.effect.*`）；枝干是顺序 / 同时 / 条件。运行时 **只能** 在某条已压栈命名流程的 RESOLVE 砖内 `execute`（**禁止真空**）。玩家选择走 Gate，不进「内联/nest」二分。
 
 **英文（代码）**：`Composition` / `CompositionNode` / `CompositionExecutor` / `CompositionDryRunner`  
 **中文（文档）**：效果组合 / 组合节点
 
 **揭示（Reveal）卡牌** 经 L0 **`AtomRevealCard`** 写入 Domain，**参与** §4 dry-run **CREATED** — 见 [07-effect-primitives §5.3](07-effect-primitives.md)、[01 §3.6](01-game-state-zones.md)。
 
+### 1.0 翻译硬门槛（DoD · 已裁决 2026-09-28）
+
+与 [effect-translation.mdc](../../.cursor/rules/effect-translation.mdc) 对齐；**任一失败 = 未完成**：
+
+1. **禁止真空执行** — 树必须在已压栈 `seq.*` 帧内解释（收 17 I2 为硬门槛）。
+2. **三分法** — 每步先判：内联 | nest（[15 §4.0.5](15-timing-entry-catalog.md)）| **玩家确认**（[16 §3.1](16-player-interaction.md)）。**禁止默认 nest**。
+3. **应展尽展 · 禁糖** — 禁止多步糖 Atom（如 `engage_from_connecting`）；编译期展开至可见步骤；L3 宏不得以糖节点进运行时树。
+
 ### 1.1 它是什么、不是什么
 
 | | |
 |---|---|
-| **是** | **卡牌正文** 的编译产物：控制流 +「去装载哪几条命名流程」。Then / If / Choice 在树上；放毁灭、造成恐惧、创建 Buff 是 **nest 已铸造的 seq.***。 |
+| **是** | **卡牌正文** 的编译产物：控制流 + 效果叶（内联或 nest）+ PI 确认规格。放毁灭 / 造成恐惧 / 创建 Buff：铸造 `seq.effect.*` 后 **按 §4.0.5 决定** 同帧内联解释还是 nest。 |
 | **不是** | 时点信封（那是 seq 的 Would/When/After）；不是现场局面快照；不含玩家已做的选择。 |
 | **谁编排时机** | **命名流程** `seq.*` = 规则书手续（抽牌、检定、显现入口…）。能力 **hook** 订 `(seq, slot)`；**effect** 仍是本棵树。**打出**走独立的 `PLAY_CARD`。 |
-| **调用规则手续** | 卡面写到「抽牌 / 检定 / Cancel」时，树节点 **nest** 已有 `seq.*`。禁止为每张卡登记 `seq.card…`。 |
+| **调用规则手续** | 卡面写到「抽牌 / 检定 / Cancel」且 §4.0.5 为「是」时，树节点 **nest** 已有 `seq.*`。禁止为每张卡登记 `seq.card…`。 |
+| **玩家选择** | Gate 有限期确认 + 默认；**不是** nest，也不是 Then 冒充。 |
 
 ```text
 seq.draw.investigator          ← 命名流程（何时抽、嵌套、时点）
@@ -98,20 +107,23 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 
 | 树节点做什么 | 运行时 |
 |---|---|
-| Then / If / Choice、放标记、移卡、Register | **留在本帧**解释执行（内联写入；不 push） |
-| 正文点名抽牌、检定、Cancel、Instead、生成… | **提供**一条已有 `seq.*` 去 `catalog.nest`（子帧压栈，跑完再回到树） |
+| Then / If、放标记、移卡、同帧 Register | **留在本帧**解释执行（内联写入；不 push） |
+| 正文点名抽牌、检定、Cancel、Instead、生成… 且 §4.0.5「是」 | **提供**一条已有 `seq.*` 去 `catalog.nest`（子帧压栈，跑完再回到树） |
+| choose / 选目标 / may | **`PlayerInteractionGate.ask`**（有限期 + 默认）；结果进 `RulesMemory`，再继续内联/nest |
 
 ```text
 栈：  [seq.draw.encounter]          ← 运行形态（有时点）
          RESOLVE 砖
            解释 Composition 树      ← 中间语言（无自己的时点）
              Atom / Then / If        本帧写完
-             nest seq.skill_test.*   再压一帧手续
+             Gate.ask                有限期确认（不压栈）
+             nest seq.skill_test.*   仅当新时点锚
 ```
 
 **不是**：卡面 → 全部降成 `seq.card…` 再跑。  
 **也不是**：效果组合自己占一层堆栈。  
-**缺口**：Initiation 现仍 `composition.execute` 绕栈（17 I2）。按本条，resolve 应落在 **已经在栈上的手续**（打出/窗口/父 seq）里解释树，而不是真空执行，也不为每张卡新开 seq。
+**也不是**：凡叶子一律 nest（那是旧误用；铸造 ≠ nest）。  
+**硬门槛**：Initiation / LISTENER 不得裸 `composition.execute` 绕栈（17 I2）。resolve 必须落在 **已经在栈上的手续** 里解释树。
 
 ### 1.3 静态信息：编译、装载、解释（已裁决 2026-09-21）
 
@@ -145,10 +157,11 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 
 | 方向 | 说明 |
 |---|---|
-| **禁止裸 execute** | 收 17 I2：Initiation / LISTENER 开火时，先确保有父 seq 帧，再 `execute` |
+| **禁止真空 execute（硬门槛）** | 收 17 I2：Initiation / LISTENER 开火时，先确保有父 seq 帧，再 `execute`；裸调用 = DoD 失败 |
 | **节点完备** | 已有 Seq / Atom / Register / If / Choice / Repeat / ForEach。补 Simultaneous、Interrupt、Replace 为一等节点（或稳定 nest `seq.interrupt.*` / `seq.replace.instead`） |
-| **nest 是节点** | 凡可解释效果都指向 Catalog 里的 `flow_id`（含纸面无名的 `seq.effect.*`）；不要靠 atom 名字符串当效果落地 |
-| **铸造无名效果** | 见 §1.3.3：种类级 `seq.effect.*`，参数化 amount/目标；禁止 `seq.card…` |
+| **效果叶按三分法** | §4.0.5「是」→ nest `flow_id`；「否」→ 同帧内联（L0 / 解释已铸造效果体）；选择 → Gate 确认规格。**禁止**「叶子一律 nest」 |
+| **铸造无名效果** | 见 §1.3.3：种类级 `seq.effect.*`，参数化 amount/目标；铸造后仍按 §4.0.5 决定 nest 或内联 |
+| **应展尽展 · 禁糖** | 多步卡面禁止单 Atom 糖；L3 宏编译期展开；运行时树逐步可见 |
 | **dry-run 同源** | L7 与真实解释同一套 kind；Then 真实结算顺序、dry-run 仍 OR |
 | **装载 API** | 框架：`load(spec) → bind hook + 把树交给该 seq 的 EFFECT 砖` |
 
@@ -161,8 +174,9 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 | When / After / Revelation / 打出窗口 | `hook`：`(sequence_id, slot)` + tier；打出另标 `play_form` |
 | If / While 情景 | `Condition` + `if_kind` / `evaluate` |
 | 费用 | `costs[]` |
-| Then / 同时 / 选择 / 造成伤害 / 注册 | `effect` 树：控制流 + `nest: seq.effect.*`（或已有抽牌/检定 seq） |
-| 点名抽牌、检定、Cancel | effect 节点 `nest: seq.*`，不新开卡面 seq |
+| Then / 同时 / 条件 / 造成伤害 / 注册 | `effect` 树：控制流 + 内联叶或 `nest: seq.effect.*`（按 §4.0.5） |
+| 点名抽牌、检定、Cancel | effect 节点 `nest: seq.*`（新时点锚时），不新开卡面 seq |
+| choose / 选目标 | PI 确认规格（Gate）；**不**编成 nest |
 
 现状：遭遇包约 90 段能力、14 段编出树（`core_2026_encounter.json` 摘要）；其余仍是 segment。工作流 B 的目标是扩大 **规范化覆盖**（复用已有 template / condition），不是另写运行时脚本。
 
@@ -223,49 +237,54 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 - 管线里 **为父手续服务** 的 Register 砖（遭遇抽牌 G2 险境、ENTER_PLAY 挂 Hunter）：算该父 `seq.*` 已覆盖；**不要**另开 `PERIL_CHECK`。只有卡面「获得持续/延时/涌动」这种 **当效果写出来的创建** 才 nest `seq.effect.register`。
 
 ```text
-可解释效果  ⊂  Catalog 里的 seq.*
+可解释效果  ⊂  Catalog 里的 seq.*（种类可被听到 / 可复用）
               ├─ 纸面有名：seq.draw / seq.skill_test / seq.action…
               ├─ 状态原语类无名效果：seq.effect.take_horror / place_doom / heal / …
               └─ Buff 创建 / 注销：seq.effect.register / unregister
                              （handler 内才写 RegistrationStore；CREATED = 插入成功）
 
-Composition 树  =  控制流 +「去装载哪几条 seq、带什么参数」
-解释器跑效果   =  nest/run 那条 seq（本帧只解释树，不私自 Atom 或 Register）
+Composition 树  =  控制流 + 效果叶归属（内联 | nest | PI）+ 参数
+解释器跑效果   =  同帧内联，或 nest/run 那条 seq（禁止真空；禁止私自糖 Atom）
 ```
 
-工作流 A 补 Catalog + 让解释器 **只通过 seq 落地效果**（含创建 Buff）。  
-工作流 B 把「gains surge / until end of turn / cannot…」规范到 `seq.effect.register` + `RegistrationTemplate`，不是编成裸 Register 节点当运行时。
+**铸造 ≠ nest**：登记 `seq.effect.take_horror` 是为了种类可被 When/After 订阅；**是否压子帧**仍只看 [15 §4.0.5](15-timing-entry-catalog.md)。无新时点锚时，在父帧 RESOLVE 内联走该效果体（仍经 Catalog 定义，不真空 Atom）。
+
+工作流 A 补 Catalog + 让解释器 **只通过已装载手续落地效果**（含创建 Buff）。  
+工作流 B 把「gains surge / until end of turn / cannot…」规范到 `seq.effect.register` + `RegistrationTemplate`，不是编成裸 Register 节点当运行时，也不是多步糖 Atom。
 
 框架 1.3 `seq.mythos.place_doom` 与卡面「在最近敌人上放 1 毁灭」是 **两种** 手续（议程 vs 效果），不要合成一条。
 
-### 1.4 树的力度、树上带什么、动态数据放哪（已裁决 2026-09-21）
+### 1.4 树的力度、树上带什么、动态数据放哪（已裁决 2026-09-21 · 修订 2026-09-28）
 
-时点信封包的是 **命名流程栈帧**，一层 nest 一层。所以 seq 必须细到「能被 When/After 单独听到」的效果种类。效果组合 **不是** 另一套更细的信封：它只决定 **下一层压哪几条 seq、用什么静态规格、控制流怎么走**。
+时点信封包的是 **命名流程栈帧**，一层 nest 一层。所以 **需要被独立听到** 的效果种类要铸造 `seq.effect.*`。效果组合 **不是** 另一套更细的信封：它描述控制流、PI 确认规格，以及 **按 §4.0.5** 决定同帧内联还是 nest 哪几条 seq。
 
 #### 力度：两头都不要
 
-| 太粗 | 正好 | 太细 |
+| 太粗 | 正好 | 太细 / 太糖 |
 |---|---|---|
-| 整张卡一段 `seq.card…` | 一个叶子 = **一条已铸造 seq**（`nest flow_id` + 参数规格） | 每个 L0 Atom 当叶子，又当信封 |
-| 没有 Then / If，整段当一步 | 控制流细到 Then、If、Choice、Simultaneous | 把 Then 做成 `seq.then` 去占时点 |
+| 整张卡一段 `seq.card…` | 可被听到的种类 = 已铸造 seq；树叶按三分法归属 | 每个 L0 Atom 又当叶子又当信封 |
+| 多步糖 Atom（`engage_from_connecting`） | 应展尽展：PI + 逐步内联/nest | 把 Then 做成 `seq.then` 去占时点 |
+| 叶子一律 nest | §4.0.5「是」才 nest；「否」内联；选择走 Gate | 为选目标 nest `seq.choose.*` |
 
 ```text
 seq.encounter.revelation          ← 信封：显现手续（有 When/After）
   解释静态树
     Seq
-      nest seq.effect.place_doom  ← 信封：放毁灭（可被 after place doom 听到）
+      nest seq.effect.place_doom  ← 若本步有独立时点锚（可被 after place doom 听到）
       If after_step 未 CREATED
-        nest seq.effect.register  ← 信封：创建涌动 Buff
+        nest seq.effect.register  ← 创建涌动 Buff（同上）
+    # 若某叶无新时点锚 → 同帧内联解释该效果体，不 push
 ```
 
-叶子里的 L0 / `RegistrationStore.insert` 只出现在 **被 nest 的那条 seq 的 handler** 里，不出现在卡面树当「效果本身」。
+叶子里的 L0 / `RegistrationStore.insert` 出现在 **效果所属 seq 的 handler**（nest 子帧或父帧内联走 handler），不出现在卡面树当「真空糖 Atom」。
 
 #### 树上只放静态规格（编译期 + 装载期）
 
 | 带什么 | 例子 | 何时填 |
 |---|---|---|
-| **控制流** | `Seq` / Then、`Simultaneous`、`If`（`if_kind`、`evaluate`）、`Choice`（must、option 子树） | 编译 |
-| **要 nest 的 `flow_id`** | `seq.effect.take_horror`、`seq.draw.investigator`、`seq.effect.register` | 编译 |
+| **控制流** | `Seq` / Then、`Simultaneous`、`If`（`if_kind`、`evaluate`） | 编译 |
+| **效果叶归属** | 内联规格，或 `nest: seq.effect.take_horror` 等 `flow_id` | 编译（按 §4.0.5） |
+| **PI 确认规格** | `ChoiceKind`、候选 `TargetSpec`、`default_*`、时限策略 | 编译（问什么，不含答） |
 | **字面参数** | `amount: 1`、`skill: intellect`、`difficulty: 3`、`keyword: surge` | 编译（卡面写死的数） |
 | **寻址规格** | `TargetSpec`（nearest enemy without doom）、`Condition` id、`RegistrationTemplate` 形状 | 编译（还不是具体 entity id） |
 | **provenance** | `definition_id`、`ability_id` | 编译 |
@@ -314,18 +333,18 @@ seq.encounter.revelation          ← 信封：显现手续（有 When/After）
 
 解释器 nest 子 seq 时：把 **字面参数 + 刚解析出的 id（来自 Domain 或 Memory）** 放进这次 `params`，子信封用完即弃，不回写卡面树。历史次数仍只经投影读流水。
 
-#### 用户输入：Gate，不进树、不进 Domain
+#### 用户输入：Gate，不进树、不进 Domain、不是 nest/内联
 
-玩家交互（Player Interaction）只回答「在客观合法的前提下选哪支 / 选谁 / 是否发动」。入口只有 **`PlayerInteractionGate`**（[16](16-player-interaction.md)）。
+玩家交互（Player Interaction）只回答「在客观合法的前提下选哪支 / 选谁 / 是否发动」。入口只有 **`PlayerInteractionGate`**（[16](16-player-interaction.md)）。**有限期确认 + 默认**（16 §3.1）；**≠** nest，**≠** Composition Then。
 
 | | 静态树 | 运行时 |
 |---|---|---|
-| 二选一 / must choose | `Choice` 节点 + 各支子树 | `ask(ChoiceRequest)` → 选中支再解释 |
-| 目标「最近的敌人」并列 | `TargetSpec` + 等距规则 | `PICK_TARGET`；结果写入 `RulesMemory` 再交给 nest params |
-| 要不要用这条反应 | **不在 effect 树里** | hook 窗口的 `USE_ABILITY` |
+| 二选一 / must choose | PI 确认规格 + 各支子树 | `ask(ChoiceRequest)` → 期内确认或默认 → 选中支再解释 |
+| 目标「最近的敌人」并列 | `TargetSpec` + 等距规则 | `PICK_TARGET`；结果写入 `RulesMemory` 再交给后续内联/nest params |
+| 要不要用这条反应 | **不在 effect 树里** | hook 窗口的 `USE_ABILITY`（有限期；默认常=不用） |
 | 费用弃哪张、X 取多少 | **不在 effect 树里**（CostPipeline） | 费用交互；付完再解释 effect |
 
-**禁止**：把所选目标写回 `compiled_abilities` JSON；在 `StateMutator` 里 `if ui_clicked`。
+**禁止**：把所选目标写回 `compiled_abilities` JSON；在 `StateMutator` 里 `if ui_clicked`；为选目标 nest 专用 seq。
 
 装载绑定（这张实例的控制者）≠ 用户输入。前者随卡进场填进 `AbilityBindContext`；后者每次解释向 Gate 再问。
 
@@ -631,7 +650,7 @@ class CompositionExecutor:
 ```
 装载     →  hook 订已有 seq；静态树挂上该帧 / 打出 resolve 砖
 Initiation Pre  →  RestrictionEvaluator + CompositionDryRunner（走同一棵静态树）
-Initiation 4    →  在已压栈的手续里 CompositionExecutor.execute（禁止真空跑 · 17 I2）
+Initiation 4    →  在已压栈的手续里 CompositionExecutor.execute（**禁止真空 · 硬门槛** · 17 I2）
 Listener 触发   →  同上：父 seq 帧内解释 listener 上的静态树
 ```
 
@@ -641,6 +660,7 @@ Listener 触发   →  同上：父 seq 帧内解释 listener 上的静态树
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.9.6 | **§1.0 DoD**：禁真空硬门槛；展开三分法（内联/nest/PI）；应展尽展禁糖；铸造≠nest；修正「叶子一律 nest」 |
 | 2026-09-21 | v0.9.5 | 解释器：已编译叶子改 nest `seq.effect.*`（take horror/damage、place doom、register、heal…）；ArkhamDB 增编 fail-by 检定 / 失去资源否则攻击 / 来源放毁灭 |
 | 2026-09-21 | v0.9.4 | §1.4：RulesMemory=本趟便笺；ApplicationContext=场合快照；历史=EventRecord+StatProjection |
 | 2026-09-21 | v0.9.3 | **§1.4** 树力度=控制流+nest 一条 seq；场面在 Domain/Memory；输入在 Gate |

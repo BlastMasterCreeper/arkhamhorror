@@ -24,17 +24,19 @@ alwaysApply: true
 ```text
 规则手续  →  seq.*（SequenceCatalog）
               ├─ handler 内顺序 RESOLVE（砖块：L0 / Register / 内联）
-              ├─ catalog.nest / nest_batch → 另一条 seq.*
-              └─ EFFECT 砖：解释已装载的静态 Composition 树
+              ├─ catalog.nest / nest_batch → 另一条 seq.*（仅当新时点锚）
+              ├─ PlayerInteractionGate 有限期确认（选目标/分支；默认回退）
+              └─ EFFECT 砖：解释已装载的静态 Composition 树（禁止真空）
 
 自然语言卡面
-  → 编译（规范化静态树）
+  → 编译（规范化静态树 · 应展尽展 · 禁糖）
   → 装载到已有 seq 的 hook / RESOLVE 砖
-  → 解释器在栈帧内走树（内联写入，或 nest 已有 seq）
+  → 解释器在栈帧内走树：内联 | nest（§4.0.5）| PI 确认
 
 卡牌正文  →  静态 Composition 树（待解释，不真空跑）
-              ├─ 控制流：Seq(Then) / Simultaneous / If / Choice
-              └─ 效果：nest seq.*（抽牌、检定、Cancel、**seq.effect.register** 创建 Buff、take horror…）
+              ├─ 控制流：Seq(Then) / Simultaneous / If
+              ├─ 效果叶：内联 L0/Register，或 nest 已铸造 seq（按 §4.0.5）
+              └─ 选择：PI 确认规格（非 nest、非内联冒充）
 ```
 
 编译 / 装载 / 解释分工与 **树的力度、场面/输入放哪** 见 [07-composition §1.3–§1.4](docs/design/07-composition.md)。
@@ -43,10 +45,11 @@ alwaysApply: true
 |------|------|------|
 | Grimoire 章节流程 | `seq.*` | `seq.draw.investigator`、`seq.draw.encounter` |
 | 行动 | `seq.action.*` nest 内核 seq | action draw → `seq.draw.investigator` |
-| 卡牌能力 / 显现体 / lasting | **Composition** 树（控制流 + nest 已有/`seq.effect.*`） | 12160：nest 放毁灭 + if + nest 涌动 |
-| 纸面无名的效果句 | 铸造 **`seq.effect.*`** | take horror、place doom、heal；Buff 创建 = `seq.effect.register` |
-| 卡面调用已有手续 | Composition 节点 **nest** 该 seq | 「抽 1 张」→ nest `seq.draw.*`；Cancel → nest `seq.interrupt.cancel` |
+| 卡牌能力 / 显现体 / lasting | **Composition** 树（控制流 + 内联/nest/`seq.effect.*` + PI） | 12160：nest 放毁灭 + if + nest 涌动 |
+| 纸面无名的效果句 | 铸造 **`seq.effect.*`**；**是否 nest 另判** | take horror、place doom、heal；Buff 创建 = `seq.effect.register` |
+| 卡面调用已有手续 | 仅当 §4.0.5 为「是」时 **nest** | 「抽 1 张」→ nest `seq.draw.*`；Cancel → nest `seq.interrupt.cancel` |
 | 子流程复用 | `catalog.nest(other_seq)` | 同一内核多入口 |
+| 玩家选择 | **PI 有限期确认** + 默认 | 选连结地点敌人 → Gate；未确认用 default |
 
 **入口不同 ≠ 新机制**：耗 action、Forced、遭遇 E4 都是 **触发/nest 同一条或相关的 seq.***。卡面本身仍是 Composition。
 
@@ -111,9 +114,55 @@ AbilitySpec
 - **卡面体**：该 ability 的 **Composition**；在入口 seq 的 RESOLVE 里 execute。显现后 LIMBO 弃置等仍在 **入口命名流程** 内 RESOLVE。
 - 顺序占位：`EnterHandTimingPolicy`；跨类优先级见 06 §8。
 
+## 翻译硬门槛（DoD · 已裁决 2026-09-28）
+
+译任何段落前自检；**任一失败 = 未完成翻译**，不得标 ✅ / 不得只交外壳。
+
+### 1. 禁止真空执行（硬门槛）
+
+效果组合（Composition）**只能**在 **已压栈** 的命名流程（`seq.*`）RESOLVE 砖内由解释器走树。
+
+| 允许 | 禁止 |
+|---|---|
+| 父 seq 帧已 push → 砖块 / Initiation resolve 在帧内 `execute` | 裸 `composition.execute` 绕过 `ResolutionSequenceStack` |
+| LISTENER / 显现 / Forced 开火先落在栈上手续再解释 | `on_custom_effect` / 糖 Atom 直接改 `GameStateStore` |
+| dry-run 同源走树（不写入） | 用「内联 Composition atom」当借口真空落地 |
+
+缺口收口见 [17 I2](docs/design/17-seq-runtime.md)（升为硬门槛，不再是「待收」）。
+
+### 2. 玩家选择 ≠ 内联 ≠ nest（三分法）
+
+展开一步时先归类，**不要默认 nest**：
+
+| 形态 | 判据 | 运行时 |
+|---|---|---|
+| **内联** | 上一步 **未** 触发本步时点锚（[15 §4.0.5](docs/design/15-timing-entry-catalog.md)） | 同帧 RESOLVE then |
+| **nest** | 上一步 **触发了** 本步 Would/When/After / 子时点 | `catalog.nest` 压子帧 |
+| **玩家确认（PI）** | choose / may / 选目标 / 选分支 | **`PlayerInteractionGate` 有限期确认**；**不是** nest，也 **不是** Composition 内联控制流冒充选择 |
+
+**有限期目标确认**（[16](docs/design/16-player-interaction.md)）：
+
+1. Eligibility 筛出合法候选（客观）。
+2. Gate 发出 `ChoiceRequest`（含 `default_*` + 时限）。
+3. 期内玩家确认 → 写入 `RulesMemory` → 后续内联/nest 读指称。
+4. **期内未确认 → 采用默认选择**（`default_index` / 规则指定默认 / headless DefaultResolver），流程继续，不挂死。
+
+禁止：把「选敌人 / 二选一」编成 nest 子 seq；禁止把 Choice 当成「又一种 nest」。
+
+### 3. 应展尽展 · 禁止糖
+
+| 禁止（糖） | 要求（展尽） |
+|---|---|
+| 单 Atom 吞多步（如 `engage_from_connecting` = 选敌+移入+交战） | 逐步展开：PI 确认目标 → 按 §4.0.5 内联或 nest 各步 |
+| L3 宏进运行时树当叶子 | 编译期展开成真实节点；运行时树可见每步 |
+| 外壳 template 只标 `action_types`、效果体真空 | 静态树逐步可读；每叶有归属（内联 / nest / PI） |
+| 「先 nest 再说」当展开策略 | **先判三分法**，再写节点 |
+
+铸造 `seq.effect.*`（种类可被 When/After 听到）≠ 运行时一律 nest：仍只在 §4.0.5 为「是」时 nest；否则同帧内联解释该效果体。
+
 ## 实现约定
 
-- **内联 vs nest**（[15 §4.0.5](docs/design/15-timing-entry-catalog.md)）：**上一步是否触发本步时点**？是 → nest 另一条 seq；否 → 内联。Then 是 Composition 内联 Seq，不是 nest。
+- **内联 vs nest**（[15 §4.0.5](docs/design/15-timing-entry-catalog.md)）：**上一步是否触发本步时点**？是 → nest 另一条 seq；否 → 内联。Then 是 Composition 内联 Seq，不是 nest。**玩家确认另算**，见上 §2。
 - 新规则手续 → **`register_run` / `nest`**，不新建语义 Service。
 - **Cancel / Ignore** → 卡面 Composition 的 Interrupt 节点 nest **`seq.interrupt.cancel` / `seq.interrupt.ignore`** + `InterruptTarget`（[07 §6.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*CancelPolicy`。
 - **Instead / Would** → Composition 的 Replace 节点 nest **`seq.replace.instead`** + `ReplacementTarget` + `replacement` 载荷（[07 §7.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*InsteadPolicy`。
@@ -124,7 +173,7 @@ AbilitySpec
 
 ## ArkhamDB 编译（`tools/arkhamdb_abilities.py`）
 
-- 卡面 effect 段编译为 **Composition 树**（template / Atom / Register / If / Choice / nest 已有 seq）。
+- 卡面 effect 段编译为 **Composition 树**（控制流 + 内联叶子 / nest 已有 seq / PI 确认规格）；**禁止** 多步糖 Atom。
 - **优先复用**已有 template / condition / `if_kind` / `evaluate` 锚点（07 §3.3、15 §17、已竖切卡如 12126/12160）。
-- **能拆就拆**：timing · condition · cost · effect 分编译单元；禁止无先例的新语义 atom。
+- **能拆就拆**：timing · condition · cost · effect · **PI 确认** 分编译单元；禁止无先例的新语义 atom。
 - **无可参考先例时**：先查设计文档与 imported JSON 同类卡；仍无法归类再询问是否扩展编译器。

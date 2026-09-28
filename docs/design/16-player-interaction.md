@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility / ResponseWindow）、[07-composition.md](07-composition.md)（Choice / Optional）、[14-nested-sequences.md](14-nested-sequences.md)（同窗口多响应）、[00-architecture-overview.md](../00-architecture-overview.md)  
 > **规则来源**：Grimoire Initiation、Effects · Target、Simultaneously；ArkhamDB RR · Lead Investigator / Choices  
-> **状态**：v0.2.1 · 2026-09-21 — 选择不进静态树（07 §1.4）
+> **状态**：v0.3.0 · 2026-09-28 — 有限期确认 + 默认；PI ≠ nest/内联
 
 ---
 
@@ -13,6 +13,27 @@
 **玩家交互（player interaction）** 回答：**在客观合法的前提下，谁、以什么顺序、选哪一支、是否发动** — 不是 Eligibility 关卡（L0–L7）。
 
 **范围**：凡 Grimoire / RR 写「choose / may / decides / in … order / select」且 **非纯自动** 的步，均应能归到本目录；**禁止** 在 Rules 各模块散落 `ui_*` 回调。
+
+### 1.1 与内联 / nest 的边界（已裁决 2026-09-28）
+
+玩家选择 **不是** 命名流程的 nest，也 **不是** Composition 的内联 Then。展开时用 **三分法**：
+
+| 形态 | 何时 | 玩家选择？ |
+|---|---|---|
+| **内联** | §4.0.5「否」— 同帧连续 then | 否 |
+| **nest** | §4.0.5「是」— 新时点锚 | 否 |
+| **玩家确认（本文件）** | choose / 选目标 / may / 排序 | **是** |
+
+运行模型 = **有限期目标确认**：
+
+```text
+合法候选（Eligibility）
+    → Gate.ask(ChoiceRequest)   # 含 default_* + deadline
+    → 期内确认 → RulesMemory 写入指称 → 继续父 RESOLVE（内联或 nest 下一步）
+    → 期内未确认 → 采用默认选择 → 同上（流程不挂死）
+```
+
+**禁止**：为「选一个敌人」铸造/ nest `seq.choose.*`；把 Choice 节点当成 nest 子手续；无默认、无限期等待。
 
 ---
 
@@ -70,7 +91,21 @@ class PlayerInteractionGate:
 
 `GameContext.interaction` 持有 gate；`CompositionExecutor`、`ResolutionSequenceStack` 响应轮、`DamagePipeline` 等 **只调 gate**，不调 UI。
 
-**EventRecord**：每次 `ask` 写入 `INTERACTION_CHOICE`（或 `GameLog` `INTERACTION`），payload 含 `kind`、`decider_id`、`option_ids`、`picked`。
+`ask` **同步返回**选定结果（或默认）；**不** push 子 seq，**不**占用 Would/When/After。
+
+**EventRecord**：每次 `ask` 写入 `INTERACTION_CHOICE`（或 `GameLog` `INTERACTION`），payload 含 `kind`、`decider_id`、`option_ids`、`picked`、`used_default`。
+
+### 3.1 有限期确认 + 默认（已裁决 2026-09-28）
+
+| 字段 / 行为 | 含义 |
+|---|---|
+| `deadline_ms` / `deadline_policy` | 确认窗口时限（UI 倒计时；headless 可立即 default） |
+| `default_index` / `default_pick` | 未确认时采用的选项；**必须**有定义（规则指定 > 队长 tie-break 惯例 > 索引 0） |
+| 期内确认 | 回填 `picked`；`used_default = false` |
+| 逾期 / 放弃 | 采用默认；`used_default = true`；**父流程继续** |
+| May / Optional | 默认常为「不发动 / 跳过」；must choose 默认 = 过滤后第一支可执行 |
+
+Headless：`DefaultChoiceResolver` / `ScriptingChoiceResolver` 在无脚本应答时走同一默认路径，保证自动化不挂死。
 
 ---
 
@@ -332,7 +367,8 @@ class ChoiceRequest:
     var min_picks: int = 1
     var max_picks: int = 1
     var context: Dictionary          # provenance：flow_id, ability_id, window…
-    var default_index: int = 0       # headless 默认策略
+    var default_index: int = 0       # 未确认时的默认选项（硬要求）
+    var deadline_ms: int = -1        # >0 = 有限期确认；-1 = 策略层默认（headless 立即 default）
 ```
 
 **选项 payload 约定**：
@@ -389,7 +425,7 @@ ctx.interaction.resolver = ScriptingChoiceResolver.new([
 
 ## 11. 与命名流程 `seq.*` 的关系
 
-玩家交互 **不** 注册新 `seq.*`；嵌在 seq handler 的 **RESOLVE 步** 内：
+玩家交互 **不** 注册新 `seq.*`；嵌在 seq handler 的 **RESOLVE 步** 内作 **确认闸**，确认后继续该步的内联 / nest：
 
 ```text
 seq.draw.investigator
@@ -400,7 +436,11 @@ seq.draw.investigator
 seq.encounter.revelation
   …
   E4  nest 显现
-        └─ Optional 子效果 → OPTIONAL_EFFECT
+        └─ Optional 子效果 → OPTIONAL_EFFECT（有限期；默认=跳过）
+
+卡面「Engage an enemy at a connecting location」
+  PI  PICK_TARGET（连结地点敌人；默认=合法集首项）
+  → 内联/nest 移入 + 交战内核（按 §4.0.5；禁止糖 Atom）
 ```
 
 ---
@@ -411,16 +451,17 @@ seq.encounter.revelation
 |---|---|---|
 | P0 | `ChoiceKind` + `ChoiceRequest` + `PlayerInteractionGate.ask` | 骨架 |
 | P0 | `DefaultChoiceResolver` / `ScriptingChoiceResolver` | 骨架 |
+| P0 | **有限期确认 + default_***（§3.1） | 规格已裁；实现待接 |
 | P0 | **§5 完整目录**（本文件） | v0.2 |
 | P1 | ResponseWindow：`USE_ABILITY` + `ORDER_SIMULTANEOUS` | 待接 |
-| P1 | Composition：`Optional` / `Choice` | 待接 |
+| P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | 待接 |
 | P1 | ST.2 `COMMIT_TO_TEST` + 检定窗 `USE_ABILITY` | 待接 |
 | P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
 | P2 | `PAY_COST` / `PAY_X` 接 CostPipeline | 待接 |
 | P2 | Damage：`ASSIGN_*` / `CHOOSE_TRAUMA` | 待接 |
 | P2 | `TIE_BREAK` / `ORDER_ATTACKS` / Hunter spawn | 待接 |
 | P3 | `SEARCH_TAKE` / `SETUP_CHOICE` / `CAMPAIGN_DECISION` | 待接 |
-| P3 | `INTERACTION_CHOICE` EventRecord | 待接 |
+| P3 | `INTERACTION_CHOICE` EventRecord（含 `used_default`） | 待接 |
 
 ---
 
@@ -428,13 +469,14 @@ seq.encounter.revelation
 
 | ID | 说明 | v1 默认 |
 |---|---|---|
-| OQ-PI-01 | Optional Forced「may take 1 horror」 | 仍 `OPTIONAL_EFFECT`；控制者选 |
+| OQ-PI-01 | Optional Forced「may take 1 horror」 | 仍 `OPTIONAL_EFFECT`；控制者选；默认=跳过 |
 | OQ-PI-02 | 多调查员各有一条 eligible [reaction] | 并行 USE_ABILITY；仅 **均选用** 的 TRIGGERED 批交队长排序 |
 | OQ-PI-03 | AI 默认 ORDER | 保持 COLLECT 顺序 |
 
 | OQ-PI-04 | Search 未拿牌的 **回置顺序** | 默认保持 reveal 序；可选 `ORDER_CARDS` |
 | OQ-PI-05 | `CAMPAIGN_DECISION` 是否独立进程 | v1 与 Setup 同 resolver；战役服务发起 ask |
 | OQ-PI-06 | 多种 **additional action** 择一 | 来源 **FAQ 1.10**（[`arkhamdb-rules-reference.md`](../reference/arkhamdb-rules-reference.md) Action 段）；2026 Grimoire 未在仓库 md 中检出同句 |
+| OQ-PI-07 | UI `deadline_ms` 具体数值 | v1：策略层配置；headless 立即 default |
 
 ---
 
@@ -442,6 +484,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.3.0 | **§1.1 / §3.1**：玩家选择=有限期确认+默认；≠ nest/内联；ChoiceRequest 加 deadline |
 | 2026-09-21 | v0.2.1 | §2：Gate 的答不写进 Composition 树；指称进 RulesMemory（07 §1.4） |
 | 2026-06-18 | v0.2 | **§5 完整交互目录**（10 域）；扩展 `ChoiceKind`；决策者矩阵 |
 | 2026-06-18 | v0.1 | 初稿：Interaction vs Eligibility；Gate / Resolver |

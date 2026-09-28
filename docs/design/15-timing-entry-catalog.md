@@ -247,11 +247,13 @@ Grimoire 规范流程
 > **是** → **nest**（新 TC / 新 `(sequence_id, slot)`；本步作为 **独立结算** 入栈）  
 > **否** — 只是同一 encounter WHEN 内的 **连续 then**（无独立子时点）→ **内联**
 
-| | **内联** | **嵌套** |
-|---|---|---|
-| **语义** | 同一 WHEN 内的 **then**（流程连续） | 子时点 **触发** 一段 **独立结算** |
-| **TriggeringCondition** | 不新建 | 新建（或 `sequences.nest` 等价 TC） |
-| **典型** | E2 reveal、E5 默认 discard | Register Buff、显现 nest、spawn、涌动再抽 |
+**第三形态（已裁决 2026-09-28）**：玩家选择（choose / 选目标 / may）**既不是内联也不是 nest**，而是 **`PlayerInteractionGate` 有限期目标确认**（未确认 → 默认选择）。见 [16 §3.1](16-player-interaction.md)、[effect-translation DoD](../../.cursor/rules/effect-translation.mdc)。**禁止**用 nest 包一层「选目标 seq」、也禁止把确认伪装成 Composition Then。
+
+| | **内联** | **嵌套** | **玩家确认（PI）** |
+|---|---|---|---|
+| **语义** | 同一 WHEN 内的 **then**（流程连续） | 子时点 **触发** 一段 **独立结算** | 合法集上的有限期确认 |
+| **TriggeringCondition** | 不新建 | 新建（或 `sequences.nest` 等价 TC） | 不新建；结果写 `RulesMemory` |
+| **典型** | E2 reveal、E5 默认 discard | Register Buff、显现 nest、spawn、涌动再抽 | PICK_TARGET / PICK_OPTION；超时用 default |
 
 ```text
 内联：  A ──then──► B ──then──► C     （B 无独立子时点锚；同一 WHEN 内连续）
