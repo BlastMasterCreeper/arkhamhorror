@@ -114,7 +114,7 @@
 ### 12113 Engage（连结地点）✅（应展尽展）
 - `seq`：`no_provoke_aoo` → PI `pick_target` → 内联 `move_enemy_to` → 内联 `engage_target`
 - 卡面「This action does not provoke…」→ 行动开始 Register `SKIP_AOO`（UNTIL_FIRED）；INIT_2B AOO **消费**后跳过借机（非 `provokes_aoo: false` 短路）
-- Engage 类型层仍 `provokes_aoo=true`；指标：ADB-48..51
+- Engage 类型层仍 `provokes_aoo=true`；指标：ADB-48..50、ADB-60
 
 ### 12118–20 地点能力 ✅（Limit 运行时后补）
 - 12118 Forced：discover → `discard_from_hand`（mode=choose）
