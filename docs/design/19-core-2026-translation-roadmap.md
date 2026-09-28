@@ -1,7 +1,7 @@
 # 19 — Core 2026（2.0 基础）卡牌翻译路线图
 
 > **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[20-card-translation-schema](20-card-translation-schema.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.17 · 2026-09-28 — 卡面翻译层规范（目标/Buff/参数）  
+> **状态**：v0.18 · 2026-09-28 — suppress+明示交战（冷漠/横置）  
 > **范围**：`core_2026` + `core_2026_encounter`（约 166 张 / 162 段能力）
 
 ---
@@ -115,7 +115,8 @@
 ### 12113 Engage（连结地点）✅（应展尽展）
 - `seq`：`no_provoke_aoo` → PI → Register **`SUPPRESS_AUTO_ENGAGE`** → nest **`seq.enemy.move`** → nest **`seq.engage`**
 - 移入仍走 auto-engage 入口；限制类在 REST-E-AUTO-ENGAGE **读取后分支**（不跑 Prey/Lead）；明示交战不受影响
-- 「does not provoke…」→ 行动开始 `SKIP_AOO`；指标：ADB-48..50、ADB-60
+- **不可**用「强制自动交战 WHO」替代明示交战：冷漠/横置不走 auto，效果交战仍须开火（[20 §4.2.1](20-card-translation-schema.md)）
+- 「does not provoke…」→ 行动开始 `SKIP_AOO`；指标：ADB-48..50、ADB-60、ADB-61
 
 ### 12118–20 地点能力 ✅（Limit 运行时后补）
 - 12118 Forced：discover → `discard_from_hand`（mode=choose）
@@ -134,6 +135,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.18 | 20 §4.2.1：suppress+明示交战覆盖冷漠/横置；禁 forced-auto 替代 |
 | 2026-09-28 | v0.17 | 新增 [20-card-translation-schema](20-card-translation-schema.md)：目标确认 / Buff 创建 / nest·参数指称；DoD §8 |
 | 2026-09-28 | v0.16 | `SUPPRESS_AUTO_ENGAGE` 限制类：auto-engage 入口读取分支；12113 去掉翻译层 auto_engage 开关 |
 | 2026-09-28 | v0.15 | 12112/12113 显式 nest 信封：`seq.effect.resign` / `seq.enemy.move` / `seq.engage` |

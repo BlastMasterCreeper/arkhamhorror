@@ -2,7 +2,7 @@
 
 > **依赖**：[07-composition.md](07-composition.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md) §4.0.5、[16-player-interaction.md](16-player-interaction.md)、[06-registration-buff-model.md](06-registration-buff-model.md) §16、[18-arkhamdb-card-data.md](18-arkhamdb-card-data.md)  
 > **实现**：`tools/arkhamdb_abilities.py` → `data/arkhamdb/imported/*.json` → `ArkhamDbAbilityCompiler`  
-> **状态**：v0.1 · 2026-09-28 — 目标确认 / Buff 创建 / 效果参数 统一词汇
+> **状态**：v0.2 · 2026-09-28 — §4.2.1 冷漠/横置须明示交战
 
 ---
 
@@ -132,6 +132,22 @@ pick_target
 | `FORBID_*` | nest register / peril 模板 | 按 lifetime | REST-E-PLAY 等 |
 
 **禁止**：用翻译字段关掉入口（`auto_engage: false`）；用 Cancel/Ignore「消掉」自动交战或借机。
+
+#### 4.2.1 为何「移入并 engages you」必须 suppress + 明示交战（已裁决）
+
+自动交战 ≠ 效果/行动交战（[08 §3](08-enemy-engagement.md)、RR Engage）：
+
+| | `auto_engage_at_location` | `seq.engage` mode=effect/action |
+|---|---|---|
+| 冷漠（Aloof） | **不**交战 | **可以**交战 |
+| 横置（exhausted） | **不**交战 | **可以**交战 |
+| 多调查员 WHO | Prey → Lead | 卡面指定（如 controller） |
+
+因此 **禁止**用「给自动交战塞 forced target」替代明示交战——冷漠/横置场合自动路径根本不会开火，卡面「engages you」会丢。
+
+也 **禁止**把自动交战挪到 move/能力的 After 来省掉 suppress：子帧 After 仍先于父树下一步；且与 *immediately* 冲突（调研结论）。
+
+正确拼合：`suppress_auto_engage` → nest move（入口仍在，读限制后分支）→ nest `seq.engage` mode=effect（覆盖冷漠/横置/指定 WHO）。
 
 ### 4.3 具名限制叶的参数
 
@@ -287,3 +303,4 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-09-28 | v0.1 | 初稿：A/B/C/D 四构件；白名单；12113 类限制走 Buff 非翻译开关 |
+| 2026-09-28 | v0.2 | §4.2.1：抑制+明示交战不可被 forced-auto / After 替代（冷漠/横置） |
