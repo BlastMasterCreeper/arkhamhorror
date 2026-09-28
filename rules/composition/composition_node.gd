@@ -728,6 +728,15 @@ static func nest_scenario_resolution(
 	return n
 
 
+## 卡面「does not provoke attacks of opportunity」声明节点（效果体无写入；
+## 真正豁免由 ability 的 `provokes_aoo: false` 在 Initiation 生效）。
+static func no_provoke_aoo() -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"no_provoke_aoo"
+	return n
+
+
 ## 同帧内联撤退（L0 · InvestigatorElimination）；无新时点锚时不 nest。
 static func resign(inv_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
@@ -838,12 +847,13 @@ static func nest_engage(
 	return n
 
 
-## 12113：PI → 内联移入 → 内联交战（非 nest）。
+## 12113：不借机声明 → PI → 内联移入 → 内联交战（非 nest）。
 static func engage_from_connecting(
 	controller_id: StringName,
 	source_card_id: StringName = &""
 ) -> CompositionNode:
 	return seq([
+		no_provoke_aoo(),
 		pick_target(
 			controller_id,
 			&"enemy_at_connecting",

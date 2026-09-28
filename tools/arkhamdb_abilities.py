@@ -207,8 +207,9 @@ ENGAGE_FROM_CONNECTING = re.compile(
     r"(?:\s*This action does not provoke attacks? of opportunity\.?)?$",
     re.I,
 )
+# 「This action does not…」与括注「(This does not…)」均识别。
 NO_AOO_PHRASE = re.compile(
-    r"This action does not provoke attacks? of opportunity\.?",
+    r"This(?: action)? does not provoke attacks? of opportunity\.?",
     re.I,
 )
 
@@ -489,15 +490,23 @@ def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
 
 
 def compile_resign(body: str) -> dict[str, Any] | None:
-    if not RESIGN_ABILITY.match(body.strip()):
+    text = body.strip()
+    if not RESIGN_ABILITY.match(text):
         return None
     # 应展尽展：同帧内联撤退 L0（§4.0.5 无新时点锚 → 不 nest）。
-    return {
+    steps: list[dict[str, Any]] = []
+    if NO_AOO_PHRASE.search(text):
+        steps.append({"template": "no_provoke_aoo"})
+    steps.append({"template": "resign"})
+    entry: dict[str, Any] = {
         "template": "seq",
         "action_types": ["activate", "resign"],
-        "steps": [{"template": "resign"}],
+        "steps": steps,
         "translation": "full_expand",
     }
+    if NO_AOO_PHRASE.search(text):
+        entry["provokes_aoo"] = False
+    return entry
 
 
 def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
@@ -528,12 +537,12 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
-    # 应展尽展：PI → 内联移入 → 内联交战（同能力体连续 then，§4.0.5 不 nest）。
-    entry: dict[str, Any] = {
-        "template": "seq",
-        "action_types": ["activate", "engage"],
-        "translation": "full_expand",
-        "steps": [
+    # 应展尽展：不借机声明 → PI → 内联移入 → 内联交战（§4.0.5 连续 then）。
+    steps: list[dict[str, Any]] = []
+    if NO_AOO_PHRASE.search(text):
+        steps.append({"template": "no_provoke_aoo"})
+    steps.extend(
+        [
             {
                 "template": "pick_target",
                 "filter": "enemy_at_connecting",
@@ -550,9 +559,15 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
                 "enemy": "memory:picked_enemy",
                 "investigator": "controller",
             },
-        ],
+        ]
+    )
+    entry: dict[str, Any] = {
+        "template": "seq",
+        "action_types": ["activate", "engage"],
+        "translation": "full_expand",
+        "steps": steps,
     }
-    # Engage 不在借机豁免类型内；仅卡面显式声明时覆盖为 false。
+    # Engage 默认会借机；卡面「does not provoke…」→ 覆盖为 false（Initiation 读此字段）。
     if NO_AOO_PHRASE.search(text):
         entry["provokes_aoo"] = False
     return entry

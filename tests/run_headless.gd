@@ -2188,7 +2188,7 @@ func _test_adb_compile_12112() -> bool:
 	var types: Variant = resign_entry.get("action_types", [])
 	var steps: Variant = free_entry.get("steps", [])
 	var resign_steps: Variant = resign_entry.get("steps", [])
-	if not resign_steps is Array or (resign_steps as Array).is_empty():
+	if not resign_steps is Array or (resign_steps as Array).size() < 2:
 		return false
 	if not steps is Array or (steps as Array).size() != 2:
 		return false
@@ -2197,7 +2197,10 @@ func _test_adb_compile_12112() -> bool:
 	return (
 		str(resign_entry.get("template", "")) == "seq"
 		and str(resign_entry.get("translation", "")) == "full_expand"
-		and str(((resign_steps as Array)[0] as Dictionary).get("template", "")) == "resign"
+		and resign_entry.has("provokes_aoo")
+		and bool(resign_entry.get("provokes_aoo")) == false
+		and str(((resign_steps as Array)[0] as Dictionary).get("template", "")) == "no_provoke_aoo"
+		and str(((resign_steps as Array)[1] as Dictionary).get("template", "")) == "resign"
 		and (types as Array).has("activate")
 		and (types as Array).has("resign")
 		and str(free_entry.get("template", "")) == "seq"
@@ -2246,11 +2249,12 @@ func _test_adb_compile_12113() -> bool:
 	var entry: Dictionary = compiled[0]
 	var types: Variant = entry.get("action_types", [])
 	var steps: Variant = entry.get("steps", [])
-	if not steps is Array or (steps as Array).size() != 3:
+	if not steps is Array or (steps as Array).size() != 4:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
 	var s1: Dictionary = (steps as Array)[1]
 	var s2: Dictionary = (steps as Array)[2]
+	var s3: Dictionary = (steps as Array)[3]
 	if not types is Array:
 		return false
 	return (
@@ -2263,10 +2267,11 @@ func _test_adb_compile_12113() -> bool:
 		and (types as Array).has("engage")
 		and entry.has("provokes_aoo")
 		and bool(entry.get("provokes_aoo")) == false
-		and str(s0.get("template", "")) == "pick_target"
-		and str(s0.get("filter", "")) == "enemy_at_connecting"
-		and str(s1.get("template", "")) == "move_enemy_to"
-		and str(s2.get("template", "")) == "engage_target"
+		and str(s0.get("template", "")) == "no_provoke_aoo"
+		and str(s1.get("template", "")) == "pick_target"
+		and str(s1.get("filter", "")) == "enemy_at_connecting"
+		and str(s2.get("template", "")) == "move_enemy_to"
+		and str(s3.get("template", "")) == "engage_target"
 		and CardRegistry.has_triggered(&"12113")
 	)
 

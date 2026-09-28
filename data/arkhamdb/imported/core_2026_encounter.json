@@ -415,10 +415,14 @@
         "template": "seq",
         "steps": [
           {
+            "template": "no_provoke_aoo"
+          },
+          {
             "template": "resign"
           }
         ],
-        "translation": "full_expand"
+        "translation": "full_expand",
+        "provokes_aoo": false
       }
     ]
   },
@@ -475,6 +479,9 @@
         "template": "seq",
         "translation": "full_expand",
         "steps": [
+          {
+            "template": "no_provoke_aoo"
+          },
           {
             "template": "pick_target",
             "filter": "enemy_at_connecting",

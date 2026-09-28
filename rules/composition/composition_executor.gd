@@ -326,6 +326,10 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_attack(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
+		&"no_provoke_aoo":
+			## 声明节点：豁免已在 Initiation.provokes_aoo 生效；此处仅记日志。
+			_log.log(AhcEnums.LogCategory.CARD, "composition:no_provoke_aoo", {})
+			return true
 		&"resign":
 			return _execute_resign_inline(node)
 		&"nest_resign":

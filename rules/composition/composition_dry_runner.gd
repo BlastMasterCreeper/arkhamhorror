@@ -237,6 +237,9 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			exh.exhausted = true
 			return true
+		&"no_provoke_aoo":
+			## 纯声明，不 CREATED；dry-run 由后续效果叶决定合法性。
+			return false
 		&"resign", &"nest_resign":
 			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
