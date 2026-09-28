@@ -491,11 +491,11 @@ def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
 def compile_resign(body: str) -> dict[str, Any] | None:
     if not RESIGN_ABILITY.match(body.strip()):
         return None
-    # 应展尽展：nest seq.effect.resign（非糖 Atom）。
+    # 应展尽展：同帧内联撤退 L0（§4.0.5 无新时点锚 → 不 nest）。
     return {
         "template": "seq",
         "action_types": ["activate", "resign"],
-        "steps": [{"template": "nest_resign"}],
+        "steps": [{"template": "resign"}],
         "translation": "full_expand",
     }
 
@@ -528,7 +528,7 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
-    # 应展尽展：PI 确认目标 → nest 移动（关自动交战）→ nest seq.engage。
+    # 应展尽展：PI → 内联移入 → 内联交战（同能力体连续 then，§4.0.5 不 nest）。
     entry: dict[str, Any] = {
         "template": "seq",
         "action_types": ["activate", "engage"],
@@ -541,14 +541,12 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
                 "memory_key": "picked_enemy",
             },
             {
-                "template": "nest_enemy_move_to",
+                "template": "move_enemy_to",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
-                "auto_engage": False,
             },
             {
-                "template": "nest_engage",
-                "mode": "effect",
+                "template": "engage_target",
                 "enemy": "memory:picked_enemy",
                 "investigator": "controller",
             },

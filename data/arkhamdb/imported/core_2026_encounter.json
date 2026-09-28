@@ -415,7 +415,7 @@
         "template": "seq",
         "steps": [
           {
-            "template": "nest_resign"
+            "template": "resign"
           }
         ],
         "translation": "full_expand"
@@ -482,14 +482,12 @@
             "memory_key": "picked_enemy"
           },
           {
-            "template": "nest_enemy_move_to",
+            "template": "move_enemy_to",
             "enemy": "memory:picked_enemy",
-            "location": "source_location",
-            "auto_engage": false
+            "location": "source_location"
           },
           {
-            "template": "nest_engage",
-            "mode": "effect",
+            "template": "engage_target",
             "enemy": "memory:picked_enemy",
             "investigator": "controller"
           }
@@ -1643,7 +1641,7 @@
         "template": "seq",
         "steps": [
           {
-            "template": "nest_resign"
+            "template": "resign"
           }
         ],
         "translation": "full_expand"
@@ -1698,7 +1696,7 @@
         "template": "seq",
         "steps": [
           {
-            "template": "nest_resign"
+            "template": "resign"
           }
         ],
         "translation": "full_expand"
@@ -3813,7 +3811,7 @@
         "template": "seq",
         "steps": [
           {
-            "template": "nest_resign"
+            "template": "resign"
           }
         ],
         "translation": "full_expand"

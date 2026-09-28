@@ -326,10 +326,16 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_attack(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
-		&"nest_resign", &"resign":
+		&"resign":
+			return _execute_resign_inline(node)
+		&"nest_resign":
 			return _execute_nest_resign(node)
 		&"pick_target":
 			return _execute_pick_target(node)
+		&"move_enemy_to":
+			return _execute_move_enemy_to_inline(node)
+		&"engage_target":
+			return _execute_engage_target_inline(node)
 		&"nest_enemy_move_to":
 			return _execute_nest_enemy_move_to(node)
 		&"nest_engage":
@@ -610,7 +616,21 @@ func _execute_exhaust_card(node: CompositionNode) -> bool:
 	return true
 
 
-## nest `seq.effect.resign`；Catalog 缺失时回退 Elimination（测试脚手架）。
+## 同帧内联撤退（无新时点锚）。
+func _execute_resign_inline(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" or _game_ctx == null:
+		return false
+	var result := InvestigatorElimination.resign(_game_ctx, inv_id)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:resign",
+		{"inv": inv_id, "ok": bool(result.get("ok", false))}
+	)
+	return bool(result.get("ok", false))
+
+
+## 仅 §4.0.5「是」：nest `seq.effect.resign`。
 func _execute_nest_resign(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" or _game_ctx == null:
@@ -687,7 +707,63 @@ func _enumerate_target_filter(
 	return out
 
 
-## nest `seq.enemy.move`（可读 memory:picked_enemy；可关 auto_engage）。
+## 同帧内联移敌（L0 location_tag；不自动交战、不压栈）。
+func _execute_move_enemy_to_inline(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return false
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var dest := _resolve_location_spec(node, inv)
+	if dest == &"":
+		return false
+	var enemy := _state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return false
+	enemy.location_tag = dest
+	_last_step_enemy_id = enemy_id
+	_last_step_created = true
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:move_enemy_to",
+		{"enemy": enemy_id, "location": dest}
+	)
+	return true
+
+
+## 同帧内联交战（L0 apply_engage）。
+func _execute_engage_target_inline(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.enemy == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var enemy := _state.registry.get_enemy(enemy_id)
+	var inv := _state.registry.get_investigator(inv_id)
+	if enemy == null or inv == null:
+		return false
+	if not enemy.is_at_location(inv.location_tag):
+		return false
+	_game_ctx.enemy.apply_engage(enemy_id, inv_id)
+	_last_step_enemy_id = enemy_id
+	_last_step_engaged_investigator = inv_id
+	_last_step_created = true
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:engage_target",
+		{"enemy": enemy_id, "inv": inv_id}
+	)
+	return true
+
+
+## 仅 §4.0.5「是」：nest `seq.enemy.move`。
 func _execute_nest_enemy_move_to(node: CompositionNode) -> bool:
 	if _game_ctx == null or _state == null or _game_ctx.sequence_catalog == null:
 		return false

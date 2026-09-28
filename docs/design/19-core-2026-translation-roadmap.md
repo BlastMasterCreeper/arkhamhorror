@@ -55,8 +55,8 @@
 
 | 债 | 状态 | 备注 |
 |---|---|---|
-| 12113 `engage_from_connecting` | ✅ 已展 | PI `pick_target` → nest `seq.enemy.move`(auto_engage=false) → nest `seq.engage` |
-| 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign` |
+| 12113 `engage_from_connecting` | ✅ 已展 | PI `pick_target` → **内联** `move_enemy_to` → **内联** `engage_target`（不 nest） |
+| 12112 `resign` 糖 Atom | ✅ 已展 | **内联** `resign`（不 nest；`seq.effect.resign` 仅 §4.0.5 需要时） |
 | Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
 | `nest_move_connecting` 内嵌 PI | 待拆 | 12116：选地点确认应独立为 pick_target 步 |
 | LISTENER / peril / act-agenda-back | 部分 | 仍有直 `execute` 路径；优先复用 `seq.ability.resolve` |
@@ -108,11 +108,11 @@
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
 ### 12112 Resign / 群体线索 ✅（应展尽展）
-- Resign：`seq(nest_resign)` → nest `seq.effect.resign`；经 `seq.ability.resolve` 装载
+- Resign：`seq(resign)` 同帧内联；经 `seq.ability.resolve` 装载（禁真空）
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
 ### 12113 Engage（连结地点）✅（应展尽展）
-- `seq`：`pick_target(enemy_at_connecting)` → `nest_enemy_move_to(auto_engage=false)` → `nest_engage(effect)`
+- `seq`：PI `pick_target` → 内联 `move_enemy_to` → 内联 `engage_target`（§4.0.5 连续 then，不 nest）
 - **Engage 默认会借机**；卡面「does not provoke…」→ `provokes_aoo: false` 覆盖
 - 指标：ADB-48..50
 
@@ -133,6 +133,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-28 | v0.11 | 12112/12113 改内联（PI+L0）；纠正「有 Catalog 就 nest」 |
 | 2026-09-28 | v0.10 | 12112/12113 应展尽展；`seq.effect.resign` / `seq.ability.resolve`；债清两笔 |
 | 2026-09-28 | v0.9 | **翻译硬门槛**：禁真空；三分法（内联/nest/PI）；应展尽展禁糖；§3.1 债清单 |
 | 2026-09-22 | v0.8 | `seq.enemy.defeat`；12116/22/32；controlled_assets discard；72/162 |

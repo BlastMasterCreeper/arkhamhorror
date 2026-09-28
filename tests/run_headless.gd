@@ -99,7 +99,7 @@ func _initialize() -> void:
 	_run_test("ADB-45 parley action skips AOO", _test_adb_parley_skips_aoo)
 	_run_test("SEQ-EFF-10 discard_card bystander at location", _test_seq_eff_discard_bystander)
 	_run_test("ADB-46 compile 12112 resign and group clues", _test_adb_compile_12112)
-	_run_test("ADB-47 resign via nest seq.effect.resign on stack", _test_adb_resign_inline_initiation)
+	_run_test("ADB-47 resign inline via initiation on stack", _test_adb_resign_inline_initiation)
 	_run_test("ADB-48 compile 12113 engage connecting no AOO", _test_adb_compile_12113)
 	_run_test("ADB-49 engage types provoke AOO by default", _test_adb_engage_types_provoke_aoo)
 	_run_test("ADB-50 12113 engage connecting skips AOO", _test_adb_12113_engage_connecting)
@@ -2188,20 +2188,21 @@ func _test_adb_compile_12112() -> bool:
 	var types: Variant = resign_entry.get("action_types", [])
 	var steps: Variant = free_entry.get("steps", [])
 	var resign_steps: Variant = resign_entry.get("steps", [])
+	if not resign_steps is Array or (resign_steps as Array).is_empty():
+		return false
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	if not types is Array:
+		return false
 	return (
-		resign_entry.get("template", "") == "seq"
-		and resign_entry.get("translation", "") == "full_expand"
-		and resign_steps is Array
-		and (resign_steps as Array).size() == 1
-		and ((resign_steps as Array)[0] as Dictionary).get("template", "") == "nest_resign"
-		and types is Array
+		str(resign_entry.get("template", "")) == "seq"
+		and str(resign_entry.get("translation", "")) == "full_expand"
+		and str(((resign_steps as Array)[0] as Dictionary).get("template", "")) == "resign"
 		and (types as Array).has("activate")
 		and (types as Array).has("resign")
-		and free_entry.get("template", "") == "seq"
-		and steps is Array
-		and (steps as Array).size() == 2
-		and ((steps as Array)[0] as Dictionary).get("template", "") == "spend_clues_group"
-		and ((steps as Array)[1] as Dictionary).get("template", "") == "deal_damage"
+		and str(free_entry.get("template", "")) == "seq"
+		and str(((steps as Array)[0] as Dictionary).get("template", "")) == "spend_clues_group"
+		and str(((steps as Array)[1] as Dictionary).get("template", "")) == "deal_damage"
 	)
 
 
@@ -2216,10 +2217,10 @@ func _test_adb_resign_inline_initiation() -> bool:
 	inv.actions_remaining = 1
 	var loc := h.ctx.state.registry.get_location(&"test_loc")
 	var clues_before := loc.clues
-	## nest seq.effect.resign，经 seq.ability.resolve 装载（禁真空）。
+	## 内联 resign；经 seq.ability.resolve 装载（禁真空）；不 nest seq.effect.resign。
 	var intent := InitiationIntent.action_ability(
 		&"inv_1",
-		CompositionNode.nest_resign(&"inv_1"),
+		CompositionNode.resign(&"inv_1"),
 		1,
 		AhcEnums.ActionType.ACTIVATE,
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.RESIGN]
@@ -2233,7 +2234,6 @@ func _test_adb_resign_inline_initiation() -> bool:
 		and inv.clues_on_card == 0
 		and loc.clues == clues_before + 2
 		and inv.actions_remaining == 0
-		and h.ctx.sequence_catalog.has_flow(&"seq.effect.resign")
 		and h.ctx.sequence_catalog.has_flow(&"seq.ability.resolve")
 	)
 
@@ -2251,22 +2251,22 @@ func _test_adb_compile_12113() -> bool:
 	var s0: Dictionary = (steps as Array)[0]
 	var s1: Dictionary = (steps as Array)[1]
 	var s2: Dictionary = (steps as Array)[2]
+	if not types is Array:
+		return false
 	return (
-		entry.get("register_as", "") == "action"
-		and entry.get("template", "") == "seq"
-		and entry.get("translation", "") == "full_expand"
-		and entry.get("status", "") == "full"
+		str(entry.get("register_as", "")) == "action"
+		and str(entry.get("template", "")) == "seq"
+		and str(entry.get("translation", "")) == "full_expand"
+		and str(entry.get("status", "")) == "full"
 		and int(entry.get("action_cost", 0)) == 1
-		and types is Array
 		and (types as Array).has("activate")
 		and (types as Array).has("engage")
 		and entry.has("provokes_aoo")
 		and bool(entry.get("provokes_aoo")) == false
-		and s0.get("template", "") == "pick_target"
-		and s0.get("filter", "") == "enemy_at_connecting"
-		and s1.get("template", "") == "nest_enemy_move_to"
-		and bool(s1.get("auto_engage", true)) == false
-		and s2.get("template", "") == "nest_engage"
+		and str(s0.get("template", "")) == "pick_target"
+		and str(s0.get("filter", "")) == "enemy_at_connecting"
+		and str(s1.get("template", "")) == "move_enemy_to"
+		and str(s2.get("template", "")) == "engage_target"
 		and CardRegistry.has_triggered(&"12113")
 	)
 

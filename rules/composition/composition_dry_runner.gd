@@ -237,7 +237,7 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			exh.exhausted = true
 			return true
-		&"nest_resign", &"resign":
+		&"resign", &"nest_resign":
 			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
 		&"pick_target":
@@ -260,7 +260,7 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 							return true
 				return false
 			return true
-		&"nest_enemy_move_to", &"nest_engage":
+		&"move_enemy_to", &"engage_target", &"nest_enemy_move_to", &"nest_engage":
 			var move_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if move_inv == null:
 				return false

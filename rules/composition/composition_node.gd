@@ -728,7 +728,16 @@ static func nest_scenario_resolution(
 	return n
 
 
-## nest `seq.effect.resign`（撤退效果信封）。
+## 同帧内联撤退（L0 · InvestigatorElimination）；无新时点锚时不 nest。
+static func resign(inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"resign"
+	n.inv_id = inv_id
+	return n
+
+
+## 仅当 §4.0.5「是」时用：nest `seq.effect.resign`。
 static func nest_resign(inv_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -736,11 +745,6 @@ static func nest_resign(inv_id: StringName) -> CompositionNode:
 	n.nest_flow_id = &"seq.effect.resign"
 	n.inv_id = inv_id
 	return n
-
-
-## @deprecated 兼容旧测例；等价 nest_resign。
-static func resign(inv_id: StringName) -> CompositionNode:
-	return nest_resign(inv_id)
 
 
 ## PI：有限期确认目标 → 写入 RulesMemory（默认 = 合法集首项）。
@@ -762,7 +766,41 @@ static func pick_target(
 	return n
 
 
-## nest `seq.enemy.move`：把 memory/显式敌人移到目标地点。
+## 同帧内联：把敌人放到目标地点（L0 改 location_tag；不 nest、不自动交战）。
+static func move_enemy_to(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	location_spec: StringName = &"source_location",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"move_enemy_to"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.location_target = location_spec
+	n.auto_engage = false
+	return n
+
+
+## 同帧内联：敌人与调查员交战（L0 apply_engage）。
+static func engage_target(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"engage_target"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.engage_mode = &"effect"
+	return n
+
+
+## 仅当 §4.0.5「是」时用：nest `seq.enemy.move`。
 static func nest_enemy_move_to(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -782,7 +820,7 @@ static func nest_enemy_move_to(
 	return n
 
 
-## nest `seq.engage`（mode=effect/action/auto）。
+## 仅当 §4.0.5「是」时用：nest `seq.engage`。
 static func nest_engage(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -800,7 +838,7 @@ static func nest_engage(
 	return n
 
 
-## 12113 应展尽展树：PI → nest 移动 → nest 交战。
+## 12113：PI → 内联移入 → 内联交战（非 nest）。
 static func engage_from_connecting(
 	controller_id: StringName,
 	source_card_id: StringName = &""
@@ -813,14 +851,13 @@ static func engage_from_connecting(
 			&"picked_enemy",
 			source_card_id
 		),
-		nest_enemy_move_to(
+		move_enemy_to(
 			controller_id,
 			&"memory:picked_enemy",
 			&"source_location",
-			false,
 			source_card_id
 		),
-		nest_engage(controller_id, &"memory:picked_enemy", &"effect", source_card_id),
+		engage_target(controller_id, &"memory:picked_enemy", source_card_id),
 	])
 
 

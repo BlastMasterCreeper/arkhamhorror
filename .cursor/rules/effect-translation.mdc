@@ -158,7 +158,7 @@ AbilitySpec
 | 外壳 template 只标 `action_types`、效果体真空 | 静态树逐步可读；每叶有归属（内联 / nest / PI） |
 | 「先 nest 再说」当展开策略 | **先判三分法**，再写节点 |
 
-铸造 `seq.effect.*`（种类可被 When/After 听到）≠ 运行时一律 nest：仍只在 §4.0.5 为「是」时 nest；否则同帧内联解释该效果体。
+铸造 `seq.effect.*`（种类可被 When/After 听到）≠ 运行时一律 nest：仍只在 §4.0.5 为「是」时 nest；否则同帧内联解释该效果体（L0 / 内联 atom）。**禁止**「Catalog 里有这条就 nest」——有条目只表示可被听到时能压栈，不表示卡面每步都压。
 
 ## 实现约定
 

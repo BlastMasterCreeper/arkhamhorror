@@ -68,7 +68,9 @@ static func build_composition(
 			)
 		"discard_source":
 			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
-		"nest_resign", "resign":
+		"resign":
+			return CompositionNode.resign(bind.controller_id)
+		"nest_resign":
 			return CompositionNode.nest_resign(bind.controller_id)
 		"pick_target":
 			return CompositionNode.pick_target(
@@ -76,6 +78,19 @@ static func build_composition(
 				StringName(str(params.get("filter", "enemy_at_connecting"))),
 				StringName(str(params.get("prompt_id", "pick:target"))),
 				StringName(str(params.get("memory_key", "picked_enemy"))),
+				bind.card_id
+			)
+		"move_enemy_to":
+			return CompositionNode.move_enemy_to(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
+				StringName(str(params.get("location", "source_location"))),
+				bind.card_id
+			)
+		"engage_target":
+			return CompositionNode.engage_target(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
 				bind.card_id
 			)
 		"nest_enemy_move_to":
