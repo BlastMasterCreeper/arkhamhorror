@@ -1,7 +1,7 @@
 # 19 — Core 2026（2.0 基础）卡牌翻译路线图
 
 > **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[20-card-translation-schema](20-card-translation-schema.md)、[21-selection-spec](21-selection-spec.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.20 · 2026-09-29 — 通用 SelectionSpec / CandidateFilter  
+> **状态**：v0.21 · 2026-09-29 — 候选管线 U/S/N/R/V  
 > **范围**：`core_2026` + `core_2026_encounter`（约 166 张 / 162 段能力）
 
 ---
@@ -135,6 +135,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-29 | v0.21 | 21 §3.1：候选范围分层 U/S/N/R/V（数值 preds + Restriction `for_intent`） |
 | 2026-09-29 | v0.20 | [21-selection-spec](21-selection-spec.md)：通用选择 filter/基数/bind；`select`/`pick_multi` |
 | 2026-09-29 | v0.19 | 具名限制叶落地收口：`suppress` / `SKIP_AOO` / REGISTER → `seq.effect.register` |
 | 2026-09-28 | v0.18 | 20 §4.2.1：suppress+明示交战覆盖冷漠/横置；禁 forced-auto 替代 |
