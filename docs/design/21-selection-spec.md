@@ -2,7 +2,7 @@
 
 > **依赖**：[16-player-interaction.md](16-player-interaction.md)、[20-card-translation-schema.md](20-card-translation-schema.md) §3/§6、[07-composition.md](07-composition.md) §1.4  
 > **实现**：`rules/choices/selection_spec.gd` · `candidate_filter.gd` · `candidate_enumerator.gd` · `PlayerInteractionGate`  
-> **状态**：v0.3 · 2026-09-29 — 目标合法 = 状态可被改变；V 层 dry-run（与 Initiation L7 同源）
+> **状态**：v0.4 · 2026-09-29 — 目标侧 Restriction 并入 V dry-run
 
 ---
 
@@ -85,7 +85,7 @@ ChoiceBind → RulesMemory
 |---|---|---|
 | **结构 / 局面** | 手牌、连结地点、Humanoid、Hunter、未横置、已交战 | Domain / CardRegistry / EnemyState |
 | **数值** | fight ≤ 2、剩余 sanity ≥ 1、线索最多、本回合第 3 次行动 | 实体字段比较 / [StatQuery](06c-stat-projections.md) |
-| **限制类 Buff** | cannot fight 未交战 aloof、cannot discard、peril 禁 commit | `RestrictionEvaluator` + Intent |
+| **限制类 Buff** | cannot fight 未交战 aloof、cannot discard、peril 禁 commit | **并入 V**：dry-run 走与活结算相同的 Restriction 入口 |
 | **效果可改变目标状态** | 「choose and exhaust」不能选已横置；对目标多效果时至少一条能改 | CompositionDryRunner（**V 层 · 规范要求**） |
 
 **禁止**：为每种卡面约束加布尔（`only_ready`、`fight_le_2`）；在 Enumerator 里 `match effect_text`；把 Restriction 译成 LISTENER「挡候选」。
@@ -96,8 +96,8 @@ ChoiceBind → RulesMemory
 U  Universe     粗宇宙：entity + zones/at → 原始 id 集
 S  Structural   结构谓词：traits / keywords / exhausted / engaged / card_types / owned_by
 N  Numeric      数值谓词：字段比较 + StatQuery
-R  Restriction  Intent 合法性：对该候选发起「将要做的事」是否被 RESTRICTION 拦住
-V  Viability    L7 dry-run：绑定该候选后，依赖该目标的效果能否 CREATED（改变局面）
+V  Viability    L7 dry-run：绑定候选 → 跑依赖该目标的效果（内含 Restriction 入口）
+                 → 对该目标能否 CREATED（改变局面）
      ↓
 options[] → Gate
 ```
@@ -107,10 +107,11 @@ options[] → Gate
 | **U** | `filter.entity` + `at`/`zones` | 不在宇宙 | `CandidateEnumerator` 现有 |
 | **S** | 白名单结构字段 | 不匹配 | 同左；增长表 |
 | **N** | `preds[]` 数值条 | 比较失败 | §3.1.2 |
-| **R** | `for_intent` + 候选作 target/card | `block_reason != ""` | §3.1.3 |
-| **V** | 绑定候选 + 效果尾 / 能力体 | 对该目标无任何 CREATED | §3.1.4 · `CompositionDryRunner` |
+| **V** | 绑定候选 + 效果尾 / 能力体 | 无 CREATED（含被 Restriction 挡住） | §3.1.4 · DryRunner |
 
-前一层输出是后一层输入；**短路**：空集立即停，不 ask。U–R 先廉价剔除，再对剩余做 V（避免无谓词 dry-run）。
+前一层输出是后一层输入；**短路**：空集立即停，不 ask。U–N 先廉价剔除，再对剩余做 V。
+
+**限制类不单独成「真相层」**：对 choose 目标而言，RESTRICTION 的语义后果是「效果无法改变该目标 / 无法落地」→ dry-run 无 CREATED → V 剔除。可选的 `for_intent` 预筛（原 §3.1.3）仅作**性能优化**，必须与 V 结论一致，禁止两套互相矛盾的判定。
 
 ### 3.1.2 数值谓词（`preds`）
 
@@ -134,26 +135,26 @@ options[] → Gate
 
 **并列最值**（most clues / nearest）：U+S 后在 Enumerator 内 **折叠** 成并列子集，再交 Gate（或队长 `TIE_BREAK`）；不是又一层 PI Kind。
 
-### 3.1.3 Restriction 层（`for_intent`）
+### 3.1.3 Restriction 与 dry-run（已裁决）
 
-限制类 Buff **不**写成 filter 布尔；候选枚举时带上 **「若选中，将用于何种 Intent」**：
+**结论：目标选择场景下，限制类 Buff 的检测放在 V 的 dry-run 里做，不另建独立 R 真相层。**
+
+| | |
+|---|---|
+| **为何可以** | 活结算时 Restriction 已在 REST-E-* / 效果入口拦住写入；dry-run 若走**同一入口**，被禁则无 CREATED → 自然不是合法目标 |
+| **硬条件** | `CompositionDryRunner` / 模拟路径必须调用与活路相同的 `RestrictionEvaluator`（或等价只读），禁止 dry-run「假装无 Restriction」 |
+| **不进 V 当失败的** | `SKIP_AOO` / `SUPPRESS_AUTO_ENGAGE` 等 **原流程分支**（不挡「成为目标」，只改入口分支） |
+| **仍留在 Initiation L4 的** | 能力整体能否发起（`FORBID_TRIGGER` / peril 禁 play…）— 那是「这条能力」，不是「这个候选」 |
+| **可选预筛** | `for_intent` + `block_reason` 可在 V 前廉价剔一批；**仅优化**；与 V 冲突时以 V 为准 |
 
 ```json
 {
-  "filter": { "preset": "enemy_at_controller_location", "exclude_aloof": false },
+  "filter": { "preset": "enemy_at_controller_location" },
   "for_intent": "FIGHT"
 }
 ```
 
-| | |
-|---|---|
-| 查询 | `RestrictionEvaluator.block_reason(intent, actor, store, …, target_id=candidate)` |
-| 剔除 | 任一 RESTRICTION 命中（如 aloof 未交战 → `FORBID_ATTACK`） |
-| 不查 | `SKIP_AOO` / `SUPPRESS_AUTO_ENGAGE` 等 **原流程分支** 类（它们不挡「成为目标」，只改入口行为） |
-
-与 [06 §16.4](06-registration-buff-model.md) 同一 evaluator、同一 Intent 表；选目标预筛 = **REST-E-* 的提前只读**，不是第二套 Restriction 系统。
-
-`for_intent` 缺省：仅 U+S+N（纯 choose 实体、尚无动作语义时）。行动入口（Fight/Engage/Discard）编译时应带上对应 Intent。
+`for_intent` 缺省：只靠 V。行动宏（Fight 选敌）可带预筛，但 aloof 等最终仍以 dry-run「对该敌 CREATED？」为准。
 
 ### 3.1.4 Viability（L7 dry-run · **目标选择规范要求**）
 
@@ -180,6 +181,7 @@ options[] → Gate
 | 要点 | |
 |---|---|
 | **与发起 L7 同源** | 同一 `CompositionDryRunner` + CREATED 定义（[07 §4.1](07-composition.md)） |
+| **Restriction 在此检测** | dry-run 命中 REST-E / 效果入口 → 无写入 → 无 CREATED → 非法目标（§3.1.3） |
 | **评估口径** | 看效果是否**有潜力**改变该目标状态；不计入其他能力连锁后果（对齐 RR 发起时「不计其他 ability interactions」的精神） |
 | **多效果同一目标** | dry-run 尾树内 **OR**：任一条对该目标 CREATED 即合法 |
 | **空合法集** | 不得 initiate / 本步不 ask（Grimoire：至少一合法目标才能发起） |
@@ -194,10 +196,10 @@ must 多支选一：支级 dry-run（已有）与目标级 V **同引擎、不�
 | | 能力 Initiation Eligibility | 选择候选管线 |
 |---|---|---|
 | 问什么 | 这条能力能否发起 | 这个实体能否进入 options |
-| Restriction | L4 拦 TRIGGER/PLAY… | **R 层**对 `for_intent` 拦「以之为目标」 |
-| L7 dry-run | 整棵效果树（无合法目标则整能力不能发） | **V 层**：逐候选 bind 后 dry-run；options 空 → 能力侧 L7 也失败 |
+| Restriction | L4 拦 TRIGGER/PLAY…（整能力） | **在 V dry-run 内**拦「对该目标的效果」；可选 `for_intent` 预筛 |
+| L7 dry-run | 整棵效果树（无合法目标则整能力不能发） | **V**：逐候选 bind 后 dry-run；options 空 → 能力侧 L7 也失败 |
 
-二者共享 Condition / StatQuery / RestrictionEvaluator / DryRunner；**不**把候选枚举塞进 Initiation L4 冒充。典型顺序：粗筛 U–R → V 得合法目标集 → 若 `choose` 要求至少一目标而集空 → Initiation 不可发；若已在效果体中途 select，则本步 fizzle / 按外层规则处理。
+共享 Condition / StatQuery / RestrictionEvaluator / DryRunner。典型顺序：U–N 粗筛 → V（内含 Restriction）→ 合法集空则不能发起 / 本步 fizzle。
 
 ### 3.1.6 翻译层怎么写（扩展 filter）
 
@@ -209,8 +211,7 @@ must 多支选一：支级 dry-run（已有）与目标级 V **同引擎、不�
     "at": "controller_location",
     "traits": ["Monster"],
     "exhausted": false,
-    "preds": [{ "on": "candidate", "field": "fight", "op": "le", "value": 3 }],
-    "for_intent": "FIGHT"
+    "preds": [{ "on": "candidate", "field": "fight", "op": "le", "value": 3 }]
   },
   "prompt_id": "pick:weak_monster",
   "bind": { "key": "picked_enemy", "shape": "entity" }
@@ -323,8 +324,8 @@ bind:
 | `pick_target` 经 Enumerator（preset + 对象 filter） | ✅ |
 | Gate `ask_selection` + Memory bind 形状 | ✅ 骨架 |
 | **N** 数值 `preds` + field/StatQuery | 待接 |
-| **R** `for_intent` → RestrictionEvaluator | 待接（依赖 Intent 对 target 的 payload） |
-| **V** 候选级 dry-run（目标须能被改变） | **规范已裁**；待接 DryRunner 逐候选 bind；must-choice 支级已有 |
+| **V** 候选级 dry-run（含 Restriction；目标须能被改变） | **规范已裁**；待接 DryRunner 逐候选 bind + 模拟路径接 RestrictionEvaluator |
+| `for_intent` 预筛 | 可选优化；不得与 V 分叉 |
 | `pick_multi` / 特性·关键词·横置全量 | 增量 |
 | `choice_optional` 编译糖 | 待扩 |
 | 12116 内嵌 PI 拆为独立 select | 债（19 §3.1） |
@@ -335,6 +336,7 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-29 | v0.4 | **§3.1.3**：目标侧 Restriction **在 V dry-run 内检测**；取消独立 R 真相层（预筛仅优化） |
 | 2026-09-29 | v0.3 | **§3.1.4**：目标合法=状态可被改变；V=与 Initiation L7 同源 dry-run（规范要求，非可选） |
 | 2026-09-29 | v0.2 | **§3.1** 候选范围分层：U/S/N/R/V；数值 preds；Restriction via `for_intent` |
 | 2026-09-29 | v0.1 | 初稿：SelectionSpec / CandidateFilter / ChoiceBind；与 16/20 对齐 |
