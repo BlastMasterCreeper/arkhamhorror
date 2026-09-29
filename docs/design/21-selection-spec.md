@@ -2,7 +2,7 @@
 
 > **依赖**：[16-player-interaction.md](16-player-interaction.md)、[20-card-translation-schema.md](20-card-translation-schema.md) §3/§6、[07-composition.md](07-composition.md) §1.4  
 > **实现**：`rules/choices/selection_spec.gd` · `candidate_filter.gd` · `candidate_enumerator.gd` · `PlayerInteractionGate`  
-> **状态**：v0.4 · 2026-09-29 — 目标侧 Restriction 并入 V dry-run
+> **状态**：v0.5 · 2026-09-29 — 隐式目标（Fight→Attack / Evade→evasion attempt）
 
 ---
 
@@ -222,6 +222,34 @@ must 多支选一：支级 dry-run（已有）与目标级 V **同引擎、不�
 
 结构字段仍在 `CandidateFilter`；`preds` / `for_intent` / `viability` 为管线扩展（白名单增长，见 20 §2.1）。
 
+### 3.2 隐式目标（Implicit Target · Fight / Evade）
+
+卡面未必出现 *Target* / *choose* 字样，但规则仍要求选定敌人，且适用同一套「合法目标 / 状态可被改变 / 无合法则不能发起」：
+
+| 行动 / 能力 | 衍生结算 | 隐式目标 | 默认宇宙（U） |
+|---|---|---|---|
+| **Fight**（基础或 bold Fight） | **攻击（Attack）** → 通常为 combat 检定 | 被攻击的敌人 | 同地点敌人（含自己/他人威胁区、同地点 unengaged）；见 [03 §6.8](03-action-system.md) |
+| **Evade**（基础或 bold Evade） | **躲避尝试（evasion attempt）** → 通常为 agility 检定 | 被躲避的敌人 | 默认仅与自己交战的敌人；见 [03 §6.7](03-action-system.md) |
+
+| 裁决 | |
+|---|---|
+| **与明示 Target 同构** | 仍走 U–N → V（dry-run / CREATED）；Restriction 间接挡；可 PI 确认或唯一候选默认 |
+| **无合法目标** | 衍生检定/尝试不能发起 → **整次 Fight/Evade 行动** Initiation L7 失败（不能付费开打） |
+| **文本无 choose** | 不因此跳过目标规格；编译为隐式 `SelectionSpec`（`role: implicit_attack` / `implicit_evade`）或行动内核内建 filter |
+| **自动躲避例外** | 能力「automatically evade」：**不**做 evasion attempt / 不做检定，也不要求「成功躲避」语义；直接 exhaust + disengage（Grimoire）。此类 **无** 衍生检定隐式目标管线 |
+| **极少无衍生检定的 Evade** | 卡面显式取消检定或改写步骤时，按文本；默认 Evade **伴随** evasion attempt |
+| **Aloof 等** | 未交战 aloof 非法 Fight 目标：活路/dry-run 同入口 → 无 CREATED → 不进合法集 |
+
+```text
+Fight / Evade Initiation（L7）
+  → 解析隐式目标 SelectionSpec（默认宇宙 ± 卡面扩展 filter）
+  → 合法集 = enumerate + V（攻击/躲避对该敌能否改变状态）
+  → 空集 → 整行动不可发起
+  → 非空 → PI 确认（或唯一默认）→ bind → nest 攻击检定 / 躲避检定
+```
+
+**禁止**：因未印 Target 就省略敌人参数；把「无敌人」做成行动中途 fizzle 而非发起失败（基础 Fight/Evade）。
+
 ---
 
 ## 4. `SelectionSpec`
@@ -237,6 +265,7 @@ must 多支选一：支级 dry-run（已有）与目标级 V **同引擎、不�
 | `deadline_ms` | 有限期；`-1` = 策略默认 |
 | `bind` | `ChoiceBind`（§5） |
 | `options` | 仅 `PICK_OPTION`：编译期分支 id / 子树（非实体枚举） |
+| `role` | 可选：`explicit_choose` / `implicit_attack` / `implicit_evade`（§3.2） |
 
 ### 4.1 翻译层 template
 
@@ -328,6 +357,7 @@ bind:
 | **N** 数值 `preds` + field/StatQuery | 待接 |
 | **V** 候选级 dry-run（含 Restriction；目标须能被改变） | **规范已裁**；待接 DryRunner 逐候选 bind + 模拟路径接 RestrictionEvaluator |
 | `for_intent` 预筛 | 可选优化；不得与 V 分叉 |
+| **隐式目标** Fight/Evade（§3.2） | 规范已裁；行动 L7 绑合法集 |
 | `pick_multi` / 特性·关键词·横置全量 | 增量 |
 | `choice_optional` 编译糖 | 待扩 |
 | 12116 内嵌 PI 拆为独立 select | 债（19 §3.1） |
@@ -339,6 +369,8 @@ bind:
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-09-29 | v0.4 | **§3.1.3**：目标侧 Restriction **在 V dry-run 内检测**；取消独立 R 真相层（预筛仅优化） |
+| 2026-09-29 | v0.5 | **§3.2** 隐式目标：Fight/Evade 衍生检定与 Target 同构；无合法则整行动 L7 失败 |
+| 2026-09-29 | v0.4.1 | 明确：Restriction **间接**挡（无结算→无 CREATED）；dry-run 适应复杂组合 |
 | 2026-09-29 | v0.3 | **§3.1.4**：目标合法=状态可被改变；V=与 Initiation L7 同源 dry-run（规范要求，非可选） |
 | 2026-09-29 | v0.2 | **§3.1** 候选范围分层：U/S/N/R/V；数值 preds；Restriction via `for_intent` |
 | 2026-09-29 | v0.1 | 初稿：SelectionSpec / CandidateFilter / ChoiceBind；与 16/20 对齐 |

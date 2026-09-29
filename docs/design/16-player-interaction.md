@@ -233,7 +233,7 @@ Headless：`DefaultChoiceResolver` / `ScriptingChoiceResolver` 在无脚本应�
 | Hunter **等距** 多 inv | `TIE_BREAK` | **队长** | 或 prey 最佳者 |
 | Prey 指令 **多人并列** | `TIE_BREAK` | **队长** | |
 | 自动 engage **多人并列** | `TIE_BREAK` | **队长** | spawn / move 后 |
-| Fight/Evade/Engage **选哪个敌人** | `PICK_TARGET` | 调查员 | Action 入口已带 target 时可省略 |
+| Fight/Evade/Engage **选哪个敌人** | `PICK_TARGET`（常为**隐式目标**） | 调查员 | 文本未必写 Target；与 Attack / evasion attempt 同构；无合法 → 整行动 L7 失败（[21 §3.2](21-selection-spec.md)） |
 
 ### 5.8 Cancel · Instead · Silver · Grim
 

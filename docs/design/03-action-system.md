@@ -196,10 +196,14 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - 仅 engaged with self 的 enemy
 - Agility vs evade；成功 → exhaust + disengage to location
+- **隐式目标**：默认伴随 **躲避尝试（evasion attempt）** 检定，敌人目标与明示 Target 同构；无合法目标 → 整次 Evade **不能发起**（[21 §3.2](21-selection-spec.md)）
+- **例外**：「automatically evade」不做检定 / 不要求成功躲避语义；极少卡面取消衍生检定者按文本
 
 ### 6.8 Fight（已裁决 OQ-03-01）
 
 **以 Grimoire（魔典书）为准**；Rulebook 入门描述仅为简化。
+
+**隐式目标**：Fight 衍生 **攻击（Attack）**（通常为 combat 检定）；文本未必写 Target/choose，仍须合法敌人；无合法目标 → 整次 Fight **不能发起**（[21 §3.2](21-selection-spec.md)）。
 
 **默认合法目标**（基础 Fight 行动）：performing investigator **当前地点**上的敌人，包括：
 
@@ -306,6 +310,7 @@ class ActionSystem:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-29 | v0.5.3 | §6.7–6.8：Fight/Evade **隐式目标**与 21 §3.2 对齐；无合法则整行动不可发起 |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-03-01 裁决：Fight 目标以 Grimoire 同地点为准 |
 | 2026-05-25 | v0.3 | OQ-03-02 裁决：EnemyAttack 统一攻击效果层 |
