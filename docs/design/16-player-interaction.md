@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility / ResponseWindow）、[07-composition.md](07-composition.md)（Choice / Optional）、[14-nested-sequences.md](14-nested-sequences.md)（同窗口多响应）、[00-architecture-overview.md](../00-architecture-overview.md)  
 > **规则来源**：Grimoire Initiation、Effects · Target、Simultaneously；ArkhamDB RR · Lead Investigator / Choices  
-> **状态**：v0.4.0 · 2026-09-29 — 通用 SelectionSpec / CandidateFilter / ChoiceBind（[21](21-selection-spec.md)）  
+> **状态**：v0.4.1 · 2026-09-29 — 目标选择须 V 层 dry-run（状态可改变 · [21 §3.1.4](21-selection-spec.md)）  
 > **选择规格**：[21-selection-spec.md](21-selection-spec.md)
 
 ---
