@@ -85,12 +85,20 @@ static func build_composition(
 			return CompositionNode.resign(bind.controller_id)
 		"nest_resign":
 			return CompositionNode.nest_resign(bind.controller_id)
-		"pick_target":
+		"pick_target", "select", "pick_multi":
+			## 通用选择：filter 可为预设字符串或对象；见 21-selection-spec。
+			var sel_params := params.duplicate()
+			if template_id == "pick_multi" and not sel_params.has("max") and not sel_params.has("max_picks"):
+				sel_params["min_picks"] = int(sel_params.get("min_picks", sel_params.get("min", 1)))
+				sel_params["max_picks"] = int(sel_params.get("max_picks", sel_params.get("amount", 2)))
+			var spec := SelectionSpec.from_pick_target_params(sel_params)
+			if template_id == "select" or template_id == "pick_multi":
+				return CompositionNode.select_entities(bind.controller_id, spec, bind.card_id)
 			return CompositionNode.pick_target(
 				bind.controller_id,
-				StringName(str(params.get("filter", "enemy_at_connecting"))),
-				StringName(str(params.get("prompt_id", "pick:target"))),
-				StringName(str(params.get("memory_key", "picked_enemy"))),
+				spec,
+				spec.prompt_id,
+				spec.bind_key,
 				bind.card_id
 			)
 		"move_enemy_to":

@@ -114,6 +114,7 @@ func _initialize() -> void:
 	_run_test("ADB-59 12122 phase attack discards asset", _test_adb_12122_discard_asset)
 	_run_test("ADB-60 SKIP_AOO restriction read branches AOO", _test_adb_skip_aoo_buff_consume)
 	_run_test("ADB-61 SUPPRESS_AUTO_ENGAGE after move keeps explicit engage", _test_adb_suppress_auto_engage_explicit)
+	_run_test("ADB-62 SelectionSpec filter ready enemy at connecting", _test_adb_selection_filter_ready)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2404,6 +2405,36 @@ func _test_adb_suppress_auto_engage_explicit() -> bool:
 		and not h.ctx.registrations.has_suppress_auto_engage(&"enemy_conn")
 		and _sequence_kind_count(h, &"effect_register") > 0
 	)
+
+
+func _test_adb_selection_filter_ready() -> bool:
+	## CandidateFilter：connecting + exhausted=false；横置敌不入选；bind → Memory。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ready", &"loc_b", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_exh", &"loc_b", 2, 2)
+	var exh := h.ctx.state.registry.get_enemy(&"enemy_exh")
+	exh.exhausted = true
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_connecting",
+		"exhausted": false,
+	})
+	var candidates := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
+	if candidates.size() != 1 or candidates[0] != &"enemy_ready":
+		return false
+	var spec := SelectionSpec.pick_entity(filter, &"pick:ready_conn", &"picked_enemy")
+	var body := CompositionNode.seq([
+		CompositionNode.select_entities(&"inv_1", spec),
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
+	return mem != null and StringName(str(mem)) == &"enemy_ready"
 
 
 func _test_adb_skip_aoo_buff_consume() -> bool:

@@ -2,7 +2,7 @@
 
 > **依赖**：[07-composition.md](07-composition.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md) §4.0.5、[16-player-interaction.md](16-player-interaction.md)、[06-registration-buff-model.md](06-registration-buff-model.md) §16、[18-arkhamdb-card-data.md](18-arkhamdb-card-data.md)  
 > **实现**：`tools/arkhamdb_abilities.py` → `data/arkhamdb/imported/*.json` → `ArkhamDbAbilityCompiler`  
-> **状态**：v0.3 · 2026-09-29 — 具名限制叶经 `seq.effect.register` 落地
+> **状态**：v0.4 · 2026-09-29 — 挂接 21 SelectionSpec
 
 ---
 
@@ -14,7 +14,7 @@
 
 | 构件 | 翻译层形态 | 运行时 |
 |---|---|---|
-| **A. 目标 / 确认** | `pick_*` / `choice_*` 规格 | Gate 有限期确认 → 写入 `RulesMemory` |
+| **A. 目标 / 确认** | `select` / `pick_*` / `choice_*` → [SelectionSpec](21-selection-spec.md) | Gate 有限期确认 → `ChoiceBind` → `RulesMemory` |
 | **B. Buff 创建** | `register` / 具名限制叶 / nest `seq.effect.register` | `RegistrationStore`；入口 **读取** 分支或拦 Intent |
 | **C. 命名流程信封** | `nest_*` + **`flow_id`** | `catalog.nest(flow_id, params)` |
 | **D. 效果参数** | 字面量 + **指称键**（`memory:` / bind） | 解释时解析 → 填入 nest `params` 或 L0 |
@@ -40,9 +40,11 @@
 |---|---|---|
 | `template` | 叶种类 | 所有步 |
 | `flow_id` | nest 目标命名流程 | **仅** nest 叶（C） |
-| `filter` / `trait` / `at` / `trait_exclude` | TargetSpec 形状（静态） | A、部分 D |
+| `filter` / `trait` / `at` / `trait_exclude` / `traits` / `keywords` / `exhausted` | [CandidateFilter](21-selection-spec.md)（预设字符串或对象） | A |
+| `min` / `max` / `min_picks` / `max_picks` | 选择基数 | A（`pick_multi` / `select`） |
+| `bind` | `{key, shape}` ChoiceBind；或扁平 `memory_key` | A |
 | `prompt_id` | Gate 提示键 | A |
-| `memory_key` | 确认结果写入 `RulesMemory` 的键 | A（默认可由 template 约定） |
+| `memory_key` | bind.key 糖（单实体） | A |
 | `enemy` / `investigator` / `location` / `target` / `card_id` | **指称规格**（见 §6） | B、C、D |
 | `amount` / `skill` / `difficulty` / `kind` / `direct` / `mode` / `per_investigator` | 字面效果参数 | D、部分 C |
 | `if_kind` / `evaluate` / `condition` / `then` / `else` | 控制流 | 控制流叶 |
@@ -73,13 +75,13 @@
 
 ### 3.1 何时用 PI
 
-卡面 **choose / select / may（选目标）** → **A**，不是 nest、不是 Then。
+卡面 **choose / select / may（选目标）** → **A**，不是 nest、不是 Then。通用规格见 **[21-selection-spec](21-selection-spec.md)**。
 
 | 卡面语义 | template 例 | 必填规格 |
 |---|---|---|
-| 选一个合法敌人/地点… | `pick_target` | `filter`（TargetSpec id）、`prompt_id` |
+| 选 1 / N 实体（区域·特性·关键词·横置…） | `select` / `pick_target` / `pick_multi` | `filter`（预设或对象）、`prompt_id`、`bind`/`memory_key` |
 | must 二选一效果支 | `choice_must` | `options[]`（各含子树）、`prompt_id` |
-| Optional / may 做不做 | （装载层 / USE_ABILITY；或 `choice_optional` 待扩） | — |
+| Optional / may 做不做 | （装载层 / USE_ABILITY；或 `choice_optional` 待扩） | bind.shape=bool |
 
 ### 3.2 确认与否
 
@@ -313,3 +315,4 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 2026-09-28 | v0.1 | 初稿：A/B/C/D 四构件；白名单；12113 类限制走 Buff 非翻译开关 |
 | 2026-09-28 | v0.2 | §4.2.1：抑制+明示交战不可被 forced-auto / After 替代（冷漠/横置） |
 | 2026-09-29 | v0.3 | §4.1：具名限制叶落地一律 `seq.effect.register`（禁真空 Store） |
+| 2026-09-29 | v0.4 | §3：挂接 21 SelectionSpec；白名单扩 filter 对象 / bind / 基数 |

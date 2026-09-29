@@ -343,7 +343,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_resign_inline(node)
 		&"nest_resign":
 			return _execute_nest_resign(node)
-		&"pick_target":
+		&"pick_target", &"select":
 			return _execute_pick_target(node)
 		&"move_enemy_to":
 			return _execute_move_enemy_to_inline(node)
@@ -702,7 +702,7 @@ func _execute_nest_resign(node: CompositionNode) -> bool:
 	return bool(result.get("ok", false))
 
 
-## PI 有限期确认目标 → RulesMemory；未确认用默认（合法集首项）。
+## PI 有限期确认 → ChoiceBind 写入 RulesMemory（21-selection-spec）。
 func _execute_pick_target(node: CompositionNode) -> bool:
 	if _game_ctx == null or _state == null:
 		return false
@@ -710,50 +710,75 @@ func _execute_pick_target(node: CompositionNode) -> bool:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null:
 		return false
-	var candidates := _enumerate_target_filter(node, inv)
+	var spec := _selection_spec_of(node)
+	if spec == null or spec.filter == null:
+		return false
+	var candidates := CandidateEnumerator.enumerate(
+		spec.filter, _game_ctx, inv_id, node.card_id
+	)
 	if candidates.is_empty():
 		return false
-	var pick: StringName = candidates[0]
+	var picked: Variant = candidates[0]
 	if _game_ctx.interaction != null:
-		var chosen: Variant = _game_ctx.interaction.ask_pick_target(
-			candidates, inv_id, node.choice_prompt_id, _game_ctx
-		)
-		if chosen != null:
-			pick = chosen as StringName
-	var mem_key := node.memory_key if node.memory_key != &"" else &"picked_enemy"
-	if _game_ctx.memory != null:
-		_game_ctx.memory.set_referent(inv_id, mem_key, pick)
-	_last_step_enemy_id = pick
+		picked = _game_ctx.interaction.ask_selection(spec, candidates, inv_id, _game_ctx)
+	if picked == null:
+		return false
+	_apply_choice_bind(inv_id, spec, picked)
+	if typeof(picked) == TYPE_STRING_NAME or typeof(picked) == TYPE_STRING:
+		_last_step_enemy_id = StringName(str(picked))
+	elif picked is Array and not (picked as Array).is_empty():
+		_last_step_enemy_id = StringName(str((picked as Array)[0]))
 	_last_step_created = true
 	_log.log(
 		AhcEnums.LogCategory.CARD,
-		"composition:pick_target",
-		{"inv": inv_id, "filter": node.target_filter, "picked": pick, "memory": mem_key}
+		"composition:select",
+		{
+			"inv": inv_id,
+			"kind": spec.choice_kind,
+			"filter": spec.filter.preset if spec.filter.preset != &"" else spec.filter.at,
+			"picked": picked,
+			"bind": spec.bind_key,
+		}
 	)
 	return true
 
 
-func _enumerate_target_filter(
-	node: CompositionNode, inv: InvestigatorState
-) -> Array[StringName]:
-	var out: Array[StringName] = []
-	match node.target_filter:
-		&"enemy_at_connecting":
-			var here := _resolve_source_location(node, inv)
-			var here_loc := _state.registry.get_location(here) if here != &"" else null
-			if here_loc == null:
-				return out
-			for conn in here_loc.connections:
-				for enemy_id in _state.registry.all_enemy_ids():
-					var enemy := _state.registry.get_enemy(enemy_id)
-					if enemy == null or enemy.location_tag != conn:
-						continue
-					if enemy.massive:
-						continue
-					out.append(enemy_id)
+func _selection_spec_of(node: CompositionNode) -> SelectionSpec:
+	if node.selection_spec != null:
+		return node.selection_spec
+	var filter_id := node.target_filter if node.target_filter != &"" else &"enemy_at_connecting"
+	var mem := node.memory_key if node.memory_key != &"" else &"picked_enemy"
+	var prompt := node.choice_prompt_id if node.choice_prompt_id != &"" else &"pick:target"
+	return SelectionSpec.pick_entity(
+		CandidateFilter.from_preset(filter_id), prompt, mem
+	)
+
+
+func _apply_choice_bind(
+	controller_id: StringName, spec: SelectionSpec, picked: Variant
+) -> void:
+	if _game_ctx == null or _game_ctx.memory == null or spec == null:
+		return
+	var key := spec.bind_key if spec.bind_key != &"" else &"picked"
+	match spec.bind_shape:
+		&"entity_list", &"order":
+			var list: Array[StringName] = []
+			if picked is Array:
+				for item in picked:
+					list.append(StringName(str(item)))
+			elif picked != null:
+				list.append(StringName(str(picked)))
+			_game_ctx.memory.set_referent(controller_id, key, list)
+		&"bool":
+			_game_ctx.memory.set_referent(controller_id, key, bool(picked))
 		_:
-			pass
-	return out
+			## entity / option_id
+			if picked is Array and not (picked as Array).is_empty():
+				_game_ctx.memory.set_referent(
+					controller_id, key, StringName(str((picked as Array)[0]))
+				)
+			else:
+				_game_ctx.memory.set_referent(controller_id, key, StringName(str(picked)))
 
 
 ## 同帧内联移敌（L0 location_tag；不自动交战、不压栈）。

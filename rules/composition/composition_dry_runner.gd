@@ -267,12 +267,27 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			## 兼容旧单 Atom；新树应为 leave_clues → set_flag → eliminate。
 			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
-		&"pick_target":
+		&"pick_target", &"select":
 			var pick_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
-			if pick_inv == null or pick_inv.location_tag == &"":
+			if pick_inv == null:
 				return false
-			if node.target_filter == &"enemy_at_connecting":
-				## 与 executor：优先来源地点卡，否则控制者所在地点。
+			var spec: SelectionSpec = node.selection_spec
+			if spec == null:
+				var fid := node.target_filter if node.target_filter != &"" else &"enemy_at_connecting"
+				spec = SelectionSpec.pick_entity(
+					CandidateFilter.from_preset(fid),
+					node.choice_prompt_id,
+					node.memory_key if node.memory_key != &"" else &"picked_enemy"
+				)
+			## dry-run：有候选即 CREATED（不经 Gate）。
+			if spec.filter == null:
+				return false
+			## 无完整 GameContext 时退回连接地点敌人启发式。
+			if node.target_filter == &"enemy_at_connecting" or (
+				spec.filter != null and spec.filter.at == &"connecting"
+			):
+				if pick_inv.location_tag == &"":
+					return false
 				var here_id := pick_inv.location_tag
 				if node.card_id != &"" and sim.state.registry.get_location(node.card_id) != null:
 					here_id = node.card_id
@@ -283,6 +298,8 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 					for enemy_id in sim.state.registry.all_enemy_ids():
 						var enemy := sim.state.registry.get_enemy(enemy_id)
 						if enemy != null and enemy.location_tag == conn and not enemy.massive:
+							if spec.filter.exhausted != null and bool(enemy.exhausted) != bool(spec.filter.exhausted):
+								continue
 							sim.last_step_enemy_id = enemy_id
 							return true
 				return false

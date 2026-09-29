@@ -2,7 +2,8 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility / ResponseWindow）、[07-composition.md](07-composition.md)（Choice / Optional）、[14-nested-sequences.md](14-nested-sequences.md)（同窗口多响应）、[00-architecture-overview.md](../00-architecture-overview.md)  
 > **规则来源**：Grimoire Initiation、Effects · Target、Simultaneously；ArkhamDB RR · Lead Investigator / Choices  
-> **状态**：v0.3.0 · 2026-09-28 — 有限期确认 + 默认；PI ≠ nest/内联
+> **状态**：v0.4.0 · 2026-09-29 — 通用 SelectionSpec / CandidateFilter / ChoiceBind（[21](21-selection-spec.md)）  
+> **选择规格**：[21-selection-spec.md](21-selection-spec.md)
 
 ---
 
@@ -453,6 +454,7 @@ seq.encounter.revelation
 | P0 | `DefaultChoiceResolver` / `ScriptingChoiceResolver` | 骨架 |
 | P0 | **有限期确认 + default_***（§3.1） | 规格已裁；实现待接 |
 | P0 | **§5 完整目录**（本文件） | v0.2 |
+| P0 | **SelectionSpec / CandidateFilter / ChoiceBind**（[21](21-selection-spec.md)） | ✅ 骨架；`pick_target`/`select` 已接 Enumerator |
 | P1 | ResponseWindow：`USE_ABILITY` + `ORDER_SIMULTANEOUS` | 待接 |
 | P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | 待接 |
 | P1 | ST.2 `COMMIT_TO_TEST` + 检定窗 `USE_ABILITY` | 待接 |
@@ -484,6 +486,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-29 | v0.4.0 | 挂接 [21-selection-spec](21-selection-spec.md)：通用 filter / 基数 / Memory bind |
 | 2026-09-28 | v0.3.0 | **§1.1 / §3.1**：玩家选择=有限期确认+默认；≠ nest/内联；ChoiceRequest 加 deadline |
 | 2026-09-21 | v0.2.1 | §2：Gate 的答不写进 Composition 树；指称进 RulesMemory（07 §1.4） |
 | 2026-06-18 | v0.2 | **§5 完整交互目录**（10 域）；扩展 `ChoiceKind`；决策者矩阵 |
