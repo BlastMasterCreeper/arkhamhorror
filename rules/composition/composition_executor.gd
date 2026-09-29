@@ -885,7 +885,7 @@ func _execute_nest_engage(node: CompositionNode) -> bool:
 	return bool(result.get("ok", false))
 
 
-## Register SUPPRESS_AUTO_ENGAGE（限制类）；auto-engage 入口读取后分支。
+## Register SUPPRESS_AUTO_ENGAGE（限制类）经 `seq.effect.register`；auto-engage 入口读取后分支。
 func _execute_suppress_auto_engage(node: CompositionNode) -> bool:
 	if _game_ctx == null or _game_ctx.registrations == null:
 		return false
@@ -895,15 +895,15 @@ func _execute_suppress_auto_engage(node: CompositionNode) -> bool:
 		return false
 	if _game_ctx.registrations.has_suppress_auto_engage(enemy_id):
 		return true
-	var reg_id := _game_ctx.registrations.register(
-		RegistrationTemplate.suppress_auto_engage_until_fired(enemy_id)
-	)
+	var template := RegistrationTemplate.suppress_auto_engage_until_fired(enemy_id)
+	template.controller_id = inv_id
+	var ok := _register_via_effect_seq(template)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:suppress_auto_engage",
-		{"enemy": enemy_id, "reg": reg_id}
+		{"enemy": enemy_id, "via": &"seq.effect.register", "ok": ok}
 	)
-	return reg_id != &""
+	return ok
 
 
 func _resolve_enemy_spec(node: CompositionNode, controller_id: StringName) -> StringName:
@@ -1195,19 +1195,7 @@ func _execute_nest_place_clue(node: CompositionNode) -> bool:
 
 
 func _execute_nest_effect_register(node: CompositionNode) -> bool:
-	if node.register_template == null:
-		return false
-	var result := _nest_or_direct(
-		&"seq.effect.register",
-		{
-			"controller_id": node.register_template.controller_id,
-			"card_id": node.register_template.drawn_card_id,
-			"template": node.register_template,
-		}
-	)
-	if result.is_empty() and _registrations != null:
-		return _registrations.register(node.register_template) != &""
-	return bool(result.get("ok", false))
+	return _register_via_effect_seq(node.register_template)
 
 
 func _execute_nest_effect_unregister(node: CompositionNode) -> bool:
@@ -1324,8 +1312,27 @@ func _execute_if(node: CompositionNode) -> void:
 
 
 func _execute_register(node: CompositionNode) -> bool:
-	if node.register_template == null:
+	## 禁止真空 RegistrationStore：统一经 `seq.effect.register`。
+	var ok := _register_via_effect_seq(node.register_template)
+	_log.log(AhcEnums.LogCategory.ABILITY, "composition:register", {
+		"via": &"seq.effect.register",
+		"ok": ok,
+	})
+	return ok
+
+
+## 卡面 Buff 创建唯一落地：nest/run `seq.effect.register`（Catalog 缺失才直写 Store）。
+func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
+	if template == null:
 		return false
-	var reg_id := _registrations.register(node.register_template)
-	_log.log(AhcEnums.LogCategory.ABILITY, "composition:register", {"reg": reg_id})
-	return reg_id != &""
+	var result := _nest_or_direct(
+		&"seq.effect.register",
+		{
+			"controller_id": template.controller_id,
+			"card_id": template.drawn_card_id,
+			"template": template,
+		}
+	)
+	if result.is_empty() and _registrations != null:
+		return _registrations.register(template) != &""
+	return bool(result.get("ok", false))

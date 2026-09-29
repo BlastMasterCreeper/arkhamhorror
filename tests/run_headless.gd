@@ -2370,6 +2370,7 @@ func _test_adb_12113_engage_connecting() -> bool:
 
 func _test_adb_suppress_auto_engage_explicit() -> bool:
 	## 移入仍走 auto-engage 入口；SUPPRESS_AUTO_ENGAGE 读取后跳过；明示交战绑定 controller。
+	## 创建须经 seq.effect.register（非真空 Store）。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
@@ -2401,11 +2402,12 @@ func _test_adb_suppress_auto_engage_explicit() -> bool:
 		and enemy.engaged_with == &"inv_1"
 		and inv.threat_area.has(&"enemy_conn")
 		and not h.ctx.registrations.has_suppress_auto_engage(&"enemy_conn")
+		and _sequence_kind_count(h, &"effect_register") > 0
 	)
 
 
 func _test_adb_skip_aoo_buff_consume() -> bool:
-	## 限制类 SKIP_AOO：行动开始 Register；INIT_2B 原流程读取后分支（Engage 类型会借机）。
+	## 限制类 SKIP_AOO：行动开始经 seq.effect.register；INIT_2B 原流程读取后分支。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
@@ -2436,6 +2438,7 @@ func _test_adb_skip_aoo_buff_consume() -> bool:
 		and int(res.get("aoo_attacks", 0)) == 0
 		and not h.ctx.registrations.has_skip_aoo(&"inv_1")
 		and inv.actions_remaining == 1
+		and _sequence_kind_count(h, &"effect_register") > 0
 	)
 
 

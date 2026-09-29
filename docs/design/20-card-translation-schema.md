@@ -2,7 +2,7 @@
 
 > **依赖**：[07-composition.md](07-composition.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md) §4.0.5、[16-player-interaction.md](16-player-interaction.md)、[06-registration-buff-model.md](06-registration-buff-model.md) §16、[18-arkhamdb-card-data.md](18-arkhamdb-card-data.md)  
 > **实现**：`tools/arkhamdb_abilities.py` → `data/arkhamdb/imported/*.json` → `ArkhamDbAbilityCompiler`  
-> **状态**：v0.2 · 2026-09-28 — §4.2.1 冷漠/横置须明示交战
+> **状态**：v0.3 · 2026-09-29 — 具名限制叶经 `seq.effect.register` 落地
 
 ---
 
@@ -111,9 +111,17 @@ pick_target
 
 | 写法 | 何时 |
 |---|---|
-| 具名限制叶（`no_provoke_aoo`、`suppress_auto_engage`） | 高频、已登记 `RestrictionKind`；编译器 → `RegistrationTemplate` |
+| 具名限制叶（`no_provoke_aoo`、`suppress_auto_engage`） | 编译糖 → `RegistrationTemplate`；**落地一律** `seq.effect.register` |
 | nest `seq.effect.register` + template 载荷 | 通用 lasting / keyword / 任意 Buff；`flow_id: seq.effect.register` |
-| 真空 `REGISTER` 节点当运行时主路径 | **禁止**（dry-run 可模拟；落地须经装载帧 / nest register） |
+| 真空 `RegistrationStore.register` / 裸 `REGISTER` 当运行时主路径 | **禁止**（dry-run 可模拟 Store；落地：效果体 nest，Initiation 挂载用 `catalog.run`） |
+
+**落地约定**：
+
+| 场合 | 调用 |
+|---|---|
+| 效果体 `suppress_auto_engage` / `grant_keyword` / REGISTER 叶 | `catalog.nest(seq.effect.register, {template})` |
+| 行动开始挂 `SKIP_AOO`（扫到 `no_provoke_aoo`） | Initiation：`catalog.run(seq.effect.register, …)`（顶层，非真空） |
+| resolve 步再遇 `no_provoke_aoo` | **不**重复 Register（provenance；已在付费后挂上） |
 
 ### 4.2 限制类：创建 ≠ 入口行为
 
@@ -304,3 +312,4 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 |---|---|---|
 | 2026-09-28 | v0.1 | 初稿：A/B/C/D 四构件；白名单；12113 类限制走 Buff 非翻译开关 |
 | 2026-09-28 | v0.2 | §4.2.1：抑制+明示交战不可被 forced-auto / After 替代（冷漠/横置） |
+| 2026-09-29 | v0.3 | §4.1：具名限制叶落地一律 `seq.effect.register`（禁真空 Store） |

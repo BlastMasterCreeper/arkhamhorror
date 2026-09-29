@@ -826,8 +826,9 @@ static func engage_target(
 	return n
 
 
-## 限制类：对该敌人 Register SUPPRESS_AUTO_ENGAGE（auto-engage 入口读取后跳过）。
+## 限制类糖：解释时经 `seq.effect.register` 创建 SUPPRESS_AUTO_ENGAGE。
 ## 用于「移入后由卡面明示交战」——移入仍走正常自动交战入口，由限制分支。
+## enemy_spec 可为 memory: 指称（解释期解析后再组 template）。
 static func suppress_auto_engage(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",

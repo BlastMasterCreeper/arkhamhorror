@@ -118,6 +118,7 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 
 ## 卡面 no_provoke_aoo：挂限制类 Buff（非 Listener / 非 Cancel）。
 ## 仅当类型本身会借机时挂（Resign 等类型豁免无需挂）。
+## 创建经 `seq.effect.register`（Initiation 顶层用 catalog.run；非真空 Store）。
 func _mount_skip_aoo_buff(intent: InitiationIntent, ctx: GameContext) -> void:
 	if intent == null or ctx == null or ctx.registrations == null:
 		return
@@ -127,9 +128,21 @@ func _mount_skip_aoo_buff(intent: InitiationIntent, ctx: GameContext) -> void:
 		return
 	if ctx.registrations.has_skip_aoo(intent.controller_id):
 		return
-	ctx.registrations.register(
-		RegistrationTemplate.skip_aoo_for_action(intent.controller_id)
-	)
+	var template := RegistrationTemplate.skip_aoo_for_action(intent.controller_id)
+	if (
+		ctx.sequence_catalog != null
+		and ctx.sequence_catalog.has_flow(&"seq.effect.register")
+	):
+		ctx.sequence_catalog.run(
+			ctx,
+			&"seq.effect.register",
+			{
+				"controller_id": intent.controller_id,
+				"template": template,
+			}
+		)
+		return
+	ctx.registrations.register(template)
 
 
 static func _composition_declares_skip_aoo(node: CompositionNode) -> bool:

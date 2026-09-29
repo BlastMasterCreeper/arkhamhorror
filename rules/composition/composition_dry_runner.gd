@@ -238,7 +238,7 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			exh.exhausted = true
 			return true
 		&"no_provoke_aoo":
-			## Register 限制类 SKIP_AOO 是效果（CREATED）；行动开始挂载的 dry-run 等价。
+			## 镜像 `seq.effect.register` CREATED（dry-run 不压栈；行动开始挂载等价）。
 			var skip_ctrl := _resolve_sim_inv(node, sim)
 			if sim.registrations != null and skip_ctrl != &"":
 				sim.registrations.register(
@@ -288,7 +288,7 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			return true
 		&"suppress_auto_engage":
-			## Register SUPPRESS_AUTO_ENGAGE 是效果（CREATED）。
+			## 镜像 `seq.effect.register` CREATED（dry-run 不压栈）。
 			var sup_enemy := sim.last_step_enemy_id
 			var sup_spec := str(node.enemy_ref_id)
 			if sup_spec != "" and not sup_spec.begins_with("memory:"):
@@ -296,9 +296,9 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if sup_enemy == &"" or sim.state.registry.get_enemy(sup_enemy) == null:
 				return false
 			if sim.registrations != null:
-				sim.registrations.register(
-					RegistrationTemplate.suppress_auto_engage_until_fired(sup_enemy)
-				)
+				var sup_t := RegistrationTemplate.suppress_auto_engage_until_fired(sup_enemy)
+				sup_t.controller_id = _resolve_sim_inv(node, sim)
+				sim.registrations.register(sup_t)
 			return true
 		&"move_enemy_to", &"engage_target", &"nest_enemy_move_to", &"nest_engage":
 			var move_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
