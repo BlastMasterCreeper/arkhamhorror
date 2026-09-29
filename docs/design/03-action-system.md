@@ -196,14 +196,20 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - 仅 engaged with self 的 enemy
 - Agility vs evade；成功 → exhaust + disengage to location
-- **隐式目标**：默认伴随 **躲避尝试（evasion attempt）** 检定，敌人目标与明示 Target 同构；无合法目标 → 整次 Evade **不能发起**（[21 §3.2](21-selection-spec.md)）
+- **隐式目标**：默认伴随 **躲避尝试（evasion attempt）** 检定，敌人目标与明示 Target 同构（[21 §3.2](21-selection-spec.md)）
+- **基础 Evade**：无合法敌人 → 整行动不能发起；**多步 Evade 能力**见 21 §3.2.1
 - **例外**：「automatically evade」不做检定 / 不要求成功躲避语义；极少卡面取消衍生检定者按文本
 
 ### 6.8 Fight（已裁决 OQ-03-01）
 
 **以 Grimoire（魔典书）为准**；Rulebook 入门描述仅为简化。
 
-**隐式目标**：Fight 衍生 **攻击（Attack）**（通常为 combat 检定）；文本未必写 Target/choose，仍须合法敌人；无合法目标 → 整次 Fight **不能发起**（[21 §3.2](21-selection-spec.md)）。
+**隐式目标**：Fight 衍生 **攻击（Attack）**（通常为 combat 检定）；文本未必写 Target/choose，仍须合法敌人（[21 §3.2](21-selection-spec.md)）。
+
+| 形态 | 发起 L7 |
+|---|---|
+| **基础 Fight** | 无合法攻击目标 → 整行动不可发起 |
+| **Fight 能力含前置效果**（如先 choose 移动再 Attack） | 整树 dry-run：移动等能 CREATED → **可通过** L7，即使目的地无敌人、随后 Attack 不能发（[21 §3.2.1](21-selection-spec.md)） |
 
 **默认合法目标**（基础 Fight 行动）：performing investigator **当前地点**上的敌人，包括：
 

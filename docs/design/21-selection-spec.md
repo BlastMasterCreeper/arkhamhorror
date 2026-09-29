@@ -234,21 +234,46 @@ must 多支选一：支级 dry-run（已有）与目标级 V **同引擎、不�
 | 裁决 | |
 |---|---|
 | **与明示 Target 同构** | 仍走 U–N → V（dry-run / CREATED）；Restriction 间接挡；可 PI 确认或唯一候选默认 |
-| **无合法目标** | 衍生检定/尝试不能发起 → **整次 Fight/Evade 行动** Initiation L7 失败（不能付费开打） |
 | **文本无 choose** | 不因此跳过目标规格；编译为隐式 `SelectionSpec`（`role: implicit_attack` / `implicit_evade`）或行动内核内建 filter |
 | **自动躲避例外** | 能力「automatically evade」：**不**做 evasion attempt / 不做检定，也不要求「成功躲避」语义；直接 exhaust + disengage（Grimoire）。此类 **无** 衍生检定隐式目标管线 |
 | **极少无衍生检定的 Evade** | 卡面显式取消检定或改写步骤时，按文本；默认 Evade **伴随** evasion attempt |
 | **Aloof 等** | 未交战 aloof 非法 Fight 目标：活路/dry-run 同入口 → 无 CREATED → 不进合法集 |
 
+#### 3.2.1 发起 L7：整段能力 vs 仅 Attack/Evade 内核
+
+**不是**「只要 Attack 此刻没有合法敌人，带 Fight designator 的能力一律不能发」。
+
+| 形态 | Initiation L7（整段能否发起） | 隐式攻击/躲避目标 |
+|---|---|---|
+| **基础 Fight / Evade**（行动≈衍生检定本身） | 合法敌人集空 → **整行动不可发起** | 与 L7 同一条件 |
+| **Fight/Evade 能力 = 前置效果 + 衍生 Attack/evasion**（例：先 choose 移动，再 Attack） | dry-run **整棵效果树**：任一前序效果能 CREATED（如移动可执行）→ **可通过 L7**，即使目的地可无敌人、Attack 随后不能发 | Attack/evasion 在**轮到该步**时再取合法集；空则该步不发起/不结算，**不回溯撤销**已发起的行动与已结算的移动 |
+
 ```text
-Fight / Evade Initiation（L7）
-  → 解析隐式目标 SelectionSpec（默认宇宙 ± 卡面扩展 filter）
-  → 合法集 = enumerate + V（攻击/躲避对该敌能否改变状态）
-  → 空集 → 整行动不可发起
-  → 非空 → PI 确认（或唯一默认）→ bind → nest 攻击检定 / 躲避检定
+例：Fight 能力「Move to a connecting location. Fight that… / Attack」
+  L7 dry-run 整树
+    → 移动可选且能改局面（目的地不必有敌人）→ CREATED → 整段 Fight 可发起
+  付费、结算移动后
+    → 若新地点无合法攻击目标 → 衍生 Attack 不发起（无检定）
+    → 移动仍然有效；不是「整次 Fight 从未合法」
 ```
 
-**禁止**：因未印 Target 就省略敌人参数；把「无敌人」做成行动中途 fizzle 而非发起失败（基础 Fight/Evade）。
+| 要点 | |
+|---|---|
+| **L7 粒度** | 外层 Initiation = 整段 Composition；内层 Attack/evasion attempt = 各自发起时再检隐式目标 |
+| **与 Target 通则一致** | 「有目标的效果」无合法目标则**该效果**不能发起；前面无目标依赖的效果仍可让**能力**具备 change-state 潜力 |
+| **V 仍用于** | 选移动目的地、选攻击敌人等每一步自己的候选；不把「Attack 的 V」误当成整段 Fight 的唯一 L7 |
+
+```text
+Fight / Evade（基础）Initiation（L7）
+  → 隐式目标合法集空 → 不可发起
+
+Fight / Evade 能力（多步）Initiation（L7）
+  → dry-run 整树（含前置 move 等）→ 有 CREATED 则可发起
+  → RESOLVE … 至 Attack/evasion 步
+       → 再 enumerate + V 隐式敌人；空 → 跳过该衍生检定
+```
+
+**禁止**：因未印 Target 就省略敌人参数；把基础 Fight/Evade 的「无敌人」做成付费后中途才发现不能打（基础行动应在发起失败）；把「前置可移动」误判成「Attack 无目标则整段 Fight L7 失败」。
 
 ---
 
