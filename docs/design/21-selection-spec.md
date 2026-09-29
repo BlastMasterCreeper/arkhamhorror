@@ -139,13 +139,15 @@ options[] → Gate
 
 **结论：目标选择场景下，限制类 Buff 的检测放在 V 的 dry-run 里做，不另建独立 R 真相层。**
 
+**口径（已裁决）**：Restriction **不直接**把实体标成「不可选」；它在结算路径上拦住写入 → **不产生对该目标的结算 / 无 CREATED** → V 不通过 → **间接**不成合法目标。与「直接从名单剔除」结果常等价，但 dry-run 能覆盖多效果 OR、Then、费用后局面、条件支等组合，无需为每种限制再写候选特例。
+
 | | |
 |---|---|
-| **为何可以** | 活结算时 Restriction 已在 REST-E-* / 效果入口拦住写入；dry-run 若走**同一入口**，被禁则无 CREATED → 自然不是合法目标 |
-| **硬条件** | `CompositionDryRunner` / 模拟路径必须调用与活路相同的 `RestrictionEvaluator`（或等价只读），禁止 dry-run「假装无 Restriction」 |
-| **不进 V 当失败的** | `SKIP_AOO` / `SUPPRESS_AUTO_ENGAGE` 等 **原流程分支**（不挡「成为目标」，只改入口分支） |
-| **仍留在 Initiation L4 的** | 能力整体能否发起（`FORBID_TRIGGER` / peril 禁 play…）— 那是「这条能力」，不是「这个候选」 |
-| **可选预筛** | `for_intent` + `block_reason` 可在 V 前廉价剔一批；**仅优化**；与 V 冲突时以 V 为准 |
+| **机制** | 活路 REST-E-* / 效果入口拦写入；dry-run 走**同一入口** → 无 CREATED → 非法目标 |
+| **硬条件** | 模拟路径必须接 `RestrictionEvaluator`（或等价）；禁止 dry-run「假装无 Restriction」 |
+| **不进 V 当失败的** | `SKIP_AOO` / `SUPPRESS_AUTO_ENGAGE` 等 **原流程分支**（不挡成为目标，只改入口分支） |
+| **仍留在 Initiation L4 的** | 能力整体能否发起（`FORBID_TRIGGER` / peril 禁 play…）— 「这条能力」，不是「这个候选」 |
+| **可选预筛** | `for_intent` + `block_reason` 仅优化；与 V 冲突时以 V 为准 |
 
 ```json
 {
