@@ -192,8 +192,8 @@ Headless：`DefaultChoiceResolver` / `ScriptingChoiceResolver` 在无脚本应�
 
 | 交互 | Kind | 决策者 | 要点 |
 |---|---|---|---|
-| choose **1** enemy/inv/location | `PICK_TARGET` | 控制者 | Target 段；L7 预筛合法集 |
-| choose **N / up to N / any number** | `PICK_MULTI` | 控制者 | min_picks / max_picks |
+| choose **1** enemy/inv/location | `PICK_TARGET` | 控制者 | Target 段；候选管线 U–R + **V dry-run**（目标状态须能被改变 · [21 §3.1.4](21-selection-spec.md)） |
+| choose **N / up to N / any number** | `PICK_MULTI` | 控制者 | min_picks / max_picks；同样经 V |
 | Search 顶 X **拿哪些** | `SEARCH_TAKE` | 控制者 | 未拿的 **回置顺序** 可另 ask |
 | **Choice** 分支（卡面「或」） | `PICK_OPTION` | 控制者 | dry-run OR；resolve 单选 |
 | **Optional** 子树 | `OPTIONAL_EFFECT` | 控制者 | |
