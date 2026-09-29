@@ -2,7 +2,7 @@
 
 > **依赖**：[16-player-interaction.md](16-player-interaction.md)、[20-card-translation-schema.md](20-card-translation-schema.md) §3/§6、[07-composition.md](07-composition.md) §1.4  
 > **实现**：`rules/choices/selection_spec.gd` · `candidate_filter.gd` · `candidate_enumerator.gd` · `PlayerInteractionGate`  
-> **状态**：v0.1 · 2026-09-29 — 统一实体/分支/是否发动的选择与 Memory bind
+> **状态**：v0.2 · 2026-09-29 — 候选范围 = 分层谓词管线（结构 / 数值 / Restriction / 可选 L7）
 
 ---
 
@@ -74,6 +74,125 @@ ChoiceBind → RulesMemory
 | `location_connecting` | `entity=location` + `at=connecting` |
 
 枚举在 **客观层**完成（Domain + Restriction）；Gate 只在已枚举的 `options` 上确认。
+
+---
+
+## 3.1 候选范围：分层谓词管线（难点 · 已裁决方向）
+
+选择交互本身简单；**难的是合法集**。卡面约束混杂：
+
+| 约束类 | 例子 | 读哪 |
+|---|---|---|
+| **结构 / 局面** | 手牌、连结地点、Humanoid、Hunter、未横置、已交战 | Domain / CardRegistry / EnemyState |
+| **数值** | fight ≤ 2、剩余 sanity ≥ 1、线索最多、本回合第 3 次行动 | 实体字段比较 / [StatQuery](06c-stat-projections.md) |
+| **限制类 Buff** | cannot fight 未交战 aloof、cannot discard、peril 禁 commit | `RestrictionEvaluator` + Intent |
+| **效果可执行** | 选这支 must-choice 后能否 CREATED | CompositionDryRunner（L7，可选层） |
+
+**禁止**：为每种卡面约束加布尔（`only_ready`、`fight_le_2`）；在 Enumerator 里 `match effect_text`；把 Restriction 译成 LISTENER「挡候选」。
+
+### 3.1.1 管线（固定顺序）
+
+```text
+U  Universe     粗宇宙：entity + zones/at → 原始 id 集
+S  Structural   结构谓词：traits / keywords / exhausted / engaged / card_types / owned_by
+N  Numeric      数值谓词：字段比较 + StatQuery
+R  Restriction  Intent 合法性：对该候选发起「将要做的事」是否被 RESTRICTION 拦住
+V  Viability    （可选）L7：绑定该候选 dry-run 后续效果是否 CREATED
+     ↓
+options[] → Gate
+```
+
+| 层 | 输入 | 失败 = 剔除 | 实现钩子 |
+|---|---|---|---|
+| **U** | `filter.entity` + `at`/`zones` | 不在宇宙 | `CandidateEnumerator` 现有 |
+| **S** | 白名单结构字段 | 不匹配 | 同左；增长表 |
+| **N** | `preds[]` 数值条 | 比较失败 | §3.1.2 |
+| **R** | `for_intent` + 候选作 target/card | `block_reason != ""` | §3.1.3 |
+| **V** | `viability: dry_run_tail` | 无 CREATED | must-choice / 贵时才开 |
+
+前一层输出是后一层输入；**短路**：空集立即停，不 ask。
+
+### 3.1.2 数值谓词（`preds`）
+
+不造并行「数值 DSL 宇宙」：复用实体字段与已有 `StatQuery`。
+
+```json
+"preds": [
+  { "on": "candidate", "field": "fight", "op": "le", "value": 2 },
+  { "on": "controller", "field": "sanity_remaining", "op": "ge", "value": 1 },
+  { "on": "candidate", "stat_query": "clues_on_location_ge", "value": 1 }
+]
+```
+
+| 字段 | 含义 |
+|---|---|
+| `on` | `candidate` / `controller` / `lead` / `memory:<key>` |
+| `field` | 稳定投影名（`fight` / `health_remaining` / `clues` / `resources` …）增长表 |
+| `op` | `eq` `ne` `lt` `le` `gt` `ge` |
+| `value` | 字面量，或 `memory:` / `per_investigator` 规格 |
+| `stat_query` | 可选；走 `StatQuery` + 投影（回合行动次数等） |
+
+**并列最值**（most clues / nearest）：U+S 后在 Enumerator 内 **折叠** 成并列子集，再交 Gate（或队长 `TIE_BREAK`）；不是又一层 PI Kind。
+
+### 3.1.3 Restriction 层（`for_intent`）
+
+限制类 Buff **不**写成 filter 布尔；候选枚举时带上 **「若选中，将用于何种 Intent」**：
+
+```json
+{
+  "filter": { "preset": "enemy_at_controller_location", "exclude_aloof": false },
+  "for_intent": "FIGHT"
+}
+```
+
+| | |
+|---|---|
+| 查询 | `RestrictionEvaluator.block_reason(intent, actor, store, …, target_id=candidate)` |
+| 剔除 | 任一 RESTRICTION 命中（如 aloof 未交战 → `FORBID_ATTACK`） |
+| 不查 | `SKIP_AOO` / `SUPPRESS_AUTO_ENGAGE` 等 **原流程分支** 类（它们不挡「成为目标」，只改入口行为） |
+
+与 [06 §16.4](06-registration-buff-model.md) 同一 evaluator、同一 Intent 表；选目标预筛 = **REST-E-* 的提前只读**，不是第二套 Restriction 系统。
+
+`for_intent` 缺省：仅 U+S+N（纯 choose 实体、尚无动作语义时）。行动入口（Fight/Engage/Discard）编译时应带上对应 Intent。
+
+### 3.1.4 Viability（L7，可选）
+
+| 开 | 不开 |
+|---|---|
+| must 多支选一（已有 dry-run 滤支） | 普通选敌再伤害（空集已由 U–R 处理） |
+| 「choose a card to discard」且弃牌可能被 FORBID_DISCARD | 纯展示性排序 |
+
+开时：对每个（或抽样）候选，临时 bind → dry-run 尾部效果树 → 无 CREATED 则剔除。成本高，默认关。
+
+### 3.1.5 与 Eligibility L0–L7 的关系
+
+| | 能力 Initiation Eligibility | 选择候选管线 |
+|---|---|---|
+| 问什么 | 这条能力能否发起 | 这个实体能否进入 options |
+| Restriction | L4 拦 TRIGGER/PLAY… | **R 层**对 `for_intent` 拦「以之为目标」 |
+| L7 dry-run | 整棵效果树 | **V 层**可选；must-choice 支已用 |
+
+二者共享 Condition / StatQuery / RestrictionEvaluator；**不**把候选枚举塞进 Initiation L4 冒充。
+
+### 3.1.6 翻译层怎么写（扩展 filter）
+
+```json
+{
+  "template": "select",
+  "filter": {
+    "entity": "enemy",
+    "at": "controller_location",
+    "traits": ["Monster"],
+    "exhausted": false,
+    "preds": [{ "on": "candidate", "field": "fight", "op": "le", "value": 3 }],
+    "for_intent": "FIGHT"
+  },
+  "prompt_id": "pick:weak_monster",
+  "bind": { "key": "picked_enemy", "shape": "entity" }
+}
+```
+
+结构字段仍在 `CandidateFilter`；`preds` / `for_intent` / `viability` 为管线扩展（白名单增长，见 20 §2.1）。
 
 ---
 
@@ -174,10 +293,13 @@ bind:
 
 | 项 | 状态 |
 |---|---|
-| 本文规格 | ✅ v0.1 |
-| `CandidateFilter` / `SelectionSpec` / Enumerator | ✅ 骨架 |
+| 本文规格 | ✅ v0.2（含 §3.1 候选管线） |
+| `CandidateFilter` / `SelectionSpec` / Enumerator | ✅ 骨架（U+部分 S） |
 | `pick_target` 经 Enumerator（preset + 对象 filter） | ✅ |
 | Gate `ask_selection` + Memory bind 形状 | ✅ 骨架 |
+| **N** 数值 `preds` + field/StatQuery | 待接 |
+| **R** `for_intent` → RestrictionEvaluator | 待接（依赖 Intent 对 target 的 payload） |
+| **V** 候选级 dry-run | 待；must-choice 支级已有 |
 | `pick_multi` / 特性·关键词·横置全量 | 增量 |
 | `choice_optional` 编译糖 | 待扩 |
 | 12116 内嵌 PI 拆为独立 select | 债（19 §3.1） |
@@ -188,4 +310,5 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-29 | v0.2 | **§3.1** 候选范围分层：U/S/N/R/V；数值 preds；Restriction via `for_intent` |
 | 2026-09-29 | v0.1 | 初稿：SelectionSpec / CandidateFilter / ChoiceBind；与 16/20 对齐 |

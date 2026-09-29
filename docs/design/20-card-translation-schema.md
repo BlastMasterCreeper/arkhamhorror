@@ -41,6 +41,7 @@
 | `template` | 叶种类 | 所有步 |
 | `flow_id` | nest 目标命名流程 | **仅** nest 叶（C） |
 | `filter` / `trait` / `at` / `trait_exclude` / `traits` / `keywords` / `exhausted` | [CandidateFilter](21-selection-spec.md)（预设字符串或对象） | A |
+| `preds` / `for_intent` / `viability` | 候选管线 N/R/V（[21 §3.1](21-selection-spec.md)） | A |
 | `min` / `max` / `min_picks` / `max_picks` | 选择基数 | A（`pick_multi` / `select`） |
 | `bind` | `{key, shape}` ChoiceBind；或扁平 `memory_key` | A |
 | `prompt_id` | Gate 提示键 | A |
