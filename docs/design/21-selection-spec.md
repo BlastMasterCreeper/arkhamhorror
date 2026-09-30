@@ -275,6 +275,17 @@ Fight / Evade 能力（多步）Initiation（L7）
 
 **禁止**：因未印 Target 就省略敌人参数；把基础 Fight/Evade 的「无敌人」做成付费后中途才发现不能打（基础行动应在发起失败）；把「前置可移动」误判成「Attack 无目标则整段 Fight L7 失败」。
 
+#### 3.2.2 Investigate 隐式地点
+
+| | |
+|---|---|
+| **基础 Investigate** | 隐式目标 = **所在地点**（非敌人）；默认不经多选 Gate |
+| **合法性** | 无地点 / 不在该地点 → **发起失败**（与 Fight 同：付费前） |
+| **0 clue** | 仍可调查（Grimoire）；不因「不能 discover」剔除 |
+| **卡面 choose location** | 另走明示 `select` + `location_*` filter + V；不是本条「隐式所在地」 |
+
+与 Fight/Evade **不同构于敌人 U–V**，但同属「行动前解析隐式目标、空则不可发起」。
+
 ---
 
 ## 4. `SelectionSpec`
@@ -290,7 +301,7 @@ Fight / Evade 能力（多步）Initiation（L7）
 | `deadline_ms` | 有限期；`-1` = 策略默认 |
 | `bind` | `ChoiceBind`（§5） |
 | `options` | 仅 `PICK_OPTION`：编译期分支 id / 子树（非实体枚举） |
-| `role` | 可选：`explicit_choose` / `implicit_attack` / `implicit_evade`（§3.2） |
+| `role` | 可选：`explicit_choose` / `implicit_attack` / `implicit_evade` / `implicit_investigate`（§3.2） |
 
 ### 4.1 翻译层 template
 
@@ -382,7 +393,7 @@ bind:
 | **N** 数值 `preds` + field/StatQuery | 待接 |
 | **V** 候选级 dry-run（含 Restriction；目标须能被改变） | ✅ 骨架：`CandidateViability` + SEQ 兄弟/`viability_tail`；`exhaust_enemy` 已横置无 CREATED |
 | `for_intent` 预筛 | 可选优化；不得与 V 分叉 |
-| **隐式目标** Fight/Evade（§3.2） | 规范已裁；§3.2.1 区分基础 vs 前置效果+Attack |
+| **隐式目标** Fight/Evade/Investigate（§3.2） | ✅ 基础行动：`ImplicitActionTargets` + preset filter + V（Investigate 仅所在地预检） |
 | `pick_multi` / 特性·关键词·横置全量 | 增量 |
 | `choice_optional` 编译糖 | 待扩 |
 | 12116 内嵌 PI 拆为独立 select | 债（19 §3.1） |
@@ -393,6 +404,7 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-30 | v0.7 | **落地隐式目标**：Fight/Evade U–V 付费前解析；Investigate §3.2.2 所在地预检 |
 | 2026-09-30 | v0.6 | **落地 V 骨架**：`CandidateViability.filter_viable`；SEQ 自动尾；`exhaust_enemy` live/dry |
 | 2026-09-29 | v0.4 | **§3.1.3**：目标侧 Restriction **在 V dry-run 内检测**；取消独立 R 真相层（预筛仅优化） |
 | 2026-09-29 | v0.5.1 | **§3.2.1**：前置可结算效果（如移动）可使整段 Fight 过 L7；Attack 无目标只挡该步 |

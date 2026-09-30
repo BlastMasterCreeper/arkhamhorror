@@ -19,6 +19,8 @@ var bind_shape: StringName = &"entity"
 var viability_tail: CompositionNode = null
 ## true = 显式跳过 V（即使有后续 SEQ 兄弟 / 已标注 tail）。
 var skip_viability: bool = false
+## explicit_choose / implicit_attack / implicit_evade / implicit_investigate
+var role: StringName = &"explicit_choose"
 
 
 static func pick_entity(
@@ -40,6 +42,48 @@ static func pick_entity(
 	s.min_picks = mini(min_picks, max_picks)
 	s.max_picks = maxi(max_picks, s.min_picks)
 	s.default_policy = &"first_option"
+	return s
+
+
+## 基础 Fight / Attack 隐式敌人目标（21 §3.2）。
+static func implicit_attack(controller_id: StringName = &"") -> SelectionSpec:
+	var s := pick_entity(
+		CandidateFilter.from_preset(&"enemy_fight_target"),
+		&"pick:fight_enemy",
+		&"picked_enemy"
+	)
+	s.role = &"implicit_attack"
+	s.viability_tail = CompositionNode.deal_damage_enemy(
+		controller_id, &"memory:picked_enemy", 1
+	)
+	return s
+
+
+## 基础 Evade 隐式敌人目标（21 §3.2）。
+static func implicit_evade(controller_id: StringName = &"") -> SelectionSpec:
+	var s := pick_entity(
+		CandidateFilter.from_preset(&"enemy_evade_target"),
+		&"pick:evade_enemy",
+		&"picked_enemy"
+	)
+	s.role = &"implicit_evade"
+	s.viability_tail = CompositionNode.seq([
+		CompositionNode.exhaust_enemy(controller_id, &"memory:picked_enemy"),
+		CompositionNode.disengage_enemy(controller_id, &"memory:picked_enemy"),
+	])
+	return s
+
+
+## 基础 Investigate 隐式地点（所在地；非多选 Gate）。
+static func implicit_investigate(controller_id: StringName = &"") -> SelectionSpec:
+	var s := pick_entity(
+		CandidateFilter.from_preset(&"location_investigate_target"),
+		&"pick:investigate_location",
+		&"picked_location"
+	)
+	s.role = &"implicit_investigate"
+	## 0 clue 仍可调查；V 仅确认地点存在即可（skip：由 resolve_investigate 结构校验）。
+	s.skip_viability = true
 	return s
 
 

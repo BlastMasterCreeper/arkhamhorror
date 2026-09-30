@@ -341,6 +341,38 @@ static func exhaust_enemy(
 	return n
 
 
+## L0 · 对敌人造成伤害（Fight V / 效果体；支持 memory: 指称）。
+static func deal_damage_enemy(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	amount: int = 1,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"deal_damage_enemy"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
+## L0 · 敌人脱离交战（Evade 成功体之一；支持 memory: 指称）。
+static func disengage_enemy(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"disengage_enemy"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	return n
+
+
 ## L1 · 移动到连接地点（免费触发 / 效果；复用 BasicActionResolver.move 内核）。
 static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()

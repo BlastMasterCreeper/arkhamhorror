@@ -83,6 +83,17 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 	var restriction_reason := _restriction_block_for_action(action_type, investigator_id)
 	if restriction_reason != &"":
 		return {"ok": false, "error": RestrictionEvaluator.api_error(restriction_reason)}
+	## 隐式目标（Fight/Evade/Investigate）：付费前 U–V；空合法集 → 发起失败。
+	var target_res := ImplicitActionTargets.resolve(
+		action_type, _game_ctx, investigator_id, extra
+	)
+	if not bool(target_res.get("ok", true)):
+		return {
+			"ok": false,
+			"error": str(target_res.get("error", "no_legal_target")),
+		}
+	if target_res.has("extra") and typeof(target_res["extra"]) == TYPE_DICTIONARY:
+		extra = target_res["extra"]
 	inv.actions_remaining -= action_cost
 	var spend_id := -1
 	if _game_ctx != null and _game_ctx.stat_emitter != null:

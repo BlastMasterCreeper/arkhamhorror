@@ -184,6 +184,7 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - Intellect test vs location shroud
 - 成功：discover 1 clue（即使 location 0 clue 也可 investigate，Grimoire）
+- **隐式地点**：默认所在地；无地点 / 不在该地 → 发起失败（付费前；[21 §3.2.2](21-selection-spec.md)）
 
 ### 6.6 Engage
 

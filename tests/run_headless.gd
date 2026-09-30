@@ -221,6 +221,11 @@ func _initialize() -> void:
 	_run_test("ACT-04 evade disengages enemy", _test_act_evade_success)
 	_run_test("ACT-05 evade requires engagement", _test_act_evade_not_engaged)
 	_run_test("ACT-06 fight rejects aloof", _test_act_fight_aloof)
+	_run_test("ACT-IMP-01 fight auto-binds sole enemy", _test_act_imp_fight_auto_bind)
+	_run_test("ACT-IMP-02 fight empty legal set fails pre-spend", _test_act_imp_fight_no_target)
+	_run_test("ACT-IMP-03 evade auto-binds engaged enemy", _test_act_imp_evade_auto_bind)
+	_run_test("ACT-IMP-04 fight picks among two enemies", _test_act_imp_fight_two_enemies)
+	_run_test("ACT-IMP-05 investigate wrong location fails pre-spend", _test_act_imp_investigate_wrong_loc)
 	_run_test("ACT-07 engage adds to threat area", _test_act_engage_success)
 	_run_test("ACT-08 engage steals enemy", _test_act_engage_steal)
 	_run_test("ACT-09 engage rejects massive", _test_act_engage_massive)
@@ -4775,8 +4780,14 @@ func _test_act_evade_not_engaged() -> bool:
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
 	var res := h.evade_action({"enemy_id": &"enemy_1"})
-	return not res.ok and res.error == "not_engaged"
+	return (
+		not res.ok
+		and res.error == "not_engaged"
+		and inv.actions_remaining == before
+	)
 
 
 func _test_act_fight_aloof() -> bool:
@@ -4784,8 +4795,85 @@ func _test_act_fight_aloof() -> bool:
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"", true)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
 	var res := h.fight_action({"enemy_id": &"enemy_1"})
-	return not res.ok and res.error == "aloof"
+	return not res.ok and res.error == "aloof" and inv.actions_remaining == before
+
+
+func _test_act_imp_fight_auto_bind() -> bool:
+	## 未传 enemy_id：唯一合法敌人自动绑定。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.health = 2
+	var res := h.fight_action({})
+	enemy = h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy != null and enemy.damage == 1
+
+
+func _test_act_imp_fight_no_target() -> bool:
+	## 无合法敌人 → 付费前失败。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
+	var res := h.fight_action({})
+	return (
+		not res.ok
+		and res.error == "no_legal_target"
+		and inv.actions_remaining == before
+	)
+
+
+func _test_act_imp_evade_auto_bind() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1"
+	)
+	var res := h.evade_action({})
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy.exhausted and enemy.engaged_with == &""
+
+
+func _test_act_imp_fight_two_enemies() -> bool:
+	## 两敌同地：Gate 默认 first_option；攻击成功。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_a").health = 3
+	h.ctx.state.registry.get_enemy(&"enemy_b").health = 3
+	var res := h.fight_action({})
+	var a := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var b := h.ctx.state.registry.get_enemy(&"enemy_b")
+	var damaged := (a != null and a.damage == 1) or (b != null and b.damage == 1)
+	var other_ok := (
+		(a != null and a.damage == 1 and b != null and b.damage == 0)
+		or (b != null and b.damage == 1 and a != null and a.damage == 0)
+	)
+	return res.ok and res.success and damaged and other_ok
+
+
+func _test_act_imp_investigate_wrong_loc() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
+	var res := h.investigate_action({"location_id": &"loc_b"})
+	return (
+		not res.ok
+		and res.error == "not_at_location"
+		and inv.actions_remaining == before
+	)
 
 
 func _test_act_engage_success() -> bool:

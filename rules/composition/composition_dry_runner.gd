@@ -328,6 +328,29 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			exh_enemy.exhausted = true
 			sim.last_step_enemy_id = exh_enemy_id
 			return true
+		&"deal_damage_enemy":
+			var dmg_enemy_id := _resolve_sim_enemy_spec(node, sim)
+			if dmg_enemy_id == &"" or sim.state == null:
+				return false
+			var dmg_enemy := sim.state.registry.get_enemy(dmg_enemy_id)
+			if dmg_enemy == null:
+				return false
+			dmg_enemy.damage += maxi(node.marker_delta, 1)
+			sim.last_step_enemy_id = dmg_enemy_id
+			return true
+		&"disengage_enemy":
+			var dis_enemy_id := _resolve_sim_enemy_spec(node, sim)
+			if dis_enemy_id == &"" or sim.state == null:
+				return false
+			var dis_enemy := sim.state.registry.get_enemy(dis_enemy_id)
+			if dis_enemy == null or dis_enemy.engaged_with == &"":
+				return false
+			var holder := sim.state.registry.get_investigator(dis_enemy.engaged_with)
+			if holder != null:
+				holder.threat_area.erase(dis_enemy_id)
+			dis_enemy.engaged_with = &""
+			sim.last_step_enemy_id = dis_enemy_id
+			return true
 		&"no_provoke_aoo":
 			## 镜像 `seq.effect.register` CREATED（dry-run 不压栈；行动开始挂载等价）。
 			var skip_ctrl := _resolve_sim_inv(node, sim)

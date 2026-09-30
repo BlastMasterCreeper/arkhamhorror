@@ -69,16 +69,8 @@ static func _enum_enemies_sim(
 		var enemy := sim.state.registry.get_enemy(enemy_id)
 		if enemy == null:
 			continue
-		if filter.exclude_massive and enemy.massive:
+		if not _enemy_structure_ok(filter, enemy, controller_id):
 			continue
-		if filter.exclude_aloof and enemy.aloof:
-			continue
-		if filter.exhausted != null and bool(enemy.exhausted) != bool(filter.exhausted):
-			continue
-		if filter.engaged != null:
-			var is_eng := enemy.engaged_with != &""
-			if is_eng != bool(filter.engaged):
-				continue
 		if not locs.is_empty() and not locs.has(enemy.location_tag):
 			continue
 		out.append(enemy_id)
@@ -132,16 +124,8 @@ static func _enum_enemies(
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 		if enemy == null:
 			continue
-		if filter.exclude_massive and enemy.massive:
+		if not _enemy_structure_ok(filter, enemy, controller_id):
 			continue
-		if filter.exclude_aloof and enemy.aloof:
-			continue
-		if filter.exhausted != null and bool(enemy.exhausted) != bool(filter.exhausted):
-			continue
-		if filter.engaged != null:
-			var is_eng := enemy.engaged_with != &""
-			if is_eng != bool(filter.engaged):
-				continue
 		if not locs.is_empty() and not locs.has(enemy.location_tag):
 			continue
 		if not _traits_ok(game_ctx, enemy_id, filter):
@@ -149,6 +133,35 @@ static func _enum_enemies(
 		if not _keywords_ok(game_ctx, enemy_id, filter):
 			continue
 		out.append(enemy_id)
+
+
+static func _enemy_structure_ok(
+	filter: CandidateFilter, enemy: EnemyState, controller_id: StringName
+) -> bool:
+	if filter.exclude_massive and enemy.massive:
+		return false
+	if filter.exclude_aloof and enemy.aloof:
+		return false
+	if filter.exclude_aloof_unengaged and enemy.aloof and enemy.engaged_with == &"":
+		return false
+	if filter.exhausted != null and bool(enemy.exhausted) != bool(filter.exhausted):
+		return false
+	var want_with := filter.engaged_with
+	if want_with == &"" and filter.engaged != null:
+		var eng_raw := str(filter.engaged)
+		if eng_raw == "controller" or eng_raw == "self":
+			want_with = &"controller"
+		elif eng_raw == "true" or eng_raw == "false":
+			var is_eng := enemy.engaged_with != &""
+			if is_eng != bool(filter.engaged):
+				return false
+		else:
+			want_with = StringName(eng_raw)
+	if want_with != &"":
+		var target_inv := controller_id if want_with == &"controller" or want_with == &"self" else want_with
+		if enemy.engaged_with != target_inv:
+			return false
+	return true
 
 
 static func _enum_locations(
