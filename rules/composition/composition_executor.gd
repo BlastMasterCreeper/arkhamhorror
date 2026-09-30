@@ -61,8 +61,7 @@ func _run_node(node: CompositionNode) -> void:
 	_stamp_provenance(node)
 	match node.kind:
 		AhcEnums.CompositionNodeKind.SEQ:
-			for child in node.children:
-				_run_node(child)
+			_run_seq(node)
 		AhcEnums.CompositionNodeKind.ATOM:
 			_last_step_created = _execute_atom(node)
 			_record_composition_step(node, _last_step_created)
@@ -77,6 +76,33 @@ func _run_node(node: CompositionNode) -> void:
 			_execute_repeat(node)
 		AhcEnums.CompositionNodeKind.FOR_EACH:
 			_execute_for_each(node)
+
+
+## SEQ：select/pick_target 后的兄弟作为 viability_tail（未显式标注且未 skip）。
+func _run_seq(node: CompositionNode) -> void:
+	for i in node.children.size():
+		var child: CompositionNode = node.children[i]
+		_maybe_attach_viability_tail(child, node.children, i)
+		_run_node(child)
+
+
+func _maybe_attach_viability_tail(
+	child: CompositionNode, siblings: Array, index: int
+) -> void:
+	if child == null or child.kind != AhcEnums.CompositionNodeKind.ATOM:
+		return
+	if child.atom_name != &"pick_target" and child.atom_name != &"select":
+		return
+	var spec := _selection_spec_of(child)
+	if spec == null or spec.skip_viability or spec.viability_tail != null:
+		return
+	var rest: Array[CompositionNode] = []
+	for j in range(index + 1, siblings.size()):
+		rest.append(siblings[j] as CompositionNode)
+	if rest.is_empty():
+		return
+	spec.viability_tail = rest[0] if rest.size() == 1 else CompositionNode.seq(rest)
+	child.selection_spec = spec
 
 
 func _resolve_inv(node: CompositionNode) -> StringName:
@@ -326,15 +352,30 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_attack(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
+		&"exhaust_enemy":
+			return _execute_exhaust_enemy(node)
+		&"deal_damage_enemy":
+			return _execute_deal_damage_enemy(node)
+		&"disengage_enemy":
+			return _execute_disengage_enemy(node)
 		&"no_provoke_aoo":
-			## 声明节点：豁免已在 Initiation.provokes_aoo 生效；此处仅记日志。
-			_log.log(AhcEnums.LogCategory.CARD, "composition:no_provoke_aoo", {})
+			## 行动开始已挂限制类 SKIP_AOO；INIT_2B 已由原流程读取分支。resolve 体不再重复挂载。
+			_log.log(AhcEnums.LogCategory.CARD, "composition:no_provoke_aoo", {
+				"controller": node.inv_id,
+			})
 			return true
+		&"suppress_auto_engage":
+			return _execute_suppress_auto_engage(node)
+		&"leave_clues_at_location":
+			return _execute_leave_clues_at_location(node)
+		&"eliminate":
+			return _execute_eliminate(node)
 		&"resign":
+			## 兼容旧树：整段撤退；新编译应已是三步展开。
 			return _execute_resign_inline(node)
 		&"nest_resign":
 			return _execute_nest_resign(node)
-		&"pick_target":
+		&"pick_target", &"select":
 			return _execute_pick_target(node)
 		&"move_enemy_to":
 			return _execute_move_enemy_to_inline(node)
@@ -347,7 +388,10 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"spend_clues_group":
 			return _execute_spend_clues_group(node)
 		&"nest_move_connecting":
-			return _execute_nest_move_connecting(node)
+			## 兼容旧单 Atom；新树应为 select + nest_move_to。
+			return _execute_nest_move_connecting_legacy(node)
+		&"nest_move_to":
+			return _execute_nest_move_to(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
 		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
@@ -620,7 +664,108 @@ func _execute_exhaust_card(node: CompositionNode) -> bool:
 	return true
 
 
-## 同帧内联撤退（无新时点锚）。
+## L0 · 横置敌人；已横置则无 CREATED（目标 V / Grimoire Target）。
+func _execute_exhaust_enemy(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.enemy == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var enemy := _state.registry.get_enemy(enemy_id) if _state != null else null
+	if enemy == null or enemy.exhausted:
+		return false
+	var result := _game_ctx.enemy.set_enemy_exhausted(_game_ctx, enemy_id, true, false)
+	var ok := bool(result.get("ok", false)) and enemy.exhausted
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:exhaust_enemy",
+			{"enemy": enemy_id, "inv": inv_id}
+		)
+	return ok
+
+
+func _execute_deal_damage_enemy(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var amount := maxi(node.marker_delta, 1)
+	var result := EnemyDefeatResolver.deal_damage(_game_ctx, enemy_id, amount)
+	var ok := bool(result.get("ok", false))
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:deal_damage_enemy",
+			{"enemy": enemy_id, "amount": amount}
+		)
+	return ok
+
+
+func _execute_disengage_enemy(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.enemy == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var enemy := _state.registry.get_enemy(enemy_id) if _state != null else null
+	if enemy == null or enemy.engaged_with == &"":
+		return false
+	var result := _game_ctx.enemy.disengage(_game_ctx, enemy_id, false, false)
+	var ok := bool(result.get("ok", false))
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:disengage_enemy",
+			{"enemy": enemy_id, "inv": inv_id}
+		)
+	return ok
+
+
+## Resign 第一步：线索留在所在地点。
+func _execute_leave_clues_at_location(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" or _game_ctx == null or _game_ctx.state == null:
+		return false
+	var inv := _game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null or inv.eliminated:
+		return false
+	var clues_left := inv.clues_on_card
+	if clues_left > 0 and inv.location_tag != &"":
+		var loc := _game_ctx.state.registry.get_location(inv.location_tag)
+		if loc != null:
+			loc.clues += clues_left
+		inv.clues_on_card = 0
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:leave_clues_at_location",
+		{"inv": inv_id, "clues": clues_left}
+	)
+	return true
+
+
+## Resign 第三步：淘汰清理（威胁区/手牌隐私遭遇 + ELIMINATED）。
+func _execute_eliminate(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" or _game_ctx == null:
+		return false
+	var result := InvestigatorElimination.eliminate(_game_ctx, inv_id)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:eliminate",
+		{"inv": inv_id, "ok": bool(result.get("eliminated", false))}
+	)
+	return bool(result.get("eliminated", false))
+
+
+## 兼容旧单 Atom 撤退（无新时点锚）。
 func _execute_resign_inline(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" or _game_ctx == null:
@@ -657,7 +802,7 @@ func _execute_nest_resign(node: CompositionNode) -> bool:
 	return bool(result.get("ok", false))
 
 
-## PI 有限期确认目标 → RulesMemory；未确认用默认（合法集首项）。
+## PI 有限期确认 → ChoiceBind 写入 RulesMemory（21-selection-spec）。
 func _execute_pick_target(node: CompositionNode) -> bool:
 	if _game_ctx == null or _state == null:
 		return false
@@ -665,50 +810,83 @@ func _execute_pick_target(node: CompositionNode) -> bool:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null:
 		return false
-	var candidates := _enumerate_target_filter(node, inv)
+	var spec := _selection_spec_of(node)
+	if spec == null or spec.filter == null:
+		return false
+	var candidates := CandidateEnumerator.enumerate(
+		spec.filter, _game_ctx, inv_id, node.card_id
+	)
+	if (
+		not spec.skip_viability
+		and spec.viability_tail != null
+		and not candidates.is_empty()
+	):
+		candidates = CandidateViability.filter_viable(
+			candidates, _game_ctx, inv_id, spec.bind_key, spec.viability_tail
+		)
 	if candidates.is_empty():
 		return false
-	var pick: StringName = candidates[0]
+	var picked: Variant = candidates[0]
 	if _game_ctx.interaction != null:
-		var chosen: Variant = _game_ctx.interaction.ask_pick_target(
-			candidates, inv_id, node.choice_prompt_id, _game_ctx
-		)
-		if chosen != null:
-			pick = chosen as StringName
-	var mem_key := node.memory_key if node.memory_key != &"" else &"picked_enemy"
-	if _game_ctx.memory != null:
-		_game_ctx.memory.set_referent(inv_id, mem_key, pick)
-	_last_step_enemy_id = pick
+		picked = _game_ctx.interaction.ask_selection(spec, candidates, inv_id, _game_ctx)
+	if picked == null:
+		return false
+	_apply_choice_bind(inv_id, spec, picked)
+	if typeof(picked) == TYPE_STRING_NAME or typeof(picked) == TYPE_STRING:
+		_last_step_enemy_id = StringName(str(picked))
+	elif picked is Array and not (picked as Array).is_empty():
+		_last_step_enemy_id = StringName(str((picked as Array)[0]))
 	_last_step_created = true
 	_log.log(
 		AhcEnums.LogCategory.CARD,
-		"composition:pick_target",
-		{"inv": inv_id, "filter": node.target_filter, "picked": pick, "memory": mem_key}
+		"composition:select",
+		{
+			"inv": inv_id,
+			"kind": spec.choice_kind,
+			"filter": spec.filter.preset if spec.filter.preset != &"" else spec.filter.at,
+			"picked": picked,
+			"bind": spec.bind_key,
+		}
 	)
 	return true
 
 
-func _enumerate_target_filter(
-	node: CompositionNode, inv: InvestigatorState
-) -> Array[StringName]:
-	var out: Array[StringName] = []
-	match node.target_filter:
-		&"enemy_at_connecting":
-			var here := _resolve_source_location(node, inv)
-			var here_loc := _state.registry.get_location(here) if here != &"" else null
-			if here_loc == null:
-				return out
-			for conn in here_loc.connections:
-				for enemy_id in _state.registry.all_enemy_ids():
-					var enemy := _state.registry.get_enemy(enemy_id)
-					if enemy == null or enemy.location_tag != conn:
-						continue
-					if enemy.massive:
-						continue
-					out.append(enemy_id)
+func _selection_spec_of(node: CompositionNode) -> SelectionSpec:
+	if node.selection_spec != null:
+		return node.selection_spec
+	var filter_id := node.target_filter if node.target_filter != &"" else &"enemy_at_connecting"
+	var mem := node.memory_key if node.memory_key != &"" else &"picked_enemy"
+	var prompt := node.choice_prompt_id if node.choice_prompt_id != &"" else &"pick:target"
+	return SelectionSpec.pick_entity(
+		CandidateFilter.from_preset(filter_id), prompt, mem
+	)
+
+
+func _apply_choice_bind(
+	controller_id: StringName, spec: SelectionSpec, picked: Variant
+) -> void:
+	if _game_ctx == null or _game_ctx.memory == null or spec == null:
+		return
+	var key := spec.bind_key if spec.bind_key != &"" else &"picked"
+	match spec.bind_shape:
+		&"entity_list", &"order":
+			var list: Array[StringName] = []
+			if picked is Array:
+				for item in picked:
+					list.append(StringName(str(item)))
+			elif picked != null:
+				list.append(StringName(str(picked)))
+			_game_ctx.memory.set_referent(controller_id, key, list)
+		&"bool":
+			_game_ctx.memory.set_referent(controller_id, key, bool(picked))
 		_:
-			pass
-	return out
+			## entity / option_id
+			if picked is Array and not (picked as Array).is_empty():
+				_game_ctx.memory.set_referent(
+					controller_id, key, StringName(str((picked as Array)[0]))
+				)
+			else:
+				_game_ctx.memory.set_referent(controller_id, key, StringName(str(picked)))
 
 
 ## 同帧内联移敌（L0 location_tag；不自动交战、不压栈）。
@@ -827,6 +1005,9 @@ func _execute_nest_engage(node: CompositionNode) -> bool:
 			"investigator_id": inv_id,
 		}
 	)
+	## 明示交战完成：清掉未在 auto-engage 入口读掉的抑制限制。
+	if _game_ctx.registrations != null:
+		_game_ctx.registrations.clear_suppress_auto_engage(enemy_id)
 	_last_step_enemy_id = enemy_id
 	_last_step_engaged_investigator = inv_id if bool(result.get("ok", false)) else &""
 	_log.log(
@@ -835,6 +1016,27 @@ func _execute_nest_engage(node: CompositionNode) -> bool:
 		{"enemy": enemy_id, "inv": inv_id, "mode": mode, "ok": bool(result.get("ok", false))}
 	)
 	return bool(result.get("ok", false))
+
+
+## Register SUPPRESS_AUTO_ENGAGE（限制类）经 `seq.effect.register`；auto-engage 入口读取后分支。
+func _execute_suppress_auto_engage(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.registrations == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	if _game_ctx.registrations.has_suppress_auto_engage(enemy_id):
+		return true
+	var template := RegistrationTemplate.suppress_auto_engage_until_fired(enemy_id)
+	template.controller_id = inv_id
+	var ok := _register_via_effect_seq(template)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:suppress_auto_engage",
+		{"enemy": enemy_id, "via": &"seq.effect.register", "ok": ok}
+	)
+	return ok
 
 
 func _resolve_enemy_spec(node: CompositionNode, controller_id: StringName) -> StringName:
@@ -857,14 +1059,25 @@ func _resolve_enemy_spec(node: CompositionNode, controller_id: StringName) -> St
 
 
 func _resolve_location_spec(node: CompositionNode, inv: InvestigatorState) -> StringName:
-	match node.location_target:
+	var spec := node.location_target
+	if str(spec).begins_with("memory:"):
+		var mem_key := StringName(str(spec).substr(7))
+		var controller := _ability_controller(_resolve_inv(node))
+		if controller == &"" and inv != null:
+			controller = inv.id
+		if _game_ctx != null and _game_ctx.memory != null and controller != &"":
+			var from_mem: Variant = _game_ctx.memory.get_referent(controller, mem_key)
+			if from_mem != null and str(from_mem) != "":
+				return StringName(str(from_mem))
+		return &""
+	match spec:
 		&"source_location", &"":
 			return _resolve_source_location(node, inv)
 		&"controller_location":
 			return inv.location_tag if inv != null else &""
 		_:
-			if _state != null and _state.registry.get_location(node.location_target) != null:
-				return node.location_target
+			if _state != null and _state.registry.get_location(spec) != null:
+				return spec
 			return _resolve_source_location(node, inv)
 
 
@@ -912,8 +1125,9 @@ func _execute_spend_clues_group(node: CompositionNode) -> bool:
 	return spent >= need
 
 
-func _execute_nest_move_connecting(node: CompositionNode) -> bool:
-	if _game_ctx == null or _state == null or _game_ctx.skill_tests == null:
+## 旧单 Atom：内嵌选地点（仅兼容；新编译勿用）。
+func _execute_nest_move_connecting_legacy(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null:
 		return false
 	var inv_id := _resolve_inv(node)
 	var inv := _state.registry.get_investigator(inv_id)
@@ -922,21 +1136,36 @@ func _execute_nest_move_connecting(node: CompositionNode) -> bool:
 	var current := _state.registry.get_location(inv.location_tag)
 	if current == null:
 		return false
-	var candidates: Array = []
+	var candidates: Array[StringName] = []
 	for conn in current.connections:
 		candidates.append(conn)
 	if candidates.is_empty():
 		return false
-	var dest_id: StringName = &""
+	var dest_id: StringName = candidates[0]
 	if _game_ctx.interaction != null:
 		var picked: Variant = _game_ctx.interaction.ask_pick_target(
 			candidates, inv_id, &"pick:move_connecting", _game_ctx
 		)
 		if picked != null:
-			dest_id = picked as StringName
-	elif candidates.size() == 1:
-		dest_id = candidates[0] as StringName
+			dest_id = StringName(str(picked))
+	return _perform_investigator_move(inv_id, dest_id)
+
+
+func _execute_nest_move_to(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null:
+		return false
+	var inv_id := _resolve_inv(node)
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return false
+	var dest_id := _resolve_location_spec(node, inv)
 	if dest_id == &"":
+		return false
+	return _perform_investigator_move(inv_id, dest_id)
+
+
+func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool:
+	if _game_ctx == null or _state == null or _game_ctx.skill_tests == null:
 		return false
 	var resolver := BasicActionResolver.new(_state, _game_ctx.skill_tests)
 	var move_result := resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
@@ -945,7 +1174,7 @@ func _execute_nest_move_connecting(node: CompositionNode) -> bool:
 	EngageFlow.nest_after_area_change(_game_ctx, dest_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
-		"composition:nest_move_connecting",
+		"composition:nest_move_to",
 		{"inv": inv_id, "destination": dest_id}
 	)
 	return true
@@ -1126,19 +1355,7 @@ func _execute_nest_place_clue(node: CompositionNode) -> bool:
 
 
 func _execute_nest_effect_register(node: CompositionNode) -> bool:
-	if node.register_template == null:
-		return false
-	var result := _nest_or_direct(
-		&"seq.effect.register",
-		{
-			"controller_id": node.register_template.controller_id,
-			"card_id": node.register_template.drawn_card_id,
-			"template": node.register_template,
-		}
-	)
-	if result.is_empty() and _registrations != null:
-		return _registrations.register(node.register_template) != &""
-	return bool(result.get("ok", false))
+	return _register_via_effect_seq(node.register_template)
 
 
 func _execute_nest_effect_unregister(node: CompositionNode) -> bool:
@@ -1255,8 +1472,27 @@ func _execute_if(node: CompositionNode) -> void:
 
 
 func _execute_register(node: CompositionNode) -> bool:
-	if node.register_template == null:
+	## 禁止真空 RegistrationStore：统一经 `seq.effect.register`。
+	var ok := _register_via_effect_seq(node.register_template)
+	_log.log(AhcEnums.LogCategory.ABILITY, "composition:register", {
+		"via": &"seq.effect.register",
+		"ok": ok,
+	})
+	return ok
+
+
+## 卡面 Buff 创建唯一落地：nest/run `seq.effect.register`（Catalog 缺失才直写 Store）。
+func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
+	if template == null:
 		return false
-	var reg_id := _registrations.register(node.register_template)
-	_log.log(AhcEnums.LogCategory.ABILITY, "composition:register", {"reg": reg_id})
-	return reg_id != &""
+	var result := _nest_or_direct(
+		&"seq.effect.register",
+		{
+			"controller_id": template.controller_id,
+			"card_id": template.drawn_card_id,
+			"template": template,
+		}
+	)
+	if result.is_empty() and _registrations != null:
+		return _registrations.register(template) != &""
+	return bool(result.get("ok", false))

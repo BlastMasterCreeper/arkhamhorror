@@ -69,17 +69,36 @@ static func build_composition(
 		"discard_source":
 			return CompositionNode.nest_discard_card(bind.card_id, bind.controller_id)
 		"no_provoke_aoo":
-			return CompositionNode.no_provoke_aoo()
+			return CompositionNode.no_provoke_aoo(bind.controller_id)
+		"leave_clues_at_location":
+			return CompositionNode.leave_clues_at_location(bind.controller_id)
+		"eliminate":
+			return CompositionNode.eliminate(bind.controller_id)
+		"set_flag":
+			return CompositionNode.set_flag(
+				bind.controller_id,
+				_flag_field_from_raw(params.get("field", "resigned")),
+				bool(params.get("value", true))
+			)
 		"resign":
+			## 兼容旧 JSON；新编译应已是 leave_clues → set_flag → eliminate。
 			return CompositionNode.resign(bind.controller_id)
 		"nest_resign":
 			return CompositionNode.nest_resign(bind.controller_id)
-		"pick_target":
+		"pick_target", "select", "pick_multi":
+			## 通用选择：filter 可为预设字符串或对象；见 21-selection-spec。
+			var sel_params := params.duplicate()
+			if template_id == "pick_multi" and not sel_params.has("max") and not sel_params.has("max_picks"):
+				sel_params["min_picks"] = int(sel_params.get("min_picks", sel_params.get("min", 1)))
+				sel_params["max_picks"] = int(sel_params.get("max_picks", sel_params.get("amount", 2)))
+			var spec := SelectionSpec.from_pick_target_params(sel_params)
+			if template_id == "select" or template_id == "pick_multi":
+				return CompositionNode.select_entities(bind.controller_id, spec, bind.card_id)
 			return CompositionNode.pick_target(
 				bind.controller_id,
-				StringName(str(params.get("filter", "enemy_at_connecting"))),
-				StringName(str(params.get("prompt_id", "pick:target"))),
-				StringName(str(params.get("memory_key", "picked_enemy"))),
+				spec,
+				spec.prompt_id,
+				spec.bind_key,
 				bind.card_id
 			)
 		"move_enemy_to":
@@ -95,19 +114,26 @@ static func build_composition(
 				StringName(str(params.get("enemy", "memory:picked_enemy"))),
 				bind.card_id
 			)
+		"suppress_auto_engage":
+			return CompositionNode.suppress_auto_engage(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
+				bind.card_id
+			)
 		"nest_enemy_move_to":
+			## 移入走正常 auto-engage 入口；抑制靠先前的 SUPPRESS_AUTO_ENGAGE 限制。
 			return CompositionNode.nest_enemy_move_to(
 				bind.controller_id,
 				StringName(str(params.get("enemy", "memory:picked_enemy"))),
 				StringName(str(params.get("location", "source_location"))),
-				bool(params.get("auto_engage", true)),
+				true,
 				bind.card_id
 			)
 		"nest_engage":
 			return CompositionNode.nest_engage(
 				bind.controller_id,
 				StringName(str(params.get("enemy", "memory:picked_enemy"))),
-				StringName(str(params.get("mode", "effect"))),
+				StringName(str(params.get("mode", params.get("engage_mode", "effect")))),
 				bind.card_id
 			)
 		"engage_from_connecting":
@@ -199,7 +225,16 @@ static func build_composition(
 		"exhaust_source":
 			return CompositionNode.exhaust_card(bind.card_id)
 		"nest_move_connecting":
-			return CompositionNode.nest_move_connecting(bind.controller_id)
+			## 兼容旧 JSON：展开为 select + nest_move_to。
+			return CompositionNode.move_to_connecting(bind.controller_id)
+		"nest_move_to", "move_to":
+			return CompositionNode.nest_move_to(
+				bind.controller_id,
+				StringName(str(params.get("location", params.get("destination", "memory:picked_location")))),
+				bind.card_id
+			)
+		"move_to_connecting":
+			return CompositionNode.move_to_connecting(bind.controller_id)
 		"lead_draw_topmost_encounter_discard_copy":
 			return CompositionNode.lead_draw_topmost_encounter_discard_copy(
 				StringName(str(params.get("definition_id", "12129")))
@@ -457,7 +492,19 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"location",
 		"investigator",
 		"translation",
+		"field",
+		"value",
+		"flow_id",
+		"mode",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]
 	return params
+
+
+static func _flag_field_from_raw(raw: Variant) -> AhcEnums.FlagField:
+	match str(raw).to_lower():
+		"eliminated":
+			return AhcEnums.FlagField.ELIMINATED
+		_:
+			return AhcEnums.FlagField.RESIGNED

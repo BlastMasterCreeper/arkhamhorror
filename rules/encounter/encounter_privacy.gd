@@ -14,9 +14,7 @@ static func register_leave_hand_restriction(
 	if game_ctx.registrations.has_hidden_leave_hand_restriction(card_id):
 		return
 	var template := RegistrationTemplate.hidden_in_hand(controller_id, card_id)
-	var node := CompositionNode.register(template)
-	node.provenance = AbilityUnitRef.from_framework(&"seq.encounter.revelation")
-	game_ctx.composition.execute(node)
+	CompositionMount.register_effect(game_ctx, template, controller_id, card_id)
 
 
 static func unregister_for_card(game_ctx: GameContext, card_id: StringName) -> void:

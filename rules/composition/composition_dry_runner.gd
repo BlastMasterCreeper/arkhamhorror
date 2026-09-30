@@ -11,12 +11,7 @@ func simulate(node: CompositionNode, sim: GameSimulator) -> DryRunResult:
 func _simulate_node(node: CompositionNode, sim: GameSimulator) -> bool:
 	match node.kind:
 		AhcEnums.CompositionNodeKind.SEQ:
-			var any := false
-			for child in node.children:
-				var created := _simulate_node(child, sim)
-				sim.last_step_created = created
-				any = any or created
-			return any
+			return _simulate_seq(node, sim)
 		AhcEnums.CompositionNodeKind.ATOM:
 			var created := _simulate_atom(node, sim)
 			sim.last_step_created = created
@@ -34,6 +29,43 @@ func _simulate_node(node: CompositionNode, sim: GameSimulator) -> bool:
 		AhcEnums.CompositionNodeKind.FOR_EACH:
 			return _simulate_for_each(node, sim)
 	return false
+
+
+func _simulate_seq(node: CompositionNode, sim: GameSimulator) -> bool:
+	var any := false
+	for i in node.children.size():
+		var child: CompositionNode = node.children[i]
+		_maybe_attach_viability_tail(child, node.children, i)
+		var created := _simulate_node(child, sim)
+		sim.last_step_created = created
+		any = any or created
+	return any
+
+
+func _maybe_attach_viability_tail(
+	child: CompositionNode, siblings: Array, index: int
+) -> void:
+	if child == null or child.kind != AhcEnums.CompositionNodeKind.ATOM:
+		return
+	if child.atom_name != &"pick_target" and child.atom_name != &"select":
+		return
+	var spec: SelectionSpec = child.selection_spec
+	if spec == null:
+		var fid := child.target_filter if child.target_filter != &"" else &"enemy_at_connecting"
+		spec = SelectionSpec.pick_entity(
+			CandidateFilter.from_preset(fid),
+			child.choice_prompt_id,
+			child.memory_key if child.memory_key != &"" else &"picked_enemy"
+		)
+		child.selection_spec = spec
+	if spec.skip_viability or spec.viability_tail != null:
+		return
+	var rest: Array[CompositionNode] = []
+	for j in range(index + 1, siblings.size()):
+		rest.append(siblings[j] as CompositionNode)
+	if rest.is_empty():
+		return
+	spec.viability_tail = rest[0] if rest.size() == 1 else CompositionNode.seq(rest)
 
 
 func _simulate_for_each(node: CompositionNode, sim: GameSimulator) -> bool:
@@ -54,6 +86,77 @@ func _resolve_sim_inv(node: CompositionNode, sim: GameSimulator) -> StringName:
 	if node.inv_id == CompositionNode.INV_EACH and sim.for_each_inv_override != &"":
 		return sim.for_each_inv_override
 	return node.inv_id
+
+
+func _resolve_sim_location_spec(
+	node: CompositionNode, sim: GameSimulator, inv: InvestigatorState
+) -> StringName:
+	var spec := node.location_target
+	if str(spec).begins_with("memory:"):
+		var mem_key := StringName(str(spec).substr(7))
+		var controller := _resolve_sim_inv(node, sim)
+		var from_mem: Variant = sim.get_referent(controller, mem_key)
+		if from_mem != null and str(from_mem) != "":
+			return StringName(str(from_mem))
+		return &""
+	match spec:
+		&"source_location", &"":
+			return inv.location_tag if inv != null else &""
+		&"controller_location":
+			return inv.location_tag if inv != null else &""
+		_:
+			if sim.state != null and sim.state.registry.get_location(spec) != null:
+				return spec
+			return inv.location_tag if inv != null else &""
+
+
+func _resolve_sim_enemy_spec(node: CompositionNode, sim: GameSimulator) -> StringName:
+	var spec := node.enemy_ref_id
+	var controller := _resolve_sim_inv(node, sim)
+	if spec == &"" or spec == &"memory:picked_enemy":
+		var key := node.memory_key if node.memory_key != &"" else &"picked_enemy"
+		var from_mem: Variant = sim.get_referent(controller, key)
+		if from_mem != null and str(from_mem) != "":
+			return StringName(str(from_mem))
+		return sim.last_step_enemy_id
+	if str(spec).begins_with("memory:"):
+		var mem_key := StringName(str(spec).substr(7))
+		var v: Variant = sim.get_referent(controller, mem_key)
+		if v != null and str(v) != "":
+			return StringName(str(v))
+		return sim.last_step_enemy_id
+	return spec
+
+
+## dry-run：U–S 枚举后可选 V；有合法候选即 CREATED（不经 Gate）。
+func _simulate_pick_target(node: CompositionNode, sim: GameSimulator) -> bool:
+	var pick_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+	if pick_inv == null:
+		return false
+	var spec: SelectionSpec = node.selection_spec
+	if spec == null:
+		var fid := node.target_filter if node.target_filter != &"" else &"enemy_at_connecting"
+		spec = SelectionSpec.pick_entity(
+			CandidateFilter.from_preset(fid),
+			node.choice_prompt_id,
+			node.memory_key if node.memory_key != &"" else &"picked_enemy"
+		)
+		node.selection_spec = spec
+	if spec.filter == null:
+		return false
+	var controller := _resolve_sim_inv(node, sim)
+	var candidates := CandidateEnumerator.enumerate_on_sim(
+		spec.filter, sim, controller, node.card_id
+	)
+	if not spec.skip_viability and spec.viability_tail != null and not candidates.is_empty():
+		candidates = CandidateViability.filter_viable_on_sim(
+			candidates, sim, controller, spec.bind_key, spec.viability_tail
+		)
+	if candidates.is_empty():
+		return false
+	sim.last_step_enemy_id = candidates[0]
+	sim.set_referent(controller, spec.bind_key, candidates[0])
+	return true
 
 
 ## Must resolve：返回 dry-run 下至少 CREATED 一项的分支下标（07 §4.2 · 16 §7.2.1）。
@@ -237,31 +340,83 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			exh.exhausted = true
 			return true
+		&"exhaust_enemy":
+			var exh_enemy_id := _resolve_sim_enemy_spec(node, sim)
+			if exh_enemy_id == &"" or sim.state == null:
+				return false
+			var exh_enemy := sim.state.registry.get_enemy(exh_enemy_id)
+			if exh_enemy == null or exh_enemy.exhausted:
+				return false
+			exh_enemy.exhausted = true
+			sim.last_step_enemy_id = exh_enemy_id
+			return true
+		&"deal_damage_enemy":
+			var dmg_enemy_id := _resolve_sim_enemy_spec(node, sim)
+			if dmg_enemy_id == &"" or sim.state == null:
+				return false
+			var dmg_enemy := sim.state.registry.get_enemy(dmg_enemy_id)
+			if dmg_enemy == null:
+				return false
+			dmg_enemy.damage += maxi(node.marker_delta, 1)
+			sim.last_step_enemy_id = dmg_enemy_id
+			return true
+		&"disengage_enemy":
+			var dis_enemy_id := _resolve_sim_enemy_spec(node, sim)
+			if dis_enemy_id == &"" or sim.state == null:
+				return false
+			var dis_enemy := sim.state.registry.get_enemy(dis_enemy_id)
+			if dis_enemy == null or dis_enemy.engaged_with == &"":
+				return false
+			var holder := sim.state.registry.get_investigator(dis_enemy.engaged_with)
+			if holder != null:
+				holder.threat_area.erase(dis_enemy_id)
+			dis_enemy.engaged_with = &""
+			sim.last_step_enemy_id = dis_enemy_id
+			return true
 		&"no_provoke_aoo":
-			## 纯声明，不 CREATED；dry-run 由后续效果叶决定合法性。
-			return false
+			## 镜像 `seq.effect.register` CREATED（dry-run 不压栈；行动开始挂载等价）。
+			var skip_ctrl := _resolve_sim_inv(node, sim)
+			if sim.registrations != null and skip_ctrl != &"":
+				sim.registrations.register(
+					RegistrationTemplate.skip_aoo_for_action(skip_ctrl)
+				)
+			return true
+		&"leave_clues_at_location":
+			var leave_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if leave_inv == null or leave_inv.eliminated:
+				return false
+			if leave_inv.clues_on_card <= 0 or leave_inv.location_tag == &"":
+				return false
+			var leave_loc := sim.state.registry.get_location(leave_inv.location_tag)
+			if leave_loc == null:
+				return false
+			leave_loc.clues += leave_inv.clues_on_card
+			leave_inv.clues_on_card = 0
+			return true
+		&"eliminate":
+			var elim_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if elim_inv == null or elim_inv.eliminated:
+				return false
+			elim_inv.eliminated = true
+			return true
 		&"resign", &"nest_resign":
+			## 兼容旧单 Atom；新树应为 leave_clues → set_flag → eliminate。
 			var resign_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			return resign_inv != null and not resign_inv.eliminated and not resign_inv.resigned
-		&"pick_target":
-			var pick_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
-			if pick_inv == null or pick_inv.location_tag == &"":
+		&"pick_target", &"select":
+			return _simulate_pick_target(node, sim)
+		&"suppress_auto_engage":
+			## 镜像 `seq.effect.register` CREATED（dry-run 不压栈）。
+			var sup_enemy := sim.last_step_enemy_id
+			var sup_spec := str(node.enemy_ref_id)
+			if sup_spec != "" and not sup_spec.begins_with("memory:"):
+				sup_enemy = node.enemy_ref_id
+			if sup_enemy == &"" or sim.state.registry.get_enemy(sup_enemy) == null:
 				return false
-			if node.target_filter == &"enemy_at_connecting":
-				## 与 executor：优先来源地点卡，否则控制者所在地点。
-				var here_id := pick_inv.location_tag
-				if node.card_id != &"" and sim.state.registry.get_location(node.card_id) != null:
-					here_id = node.card_id
-				var pick_loc := sim.state.registry.get_location(here_id)
-				if pick_loc == null:
-					return false
-				for conn in pick_loc.connections:
-					for enemy_id in sim.state.registry.all_enemy_ids():
-						var enemy := sim.state.registry.get_enemy(enemy_id)
-						if enemy != null and enemy.location_tag == conn and not enemy.massive:
-							sim.last_step_enemy_id = enemy_id
-							return true
-				return false
+			if sim.registrations != null:
+				var sup_t := RegistrationTemplate.suppress_auto_engage_until_fired(sup_enemy)
+				sup_t.controller_id = _resolve_sim_inv(node, sim)
+				sim.registrations.register(sup_t)
 			return true
 		&"move_enemy_to", &"engage_target", &"nest_enemy_move_to", &"nest_engage":
 			var move_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
@@ -293,6 +448,17 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			var from_loc := sim.state.registry.get_location(move_free_inv.location_tag)
 			return from_loc != null and not from_loc.connections.is_empty()
+		&"nest_move_to":
+			var move_to_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if move_to_inv == null:
+				return false
+			var dest := _resolve_sim_location_spec(node, sim, move_to_inv)
+			if dest == &"" or dest == move_to_inv.location_tag:
+				return false
+			if sim.state.registry.get_location(dest) == null:
+				return false
+			move_to_inv.location_tag = dest
+			return true
 		&"nest_gain_resource":
 			if sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null:
 				return true

@@ -76,6 +76,10 @@ func get_referents(controller_id: StringName) -> Dictionary:
 	return bucket.duplicate()
 
 
+func duplicate_referents() -> Dictionary:
+	return _referents.duplicate(true)
+
+
 func phase_label(phase: AhcEnums.SequencePhase) -> String:
 	match phase:
 		AhcEnums.SequencePhase.WHEN:

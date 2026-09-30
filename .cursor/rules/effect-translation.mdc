@@ -168,12 +168,16 @@ AbilitySpec
 - **Instead / Would** → Composition 的 Replace 节点 nest **`seq.replace.instead`** + `ReplacementTarget` + `replacement` 载荷（[07 §7.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*InsteadPolicy`。
 - **Cancel encounter revelation** → 仅注销 G3 显现；**G4 仍 discard** 至 encounter discard（FAQ · [07 §6.0.1](docs/design/07-effect-resolution.md)）。
 - **Cannot** → Register RESTRICTION + [06 §16](docs/design/06-registration-buff-model.md) Intent 入口。
+- **限制类 Buff 原流程分支**（如「does not provoke AOO」→ `SKIP_AOO`；「移入后 engages you」→ `SUPPRESS_AUTO_ENGAGE`）：Register **RESTRICTION**；在规范入口（INIT_2B / auto-engage）由 **原流程读取** 后自行改道。**不是** LISTENER，**不是** Cancel/Ignore，**不是**在翻译 JSON 里塞 `auto_engage:false` 开关。见 [06 §16.4](docs/design/06-registration-buff-model.md)。「engages you」仍须 nest `seq.engage` mode=effect：冷漠/横置不走 auto；**禁止**用 forced-auto WHO 或把 auto 挪到 After 替代（[20 §4.2.1](docs/design/20-card-translation-schema.md)）。
+- **Buff 创建落地**：卡面创建（含具名限制糖）一律经 **`seq.effect.register`**（效果体 nest；Initiation 挂 `SKIP_AOO` 用 `catalog.run`）。**禁止**解释器/管线真空 `RegistrationStore.register`（[20 §4.1](docs/design/20-card-translation-schema.md)）。
 - 薄 facade 仅 `catalog.run(flow_id, params)`。
 - 冲突：07 §3.2–§3.4（Cannot / 竞争 / tier / Silver Rule）。
 
 ## ArkhamDB 编译（`tools/arkhamdb_abilities.py`）
 
 - 卡面 effect 段编译为 **Composition 树**（控制流 + 内联叶子 / nest 已有 seq / PI 确认规格）；**禁止** 多步糖 Atom。
+- **字段与构件词汇**（目标确认 / Buff 创建 / nest `flow_id` / 效果参数指称）见 **[20-card-translation-schema](docs/design/20-card-translation-schema.md)**：白名单增长、禁机制布尔、`memory:` 生产/消费。
+- **通用玩家选择**（单/多实体、特性·关键词·横置、效果支、是否发动）见 **[21-selection-spec](docs/design/21-selection-spec.md)**：`SelectionSpec` + `CandidateFilter` + `ChoiceBind`；经 Gate，不 nest `seq.choose.*`。
 - **优先复用**已有 template / condition / `if_kind` / `evaluate` 锚点（07 §3.3、15 §17、已竖切卡如 12126/12160）。
 - **能拆就拆**：timing · condition · cost · effect · **PI 确认** 分编译单元；禁止无先例的新语义 atom。
 - **无可参考先例时**：先查设计文档与 imported JSON 同类卡；仍无法归类再询问是否扩展编译器。

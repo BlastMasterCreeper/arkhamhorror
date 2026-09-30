@@ -2,7 +2,8 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility / ResponseWindow）、[07-composition.md](07-composition.md)（Choice / Optional）、[14-nested-sequences.md](14-nested-sequences.md)（同窗口多响应）、[00-architecture-overview.md](../00-architecture-overview.md)  
 > **规则来源**：Grimoire Initiation、Effects · Target、Simultaneously；ArkhamDB RR · Lead Investigator / Choices  
-> **状态**：v0.3.0 · 2026-09-28 — 有限期确认 + 默认；PI ≠ nest/内联
+> **状态**：v0.4.1 · 2026-09-29 — 目标选择须 V 层 dry-run（状态可改变 · [21 §3.1.4](21-selection-spec.md)）  
+> **选择规格**：[21-selection-spec.md](21-selection-spec.md)
 
 ---
 
@@ -191,8 +192,8 @@ Headless：`DefaultChoiceResolver` / `ScriptingChoiceResolver` 在无脚本应�
 
 | 交互 | Kind | 决策者 | 要点 |
 |---|---|---|---|
-| choose **1** enemy/inv/location | `PICK_TARGET` | 控制者 | Target 段；L7 预筛合法集 |
-| choose **N / up to N / any number** | `PICK_MULTI` | 控制者 | min_picks / max_picks |
+| choose **1** enemy/inv/location | `PICK_TARGET` | 控制者 | Target 段；候选管线 U–R + **V dry-run**（目标状态须能被改变 · [21 §3.1.4](21-selection-spec.md)） |
+| choose **N / up to N / any number** | `PICK_MULTI` | 控制者 | min_picks / max_picks；同样经 V |
 | Search 顶 X **拿哪些** | `SEARCH_TAKE` | 控制者 | 未拿的 **回置顺序** 可另 ask |
 | **Choice** 分支（卡面「或」） | `PICK_OPTION` | 控制者 | dry-run OR；resolve 单选 |
 | **Optional** 子树 | `OPTIONAL_EFFECT` | 控制者 | |
@@ -232,7 +233,7 @@ Headless：`DefaultChoiceResolver` / `ScriptingChoiceResolver` 在无脚本应�
 | Hunter **等距** 多 inv | `TIE_BREAK` | **队长** | 或 prey 最佳者 |
 | Prey 指令 **多人并列** | `TIE_BREAK` | **队长** | |
 | 自动 engage **多人并列** | `TIE_BREAK` | **队长** | spawn / move 后 |
-| Fight/Evade/Engage **选哪个敌人** | `PICK_TARGET` | 调查员 | Action 入口已带 target 时可省略 |
+| Fight/Evade/Engage **选哪个敌人** | `PICK_TARGET`（常为**隐式目标**） | 调查员 | 文本未必写 Target；与 Attack / evasion attempt 同构；无合法 → 整行动 L7 失败（[21 §3.2](21-selection-spec.md)） |
 
 ### 5.8 Cancel · Instead · Silver · Grim
 
@@ -453,6 +454,7 @@ seq.encounter.revelation
 | P0 | `DefaultChoiceResolver` / `ScriptingChoiceResolver` | 骨架 |
 | P0 | **有限期确认 + default_***（§3.1） | 规格已裁；实现待接 |
 | P0 | **§5 完整目录**（本文件） | v0.2 |
+| P0 | **SelectionSpec / CandidateFilter / ChoiceBind**（[21](21-selection-spec.md)） | ✅ 骨架；`pick_target`/`select` 已接 Enumerator |
 | P1 | ResponseWindow：`USE_ABILITY` + `ORDER_SIMULTANEOUS` | 待接 |
 | P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | 待接 |
 | P1 | ST.2 `COMMIT_TO_TEST` + 检定窗 `USE_ABILITY` | 待接 |
@@ -484,6 +486,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-29 | v0.4.0 | 挂接 [21-selection-spec](21-selection-spec.md)：通用 filter / 基数 / Memory bind |
 | 2026-09-28 | v0.3.0 | **§1.1 / §3.1**：玩家选择=有限期确认+默认；≠ nest/内联；ChoiceRequest 加 deadline |
 | 2026-09-21 | v0.2.1 | §2：Gate 的答不写进 Composition 树；指称进 RulesMemory（07 §1.4） |
 | 2026-06-18 | v0.2 | **§5 完整交互目录**（10 域）；扩展 `ChoiceKind`；决策者矩阵 |

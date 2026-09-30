@@ -493,20 +493,19 @@ def compile_resign(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not RESIGN_ABILITY.match(text):
         return None
-    # 应展尽展：同帧内联撤退 L0（§4.0.5 无新时点锚 → 不 nest）。
-    steps: list[dict[str, Any]] = []
-    if NO_AOO_PHRASE.search(text):
-        steps.append({"template": "no_provoke_aoo"})
-    steps.append({"template": "resign"})
-    entry: dict[str, Any] = {
+    # Resign 类型本身不借机；卡面「does not provoke…」只是复述，不另挂 SKIP_AOO。
+    # 信封：nest seq.effect.resign（after_resign 可听）。叙事句不译效果。
+    return {
         "template": "seq",
         "action_types": ["activate", "resign"],
-        "steps": steps,
+        "steps": [
+            {
+                "template": "nest_resign",
+                "flow_id": "seq.effect.resign",
+            }
+        ],
         "translation": "full_expand",
     }
-    if NO_AOO_PHRASE.search(text):
-        entry["provokes_aoo"] = False
-    return entry
 
 
 def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
@@ -533,11 +532,28 @@ def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_move_to_connecting_steps() -> list[dict[str, Any]]:
+    """PI 选连接地点 + nest 移动（无内嵌 Gate；清 nest_move_connecting 债）。"""
+    return [
+        {
+            "template": "pick_target",
+            "filter": "location_connecting",
+            "prompt_id": "pick:move_connecting",
+            "memory_key": "picked_location",
+        },
+        {
+            "template": "nest_move_to",
+            "location": "memory:picked_location",
+        },
+    ]
+
+
 def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
-    # 应展尽展：不借机声明 → PI → 内联移入 → 内联交战（§4.0.5 连续 then）。
+    # SKIP_AOO → PI → 限制类抑制自动交战 → nest move（仍走 auto-engage 入口）→ nest 明示交战。
+    # 移入后按常识会尝试自动交战；SUPPRESS_AUTO_ENGAGE 在该入口读取后分支，改由 nest seq.engage。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
@@ -550,27 +566,30 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
                 "memory_key": "picked_enemy",
             },
             {
-                "template": "move_enemy_to",
+                "template": "suppress_auto_engage",
+                "enemy": "memory:picked_enemy",
+            },
+            {
+                "template": "nest_enemy_move_to",
+                "flow_id": "seq.enemy.move",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
             },
             {
-                "template": "engage_target",
+                "template": "nest_engage",
+                "flow_id": "seq.engage",
                 "enemy": "memory:picked_enemy",
                 "investigator": "controller",
+                "mode": "effect",
             },
         ]
     )
-    entry: dict[str, Any] = {
+    return {
         "template": "seq",
         "action_types": ["activate", "engage"],
         "translation": "full_expand",
         "steps": steps,
     }
-    # Engage 默认会借机；卡面「does not provoke…」→ 覆盖为 false（Initiation 读此字段）。
-    if NO_AOO_PHRASE.search(text):
-        entry["provokes_aoo"] = False
-    return entry
 
 
 def compile_parley_discard_bystander(body: str) -> dict[str, Any] | None:
@@ -936,10 +955,11 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             "ability_kind": "free",
             "window": "during_your_turn",
             "status": "full",
+            "translation": "full_expand",
             "template": "seq",
             "steps": [
                 {"template": "exhaust_source"},
-                {"template": "nest_move_connecting"},
+                *compile_move_to_connecting_steps(),
             ],
         }
     if FAST_DURING_TURN_MOVE_INV_COUNT.match(body):
@@ -951,8 +971,10 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             "ability_kind": "free",
             "window": "during_your_turn",
             "status": "partial",
+            "translation": "full_expand",
             "condition": "investigators_in_game_1_or_2",
-            "template": "nest_move_connecting",
+            "template": "seq",
+            "steps": compile_move_to_connecting_steps(),
         }
     group_clues = compile_group_spend_clues_deal_damage(body)
     if group_clues is not None:
@@ -1156,9 +1178,22 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
             if (
                 len(steps) >= 2
                 and first.get("template") == "exhaust_source"
-                and steps[1].get("template") == "nest_move_connecting"
+                and (
+                    steps[1].get("template") == "nest_move_connecting"
+                    or (
+                        steps[1].get("template") == "pick_target"
+                        and steps[1].get("filter") == "location_connecting"
+                    )
+                )
             ):
                 return "During your turn, exhaust …: Move to a connecting location."
+            if (
+                len(steps) >= 2
+                and first.get("template") == "pick_target"
+                and first.get("filter") == "location_connecting"
+                and steps[1].get("template") == "nest_move_to"
+            ):
+                return "Move to a connecting location."
         return "Place 1 doom on the nearest enemy…"
     if template == "choice_must":
         prompt = str(compiled.get("prompt_id", ""))

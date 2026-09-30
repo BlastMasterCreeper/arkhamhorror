@@ -184,6 +184,7 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - Intellect test vs location shroud
 - 成功：discover 1 clue（即使 location 0 clue 也可 investigate，Grimoire）
+- **隐式地点**：默认所在地；无地点 / 不在该地 → 发起失败（付费前；[21 §3.2.2](21-selection-spec.md)）
 
 ### 6.6 Engage
 
@@ -196,10 +197,20 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - 仅 engaged with self 的 enemy
 - Agility vs evade；成功 → exhaust + disengage to location
+- **隐式目标**：默认伴随 **躲避尝试（evasion attempt）** 检定，敌人目标与明示 Target 同构（[21 §3.2](21-selection-spec.md)）
+- **基础 Evade**：无合法敌人 → 整行动不能发起；**多步 Evade 能力**见 21 §3.2.1
+- **例外**：「automatically evade」不做检定 / 不要求成功躲避语义；极少卡面取消衍生检定者按文本
 
 ### 6.8 Fight（已裁决 OQ-03-01）
 
 **以 Grimoire（魔典书）为准**；Rulebook 入门描述仅为简化。
+
+**隐式目标**：Fight 衍生 **攻击（Attack）**（通常为 combat 检定）；文本未必写 Target/choose，仍须合法敌人（[21 §3.2](21-selection-spec.md)）。
+
+| 形态 | 发起 L7 |
+|---|---|
+| **基础 Fight** | 无合法攻击目标 → 整行动不可发起 |
+| **Fight 能力含前置效果**（如先 choose 移动再 Attack） | 整树 dry-run：移动等能 CREATED → **可通过** L7，即使目的地无敌人、随后 Attack 不能发（[21 §3.2.1](21-selection-spec.md)） |
 
 **默认合法目标**（基础 Fight 行动）：performing investigator **当前地点**上的敌人，包括：
 
@@ -306,6 +317,8 @@ class ActionSystem:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-29 | v0.5.4 | §6.8：Fight 前置移动可过 L7；Attack 无目标只挡衍生步（21 §3.2.1） |
+| 2026-09-29 | v0.5.3 | §6.7–6.8：Fight/Evade **隐式目标**与 21 §3.2 对齐 |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-03-01 裁决：Fight 目标以 Grimoire 同地点为准 |
 | 2026-05-25 | v0.3 | OQ-03-02 裁决：EnemyAttack 统一攻击效果层 |

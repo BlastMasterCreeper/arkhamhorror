@@ -276,6 +276,14 @@ enum RestrictionKind {
 	FORBID_TRIGGER,
 	FORBID_COMMIT_TO_TEST,
 	FORBID_LEAVE_HAND,
+	## 限制类：卡面「This action does not provoke attacks of opportunity」。
+	## 行动开始 Register；INIT_2B 由 AOO **原流程读取** 后自行分支（不跑借机）。
+	## 不是 LISTENER，不是 Cancel/Ignore。
+	SKIP_AOO,
+	## 限制类：抑制 **自动交战**（Prey/Lead 选目标）。
+	## 效果移入后仍会走到 auto-engage 入口；入口 **读取** 本限制后自行跳过。
+	## 明示交战（seq.engage mode=effect/action）不受影响。
+	SUPPRESS_AUTO_ENGAGE,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }

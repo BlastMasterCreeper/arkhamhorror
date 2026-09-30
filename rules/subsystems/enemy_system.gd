@@ -134,6 +134,13 @@ func auto_engage_at_location(
 		return {"ok": true, "skipped": true}
 	if enemy.exhausted or enemy.auto_engage_suppressed:
 		return {"ok": true, "skipped": true}
+	## 限制类 Buff：原流程读取后跳过自动交战（明示交战不受影响）。
+	if (
+		game_ctx != null
+		and game_ctx.registrations != null
+		and game_ctx.registrations.read_suppress_auto_engage(enemy_id)
+	):
+		return {"ok": true, "skipped": true, "restricted_by_suppress_auto_engage": true}
 	var candidates := _investigators_at_location(location_tag)
 	if candidates.is_empty():
 		return {"ok": true, "skipped": true}

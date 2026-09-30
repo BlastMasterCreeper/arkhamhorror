@@ -47,6 +47,32 @@ static func delayed_listener(
 	return t
 
 
+## 限制类 SKIP_AOO：行动开始 Register；INIT_2B 入口读取后卸掉。
+## 非 LISTENER（无 Catalog emit）；非 Cancel/Ignore。
+static func skip_aoo_for_action(controller_id: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = controller_id
+	## 与延时 LISTENER 的 UNTIL_FIRED 同枚举，语义是「入口读完即卸」，不是 listener 开火。
+	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
+	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.skip_aoo(controller_id)))
+	return t
+
+
+## @deprecated 使用 skip_aoo_for_action
+static func skip_aoo_until_fired(controller_id: StringName) -> RegistrationTemplate:
+	return skip_aoo_for_action(controller_id)
+
+
+## 限制类 SUPPRESS_AUTO_ENGAGE：效果移入前 Register；auto-engage 入口读取后卸掉。
+static func suppress_auto_engage_until_fired(enemy_id: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
+	t.drawn_card_id = enemy_id
+	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.suppress_auto_engage(enemy_id)))
+	return t
+
+
 ## G2 peril Register：`WHILE_DRAWN_CARD_RESOLVING(card_id)` — G4 完 Unregister；不跨 Surge。
 static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()

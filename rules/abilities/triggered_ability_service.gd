@@ -233,20 +233,13 @@ func _resolve_forced(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
 func _execute_composition_on_stack(descriptor: TriggeredAbilityDescriptor) -> void:
 	if descriptor == null or descriptor.composition == null or _ctx == null:
 		return
-	if (
-		_ctx.sequence_catalog != null
-		and _ctx.sequence_catalog.has_flow(&"seq.ability.resolve")
+	if CompositionMount.resolve_ability(
+		_ctx,
+		descriptor.composition,
+		_effective_controller(descriptor),
+		descriptor.id,
+		descriptor.source_id
 	):
-		_ctx.sequence_catalog.nest(
-			_ctx,
-			&"seq.ability.resolve",
-			{
-				"composition": descriptor.composition,
-				"controller_id": _effective_controller(descriptor),
-				"ability_id": descriptor.id,
-				"source_id": descriptor.source_id,
-			}
-		)
 		return
 	if _ctx.composition != null:
 		_ctx.composition.execute(descriptor.composition)
@@ -291,7 +284,7 @@ func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 			AhcEnums.ActionType.ACTIVATE,
 			action_types
 		)
-		## 尊重卡面覆盖（Engage 默认会借机；仅显式豁免时为 false）。
+		## 类型层判定；卡面「does not provoke…」靠限制类 SKIP_AOO（INIT_2B 读取分支）。
 		intent.provokes_aoo = descriptor.provokes_aoo()
 	else:
 		intent = InitiationIntent.ability(controller_id, descriptor.composition)

@@ -17,8 +17,7 @@
       "by_template": {
         "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "seq": 10,
-        "nest_move_connecting": 1,
+        "seq": 11,
         "discard_from_hand": 2,
         "draw": 2,
         "discard_card": 1,
@@ -415,14 +414,11 @@
         "template": "seq",
         "steps": [
           {
-            "template": "no_provoke_aoo"
-          },
-          {
-            "template": "resign"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
-        "translation": "full_expand",
-        "provokes_aoo": false
+        "translation": "full_expand"
       }
     ]
   },
@@ -489,17 +485,23 @@
             "memory_key": "picked_enemy"
           },
           {
-            "template": "move_enemy_to",
+            "template": "suppress_auto_engage",
+            "enemy": "memory:picked_enemy"
+          },
+          {
+            "template": "nest_enemy_move_to",
+            "flow_id": "seq.enemy.move",
             "enemy": "memory:picked_enemy",
             "location": "source_location"
           },
           {
-            "template": "engage_target",
+            "template": "nest_engage",
+            "flow_id": "seq.engage",
             "enemy": "memory:picked_enemy",
-            "investigator": "controller"
+            "investigator": "controller",
+            "mode": "effect"
           }
-        ],
-        "provokes_aoo": false
+        ]
       }
     ]
   },
@@ -625,8 +627,21 @@
         "ability_kind": "free",
         "window": "during_your_turn",
         "status": "partial",
+        "translation": "full_expand",
         "condition": "investigators_in_game_1_or_2",
-        "template": "nest_move_connecting"
+        "template": "seq",
+        "steps": [
+          {
+            "template": "pick_target",
+            "filter": "location_connecting",
+            "prompt_id": "pick:move_connecting",
+            "memory_key": "picked_location"
+          },
+          {
+            "template": "nest_move_to",
+            "location": "memory:picked_location"
+          }
+        ]
       }
     ]
   },
@@ -1648,7 +1663,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
@@ -1703,7 +1719,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
@@ -3818,7 +3835,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"

@@ -138,3 +138,29 @@ func ask_pick_target(
 	if pick == null:
 		return candidates[0]
 	return pick
+
+
+## 通用选择：按 SelectionSpec 建 ChoiceRequest，确认后由调用方 ChoiceBind。
+func ask_selection(
+	spec: SelectionSpec,
+	candidates: Array,
+	controller_id: StringName,
+	ctx: GameContext
+) -> Variant:
+	if spec == null or candidates.is_empty():
+		return null
+	var decider := controller_id
+	if spec.decider == &"lead" and ctx != null and ctx.state != null:
+		var lead: StringName = ctx.state.lead_investigator_id
+		if lead != &"":
+			decider = lead
+	## 单选且唯一候选 → 默认确认（仍返回值供 bind）。
+	if spec.max_picks <= 1 and candidates.size() == 1:
+		return candidates[0]
+	var req := spec.to_choice_request(candidates, decider)
+	var pick: Variant = ask(req, ctx)
+	if pick == null:
+		if spec.default_policy == &"skip":
+			return null
+		return candidates[0] if spec.max_picks <= 1 else [candidates[0]]
+	return pick
