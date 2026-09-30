@@ -17,8 +17,7 @@
       "by_template": {
         "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "seq": 10,
-        "nest_move_connecting": 1,
+        "seq": 11,
         "discard_from_hand": 2,
         "draw": 2,
         "discard_card": 1,
@@ -628,8 +627,21 @@
         "ability_kind": "free",
         "window": "during_your_turn",
         "status": "partial",
+        "translation": "full_expand",
         "condition": "investigators_in_game_1_or_2",
-        "template": "nest_move_connecting"
+        "template": "seq",
+        "steps": [
+          {
+            "template": "pick_target",
+            "filter": "location_connecting",
+            "prompt_id": "pick:move_connecting",
+            "memory_key": "picked_location"
+          },
+          {
+            "template": "nest_move_to",
+            "location": "memory:picked_location"
+          }
+        ]
       }
     ]
   },

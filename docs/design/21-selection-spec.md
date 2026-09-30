@@ -396,7 +396,7 @@ bind:
 | **隐式目标** Fight/Evade/Investigate（§3.2） | ✅ 基础行动：`ImplicitActionTargets` + preset filter + V（Investigate 仅所在地预检） |
 | `pick_multi` / 特性·关键词·横置全量 | 增量 |
 | `choice_optional` 编译糖 | 待扩 |
-| 12116 内嵌 PI 拆为独立 select | 债（19 §3.1） |
+| 12116 内嵌 PI 拆为独立 select | ✅ `pick_target` + `nest_move_to`（19 §3.1） |
 
 ---
 

@@ -225,7 +225,16 @@ static func build_composition(
 		"exhaust_source":
 			return CompositionNode.exhaust_card(bind.card_id)
 		"nest_move_connecting":
-			return CompositionNode.nest_move_connecting(bind.controller_id)
+			## 兼容旧 JSON：展开为 select + nest_move_to。
+			return CompositionNode.move_to_connecting(bind.controller_id)
+		"nest_move_to", "move_to":
+			return CompositionNode.nest_move_to(
+				bind.controller_id,
+				StringName(str(params.get("location", params.get("destination", "memory:picked_location")))),
+				bind.card_id
+			)
+		"move_to_connecting":
+			return CompositionNode.move_to_connecting(bind.controller_id)
 		"lead_draw_topmost_encounter_discard_copy":
 			return CompositionNode.lead_draw_topmost_encounter_discard_copy(
 				StringName(str(params.get("definition_id", "12129")))

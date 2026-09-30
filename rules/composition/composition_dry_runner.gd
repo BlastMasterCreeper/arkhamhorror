@@ -88,6 +88,28 @@ func _resolve_sim_inv(node: CompositionNode, sim: GameSimulator) -> StringName:
 	return node.inv_id
 
 
+func _resolve_sim_location_spec(
+	node: CompositionNode, sim: GameSimulator, inv: InvestigatorState
+) -> StringName:
+	var spec := node.location_target
+	if str(spec).begins_with("memory:"):
+		var mem_key := StringName(str(spec).substr(7))
+		var controller := _resolve_sim_inv(node, sim)
+		var from_mem: Variant = sim.get_referent(controller, mem_key)
+		if from_mem != null and str(from_mem) != "":
+			return StringName(str(from_mem))
+		return &""
+	match spec:
+		&"source_location", &"":
+			return inv.location_tag if inv != null else &""
+		&"controller_location":
+			return inv.location_tag if inv != null else &""
+		_:
+			if sim.state != null and sim.state.registry.get_location(spec) != null:
+				return spec
+			return inv.location_tag if inv != null else &""
+
+
 func _resolve_sim_enemy_spec(node: CompositionNode, sim: GameSimulator) -> StringName:
 	var spec := node.enemy_ref_id
 	var controller := _resolve_sim_inv(node, sim)
@@ -426,6 +448,17 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			var from_loc := sim.state.registry.get_location(move_free_inv.location_tag)
 			return from_loc != null and not from_loc.connections.is_empty()
+		&"nest_move_to":
+			var move_to_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+			if move_to_inv == null:
+				return false
+			var dest := _resolve_sim_location_spec(node, sim, move_to_inv)
+			if dest == &"" or dest == move_to_inv.location_tag:
+				return false
+			if sim.state.registry.get_location(dest) == null:
+				return false
+			move_to_inv.location_tag = dest
+			return true
 		&"nest_gain_resource":
 			if sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null:
 				return true

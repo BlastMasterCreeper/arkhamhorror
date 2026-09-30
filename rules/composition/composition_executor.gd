@@ -388,7 +388,10 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"spend_clues_group":
 			return _execute_spend_clues_group(node)
 		&"nest_move_connecting":
-			return _execute_nest_move_connecting(node)
+			## 兼容旧单 Atom；新树应为 select + nest_move_to。
+			return _execute_nest_move_connecting_legacy(node)
+		&"nest_move_to":
+			return _execute_nest_move_to(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
 		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
@@ -1056,14 +1059,25 @@ func _resolve_enemy_spec(node: CompositionNode, controller_id: StringName) -> St
 
 
 func _resolve_location_spec(node: CompositionNode, inv: InvestigatorState) -> StringName:
-	match node.location_target:
+	var spec := node.location_target
+	if str(spec).begins_with("memory:"):
+		var mem_key := StringName(str(spec).substr(7))
+		var controller := _ability_controller(_resolve_inv(node))
+		if controller == &"" and inv != null:
+			controller = inv.id
+		if _game_ctx != null and _game_ctx.memory != null and controller != &"":
+			var from_mem: Variant = _game_ctx.memory.get_referent(controller, mem_key)
+			if from_mem != null and str(from_mem) != "":
+				return StringName(str(from_mem))
+		return &""
+	match spec:
 		&"source_location", &"":
 			return _resolve_source_location(node, inv)
 		&"controller_location":
 			return inv.location_tag if inv != null else &""
 		_:
-			if _state != null and _state.registry.get_location(node.location_target) != null:
-				return node.location_target
+			if _state != null and _state.registry.get_location(spec) != null:
+				return spec
 			return _resolve_source_location(node, inv)
 
 
@@ -1111,8 +1125,9 @@ func _execute_spend_clues_group(node: CompositionNode) -> bool:
 	return spent >= need
 
 
-func _execute_nest_move_connecting(node: CompositionNode) -> bool:
-	if _game_ctx == null or _state == null or _game_ctx.skill_tests == null:
+## 旧单 Atom：内嵌选地点（仅兼容；新编译勿用）。
+func _execute_nest_move_connecting_legacy(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null:
 		return false
 	var inv_id := _resolve_inv(node)
 	var inv := _state.registry.get_investigator(inv_id)
@@ -1121,21 +1136,36 @@ func _execute_nest_move_connecting(node: CompositionNode) -> bool:
 	var current := _state.registry.get_location(inv.location_tag)
 	if current == null:
 		return false
-	var candidates: Array = []
+	var candidates: Array[StringName] = []
 	for conn in current.connections:
 		candidates.append(conn)
 	if candidates.is_empty():
 		return false
-	var dest_id: StringName = &""
+	var dest_id: StringName = candidates[0]
 	if _game_ctx.interaction != null:
 		var picked: Variant = _game_ctx.interaction.ask_pick_target(
 			candidates, inv_id, &"pick:move_connecting", _game_ctx
 		)
 		if picked != null:
-			dest_id = picked as StringName
-	elif candidates.size() == 1:
-		dest_id = candidates[0] as StringName
+			dest_id = StringName(str(picked))
+	return _perform_investigator_move(inv_id, dest_id)
+
+
+func _execute_nest_move_to(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null:
+		return false
+	var inv_id := _resolve_inv(node)
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return false
+	var dest_id := _resolve_location_spec(node, inv)
 	if dest_id == &"":
+		return false
+	return _perform_investigator_move(inv_id, dest_id)
+
+
+func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool:
+	if _game_ctx == null or _state == null or _game_ctx.skill_tests == null:
 		return false
 	var resolver := BasicActionResolver.new(_state, _game_ctx.skill_tests)
 	var move_result := resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
@@ -1144,7 +1174,7 @@ func _execute_nest_move_connecting(node: CompositionNode) -> bool:
 	EngageFlow.nest_after_area_change(_game_ctx, dest_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
-		"composition:nest_move_connecting",
+		"composition:nest_move_to",
 		{"inv": inv_id, "destination": dest_id}
 	)
 	return true

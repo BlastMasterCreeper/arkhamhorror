@@ -1666,16 +1666,19 @@ func _test_adb_compile_olivier_free() -> bool:
 		return false
 	var entry: Dictionary = compiled[0]
 	var steps: Variant = entry.get("steps", [])
-	if not steps is Array or (steps as Array).size() != 2:
+	if not steps is Array or (steps as Array).size() != 3:
 		return false
 	var step0: Dictionary = steps[0]
 	var step1: Dictionary = steps[1]
+	var step2: Dictionary = steps[2]
 	return (
 		entry.get("register_as", "") == "free"
 		and entry.get("window", "") == "during_your_turn"
 		and entry.get("template", "") == "seq"
 		and step0.get("template", "") == "exhaust_source"
-		and step1.get("template", "") == "nest_move_connecting"
+		and step1.get("template", "") == "pick_target"
+		and step1.get("filter", "") == "location_connecting"
+		and step2.get("template", "") == "nest_move_to"
 		and CardRegistry.has_triggered(&"12046")
 	)
 
@@ -2627,11 +2630,19 @@ func _test_adb_compile_12116() -> bool:
 	if compiled.is_empty():
 		return false
 	var entry: Dictionary = compiled[0]
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var step0: Dictionary = steps[0]
+	var step1: Dictionary = steps[1]
 	return (
 		entry.get("register_as", "") == "free"
-		and entry.get("template", "") == "nest_move_connecting"
+		and entry.get("template", "") == "seq"
 		and entry.get("condition", "") == "investigators_in_game_1_or_2"
 		and entry.get("window", "") == "during_your_turn"
+		and step0.get("template", "") == "pick_target"
+		and step0.get("filter", "") == "location_connecting"
+		and step1.get("template", "") == "nest_move_to"
 		and CardRegistry.has_triggered(&"12116")
 	)
 

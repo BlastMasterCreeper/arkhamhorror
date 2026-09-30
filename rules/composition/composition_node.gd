@@ -373,13 +373,37 @@ static func disengage_enemy(
 	return n
 
 
-## L1 · 移动到连接地点（免费触发 / 效果；复用 BasicActionResolver.move 内核）。
-static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
+## L1 · 调查员移动到指定地点（无 PI；destination 可为 memory:）。
+static func nest_move_to(
+	controller_id: StringName,
+	location_spec: StringName = &"memory:picked_location",
+	source_card_id: StringName = &""
+) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"nest_move_connecting"
+	n.atom_name = &"nest_move_to"
 	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.location_target = location_spec
 	return n
+
+
+## Move to a connecting location：PI select + nest_move_to（无内嵌 Gate）。
+static func move_to_connecting(controller_id: StringName) -> CompositionNode:
+	var spec := SelectionSpec.pick_entity(
+		CandidateFilter.from_preset(&"location_connecting"),
+		&"pick:move_connecting",
+		&"picked_location"
+	)
+	return seq([
+		select_entities(controller_id, spec),
+		nest_move_to(controller_id, &"memory:picked_location"),
+	])
+
+
+## 兼容旧 template=`nest_move_connecting`：展开为 move_to_connecting。
+static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
+	return move_to_connecting(controller_id)
 
 
 ## L1 · 获得资源（反应/效果；nest `seq.gain_resource`）。

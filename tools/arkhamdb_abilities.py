@@ -532,6 +532,22 @@ def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_move_to_connecting_steps() -> list[dict[str, Any]]:
+    """PI 选连接地点 + nest 移动（无内嵌 Gate；清 nest_move_connecting 债）。"""
+    return [
+        {
+            "template": "pick_target",
+            "filter": "location_connecting",
+            "prompt_id": "pick:move_connecting",
+            "memory_key": "picked_location",
+        },
+        {
+            "template": "nest_move_to",
+            "location": "memory:picked_location",
+        },
+    ]
+
+
 def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not ENGAGE_FROM_CONNECTING.match(text):
@@ -939,10 +955,11 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             "ability_kind": "free",
             "window": "during_your_turn",
             "status": "full",
+            "translation": "full_expand",
             "template": "seq",
             "steps": [
                 {"template": "exhaust_source"},
-                {"template": "nest_move_connecting"},
+                *compile_move_to_connecting_steps(),
             ],
         }
     if FAST_DURING_TURN_MOVE_INV_COUNT.match(body):
@@ -954,8 +971,10 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             "ability_kind": "free",
             "window": "during_your_turn",
             "status": "partial",
+            "translation": "full_expand",
             "condition": "investigators_in_game_1_or_2",
-            "template": "nest_move_connecting",
+            "template": "seq",
+            "steps": compile_move_to_connecting_steps(),
         }
     group_clues = compile_group_spend_clues_deal_damage(body)
     if group_clues is not None:
@@ -1159,9 +1178,22 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
             if (
                 len(steps) >= 2
                 and first.get("template") == "exhaust_source"
-                and steps[1].get("template") == "nest_move_connecting"
+                and (
+                    steps[1].get("template") == "nest_move_connecting"
+                    or (
+                        steps[1].get("template") == "pick_target"
+                        and steps[1].get("filter") == "location_connecting"
+                    )
+                )
             ):
                 return "During your turn, exhaust …: Move to a connecting location."
+            if (
+                len(steps) >= 2
+                and first.get("template") == "pick_target"
+                and first.get("filter") == "location_connecting"
+                and steps[1].get("template") == "nest_move_to"
+            ):
+                return "Move to a connecting location."
         return "Place 1 doom on the nearest enemy…"
     if template == "choice_must":
         prompt = str(compiled.get("prompt_id", ""))

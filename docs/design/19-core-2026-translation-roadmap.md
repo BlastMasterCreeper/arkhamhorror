@@ -59,7 +59,7 @@
 | 12113 `engage_from_connecting` | ✅ 已展 | SKIP_AOO → PI → `suppress_auto_engage` → nest move → nest engage |
 | 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign`（Resign 类型本身不借机，不挂 SKIP_AOO） |
 | Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
-| `nest_move_connecting` 内嵌 PI | 待拆 | 12116：选地点确认应独立为 pick_target 步 |
+| `nest_move_connecting` 内嵌 PI | ✅ 已展 | 12116 / 12046：`pick_target(location_connecting)` → `nest_move_to` |
 | LISTENER / peril / act-agenda-back | 部分 | 仍有直 `execute` 路径；优先复用 `seq.ability.resolve` |
 | 编译侧「叶子一律 nest」习惯 | 文档已裁 | 新译先判三分法 |
 
@@ -124,7 +124,7 @@
 - 12120 Action×2：`draw` amount=3（Limit once/game → partial）
 
 ### 12116 / 12122 / 12132 ✅
-- 12116 Free：`nest_move_connecting` + `investigators_in_game_1_or_2`（Group limit → partial）
+- 12116 Free：`pick_target(location_connecting)` → `nest_move_to` + `investigators_in_game_1_or_2`（Group limit → partial）
 - 12132 Forced：`seq.enemy.defeat` WHEN → `take_horror` @ `each_at_source_location`
 - 12122 Forced：`seq.enemy.attack` AFTER → `discard_card` @ `controlled_assets`
 - 敌人进场 `install_triggered_abilities`；击败/弃置离场卸载
@@ -135,6 +135,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-30 | v0.22 | 清债：`nest_move_connecting` 内嵌 PI → `pick_target` + `nest_move_to`（12116/12046） |
 | 2026-09-29 | v0.21 | 21 §3.1：候选范围分层 U/S/N/R/V（数值 preds + Restriction `for_intent`） |
 | 2026-09-29 | v0.20 | [21-selection-spec](21-selection-spec.md)：通用选择 filter/基数/bind；`select`/`pick_multi` |
 | 2026-09-29 | v0.19 | 具名限制叶落地收口：`suppress` / `SKIP_AOO` / REGISTER → `seq.effect.register` |
