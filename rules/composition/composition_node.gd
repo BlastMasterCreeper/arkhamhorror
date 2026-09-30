@@ -326,6 +326,21 @@ static func exhaust_card(card_id: StringName) -> CompositionNode:
 	return n
 
 
+## L0 · 横置敌人（choose and exhaust an enemy；支持 memory: 指称）。
+static func exhaust_enemy(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"exhaust_enemy"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	return n
+
+
 ## L1 · 移动到连接地点（免费触发 / 效果；复用 BasicActionResolver.move 内核）。
 static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()

@@ -10,12 +10,16 @@ var last_step_enemy_id: StringName = &""
 var last_resolved_location: StringName = &""
 var last_skill_test_fail_by: int = 0
 var for_each_inv_override: StringName = &""
+## controller_id -> { memory_key -> referent }；供候选 V dry-run 临时 bind。
+var memory_referents: Dictionary = {}
 
 
 static func from_context(ctx: GameContext) -> GameSimulator:
 	var sim := GameSimulator.new()
 	sim.state = _duplicate_state(ctx.state)
 	sim.registrations = ctx.registrations.duplicate_store()
+	if ctx.memory != null:
+		sim.memory_referents = ctx.memory.duplicate_referents()
 	sim._bind_mutator()
 	return sim
 
@@ -29,8 +33,33 @@ func fork() -> GameSimulator:
 	copy.last_step_engaged_investigator = last_step_engaged_investigator
 	copy.last_resolved_location = last_resolved_location
 	copy.for_each_inv_override = for_each_inv_override
+	copy.memory_referents = _duplicate_memory(memory_referents)
 	copy._bind_mutator()
 	return copy
+
+
+func set_referent(controller_id: StringName, key: StringName, value: Variant) -> void:
+	if controller_id == &"" or key == &"":
+		return
+	if not memory_referents.has(controller_id):
+		memory_referents[controller_id] = {}
+	(memory_referents[controller_id] as Dictionary)[key] = value
+
+
+func get_referent(controller_id: StringName, key: StringName) -> Variant:
+	if not memory_referents.has(controller_id):
+		return null
+	var bucket: Dictionary = memory_referents[controller_id]
+	return bucket.get(key, null)
+
+
+static func _duplicate_memory(src: Dictionary) -> Dictionary:
+	var out := {}
+	for ctrl in src.keys():
+		var inner: Variant = src[ctrl]
+		if inner is Dictionary:
+			out[ctrl] = (inner as Dictionary).duplicate(true)
+	return out
 
 
 func _bind_mutator() -> void:
@@ -101,6 +130,7 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		card.controller_id = card_src.controller_id
 		card.zone = card_src.zone
 		card.zone_index = card_src.zone_index
+		card.exhausted = card_src.exhausted
 		copy.registry.register_card(card)
 	for loc_id in src.registry.all_location_ids():
 		var loc_src := src.registry.get_location(loc_id)

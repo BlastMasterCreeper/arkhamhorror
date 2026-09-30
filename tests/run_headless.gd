@@ -115,6 +115,8 @@ func _initialize() -> void:
 	_run_test("ADB-60 SKIP_AOO restriction read branches AOO", _test_adb_skip_aoo_buff_consume)
 	_run_test("ADB-61 SUPPRESS_AUTO_ENGAGE after move keeps explicit engage", _test_adb_suppress_auto_engage_explicit)
 	_run_test("ADB-62 SelectionSpec filter ready enemy at connecting", _test_adb_selection_filter_ready)
+	_run_test("ADB-63 V dry-run drops already-exhausted for choose exhaust", _test_adb_viability_exhaust_enemy)
+	_run_test("ADB-64 V empty set fizzles choose exhaust when all exhausted", _test_adb_viability_exhaust_all_exhausted)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2435,6 +2437,67 @@ func _test_adb_selection_filter_ready() -> bool:
 	c.execute(body)
 	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
 	return mem != null and StringName(str(mem)) == &"enemy_ready"
+
+
+func _test_adb_viability_exhaust_enemy() -> bool:
+	## V：不靠 filter.exhausted；已横置敌 dry-run 无 CREATED → 不入合法集；ready 被横置。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ready", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_exh", &"test_loc", 2, 2)
+	var exh := h.ctx.state.registry.get_enemy(&"enemy_exh")
+	exh.exhausted = true
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_controller_location",
+	})
+	var spec := SelectionSpec.pick_entity(filter, &"pick:exhaust", &"picked_enemy")
+	var body := CompositionNode.seq([
+		CompositionNode.select_entities(&"inv_1", spec),
+		CompositionNode.exhaust_enemy(&"inv_1", &"memory:picked_enemy"),
+	])
+	var helper := CompositionTestHelper.new(h.ctx)
+	if not helper.can_create(body):
+		return false
+	helper.execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
+	var ready := h.ctx.state.registry.get_enemy(&"enemy_ready")
+	return (
+		mem != null
+		and StringName(str(mem)) == &"enemy_ready"
+		and ready != null
+		and ready.exhausted
+		and exh.exhausted
+	)
+
+
+func _test_adb_viability_exhaust_all_exhausted() -> bool:
+	## 全部已横置 → V 后空集 → select fizzle；L7 无 CREATED。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_a").exhausted = true
+	h.ctx.state.registry.get_enemy(&"enemy_b").exhausted = true
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_controller_location",
+	})
+	var spec := SelectionSpec.pick_entity(filter, &"pick:exhaust", &"picked_enemy")
+	var body := CompositionNode.seq([
+		CompositionNode.select_entities(&"inv_1", spec),
+		CompositionNode.exhaust_enemy(&"inv_1", &"memory:picked_enemy"),
+	])
+	var helper := CompositionTestHelper.new(h.ctx)
+	if helper.can_create(body):
+		return false
+	helper.execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
+	return mem == null
 
 
 func _test_adb_skip_aoo_buff_consume() -> bool:

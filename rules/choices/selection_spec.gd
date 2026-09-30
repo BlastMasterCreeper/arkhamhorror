@@ -15,6 +15,10 @@ var deadline_ms: int = -1
 ## ChoiceBind
 var bind_key: StringName = &"picked_enemy"
 var bind_shape: StringName = &"entity"
+## V 层：依赖所选目标的效果尾；null = 不做候选 dry-run（可由 SEQ 兄弟自动填）。
+var viability_tail: CompositionNode = null
+## true = 显式跳过 V（即使有后续 SEQ 兄弟 / 已标注 tail）。
+var skip_viability: bool = false
 
 
 static func pick_entity(

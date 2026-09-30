@@ -2,7 +2,7 @@
 
 > **依赖**：[16-player-interaction.md](16-player-interaction.md)、[20-card-translation-schema.md](20-card-translation-schema.md) §3/§6、[07-composition.md](07-composition.md) §1.4  
 > **实现**：`rules/choices/selection_spec.gd` · `candidate_filter.gd` · `candidate_enumerator.gd` · `PlayerInteractionGate`  
-> **状态**：v0.5 · 2026-09-29 — 隐式目标（Fight→Attack / Evade→evasion attempt）
+> **状态**：v0.5.1 · 2026-09-29 — Fight 前置移动可过 L7，即使随后 Attack 无目标
 
 ---
 
@@ -380,9 +380,9 @@ bind:
 | `pick_target` 经 Enumerator（preset + 对象 filter） | ✅ |
 | Gate `ask_selection` + Memory bind 形状 | ✅ 骨架 |
 | **N** 数值 `preds` + field/StatQuery | 待接 |
-| **V** 候选级 dry-run（含 Restriction；目标须能被改变） | **规范已裁**；待接 DryRunner 逐候选 bind + 模拟路径接 RestrictionEvaluator |
+| **V** 候选级 dry-run（含 Restriction；目标须能被改变） | ✅ 骨架：`CandidateViability` + SEQ 兄弟/`viability_tail`；`exhaust_enemy` 已横置无 CREATED |
 | `for_intent` 预筛 | 可选优化；不得与 V 分叉 |
-| **隐式目标** Fight/Evade（§3.2） | 规范已裁；行动 L7 绑合法集 |
+| **隐式目标** Fight/Evade（§3.2） | 规范已裁；§3.2.1 区分基础 vs 前置效果+Attack |
 | `pick_multi` / 特性·关键词·横置全量 | 增量 |
 | `choice_optional` 编译糖 | 待扩 |
 | 12116 内嵌 PI 拆为独立 select | 债（19 §3.1） |
@@ -393,8 +393,10 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-30 | v0.6 | **落地 V 骨架**：`CandidateViability.filter_viable`；SEQ 自动尾；`exhaust_enemy` live/dry |
 | 2026-09-29 | v0.4 | **§3.1.3**：目标侧 Restriction **在 V dry-run 内检测**；取消独立 R 真相层（预筛仅优化） |
-| 2026-09-29 | v0.5 | **§3.2** 隐式目标：Fight/Evade 衍生检定与 Target 同构；无合法则整行动 L7 失败 |
+| 2026-09-29 | v0.5.1 | **§3.2.1**：前置可结算效果（如移动）可使整段 Fight 过 L7；Attack 无目标只挡该步 |
+| 2026-09-29 | v0.5 | **§3.2** 隐式目标：Fight/Evade 衍生检定与 Target 同构；基础行动无合法则 L7 失败 |
 | 2026-09-29 | v0.4.1 | 明确：Restriction **间接**挡（无结算→无 CREATED）；dry-run 适应复杂组合 |
 | 2026-09-29 | v0.3 | **§3.1.4**：目标合法=状态可被改变；V=与 Initiation L7 同源 dry-run（规范要求，非可选） |
 | 2026-09-29 | v0.2 | **§3.1** 候选范围分层：U/S/N/R/V；数值 preds；Restriction via `for_intent` |

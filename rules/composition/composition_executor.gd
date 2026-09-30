@@ -61,8 +61,7 @@ func _run_node(node: CompositionNode) -> void:
 	_stamp_provenance(node)
 	match node.kind:
 		AhcEnums.CompositionNodeKind.SEQ:
-			for child in node.children:
-				_run_node(child)
+			_run_seq(node)
 		AhcEnums.CompositionNodeKind.ATOM:
 			_last_step_created = _execute_atom(node)
 			_record_composition_step(node, _last_step_created)
@@ -77,6 +76,33 @@ func _run_node(node: CompositionNode) -> void:
 			_execute_repeat(node)
 		AhcEnums.CompositionNodeKind.FOR_EACH:
 			_execute_for_each(node)
+
+
+## SEQ：select/pick_target 后的兄弟作为 viability_tail（未显式标注且未 skip）。
+func _run_seq(node: CompositionNode) -> void:
+	for i in node.children.size():
+		var child: CompositionNode = node.children[i]
+		_maybe_attach_viability_tail(child, node.children, i)
+		_run_node(child)
+
+
+func _maybe_attach_viability_tail(
+	child: CompositionNode, siblings: Array, index: int
+) -> void:
+	if child == null or child.kind != AhcEnums.CompositionNodeKind.ATOM:
+		return
+	if child.atom_name != &"pick_target" and child.atom_name != &"select":
+		return
+	var spec := _selection_spec_of(child)
+	if spec == null or spec.skip_viability or spec.viability_tail != null:
+		return
+	var rest: Array[CompositionNode] = []
+	for j in range(index + 1, siblings.size()):
+		rest.append(siblings[j] as CompositionNode)
+	if rest.is_empty():
+		return
+	spec.viability_tail = rest[0] if rest.size() == 1 else CompositionNode.seq(rest)
+	child.selection_spec = spec
 
 
 func _resolve_inv(node: CompositionNode) -> StringName:
@@ -326,6 +352,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_attack(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
+		&"exhaust_enemy":
+			return _execute_exhaust_enemy(node)
 		&"no_provoke_aoo":
 			## 行动开始已挂限制类 SKIP_AOO；INIT_2B 已由原流程读取分支。resolve 体不再重复挂载。
 			_log.log(AhcEnums.LogCategory.CARD, "composition:no_provoke_aoo", {
@@ -629,6 +657,29 @@ func _execute_exhaust_card(node: CompositionNode) -> bool:
 	return true
 
 
+## L0 · 横置敌人；已横置则无 CREATED（目标 V / Grimoire Target）。
+func _execute_exhaust_enemy(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.enemy == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var enemy := _state.registry.get_enemy(enemy_id) if _state != null else null
+	if enemy == null or enemy.exhausted:
+		return false
+	var result := _game_ctx.enemy.set_enemy_exhausted(_game_ctx, enemy_id, true, false)
+	var ok := bool(result.get("ok", false)) and enemy.exhausted
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:exhaust_enemy",
+			{"enemy": enemy_id, "inv": inv_id}
+		)
+	return ok
+
+
 ## Resign 第一步：线索留在所在地点。
 func _execute_leave_clues_at_location(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
@@ -716,6 +767,14 @@ func _execute_pick_target(node: CompositionNode) -> bool:
 	var candidates := CandidateEnumerator.enumerate(
 		spec.filter, _game_ctx, inv_id, node.card_id
 	)
+	if (
+		not spec.skip_viability
+		and spec.viability_tail != null
+		and not candidates.is_empty()
+	):
+		candidates = CandidateViability.filter_viable(
+			candidates, _game_ctx, inv_id, spec.bind_key, spec.viability_tail
+		)
 	if candidates.is_empty():
 		return false
 	var picked: Variant = candidates[0]

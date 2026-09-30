@@ -27,6 +27,99 @@ static func enumerate(
 	return out
 
 
+## V / L7 dry-run：仅有 GameSimulator 时枚举（state + memory_referents）。
+static func enumerate_on_sim(
+	filter: CandidateFilter,
+	sim: GameSimulator,
+	controller_id: StringName,
+	source_card_id: StringName = &""
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if filter == null or sim == null or sim.state == null:
+		return out
+	match filter.entity:
+		&"enemy":
+			_enum_enemies_sim(filter, sim, controller_id, source_card_id, out)
+		&"location":
+			for loc_id in _location_universe_sim(filter, sim, controller_id, source_card_id):
+				if sim.state.registry.get_location(loc_id) != null:
+					out.append(loc_id)
+		&"investigator":
+			for inv_id in sim.state.registry.all_investigator_ids():
+				var inv := sim.state.registry.get_investigator(inv_id)
+				if inv == null or inv.eliminated:
+					continue
+				if filter.owned_by == &"controller" and inv_id != controller_id:
+					continue
+				out.append(inv_id)
+		_:
+			pass
+	return out
+
+
+static func _enum_enemies_sim(
+	filter: CandidateFilter,
+	sim: GameSimulator,
+	controller_id: StringName,
+	source_card_id: StringName,
+	out: Array[StringName]
+) -> void:
+	var locs := _location_universe_sim(filter, sim, controller_id, source_card_id)
+	for enemy_id in sim.state.registry.all_enemy_ids():
+		var enemy := sim.state.registry.get_enemy(enemy_id)
+		if enemy == null:
+			continue
+		if filter.exclude_massive and enemy.massive:
+			continue
+		if filter.exclude_aloof and enemy.aloof:
+			continue
+		if filter.exhausted != null and bool(enemy.exhausted) != bool(filter.exhausted):
+			continue
+		if filter.engaged != null:
+			var is_eng := enemy.engaged_with != &""
+			if is_eng != bool(filter.engaged):
+				continue
+		if not locs.is_empty() and not locs.has(enemy.location_tag):
+			continue
+		out.append(enemy_id)
+
+
+static func _location_universe_sim(
+	filter: CandidateFilter,
+	sim: GameSimulator,
+	controller_id: StringName,
+	source_card_id: StringName
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	var at := filter.at
+	if at == &"":
+		return out
+	var inv := sim.state.registry.get_investigator(controller_id)
+	var here := &""
+	if source_card_id != &"" and sim.state.registry.get_location(source_card_id) != null:
+		here = source_card_id
+	elif inv != null:
+		here = inv.location_tag
+	match at:
+		&"connecting":
+			var loc := sim.state.registry.get_location(here) if here != &"" else null
+			if loc != null:
+				for conn in loc.connections:
+					out.append(conn)
+		&"controller_location", &"source_location":
+			if here != &"":
+				out.append(here)
+		_:
+			if str(at).begins_with("memory:"):
+				var key := StringName(str(at).substr(7))
+				var ref: Variant = sim.get_referent(controller_id, key)
+				if ref != null and str(ref) != "":
+					out.append(StringName(str(ref)))
+			elif sim.state.registry.get_location(at) != null:
+				out.append(at)
+	return out
+
+
 static func _enum_enemies(
 	filter: CandidateFilter,
 	game_ctx: GameContext,
