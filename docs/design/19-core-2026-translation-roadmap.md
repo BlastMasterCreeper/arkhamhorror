@@ -60,7 +60,7 @@
 | 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign`（Resign 类型本身不借机，不挂 SKIP_AOO） |
 | Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
 | `nest_move_connecting` 内嵌 PI | ✅ 已展 | 12116 / 12046：`pick_target(location_connecting)` → `nest_move_to` |
-| LISTENER / peril / act-agenda-back | 部分 | 仍有直 `execute` 路径；优先复用 `seq.ability.resolve` |
+| LISTENER / peril / act-agenda-back | ✅ 收口 | `CompositionMount`：LISTENER/act-back → `seq.ability.resolve`；peril/privacy → `seq.effect.register` |
 | 编译侧「叶子一律 nest」习惯 | 文档已裁 | 新译先判三分法 |
 
 ---
@@ -135,6 +135,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-30 | v0.23 | 清债：LISTENER / peril / privacy / act-agenda-back 经 `CompositionMount` 装载 |
 | 2026-09-30 | v0.22 | 清债：`nest_move_connecting` 内嵌 PI → `pick_target` + `nest_move_to`（12116/12046） |
 | 2026-09-29 | v0.21 | 21 §3.1：候选范围分层 U/S/N/R/V（数值 preds + Restriction `for_intent`） |
 | 2026-09-29 | v0.20 | [21-selection-spec](21-selection-spec.md)：通用选择 filter/基数/bind；`select`/`pick_multi` |

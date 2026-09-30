@@ -233,20 +233,13 @@ func _resolve_forced(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
 func _execute_composition_on_stack(descriptor: TriggeredAbilityDescriptor) -> void:
 	if descriptor == null or descriptor.composition == null or _ctx == null:
 		return
-	if (
-		_ctx.sequence_catalog != null
-		and _ctx.sequence_catalog.has_flow(&"seq.ability.resolve")
+	if CompositionMount.resolve_ability(
+		_ctx,
+		descriptor.composition,
+		_effective_controller(descriptor),
+		descriptor.id,
+		descriptor.source_id
 	):
-		_ctx.sequence_catalog.nest(
-			_ctx,
-			&"seq.ability.resolve",
-			{
-				"composition": descriptor.composition,
-				"controller_id": _effective_controller(descriptor),
-				"ability_id": descriptor.id,
-				"source_id": descriptor.source_id,
-			}
-		)
 		return
 	if _ctx.composition != null:
 		_ctx.composition.execute(descriptor.composition)

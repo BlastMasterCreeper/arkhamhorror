@@ -166,21 +166,13 @@ static func _composition_declares_skip_aoo(node: CompositionNode) -> bool:
 func _resolve_composition_on_stack(intent: InitiationIntent, ctx: GameContext) -> void:
 	if intent == null or intent.composition == null:
 		return
-	if (
-		ctx != null
-		and ctx.sequence_catalog != null
-		and ctx.sequence_catalog.has_flow(&"seq.ability.resolve")
+	if CompositionMount.resolve_ability(
+		ctx,
+		intent.composition,
+		intent.controller_id,
+		intent.ability_id,
+		intent.source_id
 	):
-		ctx.sequence_catalog.nest(
-			ctx,
-			&"seq.ability.resolve",
-			{
-				"composition": intent.composition,
-				"controller_id": intent.controller_id,
-				"ability_id": intent.ability_id,
-				"source_id": intent.source_id,
-			}
-		)
 		return
 	if _composition != null:
 		_composition.execute(intent.composition)

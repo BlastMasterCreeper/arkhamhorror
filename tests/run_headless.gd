@@ -45,6 +45,7 @@ func _initialize() -> void:
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
+	_run_test("C-08 listener fires via seq.ability.resolve", _test_listener_no_vacuum)
 	_run_test("C-08 initiation dry-run gate", _test_initiation_dry_run_gate)
 	_run_test("C-09 choice dry-run OR branch", _test_dry_run_choice_or)
 	_run_test("C-10 must choice auto-picks sole branch", _test_must_choice_auto_pick)
@@ -213,6 +214,7 @@ func _initialize() -> void:
 	_run_test("PERIL-02 peril blocks teammate play", _test_peril_blocks_teammate_play)
 	_run_test("PERIL-03 peril blocks teammate trigger", _test_peril_blocks_teammate_trigger)
 	_run_test("PERIL-06 drawer play and trigger allowed", _test_peril_drawer_play_trigger_ok)
+	_run_test("PERIL-07 peril registers via seq.effect.register", _test_peril_register_no_vacuum)
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
@@ -683,10 +685,15 @@ func _test_sc16_agenda1_flip_skill_horror() -> bool:
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	inv.skill_willpower = 0
 	h.ctx.state.doom_on_agenda = 3
+	var before_resolve := _sequence_kind_count(h, &"ability_resolve")
 	var adv := h.ctx.sequence_catalog.run(
 		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
 	)
-	return adv.get("advanced", false) and inv.horror_taken == 1
+	return (
+		adv.get("advanced", false)
+		and inv.horror_taken == 1
+		and _sequence_kind_count(h, &"ability_resolve") > before_resolve
+	)
 
 
 func _test_sc17_agenda2_flip_skill_damage() -> bool:
@@ -1023,6 +1030,21 @@ func _test_until_fired_listener() -> bool:
 		return false
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return inv.hand.size() == 1 and inv.deck.size() == 1
+
+
+func _test_listener_no_vacuum() -> bool:
+	## LISTENER 开火经 seq.ability.resolve 装载（禁直 execute）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.delayed_draw_listener(&"inv_1", &"after_fight"))
+	var before := _sequence_kind_count(h, &"ability_resolve")
+	h.ctx.timing.emit_timing(&"after_fight")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		inv.hand.size() == 1
+		and _sequence_kind_count(h, &"ability_resolve") > before
+	)
 
 
 func _test_initiation_dry_run_gate() -> bool:
@@ -4639,6 +4661,17 @@ func _setup_peril_for_drawer(h: RuleTestHarness, drawer_id: StringName, enc_id: 
 	frame.current_card_id = enc_id
 	h.ctx.memory.push_encounter_frame(frame)
 	EncounterPeril.register_if_peril(h.ctx, drawer_id, enc_id, true)
+
+
+func _test_peril_register_no_vacuum() -> bool:
+	## 险境挂载经 seq.effect.register（对齐 gained keyword）。
+	var h := RuleTestHarness.new(42)
+	var before := _sequence_kind_count(h, &"effect_register")
+	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_vac")
+	return (
+		h.ctx.registrations.has_peril_for_drawn_card(&"enc_peril_vac")
+		and _sequence_kind_count(h, &"effect_register") > before
+	)
 
 
 func _test_rest_draw_action_blocked() -> bool:

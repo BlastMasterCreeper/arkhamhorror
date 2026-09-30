@@ -274,6 +274,7 @@ func collect_listeners(timing_name: StringName) -> Array[ListenerEntry]:
 				continue
 			var entry := ListenerEntry.new()
 			entry.reg_id = reg.id
+			entry.controller_id = reg.controller_id
 			entry.lifetime_kind = reg.lifetime_kind
 			entry.composition = buff.listener.composition
 			out.append(entry)
