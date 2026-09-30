@@ -2532,6 +2532,48 @@ func _test_adb_viability_exhaust_all_exhausted() -> bool:
 	return mem == null
 
 
+func _test_adb_preds_fight_le() -> bool:
+	## N：fight ≤ 2 只保留弱敌。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_weak", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_strong", &"test_loc", 4, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_controller_location",
+		"preds": [
+			{"on": "candidate", "field": "fight", "op": "le", "value": 2},
+		],
+	})
+	var candidates := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
+	return candidates.size() == 1 and candidates[0] == &"enemy_weak"
+
+
+func _test_adb_preds_controller_resources() -> bool:
+	## N：controller.resources ≥ 1 才过；0 资源时全集剔除。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.resource_pool = 0
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_controller_location",
+		"preds": [
+			{"on": "controller", "field": "resources", "op": "ge", "value": 1},
+		],
+	})
+	var empty := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
+	if not empty.is_empty():
+		return false
+	inv.resource_pool = 2
+	var ok := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
+	return ok.size() == 1 and ok[0] == &"enemy_1"
+
+
 func _test_adb_skip_aoo_buff_consume() -> bool:
 	## 限制类 SKIP_AOO：行动开始经 seq.effect.register；INIT_2B 原流程读取后分支。
 	var h := RuleTestHarness.new(42)
