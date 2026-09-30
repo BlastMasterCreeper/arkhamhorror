@@ -2459,7 +2459,7 @@ func _test_adb_viability_exhaust_enemy() -> bool:
 		CompositionNode.exhaust_enemy(&"inv_1", &"memory:picked_enemy"),
 	])
 	var helper := CompositionTestHelper.new(h.ctx)
-	if not helper.can_create(body):
+	if not helper.dry_run(body):
 		return false
 	helper.execute(body)
 	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
@@ -2493,7 +2493,7 @@ func _test_adb_viability_exhaust_all_exhausted() -> bool:
 		CompositionNode.exhaust_enemy(&"inv_1", &"memory:picked_enemy"),
 	])
 	var helper := CompositionTestHelper.new(h.ctx)
-	if helper.can_create(body):
+	if helper.dry_run(body):
 		return false
 	helper.execute(body)
 	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
