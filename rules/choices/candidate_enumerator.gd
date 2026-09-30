@@ -24,6 +24,16 @@ static func enumerate(
 			_enum_cards(filter, game_ctx, controller_id, out)
 		_:
 			pass
+	if not filter.preds.is_empty() and not out.is_empty():
+		out = CandidatePreds.filter_candidates(
+			out,
+			filter.preds,
+			game_ctx.state,
+			controller_id,
+			filter.entity,
+			game_ctx,
+			game_ctx.memory
+		)
 	return out
 
 
@@ -54,6 +64,10 @@ static func enumerate_on_sim(
 				out.append(inv_id)
 		_:
 			pass
+	if not filter.preds.is_empty() and not out.is_empty():
+		out = CandidatePreds.filter_candidates(
+			out, filter.preds, sim.state, controller_id, filter.entity, null, sim
+		)
 	return out
 
 

@@ -24,6 +24,8 @@ var exclude_aloof: bool = false
 var exclude_aloof_unengaged: bool = false
 var owned_by: StringName = &"any"
 var preset: StringName = &""
+## N 层数值谓词（§3.1.2）；元素为 Dictionary：on/field/op/value 或 stat_query。
+var preds: Array = []
 
 
 static func from_preset(preset_id: StringName) -> CandidateFilter:
@@ -104,6 +106,8 @@ static func _merge_dict(f: CandidateFilter, d: Dictionary) -> void:
 	f.keywords = _to_name_array(d.get("keywords", f.keywords))
 	f.keyword_exclude = _to_name_array(d.get("keyword_exclude", f.keyword_exclude))
 	f.card_types = _to_name_array(d.get("card_types", f.card_types))
+	if d.has("preds") and d["preds"] is Array:
+		f.preds = (d["preds"] as Array).duplicate(true)
 
 
 static func _to_name_array(raw: Variant) -> Array[StringName]:

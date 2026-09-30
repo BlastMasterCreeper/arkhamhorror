@@ -390,7 +390,7 @@ bind:
 | `CandidateFilter` / `SelectionSpec` / Enumerator | ✅ 骨架（U+部分 S） |
 | `pick_target` 经 Enumerator（preset + 对象 filter） | ✅ |
 | Gate `ask_selection` + Memory bind 形状 | ✅ 骨架 |
-| **N** 数值 `preds` + field/StatQuery | 待接 |
+| **N** 数值 `preds` + field/StatQuery | ✅ 骨架：`CandidatePreds`（field 投影 + `clues_on_location_ge` / `turn_action_spend_count_ge`） |
 | **V** 候选级 dry-run（含 Restriction；目标须能被改变） | ✅ 骨架：`CandidateViability` + SEQ 兄弟/`viability_tail`；`exhaust_enemy` 已横置无 CREATED |
 | `for_intent` 预筛 | 可选优化；不得与 V 分叉 |
 | **隐式目标** Fight/Evade/Investigate（§3.2） | ✅ 基础行动：`ImplicitActionTargets` + preset filter + V（Investigate 仅所在地预检） |
@@ -404,6 +404,7 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-30 | v0.8 | **落地 N**：`CandidateFilter.preds` + `CandidatePreds`（field/op/value；少量 stat_query） |
 | 2026-09-30 | v0.7 | **落地隐式目标**：Fight/Evade U–V 付费前解析；Investigate §3.2.2 所在地预检 |
 | 2026-09-30 | v0.6 | **落地 V 骨架**：`CandidateViability.filter_viable`；SEQ 自动尾；`exhaust_enemy` live/dry |
 | 2026-09-29 | v0.4 | **§3.1.3**：目标侧 Restriction **在 V dry-run 内检测**；取消独立 R 真相层（预筛仅优化） |
