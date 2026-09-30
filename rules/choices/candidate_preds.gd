@@ -59,7 +59,7 @@ static func evaluate(
 	var subject_id := _subject_id(on, candidate_id, controller_id, state, memory)
 	if subject_id == &"" and on != &"candidate":
 		return false
-	var lhs := _field_value(
+	var lhs: Variant = _field_value(
 		field,
 		subject_id if on != &"candidate" else candidate_id,
 		entity_kind if on == &"candidate" else _infer_kind(on, subject_id, state),
@@ -233,9 +233,9 @@ static func _eval_stat_query(
 	var value := int(pred.get("value", 0))
 	if name == "clues_on_location_ge":
 		var loc_id := _location_of(candidate_id, entity_kind, state)
-		if loc_id == &"":
+		if loc_id == &"" or state == null:
 			return false
-		var loc := state.registry.get_location(loc_id) if state != null else null
+		var loc: LocationState = state.registry.get_location(loc_id)
 		return loc != null and loc.clues >= value
 	if game_ctx == null or game_ctx.stat_projections == null:
 		return true
