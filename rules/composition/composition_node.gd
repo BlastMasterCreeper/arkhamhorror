@@ -249,6 +249,35 @@ static func must_choose(
 	return n
 
 
+## L1 · Optional / may（16 §7.2 · 21 §4.1）：resolve 前 OPTIONAL_EFFECT；否 → 跳过子树。
+## 默认跳过；body dry-run FIZZLE 时不 ask。memory_key 非空则 bind.shape=bool。
+static func optional(
+	body: CompositionNode,
+	controller_id: StringName,
+	prompt_id: StringName = &"composition:choice_optional",
+	memory_key: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.OPTIONAL
+	n.inv_id = controller_id
+	n.choice_must = false
+	n.choice_prompt_id = prompt_id
+	n.memory_key = memory_key
+	if body != null:
+		n.children.append(body)
+	return n
+
+
+## 编译糖 alias：template=`choice_optional`。
+static func choice_optional(
+	body: CompositionNode,
+	controller_id: StringName,
+	prompt_id: StringName = &"composition:choice_optional",
+	memory_key: StringName = &""
+) -> CompositionNode:
+	return optional(body, controller_id, prompt_id, memory_key)
+
+
 ## 当前密谋放置 1 doom · nest `seq.mythos.place_doom`（议程信封，供 Forced AFTER 订阅）。
 static func place_doom_on_current_agenda(may_advance_agenda: bool = false) -> CompositionNode:
 	return nest_mythos_place_doom(may_advance_agenda)

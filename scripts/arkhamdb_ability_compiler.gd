@@ -206,6 +206,8 @@ static func build_composition(
 			)
 		"choice_must":
 			return _build_choice_must(params, bind)
+		"choice_optional", "optional":
+			return _build_choice_optional(params, bind)
 		"place_doom_on_current_agenda":
 			return CompositionNode.nest_mythos_place_doom(
 				bool(params.get("may_advance_agenda", false))
@@ -307,6 +309,30 @@ static func _build_choice_must(params: Dictionary, bind: AbilityBindContext) -> 
 		return null
 	var prompt_id := StringName(str(params.get("prompt_id", "composition:choice_must")))
 	return CompositionNode.must_choose(branches, bind.controller_id, option_ids, prompt_id)
+
+
+## Optional / may：body 或 steps[] → OPTIONAL_EFFECT（默认跳过）。
+static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	var body: CompositionNode = null
+	var body_entry: Variant = params.get("body", null)
+	if body_entry is Dictionary:
+		var body_dict := body_entry as Dictionary
+		body = build_composition(str(body_dict.get("template", "")), body_dict, bind)
+	elif params.get("steps", null) is Array and not (params.get("steps") as Array).is_empty():
+		body = _build_seq(params, bind)
+	if body == null:
+		## 兼容：options[0] 当作唯一 body
+		var options: Variant = params.get("options", [])
+		if options is Array and not (options as Array).is_empty():
+			var first: Variant = (options as Array)[0]
+			if first is Dictionary:
+				var opt := first as Dictionary
+				body = build_composition(str(opt.get("template", "")), opt, bind)
+	if body == null:
+		return null
+	var prompt_id := StringName(str(params.get("prompt_id", "composition:choice_optional")))
+	var memory_key := StringName(str(params.get("memory_key", params.get("bind_key", ""))))
+	return CompositionNode.choice_optional(body, bind.controller_id, prompt_id, memory_key)
 
 
 static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:

@@ -65,6 +65,11 @@ LEAD_DRAW_FIRE = re.compile(
 
 TAKE_HORROR = re.compile(r"^Take (\d+) (direct )?horror\.?", re.I)
 TAKE_DAMAGE = re.compile(r"^Take (\d+) (direct )?damage\.?", re.I)
+## Optional / may 窄切片：You may take N (direct) horror|damage.
+YOU_MAY_TAKE = re.compile(
+    r"^You may take (\d+) (direct )?(horror|damage)\.?$",
+    re.I,
+)
 LOSE_RESOURCES = re.compile(r"^Lose (\d+) resource", re.I)
 LOSE_ALL_RESOURCES = re.compile(r"^Lose all of your resources\.?", re.I)
 GAIN_RESOURCES = re.compile(r"^Gain (\d+) resource", re.I)
@@ -825,9 +830,33 @@ def compile_test_succeed_discard_source(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_you_may_take(body: str) -> dict[str, Any] | None:
+    """Optional 编译糖：You may take N horror/damage → choice_optional。"""
+    m = YOU_MAY_TAKE.match(body.strip())
+    if m is None:
+        return None
+    amount = int(m.group(1))
+    direct = bool(m.group(2))
+    kind = m.group(3).lower()
+    template = "take_horror" if kind == "horror" else "take_damage"
+    return {
+        "template": "choice_optional",
+        "prompt_id": f"may:{template}",
+        "memory_key": "optional_chose",
+        "body": {
+            "template": template,
+            "amount": amount,
+            "direct": direct,
+        },
+    }
+
+
 def compile_effect_body(body: str) -> dict[str, Any] | None:
     if not body:
         return None
+    you_may = compile_you_may_take(body)
+    if you_may is not None:
+        return you_may
     cosmic = compile_cosmic_evils(body)
     if cosmic is not None:
         return cosmic
@@ -1005,7 +1034,7 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(action_types, list) or not action_types:
         action_types = ["activate"]
     status = "full"
-    if compiled.get("template") in ("if_else", "seq", "choice_must"):
+    if compiled.get("template") in ("if_else", "seq", "choice_must", "choice_optional"):
         status = "partial"
     elif compiled.get("template") == "skill_test" and "parley" not in [
         str(t).lower() for t in action_types
@@ -1016,6 +1045,13 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     # 应展尽展的 Resign / Engage-from-connecting 视为 full。
     if compiled.get("translation") == "full_expand":
         status = "full"
+    if compiled.get("template") == "choice_optional":
+        body_tpl = ""
+        body_entry = compiled.get("body", {})
+        if isinstance(body_entry, dict):
+            body_tpl = str(body_entry.get("template", ""))
+        if body_tpl in ("take_horror", "take_damage"):
+            status = "full"
     entry: dict[str, Any] = {
         "segment_index": segment["index"],
         "register_as": "action",
@@ -1040,8 +1076,21 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         if compiled is None:
             return None
         status = "full"
-        if compiled.get("template") in ("if_else", "seq", "choice_must", "skill_test"):
+        if compiled.get("template") in (
+            "if_else",
+            "seq",
+            "choice_must",
+            "choice_optional",
+            "skill_test",
+        ):
             status = "partial"
+        if compiled.get("template") == "choice_optional":
+            body_entry = compiled.get("body", {})
+            if isinstance(body_entry, dict) and body_entry.get("template") in (
+                "take_horror",
+                "take_damage",
+            ):
+                status = "full"
         elif plain_text(body) != _template_body_preview(compiled):
             status = "partial"
         entry: dict[str, Any] = {
@@ -1203,6 +1252,13 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
                 "Take 1 damage for each point you fail by."
             )
         return "You must either (choose one)…"
+    if template == "choice_optional":
+        body_entry = compiled.get("body", {})
+        if isinstance(body_entry, dict):
+            inner = _template_body_preview(body_entry)
+            if inner:
+                return f"You may {inner[0].lower() + inner[1:]}" if inner else ""
+        return "You may…"
     return ""
 
 

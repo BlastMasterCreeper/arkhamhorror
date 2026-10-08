@@ -456,7 +456,7 @@ seq.encounter.revelation
 | P0 | **§5 完整目录**（本文件） | v0.2 |
 | P0 | **SelectionSpec / CandidateFilter / ChoiceBind**（[21](21-selection-spec.md)） | ✅ 骨架；`pick_target`/`select` 已接 Enumerator |
 | P1 | ResponseWindow：`USE_ABILITY` + `ORDER_SIMULTANEOUS` | 待接 |
-| P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | 待接 |
+| P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | ✅ `OPTIONAL`→`OPTIONAL_EFFECT`；`CHOICE` must→`PICK_OPTION` |
 | P1 | ST.2 `COMMIT_TO_TEST` + 检定窗 `USE_ABILITY` | 待接 |
 | P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
 | P2 | `PAY_COST` / `PAY_X` 接 CostPipeline | 待接 |

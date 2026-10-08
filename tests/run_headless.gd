@@ -52,6 +52,11 @@ func _initialize() -> void:
 	_run_test("C-12 must choice skips all fizzle", _test_must_choice_skip_fizzle)
 	_run_test("C-13 must choice asks when multiple", _test_must_choice_pick_option)
 	_run_test("C-14 repeat fail-by must choice", _test_repeat_fail_by_must_choice)
+	_run_test("C-15 choice_optional default declines", _test_choice_optional_default_decline)
+	_run_test("C-16 choice_optional accept runs body", _test_choice_optional_accept)
+	_run_test("C-17 choice_optional dry-run OR body", _test_choice_optional_dry_run)
+	_run_test("C-18 choice_optional compiler sugar", _test_choice_optional_compiler)
+	_run_test("C-19 choice_optional fizzle skips ask", _test_choice_optional_fizzle_skip)
 	_run_test("ENC-ST-01 revelation skill test nests", _test_enc_skill_test_nest)
 	_run_test("ENC-ST-02 fail-by resolves at ST.7", _test_enc_st7_fail_by_timing)
 	_run_test("INIT-01 initiation records full sequence", _test_initiation_sequence_events)
@@ -1140,6 +1145,95 @@ func _test_must_choice_pick_option() -> bool:
 	c.execute(node)
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
 	return inv.horror_taken == 0 and h.ctx.registrations.count() == 1
+
+
+func _test_choice_optional_default_decline() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.choice_optional(
+		_must_choice_horror(),
+		&"inv_1",
+		&"may:horror",
+		&"optional_chose"
+	)
+	c.execute(node)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var chose: Variant = h.ctx.memory.get_referent(&"inv_1", &"optional_chose")
+	return inv.horror_taken == 0 and chose == false
+
+
+func _test_choice_optional_accept() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"may:horror", "pick": true},
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.choice_optional(
+		_must_choice_horror(2),
+		&"inv_1",
+		&"may:horror",
+		&"optional_chose"
+	)
+	c.execute(node)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var chose: Variant = h.ctx.memory.get_referent(&"inv_1", &"optional_chose")
+	return inv.horror_taken == 2 and chose == true
+
+
+func _test_choice_optional_dry_run() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.choice_optional(
+		_must_choice_horror(),
+		&"inv_1",
+		&"may:horror"
+	)
+	var fizzle := CompositionNode.choice_optional(
+		CompositionNode.draw(&"inv_1"),
+		&"inv_1",
+		&"may:draw"
+	)
+	return c.dry_run(node) and not c.dry_run(fizzle)
+
+
+func _test_choice_optional_compiler() -> bool:
+	var bind := AbilityBindContext.new()
+	bind.controller_id = &"inv_1"
+	var node := ArkhamDbAbilityCompiler.build_composition(
+		"choice_optional",
+		{
+			"prompt_id": "may:horror",
+			"memory_key": "optional_chose",
+			"body": {"template": "take_horror", "amount": 1},
+		},
+		bind
+	)
+	return (
+		node != null
+		and node.kind == AhcEnums.CompositionNodeKind.OPTIONAL
+		and node.choice_prompt_id == &"may:horror"
+		and node.memory_key == &"optional_chose"
+		and node.children.size() == 1
+	)
+
+
+func _test_choice_optional_fizzle_skip() -> bool:
+	var h := RuleTestHarness.new(42)
+	## Scripting 若被调用会返回 true；fizzle 路径不得 ask。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"may:draw", "pick": true},
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.choice_optional(
+		CompositionNode.draw(&"inv_1"),
+		&"inv_1",
+		&"may:draw",
+		&"optional_chose"
+	)
+	c.execute(node)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var chose: Variant = h.ctx.memory.get_referent(&"inv_1", &"optional_chose")
+	return inv.hand.is_empty() and chose == null
 
 
 func _test_repeat_fail_by_must_choice() -> bool:

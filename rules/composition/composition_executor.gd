@@ -72,6 +72,8 @@ func _run_node(node: CompositionNode) -> void:
 			_execute_if(node)
 		AhcEnums.CompositionNodeKind.CHOICE:
 			_execute_choice(node)
+		AhcEnums.CompositionNodeKind.OPTIONAL:
+			_execute_optional(node)
 		AhcEnums.CompositionNodeKind.REPEAT:
 			_execute_repeat(node)
 		AhcEnums.CompositionNodeKind.FOR_EACH:
@@ -531,6 +533,47 @@ func _execute_choice(node: CompositionNode) -> void:
 	if branch != null:
 		branch.provenance = node.provenance
 		_run_node(branch)
+
+
+## Optional / may：body 可执行才 ask；默认跳过；是 → 跑子树（16 §7.2）。
+func _execute_optional(node: CompositionNode) -> void:
+	if node.children.is_empty():
+		return
+	var body: CompositionNode = node.children[0]
+	if body == null:
+		return
+	var executable := true
+	if _game_ctx != null:
+		var sim := GameSimulator.from_context(_game_ctx)
+		executable = _dry_runner.simulate(body, sim).has_any_created
+	if not executable:
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:optional_skip",
+			{"reason": &"fizzle", "prompt": node.choice_prompt_id}
+		)
+		_last_step_created = false
+		return
+	var use := false
+	if _game_ctx != null and _game_ctx.interaction != null:
+		use = _game_ctx.interaction.ask_optional_effect(
+			node.inv_id,
+			node.choice_prompt_id,
+			_game_ctx,
+			false
+		)
+	if node.memory_key != &"" and _game_ctx != null and _game_ctx.memory != null:
+		_game_ctx.memory.set_referent(node.inv_id, node.memory_key, use)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:optional",
+		{"use": use, "prompt": node.choice_prompt_id, "bind": node.memory_key}
+	)
+	if not use:
+		_last_step_created = false
+		return
+	body.provenance = node.provenance
+	_run_node(body)
 
 
 func _execute_repeat(node: CompositionNode) -> void:

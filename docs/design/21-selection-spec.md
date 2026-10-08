@@ -395,7 +395,7 @@ bind:
 | `for_intent` 预筛 | 可选优化；不得与 V 分叉 |
 | **隐式目标** Fight/Evade/Investigate（§3.2） | ✅ 基础行动：`ImplicitActionTargets` + preset filter + V（Investigate 仅所在地预检） |
 | `pick_multi` / 特性·关键词·横置全量 | 增量 |
-| `choice_optional` 编译糖 | 待扩 |
+| `choice_optional` 编译糖 | ✅ `CompositionNodeKind.OPTIONAL` + Gate `OPTIONAL_EFFECT`；默认跳过；body FIZZLE 不 ask |
 | 12116 内嵌 PI 拆为独立 select | ✅ `pick_target` + `nest_move_to`（19 §3.1） |
 
 ---
@@ -404,6 +404,7 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-08 | v0.9 | **落地 `choice_optional`**：`OPTIONAL` 节点 + Gate `OPTIONAL_EFFECT`；编译糖 body/steps；Python `You may take N horror/damage` |
 | 2026-09-30 | v0.8 | **落地 N**：`CandidateFilter.preds` + `CandidatePreds`（field/op/value；少量 stat_query） |
 | 2026-09-30 | v0.7 | **落地隐式目标**：Fight/Evade U–V 付费前解析；Investigate §3.2.2 所在地预检 |
 | 2026-09-30 | v0.6 | **落地 V 骨架**：`CandidateViability.filter_viable`；SEQ 自动尾；`exhaust_enemy` live/dry |

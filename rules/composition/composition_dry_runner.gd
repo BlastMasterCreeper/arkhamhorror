@@ -24,6 +24,8 @@ func _simulate_node(node: CompositionNode, sim: GameSimulator) -> bool:
 			return _simulate_if(node, sim)
 		AhcEnums.CompositionNodeKind.CHOICE:
 			return _simulate_choice(node, sim)
+		AhcEnums.CompositionNodeKind.OPTIONAL:
+			return _simulate_optional(node, sim)
 		AhcEnums.CompositionNodeKind.REPEAT:
 			return _simulate_repeat(node, sim)
 		AhcEnums.CompositionNodeKind.FOR_EACH:
@@ -198,6 +200,14 @@ func _simulate_choice(node: CompositionNode, sim: GameSimulator) -> bool:
 		if _simulate_node(child, fork):
 			return true
 	return false
+
+
+## Optional：玩家 *可以* 选是 → body 能 CREATED 即本步可 CREATED（L7 OR；真实 resolve 仍 ask）。
+func _simulate_optional(node: CompositionNode, sim: GameSimulator) -> bool:
+	if node.children.is_empty():
+		return false
+	var fork := sim.fork()
+	return _simulate_node(node.children[0], fork)
 
 
 func _simulate_if(node: CompositionNode, sim: GameSimulator) -> bool:
