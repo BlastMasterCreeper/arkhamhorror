@@ -88,11 +88,24 @@ static func build_composition(
 		"pick_target", "select", "pick_multi":
 			## 通用选择：filter 可为预设字符串或对象；见 21-selection-spec。
 			var sel_params := params.duplicate()
-			if template_id == "pick_multi" and not sel_params.has("max") and not sel_params.has("max_picks"):
-				sel_params["min_picks"] = int(sel_params.get("min_picks", sel_params.get("min", 1)))
-				sel_params["max_picks"] = int(sel_params.get("max_picks", sel_params.get("amount", 2)))
+			if template_id == "pick_multi":
+				if not sel_params.has("max") and not sel_params.has("max_picks"):
+					sel_params["min_picks"] = int(
+						sel_params.get("min_picks", sel_params.get("min", 1))
+					)
+					sel_params["max_picks"] = int(
+						sel_params.get("max_picks", sel_params.get("amount", 2))
+					)
+				if not sel_params.has("memory_key") and not sel_params.has("bind_key"):
+					sel_params["memory_key"] = "picked_enemies"
+				if not sel_params.has("prompt_id"):
+					sel_params["prompt_id"] = "pick:multi"
 			var spec := SelectionSpec.from_pick_target_params(sel_params)
-			if template_id == "select" or template_id == "pick_multi":
+			if template_id == "pick_multi":
+				spec.choice_kind = AhcEnums.ChoiceKind.PICK_MULTI
+				spec.bind_shape = &"entity_list"
+				return CompositionNode.select_entities(bind.controller_id, spec, bind.card_id)
+			if template_id == "select":
 				return CompositionNode.select_entities(bind.controller_id, spec, bind.card_id)
 			return CompositionNode.pick_target(
 				bind.controller_id,
@@ -101,6 +114,8 @@ static func build_composition(
 				spec.bind_key,
 				bind.card_id
 			)
+		"for_each_memory", "for_each_entities":
+			return _build_for_each_memory(params, bind)
 		"move_enemy_to":
 			return CompositionNode.move_enemy_to(
 				bind.controller_id,
@@ -226,6 +241,12 @@ static func build_composition(
 			return _build_nest_enemy_attack(params, bind)
 		"exhaust_source":
 			return CompositionNode.exhaust_card(bind.card_id)
+		"exhaust_enemy":
+			return CompositionNode.exhaust_enemy(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
+				bind.card_id
+			)
 		"nest_move_connecting":
 			## 兼容旧 JSON：展开为 select + nest_move_to。
 			return CompositionNode.move_to_connecting(bind.controller_id)
@@ -309,6 +330,20 @@ static func _build_choice_must(params: Dictionary, bind: AbilityBindContext) -> 
 		return null
 	var prompt_id := StringName(str(params.get("prompt_id", "composition:choice_must")))
 	return CompositionNode.must_choose(branches, bind.controller_id, option_ids, prompt_id)
+
+
+static func _build_for_each_memory(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	var list_key := StringName(str(params.get("memory_key", params.get("list_key", "picked_enemies"))))
+	var each_key := StringName(str(params.get("each_key", params.get("bind_key", "picked_enemy"))))
+	var body: CompositionNode = null
+	var body_entry: Variant = params.get("body", null)
+	if body_entry is Dictionary:
+		body = build_composition(str((body_entry as Dictionary).get("template", "")), body_entry, bind)
+	elif params.get("steps", null) is Array:
+		body = _build_seq(params, bind)
+	if body == null:
+		return null
+	return CompositionNode.for_each_memory(bind.controller_id, list_key, body, each_key)
 
 
 ## Optional / may：body 或 steps[] → OPTIONAL_EFFECT（默认跳过）。

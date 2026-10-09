@@ -67,12 +67,34 @@ func _maybe_attach_viability_tail(
 		rest.append(siblings[j] as CompositionNode)
 	if rest.is_empty():
 		return
-	spec.viability_tail = rest[0] if rest.size() == 1 else CompositionNode.seq(rest)
+	spec.viability_tail = _viability_tail_from_rest(rest)
+
+
+func _viability_tail_from_rest(rest: Array[CompositionNode]) -> CompositionNode:
+	if rest.is_empty():
+		return null
+	var first: CompositionNode = rest[0]
+	if (
+		first != null
+		and first.kind == AhcEnums.CompositionNodeKind.FOR_EACH
+		and first.for_each_source == &"memory_list"
+		and not first.children.is_empty()
+	):
+		var body: CompositionNode = first.children[0]
+		if rest.size() == 1:
+			return body
+		var seq_nodes: Array[CompositionNode] = [body]
+		for i in range(1, rest.size()):
+			seq_nodes.append(rest[i])
+		return CompositionNode.seq(seq_nodes)
+	return first if rest.size() == 1 else CompositionNode.seq(rest)
 
 
 func _simulate_for_each(node: CompositionNode, sim: GameSimulator) -> bool:
 	if node.children.is_empty() or sim.state == null:
 		return false
+	if node.for_each_source == &"memory_list":
+		return _simulate_for_each_memory(node, sim)
 	var any := false
 	for inv_id in sim.state.registry.all_investigator_ids():
 		var inv := sim.state.registry.get_investigator(inv_id)
@@ -80,6 +102,29 @@ func _simulate_for_each(node: CompositionNode, sim: GameSimulator) -> bool:
 			continue
 		var fork := sim.fork()
 		fork.for_each_inv_override = inv_id
+		any = _simulate_node(node.children[0], fork) or any
+	return any
+
+
+func _simulate_for_each_memory(node: CompositionNode, sim: GameSimulator) -> bool:
+	var controller := _resolve_sim_inv(node, sim)
+	var list_key := node.memory_key if node.memory_key != &"" else &"picked_enemies"
+	var each_key := (
+		node.for_each_bind_key if node.for_each_bind_key != &"" else &"picked_enemy"
+	)
+	var raw: Variant = sim.get_referent(controller, list_key)
+	var items: Array = []
+	if raw is Array:
+		items = raw as Array
+	elif raw != null and str(raw) != "":
+		items = [raw]
+	if items.is_empty():
+		return false
+	var any := false
+	for item in items:
+		var fork := sim.fork()
+		fork.set_referent(controller, each_key, StringName(str(item)))
+		fork.last_step_enemy_id = StringName(str(item))
 		any = _simulate_node(node.children[0], fork) or any
 	return any
 
@@ -130,7 +175,7 @@ func _resolve_sim_enemy_spec(node: CompositionNode, sim: GameSimulator) -> Strin
 	return spec
 
 
-## dry-run：U–S 枚举后可选 V；有合法候选即 CREATED（不经 Gate）。
+## dry-run：U–S 枚举后可选 V；合法集 ≥ min_picks 即 CREATED（不经 Gate）。
 func _simulate_pick_target(node: CompositionNode, sim: GameSimulator) -> bool:
 	var pick_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 	if pick_inv == null:
@@ -150,14 +195,37 @@ func _simulate_pick_target(node: CompositionNode, sim: GameSimulator) -> bool:
 	var candidates := CandidateEnumerator.enumerate_on_sim(
 		spec.filter, sim, controller, node.card_id
 	)
+	var v_bind := spec.bind_key
+	if (
+		spec.choice_kind == AhcEnums.ChoiceKind.PICK_MULTI
+		and spec.bind_key == &"picked_enemies"
+	):
+		v_bind = &"picked_enemy"
 	if not spec.skip_viability and spec.viability_tail != null and not candidates.is_empty():
 		candidates = CandidateViability.filter_viable_on_sim(
-			candidates, sim, controller, spec.bind_key, spec.viability_tail
+			candidates, sim, controller, v_bind, spec.viability_tail
 		)
-	if candidates.is_empty():
+	if candidates.size() < spec.min_picks:
 		return false
-	sim.last_step_enemy_id = candidates[0]
-	sim.set_referent(controller, spec.bind_key, candidates[0])
+	## min=0：即使无候选，本步仍可「选无」→ CREATED（空列表）。
+	if candidates.is_empty():
+		if spec.min_picks <= 0:
+			sim.set_referent(controller, spec.bind_key, [])
+			return true
+		return false
+	var take := mini(spec.max_picks, candidates.size())
+	if (
+		spec.choice_kind == AhcEnums.ChoiceKind.PICK_MULTI
+		or spec.bind_shape == &"entity_list"
+	):
+		var list: Array[StringName] = []
+		for i in take:
+			list.append(candidates[i])
+		sim.last_step_enemy_id = list[0] if not list.is_empty() else &""
+		sim.set_referent(controller, spec.bind_key, list)
+	else:
+		sim.last_step_enemy_id = candidates[0]
+		sim.set_referent(controller, spec.bind_key, candidates[0])
 	return true
 
 

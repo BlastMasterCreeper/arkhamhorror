@@ -103,8 +103,29 @@ func _maybe_attach_viability_tail(
 		rest.append(siblings[j] as CompositionNode)
 	if rest.is_empty():
 		return
-	spec.viability_tail = rest[0] if rest.size() == 1 else CompositionNode.seq(rest)
+	## pick_multi + for_each_memory：V 用 each 体 + 单数 bind（非空列表）。
+	spec.viability_tail = _viability_tail_from_rest(rest)
 	child.selection_spec = spec
+
+
+func _viability_tail_from_rest(rest: Array[CompositionNode]) -> CompositionNode:
+	if rest.is_empty():
+		return null
+	var first: CompositionNode = rest[0]
+	if (
+		first != null
+		and first.kind == AhcEnums.CompositionNodeKind.FOR_EACH
+		and first.for_each_source == &"memory_list"
+		and not first.children.is_empty()
+	):
+		var body: CompositionNode = first.children[0]
+		if rest.size() == 1:
+			return body
+		var seq_nodes: Array[CompositionNode] = [body]
+		for i in range(1, rest.size()):
+			seq_nodes.append(rest[i])
+		return CompositionNode.seq(seq_nodes)
+	return first if rest.size() == 1 else CompositionNode.seq(rest)
 
 
 func _resolve_inv(node: CompositionNode) -> StringName:
@@ -114,7 +135,12 @@ func _resolve_inv(node: CompositionNode) -> StringName:
 
 
 func _execute_for_each(node: CompositionNode) -> void:
-	if node.children.is_empty() or _game_ctx == null or _game_ctx.framework == null:
+	if node.children.is_empty() or _game_ctx == null:
+		return
+	if node.for_each_source == &"memory_list":
+		_execute_for_each_memory(node)
+		return
+	if _game_ctx.framework == null:
 		return
 	var order: Array[StringName] = []
 	if node.for_each_source == &"player_order":
@@ -128,6 +154,31 @@ func _execute_for_each(node: CompositionNode) -> void:
 		_inv_override_stack.append(inv_id)
 		_run_node(node.children[0])
 		_inv_override_stack.pop_back()
+
+
+## 遍历 entity_list：每轮写入 for_each_bind_key，body 读 memory: 单数指称。
+func _execute_for_each_memory(node: CompositionNode) -> void:
+	if _game_ctx.memory == null:
+		return
+	var controller := _ability_controller(_resolve_inv(node))
+	var list_key := node.memory_key if node.memory_key != &"" else &"picked_enemies"
+	var each_key := (
+		node.for_each_bind_key if node.for_each_bind_key != &"" else &"picked_enemy"
+	)
+	var raw: Variant = _game_ctx.memory.get_referent(controller, list_key)
+	var items: Array = []
+	if raw is Array:
+		items = raw as Array
+	elif raw != null and str(raw) != "":
+		items = [raw]
+	for item in items:
+		var eid := StringName(str(item))
+		if eid == &"":
+			continue
+		_game_ctx.memory.set_referent(controller, each_key, eid)
+		_last_step_enemy_id = eid
+		node.children[0].provenance = node.provenance
+		_run_node(node.children[0])
 
 
 func _stamp_provenance(node: CompositionNode) -> void:
@@ -859,20 +910,43 @@ func _execute_pick_target(node: CompositionNode) -> bool:
 	var candidates := CandidateEnumerator.enumerate(
 		spec.filter, _game_ctx, inv_id, node.card_id
 	)
+	## V：逐候选 dry-run；多选时 tail 仍按单数 bind_key 试（与单选同源）。
+	var v_bind := spec.bind_key
+	if (
+		spec.choice_kind == AhcEnums.ChoiceKind.PICK_MULTI
+		and spec.bind_shape == &"entity_list"
+	):
+		## 列表尾树常用 memory:picked_enemy；V 注入单数键。
+		v_bind = &"picked_enemy" if spec.bind_key == &"picked_enemies" else spec.bind_key
 	if (
 		not spec.skip_viability
 		and spec.viability_tail != null
 		and not candidates.is_empty()
 	):
 		candidates = CandidateViability.filter_viable(
-			candidates, _game_ctx, inv_id, spec.bind_key, spec.viability_tail
+			candidates, _game_ctx, inv_id, v_bind, spec.viability_tail
 		)
-	if candidates.is_empty():
+	if candidates.size() < spec.min_picks:
 		return false
-	var picked: Variant = candidates[0]
+	if candidates.is_empty() and spec.min_picks > 0:
+		return false
+	var picked: Variant = null
 	if _game_ctx.interaction != null:
 		picked = _game_ctx.interaction.ask_selection(spec, candidates, inv_id, _game_ctx)
+	else:
+		picked = (
+			candidates[0]
+			if spec.max_picks <= 1
+			else candidates.slice(0, mini(spec.max_picks, candidates.size()))
+		)
 	if picked == null:
+		return false
+	## min=0 选空列表：步成功但无 CREATED 目标（仍写 bind=[]）。
+	if picked is Array and (picked as Array).is_empty() and spec.min_picks <= 0:
+		_apply_choice_bind(inv_id, spec, picked)
+		_last_step_created = false
+		return true
+	if picked is Array and (picked as Array).size() < spec.min_picks:
 		return false
 	_apply_choice_bind(inv_id, spec, picked)
 	if typeof(picked) == TYPE_STRING_NAME or typeof(picked) == TYPE_STRING:
@@ -889,6 +963,8 @@ func _execute_pick_target(node: CompositionNode) -> bool:
 			"filter": spec.filter.preset if spec.filter.preset != &"" else spec.filter.at,
 			"picked": picked,
 			"bind": spec.bind_key,
+			"min": spec.min_picks,
+			"max": spec.max_picks,
 		}
 	)
 	return true

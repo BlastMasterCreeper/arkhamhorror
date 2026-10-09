@@ -39,9 +39,24 @@ static func pick_entity(
 	s.prompt_id = prompt_id
 	s.bind_key = bind_key
 	s.bind_shape = &"entity_list" if s.choice_kind == AhcEnums.ChoiceKind.PICK_MULTI else &"entity"
-	s.min_picks = mini(min_picks, max_picks)
+	s.min_picks = mini(min_picks, max_picks) if max_picks >= 0 else min_picks
 	s.max_picks = maxi(max_picks, s.min_picks)
-	s.default_policy = &"first_option"
+	## up to N（min=0）默认跳过；exactly/at-least 取前 N。
+	s.default_policy = &"skip" if s.min_picks <= 0 else &"first_option"
+	return s
+
+
+## 糖：多选实体 → PICK_MULTI + entity_list（21 §4.1）。
+static func pick_multi(
+	filter: CandidateFilter,
+	prompt_id: StringName,
+	bind_key: StringName = &"picked_enemies",
+	min_picks: int = 1,
+	max_picks: int = 2
+) -> SelectionSpec:
+	var s := pick_entity(filter, prompt_id, bind_key, min_picks, maxi(max_picks, 1))
+	s.choice_kind = AhcEnums.ChoiceKind.PICK_MULTI
+	s.bind_shape = &"entity_list"
 	return s
 
 

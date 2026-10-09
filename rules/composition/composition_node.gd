@@ -50,6 +50,8 @@ var is_direct: bool = false
 var place_doom_target: StringName = &""
 ## PI / 步间指称：RulesMemory key（如 picked_enemy）。
 var memory_key: StringName = &""
+## for_each memory 列表时，每轮写入的单数指称（如 picked_enemy）。
+var for_each_bind_key: StringName = &""
 ## pick_target 候选过滤预设（如 enemy_at_connecting）；优先用 selection_spec。
 var target_filter: StringName = &""
 ## 通用选择规格（21-selection-spec）；非空时覆盖 target_filter/memory_key。
@@ -626,6 +628,25 @@ static func for_each_player_order(body: CompositionNode) -> CompositionNode:
 	return n
 
 
+## L1 · 遍历 RulesMemory 中的 entity_list（21 §5.2 `memory:key[]`）。
+## 每轮把单项写入 `each_key`（默认 picked_enemy），供后续 leaf 读 `memory:`。
+static func for_each_memory(
+	controller_id: StringName,
+	list_key: StringName,
+	body: CompositionNode,
+	each_key: StringName = &"picked_enemy"
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.FOR_EACH
+	n.for_each_source = &"memory_list"
+	n.inv_id = controller_id
+	n.memory_key = list_key
+	n.for_each_bind_key = each_key if each_key != &"" else &"picked_enemy"
+	if body != null:
+		n.children.append(body)
+	return n
+
+
 ## 调查员受到 horror · nest `seq.effect.damage`（kind=horror）。
 static func take_horror(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_horror(inv_id, amount, is_direct)
@@ -922,6 +943,34 @@ static func select_entities(
 		if spec.filter != null:
 			n.target_filter = spec.filter.preset
 	return n
+
+
+## 糖：template=`pick_multi` → select + PICK_MULTI + min/max。
+static func pick_multi(
+	controller_id: StringName,
+	filter: Variant = &"enemy_at_controller_location",
+	min_picks: int = 1,
+	max_picks: int = 2,
+	prompt_id: StringName = &"pick:multi",
+	memory_key: StringName = &"picked_enemies",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var spec: SelectionSpec
+	if filter is SelectionSpec:
+		spec = filter as SelectionSpec
+		spec.choice_kind = AhcEnums.ChoiceKind.PICK_MULTI
+		spec.bind_shape = &"entity_list"
+		spec.min_picks = min_picks
+		spec.max_picks = maxi(max_picks, min_picks)
+	else:
+		spec = SelectionSpec.pick_multi(
+			CandidateFilter.from_variant(filter),
+			prompt_id,
+			memory_key,
+			min_picks,
+			max_picks
+		)
+	return select_entities(controller_id, spec, source_card_id)
 
 
 ## 同帧内联：把敌人放到目标地点（L0 改 location_tag；不 nest、不自动交战）。

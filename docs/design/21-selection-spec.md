@@ -394,7 +394,7 @@ bind:
 | **V** 候选级 dry-run（含 Restriction；目标须能被改变） | ✅ 骨架：`CandidateViability` + SEQ 兄弟/`viability_tail`；`exhaust_enemy` 已横置无 CREATED |
 | `for_intent` 预筛 | 可选优化；不得与 V 分叉 |
 | **隐式目标** Fight/Evade/Investigate（§3.2） | ✅ 基础行动：`ImplicitActionTargets` + preset filter + V（Investigate 仅所在地预检） |
-| `pick_multi` / 特性·关键词·横置全量 | 增量 |
+| `pick_multi` + `for_each_memory` | ✅ `PICK_MULTI` 基数/默认前 N；`entity_list` bind；`memory:key[]` 遍历；特性·关键词·横置仍增量扩 filter |
 | `choice_optional` 编译糖 | ✅ `CompositionNodeKind.OPTIONAL` + Gate `OPTIONAL_EFFECT`；默认跳过；body FIZZLE 不 ask |
 | 12116 内嵌 PI 拆为独立 select | ✅ `pick_target` + `nest_move_to`（19 §3.1） |
 
@@ -404,6 +404,7 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-09 | v0.10 | **落地 `pick_multi`**：基数校验、默认前 N / skip、`entity_list` bind、`for_each_memory` 消费列表 |
 | 2026-10-08 | v0.9 | **落地 `choice_optional`**：`OPTIONAL` 节点 + Gate `OPTIONAL_EFFECT`；编译糖 body/steps；Python `You may take N horror/damage` |
 | 2026-09-30 | v0.8 | **落地 N**：`CandidateFilter.preds` + `CandidatePreds`（field/op/value；少量 stat_query） |
 | 2026-09-30 | v0.7 | **落地隐式目标**：Fight/Evade U–V 付费前解析；Investigate §3.2.2 所在地预检 |

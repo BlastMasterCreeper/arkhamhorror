@@ -125,6 +125,11 @@ func _initialize() -> void:
 	_run_test("ADB-64 V empty set fizzles choose exhaust when all exhausted", _test_adb_viability_exhaust_all_exhausted)
 	_run_test("ADB-65 N preds fight le filters weak enemy", _test_adb_preds_fight_le)
 	_run_test("ADB-66 N preds controller resources gate", _test_adb_preds_controller_resources)
+	_run_test("ADB-67 pick_multi default takes first max", _test_adb_pick_multi_default)
+	_run_test("ADB-68 pick_multi scripting subset", _test_adb_pick_multi_scripting)
+	_run_test("ADB-69 pick_multi for_each exhausts list", _test_adb_pick_multi_for_each)
+	_run_test("ADB-70 pick_multi min unsatisfied fizzles", _test_adb_pick_multi_min_fizzle)
+	_run_test("ADB-71 pick_multi compiler sugar", _test_adb_pick_multi_compiler)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2666,6 +2671,150 @@ func _test_adb_preds_controller_resources() -> bool:
 	inv.resource_pool = 2
 	var ok := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
 	return ok.size() == 1 and ok[0] == &"enemy_1"
+
+
+func _test_adb_pick_multi_default() -> bool:
+	## pick_multi max=2：headless 默认取前 2；bind entity_list。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_c", &"test_loc", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var body := CompositionNode.pick_multi(
+		&"inv_1",
+		&"enemy_at_controller_location",
+		1,
+		2,
+		&"pick:multi",
+		&"picked_enemies"
+	)
+	CompositionTestHelper.new(h.ctx).execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemies")
+	if not mem is Array:
+		return false
+	var list := mem as Array
+	return list.size() == 2 and list.has(&"enemy_a") and list.has(&"enemy_b")
+
+
+func _test_adb_pick_multi_scripting() -> bool:
+	## Scripting 指定子集；截断遵守 max_picks。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_c", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pick:multi", "pick": [&"enemy_c", &"enemy_a"]},
+	])
+	var body := CompositionNode.pick_multi(
+		&"inv_1", &"enemy_at_controller_location", 1, 2, &"pick:multi", &"picked_enemies"
+	)
+	CompositionTestHelper.new(h.ctx).execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemies")
+	if not mem is Array:
+		return false
+	var list := mem as Array
+	return list.size() == 2 and list[0] == &"enemy_c" and list[1] == &"enemy_a"
+
+
+func _test_adb_pick_multi_for_each() -> bool:
+	## pick_multi → for_each_memory → exhaust：两敌均横置；V 剔除已横置。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ready_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ready_b", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_exh", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_exh").exhausted = true
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	var pick := CompositionNode.pick_multi(
+		&"inv_1", &"enemy_at_controller_location", 1, 2, &"pick:multi", &"picked_enemies"
+	)
+	var body := CompositionNode.seq([
+		pick,
+		CompositionNode.for_each_memory(
+			&"inv_1",
+			&"picked_enemies",
+			CompositionNode.exhaust_enemy(&"inv_1", &"memory:picked_enemy"),
+			&"picked_enemy"
+		),
+	])
+	var helper := CompositionTestHelper.new(h.ctx)
+	if not helper.dry_run(body):
+		return false
+	helper.execute(body)
+	var a := h.ctx.state.registry.get_enemy(&"enemy_ready_a")
+	var b := h.ctx.state.registry.get_enemy(&"enemy_ready_b")
+	var exh := h.ctx.state.registry.get_enemy(&"enemy_exh")
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemies")
+	return (
+		a != null and a.exhausted
+		and b != null and b.exhausted
+		and exh != null and exh.exhausted
+		and mem is Array
+		and (mem as Array).size() == 2
+		and not (mem as Array).has(&"enemy_exh")
+	)
+
+
+func _test_adb_pick_multi_min_fizzle() -> bool:
+	## exactly 2 但仅 1 合法候选 → fizzle，不写 Memory。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_only", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	var body := CompositionNode.pick_multi(
+		&"inv_1", &"enemy_at_controller_location", 2, 2, &"pick:multi", &"picked_enemies"
+	)
+	var helper := CompositionTestHelper.new(h.ctx)
+	if helper.dry_run(body):
+		return false
+	helper.execute(body)
+	return h.ctx.memory.get_referent(&"inv_1", &"picked_enemies") == null
+
+
+func _test_adb_pick_multi_compiler() -> bool:
+	var bind := AbilityBindContext.new()
+	bind.controller_id = &"inv_1"
+	var node := ArkhamDbAbilityCompiler.build_composition(
+		"pick_multi",
+		{
+			"filter": "enemy_at_controller_location",
+			"min": 1,
+			"max": 3,
+			"prompt_id": "pick:multi",
+			"memory_key": "picked_enemies",
+		},
+		bind
+	)
+	if node == null or node.selection_spec == null:
+		return false
+	var spec: SelectionSpec = node.selection_spec
+	var each := ArkhamDbAbilityCompiler.build_composition(
+		"for_each_memory",
+		{
+			"memory_key": "picked_enemies",
+			"each_key": "picked_enemy",
+			"body": {"template": "exhaust_enemy", "enemy": "memory:picked_enemy"},
+		},
+		bind
+	)
+	return (
+		node.atom_name == &"select"
+		and spec.choice_kind == AhcEnums.ChoiceKind.PICK_MULTI
+		and spec.bind_shape == &"entity_list"
+		and spec.min_picks == 1
+		and spec.max_picks == 3
+		and each != null
+		and each.kind == AhcEnums.CompositionNodeKind.FOR_EACH
+		and each.for_each_source == &"memory_list"
+	)
 
 
 func _test_adb_skip_aoo_buff_consume() -> bool:

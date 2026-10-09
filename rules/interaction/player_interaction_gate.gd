@@ -147,8 +147,13 @@ func ask_selection(
 	controller_id: StringName,
 	ctx: GameContext
 ) -> Variant:
-	if spec == null or candidates.is_empty():
+	if spec == null:
 		return null
+	## 不足 min_picks → 无法满足基数（min=0 时允许空候选 → 选无）。
+	if candidates.size() < spec.min_picks:
+		return null
+	if candidates.is_empty():
+		return [] if spec.min_picks <= 0 else null
 	var decider := controller_id
 	if spec.decider == &"lead" and ctx != null and ctx.state != null:
 		var lead: StringName = ctx.state.lead_investigator_id
@@ -157,10 +162,45 @@ func ask_selection(
 	## 单选且唯一候选 → 默认确认（仍返回值供 bind）。
 	if spec.max_picks <= 1 and candidates.size() == 1:
 		return candidates[0]
+	## exactly N 且候选恰为 N → 默认确认全集。
+	if (
+		spec.choice_kind == AhcEnums.ChoiceKind.PICK_MULTI
+		and spec.min_picks == spec.max_picks
+		and candidates.size() == spec.min_picks
+	):
+		return candidates.duplicate()
 	var req := spec.to_choice_request(candidates, decider)
 	var pick: Variant = ask(req, ctx)
 	if pick == null:
 		if spec.default_policy == &"skip":
-			return null
-		return candidates[0] if spec.max_picks <= 1 else [candidates[0]]
+			return [] if spec.min_picks <= 0 else null
+		if spec.max_picks <= 1:
+			return candidates[0]
+		return _default_multi_slice(candidates, spec)
+	if spec.choice_kind == AhcEnums.ChoiceKind.PICK_MULTI:
+		return _normalize_multi_pick(pick, candidates, spec)
 	return pick
+
+
+func _default_multi_slice(candidates: Array, spec: SelectionSpec) -> Array:
+	var take := clampi(spec.max_picks, 0, candidates.size())
+	if take < spec.min_picks:
+		return []
+	var out: Array = []
+	for i in take:
+		out.append(candidates[i])
+	return out
+
+
+func _normalize_multi_pick(pick: Variant, candidates: Array, spec: SelectionSpec) -> Variant:
+	var list: Array = []
+	if pick is Array:
+		list = (pick as Array).duplicate()
+	elif pick != null:
+		list = [pick]
+	## 截断至 max_picks；不足 min → 视为无效。
+	if list.size() > spec.max_picks:
+		list = list.slice(0, spec.max_picks)
+	if list.size() < spec.min_picks:
+		return null
+	return list

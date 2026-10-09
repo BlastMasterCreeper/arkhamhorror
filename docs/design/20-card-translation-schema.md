@@ -80,7 +80,8 @@
 
 | 卡面语义 | template 例 | 必填规格 |
 |---|---|---|
-| 选 1 / N 实体（区域·特性·关键词·横置…） | `select` / `pick_target` / `pick_multi` | `filter`（预设或对象）、`prompt_id`、`bind`/`memory_key` |
+| 选 1 / N 实体（区域·特性·关键词·横置…） | `select` / `pick_target` / `pick_multi` | `filter`、`min`/`max`、`prompt_id`、`bind`/`memory_key`（多选 shape=`entity_list`） |
+| 遍历已选列表 | `for_each_memory` | `memory_key`（list）+ `each_key` + `body`/`steps` |
 | must 二选一效果支 | `choice_must` | `options[]`（各含子树）、`prompt_id` |
 | Optional / may 做不做 | `choice_optional`（效果体内）；整段能力仍用装载层 `USE_ABILITY` / descriptor.optional | bind.shape=bool；默认跳过 |
 
