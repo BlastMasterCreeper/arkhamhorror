@@ -388,6 +388,30 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 	var difficulty_source := StringName(str(params.get("difficulty_source", "")))
 	var plan := _build_st7_plan(params, bind)
 	var choices: Variant = params.get("skill_choices", [])
+	# #region agent log
+	var _bf := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
+	if _bf == null:
+		_bf = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
+	if _bf != null:
+		_bf.seek_end()
+		_bf.store_line(JSON.stringify({
+			"hypothesisId": "E",
+			"location": "arkhamdb_ability_compiler.gd:_build_skill_test",
+			"message": "params_at_build",
+			"runId": "post-fix",
+			"data": {
+				"has_skill_choices": params.has("skill_choices"),
+				"choices": choices if choices is Array else [],
+				"has_diff_src": params.has("difficulty_source"),
+				"diff_src": str(difficulty_source),
+				"difficulty": difficulty,
+				"has_st7": params.has("st7"),
+				"memory_key": str(params.get("memory_key", "")),
+			},
+			"timestamp": Time.get_ticks_msec(),
+		}))
+		_bf.close()
+	# #endregion
 	## skill_choices：PI 只选技能类型 → 单次 skill_test（体不重复）。
 	if choices is Array and not (choices as Array).is_empty():
 		var option_ids: Array = []
@@ -568,7 +592,9 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"prompt_id",
 		"body",
 		"skill",
+		"skill_choices",
 		"difficulty",
+		"difficulty_source",
 		"st7_fail_by",
 		"st7",
 		"window",

@@ -75,6 +75,7 @@ func resolve_revelations(
 					"hypothesisId": "E",
 					"location": "card_ability_service.gd:resolve_revelations",
 					"message": "built_tree",
+					"runId": "post-fix",
 					"data": {"def": str(card.id.definition_id), "controller": str(controller_id), "root_kind": node.kind, "root_atom": str(node.atom_name), "children": child_atoms},
 					"timestamp": Time.get_ticks_msec(),
 				}))

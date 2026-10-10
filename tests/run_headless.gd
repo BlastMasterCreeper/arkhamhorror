@@ -2218,6 +2218,7 @@ func _test_enc_12127_fail() -> bool:
 			"hypothesisId": "TEST",
 			"location": "run_headless.gd:_test_enc_12127_fail",
 			"message": "after_resolve",
+			"runId": "post-fix",
 			"data": {
 				"damage": inv.damage_taken,
 				"hand_before": hand_before,
