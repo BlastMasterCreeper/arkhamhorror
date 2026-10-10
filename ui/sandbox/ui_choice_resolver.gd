@@ -16,12 +16,23 @@ func bind_modal(modal: ChoiceModal) -> void:
 
 
 func resolve(request: ChoiceRequest) -> Variant:
+	return resolve_choice(request).get("pick")
+
+
+func resolve_choice(request: ChoiceRequest) -> Dictionary:
 	if request == null:
-		return null
+		return {"pick": null, "used_default": true}
 	if _modal == null or not is_instance_valid(_modal):
-		return _fallback.resolve(request)
+		return {"pick": _fallback.resolve(request), "used_default": true}
 	_modal.present(request)
 	while _modal.is_waiting():
 		DisplayServer.process_events()
 		OS.delay_msec(16)
-	return _modal.pick_result()
+	var pick: Variant = _modal.pick_result()
+	## 取消 / 未确认 → 默认自动选用（倒计时 UI 后补；此处同等价于逾期）。
+	if pick == null:
+		return {
+			"pick": DefaultChoiceResolver.compute_default(request),
+			"used_default": true,
+		}
+	return {"pick": pick, "used_default": false}

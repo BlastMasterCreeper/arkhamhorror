@@ -134,6 +134,7 @@ func to_choice_request(
 	req.min_picks = min_picks
 	req.max_picks = max_picks
 	req.default_index = 0
+	req.default_policy = default_policy
 	req.deadline_ms = deadline_ms
 	req.context = {
 		"bind_key": bind_key,

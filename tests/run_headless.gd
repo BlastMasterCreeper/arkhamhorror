@@ -274,6 +274,11 @@ func _initialize() -> void:
 	_run_test("NS-06 reaction blocked on own resolution", _test_ns_self_response_blocked)
 	_run_test("PI-01 default optional declines", _test_pi_default_optional_decline)
 	_run_test("PI-02 scripting resolver by prompt_id", _test_pi_scripting_resolver)
+	_run_test("PI-03 default pick_target used_default", _test_pi_default_pick_used_default)
+	_run_test("PI-04 scripting explicit not used_default", _test_pi_scripting_not_default)
+	_run_test("PI-05 scripting miss falls to default", _test_pi_scripting_miss_default)
+	_run_test("PI-06 INTERACTION_CHOICE event record", _test_pi_interaction_event_record)
+	_run_test("PI-07 compute_default pick_multi first N", _test_pi_compute_default_multi)
 	_run_test("FWK-01 upkeep 4.4 draw and gain via catalog", _test_fwk_upkeep_44_catalog)
 	_run_test("FWK-02 mythos 1.4 encounter draw", _test_fwk_mythos_14_encounter_draw)
 	_run_test("FWK-03 mythos 1.4 two investigators", _test_fwk_mythos_14_two_investigators)
@@ -5702,7 +5707,7 @@ func _test_ns_self_response_blocked() -> bool:
 func _test_pi_default_optional_decline() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.ctx.interaction.ask_optional_effect(&"inv_1", &"may:heal", h.ctx, false):
-		return true
+		return h.ctx.interaction.last_used_default
 	return false
 
 
@@ -5712,7 +5717,69 @@ func _test_pi_scripting_resolver() -> bool:
 		{"prompt_id": &"pick:enemy", "pick": &"enemy_1"},
 	])
 	var pick: Variant = h.ctx.interaction.ask_pick_target([&"enemy_0", &"enemy_1"], &"inv_1", &"pick:enemy", h.ctx)
-	return pick == &"enemy_1"
+	return pick == &"enemy_1" and not h.ctx.interaction.last_used_default
+
+
+func _test_pi_default_pick_used_default() -> bool:
+	var h := RuleTestHarness.new(42)
+	var pick: Variant = h.ctx.interaction.ask_pick_target(
+		[&"enemy_0", &"enemy_1"], &"inv_1", &"pick:enemy", h.ctx
+	)
+	return pick == &"enemy_0" and h.ctx.interaction.last_used_default
+
+
+func _test_pi_scripting_not_default() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pick:enemy", "pick": &"enemy_1"},
+	])
+	var pick: Variant = h.ctx.interaction.ask_pick_target(
+		[&"enemy_0", &"enemy_1"], &"inv_1", &"pick:enemy", h.ctx
+	)
+	## 显式脚本应答即使等于「非默认项」也 used_default=false。
+	return pick == &"enemy_1" and not h.ctx.interaction.last_used_default
+
+
+func _test_pi_scripting_miss_default() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"other:prompt", "pick": &"enemy_1"},
+	])
+	var pick: Variant = h.ctx.interaction.ask_pick_target(
+		[&"enemy_0", &"enemy_1"], &"inv_1", &"pick:enemy", h.ctx
+	)
+	return pick == &"enemy_0" and h.ctx.interaction.last_used_default
+
+
+func _test_pi_interaction_event_record() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.ask_pick_target([&"a", &"b"], &"inv_1", &"pick:ev", h.ctx)
+	var found := false
+	for rec in h.ctx.events.get_records():
+		if rec.kind != AhcEnums.EventRecordKind.INTERACTION_CHOICE:
+			continue
+		found = true
+		if not bool(rec.payload.get("used_default", false)):
+			return false
+		if str(rec.payload.get("picked", "")) != "a":
+			return false
+	return found
+
+
+func _test_pi_compute_default_multi() -> bool:
+	var req := ChoiceRequest.new()
+	req.kind = AhcEnums.ChoiceKind.PICK_MULTI
+	req.options = [&"e1", &"e2", &"e3"]
+	req.min_picks = 1
+	req.max_picks = 2
+	req.default_policy = &"first_option"
+	var pick: Variant = DefaultChoiceResolver.compute_default(req)
+	if not pick is Array or (pick as Array).size() != 2:
+		return false
+	req.min_picks = 0
+	req.default_policy = &"skip"
+	var skip: Variant = DefaultChoiceResolver.compute_default(req)
+	return skip is Array and (skip as Array).is_empty()
 
 
 func _test_fwk_upkeep_44_catalog() -> bool:

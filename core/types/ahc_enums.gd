@@ -232,6 +232,8 @@ enum EventRecordKind {
 	ACTION_SPEND,
 	ACTION_SPEND_VOID,
 	ACTION_GRANT,
+	## 玩家交互（含 used_default）；见 16 §3 / Gate.ask。
+	INTERACTION_CHOICE,
 }
 
 enum StatKey {

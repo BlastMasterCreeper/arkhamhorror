@@ -452,7 +452,7 @@ seq.encounter.revelation
 |---|---|---|
 | P0 | `ChoiceKind` + `ChoiceRequest` + `PlayerInteractionGate.ask` | 骨架 |
 | P0 | `DefaultChoiceResolver` / `ScriptingChoiceResolver` | 骨架 |
-| P0 | **有限期确认 + default_***（§3.1） | 规格已裁；实现待接 |
+| P0 | **有限期确认 + default_***（§3.1） | ✅ 默认自动选用（`compute_default` / `resolve_choice` / `used_default` + EventRecord）；**deadline UI 倒计时暂缓** |
 | P0 | **§5 完整目录**（本文件） | v0.2 |
 | P0 | **SelectionSpec / CandidateFilter / ChoiceBind**（[21](21-selection-spec.md)） | ✅ 骨架；`pick_target`/`select` 已接 Enumerator |
 | P1 | ResponseWindow：`USE_ABILITY` + `ORDER_SIMULTANEOUS` | 待接 |
@@ -463,7 +463,7 @@ seq.encounter.revelation
 | P2 | Damage：`ASSIGN_*` / `CHOOSE_TRAUMA` | 待接 |
 | P2 | `TIE_BREAK` / `ORDER_ATTACKS` / Hunter spawn | 待接 |
 | P3 | `SEARCH_TAKE` / `SETUP_CHOICE` / `CAMPAIGN_DECISION` | 待接 |
-| P3 | `INTERACTION_CHOICE` EventRecord（含 `used_default`） | 待接 |
+| P3 | `INTERACTION_CHOICE` EventRecord（含 `used_default`） | ✅ Gate.ask 写入 |
 
 ---
 
