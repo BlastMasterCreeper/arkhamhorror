@@ -2149,6 +2149,9 @@ func _test_adb_compile_12130_skill_choice() -> bool:
 		and int(test.get("difficulty", 0)) == 3
 		and each.get("template", "") == "take_damage"
 		and each.get("flow_id", "") == "seq.effect.damage"
+		and each.get("kind", "") == "damage"
+		and each.get("target", "") == "controller"
+		and test.get("investigator", "") == "controller"
 	)
 
 
@@ -2178,11 +2181,15 @@ func _test_adb_compile_12127() -> bool:
 		and test.get("flow_id", "") == "seq.skill_test"
 		and test.get("skill", "") == "memory:picked_skill"
 		and test.get("difficulty_source", "") == "hand_count"
+		and test.get("investigator", "") == "controller"
 		and fail_steps is Array
 		and (fail_steps as Array).size() == 2
 		and ((fail_steps as Array)[0] as Dictionary).get("flow_id", "") == "seq.effect.damage"
+		and ((fail_steps as Array)[0] as Dictionary).get("kind", "") == "damage"
+		and ((fail_steps as Array)[0] as Dictionary).get("target", "") == "controller"
 		and ((fail_steps as Array)[1] as Dictionary).get("flow_id", "")
 			== "seq.effect.discard_from_hand"
+		and ((fail_steps as Array)[1] as Dictionary).get("investigator", "") == "controller"
 	)
 
 

@@ -43,6 +43,7 @@ static func build_composition(
 				bind.card_id
 			)
 		"take_damage":
+			## kind 默认 damage；target 默认 controller；source = 装载 card_id。
 			return CompositionNode.nest_take_damage(
 				bind.controller_id,
 				int(params.get("amount", 1)),
@@ -171,8 +172,14 @@ static func build_composition(
 				StringName(str(params.get("mode", "choose")))
 			)
 		"discard_from_hand":
+			## investigator 指称（默认 controller）；装载期解析为 bind.controller_id。
+			var discard_inv := bind.controller_id
+			var discard_who := str(params.get("investigator", params.get("target", "controller")))
+			if discard_who != "" and discard_who != "controller":
+				## 非 controller 指称暂未扩展；仍落控制者（JSON 已写明意图）。
+				discard_inv = bind.controller_id
 			return CompositionNode.nest_discard_from_hand(
-				bind.controller_id,
+				discard_inv,
 				int(params.get("amount", 1)),
 				StringName(str(params.get("mode", "random")))
 			)

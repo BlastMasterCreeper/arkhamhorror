@@ -1287,6 +1287,7 @@
           {
             "template": "nest_skill_test",
             "flow_id": "seq.skill_test",
+            "investigator": "controller",
             "skill": "memory:picked_skill",
             "st7": {
               "on_fail": {
@@ -1295,11 +1296,14 @@
                   {
                     "template": "take_damage",
                     "flow_id": "seq.effect.damage",
-                    "amount": 1
+                    "kind": "damage",
+                    "amount": 1,
+                    "target": "controller"
                   },
                   {
                     "template": "discard_from_hand",
                     "flow_id": "seq.effect.discard_from_hand",
+                    "investigator": "controller",
                     "amount": 1,
                     "mode": "random"
                   }
@@ -1525,12 +1529,15 @@
           {
             "template": "nest_skill_test",
             "flow_id": "seq.skill_test",
+            "investigator": "controller",
             "skill": "memory:picked_skill",
             "st7": {
               "on_fail_by_each": {
                 "template": "take_damage",
                 "flow_id": "seq.effect.damage",
-                "amount": 1
+                "kind": "damage",
+                "amount": 1,
+                "target": "controller"
               }
             },
             "difficulty": 3
@@ -2735,11 +2742,13 @@
           {
             "template": "nest_skill_test",
             "flow_id": "seq.skill_test",
+            "investigator": "controller",
             "skill": "memory:picked_skill",
             "st7": {
               "on_success": {
                 "template": "discard_source",
-                "flow_id": "seq.effect.discard_card"
+                "flow_id": "seq.effect.discard_card",
+                "card_id": "source"
               }
             },
             "difficulty": 4

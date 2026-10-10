@@ -469,29 +469,35 @@ def compile_lose_or_attack(body: str) -> dict[str, Any] | None:
 
 
 def _leaf_take_damage(amount: int, **extra: Any) -> dict[str, Any]:
-    """D→C：受伤 nest `seq.effect.damage`（应展尽展写 flow_id）。"""
+    """D→C：nest `seq.effect.damage`（kind + target + amount；source 由装载 card_id）。"""
     out: dict[str, Any] = {
         "template": "take_damage",
         "flow_id": "seq.effect.damage",
+        "kind": "damage",
         "amount": amount,
+        "target": "controller",
     }
     out.update(extra)
     return out
 
 
 def _leaf_discard_from_hand(amount: int, mode: str = "random") -> dict[str, Any]:
+    """D→C：nest `seq.effect.discard_from_hand`（investigator + amount + mode）。"""
     return {
         "template": "discard_from_hand",
         "flow_id": "seq.effect.discard_from_hand",
+        "investigator": "controller",
         "amount": amount,
         "mode": mode,
     }
 
 
 def _leaf_discard_source() -> dict[str, Any]:
+    """弃置来源卡 · nest `seq.effect.discard_card`（card_id=source）。"""
     return {
         "template": "discard_source",
         "flow_id": "seq.effect.discard_card",
+        "card_id": "source",
     }
 
 
@@ -508,6 +514,7 @@ def expand_skill_or_test(
     test: dict[str, Any] = {
         "template": "nest_skill_test",
         "flow_id": "seq.skill_test",
+        "investigator": "controller",
         "skill": f"memory:{memory_key}",
         "st7": st7,
     }
