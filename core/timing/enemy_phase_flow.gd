@@ -36,15 +36,22 @@ static func phase_attacks_for(
 	game_ctx: GameContext,
 	investigator_id: StringName
 ) -> Dictionary:
+	## Framework 3.3 基础手续：本调查员结算与其交战的敌人攻击。
+	## Massive = 对「单次阶段攻击」的效果替换（seq.keyword.massive），非平行流程。
 	if game_ctx == null or game_ctx.state == null or game_ctx.combat == null:
 		return {"ok": false}
 	var inv := game_ctx.state.registry.get_investigator(investigator_id)
 	if inv == null:
 		return {"ok": false, "attacks": 0}
 	var attack_count := 0
-	for enemy_id in inv.threat_area.duplicate():
+	for enemy_id in _enemies_attacking_investigator(game_ctx, investigator_id):
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-		if enemy == null or enemy.exhausted or enemy.massive:
+		if enemy == null or enemy.exhausted:
+			continue
+		## 庞大：替换本敌本阶段攻击路径为 batch；已横置则跳过（batch 末或中断后）。
+		if _has_massive(game_ctx, enemy_id):
+			var replaced := _resolve_massive_replacement(game_ctx, enemy_id)
+			attack_count += int(replaced.get("attacks", 0))
 			continue
 		if enemy.engaged_with != investigator_id:
 			continue
@@ -71,8 +78,59 @@ static func phase_attacks_for(
 	return {"ok": true, "attacks": attack_count}
 
 
-static func massive_phase_attacks_all(game_ctx: GameContext) -> Dictionary:
-	return MassiveEngagement.resolve_all_phase_batches(game_ctx)
+static func _enemies_attacking_investigator(
+	game_ctx: GameContext,
+	investigator_id: StringName
+) -> Array[StringName]:
+	var inv := game_ctx.state.registry.get_investigator(investigator_id)
+	if inv == null:
+		return []
+	var out: Array[StringName] = []
+	var seen: Dictionary = {}
+	for enemy_id in inv.threat_area:
+		if seen.has(enemy_id):
+			continue
+		seen[enemy_id] = true
+		out.append(enemy_id)
+	## 庞大永不进威胁区：虚拟交战同地点的 ready 庞大敌人也进入本步候选。
+	for enemy_id in game_ctx.state.registry.all_enemy_ids():
+		if seen.has(enemy_id):
+			continue
+		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+		if enemy == null or not _has_massive(game_ctx, enemy_id):
+			continue
+		if not MassiveEngagement.is_virtually_engaged_with(enemy, investigator_id, game_ctx):
+			continue
+		seen[enemy_id] = true
+		out.append(enemy_id)
+	return out
+
+
+static func _has_massive(game_ctx: GameContext, enemy_id: StringName) -> bool:
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy != null and enemy.massive:
+		return true
+	var card := game_ctx.state.registry.get_card(enemy_id)
+	if card == null:
+		return false
+	return CardRegistry.is_massive(card.id.definition_id)
+
+
+static func _resolve_massive_replacement(
+	game_ctx: GameContext,
+	enemy_id: StringName
+) -> Dictionary:
+	## 效果替换竖切：nest seq.keyword.massive（对齐 Hunter KeywordConsumer 模式）。
+	if (
+		game_ctx.sequence_catalog != null
+		and game_ctx.sequence_catalog.has_flow(&"seq.keyword.massive")
+	):
+		return game_ctx.sequence_catalog.nest(
+			game_ctx,
+			&"seq.keyword.massive",
+			{"card_id": enemy_id, "enemy_id": enemy_id}
+		)
+	return MassiveEngagement.resolve_phase_batch(game_ctx, enemy_id)
 
 
 static func resolve_location(game_ctx: GameContext, params: Dictionary) -> Dictionary:

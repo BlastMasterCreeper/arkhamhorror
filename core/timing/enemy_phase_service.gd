@@ -14,12 +14,9 @@ func run_3_2(game_ctx: GameContext) -> Dictionary:
 
 
 func run_phase_attacks(game_ctx: GameContext, investigator_id: StringName) -> Dictionary:
+	## Framework 3.3 基础手续；Massive 经 seq.keyword.massive 替换，无平行流程。
 	return _catalog.run(
 		game_ctx,
 		&"seq.enemy.phase_attacks",
 		{"investigator_id": investigator_id}
 	)
-
-
-func run_massive_phase_attacks(game_ctx: GameContext) -> Dictionary:
-	return _catalog.run(game_ctx, &"seq.enemy.massive_phase_attacks", {})

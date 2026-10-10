@@ -386,14 +386,17 @@ static func enemy_phase_attacks(
 	return t
 
 
-static func enemy_massive_phase_attacks(
-	after_timing: StringName = &"after_enemy_massive_phase_attacks"
+static func keyword_massive(
+	enemy_id: StringName,
+	after_timing: StringName = &"after_keyword_massive"
 ) -> TriggeringCondition:
+	## 庞大对阶段攻击的效果替换体（非平行 framework 流程）。
 	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_massive_phase_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_massive_phase_attacks"
-	t.tags = [&"enemy", &"framework", &"attack", &"massive"]
+	t.id = StringName("keyword_massive_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"keyword_massive"
+	t.tags = [&"keyword", &"massive", &"attack", &"replace"]
 	t.after_timing = after_timing
+	t.payload = {"card_id": enemy_id, "enemy_id": enemy_id}
 	return t
 
 

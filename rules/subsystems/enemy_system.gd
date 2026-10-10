@@ -171,14 +171,8 @@ func enemy_phase_3_2_moves() -> void:
 	_log.log(AhcEnums.LogCategory.SCENARIO, "enemy_phase_3_2", {})
 
 
-func resolve_massive_phase_attacks() -> void:
-	if _game_ctx != null and _game_ctx.enemy_phase != null:
-		_game_ctx.enemy_phase.run_massive_phase_attacks(_game_ctx)
-		return
-	_log.log(AhcEnums.LogCategory.SCENARIO, "enemy:massive_phase_attacks", {})
-
-
 func resolve_phase_attacks_for(investigator_id: StringName) -> void:
+	## 3.3 基础攻击；Massive 在 phase_attacks 内作效果替换，无独立 massive 遍。
 	if _game_ctx != null and _game_ctx.enemy_phase != null:
 		_game_ctx.enemy_phase.run_phase_attacks(_game_ctx, investigator_id)
 		return

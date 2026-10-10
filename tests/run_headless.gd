@@ -4346,6 +4346,13 @@ func _test_kw_occ_profile_table() -> bool:
 		return false
 	if KeywordProfileTable.profile_for(&"surge").category_tier != KeywordProfileTable.TIER_DELAYED:
 		return false
+	var massive := KeywordProfileTable.profile_for(&"massive")
+	if massive == null or massive.fire_flow_id != KeywordProfileTable.FLOW_PHASE_ATTACKS:
+		return false
+	if massive.consume_flow_id != KeywordProfileTable.FLOW_KEYWORD_MASSIVE:
+		return false
+	if massive.category_tier != KeywordProfileTable.TIER_REPLACE:
+		return false
 	var starting := KeywordProfileTable.profile_for(&"starting")
 	if starting == null or starting.register_flow_id != KeywordProfileTable.FLOW_SETUP:
 		return false
@@ -6170,13 +6177,16 @@ func _test_en09_massive_phase_both() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
 		{"prompt_id": &"order:massive_phase_attacks", "pick": [&"inv_1", &"inv_2"]},
 	])
-	var result := MassiveEngagement.resolve_phase_batch(h.ctx, enemy_id)
+	## 经 3.3 基础手续；庞大 REPLACE → seq.keyword.massive（非平行 massive 流程）。
+	var result := h.ctx.enemy_phase.run_phase_attacks(h.ctx, &"inv_1")
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		int(result.get("attacks", 0)) == 2
 		and inv1.damage_taken == 2
 		and inv2.damage_taken == 2
 		and enemy.exhausted
+		and h.ctx.sequence_catalog.has_flow(&"seq.keyword.massive")
+		and not h.ctx.sequence_catalog.has_flow(&"seq.enemy.massive_phase_attacks")
 	)
 
 

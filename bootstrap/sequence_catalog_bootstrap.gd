@@ -281,13 +281,6 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 			return EnemyPhaseFlow.phase_attacks_for(game_ctx, inv_id)
 	)
 	catalog.register_run(
-		&"seq.enemy.massive_phase_attacks",
-		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_massive_phase_attacks(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.massive_phase_attacks_all(game_ctx)
-	)
-	catalog.register_run(
 		&"seq.enemy.resolve_location",
 		func(params: Dictionary) -> TriggeringCondition:
 			var drawer_id: StringName = params.get(
@@ -432,6 +425,14 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			return TriggeringCondition.keyword_patrol(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return PatrolKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.keyword.massive",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.keyword_massive(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return MassiveKeywordFlow.run(game_ctx, params)
 	)
 
 

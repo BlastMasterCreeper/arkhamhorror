@@ -132,8 +132,9 @@
 | `seq.keyword.hunter` | Hunter 开火 | **已铸**：从 3.2 摘出的移动体 |
 | `seq.keyword.patrol` | Patrol 开火 | **已铸**：从 3.2 摘出的移动体 |
 | `seq.enemy.attack` | Enemy attack | **保留**：单次攻击结算 |
-| `seq.enemy.phase_attacks` | 3.3 Engaged attacks | **合并候选** → 见 §4 M3 |
-| `seq.enemy.massive_phase_attacks` | Massive @ 3.3 | **合并候选** → 见 §4 M3（Massive 另议） |
+| `seq.enemy.phase_attacks` | 3.3 Engaged attacks | **已收口**：3.3 基础攻击手续（玩家顺序） |
+| `seq.enemy.massive_phase_attacks` | （误铸） | **删除** → Massive = REPLACE @ phase_attacks（§4 M3） |
+| `seq.keyword.massive` | Massive 开火/替换体 | **已铸**：替换单次阶段攻击为 batch |
 | `seq.enemy.defeat` | Defeat（敌人） | **保留** |
 | `seq.enemy.resolve_location` | Prey / 地点解析辅助 | **保留或降为内部**（若无独立订阅需求） |
 | `seq.engage` | Engage | **保留内核**；与 `seq.action.engage` 外壳成对 |
@@ -159,7 +160,7 @@
 |---|---|---|---|---|
 | M1 | ~~`discard_from_hand`~~ | **已并**入 `discard_card` + `from` | 同词条 Discard | Eligibility 须读 `from` / tag `from_hand` |
 | M2 | `3_2_hunter_patrol` / `3_2_patrol` | **已落地**：框架只留 **`seq.enemy.3_2`**（枚举 + 消费槽）；Hunter/Patrol 移动体摘为 **`seq.keyword.hunter` / `seq.keyword.patrol`**（KeywordConsumer @ `ENEMY_3_2`） | [08 §5](08-enemy-engagement.md)、[06 §3.2.5](06-registration-buff-model.md) | 关键词 ≠ 框架 handler 内联 |
-| M3 | `phase_attacks` + `massive_phase_attacks` | 并成 **`seq.enemy.phase_attacks`** + params；**Massive** 是否改为关键词 Buff 驱动（同 Hunter 模式）另确认 | 同属 3.3 | Massive 批量打断仍可同 kind |
+| M3 | `phase_attacks` + `massive_phase_attacks` | **已落地**：只留 **`seq.enemy.phase_attacks`**；庞大 = 对基础阶段攻击的 **效果替换**（`seq.keyword.massive` @ `PHASE_ATTACK`，category_tier=REPLACE）；删平行 `massive_phase_attacks` | [06 §3.2.7](06-registration-buff-model.md)、[08 §6.3](08-enemy-engagement.md) | REPLACE ≠ 平行 framework seq |
 | M4 | `seq.gain_resource` 命名 | **不改种类**，只校正前缀别名 | taxonomy | — |
 | M5 | `seq.engage` 命名 | **不改种类**，只校正前缀别名 | 与 action.engage 对称 | — |
 
@@ -216,7 +217,7 @@
 请对下列选项拍板（可直接回「M2/M3 合并、G1 要铸、G2 暂缓」这类）：
 
 1. ~~**M2**~~：**已落地** — `seq.enemy.3_2` 只枚举+消费槽；移动体 = `seq.keyword.hunter` / `patrol`  
-2. **M3**：3.3 `phase_attacks` / `massive_phase_attacks` — 仅合并 params，还是 Massive 也改关键词 Buff？  
+2. ~~**M3**~~：**已落地** — `phase_attacks` 基础手续；Massive = REPLACE → `seq.keyword.massive`  
 3. **G1**：调查员效果移动是否升格为命名流程？  
 4. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
 5. **G3**：Search 是否本阶段铸造？  
@@ -239,3 +240,4 @@
 | 2026-10-10 | 再纠：敌军阶段 III（3.1–3.4）与 3.2 本身有基础流程，不是空壳；LISTENER 只承担关键词移动体；M2 确认 |
 | 2026-10-10 | M2 落地：关键词移动体摘出为 `seq.keyword.hunter` / `patrol`；`seq.enemy.3_2` 只做枚举+消费槽 |
 | 2026-10-10 | 链 06 §3.2.7：关键词开火锚与同锚 fire_priority |
+| 2026-10-10 | M3 落地：删 massive_phase_attacks；庞大 = 阶段攻击效果替换 `seq.keyword.massive` |

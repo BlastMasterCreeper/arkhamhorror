@@ -15,9 +15,11 @@ const FLOW_SETUP: StringName = &"seq.setup"
 const FLOW_KEYWORD_SURGE: StringName = &"seq.keyword.surge"
 const FLOW_KEYWORD_HUNTER: StringName = &"seq.keyword.hunter"
 const FLOW_KEYWORD_PATROL: StringName = &"seq.keyword.patrol"
+const FLOW_KEYWORD_MASSIVE: StringName = &"seq.keyword.massive"
 const FLOW_ENEMY_3_2: StringName = &"seq.enemy.3_2"
 const FLOW_ENEMY_ATTACK: StringName = &"seq.enemy.attack"
 const FLOW_ENEMY_DEFEAT: StringName = &"seq.enemy.defeat"
+const FLOW_PHASE_ATTACKS: StringName = &"seq.enemy.phase_attacks"
 const FLOW_SKILL_TEST: StringName = &"seq.skill_test"
 
 const SLOT_G2: StringName = &"G2"
@@ -25,6 +27,7 @@ const SLOT_G4: StringName = &"G4"
 const SLOT_WHEN: StringName = &"WHEN"
 const SLOT_AFTER: StringName = &"AFTER"
 const SLOT_ENEMY_3_2: StringName = &"ENEMY_3_2"
+const SLOT_PHASE_ATTACK: StringName = &"PHASE_ATTACK"
 const SLOT_POST_ST7_FAIL: StringName = &"POST_ST7_FAIL"
 const SLOT_AFTER_ATTACK: StringName = &"AFTER_ATTACK"
 const SLOT_ON_DEFEAT: StringName = &"ON_DEFEAT"
@@ -65,6 +68,8 @@ const TIER_FRAMEWORK: StringName = &"FRAMEWORK"
 const TIER_TRIGGERED: StringName = &"TRIGGERED"
 const TIER_DELAYED: StringName = &"DELAYED"
 const TIER_LISTENER: StringName = &"LISTENER"
+## 效果替换（Instead / Would）；庞大对阶段攻击走此档，非平行 framework seq。
+const TIER_REPLACE: StringName = &"REPLACE"
 
 const PLAY_ACTION: StringName = &"PLAY_ACTION"
 const PLAY_FAST_WINDOW: StringName = &"PLAY_FAST_WINDOW"
@@ -222,9 +227,12 @@ static func _all() -> Array[KeywordProfile]:
 		&"aloof", BUFF_RESTRICTION,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
+	## 庞大：RESTRICTION（永不进威胁区 / 虚拟交战）+ 对阶段攻击的效果替换体
 	profiles.append(_row(
 		&"massive", BUFF_RESTRICTION,
-		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
+		SLOT_PHASE_ATTACK, FLOW_KEYWORD_MASSIVE,
+		FLOW_PHASE_ATTACKS, 10, TIER_REPLACE
 	))
 	profiles.append(_row(
 		&"permanent", BUFF_RESTRICTION,

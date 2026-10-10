@@ -106,7 +106,7 @@ Grimoire **III. Enemy Phase** 是完整 Framework 步进，不是「关键词 LI
 |---|---|---|
 | 3.1 | `ENEMY_3_1_PHASE_BEGINS` | 阶段开始 |
 | 3.2 | `ENEMY_3_2_HUNTER_PATROL_MOVE` | **`seq.enemy.3_2`**：枚举 ready、未交战且带 Hunter/Patrol 的敌人 → 顺序 resolve 关键词 → `PW_ENEMY_AFTER_MOVE` |
-| 3.3 | `ENEMY_3_3_ENGAGED_ATTACKS` | 玩家顺序结算已交战攻击（`seq.enemy.phase_attacks`） |
+| 3.3 | `ENEMY_3_3_ENGAGED_ATTACKS` | 玩家顺序 · `seq.enemy.phase_attacks`（Massive = REPLACE → `seq.keyword.massive`） |
 | 3.4 | `ENEMY_3_4_PHASE_ENDS` | 阶段结束 |
 
 ### 5.1 3.2 分工：框架手续 vs 关键词开火（已摘出）
@@ -211,14 +211,24 @@ class EnemyPhaseAttackResolver:
 
 - Player order
 - 每位调查员 resolve **全部** engaged enemies 攻击（顺序由被攻击调查员选）
-- **Massive**（已裁决 OQ-08-02 · 魔典 p.16 + FAQ 2.29）：
-  - **发起攻击时**确定本 batch 目标（对该地点每位调查员各 1 次；顺序 Lead 选 `ORDER_ATTACKS`）
-  - batch 进行中若庞大敌人被**横置**（其他能力）→ **剩余攻击不发起**
+- **Massive**（已裁决 OQ-08-02 · 魔典 p.16 + FAQ 2.29；**M3 粒度**）：
+  - **不是**平行 `seq.enemy.massive_phase_attacks`
+  - 挂载 ENTER_PLAY；对 **`seq.enemy.phase_attacks` 基础攻击** 做 **效果替换**（`seq.keyword.massive` · REPLACE）
+  - 玩家顺序走到与该庞大虚拟交战的调查员时：nest 替换体，而非单次 `seq.enemy.attack`
+  - **发起替换时**确定本 batch 目标（同地点每位调查员各 1 次；Lead `ORDER_ATTACKS`）
+  - batch 进行中若庞大敌人被**横置** → **剩余攻击不发起**
   - batch 进行中若有调查员新进入交战 → **追加**至待攻击列表
-  - **全部**攻击完成后才横置庞大敌人（单次攻击 `exhaust_after=false`）
+  - **全部**攻击完成后才横置庞大敌人（单次 `exhaust_after=false`）
 
 ```gdscript
-func resolve_massive_phase_attacks(enemy: EntityId) -> void:
+# seq.enemy.phase_attacks 内（基础手续）
+if enemy.has_massive:
+    catalog.nest(seq.keyword.massive, {enemy})  # REPLACE 体
+else:
+    catalog.nest(seq.enemy.attack, {enemy, target_inv, exhaust_after=true})
+
+# seq.keyword.massive
+func resolve_massive_batch(enemy: EntityId) -> void:
     var order := ui.lead_investigator_choose_order(targets_at_location)
     for target in order:
         if enemy.exhausted:
@@ -443,3 +453,4 @@ class EnemySystem:
 | 2026-10-10 | v0.5.2 | §5.0：敌军阶段 3.1–3.4 基础流程非空壳；3.2=`seq.enemy.3_2`；LISTENER 只承担移动体 |
 | 2026-10-10 | v0.5.3 | §5.1：Hunter/Patrol 移动体摘为 `seq.keyword.hunter` / `patrol`；框架只枚举+消费槽 |
 | 2026-10-10 | v0.5.4 | §5.1：开火锚 + fire_priority（Hunter 10 先于 Patrol 20）；链 06 §3.2.7 |
+| 2026-10-10 | v0.5.5 | §6.3 M3：删平行 massive_phase_attacks；庞大 = REPLACE @ phase_attacks → seq.keyword.massive |
