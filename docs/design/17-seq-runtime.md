@@ -22,6 +22,9 @@
    - **造成伤害/恐惧**（Dealing Damage/Horror）：`seq.effect.damage` + `kind` + `source` + `target`；纸面 “take / deal” 只是视角，**同一条 seq**
    - `seq.effect.lose_resources` + `all: true`（勿另开 `lose_all_resources`）
 4. Forced 订阅 **时点 seq 的 kind**；「是不是附着地点上的非 Elite」等过滤留在 params / 解析器，不铸造 `seq.fire_damage`。
+5. **敏感度**：并得越宽，订该 `sequence_id` 的能力被枚举越频；差异必须进 **params / tags / ApplicationContext** 供 Eligibility 拦截。过滤贵过再铸一条、或订阅语义必须靠不同 `sequence_id` → **拆**。
+
+粒度对照表、合并候选与缺漏：[22-seq-granularity.md](22-seq-granularity.md)（待确认）。
 
 ---
 
@@ -217,6 +220,7 @@
 | `seq.effect.register` | **创建 Buff / Registration** | 卡面 lasting、gains surge、Cannot；参数 = template |
 | `seq.effect.unregister` | 卸 Buff | 与创建对称；不是 `on_card_leave_play` 那种管线注销场合 |
 | `seq.effect.discard_card` | 统一弃牌：指定 `card_id` / 寻址过滤，或 `from=hand` + `amount`/`mode` | 弱点自弃、弃手、成功弃附着 |
+| （完整对照 / 合并·缺漏） | 见 [22](22-seq-granularity.md) | 待确认后再改 Catalog |
 | `seq.effect.attach` | limbo 附着地点（最近无同名 / 本地点） | Fire! / Flash Flood / Arcane Lock 显现 |
 | `seq.effect.resign` | 撤退（线索留地点 + resigned + eliminate） | 12112；nest 自 Composition |
 | `seq.ability.resolve` | Initiation / Forced 效果体装载帧 | 禁真空：树在此 RESOLVE 内解释 |
