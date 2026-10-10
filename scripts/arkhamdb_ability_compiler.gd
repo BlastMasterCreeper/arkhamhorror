@@ -242,7 +242,8 @@ static func build_composition(
 			)
 		"place_clue_on_location":
 			return CompositionNode.nest_place_clue(bind.controller_id)
-		"skill_test":
+		"skill_test", "nest_skill_test":
+			## nest_skill_test：应展尽展（JSON 带 flow_id: seq.skill_test）。
 			return _build_skill_test(params, bind)
 		"repeat_fail_by":
 			return _build_repeat_fail_by(params, bind)

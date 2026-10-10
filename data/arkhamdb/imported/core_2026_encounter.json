@@ -15,9 +15,9 @@
         "revelation": 24
       },
       "by_template": {
-        "skill_test": 10,
+        "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "seq": 11,
+        "seq": 14,
         "discard_from_hand": 2,
         "draw": 2,
         "discard_card": 1,
@@ -1272,30 +1272,43 @@
         "register_as": "revelation",
         "ability_id": "revelation:0",
         "status": "partial",
-        "template": "skill_test",
-        "skill_choices": [
-          "willpower",
-          "intellect"
-        ],
-        "prompt_id": "skill_test:willpower_or_intellect",
-        "memory_key": "picked_skill",
-        "difficulty_source": "hand_count",
-        "st7": {
-          "on_fail": {
-            "template": "seq",
-            "steps": [
-              {
-                "template": "take_damage",
-                "amount": 1
-              },
-              {
-                "template": "discard_from_hand",
-                "amount": 1,
-                "mode": "random"
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "pick_option",
+            "options": [
+              "willpower",
+              "intellect"
+            ],
+            "prompt_id": "skill_test:willpower_or_intellect",
+            "memory_key": "picked_skill"
+          },
+          {
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "skill": "memory:picked_skill",
+            "st7": {
+              "on_fail": {
+                "template": "seq",
+                "steps": [
+                  {
+                    "template": "take_damage",
+                    "flow_id": "seq.effect.damage",
+                    "amount": 1
+                  },
+                  {
+                    "template": "discard_from_hand",
+                    "flow_id": "seq.effect.discard_from_hand",
+                    "amount": 1,
+                    "mode": "random"
+                  }
+                ]
               }
-            ]
+            },
+            "difficulty_source": "hand_count"
           }
-        }
+        ]
       }
     ]
   },
@@ -1497,20 +1510,32 @@
         "register_as": "revelation",
         "ability_id": "revelation:0",
         "status": "partial",
-        "template": "skill_test",
-        "skill_choices": [
-          "willpower",
-          "agility"
-        ],
-        "prompt_id": "skill_test:willpower_or_agility",
-        "memory_key": "picked_skill",
-        "difficulty": 3,
-        "st7": {
-          "on_fail_by_each": {
-            "template": "take_damage",
-            "amount": 1
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "pick_option",
+            "options": [
+              "willpower",
+              "agility"
+            ],
+            "prompt_id": "skill_test:willpower_or_agility",
+            "memory_key": "picked_skill"
+          },
+          {
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "skill": "memory:picked_skill",
+            "st7": {
+              "on_fail_by_each": {
+                "template": "take_damage",
+                "flow_id": "seq.effect.damage",
+                "amount": 1
+              }
+            },
+            "difficulty": 3
           }
-        }
+        ]
       }
     ]
   },
@@ -2694,20 +2719,32 @@
         "action_types": [
           "activate"
         ],
-        "status": "partial",
-        "template": "skill_test",
-        "skill_choices": [
-          "willpower",
-          "intellect"
-        ],
-        "prompt_id": "skill_test:willpower_or_intellect",
-        "memory_key": "picked_skill",
-        "difficulty": 4,
-        "st7": {
-          "on_success": {
-            "template": "discard_source"
+        "status": "full",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "pick_option",
+            "options": [
+              "willpower",
+              "intellect"
+            ],
+            "prompt_id": "skill_test:willpower_or_intellect",
+            "memory_key": "picked_skill"
+          },
+          {
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "skill": "memory:picked_skill",
+            "st7": {
+              "on_success": {
+                "template": "discard_source",
+                "flow_id": "seq.effect.discard_card"
+              }
+            },
+            "difficulty": 4
           }
-        }
+        ]
       }
     ]
   },

@@ -468,52 +468,103 @@ def compile_lose_or_attack(body: str) -> dict[str, Any] | None:
     }
 
 
+def _leaf_take_damage(amount: int, **extra: Any) -> dict[str, Any]:
+    """D→C：受伤 nest `seq.effect.damage`（应展尽展写 flow_id）。"""
+    out: dict[str, Any] = {
+        "template": "take_damage",
+        "flow_id": "seq.effect.damage",
+        "amount": amount,
+    }
+    out.update(extra)
+    return out
+
+
+def _leaf_discard_from_hand(amount: int, mode: str = "random") -> dict[str, Any]:
+    return {
+        "template": "discard_from_hand",
+        "flow_id": "seq.effect.discard_from_hand",
+        "amount": amount,
+        "mode": mode,
+    }
+
+
+def _leaf_discard_source() -> dict[str, Any]:
+    return {
+        "template": "discard_source",
+        "flow_id": "seq.effect.discard_card",
+    }
+
+
+def expand_skill_or_test(
+    skills: list[str],
+    prompt_id: str,
+    st7: dict[str, Any],
+    *,
+    difficulty: int | None = None,
+    difficulty_source: str | None = None,
+    memory_key: str = "picked_skill",
+) -> dict[str, Any]:
+    """应展尽展 · 禁糖：PI 只选技能 → nest `seq.skill_test`（检定体不重复）。"""
+    test: dict[str, Any] = {
+        "template": "nest_skill_test",
+        "flow_id": "seq.skill_test",
+        "skill": f"memory:{memory_key}",
+        "st7": st7,
+    }
+    if difficulty is not None:
+        test["difficulty"] = difficulty
+    if difficulty_source is not None:
+        test["difficulty_source"] = difficulty_source
+    return {
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+            {
+                "template": "pick_option",
+                "options": list(skills),
+                "prompt_id": prompt_id,
+                "memory_key": memory_key,
+            },
+            test,
+        ],
+    }
+
+
 def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
     m = TEST_WP_OR_AGI_FAIL_BY.match(body.strip())
     if not m:
         return None
     difficulty = int(m.group(1))
     amount = int(m.group(2))
-    ## PI 只选技能；检定体（难度 / st7）只写一次。
-    return {
-        "template": "skill_test",
-        "skill_choices": ["willpower", "agility"],
-        "prompt_id": "skill_test:willpower_or_agility",
-        "memory_key": "picked_skill",
-        "difficulty": difficulty,
-        "st7": {
-            "on_fail_by_each": {"template": "take_damage", "amount": amount},
-        },
-    }
+    return expand_skill_or_test(
+        ["willpower", "agility"],
+        "skill_test:willpower_or_agility",
+        {"on_fail_by_each": _leaf_take_damage(amount)},
+        difficulty=difficulty,
+    )
 
 
 def compile_test_wp_or_int_hand_x_fail(body: str) -> dict[str, Any] | None:
-    """12127：只选 Willpower/Intellect；难度 = 手牌张数；失败受伤+随机弃手（体不重复）。"""
+    """12127：Willpower/Intellect；难度 = 手牌张数；失败受伤+随机弃手。"""
     m = TEST_WP_OR_INT_HAND_X_FAIL.match(body.strip())
     if m is None:
         return None
     dmg = int(m.group(1))
     discard_n = int(m.group(2))
-    return {
-        "template": "skill_test",
-        "skill_choices": ["willpower", "intellect"],
-        "prompt_id": "skill_test:willpower_or_intellect",
-        "memory_key": "picked_skill",
-        "difficulty_source": "hand_count",
-        "st7": {
+    return expand_skill_or_test(
+        ["willpower", "intellect"],
+        "skill_test:willpower_or_intellect",
+        {
             "on_fail": {
                 "template": "seq",
                 "steps": [
-                    {"template": "take_damage", "amount": dmg},
-                    {
-                        "template": "discard_from_hand",
-                        "amount": discard_n,
-                        "mode": "random",
-                    },
+                    _leaf_take_damage(dmg),
+                    _leaf_discard_from_hand(discard_n, "random"),
                 ],
             },
         },
-    }
+        difficulty_source="hand_count",
+    )
 
 
 def compile_resign(body: str) -> dict[str, Any] | None:
@@ -719,14 +770,12 @@ def compile_test_wp_or_int_succeed_discard(body: str) -> dict[str, Any] | None:
     if not m:
         return None
     difficulty = int(m.group(1))
-    return {
-        "template": "skill_test",
-        "skill_choices": ["willpower", "intellect"],
-        "prompt_id": "skill_test:willpower_or_intellect",
-        "memory_key": "picked_skill",
-        "difficulty": difficulty,
-        "st7": {"on_success": {"template": "discard_source"}},
-    }
+    return expand_skill_or_test(
+        ["willpower", "intellect"],
+        "skill_test:willpower_or_intellect",
+        {"on_success": _leaf_discard_source()},
+        difficulty=difficulty,
+    )
 
 
 def compile_each_investigator_at_location(body: str) -> dict[str, Any] | None:
@@ -1171,6 +1220,56 @@ def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     return entry
 
 
+def _preview_skill_or_seq(steps: list[Any]) -> str | None:
+    """展开后的 pick_option + nest_skill_test 预览。"""
+    if len(steps) < 2:
+        return None
+    pick = steps[0] if isinstance(steps[0], dict) else None
+    test = steps[1] if isinstance(steps[1], dict) else None
+    if pick is None or test is None:
+        return None
+    if pick.get("template") != "pick_option":
+        return None
+    if test.get("template") not in ("nest_skill_test", "skill_test"):
+        return None
+    options = pick.get("options", [])
+    prompt = str(pick.get("prompt_id", ""))
+    st7 = test.get("st7", {}) if isinstance(test.get("st7"), dict) else {}
+    if (
+        options == ["willpower", "intellect"]
+        and test.get("difficulty_source") == "hand_count"
+    ):
+        on_fail = st7.get("on_fail", {}) if isinstance(st7.get("on_fail"), dict) else {}
+        fail_steps = on_fail.get("steps", []) if isinstance(on_fail.get("steps"), list) else []
+        dmg = 1
+        discard_n = 1
+        for step in fail_steps:
+            if not isinstance(step, dict):
+                continue
+            if step.get("template") == "take_damage":
+                dmg = int(step.get("amount", 1))
+            if step.get("template") == "discard_from_hand":
+                discard_n = int(step.get("amount", 1))
+        card_word = "card" if discard_n == 1 else "cards"
+        return (
+            f"Test [willpower] or [intellect] (X), where X is the number of cards "
+            f"in your hand. If you fail, take {dmg} damage and discard {discard_n} "
+            f"{card_word} at random from your hand."
+        )
+    if prompt == "skill_test:willpower_or_agility" or options == ["willpower", "agility"]:
+        diff = int(test.get("difficulty", 3))
+        each = st7.get("on_fail_by_each", {}) if isinstance(st7.get("on_fail_by_each"), dict) else {}
+        amount = int(each.get("amount", 1))
+        return (
+            f"Test [willpower] or [agility] ({diff}). "
+            f"Take {amount} damage for each point you fail by."
+        )
+    if prompt == "skill_test:willpower_or_intellect" or options == ["willpower", "intellect"]:
+        diff = int(test.get("difficulty", 0))
+        return f"Test [willpower] or [intellect] ({diff})."
+    return None
+
+
 def _template_body_preview(compiled: dict[str, Any]) -> str:
     template = compiled.get("template", "")
     amount = compiled.get("amount", 0)
@@ -1214,44 +1313,7 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "Attach … to your location."
     if template == "deal_damage":
         return f"Deal {amount} damage."
-    if template == "skill_test":
-        choices = compiled.get("skill_choices", [])
-        prompt = str(compiled.get("prompt_id", ""))
-        if (
-            isinstance(choices, list)
-            and choices == ["willpower", "intellect"]
-            and compiled.get("difficulty_source") == "hand_count"
-        ):
-            st7 = compiled.get("st7", {})
-            on_fail = st7.get("on_fail", {}) if isinstance(st7, dict) else {}
-            steps = on_fail.get("steps", []) if isinstance(on_fail, dict) else []
-            dmg = 1
-            discard_n = 1
-            if isinstance(steps, list):
-                for step in steps:
-                    if not isinstance(step, dict):
-                        continue
-                    if step.get("template") == "take_damage":
-                        dmg = int(step.get("amount", 1))
-                    if step.get("template") == "discard_from_hand":
-                        discard_n = int(step.get("amount", 1))
-            card_word = "card" if discard_n == 1 else "cards"
-            return (
-                f"Test [willpower] or [intellect] (X), where X is the number of cards "
-                f"in your hand. If you fail, take {dmg} damage and discard {discard_n} "
-                f"{card_word} at random from your hand."
-            )
-        if prompt == "skill_test:willpower_or_agility" or (
-            isinstance(choices, list) and choices == ["willpower", "agility"]
-        ):
-            diff = int(compiled.get("difficulty", 3))
-            st7 = compiled.get("st7", {})
-            each = st7.get("on_fail_by_each", {}) if isinstance(st7, dict) else {}
-            amount = int(each.get("amount", 1)) if isinstance(each, dict) else 1
-            return (
-                f"Test [willpower] or [agility] ({diff}). "
-                f"Take {amount} damage for each point you fail by."
-            )
+    if template in ("skill_test", "nest_skill_test"):
         return "Test …"
     if template == "lead_draw_topmost_encounter_discard_copy":
         return (
@@ -1262,12 +1324,14 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "If you have no clues, … gains surge."
     if template == "seq":
         steps = compiled.get("steps", [])
+        skill_or = _preview_skill_or_seq(steps if isinstance(steps, list) else [])
+        if skill_or:
+            return skill_or
         if steps:
             first = steps[0]
             if first.get("template") == "resolve_location":
                 return (
-                    "The nearest non-[[Elite]] enemy moves once toward your location. "
-                    "If it engages an investigator, it makes an immediate attack."
+                    "The nearest non-[[Elite]] enemy moves once toward your location. "                    "If it engages an investigator, it makes an immediate attack."
                 )
             if first.get("template") == "lose_resources":
                 return "Lose 1 resource. If you cannot, this enemy attacks you."

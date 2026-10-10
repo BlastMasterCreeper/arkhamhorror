@@ -2124,45 +2124,65 @@ func _test_seq_eff_deal_damage_at_location() -> bool:
 
 
 func _test_adb_compile_12130_skill_choice() -> bool:
+	## 应展尽展：pick_option → nest_skill_test(flow_id) + 单次 st7。
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	var compiled := CardRegistry.compiled_abilities(&"12130")
 	if compiled.size() != 1:
 		return false
 	var entry: Dictionary = compiled[0]
-	var choices: Variant = entry.get("skill_choices", [])
-	var st7: Dictionary = entry.get("st7", {})
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var pick: Dictionary = steps[0] as Dictionary
+	var test: Dictionary = steps[1] as Dictionary
+	var st7: Dictionary = test.get("st7", {})
+	var each: Dictionary = st7.get("on_fail_by_each", {})
 	return (
 		CardRegistry.has_revelation(&"12130")
-		and entry.get("template", "") == "skill_test"
-		and choices is Array
-		and (choices as Array) == ["willpower", "agility"]
-		and int(entry.get("difficulty", 0)) == 3
-		and (st7.get("on_fail_by_each", {}) as Dictionary).get("template", "") == "take_damage"
+		and entry.get("template", "") == "seq"
+		and entry.get("translation", "") == "full_expand"
+		and pick.get("template", "") == "pick_option"
+		and (pick.get("options", []) as Array) == ["willpower", "agility"]
+		and test.get("template", "") == "nest_skill_test"
+		and test.get("flow_id", "") == "seq.skill_test"
+		and test.get("skill", "") == "memory:picked_skill"
+		and int(test.get("difficulty", 0)) == 3
+		and each.get("template", "") == "take_damage"
+		and each.get("flow_id", "") == "seq.effect.damage"
 	)
 
 
 func _test_adb_compile_12127() -> bool:
+	## 应展尽展：PI 只选技能；nest seq.skill_test；fail 叶带 flow_id。
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	var compiled := CardRegistry.compiled_abilities(&"12127")
 	if compiled.size() != 1:
 		return false
 	var entry: Dictionary = compiled[0]
-	var choices: Variant = entry.get("skill_choices", [])
-	var st7: Dictionary = entry.get("st7", {})
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var pick: Dictionary = steps[0] as Dictionary
+	var test: Dictionary = steps[1] as Dictionary
+	var st7: Dictionary = test.get("st7", {})
 	var on_fail: Dictionary = st7.get("on_fail", {})
-	var steps: Variant = on_fail.get("steps", [])
+	var fail_steps: Variant = on_fail.get("steps", [])
 	return (
 		CardRegistry.has_revelation(&"12127")
-		and entry.get("template", "") == "skill_test"
-		and entry.get("prompt_id", "") == "skill_test:willpower_or_intellect"
-		and entry.get("difficulty_source", "") == "hand_count"
-		and choices is Array
-		and (choices as Array) == ["willpower", "intellect"]
-		and not entry.has("options")
-		and steps is Array
-		and (steps as Array).size() == 2
-		and ((steps as Array)[0] as Dictionary).get("template", "") == "take_damage"
-		and ((steps as Array)[1] as Dictionary).get("template", "") == "discard_from_hand"
+		and entry.get("template", "") == "seq"
+		and entry.get("translation", "") == "full_expand"
+		and pick.get("template", "") == "pick_option"
+		and pick.get("prompt_id", "") == "skill_test:willpower_or_intellect"
+		and (pick.get("options", []) as Array) == ["willpower", "intellect"]
+		and test.get("template", "") == "nest_skill_test"
+		and test.get("flow_id", "") == "seq.skill_test"
+		and test.get("skill", "") == "memory:picked_skill"
+		and test.get("difficulty_source", "") == "hand_count"
+		and fail_steps is Array
+		and (fail_steps as Array).size() == 2
+		and ((fail_steps as Array)[0] as Dictionary).get("flow_id", "") == "seq.effect.damage"
+		and ((fail_steps as Array)[1] as Dictionary).get("flow_id", "")
+			== "seq.effect.discard_from_hand"
 	)
 
 
