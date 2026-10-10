@@ -175,6 +175,32 @@ func _resolve_sim_enemy_spec(node: CompositionNode, sim: GameSimulator) -> Strin
 	return spec
 
 
+func _resolve_sim_test_skill(node: CompositionNode, sim: GameSimulator) -> AhcEnums.SkillType:
+	var spec := node.test_skill_spec
+	if spec == &"":
+		return node.test_skill
+	var raw := str(spec)
+	if raw.begins_with("memory:"):
+		var mem_key := StringName(raw.substr(7))
+		var from_mem: Variant = sim.get_referent(_resolve_sim_inv(node, sim), mem_key)
+		if from_mem != null and str(from_mem) != "":
+			return _skill_type_from_id(StringName(str(from_mem)))
+		return node.test_skill
+	return _skill_type_from_id(spec)
+
+
+func _skill_type_from_id(skill_id: StringName) -> AhcEnums.SkillType:
+	match skill_id:
+		&"intellect":
+			return AhcEnums.SkillType.INTELLECT
+		&"combat":
+			return AhcEnums.SkillType.COMBAT
+		&"agility":
+			return AhcEnums.SkillType.AGILITY
+		_:
+			return AhcEnums.SkillType.WILLPOWER
+
+
 ## dry-run：U–S 枚举后可选 V；合法集 ≥ min_picks 即 CREATED（不经 Gate）。
 func _simulate_pick_target(node: CompositionNode, sim: GameSimulator) -> bool:
 	var pick_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
@@ -375,14 +401,23 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if clue_inv == null or clue_inv.clues_on_card <= 0 or clue_inv.location_tag == &"":
 				return false
 			return sim.state.registry.get_location(clue_inv.location_tag) != null
+		&"pick_option":
+			if node.choice_option_ids.is_empty():
+				return false
+			var pick_controller := _resolve_sim_inv(node, sim)
+			var pick_key := node.memory_key if node.memory_key != &"" else &"picked_option"
+			## dry-run：默认首选项（与 Gate first_option 一致）。
+			sim.set_referent(pick_controller, pick_key, node.choice_option_ids[0])
+			return true
 		&"nest_skill_test":
 			var test_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if test_inv == null:
 				return false
+			var skill := _resolve_sim_test_skill(node, sim)
 			var diff := node.test_difficulty
 			if node.test_difficulty_source == &"hand_count":
 				diff = test_inv.hand.size()
-			sim.last_skill_test_fail_by = _estimate_fail_by(test_inv, node.test_skill, diff)
+			sim.last_skill_test_fail_by = _estimate_fail_by(test_inv, skill, diff)
 			if node.st7_plan != null:
 				if sim.last_skill_test_fail_by > 0 and node.st7_plan.on_fail_by_each != null:
 					var fork := sim.fork()

@@ -31,6 +31,8 @@ var choice_must: bool = false
 var choice_prompt_id: StringName = &""
 var choice_option_ids: Array[StringName] = []
 var test_skill: AhcEnums.SkillType = AhcEnums.SkillType.WILLPOWER
+## 技能指称：空=用 test_skill；`memory:picked_skill` 或字面 willpower/…。
+var test_skill_spec: StringName = &""
 var test_difficulty: int = 0
 ## 动态难度：空=用 test_difficulty；`hand_count` = 调查员手牌张数（12127）。
 var test_difficulty_source: StringName = &""
@@ -299,7 +301,8 @@ static func nest_skill_test(
 	difficulty: int,
 	card_id: StringName = &"",
 	st7_plan: SkillTestSt7Plan = null,
-	difficulty_source: StringName = &""
+	difficulty_source: StringName = &"",
+	skill_spec: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -307,9 +310,28 @@ static func nest_skill_test(
 	n.inv_id = controller_id
 	n.card_id = card_id
 	n.test_skill = skill
+	n.test_skill_spec = skill_spec
 	n.test_difficulty = maxi(difficulty, 0)
 	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
+	return n
+
+
+## PI：只选 option id（如技能类型），写入 RulesMemory；后续叶读 memory:。
+static func pick_option(
+	controller_id: StringName,
+	option_ids: Array,
+	prompt_id: StringName = &"pick:option",
+	memory_key: StringName = &"picked_option"
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"pick_option"
+	n.inv_id = controller_id
+	n.choice_prompt_id = prompt_id
+	n.memory_key = memory_key
+	for oid in option_ids:
+		n.choice_option_ids.append(oid as StringName)
 	return n
 
 

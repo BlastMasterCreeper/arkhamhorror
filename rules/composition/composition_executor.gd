@@ -397,6 +397,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_place_clue(node)
 		&"nest_skill_test":
 			return _execute_nest_skill_test(node)
+		&"pick_option":
+			return _execute_pick_option(node)
 		&"nest_enemy_resolve_location":
 			return _execute_nest_enemy_resolve_location(node)
 		&"nest_enemy_move":
@@ -646,20 +648,48 @@ func _resolve_repeat_count(node: CompositionNode) -> int:
 	return 0
 
 
+## PI：只选 option id（技能类型等）→ RulesMemory；不展开子树。
+func _execute_pick_option(node: CompositionNode) -> bool:
+	if node.choice_option_ids.is_empty():
+		return false
+	var controller := _ability_controller(_resolve_inv(node))
+	var picked: Variant = node.choice_option_ids[0]
+	if _game_ctx != null and _game_ctx.interaction != null:
+		## 唯一选项也走 ask → 默认自动选用并记 used_default。
+		var ask: Variant = _game_ctx.interaction.ask_pick_option(
+			node.choice_option_ids,
+			controller,
+			node.choice_prompt_id,
+			_game_ctx
+		)
+		if ask != null and str(ask) != "":
+			picked = ask
+	var key := node.memory_key if node.memory_key != &"" else &"picked_option"
+	if _game_ctx != null and _game_ctx.memory != null and controller != &"":
+		_game_ctx.memory.set_referent(controller, key, StringName(str(picked)))
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:pick_option",
+		{"prompt": node.choice_prompt_id, "picked": picked, "bind": key}
+	)
+	return true
+
+
 func _execute_nest_skill_test(node: CompositionNode) -> bool:
 	if _game_ctx == null or _game_ctx.sequence_catalog == null:
 		return false
 	var inv_id := _resolve_inv(node)
 	if inv_id == &"":
 		return false
+	var skill := _resolve_test_skill(node, inv_id)
 	var difficulty := _resolve_test_difficulty(node, inv_id)
-	var flow_id := SkillTestFlowHandlers.flow_id_for_skill(node.test_skill)
+	var flow_id := SkillTestFlowHandlers.flow_id_for_skill(skill)
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
 		flow_id,
 		{
 			"inv_id": node.inv_id,
-			"skill": node.test_skill,
+			"skill": skill,
 			"difficulty": difficulty,
 			"card_id": node.card_id,
 			"st7_plan": node.st7_plan,
@@ -672,7 +702,8 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 		{
 			"flow": flow_id,
 			"inv": node.inv_id,
-			"skill": node.test_skill,
+			"skill": skill,
+			"skill_spec": node.test_skill_spec,
 			"difficulty": difficulty,
 			"difficulty_source": node.test_difficulty_source,
 			"fail_by": _last_skill_test_fail_by,
@@ -680,6 +711,35 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 		}
 	)
 	return bool(result.get("ok", false))
+
+
+## 空=用 test_skill；`memory:picked_skill` 或字面 willpower/…。
+func _resolve_test_skill(node: CompositionNode, inv_id: StringName) -> AhcEnums.SkillType:
+	var spec := node.test_skill_spec
+	if spec == &"":
+		return node.test_skill
+	var raw := str(spec)
+	if raw.begins_with("memory:"):
+		var mem_key := StringName(raw.substr(7))
+		var controller := _ability_controller(inv_id)
+		if _game_ctx != null and _game_ctx.memory != null and controller != &"":
+			var from_mem: Variant = _game_ctx.memory.get_referent(controller, mem_key)
+			if from_mem != null and str(from_mem) != "":
+				return _skill_type_from_id(StringName(str(from_mem)))
+		return node.test_skill
+	return _skill_type_from_id(spec)
+
+
+func _skill_type_from_id(skill_id: StringName) -> AhcEnums.SkillType:
+	match skill_id:
+		&"intellect":
+			return AhcEnums.SkillType.INTELLECT
+		&"combat":
+			return AhcEnums.SkillType.COMBAT
+		&"agility":
+			return AhcEnums.SkillType.AGILITY
+		_:
+			return AhcEnums.SkillType.WILLPOWER
 
 
 ## 固定难度或动态源（如 hand_count = 手牌张数）。

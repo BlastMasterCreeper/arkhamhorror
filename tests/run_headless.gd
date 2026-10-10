@@ -2129,14 +2129,15 @@ func _test_adb_compile_12130_skill_choice() -> bool:
 	if compiled.size() != 1:
 		return false
 	var entry: Dictionary = compiled[0]
-	var options: Variant = entry.get("options", [])
-	if not options is Array or (options as Array).size() != 2:
-		return false
+	var choices: Variant = entry.get("skill_choices", [])
+	var st7: Dictionary = entry.get("st7", {})
 	return (
 		CardRegistry.has_revelation(&"12130")
-		and entry.get("template", "") == "choice_must"
-		and (options[0] as Dictionary).get("skill", "") == "willpower"
-		and (options[1] as Dictionary).get("skill", "") == "agility"
+		and entry.get("template", "") == "skill_test"
+		and choices is Array
+		and (choices as Array) == ["willpower", "agility"]
+		and int(entry.get("difficulty", 0)) == 3
+		and (st7.get("on_fail_by_each", {}) as Dictionary).get("template", "") == "take_damage"
 	)
 
 
@@ -2146,19 +2147,18 @@ func _test_adb_compile_12127() -> bool:
 	if compiled.size() != 1:
 		return false
 	var entry: Dictionary = compiled[0]
-	var options: Variant = entry.get("options", [])
-	if not options is Array or (options as Array).size() != 2:
-		return false
-	var wp: Dictionary = options[0] as Dictionary
-	var st7: Dictionary = wp.get("st7", {})
+	var choices: Variant = entry.get("skill_choices", [])
+	var st7: Dictionary = entry.get("st7", {})
 	var on_fail: Dictionary = st7.get("on_fail", {})
 	var steps: Variant = on_fail.get("steps", [])
 	return (
 		CardRegistry.has_revelation(&"12127")
-		and entry.get("template", "") == "choice_must"
+		and entry.get("template", "") == "skill_test"
 		and entry.get("prompt_id", "") == "skill_test:willpower_or_intellect"
-		and wp.get("difficulty_source", "") == "hand_count"
-		and (options[1] as Dictionary).get("skill", "") == "intellect"
+		and entry.get("difficulty_source", "") == "hand_count"
+		and choices is Array
+		and (choices as Array) == ["willpower", "intellect"]
+		and not entry.has("options")
 		and steps is Array
 		and (steps as Array).size() == 2
 		and ((steps as Array)[0] as Dictionary).get("template", "") == "take_damage"
@@ -2174,8 +2174,8 @@ func _test_enc_12127_fail() -> bool:
 	inv.skill_willpower = 1
 	inv.skill_intellect = 5
 	inv.damage_taken = 0
-	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1")
-	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1")
+	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.COMBAT)
+	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.AGILITY)
 	var hand_before := inv.hand.size()
 	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"willpower"}])

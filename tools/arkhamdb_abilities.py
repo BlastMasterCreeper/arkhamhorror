@@ -474,84 +474,45 @@ def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
         return None
     difficulty = int(m.group(1))
     amount = int(m.group(2))
-    st7 = {
-        "on_fail_by_each": {"template": "take_damage", "amount": amount},
-    }
+    ## PI 只选技能；检定体（难度 / st7）只写一次。
     return {
-        "template": "choice_must",
+        "template": "skill_test",
+        "skill_choices": ["willpower", "agility"],
         "prompt_id": "skill_test:willpower_or_agility",
-        "options": [
-            {
-                "id": "willpower",
-                "template": "skill_test",
-                "skill": "willpower",
-                "difficulty": difficulty,
-                "st7": dict(st7),
-            },
-            {
-                "id": "agility",
-                "template": "skill_test",
-                "skill": "agility",
-                "difficulty": difficulty,
-                "st7": {
-                    "on_fail_by_each": {"template": "take_damage", "amount": amount},
-                },
-            },
-        ],
+        "memory_key": "picked_skill",
+        "difficulty": difficulty,
+        "st7": {
+            "on_fail_by_each": {"template": "take_damage", "amount": amount},
+        },
     }
 
 
 def compile_test_wp_or_int_hand_x_fail(body: str) -> dict[str, Any] | None:
-    """12127：Willpower/Intellect 二选一；难度 = 手牌张数；失败受伤+随机弃手。"""
+    """12127：只选 Willpower/Intellect；难度 = 手牌张数；失败受伤+随机弃手（体不重复）。"""
     m = TEST_WP_OR_INT_HAND_X_FAIL.match(body.strip())
     if m is None:
         return None
     dmg = int(m.group(1))
     discard_n = int(m.group(2))
-    st7 = {
-        "on_fail": {
-            "template": "seq",
-            "steps": [
-                {"template": "take_damage", "amount": dmg},
-                {
-                    "template": "discard_from_hand",
-                    "amount": discard_n,
-                    "mode": "random",
-                },
-            ],
-        },
-    }
     return {
-        "template": "choice_must",
+        "template": "skill_test",
+        "skill_choices": ["willpower", "intellect"],
         "prompt_id": "skill_test:willpower_or_intellect",
-        "options": [
-            {
-                "id": "willpower",
-                "template": "skill_test",
-                "skill": "willpower",
-                "difficulty_source": "hand_count",
-                "st7": dict(st7),
-            },
-            {
-                "id": "intellect",
-                "template": "skill_test",
-                "skill": "intellect",
-                "difficulty_source": "hand_count",
-                "st7": {
-                    "on_fail": {
-                        "template": "seq",
-                        "steps": [
-                            {"template": "take_damage", "amount": dmg},
-                            {
-                                "template": "discard_from_hand",
-                                "amount": discard_n,
-                                "mode": "random",
-                            },
-                        ],
+        "memory_key": "picked_skill",
+        "difficulty_source": "hand_count",
+        "st7": {
+            "on_fail": {
+                "template": "seq",
+                "steps": [
+                    {"template": "take_damage", "amount": dmg},
+                    {
+                        "template": "discard_from_hand",
+                        "amount": discard_n,
+                        "mode": "random",
                     },
-                },
+                ],
             },
-        ],
+        },
     }
 
 
@@ -758,26 +719,13 @@ def compile_test_wp_or_int_succeed_discard(body: str) -> dict[str, Any] | None:
     if not m:
         return None
     difficulty = int(m.group(1))
-    st7 = {"on_success": {"template": "discard_source"}}
     return {
-        "template": "choice_must",
+        "template": "skill_test",
+        "skill_choices": ["willpower", "intellect"],
         "prompt_id": "skill_test:willpower_or_intellect",
-        "options": [
-            {
-                "id": "willpower",
-                "template": "skill_test",
-                "skill": "willpower",
-                "difficulty": difficulty,
-                "st7": dict(st7),
-            },
-            {
-                "id": "intellect",
-                "template": "skill_test",
-                "skill": "intellect",
-                "difficulty": difficulty,
-                "st7": {"on_success": {"template": "discard_source"}},
-            },
-        ],
+        "memory_key": "picked_skill",
+        "difficulty": difficulty,
+        "st7": {"on_success": {"template": "discard_source"}},
     }
 
 
@@ -1267,6 +1215,43 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
     if template == "deal_damage":
         return f"Deal {amount} damage."
     if template == "skill_test":
+        choices = compiled.get("skill_choices", [])
+        prompt = str(compiled.get("prompt_id", ""))
+        if (
+            isinstance(choices, list)
+            and choices == ["willpower", "intellect"]
+            and compiled.get("difficulty_source") == "hand_count"
+        ):
+            st7 = compiled.get("st7", {})
+            on_fail = st7.get("on_fail", {}) if isinstance(st7, dict) else {}
+            steps = on_fail.get("steps", []) if isinstance(on_fail, dict) else []
+            dmg = 1
+            discard_n = 1
+            if isinstance(steps, list):
+                for step in steps:
+                    if not isinstance(step, dict):
+                        continue
+                    if step.get("template") == "take_damage":
+                        dmg = int(step.get("amount", 1))
+                    if step.get("template") == "discard_from_hand":
+                        discard_n = int(step.get("amount", 1))
+            card_word = "card" if discard_n == 1 else "cards"
+            return (
+                f"Test [willpower] or [intellect] (X), where X is the number of cards "
+                f"in your hand. If you fail, take {dmg} damage and discard {discard_n} "
+                f"{card_word} at random from your hand."
+            )
+        if prompt == "skill_test:willpower_or_agility" or (
+            isinstance(choices, list) and choices == ["willpower", "agility"]
+        ):
+            diff = int(compiled.get("difficulty", 3))
+            st7 = compiled.get("st7", {})
+            each = st7.get("on_fail_by_each", {}) if isinstance(st7, dict) else {}
+            amount = int(each.get("amount", 1)) if isinstance(each, dict) else 1
+            return (
+                f"Test [willpower] or [agility] ({diff}). "
+                f"Take {amount} damage for each point you fail by."
+            )
         return "Test …"
     if template == "lead_draw_topmost_encounter_discard_copy":
         return (
@@ -1309,39 +1294,6 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
                 return "Move to a connecting location."
         return "Place 1 doom on the nearest enemy…"
     if template == "choice_must":
-        prompt = str(compiled.get("prompt_id", ""))
-        if prompt == "skill_test:willpower_or_agility":
-            return (
-                "Test [willpower] or [agility] (3). "
-                "Take 1 damage for each point you fail by."
-            )
-        options = compiled.get("options", [])
-        if (
-            prompt == "skill_test:willpower_or_intellect"
-            and isinstance(options, list)
-            and options
-            and isinstance(options[0], dict)
-            and options[0].get("difficulty_source") == "hand_count"
-        ):
-            st7 = options[0].get("st7", {})
-            on_fail = st7.get("on_fail", {}) if isinstance(st7, dict) else {}
-            steps = on_fail.get("steps", []) if isinstance(on_fail, dict) else []
-            dmg = 1
-            discard_n = 1
-            if isinstance(steps, list):
-                for step in steps:
-                    if not isinstance(step, dict):
-                        continue
-                    if step.get("template") == "take_damage":
-                        dmg = int(step.get("amount", 1))
-                    if step.get("template") == "discard_from_hand":
-                        discard_n = int(step.get("amount", 1))
-            card_word = "card" if discard_n == 1 else "cards"
-            return (
-                f"Test [willpower] or [intellect] (X), where X is the number of cards "
-                f"in your hand. If you fail, take {dmg} damage and discard {discard_n} "
-                f"{card_word} at random from your hand."
-            )
         return "You must either (choose one)…"
     if template == "choice_optional":
         body_entry = compiled.get("body", {})

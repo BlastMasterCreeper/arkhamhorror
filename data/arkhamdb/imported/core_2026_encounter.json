@@ -15,13 +15,13 @@
         "revelation": 24
       },
       "by_template": {
-        "skill_test": 7,
+        "skill_test": 10,
         "lead_draw_topmost_encounter_discard_copy": 1,
         "seq": 11,
         "discard_from_hand": 2,
         "draw": 2,
         "discard_card": 1,
-        "choice_must": 4,
+        "choice_must": 1,
         "enter_threat_area": 3,
         "take_horror": 3,
         "discard_source": 4,
@@ -1272,54 +1272,30 @@
         "register_as": "revelation",
         "ability_id": "revelation:0",
         "status": "partial",
-        "template": "choice_must",
+        "template": "skill_test",
+        "skill_choices": [
+          "willpower",
+          "intellect"
+        ],
         "prompt_id": "skill_test:willpower_or_intellect",
-        "options": [
-          {
-            "id": "willpower",
-            "template": "skill_test",
-            "skill": "willpower",
-            "difficulty_source": "hand_count",
-            "st7": {
-              "on_fail": {
-                "template": "seq",
-                "steps": [
-                  {
-                    "template": "take_damage",
-                    "amount": 1
-                  },
-                  {
-                    "template": "discard_from_hand",
-                    "amount": 1,
-                    "mode": "random"
-                  }
-                ]
+        "memory_key": "picked_skill",
+        "difficulty_source": "hand_count",
+        "st7": {
+          "on_fail": {
+            "template": "seq",
+            "steps": [
+              {
+                "template": "take_damage",
+                "amount": 1
+              },
+              {
+                "template": "discard_from_hand",
+                "amount": 1,
+                "mode": "random"
               }
-            }
-          },
-          {
-            "id": "intellect",
-            "template": "skill_test",
-            "skill": "intellect",
-            "difficulty_source": "hand_count",
-            "st7": {
-              "on_fail": {
-                "template": "seq",
-                "steps": [
-                  {
-                    "template": "take_damage",
-                    "amount": 1
-                  },
-                  {
-                    "template": "discard_from_hand",
-                    "amount": 1,
-                    "mode": "random"
-                  }
-                ]
-              }
-            }
+            ]
           }
-        ]
+        }
       }
     ]
   },
@@ -1521,34 +1497,20 @@
         "register_as": "revelation",
         "ability_id": "revelation:0",
         "status": "partial",
-        "template": "choice_must",
+        "template": "skill_test",
+        "skill_choices": [
+          "willpower",
+          "agility"
+        ],
         "prompt_id": "skill_test:willpower_or_agility",
-        "options": [
-          {
-            "id": "willpower",
-            "template": "skill_test",
-            "skill": "willpower",
-            "difficulty": 3,
-            "st7": {
-              "on_fail_by_each": {
-                "template": "take_damage",
-                "amount": 1
-              }
-            }
-          },
-          {
-            "id": "agility",
-            "template": "skill_test",
-            "skill": "agility",
-            "difficulty": 3,
-            "st7": {
-              "on_fail_by_each": {
-                "template": "take_damage",
-                "amount": 1
-              }
-            }
+        "memory_key": "picked_skill",
+        "difficulty": 3,
+        "st7": {
+          "on_fail_by_each": {
+            "template": "take_damage",
+            "amount": 1
           }
-        ]
+        }
       }
     ]
   },
@@ -2733,32 +2695,19 @@
           "activate"
         ],
         "status": "partial",
-        "template": "choice_must",
+        "template": "skill_test",
+        "skill_choices": [
+          "willpower",
+          "intellect"
+        ],
         "prompt_id": "skill_test:willpower_or_intellect",
-        "options": [
-          {
-            "id": "willpower",
-            "template": "skill_test",
-            "skill": "willpower",
-            "difficulty": 4,
-            "st7": {
-              "on_success": {
-                "template": "discard_source"
-              }
-            }
-          },
-          {
-            "id": "intellect",
-            "template": "skill_test",
-            "skill": "intellect",
-            "difficulty": 4,
-            "st7": {
-              "on_success": {
-                "template": "discard_source"
-              }
-            }
+        "memory_key": "picked_skill",
+        "difficulty": 4,
+        "st7": {
+          "on_success": {
+            "template": "discard_source"
           }
-        ]
+        }
       }
     ]
   },

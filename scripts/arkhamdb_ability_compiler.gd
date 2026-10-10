@@ -223,6 +223,19 @@ static func build_composition(
 			return _build_choice_must(params, bind)
 		"choice_optional", "optional":
 			return _build_choice_optional(params, bind)
+		"pick_option":
+			var oids: Array = []
+			for raw in params.get("options", []):
+				if raw is Dictionary:
+					oids.append(StringName(str((raw as Dictionary).get("id", raw))))
+				else:
+					oids.append(StringName(str(raw)))
+			return CompositionNode.pick_option(
+				bind.controller_id,
+				oids,
+				StringName(str(params.get("prompt_id", "pick:option"))),
+				StringName(str(params.get("memory_key", "picked_option")))
+			)
 		"place_doom_on_current_agenda":
 			return CompositionNode.nest_mythos_place_doom(
 				bool(params.get("may_advance_agenda", false))
@@ -371,12 +384,38 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 
 
 static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
-	var skill := _skill_from_compile_id(str(params.get("skill", "willpower")))
 	var difficulty := int(params.get("difficulty", 0))
 	var difficulty_source := StringName(str(params.get("difficulty_source", "")))
 	var plan := _build_st7_plan(params, bind)
+	var choices: Variant = params.get("skill_choices", [])
+	## skill_choices：PI 只选技能类型 → 单次 skill_test（体不重复）。
+	if choices is Array and not (choices as Array).is_empty():
+		var option_ids: Array = []
+		for raw in choices as Array:
+			option_ids.append(StringName(str(raw)))
+		var mem_key := StringName(str(params.get("memory_key", "picked_skill")))
+		var prompt := StringName(str(params.get("prompt_id", "skill_test:choose_skill")))
+		var pick := CompositionNode.pick_option(
+			bind.controller_id, option_ids, prompt, mem_key
+		)
+		var first_skill := _skill_from_compile_id(str(option_ids[0]))
+		var test := CompositionNode.nest_skill_test(
+			bind.controller_id,
+			first_skill,
+			difficulty,
+			bind.card_id,
+			plan,
+			difficulty_source,
+			StringName("memory:%s" % str(mem_key))
+		)
+		return CompositionNode.seq([pick, test])
+	var skill_raw := str(params.get("skill", "willpower"))
+	var skill_spec := StringName(&"")
+	if skill_raw.begins_with("memory:"):
+		skill_spec = StringName(skill_raw)
+	var skill := _skill_from_compile_id(skill_raw)
 	return CompositionNode.nest_skill_test(
-		bind.controller_id, skill, difficulty, bind.card_id, plan, difficulty_source
+		bind.controller_id, skill, difficulty, bind.card_id, plan, difficulty_source, skill_spec
 	)
 
 
