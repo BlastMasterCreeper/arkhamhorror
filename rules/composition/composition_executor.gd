@@ -652,6 +652,7 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 	var inv_id := _resolve_inv(node)
 	if inv_id == &"":
 		return false
+	var difficulty := _resolve_test_difficulty(node, inv_id)
 	var flow_id := SkillTestFlowHandlers.flow_id_for_skill(node.test_skill)
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
@@ -659,7 +660,7 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 		{
 			"inv_id": node.inv_id,
 			"skill": node.test_skill,
-			"difficulty": node.test_difficulty,
+			"difficulty": difficulty,
 			"card_id": node.card_id,
 			"st7_plan": node.st7_plan,
 		}
@@ -672,12 +673,25 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 			"flow": flow_id,
 			"inv": node.inv_id,
 			"skill": node.test_skill,
-			"difficulty": node.test_difficulty,
+			"difficulty": difficulty,
+			"difficulty_source": node.test_difficulty_source,
 			"fail_by": _last_skill_test_fail_by,
 			"success": bool(result.get("success", false)),
 		}
 	)
 	return bool(result.get("ok", false))
+
+
+## 固定难度或动态源（如 hand_count = 手牌张数）。
+func _resolve_test_difficulty(node: CompositionNode, inv_id: StringName) -> int:
+	if node.test_difficulty_source == &"hand_count":
+		if _state == null:
+			return 0
+		var inv := _state.registry.get_investigator(inv_id)
+		if inv == null:
+			return 0
+		return maxi(inv.hand.size(), 0)
+	return maxi(node.test_difficulty, 0)
 
 
 func _execute_nest_enemy_resolve_location(node: CompositionNode) -> bool:

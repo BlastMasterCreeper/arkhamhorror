@@ -32,6 +32,8 @@ var choice_prompt_id: StringName = &""
 var choice_option_ids: Array[StringName] = []
 var test_skill: AhcEnums.SkillType = AhcEnums.SkillType.WILLPOWER
 var test_difficulty: int = 0
+## 动态难度：空=用 test_difficulty；`hand_count` = 调查员手牌张数（12127）。
+var test_difficulty_source: StringName = &""
 var st7_plan: SkillTestSt7Plan = null
 var repeat_count_source: StringName = &""
 var repeat_count_fixed: int = 0
@@ -296,7 +298,8 @@ static func nest_skill_test(
 	skill: AhcEnums.SkillType,
 	difficulty: int,
 	card_id: StringName = &"",
-	st7_plan: SkillTestSt7Plan = null
+	st7_plan: SkillTestSt7Plan = null,
+	difficulty_source: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -305,6 +308,7 @@ static func nest_skill_test(
 	n.card_id = card_id
 	n.test_skill = skill
 	n.test_difficulty = maxi(difficulty, 0)
+	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
 	return n
 

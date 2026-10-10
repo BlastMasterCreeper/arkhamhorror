@@ -47,7 +47,7 @@
 | `prompt_id` | Gate 提示键 | A |
 | `memory_key` | bind.key 糖（单实体） | A |
 | `enemy` / `investigator` / `location` / `target` / `card_id` | **指称规格**（见 §6） | B、C、D |
-| `amount` / `skill` / `difficulty` / `kind` / `direct` / `mode` / `per_investigator` | 字面效果参数 | D、部分 C |
+| `amount` / `skill` / `difficulty` / `difficulty_source` / `kind` / `direct` / `mode` / `per_investigator` | 字面效果参数；`difficulty_source=hand_count` 等动态难度 | D、部分 C |
 | `if_kind` / `evaluate` / `condition` / `then` / `else` | 控制流 | 控制流叶 |
 | `options` / `steps` / `st7` / `on_success` / `on_fail*` | 子树 / 检定计划 | 控制流、skill_test |
 | `field` / `value` | 仅 L0 `set_flag` 等离散原子 | 内联 L0（少用；优先进信封 handler） |

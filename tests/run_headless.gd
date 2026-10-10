@@ -91,6 +91,8 @@ func _initialize() -> void:
 	_run_test("SEQ-EFF-08 nest deal damage at location", _test_seq_eff_deal_damage_at_location)
 	_run_test("SEQ-EFF-09 nest deal damage attached fire", _test_seq_eff_deal_damage_attached)
 	_run_test("ADB-33 compile 12130 skill choice", _test_adb_compile_12130_skill_choice)
+	_run_test("ADB-72 compile 12127 hand-count difficulty", _test_adb_compile_12127)
+	_run_test("ENC-12127 extraplanar visions fail path", _test_enc_12127_fail)
 	_run_test("ADB-34 compile 12164 lose or attack", _test_adb_compile_12164_lose_or_attack)
 	_run_test("ADB-35 compile 12188 place doom source", _test_adb_compile_12188_place_doom)
 	_run_test("ADB-36 compile 12184 lose action", _test_adb_compile_12184_lose_action)
@@ -2135,6 +2137,57 @@ func _test_adb_compile_12130_skill_choice() -> bool:
 		and entry.get("template", "") == "choice_must"
 		and (options[0] as Dictionary).get("skill", "") == "willpower"
 		and (options[1] as Dictionary).get("skill", "") == "agility"
+	)
+
+
+func _test_adb_compile_12127() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12127")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	var options: Variant = entry.get("options", [])
+	if not options is Array or (options as Array).size() != 2:
+		return false
+	var wp: Dictionary = options[0] as Dictionary
+	var st7: Dictionary = wp.get("st7", {})
+	var on_fail: Dictionary = st7.get("on_fail", {})
+	var steps: Variant = on_fail.get("steps", [])
+	return (
+		CardRegistry.has_revelation(&"12127")
+		and entry.get("template", "") == "choice_must"
+		and entry.get("prompt_id", "") == "skill_test:willpower_or_intellect"
+		and wp.get("difficulty_source", "") == "hand_count"
+		and (options[1] as Dictionary).get("skill", "") == "intellect"
+		and steps is Array
+		and (steps as Array).size() == 2
+		and ((steps as Array)[0] as Dictionary).get("template", "") == "take_damage"
+		and ((steps as Array)[1] as Dictionary).get("template", "") == "discard_from_hand"
+	)
+
+
+func _test_enc_12127_fail() -> bool:
+	## 手牌 2 → 难度 2；willpower 低 + 0 token → 失败：1 伤 + 随机弃 1。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.skill_willpower = 1
+	inv.skill_intellect = 5
+	inv.damage_taken = 0
+	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1")
+	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1")
+	var hand_before := inv.hand.size()
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"willpower"}])
+	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12127")
+	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
+	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+		return false
+	inv = h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		inv.damage_taken == 1
+		and inv.hand.size() == hand_before - 1
+		and h.ctx.composition.last_skill_test_fail_by() >= 1
 	)
 
 

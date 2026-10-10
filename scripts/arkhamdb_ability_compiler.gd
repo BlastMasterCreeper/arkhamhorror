@@ -373,9 +373,10 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
 	var skill := _skill_from_compile_id(str(params.get("skill", "willpower")))
 	var difficulty := int(params.get("difficulty", 0))
+	var difficulty_source := StringName(str(params.get("difficulty_source", "")))
 	var plan := _build_st7_plan(params, bind)
 	return CompositionNode.nest_skill_test(
-		bind.controller_id, skill, difficulty, bind.card_id, plan
+		bind.controller_id, skill, difficulty, bind.card_id, plan, difficulty_source
 	)
 
 

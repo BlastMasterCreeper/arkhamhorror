@@ -379,7 +379,10 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			var test_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if test_inv == null:
 				return false
-			sim.last_skill_test_fail_by = _estimate_fail_by(test_inv, node.test_skill, node.test_difficulty)
+			var diff := node.test_difficulty
+			if node.test_difficulty_source == &"hand_count":
+				diff = test_inv.hand.size()
+			sim.last_skill_test_fail_by = _estimate_fail_by(test_inv, node.test_skill, diff)
 			if node.st7_plan != null:
 				if sim.last_skill_test_fail_by > 0 and node.st7_plan.on_fail_by_each != null:
 					var fork := sim.fork()

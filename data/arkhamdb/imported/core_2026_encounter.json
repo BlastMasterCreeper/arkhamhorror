@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 48,
+      "compiled_total": 49,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -21,7 +21,7 @@
         "discard_from_hand": 2,
         "draw": 2,
         "discard_card": 1,
-        "choice_must": 3,
+        "choice_must": 4,
         "enter_threat_area": 3,
         "take_horror": 3,
         "discard_source": 4,
@@ -1264,6 +1264,62 @@
         "kind": "revelation",
         "body": "Test [willpower] or [intellect] (X), where X is the number of cards in your hand. If you fail, take 1 damage and discard 1 card at random from your hand.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "choice_must",
+        "prompt_id": "skill_test:willpower_or_intellect",
+        "options": [
+          {
+            "id": "willpower",
+            "template": "skill_test",
+            "skill": "willpower",
+            "difficulty_source": "hand_count",
+            "st7": {
+              "on_fail": {
+                "template": "seq",
+                "steps": [
+                  {
+                    "template": "take_damage",
+                    "amount": 1
+                  },
+                  {
+                    "template": "discard_from_hand",
+                    "amount": 1,
+                    "mode": "random"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "intellect",
+            "template": "skill_test",
+            "skill": "intellect",
+            "difficulty_source": "hand_count",
+            "st7": {
+              "on_fail": {
+                "template": "seq",
+                "steps": [
+                  {
+                    "template": "take_damage",
+                    "amount": 1
+                  },
+                  {
+                    "template": "discard_from_hand",
+                    "amount": 1,
+                    "mode": "random"
+                  }
+                ]
+              }
+            }
+          }
+        ]
       }
     ]
   },
