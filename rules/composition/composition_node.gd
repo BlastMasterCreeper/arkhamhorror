@@ -63,6 +63,8 @@ var selection_spec: SelectionSpec = null
 ## nest_engage / nest_enemy_move_to 等模式或开关载荷。
 var engage_mode: StringName = &"effect"
 var auto_engage: bool = true
+## 弃牌来源区：空=指定/寻址单张；`hand` = 从手牌按 amount/mode。
+var from_zone: StringName = &""
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -806,7 +808,9 @@ static func nest_discard_card(
 	controller_id: StringName,
 	trait_filter: StringName = &"",
 	at_filter: StringName = &"",
-	mode: StringName = &"choose"
+	mode: StringName = &"choose",
+	from_zone: StringName = &"",
+	amount: int = 1
 ) -> CompositionNode:
 	var n := _nest_leaf(&"nest_discard_card", &"seq.effect.discard_card")
 	n.card_id = card_id
@@ -814,6 +818,8 @@ static func nest_discard_card(
 	n.definition_id = trait_filter
 	n.location_target = at_filter
 	n.place_doom_target = mode
+	n.from_zone = from_zone
+	n.marker_delta = maxi(amount, 1)
 	return n
 
 
@@ -828,16 +834,13 @@ static func nest_draw_investigator(
 	return n
 
 
+## 糖：弃手牌 → 统一 nest `seq.effect.discard_card` + from=hand。
 static func nest_discard_from_hand(
 	controller_id: StringName,
 	amount: int = 1,
 	mode: StringName = &"random"
 ) -> CompositionNode:
-	var n := _nest_leaf(&"nest_discard_from_hand", &"seq.effect.discard_from_hand")
-	n.inv_id = controller_id
-	n.marker_delta = maxi(amount, 1)
-	n.location_target = mode
-	return n
+	return nest_discard_card(&"", controller_id, &"", &"", mode, &"hand", amount)
 
 
 static func nest_attach(

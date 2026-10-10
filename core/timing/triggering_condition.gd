@@ -622,30 +622,31 @@ static func effect_unregister(
 static func discard_card(
 	controller_id: StringName,
 	card_id: StringName = &"",
-	after_timing: StringName = &"after_discard_card"
+	after_timing: StringName = &"after_discard_card",
+	from_zone: StringName = &"",
+	amount: int = 1,
+	mode: StringName = &"choose"
 ) -> TriggeringCondition:
+	var tags: Array[StringName] = [&"effect", &"discard_card"]
+	if from_zone == &"hand":
+		tags.append(&"from_hand")
 	return _effect(
 		&"discard_card",
 		controller_id,
-		[&"effect", &"discard_card"],
+		tags,
 		after_timing,
-		{"card_id": card_id}
+		{"card_id": card_id, "from": from_zone, "amount": amount, "mode": mode}
 	)
 
 
+## 兼容旧工厂：统一为 discard_card + from=hand。
 static func discard_from_hand(
 	controller_id: StringName,
 	amount: int = 1,
 	mode: StringName = &"random",
-	after_timing: StringName = &"after_discard_from_hand"
+	after_timing: StringName = &"after_discard_card"
 ) -> TriggeringCondition:
-	return _effect(
-		&"discard_from_hand",
-		controller_id,
-		[&"effect", &"discard_from_hand"],
-		after_timing,
-		{"amount": amount, "mode": mode}
-	)
+	return discard_card(controller_id, &"", after_timing, &"hand", amount, mode)
 
 
 static func attach_card(

@@ -464,7 +464,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"nest_discard_card":
 			return _execute_nest_discard_card(node)
 		&"nest_discard_from_hand":
-			return _execute_nest_discard_from_hand(node)
+			## 兼容旧 atom 名：等同 nest_discard_card + from=hand。
+			return _execute_nest_discard_card(node)
 		&"nest_draw_investigator":
 			return _execute_nest_draw_investigator(node)
 		&"discard_all_enemies_in_play":
@@ -1564,6 +1565,21 @@ func _execute_nest_effect_unregister(node: CompositionNode) -> bool:
 
 func _execute_nest_discard_card(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"":
+		return false
+	var from_zone := node.from_zone
+	## 旧 nest_discard_from_hand：mode 曾写在 location_target，无 from_zone。
+	if from_zone == &"" and node.atom_name == &"nest_discard_from_hand":
+		from_zone = &"hand"
+	var mode := node.place_doom_target
+	if mode == &"":
+		if from_zone == &"hand":
+			mode = node.location_target if node.location_target != &"" else &"random"
+		else:
+			mode = &"choose"
+	var at_filter := node.location_target
+	if from_zone == &"hand":
+		at_filter = &""
 	return bool(
 		_nest_or_direct(
 			&"seq.effect.discard_card",
@@ -1571,25 +1587,10 @@ func _execute_nest_discard_card(node: CompositionNode) -> bool:
 				"controller_id": inv_id,
 				"card_id": node.card_id,
 				"trait": node.definition_id,
-				"at": node.location_target,
-				"mode": node.place_doom_target if node.place_doom_target != &"" else &"choose",
-			}
-		).get("ok", false)
-	)
-
-
-func _execute_nest_discard_from_hand(node: CompositionNode) -> bool:
-	var inv_id := _ability_controller(_resolve_inv(node))
-	if inv_id == &"":
-		return false
-	var mode := node.location_target if node.location_target != &"" else &"random"
-	return bool(
-		_nest_or_direct(
-			&"seq.effect.discard_from_hand",
-			{
-				"controller_id": inv_id,
-				"amount": maxi(node.marker_delta, 1),
+				"at": at_filter,
 				"mode": mode,
+				"from": from_zone,
+				"amount": maxi(node.marker_delta, 1),
 			}
 		).get("ok", false)
 	)

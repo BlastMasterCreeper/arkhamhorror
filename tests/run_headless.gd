@@ -2058,8 +2058,11 @@ func _test_seq_eff_place_doom_source() -> bool:
 
 
 func _test_seq_eff_discard_from_hand() -> bool:
+	## from=hand 走统一 seq.effect.discard_card（不再有平行 discard_from_hand flow）。
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.discard_from_hand"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.discard_card"):
+		return false
+	if h.ctx.sequence_catalog.has_flow(&"seq.effect.discard_from_hand"):
 		return false
 	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER)
 	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT)
@@ -2068,7 +2071,7 @@ func _test_seq_eff_discard_from_hand() -> bool:
 		return false
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionNode.nest_discard_from_hand(&"inv_1", 1, &"random"))
-	return inv.hand.size() == 1 and _sequence_kind_count(h, &"discard_from_hand") > 0
+	return inv.hand.size() == 1 and _sequence_kind_count(h, &"discard_card") > 0
 
 
 func _test_seq_eff_attach_controller_location() -> bool:
@@ -2188,7 +2191,8 @@ func _test_adb_compile_12127() -> bool:
 		and ((fail_steps as Array)[0] as Dictionary).get("kind", "") == "damage"
 		and ((fail_steps as Array)[0] as Dictionary).get("target", "") == "controller"
 		and ((fail_steps as Array)[1] as Dictionary).get("flow_id", "")
-			== "seq.effect.discard_from_hand"
+			== "seq.effect.discard_card"
+		and ((fail_steps as Array)[1] as Dictionary).get("from", "") == "hand"
 		and ((fail_steps as Array)[1] as Dictionary).get("investigator", "") == "controller"
 	)
 
@@ -2270,7 +2274,8 @@ func _test_adb_compile_12128_fail_by() -> bool:
 		and choice.get("template", "") == "choice_must"
 		and options is Array
 		and (options as Array).size() == 2
-		and ((options as Array)[0] as Dictionary).get("template", "") == "discard_from_hand"
+		and ((options as Array)[0] as Dictionary).get("template", "") == "discard_card"
+		and ((options as Array)[0] as Dictionary).get("from", "") == "hand"
 	)
 
 
@@ -2946,9 +2951,12 @@ func _test_adb_compile_12118() -> bool:
 	var entry: Dictionary = compiled[0]
 	return (
 		entry.get("register_as", "") == "forced"
-		and entry.get("template", "") == "discard_from_hand"
+		and entry.get("template", "") == "discard_card"
+		and entry.get("from", "") == "hand"
+		and entry.get("flow_id", "") == "seq.effect.discard_card"
 		and entry.get("mode", "") == "choose"
 		and int(entry.get("amount", 0)) == 1
+		and entry.get("investigator", "") == "controller"
 		and entry.get("match_kind", "") == "discover_clue"
 		and str(entry.get("phase", "")).to_upper() == "AFTER"
 		and entry.get("status", "") == "full"

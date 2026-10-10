@@ -91,7 +91,7 @@
 ## 6. 本轮实施
 
 ### A1 + B1 起步 ✅
-- 铸造：`discard_card` / `discard_from_hand` / `damage`（原 deal/take） / `attach`
+- 铸造：`discard_card`（含原 `from=hand` 弃手） / `damage`（原 deal/take） / `attach`
 - 编译：fail-by、附着、地点治疗、弱点自弃
 
 ### B1 运行时 + A3 ✅
@@ -119,7 +119,7 @@
 - 「does not provoke…」→ 行动开始 `SKIP_AOO`；指标：ADB-48..50、ADB-60、ADB-61
 
 ### 12118–20 地点能力 ✅（Limit 运行时后补）
-- 12118 Forced：discover → `discard_from_hand`（mode=choose）
+- 12118 Forced：discover → `discard_card` + `from=hand`（mode=choose）
 - 12119 Reaction：discover → nest `seq.draw.investigator`（Limit once/round → partial）
 - 12120 Action×2：`draw` amount=3（Limit once/game → partial）
 

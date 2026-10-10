@@ -216,8 +216,7 @@
 | `seq.effect.place_clue` | 把调查员线索放到地点 | 检定 fail-by 等 |
 | `seq.effect.register` | **创建 Buff / Registration** | 卡面 lasting、gains surge、Cannot；参数 = template |
 | `seq.effect.unregister` | 卸 Buff | 与创建对称；不是 `on_card_leave_play` 那种管线注销场合 |
-| `seq.effect.discard_card` | 弃置指定牌（手牌 / 威胁区 / 遭遇） | 弱点自弃、成功弃附着 |
-| `seq.effect.discard_from_hand` | 弃手牌（`amount` / `mode=random|pick`） | fail-by 二选一 |
+| `seq.effect.discard_card` | 统一弃牌：指定 `card_id` / 寻址过滤，或 `from=hand` + `amount`/`mode` | 弱点自弃、弃手、成功弃附着 |
 | `seq.effect.attach` | limbo 附着地点（最近无同名 / 本地点） | Fire! / Flash Flood / Arcane Lock 显现 |
 | `seq.effect.resign` | 撤退（线索留地点 + resigned + eliminate） | 12112；nest 自 Composition |
 | `seq.ability.resolve` | Initiation / Forced 效果体装载帧 | 禁真空：树在此 RESOLVE 内解释 |

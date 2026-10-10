@@ -18,9 +18,8 @@
         "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
         "seq": 14,
-        "discard_from_hand": 2,
+        "discard_card": 3,
         "draw": 2,
-        "discard_card": 1,
         "choice_must": 1,
         "enter_threat_area": 3,
         "take_horror": 3,
@@ -756,7 +755,10 @@
         "ability_kind": "forced",
         "status": "full",
         "trigger": "After you discover 1 or more clues at Science Hall",
-        "template": "discard_from_hand",
+        "template": "discard_card",
+        "flow_id": "seq.effect.discard_card",
+        "from": "hand",
+        "investigator": "controller",
         "amount": 1,
         "mode": "choose",
         "match_kind": "discover_clue",
@@ -1301,8 +1303,9 @@
                     "target": "controller"
                   },
                   {
-                    "template": "discard_from_hand",
-                    "flow_id": "seq.effect.discard_from_hand",
+                    "template": "discard_card",
+                    "flow_id": "seq.effect.discard_card",
+                    "from": "hand",
                     "investigator": "controller",
                     "amount": 1,
                     "mode": "random"
@@ -1367,7 +1370,10 @@
             "options": [
               {
                 "id": "discard",
-                "template": "discard_from_hand",
+                "template": "discard_card",
+                "flow_id": "seq.effect.discard_card",
+                "from": "hand",
+                "investigator": "controller",
                 "amount": 1,
                 "mode": "random"
               },
@@ -4132,7 +4138,10 @@
         "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "When you end your turn at this location",
-        "template": "discard_from_hand",
+        "template": "discard_card",
+        "flow_id": "seq.effect.discard_card",
+        "from": "hand",
+        "investigator": "controller",
         "amount": 1,
         "mode": "choose"
       }

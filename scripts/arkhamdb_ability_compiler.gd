@@ -163,25 +163,23 @@ static func build_composition(
 				int(params.get("amount", 1)),
 				bool(params.get("per_investigator", false))
 			)
-		"discard_card":
+		"discard_card", "discard_from_hand":
+			## 统一 nest seq.effect.discard_card；discard_from_hand 糖 → from=hand。
+			var discard_from := StringName(str(params.get("from", "")))
+			if template_id == "discard_from_hand" and discard_from == &"":
+				discard_from = &"hand"
+			var discard_mode := str(params.get("mode", "choose" if discard_from == &"" else "random"))
+			var discard_card_id := str(params.get("card_id", ""))
+			if discard_card_id == "source":
+				discard_card_id = str(bind.card_id)
 			return CompositionNode.nest_discard_card(
-				StringName(str(params.get("card_id", ""))),
+				StringName(discard_card_id),
 				bind.controller_id,
 				StringName(str(params.get("trait", ""))),
 				StringName(str(params.get("at", ""))),
-				StringName(str(params.get("mode", "choose")))
-			)
-		"discard_from_hand":
-			## investigator 指称（默认 controller）；装载期解析为 bind.controller_id。
-			var discard_inv := bind.controller_id
-			var discard_who := str(params.get("investigator", params.get("target", "controller")))
-			if discard_who != "" and discard_who != "controller":
-				## 非 controller 指称暂未扩展；仍落控制者（JSON 已写明意图）。
-				discard_inv = bind.controller_id
-			return CompositionNode.nest_discard_from_hand(
-				discard_inv,
-				int(params.get("amount", 1)),
-				StringName(str(params.get("mode", "random")))
+				StringName(discard_mode),
+				discard_from,
+				int(params.get("amount", 1))
 			)
 		"draw":
 			return CompositionNode.nest_draw_investigator(
@@ -587,6 +585,7 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"enemy",
 		"kind",
 		"mode",
+		"from",
 		"may_advance_agenda",
 		"definition_id",
 		"match_kind",

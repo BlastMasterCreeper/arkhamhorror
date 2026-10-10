@@ -207,26 +207,20 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.unregister_buff(game_ctx, params)
 	)
+	## 统一弃牌：指定卡 / 寻址过滤 / from=hand + amount/mode。
 	catalog.register_run(
 		&"seq.effect.discard_card",
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.discard_card(
-				params.get("controller_id", &"") as StringName,
-				params.get("card_id", &"") as StringName
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				params.get("card_id", &"") as StringName,
+				&"after_discard_card",
+				StringName(str(params.get("from", ""))),
+				int(params.get("amount", 1)),
+				StringName(str(params.get("mode", "choose")))
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.discard_card(game_ctx, params)
-	)
-	catalog.register_run(
-		&"seq.effect.discard_from_hand",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.discard_from_hand(
-				params.get("controller_id", params.get("inv_id", &"")) as StringName,
-				int(params.get("amount", 1)),
-				StringName(str(params.get("mode", "random")))
-			),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.discard_from_hand(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.effect.attach",

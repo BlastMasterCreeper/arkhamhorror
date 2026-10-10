@@ -482,10 +482,11 @@ def _leaf_take_damage(amount: int, **extra: Any) -> dict[str, Any]:
 
 
 def _leaf_discard_from_hand(amount: int, mode: str = "random") -> dict[str, Any]:
-    """D→C：nest `seq.effect.discard_from_hand`（investigator + amount + mode）。"""
+    """D→C：统一 nest `seq.effect.discard_card` + from=hand。"""
     return {
-        "template": "discard_from_hand",
-        "flow_id": "seq.effect.discard_from_hand",
+        "template": "discard_card",
+        "flow_id": "seq.effect.discard_card",
+        "from": "hand",
         "investigator": "controller",
         "amount": amount,
         "mode": mode,
@@ -725,11 +726,7 @@ def compile_choose_discard_from_hand(body: str) -> dict[str, Any] | None:
     m = CHOOSE_DISCARD_FROM_HAND.match(body.strip())
     if not m:
         return None
-    return {
-        "template": "discard_from_hand",
-        "amount": int(m.group(1)),
-        "mode": "choose",
-    }
+    return _leaf_discard_from_hand(int(m.group(1)), "choose")
 
 
 def compile_choose_discard_asset(body: str) -> dict[str, Any] | None:
@@ -851,9 +848,7 @@ def compile_test_fail_by_discard_or_lose(body: str) -> dict[str, Any] | None:
                 "options": [
                     {
                         "id": "discard",
-                        "template": "discard_from_hand",
-                        "amount": 1,
-                        "mode": "random",
+                        **_leaf_discard_from_hand(1, "random"),
                     },
                     {"id": "resource", "template": "lose_resources", "amount": 1},
                 ],
@@ -1255,7 +1250,9 @@ def _preview_skill_or_seq(steps: list[Any]) -> str | None:
                 continue
             if step.get("template") == "take_damage":
                 dmg = int(step.get("amount", 1))
-            if step.get("template") == "discard_from_hand":
+            if step.get("template") in ("discard_from_hand", "discard_card") and (
+                step.get("from") in (None, "hand") or step.get("template") == "discard_from_hand"
+            ):
                 discard_n = int(step.get("amount", 1))
         card_word = "card" if discard_n == 1 else "cards"
         return (
@@ -1304,13 +1301,17 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "Put … into play in your threat area."
     if template == "discard_source":
         return "Discard …"
-    if template == "discard_from_hand":
+    if template == "discard_from_hand" or (
+        template == "discard_card" and compiled.get("from") == "hand"
+    ):
         mode = str(compiled.get("mode", "random")).lower()
         n = int(compiled.get("amount", 1))
         card_word = "card" if n == 1 else "cards"
         if mode == "choose":
             return f"Choose and discard {n} {card_word} from your hand."
         return f"Discard {n} {card_word} at random from your hand."
+    if template == "discard_card":
+        return "Discard …"
     if template == "draw":
         n = int(compiled.get("amount", 1))
         return f"Draw {n} card." if n == 1 else f"Draw {n} cards."

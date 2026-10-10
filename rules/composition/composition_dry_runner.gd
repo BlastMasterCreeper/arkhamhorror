@@ -625,14 +625,17 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return EncounterAttachment.dry_attach_limbo_to_nearest_location_without(
 				sim, _resolve_sim_inv(node, sim), exclude
 			)
-		&"nest_discard_card":
+		&"nest_discard_card", &"nest_discard_from_hand":
+			var from_z := node.from_zone
+			if from_z == &"" and node.atom_name == &"nest_discard_from_hand":
+				from_z = &"hand"
+			if from_z == &"hand":
+				var disc_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
+				return disc_inv != null and not disc_inv.hand.is_empty()
 			if node.card_id != &"":
 				return sim.state.registry.get_card(node.card_id) != null
 			## 过滤选目标（如旁人敌人）时，只要有 controller 即可尝试。
 			return sim.state.registry.get_investigator(_resolve_sim_inv(node, sim)) != null
-		&"nest_discard_from_hand":
-			var disc_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
-			return disc_inv != null and not disc_inv.hand.is_empty()
 		&"nest_draw_investigator":
 			var draw_inv_id := _resolve_sim_inv(node, sim)
 			var draw_inv := sim.state.registry.get_investigator(draw_inv_id)
