@@ -97,12 +97,13 @@
 
 | flow_id | Grimoire | 粒度裁决（草案） |
 |---|---|---|
-| `seq.enemy.move` | Move（敌人） | **保留**：卡面/效果移敌 |
-| `seq.enemy.3_2_hunter_patrol` | 3.2 Hunter | **合并候选** → 见 §4 |
-| `seq.enemy.3_2_patrol` | 3.2 Patrol | **合并候选** → 见 §4 |
+| `seq.enemy.move` | Move（敌人） | **保留**：卡面/效果移敌内核 |
+| `seq.enemy.3_2_hunter_patrol` | （误铸） | **删除候选** → 见 §4 M2；Hunter = LISTENER |
+| `seq.enemy.3_2_patrol` | （误铸） | **删除候选** → 见 §4 M2；Patrol = LISTENER |
+| `seq.enemy.3_2`（应有） | Framework 3.2 空壳 | **待铸**：仅 emit WHEN，供关键词 LISTENER 开火 |
 | `seq.enemy.attack` | Enemy attack | **保留**：单次攻击结算 |
-| `seq.enemy.phase_attacks` | 3.3 Engaged attacks | **合并候选** → 见 §4 |
-| `seq.enemy.massive_phase_attacks` | Massive @ 3.3 | **合并候选** → 见 §4 |
+| `seq.enemy.phase_attacks` | 3.3 Engaged attacks | **合并候选** → 见 §4 M3 |
+| `seq.enemy.massive_phase_attacks` | Massive @ 3.3 | **合并候选** → 见 §4 M3（Massive 是否也走关键词 Buff 另议） |
 | `seq.enemy.defeat` | Defeat（敌人） | **保留** |
 | `seq.enemy.resolve_location` | Prey / 地点解析辅助 | **保留或降为内部**（若无独立订阅需求） |
 | `seq.engage` | Engage | **保留内核**；与 `seq.action.engage` 外壳成对 |
@@ -127,8 +128,8 @@
 | ID | 现状 | 建议 | 理由 | 敏感度注意 |
 |---|---|---|---|---|
 | M1 | ~~`discard_from_hand`~~ | **已并**入 `discard_card` + `from` | 同词条 Discard | Eligibility 须读 `from` / tag `from_hand` |
-| M2 | `3_2_hunter_patrol` + `3_2_patrol` | 并成 **`seq.framework.enemy_3_2`**（或 `seq.enemy.phase_move`），内部按 Hunter/Patrol 分支 | 同属 Framework 3.2 一步 | 若卡面要「仅 Hunter 移动后」→ tag/`keyword` 过滤，勿再铸平行 |
-| M3 | `phase_attacks` + `massive_phase_attacks` | 并成 **`seq.enemy.phase_attacks`** + `massive: bool` / 分批 params | 同属 3.3 | Massive 批量打断仍是同 kind |
+| M2 | `3_2_hunter_patrol` / `3_2_patrol` | **删除**这两条「按关键词写死的流程」；框架只留薄壳 **`seq.enemy.3_2`**（emit WHEN）；**Hunter / Patrol = 进场 Register 的 LISTENER**，订 `(seq.enemy.3_2, WHEN)` 后在 handler 内移 1 步（Patrol 读括号 Spec） | [06 §3.2.5](06-registration-buff-model.md) 已裁决：关键词不写进父管线；现状 `enemy_phase_flow` 按名分支是债 | 订阅听的是框架步 3.2，不是 `seq.keyword.hunter` |
+| M3 | `phase_attacks` + `massive_phase_attacks` | 并成 **`seq.enemy.phase_attacks`** + params；**Massive** 是否改为关键词 Buff 驱动（同 Hunter 模式）另确认 | 同属 3.3 | Massive 批量打断仍可同 kind |
 | M4 | `seq.gain_resource` 命名 | **不改种类**，只校正前缀别名 | taxonomy | — |
 | M5 | `seq.engage` 命名 | **不改种类**，只校正前缀别名 | 与 action.engage 对称 | — |
 
@@ -184,12 +185,13 @@
 
 请对下列选项拍板（可直接回「M2/M3 合并、G1 要铸、G2 暂缓」这类）：
 
-1. **M2 / M3**：敌人阶段 3.2 / 3.3 是否合并为单框架 seq + params？  
-2. **G1**：调查员效果移动是否升格为命名流程？  
-3. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
-4. **G3**：Search 是否本阶段铸造？  
-5. **命名债 M4/M5**：是否接受别名迁移（`gain_resource` / `engage` 前缀），还是冻结 id、只写文档？  
-6. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？
+1. **M2**：确认按 06 §3.2.5 拆掉 `3_2_hunter_patrol` / `3_2_patrol`，改薄壳 `seq.enemy.3_2` + Hunter/Patrol LISTENER？（文档已裁；待改代码）  
+2. **M3**：3.3 `phase_attacks` / `massive_phase_attacks` — 仅合并 params，还是 Massive 也改关键词 Buff？  
+3. **G1**：调查员效果移动是否升格为命名流程？  
+4. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
+5. **G3**：Search 是否本阶段铸造？  
+6. **命名债 M4/M5**：是否接受别名迁移（`gain_resource` / `engage` 前缀），还是冻结 id、只写文档？  
+7. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？
 
 确认后：
 
