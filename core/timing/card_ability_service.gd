@@ -59,28 +59,6 @@ func resolve_revelations(
 			unit.get("ability_id", &"") as StringName,
 			card_id
 		)
-		# #region agent log
-		if str(card.id.definition_id) == "12127":
-			var _cf := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
-			if _cf == null:
-				_cf = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
-			if _cf != null:
-				_cf.seek_end()
-				var child_atoms: Array = []
-				if node.kind == AhcEnums.CompositionNodeKind.SEQ:
-					for ch in node.children:
-						if ch != null:
-							child_atoms.append({"kind": ch.kind, "atom": str(ch.atom_name), "skill_spec": str(ch.test_skill_spec), "diff_src": str(ch.test_difficulty_source), "mem": str(ch.memory_key), "opts": ch.choice_option_ids.duplicate(), "has_st7": ch.st7_plan != null})
-				_cf.store_line(JSON.stringify({
-					"hypothesisId": "E",
-					"location": "card_ability_service.gd:resolve_revelations",
-					"message": "built_tree",
-					"runId": "post-fix",
-					"data": {"def": str(card.id.definition_id), "controller": str(controller_id), "root_kind": node.kind, "root_atom": str(node.atom_name), "children": child_atoms},
-					"timestamp": Time.get_ticks_msec(),
-				}))
-				_cf.close()
-		# #endregion
 		game_ctx.composition.execute(node)
 	if not defer_limbo_finalize and _mutator != null:
 		_mutator.finalize_limbo_discard(card_id, controller_id)

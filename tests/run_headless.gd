@@ -2181,57 +2181,9 @@ func _test_enc_12127_fail() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"willpower"}])
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12127")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	# #region agent log
-	var _tf0 := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
-	if _tf0 == null:
-		_tf0 = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
-	if _tf0 != null:
-		_tf0.seek_end()
-		_tf0.store_line(JSON.stringify({
-			"hypothesisId": "E",
-			"location": "run_headless.gd:_test_enc_12127_fail",
-			"message": "before_resolve",
-			"data": {"hand_before": hand_before, "wp": inv.skill_willpower, "intellect": inv.skill_intellect, "damage": inv.damage_taken, "card": str(card_id), "has_rev": CardRegistry.has_revelation(&"12127")},
-			"timestamp": Time.get_ticks_msec(),
-		}))
-		_tf0.close()
-	# #endregion
 	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
-		# #region agent log
-		var _tf_fail := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
-		if _tf_fail == null:
-			_tf_fail = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
-		if _tf_fail != null:
-			_tf_fail.seek_end()
-			_tf_fail.store_line(JSON.stringify({"hypothesisId": "E", "location": "run_headless.gd:_test_enc_12127_fail", "message": "resolve_revelations_false", "data": {}, "timestamp": Time.get_ticks_msec()}))
-			_tf_fail.close()
-		# #endregion
 		return false
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
-	# #region agent log
-	var _tf1 := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
-	if _tf1 == null:
-		_tf1 = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
-	if _tf1 != null:
-		_tf1.seek_end()
-		_tf1.store_line(JSON.stringify({
-			"hypothesisId": "TEST",
-			"location": "run_headless.gd:_test_enc_12127_fail",
-			"message": "after_resolve",
-			"runId": "post-fix",
-			"data": {
-				"damage": inv.damage_taken,
-				"hand_before": hand_before,
-				"hand_after": inv.hand.size(),
-				"fail_by": h.ctx.composition.last_skill_test_fail_by(),
-				"pass_damage": inv.damage_taken == 1,
-				"pass_hand": inv.hand.size() == hand_before - 1,
-				"pass_fail_by": h.ctx.composition.last_skill_test_fail_by() >= 1,
-			},
-			"timestamp": Time.get_ticks_msec(),
-		}))
-		_tf1.close()
-	# #endregion
 	return (
 		inv.damage_taken == 1
 		and inv.hand.size() == hand_before - 1
