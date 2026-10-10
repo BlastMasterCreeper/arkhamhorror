@@ -651,6 +651,9 @@ func _resolve_repeat_count(node: CompositionNode) -> int:
 ## PI：只选 option id（技能类型等）→ RulesMemory；不展开子树。
 func _execute_pick_option(node: CompositionNode) -> bool:
 	if node.choice_option_ids.is_empty():
+		# #region agent log
+		_agent_dbg("A", "composition_executor.gd:pick_option", "empty_options", {"prompt": str(node.choice_prompt_id)})
+		# #endregion
 		return false
 	var controller := _ability_controller(_resolve_inv(node))
 	var picked: Variant = node.choice_option_ids[0]
@@ -672,6 +675,9 @@ func _execute_pick_option(node: CompositionNode) -> bool:
 		"composition:pick_option",
 		{"prompt": node.choice_prompt_id, "picked": picked, "bind": key}
 	)
+	# #region agent log
+	_agent_dbg("A", "composition_executor.gd:pick_option", "stored", {"controller": str(controller), "key": str(key), "picked": str(picked), "options": node.choice_option_ids.duplicate(), "prompt": str(node.choice_prompt_id), "used_default": _game_ctx.interaction.last_used_default if _game_ctx.interaction else null})
+	# #endregion
 	return true
 
 
@@ -684,6 +690,10 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 	var skill := _resolve_test_skill(node, inv_id)
 	var difficulty := _resolve_test_difficulty(node, inv_id)
 	var flow_id := SkillTestFlowHandlers.flow_id_for_skill(skill)
+	var inv := _state.registry.get_investigator(inv_id) if _state != null else null
+	# #region agent log
+	_agent_dbg("B", "composition_executor.gd:nest_skill_test", "before_nest", {"inv": str(inv_id), "skill": int(skill), "skill_spec": str(node.test_skill_spec), "difficulty": difficulty, "diff_src": str(node.test_difficulty_source), "hand": inv.hand.size() if inv else -1, "wp": inv.skill_willpower if inv else -1, "int": inv.skill_intellect if inv else -1, "has_st7": node.st7_plan != null, "st7_on_fail": node.st7_plan != null and node.st7_plan.on_fail != null, "test_skill_fallback": int(node.test_skill)})
+	# #endregion
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
 		flow_id,
@@ -710,6 +720,10 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 			"success": bool(result.get("success", false)),
 		}
 	)
+	# #region agent log
+	var inv_after := _state.registry.get_investigator(inv_id) if _state != null else null
+	_agent_dbg("B", "composition_executor.gd:nest_skill_test", "after_nest", {"ok": bool(result.get("ok", false)), "success": bool(result.get("success", false)), "fail_by": _last_skill_test_fail_by, "damage": inv_after.damage_taken if inv_after else -1, "hand": inv_after.hand.size() if inv_after else -1, "result": result.duplicate()})
+	# #endregion
 	return bool(result.get("ok", false))
 
 
@@ -722,10 +736,14 @@ func _resolve_test_skill(node: CompositionNode, inv_id: StringName) -> AhcEnums.
 	if raw.begins_with("memory:"):
 		var mem_key := StringName(raw.substr(7))
 		var controller := _ability_controller(inv_id)
+		var from_mem: Variant = null
 		if _game_ctx != null and _game_ctx.memory != null and controller != &"":
-			var from_mem: Variant = _game_ctx.memory.get_referent(controller, mem_key)
-			if from_mem != null and str(from_mem) != "":
-				return _skill_type_from_id(StringName(str(from_mem)))
+			from_mem = _game_ctx.memory.get_referent(controller, mem_key)
+		# #region agent log
+		_agent_dbg("C", "composition_executor.gd:_resolve_test_skill", "memory_lookup", {"spec": raw, "controller": str(controller), "mem_key": str(mem_key), "from_mem": str(from_mem) if from_mem != null else null, "fallback": int(node.test_skill)})
+		# #endregion
+		if from_mem != null and str(from_mem) != "":
+			return _skill_type_from_id(StringName(str(from_mem)))
 		return node.test_skill
 	return _skill_type_from_id(spec)
 
@@ -1689,3 +1707,23 @@ func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
 	if result.is_empty() and _registrations != null:
 		return _registrations.register(template) != &""
 	return bool(result.get("ok", false))
+
+
+# #region agent log
+func _agent_dbg(hyp: String, loc: String, msg: String, data: Dictionary) -> void:
+	var path := "/opt/cursor/logs/debug.log"
+	var f := FileAccess.open(path, FileAccess.READ_WRITE)
+	if f == null:
+		f = FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		return
+	f.seek_end()
+	f.store_line(JSON.stringify({
+		"hypothesisId": hyp,
+		"location": loc,
+		"message": msg,
+		"data": data,
+		"timestamp": Time.get_ticks_msec(),
+	}))
+	f.close()
+# #endregion
