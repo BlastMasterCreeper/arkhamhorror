@@ -433,15 +433,12 @@ static func engage(
 	var t := TriggeringCondition.new()
 	var location_tag: StringName = params.get("location_tag", &"")
 	var enemy_id: StringName = params.get("enemy_id", &"")
-	var source: StringName = params.get("source", params.get("mode", &"auto")) as StringName
-	var initiation: StringName = params.get("initiation", &"") as StringName
+	var mode: StringName = params.get("mode", &"auto") as StringName
 	t.id = StringName(
 		"engage_%s_%s_%d" % [location_tag, enemy_id, Time.get_ticks_msec()]
 	)
 	t.kind = &"engage"
-	t.tags = [&"engage", source]
-	if initiation != &"":
-		t.tags.append(initiation)
+	t.tags = [&"engage", mode]
 	t.after_timing = after_timing
 	t.payload = params.duplicate()
 	return t

@@ -3,24 +3,20 @@ extends RefCounted
 
 ## 通用交战命名流程 `seq.engage`。
 ##
-## 常态：同地点敌人进入调查员威胁区（成对写入 `engaged_with` + `threat_area`）。
-## 特殊：可不要求同地点；可不走「从地点进入威胁区」的区划动作，仅赋予成对交战状态
-## （`placement=grant`；日后可叠 Register Buff，仍走本 flow）。
+## 只有两条路径（`mode`）：
+## - **auto**：框架区域变更后的自动交战（Prey/Lead；冷漠/横置跳过）
+## - **effect**：效果交战（卡面 nest、以及基础 Engage 行动外壳 nest —— 基础行动视为调查员自带能力）
 ##
-## 入口来源（`source` / 兼容字段 `mode`）与是否调查员主动（`initiation`）正交：
-## - auto：区域变更后的自动交战（initiation=automatic）
-## - action：Engage 行动外壳 nest（initiation=investigator）
-## - effect：卡牌效果 nest（默认 initiation=investigator；卡面可改）
+## 溯源靠序列栈 / AbilityUnitRef，**不**另做 source / initiation 专轴。
+##
+## 常态：同地点敌人进入威胁区（成对写入）。特殊可用 `placement=grant` /
+## `require_same_location=false`（可不要求同地点、不强调「进入」区划动作）。
 ##
 ## 禁止另铸 `seq.enemy.auto_engage` 等按场合拆名。
 
 
-const SOURCE_AUTO: StringName = &"auto"
-const SOURCE_ACTION: StringName = &"action"
-const SOURCE_EFFECT: StringName = &"effect"
-
-const INITIATION_AUTOMATIC: StringName = &"automatic"
-const INITIATION_INVESTIGATOR: StringName = &"investigator"
+const MODE_AUTO: StringName = &"auto"
+const MODE_EFFECT: StringName = &"effect"
 
 const PLACEMENT_ENTER_THREAT: StringName = &"enter_threat"
 const PLACEMENT_GRANT: StringName = &"grant"
@@ -30,14 +26,13 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null or game_ctx.enemy == null:
 		return {"ok": false}
 	var normalized := _normalize_params(params)
-	var source: StringName = normalized["source"]
-	match source:
-		SOURCE_AUTO:
+	match normalized["mode"] as StringName:
+		MODE_AUTO:
 			return _resolve_auto(game_ctx, normalized)
-		SOURCE_ACTION, SOURCE_EFFECT:
-			return _resolve_explicit(game_ctx, normalized)
+		MODE_EFFECT:
+			return _resolve_effect(game_ctx, normalized)
 		_:
-			return {"ok": false, "reason": &"unknown_source"}
+			return {"ok": false, "reason": &"unknown_mode"}
 
 
 static func nest_after_area_change(
@@ -49,9 +44,7 @@ static func nest_after_area_change(
 	if game_ctx == null or location_tag == &"":
 		return {"ok": true, "skipped": true}
 	var params := {
-		"source": SOURCE_AUTO,
-		"mode": SOURCE_AUTO,
-		"initiation": INITIATION_AUTOMATIC,
+		"mode": MODE_AUTO,
 		"placement": PLACEMENT_ENTER_THREAT,
 		"location_tag": location_tag,
 		"cause": cause,
@@ -66,16 +59,17 @@ static func nest_after_area_change(
 
 static func _normalize_params(params: Dictionary) -> Dictionary:
 	var out := params.duplicate()
-	## `mode` 为历史字段，与 `source` 同义；二者缺一时互填。
-	var source: StringName = out.get("source", out.get("mode", SOURCE_AUTO)) as StringName
-	if source == &"":
-		source = SOURCE_AUTO
-	out["source"] = source
-	out["mode"] = source
-	if not out.has("initiation") or out.get("initiation", &"") == &"":
-		out["initiation"] = (
-			INITIATION_AUTOMATIC if source == SOURCE_AUTO else INITIATION_INVESTIGATOR
-		)
+	## 历史 `source` / `mode=action` → effect（行动交战 = 效果交战）。
+	var raw: StringName = out.get("mode", out.get("source", MODE_AUTO)) as StringName
+	var mode := MODE_AUTO
+	if raw == MODE_AUTO or raw == &"":
+		mode = MODE_AUTO
+	else:
+		## effect、action、以及其它明示交战入口 → effect
+		mode = MODE_EFFECT
+	out["mode"] = mode
+	out.erase("source")
+	out.erase("initiation")
 	var placement: StringName = out.get("placement", PLACEMENT_ENTER_THREAT) as StringName
 	if placement == &"":
 		placement = PLACEMENT_ENTER_THREAT
@@ -102,8 +96,7 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 			MassiveEngagement.sync_at_location(game_ctx, location_tag)
 			return {
 				"ok": true,
-				"source": SOURCE_AUTO,
-				"initiation": INITIATION_AUTOMATIC,
+				"mode": MODE_AUTO,
 				"placement": PLACEMENT_ENTER_THREAT,
 				"location_tag": location_tag,
 				"engaged": [],
@@ -129,8 +122,7 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 				last_inv = one.get("investigator_id", &"") as StringName
 	return {
 		"ok": true,
-		"source": SOURCE_AUTO,
-		"initiation": INITIATION_AUTOMATIC,
+		"mode": MODE_AUTO,
 		"placement": PLACEMENT_ENTER_THREAT,
 		"location_tag": location_tag,
 		"cause": params.get("cause", &"location"),
@@ -156,7 +148,7 @@ static func _auto_engage_enemy(
 	}
 
 
-static func _resolve_explicit(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var enemy_id: StringName = params.get("enemy_id", &"")
 	var inv_id: StringName = params.get(
 		"investigator_id", params.get("target_investigator", &"")
@@ -167,25 +159,18 @@ static func _resolve_explicit(game_ctx: GameContext, params: Dictionary) -> Dict
 	var inv := game_ctx.state.registry.get_investigator(inv_id)
 	if enemy == null or inv == null:
 		return {"ok": false, "reason": &"unknown_entity"}
-	var source: StringName = params.get("source", SOURCE_EFFECT)
-	var initiation: StringName = params.get("initiation", INITIATION_INVESTIGATOR)
 	var placement: StringName = params.get("placement", PLACEMENT_ENTER_THREAT)
 	var require_same: bool = bool(params.get("require_same_location", true))
-	## 行动交战：庞大不可被手动交战（魔典）。
-	if source == SOURCE_ACTION and enemy.massive:
-		return {"ok": false, "reason": &"massive", "error": "massive"}
 	if enemy.is_engaged_with(inv_id):
 		return {"ok": false, "reason": &"already_engaged", "error": "already_engaged"}
 	if require_same and not enemy.is_at_location(inv.location_tag):
 		return {"ok": false, "reason": &"wrong_location", "error": "wrong_location"}
-	## grant：成对交战状态；enter_threat：进入威胁区（当前 L0 同为 dual-write，语义不同）。
 	game_ctx.enemy.apply_engage(enemy_id, inv_id)
 	return {
 		"ok": true,
 		"enemy_id": enemy_id,
 		"investigator_id": inv_id,
-		"source": source,
-		"initiation": initiation,
+		"mode": MODE_EFFECT,
 		"placement": placement,
 	}
 

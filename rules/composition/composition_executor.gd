@@ -1189,7 +1189,10 @@ func _execute_nest_engage(node: CompositionNode) -> bool:
 	var enemy_id := _resolve_enemy_spec(node, inv_id)
 	if enemy_id == &"":
 		return false
-	var mode := node.engage_mode if node.engage_mode != &"" else EngageFlow.SOURCE_EFFECT
+	## 卡面 nest 与行动交战同属效果交战；历史 engage_mode=action 亦收成 effect。
+	var mode := EngageFlow.MODE_EFFECT
+	if node.engage_mode == EngageFlow.MODE_AUTO:
+		mode = EngageFlow.MODE_AUTO
 	var placement := (
 		node.engage_placement if node.engage_placement != &""
 		else EngageFlow.PLACEMENT_ENTER_THREAT
@@ -1199,9 +1202,7 @@ func _execute_nest_engage(node: CompositionNode) -> bool:
 		_game_ctx,
 		&"seq.engage",
 		{
-			"source": mode,
 			"mode": mode,
-			"initiation": EngageFlow.INITIATION_INVESTIGATOR,
 			"placement": placement,
 			"require_same_location": require_same,
 			"enemy_id": enemy_id,

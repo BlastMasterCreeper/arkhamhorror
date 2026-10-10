@@ -63,16 +63,17 @@ static func resolve_basic_action(
 		AhcEnums.ActionType.FIGHT:
 			return resolver.fight(game_ctx, inv_id, extra)
 		AhcEnums.ActionType.ENGAGE:
-			## 行动外壳 → nest 交战内核（与 draw/gain 对称）；校验与安置在 seq.engage。
+			## 基础行动 = 调查员自带能力 → nest 效果交战（mode=effect）；溯源靠行动外壳栈帧。
 			if game_ctx.sequence_catalog != null and game_ctx.sequence_catalog.has_flow(&"seq.engage"):
 				var enemy_id: StringName = extra.get("enemy_id", &"")
+				var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+				if enemy != null and enemy.massive:
+					return {"ok": false, "error": "massive"}
 				return game_ctx.sequence_catalog.nest(
 					game_ctx,
 					&"seq.engage",
 					{
-						"source": EngageFlow.SOURCE_ACTION,
-						"mode": EngageFlow.SOURCE_ACTION,
-						"initiation": EngageFlow.INITIATION_INVESTIGATOR,
+						"mode": EngageFlow.MODE_EFFECT,
 						"placement": EngageFlow.PLACEMENT_ENTER_THREAT,
 						"require_same_location": true,
 						"enemy_id": enemy_id,

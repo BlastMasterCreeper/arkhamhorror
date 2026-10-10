@@ -245,7 +245,7 @@ func _initialize() -> void:
 	_run_test("ACT-07 engage adds to threat area", _test_act_engage_success)
 	_run_test("ACT-08 engage steals enemy", _test_act_engage_steal)
 	_run_test("ACT-09 engage rejects massive", _test_act_engage_massive)
-	_run_test("ACT-09b action engage nests seq.engage investigator", _test_act_engage_nests_kernel)
+	_run_test("ACT-09b action engage nests seq.engage effect", _test_act_engage_nests_kernel)
 	_run_test("ACT-10 engage then fight aloof", _test_act_engage_then_fight)
 	_run_test("ENGAGE-01 grant placement skips same-location", _test_engage_grant_cross_location)
 	_run_test("M4-01 effect.gain_resource registered with alias", _test_m4_gain_resource_rename)
@@ -5379,7 +5379,7 @@ func _test_act_engage_massive() -> bool:
 
 
 func _test_act_engage_nests_kernel() -> bool:
-	## 行动外壳须 nest seq.engage，返回 investigator initiation + enter_threat。
+	## 基础行动 = 效果交战：外壳 nest seq.engage mode=effect。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
@@ -5388,8 +5388,7 @@ func _test_act_engage_nests_kernel() -> bool:
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
 	return (
 		res.ok
-		and res.get("source", &"") == EngageFlow.SOURCE_ACTION
-		and res.get("initiation", &"") == EngageFlow.INITIATION_INVESTIGATOR
+		and res.get("mode", &"") == EngageFlow.MODE_EFFECT
 		and res.get("placement", &"") == EngageFlow.PLACEMENT_ENTER_THREAT
 		and enemy != null
 		and enemy.is_engaged_with(&"inv_1")
@@ -5406,8 +5405,7 @@ func _test_engage_grant_cross_location() -> bool:
 		h.ctx,
 		&"seq.engage",
 		{
-			"source": EngageFlow.SOURCE_EFFECT,
-			"initiation": EngageFlow.INITIATION_INVESTIGATOR,
+			"mode": EngageFlow.MODE_EFFECT,
 			"placement": EngageFlow.PLACEMENT_GRANT,
 			"require_same_location": false,
 			"enemy_id": &"enemy_far",
@@ -5418,6 +5416,7 @@ func _test_engage_grant_cross_location() -> bool:
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_far")
 	return (
 		res.ok
+		and res.get("mode", &"") == EngageFlow.MODE_EFFECT
 		and res.get("placement", &"") == EngageFlow.PLACEMENT_GRANT
 		and enemy != null
 		and enemy.is_engaged_with(&"inv_1")

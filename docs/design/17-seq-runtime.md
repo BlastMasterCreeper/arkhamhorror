@@ -210,7 +210,7 @@
 | `seq.draw.empty_piles_defeated` | 两堆空 defeated（因果 nest） | nest from D1 内联 collect |
 | `seq.enter_hand` | 显现 batch | nest from investigator |
 | `seq.effect.gain_resource` | 获资源 + MODIFIER | `ResourceGainService`、可框架；旧 `seq.gain_resource` 别名 |
-| `seq.engage` | 交战内核（auto/action/effect） | `EngageFlow`；params: source/initiation/placement |
+| `seq.engage` | 交战内核（auto / effect） | `EngageFlow`；行动外壳 nest effect |
 | `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅 |
 | `seq.effect.damage` | **造成伤害/恐惧**（Dealing Damage/Horror；take/deal 同 seq） | `kind` + `source` + `target`；卡面 / 显现 / Fire! |
 | `seq.effect.lose_resources` | 失去资源（含全部：`all: true`） | 卡面；CREATED = 实际扣到 |

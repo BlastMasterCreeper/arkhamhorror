@@ -48,7 +48,7 @@
 | 现状 | 状态 |
 |---|---|
 | ~~`seq.gain_resource`~~ | **已迁** → `seq.effect.gain_resource`（旧 id 别名） |
-| `seq.engage` | **保留根 id**（统一交战内核，非「仅行动对称改名」）；见 §3.4 / M5 扩展 |
+| `seq.engage` | **保留根 id**；仅 `auto`/`effect`（行动=效果交战）；见 §3.4 / M5 |
 
 ---
 
@@ -139,20 +139,21 @@
 | `seq.enemy.resolve_location` | Prey / 地点解析辅助 | **保留或降为内部**（若无独立订阅需求） |
 | `seq.engage` | Engage（交战） | **扩展内核**：见下「交战 params」；外壳 `seq.action.engage` nest 本条 |
 
-**交战 `seq.engage` params（已扩展 · 非改名前缀）**
+**交战 `seq.engage`（两条路径 · 非改名前缀）**
 
-交战 **不是**「仅行动外壳的对称改名」。常态语义：同地点敌人进入调查员威胁区（成对写入）。特殊：可不要求同地点；可不强调「进入」区划动作，仅赋予成对交战状态（`placement=grant`；日后可叠 Register Buff，仍走本 flow）。来源与是否调查员主动正交。
+只分 **框架自动** 与 **效果交战**。基础 Engage 行动 = 调查员自带能力 → 外壳 nest **`mode=effect`**（与卡面效果同路径）。溯源靠序列栈，**不**另做 source / initiation 专轴。
+
+常态：同地点敌人进入威胁区（成对写入）。特殊：`placement=grant` / `require_same_location=false`。
 
 | 键 | 值 | 含义 |
 |---|---|---|
-| `source`（兼容旧 `mode`） | `auto` / `action` / `effect` | 入口：区域变更自动 / Engage 行动 / 卡面效果 |
-| `initiation` | `automatic` / `investigator` | 是否调查员主动交战（订能力过滤用） |
+| `mode` | `auto` / `effect` | 框架自动 vs 效果（含行动外壳 nest） |
 | `placement` | `enter_threat` / `grant` | 进入威胁区 vs 仅成对状态 |
 | `require_same_location` | bool | 默认随 placement；`grant` 可 false |
 | `cause` | `location` / `engagement` / `ready` | 仅 auto：区域变更因由 |
 | `enemy_id` / `investigator_id` / `location_tag` | 实体 | 成对双方；auto 可扫地点 |
 
-**禁止**：另铸 `seq.enemy.auto_engage`；把自动/行动/效果拆成三条命名流程；把 `spawn_engaged`（L0 原子进场）与本内核混名。
+**禁止**：另铸 `seq.enemy.auto_engage`；为行动单独开 `mode=action` / source 专轴；把 `spawn_engaged`（L0 原子进场）与本内核混名。
 
 ### 3.5 框架 / 法令 / 中断
 
@@ -177,7 +178,7 @@
 | M2 | `3_2_hunter_patrol` / `3_2_patrol` | **已落地**：框架只留 **`seq.enemy.3_2`**（枚举 + 消费槽）；Hunter/Patrol 移动体摘为 **`seq.keyword.hunter` / `seq.keyword.patrol`**（KeywordConsumer @ `ENEMY_3_2`） | [08 §5](08-enemy-engagement.md)、[06 §3.2.5](06-registration-buff-model.md) | 关键词 ≠ 框架 handler 内联 |
 | M3 | `phase_attacks` + `massive_phase_attacks` | **已落地**：只留 **`seq.enemy.phase_attacks`**（固定 nest 攻击）；庞大 = 对一般攻击 **`seq.enemy.attack`** 的 **REPLACE**（PHASE→`seq.keyword.massive`）；删平行 massive 流程 | [06 §3.2.7](06-registration-buff-model.md)、[08 §6.3](08-enemy-engagement.md) | REPLACE 锚在攻击效果，不在 3.3 框架 |
 | M4 | `seq.gain_resource` | **已落地**：正式 `seq.effect.gain_resource`；旧 id 别名 | taxonomy | — |
-| M5 | `seq.engage` | **已扩展**：保留根 id；params 轴 `source`/`initiation`/`placement`；行动外壳 nest 内核 | 交战≠行动对称改名；见 §3.4 | 订阅按 `source`/`initiation` 过滤 |
+| M5 | `seq.engage` | **已收口**：`mode` 仅 `auto`/`effect`；行动外壳 nest **effect**；无 source/initiation 专轴 | 行动=效果交战；溯源靠栈 | placement 等复杂情况用 params |
 
 **不建议合并**（已确认或强烈倾向）：
 
@@ -222,7 +223,7 @@
 | `heal` | `kind`, `amount`, `target` |
 | `move`（若铸 G1） | `investigator`/`enemy`, `to`/`from`, `mode` |
 | `skill_test` | `investigator`, `skill`, `difficulty` / `difficulty_source`, `st7` |
-| `engage` | `source`/`mode`, `initiation`, `placement`, `require_same_location`, `enemy`, `investigator`, `cause` |
+| `engage` | `mode`（auto/effect）, `placement`, `require_same_location`, `enemy`, `investigator`, `cause` |
 | `register` | `template`（含 Buff 种类与 lifetime） |
 
 ---
@@ -234,12 +235,12 @@
 1. ~~**M2**~~：**已落地** — `seq.enemy.3_2` 只枚举+消费槽；移动体 = `seq.keyword.hunter` / `patrol`  
 2. ~~**M3**~~：**已落地** — `phase_attacks` nest 攻击；Massive REPLACE @ `seq.enemy.attack`  
 3. ~~**M4**~~：**已落地** — `seq.effect.gain_resource`（旧 id 别名）  
-4. ~~**M5**~~：**已扩展** — `seq.engage` params（source/initiation/placement）；非改名前缀  
+4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
 5. **G1**：调查员效果移动是否升格为命名流程？  
 6. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
 7. **G3**：Search 是否本阶段铸造？  
 8. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？  
-9. **交战 grant / Buff**：`placement=grant` 现阶段仍 L0 成对写入；是否另层 Register 表示「交战状态 Buff」？
+9. **交战 grant / Buff**：`placement=grant` 现阶段仍 L0 成对写入；是否另层 Register？
 
 确认后：
 
@@ -260,3 +261,4 @@
 | 2026-10-10 | M3 落地：删 massive_phase_attacks；庞大 = REPLACE 体 `seq.keyword.massive` |
 | 2026-10-10 | M3 纠正：庞大 = 对一般攻击效果 `seq.enemy.attack` 的 REPLACE（PHASE→batch）；敌军阶段 `phase_attacks` 只是固定手续 nest 攻击 |
 | 2026-10-10 | M4：`seq.effect.gain_resource`；M5：扩展 `seq.engage`（source/initiation/placement），保留根 id |
+| 2026-10-10 | M5 收口：仅 `auto`/`effect`；行动外壳 nest effect；去掉 source/initiation 专轴 |
