@@ -218,10 +218,10 @@ sequences.end_ability_resolution()
 | `core/timing/sequence_handler.gd` | source_id / controller / tier |
 | `core/timing/response_prompt.gd` | ResponseWindow UI 骨架 |
 | `core/timing/sequence_catalog.gd` | `run` / `nest` / `nest_batch` 流程注册表 |
-| `bootstrap/sequence_catalog_bootstrap.gd` | 内置 flow：draw 子序列、`seq.enter_hand`、`seq.gain_resource` |
+| `bootstrap/sequence_catalog_bootstrap.gd` | 内置 flow：draw 子序列、`seq.enter_hand`、`seq.effect.gain_resource` |
 | `core/timing/draw_investigator_flow.gd` | 调查员抽牌 RESOLVE 编排 |
 | `core/timing/draw_subflow_handlers.gd` | D1 `collect_one_step`（内联）/ `empty_piles_defeated` resolve |
-| `core/timing/resource_gain_service.gd` | gain 薄 facade → `catalog.run(seq.gain_resource)` |
+| `core/timing/resource_gain_service.gd` | gain 薄 facade → `catalog.run(seq.effect.gain_resource)` |
 | `core/timing/triggering_condition.gd` | `kind` + draw 子 flow triggers |
 | （待建）`TimingCatalog` | 规范 emit（[15](15-timing-entry-catalog.md)） |
 

@@ -31,7 +31,11 @@ var choice_must: bool = false
 var choice_prompt_id: StringName = &""
 var choice_option_ids: Array[StringName] = []
 var test_skill: AhcEnums.SkillType = AhcEnums.SkillType.WILLPOWER
+## 技能指称：空=用 test_skill；`memory:picked_skill` 或字面 willpower/…。
+var test_skill_spec: StringName = &""
 var test_difficulty: int = 0
+## 动态难度：空=用 test_difficulty；`hand_count` = 调查员手牌张数（12127）。
+var test_difficulty_source: StringName = &""
 var st7_plan: SkillTestSt7Plan = null
 var repeat_count_source: StringName = &""
 var repeat_count_fixed: int = 0
@@ -50,11 +54,19 @@ var is_direct: bool = false
 var place_doom_target: StringName = &""
 ## PI / 步间指称：RulesMemory key（如 picked_enemy）。
 var memory_key: StringName = &""
-## pick_target 候选过滤（如 enemy_at_connecting）。
+## for_each memory 列表时，每轮写入的单数指称（如 picked_enemy）。
+var for_each_bind_key: StringName = &""
+## pick_target 候选过滤预设（如 enemy_at_connecting）；优先用 selection_spec。
 var target_filter: StringName = &""
+## 通用选择规格（21-selection-spec）；非空时覆盖 target_filter/memory_key。
+var selection_spec: SelectionSpec = null
 ## nest_engage / nest_enemy_move_to 等模式或开关载荷。
 var engage_mode: StringName = &"effect"
+## seq.engage placement：`enter_threat`（默认）或 `grant`（成对状态、可不要求同地点）。
+var engage_placement: StringName = &"enter_threat"
 var auto_engage: bool = true
+## 弃牌来源区：空=指定/寻址单张；`hand` = 从手牌按 amount/mode。
+var from_zone: StringName = &""
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -247,6 +259,35 @@ static func must_choose(
 	return n
 
 
+## L1 · Optional / may（16 §7.2 · 21 §4.1）：resolve 前 OPTIONAL_EFFECT；否 → 跳过子树。
+## 默认跳过；body dry-run FIZZLE 时不 ask。memory_key 非空则 bind.shape=bool。
+static func optional(
+	body: CompositionNode,
+	controller_id: StringName,
+	prompt_id: StringName = &"composition:choice_optional",
+	memory_key: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.OPTIONAL
+	n.inv_id = controller_id
+	n.choice_must = false
+	n.choice_prompt_id = prompt_id
+	n.memory_key = memory_key
+	if body != null:
+		n.children.append(body)
+	return n
+
+
+## 编译糖 alias：template=`choice_optional`。
+static func choice_optional(
+	body: CompositionNode,
+	controller_id: StringName,
+	prompt_id: StringName = &"composition:choice_optional",
+	memory_key: StringName = &""
+) -> CompositionNode:
+	return optional(body, controller_id, prompt_id, memory_key)
+
+
 ## 当前密谋放置 1 doom · nest `seq.mythos.place_doom`（议程信封，供 Forced AFTER 订阅）。
 static func place_doom_on_current_agenda(may_advance_agenda: bool = false) -> CompositionNode:
 	return nest_mythos_place_doom(may_advance_agenda)
@@ -263,7 +304,9 @@ static func nest_skill_test(
 	skill: AhcEnums.SkillType,
 	difficulty: int,
 	card_id: StringName = &"",
-	st7_plan: SkillTestSt7Plan = null
+	st7_plan: SkillTestSt7Plan = null,
+	difficulty_source: StringName = &"",
+	skill_spec: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -271,8 +314,28 @@ static func nest_skill_test(
 	n.inv_id = controller_id
 	n.card_id = card_id
 	n.test_skill = skill
+	n.test_skill_spec = skill_spec
 	n.test_difficulty = maxi(difficulty, 0)
+	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
+	return n
+
+
+## PI：只选 option id（如技能类型），写入 RulesMemory；后续叶读 memory:。
+static func pick_option(
+	controller_id: StringName,
+	option_ids: Array,
+	prompt_id: StringName = &"pick:option",
+	memory_key: StringName = &"picked_option"
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"pick_option"
+	n.inv_id = controller_id
+	n.choice_prompt_id = prompt_id
+	n.memory_key = memory_key
+	for oid in option_ids:
+		n.choice_option_ids.append(oid as StringName)
 	return n
 
 
@@ -324,16 +387,87 @@ static func exhaust_card(card_id: StringName) -> CompositionNode:
 	return n
 
 
-## L1 · 移动到连接地点（免费触发 / 效果；复用 BasicActionResolver.move 内核）。
-static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
+## L0 · 横置敌人（choose and exhaust an enemy；支持 memory: 指称）。
+static func exhaust_enemy(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"nest_move_connecting"
+	n.atom_name = &"exhaust_enemy"
 	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
 	return n
 
 
-## L1 · 获得资源（反应/效果；nest `seq.gain_resource`）。
+## L0 · 对敌人造成伤害（Fight V / 效果体；支持 memory: 指称）。
+static func deal_damage_enemy(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	amount: int = 1,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"deal_damage_enemy"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
+## L0 · 敌人脱离交战（Evade 成功体之一；支持 memory: 指称）。
+static func disengage_enemy(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"disengage_enemy"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	return n
+
+
+## L1 · 调查员移动到指定地点（无 PI；destination 可为 memory:）。
+static func nest_move_to(
+	controller_id: StringName,
+	location_spec: StringName = &"memory:picked_location",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_move_to"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.location_target = location_spec
+	return n
+
+
+## Move to a connecting location：PI select + nest_move_to（无内嵌 Gate）。
+static func move_to_connecting(controller_id: StringName) -> CompositionNode:
+	var spec := SelectionSpec.pick_entity(
+		CandidateFilter.from_preset(&"location_connecting"),
+		&"pick:move_connecting",
+		&"picked_location"
+	)
+	return seq([
+		select_entities(controller_id, spec),
+		nest_move_to(controller_id, &"memory:picked_location"),
+	])
+
+
+## 兼容旧 template=`nest_move_connecting`：展开为 move_to_connecting。
+static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
+	return move_to_connecting(controller_id)
+
+
+## L1 · 获得资源（反应/效果；nest `seq.effect.gain_resource`）。
 static func nest_gain_resource(controller_id: StringName, amount: int = 1) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -524,6 +658,25 @@ static func for_each_player_order(body: CompositionNode) -> CompositionNode:
 	return n
 
 
+## L1 · 遍历 RulesMemory 中的 entity_list（21 §5.2 `memory:key[]`）。
+## 每轮把单项写入 `each_key`（默认 picked_enemy），供后续 leaf 读 `memory:`。
+static func for_each_memory(
+	controller_id: StringName,
+	list_key: StringName,
+	body: CompositionNode,
+	each_key: StringName = &"picked_enemy"
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.FOR_EACH
+	n.for_each_source = &"memory_list"
+	n.inv_id = controller_id
+	n.memory_key = list_key
+	n.for_each_bind_key = each_key if each_key != &"" else &"picked_enemy"
+	if body != null:
+		n.children.append(body)
+	return n
+
+
 ## 调查员受到 horror · nest `seq.effect.damage`（kind=horror）。
 static func take_horror(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_horror(inv_id, amount, is_direct)
@@ -657,7 +810,9 @@ static func nest_discard_card(
 	controller_id: StringName,
 	trait_filter: StringName = &"",
 	at_filter: StringName = &"",
-	mode: StringName = &"choose"
+	mode: StringName = &"choose",
+	from_zone: StringName = &"",
+	amount: int = 1
 ) -> CompositionNode:
 	var n := _nest_leaf(&"nest_discard_card", &"seq.effect.discard_card")
 	n.card_id = card_id
@@ -665,6 +820,8 @@ static func nest_discard_card(
 	n.definition_id = trait_filter
 	n.location_target = at_filter
 	n.place_doom_target = mode
+	n.from_zone = from_zone
+	n.marker_delta = maxi(amount, 1)
 	return n
 
 
@@ -679,16 +836,13 @@ static func nest_draw_investigator(
 	return n
 
 
+## 糖：弃手牌 → 统一 nest `seq.effect.discard_card` + from=hand。
 static func nest_discard_from_hand(
 	controller_id: StringName,
 	amount: int = 1,
 	mode: StringName = &"random"
 ) -> CompositionNode:
-	var n := _nest_leaf(&"nest_discard_from_hand", &"seq.effect.discard_from_hand")
-	n.inv_id = controller_id
-	n.marker_delta = maxi(amount, 1)
-	n.location_target = mode
-	return n
+	return nest_discard_card(&"", controller_id, &"", &"", mode, &"hand", amount)
 
 
 static func nest_attach(
@@ -728,20 +882,37 @@ static func nest_scenario_resolution(
 	return n
 
 
-## 卡面「does not provoke attacks of opportunity」声明节点（效果体无写入；
-## 真正豁免由 ability 的 `provokes_aoo: false` 在 Initiation 生效）。
-static func no_provoke_aoo() -> CompositionNode:
+## 卡面「does not provoke attacks of opportunity」：
+## 译为行动开始 Register **限制类** SKIP_AOO；INIT_2B 由 AOO 原流程 **读取** 后分支。
+## 不是 LISTENER，不是 Cancel/Ignore。节点留作 provenance；付费后挂载，resolve 不重复 Register。
+static func no_provoke_aoo(controller_id: StringName = &"") -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"no_provoke_aoo"
+	n.inv_id = controller_id
 	return n
 
 
-## 同帧内联撤退（L0 · InvestigatorElimination）；无新时点锚时不 nest。
+## 卡面「Resign」→ nest `seq.effect.resign` 信封（after_resign 可听）。
+## 留置线索 / resigned / eliminate 在信封 handler 内。
 static func resign(inv_id: StringName) -> CompositionNode:
+	return nest_resign(inv_id)
+
+
+## L0 · 调查员线索留在所在地点（Resign 第一步）。
+static func leave_clues_at_location(inv_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"resign"
+	n.atom_name = &"leave_clues_at_location"
+	n.inv_id = inv_id
+	return n
+
+
+## L0 · 淘汰清理（威胁区/手牌隐私遭遇弃置 + ELIMINATED）。
+static func eliminate(inv_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"eliminate"
 	n.inv_id = inv_id
 	return n
 
@@ -757,10 +928,11 @@ static func nest_resign(inv_id: StringName) -> CompositionNode:
 
 
 ## PI：有限期确认目标 → 写入 RulesMemory（默认 = 合法集首项）。
+## filter 可为预设 id 或 CandidateFilter / SelectionSpec（见 21）。
 static func pick_target(
 	controller_id: StringName,
-	target_filter: StringName,
-	prompt_id: StringName,
+	target_filter: Variant = &"enemy_at_connecting",
+	prompt_id: StringName = &"pick:target",
 	memory_key: StringName = &"picked_enemy",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
@@ -769,10 +941,67 @@ static func pick_target(
 	n.atom_name = &"pick_target"
 	n.inv_id = controller_id
 	n.card_id = source_card_id
-	n.target_filter = target_filter
 	n.choice_prompt_id = prompt_id
 	n.memory_key = memory_key
+	if target_filter is SelectionSpec:
+		n.selection_spec = target_filter as SelectionSpec
+		n.target_filter = (n.selection_spec.filter.preset if n.selection_spec.filter != null else &"")
+	else:
+		n.selection_spec = SelectionSpec.pick_entity(
+			CandidateFilter.from_variant(target_filter),
+			prompt_id,
+			memory_key
+		)
+		n.target_filter = StringName(str(target_filter)) if not (target_filter is Dictionary) else n.selection_spec.filter.preset
 	return n
+
+
+## 通用选择叶（实体多选 / 扩展约束）；编译 template=`select`。
+static func select_entities(
+	controller_id: StringName,
+	spec: SelectionSpec,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"select"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.selection_spec = spec
+	if spec != null:
+		n.choice_prompt_id = spec.prompt_id
+		n.memory_key = spec.bind_key
+		if spec.filter != null:
+			n.target_filter = spec.filter.preset
+	return n
+
+
+## 糖：template=`pick_multi` → select + PICK_MULTI + min/max。
+static func pick_multi(
+	controller_id: StringName,
+	filter: Variant = &"enemy_at_controller_location",
+	min_picks: int = 1,
+	max_picks: int = 2,
+	prompt_id: StringName = &"pick:multi",
+	memory_key: StringName = &"picked_enemies",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var spec: SelectionSpec
+	if filter is SelectionSpec:
+		spec = filter as SelectionSpec
+		spec.choice_kind = AhcEnums.ChoiceKind.PICK_MULTI
+		spec.bind_shape = &"entity_list"
+		spec.min_picks = min_picks
+		spec.max_picks = maxi(max_picks, min_picks)
+	else:
+		spec = SelectionSpec.pick_multi(
+			CandidateFilter.from_variant(filter),
+			prompt_id,
+			memory_key,
+			min_picks,
+			max_picks
+		)
+	return select_entities(controller_id, spec, source_card_id)
 
 
 ## 同帧内联：把敌人放到目标地点（L0 改 location_tag；不 nest、不自动交战）。
@@ -809,7 +1038,25 @@ static func engage_target(
 	return n
 
 
-## 仅当 §4.0.5「是」时用：nest `seq.enemy.move`。
+## 限制类糖：解释时经 `seq.effect.register` 创建 SUPPRESS_AUTO_ENGAGE。
+## 用于「移入后由卡面明示交战」——移入仍走正常自动交战入口，由限制分支。
+## enemy_spec 可为 memory: 指称（解释期解析后再组 template）。
+static func suppress_auto_engage(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"suppress_auto_engage"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	return n
+
+
+## 卡面效果「移入地点」：nest `seq.enemy.move`（移入后仍走 auto-engage 入口）。
+## 若需抑制自动交战、改由明示交战：先 `suppress_auto_engage`，再 nest `seq.engage`。
 static func nest_enemy_move_to(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -834,7 +1081,8 @@ static func nest_engage(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
 	mode: StringName = &"effect",
-	source_card_id: StringName = &""
+	source_card_id: StringName = &"",
+	placement: StringName = &"enter_threat"
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -844,16 +1092,17 @@ static func nest_engage(
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec
 	n.engage_mode = mode
+	n.engage_placement = placement
 	return n
 
 
-## 12113：不借机声明 → PI → 内联移入 → 内联交战（非 nest）。
+## 12113：SKIP_AOO → PI → 抑制自动交战 → nest move → nest 明示交战。
 static func engage_from_connecting(
 	controller_id: StringName,
 	source_card_id: StringName = &""
 ) -> CompositionNode:
 	return seq([
-		no_provoke_aoo(),
+		no_provoke_aoo(controller_id),
 		pick_target(
 			controller_id,
 			&"enemy_at_connecting",
@@ -861,13 +1110,15 @@ static func engage_from_connecting(
 			&"picked_enemy",
 			source_card_id
 		),
-		move_enemy_to(
+		suppress_auto_engage(controller_id, &"memory:picked_enemy", source_card_id),
+		nest_enemy_move_to(
 			controller_id,
 			&"memory:picked_enemy",
 			&"source_location",
+			true,
 			source_card_id
 		),
-		engage_target(controller_id, &"memory:picked_enemy", source_card_id),
+		nest_engage(controller_id, &"memory:picked_enemy", &"effect", source_card_id),
 	])
 
 

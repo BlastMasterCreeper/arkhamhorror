@@ -288,8 +288,7 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 		if _enemy:
 			_enemy.enemy_phase_3_2_moves()
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_3_ENGAGED_ATTACKS:
-		if _enemy:
-			_enemy.resolve_massive_phase_attacks()
+		## 仅开 3.3 基础攻击遍（玩家顺序）；Massive 在 phase_attacks 内替换，无平行遍。
 		investigators_remaining_this_phase = player_order.duplicate()
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_3_READY_EXHAUSTED:
 		if _enemy and _game_ctx != null:

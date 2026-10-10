@@ -2,9 +2,12 @@ class_name EnemyPhaseFlow
 extends RefCounted
 
 ## 敌军阶段 3.2–3.3 + 卡面 resolve_location / move / attack 命名流程。
+## 3.2 = Framework 基础手续（枚举合格敌人 → 开关键词消费槽）；关键词移动体在 seq.keyword.*。
 
 
-static func hunter_patrol_3_2(game_ctx: GameContext) -> Dictionary:
+static func framework_3_2(game_ctx: GameContext) -> Dictionary:
+	## Grimoire 3.2 基础手续：对每个 ready、未交战的敌人，经 KeywordConsumer 开火
+	## Hunter/Patrol LISTENER（seq.keyword.hunter / patrol）。本 handler **不含**移动路径。
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	var moved: Array[StringName] = []
@@ -12,67 +15,20 @@ static func hunter_patrol_3_2(game_ctx: GameContext) -> Dictionary:
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 		if not _eligible_for_3_2_move(enemy):
 			continue
-		var def_id := _definition_id(game_ctx, enemy_id)
-		if not CardRegistry.is_hunter(def_id):
+		if EngagementStatus.is_engaged(game_ctx, enemy_id):
 			continue
-		var target_inv := EnemyHunterTarget.pick_nearest_investigator(game_ctx, enemy_id)
-		if target_inv == &"":
-			continue
-		var loc := EnemyLocationTarget.resolve(
-			game_ctx, {"target": "investigator_location", "drawer_id": target_inv}
-		)
-		if not bool(loc.get("ok", false)):
-			continue
-		var body := move(
+		var fired := KeywordConsumer.consume_at(
 			game_ctx,
-			{
-				"enemy_id": enemy_id,
-				"target_location": loc.get("location_tag", &""),
-				"steps": 1,
-			}
+			KeywordProfileTable.SLOT_ENEMY_3_2,
+			&"",
+			enemy_id
 		)
-		if bool(body.get("moved", false)):
+		if bool(fired.get("moved", false)):
 			moved.append(enemy_id)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
-			"enemy:3_2_hunter_patrol",
-			{"moved": moved}
-		)
-	return {"ok": true, "moved": moved}
-
-
-static func patrol_3_2(game_ctx: GameContext) -> Dictionary:
-	if game_ctx == null or game_ctx.state == null:
-		return {"ok": false}
-	var moved: Array[StringName] = []
-	for enemy_id in game_ctx.state.registry.all_enemy_ids():
-		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-		if not _eligible_for_3_2_move(enemy):
-			continue
-		var def_id := _definition_id(game_ctx, enemy_id)
-		if not CardRegistry.is_patrol(def_id):
-			continue
-		var spec := CardRegistry.patrol_spec(def_id)
-		if spec == null:
-			continue
-		var target_loc := PatrolTargetResolver.resolve(spec, game_ctx, enemy_id)
-		if target_loc == &"" or enemy.location_tag == target_loc:
-			continue
-		var body := move(
-			game_ctx,
-			{
-				"enemy_id": enemy_id,
-				"target_location": target_loc,
-				"steps": 1,
-			}
-		)
-		if bool(body.get("moved", false)):
-			moved.append(enemy_id)
-	if game_ctx.log != null:
-		game_ctx.log.log(
-			AhcEnums.LogCategory.SCENARIO,
-			"enemy:3_2_patrol",
+			"enemy:3_2",
 			{"moved": moved}
 		)
 	return {"ok": true, "moved": moved}
@@ -82,32 +38,38 @@ static func phase_attacks_for(
 	game_ctx: GameContext,
 	investigator_id: StringName
 ) -> Dictionary:
+	## Framework 3.3 固定攻击手续：枚举交战敌人 → nest 一般攻击 seq.enemy.attack。
+	## 庞大 REPLACE 挂在攻击效果上，不挂在本框架手续上。
 	if game_ctx == null or game_ctx.state == null or game_ctx.combat == null:
 		return {"ok": false}
 	var inv := game_ctx.state.registry.get_investigator(investigator_id)
 	if inv == null:
 		return {"ok": false, "attacks": 0}
 	var attack_count := 0
-	for enemy_id in inv.threat_area.duplicate():
+	for enemy_id in _enemies_attacking_investigator(game_ctx, investigator_id):
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-		if enemy == null or enemy.exhausted or enemy.massive:
+		if enemy == null or enemy.exhausted:
 			continue
-		if enemy.engaged_with != investigator_id:
+		if not EngagementStatus.is_engaged_with(game_ctx, enemy_id, investigator_id):
 			continue
 		var params := {
 			"enemy_id": enemy_id,
 			"target_investigator": investigator_id,
 			"exhaust_after": true,
+			"attack_kind": AhcEnums.AttackKind.PHASE,
 		}
-		## 经 catalog.nest 发出 enemy_attack WHEN/AFTER（卡面 Forced 可订阅）。
+		var body: Dictionary
 		if (
 			game_ctx.sequence_catalog != null
 			and game_ctx.sequence_catalog.has_flow(&"seq.enemy.attack")
 		):
-			game_ctx.sequence_catalog.nest(game_ctx, &"seq.enemy.attack", params)
+			body = game_ctx.sequence_catalog.nest(game_ctx, &"seq.enemy.attack", params)
 		else:
-			attack(game_ctx, params)
-		attack_count += 1
+			body = attack(game_ctx, params)
+		if bool(body.get("skipped", false)) or not bool(body.get("ok", true)):
+			continue
+		## 庞大 REPLACE 返回 batch.attacks；普通攻击默认 1。
+		attack_count += maxi(1, int(body.get("attacks", 1)))
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
@@ -117,8 +79,55 @@ static func phase_attacks_for(
 	return {"ok": true, "attacks": attack_count}
 
 
-static func massive_phase_attacks_all(game_ctx: GameContext) -> Dictionary:
-	return MassiveEngagement.resolve_all_phase_batches(game_ctx)
+static func _enemies_attacking_investigator(
+	game_ctx: GameContext,
+	investigator_id: StringName
+) -> Array[StringName]:
+	var inv := game_ctx.state.registry.get_investigator(investigator_id)
+	if inv == null:
+		return []
+	var out: Array[StringName] = []
+	var seen: Dictionary = {}
+	for enemy_id in inv.threat_area:
+		if seen.has(enemy_id):
+			continue
+		seen[enemy_id] = true
+		out.append(enemy_id)
+	## 交战状态 Buff（含视为交战、不在威胁区）+ 庞大虚拟交战。
+	for enemy_id in game_ctx.state.registry.all_enemy_ids():
+		if seen.has(enemy_id):
+			continue
+		if EngagementStatus.is_engaged_with(game_ctx, enemy_id, investigator_id):
+			seen[enemy_id] = true
+			out.append(enemy_id)
+	return out
+
+
+static func _has_massive(game_ctx: GameContext, enemy_id: StringName) -> bool:
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy != null and enemy.massive:
+		return true
+	var card := game_ctx.state.registry.get_card(enemy_id)
+	if card == null:
+		return false
+	return CardRegistry.is_massive(card.id.definition_id)
+
+
+static func _resolve_massive_replacement(
+	game_ctx: GameContext,
+	enemy_id: StringName
+) -> Dictionary:
+	## 对一般攻击效果的 REPLACE：nest seq.keyword.massive。
+	if (
+		game_ctx.sequence_catalog != null
+		and game_ctx.sequence_catalog.has_flow(&"seq.keyword.massive")
+	):
+		return game_ctx.sequence_catalog.nest(
+			game_ctx,
+			&"seq.keyword.massive",
+			{"card_id": enemy_id, "enemy_id": enemy_id}
+		)
+	return MassiveEngagement.resolve_phase_batch(game_ctx, enemy_id)
 
 
 static func resolve_location(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -154,24 +163,32 @@ static func move(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 
 
 static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	## 一般敌人攻击效果。庞大在 **敌军阶段攻击**（PHASE）上 REPLACE 为 batch；
+	## AOO 等其它 kind 仍单次命中（魔典：借机只打触发者）。
 	if game_ctx == null or game_ctx.combat == null:
 		return {"ok": false}
 	var enemy_id: StringName = params.get("enemy_id", &"")
 	var target: StringName = params.get(
 		"target_investigator", params.get("investigator_id", &"")
 	)
-	if enemy_id == &"" or target == &"":
+	if enemy_id == &"":
 		return {"ok": true, "skipped": true}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": false}
+	var attack_kind: int = int(params.get("attack_kind", AhcEnums.AttackKind.OPPORTUNITY))
+	if _has_massive(game_ctx, enemy_id) and attack_kind == AhcEnums.AttackKind.PHASE:
+		return _resolve_massive_replacement(game_ctx, enemy_id)
+	if target == &"":
+		return {"ok": true, "skipped": true}
 	var exhaust_after: bool = bool(params.get("exhaust_after", false))
 	var strike := EnemyAttack.enemy_strike(
 		enemy_id,
 		target,
 		enemy.attack_damage,
 		enemy.attack_horror,
-		exhaust_after
+		exhaust_after,
+		attack_kind as AhcEnums.AttackKind
 	)
 	game_ctx.combat.perform_attack(strike)
 	if game_ctx.log != null:
@@ -184,17 +201,12 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 				"damage": enemy.attack_damage,
 				"horror": enemy.attack_horror,
 				"exhaust_after": exhaust_after,
+				"attack_kind": attack_kind,
 			}
 		)
-	return {"ok": true, "enemy_id": enemy_id, "target": target}
+	return {"ok": true, "enemy_id": enemy_id, "target": target, "attacks": 1}
 
 
 static func _eligible_for_3_2_move(enemy: EnemyState) -> bool:
-	return enemy != null and not enemy.exhausted and enemy.engaged_with == &""
-
-
-static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
-	var card := game_ctx.state.registry.get_card(enemy_id)
-	if card == null:
-		return &""
-	return card.id.definition_id
+	## Framework 资格：ready。是否已交战由 KeywordConsumer / EngagementStatus 再判。
+	return enemy != null and not enemy.exhausted

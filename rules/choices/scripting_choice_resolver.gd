@@ -1,7 +1,7 @@
 class_name ScriptingChoiceResolver
 extends ChoiceResolver
 
-## 测试脚本：按 prompt_id 或顺序队列应答。
+## 测试脚本：按 prompt_id 或顺序队列应答；未命中 → 默认自动选用（used_default=true）。
 
 var _queue: Array = []
 var _by_prompt: Dictionary = {}
@@ -19,10 +19,27 @@ func _init(script: Array = []) -> void:
 
 
 func resolve(request: ChoiceRequest) -> Variant:
+	var hit := _script_pick(request)
+	if hit.get("hit", false):
+		return hit.get("pick")
+	return DefaultChoiceResolver.compute_default(request)
+
+
+func resolve_choice(request: ChoiceRequest) -> Dictionary:
+	var hit := _script_pick(request)
+	if hit.get("hit", false):
+		return {"pick": hit.get("pick"), "used_default": false}
+	return {
+		"pick": DefaultChoiceResolver.compute_default(request),
+		"used_default": true,
+	}
+
+
+func _script_pick(request: ChoiceRequest) -> Dictionary:
 	if request != null and _by_prompt.has(request.prompt_id):
-		return _by_prompt[request.prompt_id]
+		return {"hit": true, "pick": _by_prompt[request.prompt_id]}
 	if _cursor < _queue.size():
 		var pick: Variant = _queue[_cursor]
 		_cursor += 1
-		return pick
-	return DefaultChoiceResolver.new().resolve(request)
+		return {"hit": true, "pick": pick}
+	return {"hit": false}

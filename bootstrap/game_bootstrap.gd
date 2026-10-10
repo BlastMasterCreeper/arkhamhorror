@@ -38,7 +38,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.state, ctx.registrations, ctx.mutator, ctx.log
 	)
 	ctx.composition.bind_game_context(ctx)
-	ctx.listeners = ListenerDispatcher.new(ctx.registrations, ctx.composition)
+	ctx.listeners = ListenerDispatcher.new(ctx.registrations, ctx)
 	ctx.timing.bind_listeners(ctx.listeners)
 	ctx.legality = InitiationLegalityChecker.new()
 	ctx.initiation = AbilityInitiationPipeline.new(

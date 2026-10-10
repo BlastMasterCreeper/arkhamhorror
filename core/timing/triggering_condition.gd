@@ -225,6 +225,32 @@ static func keyword_surge(
 	return t
 
 
+static func keyword_hunter(
+	enemy_id: StringName,
+	after_timing: StringName = &"after_keyword_hunter"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("keyword_hunter_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"keyword_hunter"
+	t.tags = [&"keyword", &"hunter", &"move"]
+	t.after_timing = after_timing
+	t.payload = {"card_id": enemy_id, "enemy_id": enemy_id}
+	return t
+
+
+static func keyword_patrol(
+	enemy_id: StringName,
+	after_timing: StringName = &"after_keyword_patrol"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("keyword_patrol_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"keyword_patrol"
+	t.tags = [&"keyword", &"patrol", &"move"]
+	t.after_timing = after_timing
+	t.payload = {"card_id": enemy_id, "enemy_id": enemy_id}
+	return t
+
+
 static func mythos_place_doom(
 	after_timing: StringName = &"after_mythos_place_doom"
 ) -> TriggeringCondition:
@@ -334,24 +360,14 @@ static func scenario_trigger_resolution(
 	return t
 
 
-static func enemy_3_2_hunter_patrol(
-	after_timing: StringName = &"after_enemy_3_2_hunter_patrol"
+static func enemy_3_2(
+	after_timing: StringName = &"after_enemy_3_2"
 ) -> TriggeringCondition:
+	## Framework 3.2 基础手续（Hunter/Patrol 关键词 resolve）；非关键词平行流程。
 	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_3_2_hunter_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_3_2_hunter_patrol"
-	t.tags = [&"enemy", &"framework", &"move", &"hunter"]
-	t.after_timing = after_timing
-	return t
-
-
-static func enemy_3_2_patrol(
-	after_timing: StringName = &"after_enemy_3_2_patrol"
-) -> TriggeringCondition:
-	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_3_2_patrol_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_3_2_patrol"
-	t.tags = [&"enemy", &"framework", &"move", &"patrol"]
+	t.id = StringName("enemy_3_2_%d" % Time.get_ticks_msec())
+	t.kind = &"enemy_3_2"
+	t.tags = [&"enemy", &"framework", &"move", &"hunter", &"patrol"]
 	t.after_timing = after_timing
 	return t
 
@@ -370,14 +386,17 @@ static func enemy_phase_attacks(
 	return t
 
 
-static func enemy_massive_phase_attacks(
-	after_timing: StringName = &"after_enemy_massive_phase_attacks"
+static func keyword_massive(
+	enemy_id: StringName,
+	after_timing: StringName = &"after_keyword_massive"
 ) -> TriggeringCondition:
+	## 庞大对阶段攻击的效果替换体（非平行 framework 流程）。
 	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_massive_phase_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_massive_phase_attacks"
-	t.tags = [&"enemy", &"framework", &"attack", &"massive"]
+	t.id = StringName("keyword_massive_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"keyword_massive"
+	t.tags = [&"keyword", &"massive", &"attack", &"replace"]
 	t.after_timing = after_timing
+	t.payload = {"card_id": enemy_id, "enemy_id": enemy_id}
 	return t
 
 
@@ -414,11 +433,12 @@ static func engage(
 	var t := TriggeringCondition.new()
 	var location_tag: StringName = params.get("location_tag", &"")
 	var enemy_id: StringName = params.get("enemy_id", &"")
+	var mode: StringName = params.get("mode", &"auto") as StringName
 	t.id = StringName(
 		"engage_%s_%s_%d" % [location_tag, enemy_id, Time.get_ticks_msec()]
 	)
 	t.kind = &"engage"
-	t.tags = [&"engage"]
+	t.tags = [&"engage", mode]
 	t.after_timing = after_timing
 	t.payload = params.duplicate()
 	return t
@@ -622,30 +642,31 @@ static func effect_unregister(
 static func discard_card(
 	controller_id: StringName,
 	card_id: StringName = &"",
-	after_timing: StringName = &"after_discard_card"
+	after_timing: StringName = &"after_discard_card",
+	from_zone: StringName = &"",
+	amount: int = 1,
+	mode: StringName = &"choose"
 ) -> TriggeringCondition:
+	var tags: Array[StringName] = [&"effect", &"discard_card"]
+	if from_zone == &"hand":
+		tags.append(&"from_hand")
 	return _effect(
 		&"discard_card",
 		controller_id,
-		[&"effect", &"discard_card"],
+		tags,
 		after_timing,
-		{"card_id": card_id}
+		{"card_id": card_id, "from": from_zone, "amount": amount, "mode": mode}
 	)
 
 
+## 兼容旧工厂：统一为 discard_card + from=hand。
 static func discard_from_hand(
 	controller_id: StringName,
 	amount: int = 1,
 	mode: StringName = &"random",
-	after_timing: StringName = &"after_discard_from_hand"
+	after_timing: StringName = &"after_discard_card"
 ) -> TriggeringCondition:
-	return _effect(
-		&"discard_from_hand",
-		controller_id,
-		[&"effect", &"discard_from_hand"],
-		after_timing,
-		{"amount": amount, "mode": mode}
-	)
+	return discard_card(controller_id, &"", after_timing, &"hand", amount, mode)
 
 
 static func attach_card(

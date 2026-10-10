@@ -111,31 +111,6 @@ static func resolve_phase_batch(
 	}
 
 
-static func resolve_all_phase_batches(game_ctx: GameContext) -> Dictionary:
-	var attacked: Array[StringName] = []
-	var total := 0
-	if game_ctx == null or game_ctx.state == null:
-		return {"ok": false, "attacks": 0, "enemies": attacked}
-	for enemy_id in game_ctx.state.registry.all_enemy_ids():
-		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-		if enemy == null or not enemy.massive or enemy.exhausted:
-			continue
-		if investigators_at_location(game_ctx, enemy.location_tag).is_empty():
-			continue
-		var batch := resolve_phase_batch(game_ctx, enemy_id)
-		var count: int = int(batch.get("attacks", 0))
-		if count > 0:
-			attacked.append(enemy_id)
-			total += count
-	if game_ctx.log != null:
-		game_ctx.log.log(
-			AhcEnums.LogCategory.SCENARIO,
-			"enemy:massive_phase_attacks",
-			{"enemies": attacked, "attacks": total}
-		)
-	return {"ok": true, "attacks": total, "enemies": attacked}
-
-
 static func _build_attack_order(
 	game_ctx: GameContext,
 	enemy: EnemyState

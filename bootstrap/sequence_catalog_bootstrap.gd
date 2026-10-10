@@ -81,18 +81,18 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return _resolve_draw_investigator(game_ctx, params, mutator, catalog)
 	)
-	catalog.register_run(
-		&"seq.gain_resource",
-		func(params: Dictionary) -> TriggeringCondition:
-			var controller_id: StringName = params.get("controller_id", &"")
-			var source_tags: Array = params.get("source_tags", [])
-			var tags: Array[StringName] = []
-			for tag in source_tags:
-				tags.append(tag as StringName)
-			return TriggeringCondition.gain_resource(controller_id, tags),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return _resolve_gain_resource(game_ctx, params, mutator)
-	)
+	## M4：正式 id = seq.effect.gain_resource；旧 id 保留为别名。
+	var gain_build := func(params: Dictionary) -> TriggeringCondition:
+		var controller_id: StringName = params.get("controller_id", &"")
+		var source_tags: Array = params.get("source_tags", [])
+		var tags: Array[StringName] = []
+		for tag in source_tags:
+			tags.append(tag as StringName)
+		return TriggeringCondition.gain_resource(controller_id, tags)
+	var gain_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return _resolve_gain_resource(game_ctx, params, mutator)
+	catalog.register_run(&"seq.effect.gain_resource", gain_build, gain_resolve)
+	catalog.register_run(&"seq.gain_resource", gain_build, gain_resolve)
 	_register_keyword_flows(catalog)
 	_register_interrupt_flows(catalog)
 	_register_replace_flows(catalog)
@@ -207,26 +207,20 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.unregister_buff(game_ctx, params)
 	)
+	## 统一弃牌：指定卡 / 寻址过滤 / from=hand + amount/mode。
 	catalog.register_run(
 		&"seq.effect.discard_card",
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.discard_card(
-				params.get("controller_id", &"") as StringName,
-				params.get("card_id", &"") as StringName
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				params.get("card_id", &"") as StringName,
+				&"after_discard_card",
+				StringName(str(params.get("from", ""))),
+				int(params.get("amount", 1)),
+				StringName(str(params.get("mode", "choose")))
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.discard_card(game_ctx, params)
-	)
-	catalog.register_run(
-		&"seq.effect.discard_from_hand",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.discard_from_hand(
-				params.get("controller_id", params.get("inv_id", &"")) as StringName,
-				int(params.get("amount", 1)),
-				StringName(str(params.get("mode", "random")))
-			),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.discard_from_hand(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.effect.attach",
@@ -271,18 +265,11 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 
 static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
-		&"seq.enemy.3_2_hunter_patrol",
+		&"seq.enemy.3_2",
 		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_3_2_hunter_patrol(),
+			return TriggeringCondition.enemy_3_2(),
 		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.hunter_patrol_3_2(game_ctx)
-	)
-	catalog.register_run(
-		&"seq.enemy.3_2_patrol",
-		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_3_2_patrol(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.patrol_3_2(game_ctx)
+			return EnemyPhaseFlow.framework_3_2(game_ctx)
 	)
 	catalog.register_run(
 		&"seq.enemy.phase_attacks",
@@ -292,13 +279,6 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var inv_id: StringName = params.get("investigator_id", &"")
 			return EnemyPhaseFlow.phase_attacks_for(game_ctx, inv_id)
-	)
-	catalog.register_run(
-		&"seq.enemy.massive_phase_attacks",
-		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_massive_phase_attacks(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.massive_phase_attacks_all(game_ctx)
 	)
 	catalog.register_run(
 		&"seq.enemy.resolve_location",
@@ -429,6 +409,30 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			return TriggeringCondition.keyword_surge(drawer_id, card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return SurgeKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.keyword.hunter",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.keyword_hunter(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return HunterKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.keyword.patrol",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.keyword_patrol(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return PatrolKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.keyword.massive",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.keyword_massive(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return MassiveKeywordFlow.run(game_ctx, params)
 	)
 
 

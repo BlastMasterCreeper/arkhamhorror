@@ -1525,13 +1525,21 @@
         "ability_kind": "free",
         "window": "during_your_turn",
         "status": "full",
+        "translation": "full_expand",
         "template": "seq",
         "steps": [
           {
             "template": "exhaust_source"
           },
           {
-            "template": "nest_move_connecting"
+            "template": "pick_target",
+            "filter": "location_connecting",
+            "prompt_id": "pick:move_connecting",
+            "memory_key": "picked_location"
+          },
+          {
+            "template": "nest_move_to",
+            "location": "memory:picked_location"
           }
         ]
       }

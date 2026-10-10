@@ -44,7 +44,34 @@ class EnemyState:
 
 **术语**：**`spawn_engaged`** = 进场时已是 engaged 状态（L0 一次提交）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标；**`Engage action`** = 调查员行动。三者 **不可** 混用。
 
-**多调查员同地点**：走 **`auto_engage_at_location`**（**② engage 内核**）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
+### 3.1 命名流程 `seq.engage`（已收口）
+
+**唯一**交战内核；**禁止**按场合另铸 `seq.enemy.auto_engage` 等。
+
+| `mode` | 含义 | 典型入口 | 冷漠/横置 |
+|---|---|---|---|
+| **`auto`** | 框架自动交战 | 区域变更 nest（地点 / 脱离 / 重整） | **跳过** |
+| **`effect`** | 效果交战 | 卡面 `nest_engage`；**以及** `seq.action.engage` 外壳 nest（基础行动 = 调查员自带能力） | **可**交战 |
+
+#### 3.1.1 交战状态 = Buff（与场面脱钩）
+
+**「是否交战」权威** = `RestrictionKind.ENGAGEMENT` 成对 Buff（`EngagementStatus` / RegistrationStore），**不是**「敌人是否在威胁区」。
+
+| | 真实交战（`placement=enter_threat`） | 视为交战（`placement=grant`） |
+|---|---|---|
+| **ENGAGEMENT Buff** | Register | Register |
+| **威胁区场面** | 写入 `threat_area` + Domain `engaged_with` | **不**写 |
+| 同地点要求 | 默认是 | 可 `require_same_location=false` |
+
+赋予：`seq.engage` 成功 / `spawn_engaged` → `EngagementStatus.grant`（经 `seq.effect.register`）。  
+注销：`disengage` / 敌人离场（`WHILE_IN_PLAY`）→ `EngagementStatus.clear`。  
+查询：`EngagementStatus.is_engaged_with`（Buff；庞大可叠虚拟同地点）。
+
+溯源靠序列栈；**不**另做 source / initiation 专轴。
+
+`spawn_engaged` 仍是 **L0 原子进场**（写场面 + Register Buff），不压 `seq.engage`。庞大虚拟交战见 §6.6。
+
+**多调查员同地点**：走 **`auto_engage_at_location`**（**②** `seq.engage` mode=auto）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
 
 ```gdscript
 func auto_engage_at_location(enemy_id: StringName, location: EntityId) -> void:
@@ -98,12 +125,38 @@ Prey 示例：`Prey (lowest [agility])` — 在 **等距** 或 **同地点** 候
 
 ## 5. Hunter / Patrol 移动（Enemy 3.2 · ③ 编译）
 
-Framework **3.2** emit `(seq.enemy.3_2, WHEN)` → **RESOLVE** Hunter / Patrol **LISTENER**（AbilityCompiler 共享模板 · L0 move）。**不**在 Framework handler 按关键词名分支。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
+### 5.0 敌军阶段基础流程（非空壳）
 
-| 关键词 | 编译 | 参数（①） |
+Grimoire **III. Enemy Phase** 是完整 Framework 步进，不是「关键词 LISTENER 的挂载点」：
+
+| 步 | FrameworkStep | 基础手续 |
 |---|---|---|
-| Hunter | **③** LISTENER · 最近 investigator 路径 | 无卡面 Spec |
-| Patrol | **③** LISTENER · 向 designated target 移动 1 步 | `PatrolTargetSpec` · handler 内 `PatrolTargetResolver` |
+| 3.1 | `ENEMY_3_1_PHASE_BEGINS` | 阶段开始 |
+| 3.2 | `ENEMY_3_2_HUNTER_PATROL_MOVE` | **`seq.enemy.3_2`**：枚举 ready、未交战且带 Hunter/Patrol 的敌人 → 顺序 resolve 关键词 → `PW_ENEMY_AFTER_MOVE` |
+| 3.3 | `ENEMY_3_3_ENGAGED_ATTACKS` | 玩家顺序 · `seq.enemy.phase_attacks` → nest `seq.enemy.attack`（庞大 REPLACE 在攻击效果上） |
+| 3.4 | `ENEMY_3_4_PHASE_ENDS` | 阶段结束 |
+
+### 5.1 3.2 分工：框架手续 vs 关键词开火（已摘出）
+
+```text
+seq.enemy.3_2（框架基础手续）
+  for each ready, unengaged enemy:
+    KeywordConsumer @ 开火锚 (seq.enemy.3_2, ENEMY_3_2)
+      ├─ fire_priority 10 · nest seq.keyword.hunter
+      └─ fire_priority 20 · nest seq.keyword.patrol
+  → PW_ENEMY_AFTER_MOVE
+```
+
+**框架步 `seq.enemy.3_2`**：合格枚举（ready / 未交战）、打开开火槽、步末窗口。**不含**「向谁移 / 向哪移」路径。
+
+**挂载**：Hunter/Patrol 于 **ENTER_PLAY** Register（`WHILE_IN_PLAY`）。  
+**开火锚 / 优先级**：见 [06 §3.2.7](06-registration-buff-model.md#327-关键词监听挂载时点--开火锚--优先级已裁决) — 同锚 Hunter **先于** Patrol（引擎固定）；跨类晚于同窗 FORCED。  
+**开火体**：`seq.keyword.*`；**不**写回 Framework handler；**不**另铸 `seq.enemy.3_2_*`。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
+
+| 关键词 | 编译 / 开火 | 参数（①） |
+|---|---|---|
+| Hunter | **③** LISTENER → `seq.keyword.hunter` | 无卡面 Spec |
+| Patrol | **③** LISTENER → `seq.keyword.patrol` | `PatrolTargetSpec` · handler 内 `PatrolTargetResolver` |
 | 移动后遇 investigator | **②** | `auto_engage_at_location`（内读 Prey） |
 
 **不移动**：exhausted、已 engaged、hunter 已在有 investigator 地点；patrol 已在 designated target；card ability 阻挡。
@@ -185,19 +238,33 @@ class EnemyPhaseAttackResolver:
 
 - Player order
 - 每位调查员 resolve **全部** engaged enemies 攻击（顺序由被攻击调查员选）
-- **Massive**（已裁决 OQ-08-02 · 魔典 p.16 + FAQ 2.29）：
-  - **发起攻击时**确定本 batch 目标（对该地点每位调查员各 1 次；顺序 Lead 选 `ORDER_ATTACKS`）
-  - batch 进行中若庞大敌人被**横置**（其他能力）→ **剩余攻击不发起**
+- **Massive**（已裁决 OQ-08-02 · 魔典 p.16 + FAQ 2.29；**M3 粒度**）：
+  - **不是**平行 `seq.enemy.massive_phase_attacks`
+  - **REPLACE 锚 = 一般攻击效果 `seq.enemy.attack`**（PHASE kind → batch）；敌军阶段 `phase_attacks` 只是固定手续 nest 攻击
+  - AOO：魔典规定只打触发者 → **不**走多目标 REPLACE
+  - 玩家顺序走到与该庞大虚拟交战的调查员时：nest `seq.enemy.attack`（PHASE）→ 替换体开火
+  - **发起替换时**确定本 batch 目标（同地点每位调查员各 1 次；Lead `ORDER_ATTACKS`）
+  - batch 进行中若庞大敌人被**横置** → **剩余攻击不发起**
   - batch 进行中若有调查员新进入交战 → **追加**至待攻击列表
-  - **全部**攻击完成后才横置庞大敌人（单次攻击 `exhaust_after=false`）
+  - **全部**攻击完成后才横置庞大敌人（单次 `exhaust_after=false`）
 
 ```gdscript
-func resolve_massive_phase_attacks(enemy: EntityId) -> void:
+# seq.enemy.phase_attacks（3.3 固定手续）
+catalog.nest(seq.enemy.attack, {enemy, target_inv, kind: PHASE, exhaust_after: true})
+
+# seq.enemy.attack（一般攻击效果）
+if enemy.massive and kind == PHASE:
+    catalog.nest(seq.keyword.massive, {enemy})  # REPLACE
+else:
+    perform_attack(...)  # AOO 等仍单次
+
+# seq.keyword.massive
+func resolve_massive_batch(enemy: EntityId) -> void:
     var order := ui.lead_investigator_choose_order(targets_at_location)
     for target in order:
         if enemy.exhausted:
-            break   # FAQ：中途横置 → 不发起剩余攻击
-        perform_attack(EnemyAttack.new(..., exhaust_after=false))
+            break
+        perform_attack(..., exhaust_after=false)
         append_newly_engaged_investigators_to_order()
     if not enemy.exhausted:
         exhaust(enemy)
@@ -358,7 +425,7 @@ class EnemySystem:
     func spawn(enemy: EntityId, drawer: StringName, instruction: SpawnInstruction) -> Result  # 委托 §7.2
     func engage(enemy: EntityId, inv: StringName) -> Result             # Engage **action** 专用
     func disengage(enemy: EntityId) -> Result
-    func hunter_patrol_move() -> void
+    func enemy_phase_3_2_moves() -> void   # → seq.enemy.3_2
     func resolve_phase_attacks() -> void
     func perform_attack(attack: EnemyAttack) -> void
     func check_retaliate(test: SkillTestContext) -> void   # 触发 + 时点；满足时调用 perform_attack
@@ -414,3 +481,11 @@ class EnemySystem:
 | 2026-06-18 | v0.4.1 | §7.4 spawn 失败 → **owner 对应 discard pile**；EN-08/09 |
 | 2026-06-18 | v0.5 | §0.1 三档译法；Prey **①** 仅 engage 内核读参（不 nest/LISTENER）；Hunter/Patrol **③** 编译 |
 | 2026-06-18 | v0.5.1 | §3 威胁区=交战（常态）；§6.6 Fight 失败转嫁 · 庞大不进威胁区 |
+| 2026-10-10 | v0.5.2 | §5.0：敌军阶段 3.1–3.4 基础流程非空壳；3.2=`seq.enemy.3_2`；LISTENER 只承担移动体 |
+| 2026-10-10 | v0.5.3 | §5.1：Hunter/Patrol 移动体摘为 `seq.keyword.hunter` / `patrol`；框架只枚举+消费槽 |
+| 2026-10-10 | v0.5.4 | §5.1：开火锚 + fire_priority（Hunter 10 先于 Patrol 20）；链 06 §3.2.7 |
+| 2026-10-10 | v0.5.5 | §6.3 M3：删平行 massive_phase_attacks；庞大 REPLACE |
+| 2026-10-10 | v0.5.6 | §6.3：庞大 REPLACE 锚 = `seq.enemy.attack`；`phase_attacks` 只 nest 攻击 |
+| 2026-10-10 | v0.5.7 | §3.1：扩展 `seq.engage`；行动外壳 nest 内核 |
+| 2026-10-10 | v0.5.8 | §3.1 收口：仅 auto/effect；行动=效果交战；无 source/initiation 专轴 |
+| 2026-10-10 | v0.5.9 | §3.1.1：交战状态 = ENGAGEMENT Buff；与威胁区场面脱钩；grant 仅 Buff |

@@ -6,7 +6,7 @@
     "skipped": 0,
     "ability_compile_summary": {
       "segment_total": 90,
-      "compiled_total": 48,
+      "compiled_total": 49,
       "by_kind": {
         "action": 26,
         "forced": 27,
@@ -17,12 +17,10 @@
       "by_template": {
         "skill_test": 7,
         "lead_draw_topmost_encounter_discard_copy": 1,
-        "seq": 10,
-        "nest_move_connecting": 1,
-        "discard_from_hand": 2,
+        "seq": 14,
+        "discard_card": 3,
         "draw": 2,
-        "discard_card": 1,
-        "choice_must": 3,
+        "choice_must": 1,
         "enter_threat_area": 3,
         "take_horror": 3,
         "discard_source": 4,
@@ -415,14 +413,11 @@
         "template": "seq",
         "steps": [
           {
-            "template": "no_provoke_aoo"
-          },
-          {
-            "template": "resign"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
-        "translation": "full_expand",
-        "provokes_aoo": false
+        "translation": "full_expand"
       }
     ]
   },
@@ -489,17 +484,23 @@
             "memory_key": "picked_enemy"
           },
           {
-            "template": "move_enemy_to",
+            "template": "suppress_auto_engage",
+            "enemy": "memory:picked_enemy"
+          },
+          {
+            "template": "nest_enemy_move_to",
+            "flow_id": "seq.enemy.move",
             "enemy": "memory:picked_enemy",
             "location": "source_location"
           },
           {
-            "template": "engage_target",
+            "template": "nest_engage",
+            "flow_id": "seq.engage",
             "enemy": "memory:picked_enemy",
-            "investigator": "controller"
+            "investigator": "controller",
+            "mode": "effect"
           }
-        ],
-        "provokes_aoo": false
+        ]
       }
     ]
   },
@@ -625,8 +626,21 @@
         "ability_kind": "free",
         "window": "during_your_turn",
         "status": "partial",
+        "translation": "full_expand",
         "condition": "investigators_in_game_1_or_2",
-        "template": "nest_move_connecting"
+        "template": "seq",
+        "steps": [
+          {
+            "template": "pick_target",
+            "filter": "location_connecting",
+            "prompt_id": "pick:move_connecting",
+            "memory_key": "picked_location"
+          },
+          {
+            "template": "nest_move_to",
+            "location": "memory:picked_location"
+          }
+        ]
       }
     ]
   },
@@ -741,7 +755,10 @@
         "ability_kind": "forced",
         "status": "full",
         "trigger": "After you discover 1 or more clues at Science Hall",
-        "template": "discard_from_hand",
+        "template": "discard_card",
+        "flow_id": "seq.effect.discard_card",
+        "from": "hand",
+        "investigator": "controller",
         "amount": 1,
         "mode": "choose",
         "match_kind": "discover_clue",
@@ -1250,6 +1267,56 @@
         "body": "Test [willpower] or [intellect] (X), where X is the number of cards in your hand. If you fail, take 1 damage and discard 1 card at random from your hand.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "revelation",
+        "ability_id": "revelation:0",
+        "status": "partial",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "pick_option",
+            "options": [
+              "willpower",
+              "intellect"
+            ],
+            "prompt_id": "skill_test:willpower_or_intellect",
+            "memory_key": "picked_skill"
+          },
+          {
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "investigator": "controller",
+            "skill": "memory:picked_skill",
+            "st7": {
+              "on_fail": {
+                "template": "seq",
+                "steps": [
+                  {
+                    "template": "take_damage",
+                    "flow_id": "seq.effect.damage",
+                    "kind": "damage",
+                    "amount": 1,
+                    "target": "controller"
+                  },
+                  {
+                    "template": "discard_card",
+                    "flow_id": "seq.effect.discard_card",
+                    "from": "hand",
+                    "investigator": "controller",
+                    "amount": 1,
+                    "mode": "random"
+                  }
+                ]
+              }
+            },
+            "difficulty_source": "hand_count"
+          }
+        ]
+      }
     ]
   },
   "12128": {
@@ -1303,7 +1370,10 @@
             "options": [
               {
                 "id": "discard",
-                "template": "discard_from_hand",
+                "template": "discard_card",
+                "flow_id": "seq.effect.discard_card",
+                "from": "hand",
+                "investigator": "controller",
                 "amount": 1,
                 "mode": "random"
               },
@@ -1450,32 +1520,33 @@
         "register_as": "revelation",
         "ability_id": "revelation:0",
         "status": "partial",
-        "template": "choice_must",
-        "prompt_id": "skill_test:willpower_or_agility",
-        "options": [
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
           {
-            "id": "willpower",
-            "template": "skill_test",
-            "skill": "willpower",
-            "difficulty": 3,
-            "st7": {
-              "on_fail_by_each": {
-                "template": "take_damage",
-                "amount": 1
-              }
-            }
+            "template": "pick_option",
+            "options": [
+              "willpower",
+              "agility"
+            ],
+            "prompt_id": "skill_test:willpower_or_agility",
+            "memory_key": "picked_skill"
           },
           {
-            "id": "agility",
-            "template": "skill_test",
-            "skill": "agility",
-            "difficulty": 3,
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "investigator": "controller",
+            "skill": "memory:picked_skill",
             "st7": {
               "on_fail_by_each": {
                 "template": "take_damage",
-                "amount": 1
+                "flow_id": "seq.effect.damage",
+                "kind": "damage",
+                "amount": 1,
+                "target": "controller"
               }
-            }
+            },
+            "difficulty": 3
           }
         ]
       }
@@ -1648,7 +1719,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
@@ -1703,7 +1775,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
@@ -2659,31 +2732,32 @@
         "action_types": [
           "activate"
         ],
-        "status": "partial",
-        "template": "choice_must",
-        "prompt_id": "skill_test:willpower_or_intellect",
-        "options": [
+        "status": "full",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
           {
-            "id": "willpower",
-            "template": "skill_test",
-            "skill": "willpower",
-            "difficulty": 4,
-            "st7": {
-              "on_success": {
-                "template": "discard_source"
-              }
-            }
+            "template": "pick_option",
+            "options": [
+              "willpower",
+              "intellect"
+            ],
+            "prompt_id": "skill_test:willpower_or_intellect",
+            "memory_key": "picked_skill"
           },
           {
-            "id": "intellect",
-            "template": "skill_test",
-            "skill": "intellect",
-            "difficulty": 4,
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "investigator": "controller",
+            "skill": "memory:picked_skill",
             "st7": {
               "on_success": {
-                "template": "discard_source"
+                "template": "discard_source",
+                "flow_id": "seq.effect.discard_card",
+                "card_id": "source"
               }
-            }
+            },
+            "difficulty": 4
           }
         ]
       }
@@ -3818,7 +3892,8 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resign"
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
           }
         ],
         "translation": "full_expand"
@@ -4063,7 +4138,10 @@
         "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "When you end your turn at this location",
-        "template": "discard_from_hand",
+        "template": "discard_card",
+        "flow_id": "seq.effect.discard_card",
+        "from": "hand",
+        "investigator": "controller",
         "amount": 1,
         "mode": "choose"
       }

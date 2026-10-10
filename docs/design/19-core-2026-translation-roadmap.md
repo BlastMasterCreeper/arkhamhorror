@@ -1,7 +1,7 @@
 # 19 — Core 2026（2.0 基础）卡牌翻译路线图
 
-> **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
-> **状态**：v0.9 · 2026-09-28 — 翻译硬门槛（禁真空 / 三分法 / 应展尽展）  
+> **依赖**：[07-composition](07-composition.md)、[12-card-script-api](12-card-script-api.md)、[17-seq-runtime](17-seq-runtime.md)、[18-arkhamdb-card-data](18-arkhamdb-card-data.md)、[20-card-translation-schema](20-card-translation-schema.md)、[21-selection-spec](21-selection-spec.md)、[effect-translation.mdc](../../.cursor/rules/effect-translation.mdc)  
+> **状态**：v0.21 · 2026-09-29 — 候选管线 U/S/N/R/V  
 > **范围**：`core_2026` + `core_2026_encounter`（约 166 张 / 162 段能力）
 
 ---
@@ -50,16 +50,17 @@
 5. Hook：`register_as` + `match_kind` / `window` / `action_cost`
 6. Headless：compile 形状 + 至少一条运行时路径（含默认确认路径）
 7. 选型可查（template vs 手写同等树 · OQ-12-01）
+8. **翻译层字段** — `steps[]` ⊆ [20 §2.1 白名单](20-card-translation-schema.md)；目标/Buff/nest/`memory:` 走 A/B/C/D，无机制布尔
 
 ### 3.1 翻译债（糖 / 真空）
 
 | 债 | 状态 | 备注 |
 |---|---|---|
-| 12113 `engage_from_connecting` | ✅ 已展 | `no_provoke_aoo` + PI `pick_target` → 内联移入 → 内联交战；`provokes_aoo: false` |
-| 12112 `resign` 糖 Atom | ✅ 已展 | `no_provoke_aoo` + 内联 `resign`；`provokes_aoo: false` |
+| 12113 `engage_from_connecting` | ✅ 已展 | SKIP_AOO → PI → `suppress_auto_engage` → nest move → nest engage |
+| 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign`（Resign 类型本身不借机，不挂 SKIP_AOO） |
 | Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
-| `nest_move_connecting` 内嵌 PI | 待拆 | 12116：选地点确认应独立为 pick_target 步 |
-| LISTENER / peril / act-agenda-back | 部分 | 仍有直 `execute` 路径；优先复用 `seq.ability.resolve` |
+| `nest_move_connecting` 内嵌 PI | ✅ 已展 | 12116 / 12046：`pick_target(location_connecting)` → `nest_move_to` |
+| LISTENER / peril / act-agenda-back | ✅ 收口 | `CompositionMount`：LISTENER/act-back → `seq.ability.resolve`；peril/privacy → `seq.effect.register` |
 | 编译侧「叶子一律 nest」习惯 | 文档已裁 | 新译先判三分法 |
 
 ---
@@ -90,7 +91,7 @@
 ## 6. 本轮实施
 
 ### A1 + B1 起步 ✅
-- 铸造：`discard_card` / `discard_from_hand` / `damage`（原 deal/take） / `attach`
+- 铸造：`discard_card`（含原 `from=hand` 弃手） / `damage`（原 deal/take） / `attach`
 - 编译：fail-by、附着、地点治疗、弱点自弃
 
 ### B1 运行时 + A3 ✅
@@ -108,21 +109,22 @@
 - `seq.effect.discard_card` 统一去向：遭遇弃牌堆 / 玩家弃牌堆 / 否则 RFG
 
 ### 12112 Resign / 群体线索 ✅（应展尽展）
-- Resign：`no_provoke_aoo` + 内联 `resign`；`provokes_aoo: false`；经 `seq.ability.resolve` 装载
+- Resign：nest **`seq.effect.resign`**（类型层已不借机；卡面括号复述不另挂 SKIP_AOO）
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
 ### 12113 Engage（连结地点）✅（应展尽展）
-- `seq`：`no_provoke_aoo` → PI `pick_target` → 内联 `move_enemy_to` → 内联 `engage_target`
-- 卡面「This action does not provoke…」→ 步内声明 + `provokes_aoo: false`（Engage 默认会借机，须覆盖）
-- 指标：ADB-48..50
+- `seq`：`no_provoke_aoo` → PI → Register **`SUPPRESS_AUTO_ENGAGE`** → nest **`seq.enemy.move`** → nest **`seq.engage`**
+- 移入仍走 auto-engage 入口；限制类在 REST-E-AUTO-ENGAGE **读取后分支**（不跑 Prey/Lead）；明示交战不受影响
+- **不可**用「强制自动交战 WHO」替代明示交战：冷漠/横置不走 auto，效果交战仍须开火（[20 §4.2.1](20-card-translation-schema.md)）
+- 「does not provoke…」→ 行动开始 `SKIP_AOO`；指标：ADB-48..50、ADB-60、ADB-61
 
 ### 12118–20 地点能力 ✅（Limit 运行时后补）
-- 12118 Forced：discover → `discard_from_hand`（mode=choose）
+- 12118 Forced：discover → `discard_card` + `from=hand`（mode=choose）
 - 12119 Reaction：discover → nest `seq.draw.investigator`（Limit once/round → partial）
 - 12120 Action×2：`draw` amount=3（Limit once/game → partial）
 
 ### 12116 / 12122 / 12132 ✅
-- 12116 Free：`nest_move_connecting` + `investigators_in_game_1_or_2`（Group limit → partial）
+- 12116 Free：`pick_target(location_connecting)` → `nest_move_to` + `investigators_in_game_1_or_2`（Group limit → partial）
 - 12132 Forced：`seq.enemy.defeat` WHEN → `take_horror` @ `each_at_source_location`
 - 12122 Forced：`seq.enemy.attack` AFTER → `discard_card` @ `controlled_assets`
 - 敌人进场 `install_triggered_abilities`；击败/弃置离场卸载
@@ -133,6 +135,18 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-30 | v0.23 | 清债：LISTENER / peril / privacy / act-agenda-back 经 `CompositionMount` 装载 |
+| 2026-09-30 | v0.22 | 清债：`nest_move_connecting` 内嵌 PI → `pick_target` + `nest_move_to`（12116/12046） |
+| 2026-09-29 | v0.21 | 21 §3.1：候选范围分层 U/S/N/R/V（数值 preds + Restriction `for_intent`） |
+| 2026-09-29 | v0.20 | [21-selection-spec](21-selection-spec.md)：通用选择 filter/基数/bind；`select`/`pick_multi` |
+| 2026-09-29 | v0.19 | 具名限制叶落地收口：`suppress` / `SKIP_AOO` / REGISTER → `seq.effect.register` |
+| 2026-09-28 | v0.18 | 20 §4.2.1：suppress+明示交战覆盖冷漠/横置；禁 forced-auto 替代 |
+| 2026-09-28 | v0.17 | 新增 [20-card-translation-schema](20-card-translation-schema.md)：目标确认 / Buff 创建 / nest·参数指称；DoD §8 |
+| 2026-09-28 | v0.16 | `SUPPRESS_AUTO_ENGAGE` 限制类：auto-engage 入口读取分支；12113 去掉翻译层 auto_engage 开关 |
+| 2026-09-28 | v0.15 | 12112/12113 显式 nest 信封：`seq.effect.resign` / `seq.enemy.move` / `seq.engage` |
+| 2026-09-28 | v0.14 | 12112 撤退拆糖：留置线索 / set_flag / eliminate（后收入信封） |
+| 2026-09-28 | v0.13 | 明确 `SKIP_AOO` = 限制类读取分支（非 Listener / 非 Cancel） |
+| 2026-09-28 | v0.12 | 「does not provoke AOO」→ 行动开始 `SKIP_AOO` Buff；INIT_2B 原流程读取分支 |
 | 2026-09-28 | v0.11 | 12112/12113 改内联（PI+L0）；纠正「有 Catalog 就 nest」 |
 | 2026-09-28 | v0.10 | 12112/12113 应展尽展；`seq.effect.resign` / `seq.ability.resolve`；债清两笔 |
 | 2026-09-28 | v0.9 | **翻译硬门槛**：禁真空；三分法（内联/nest/PI）；应展尽展禁糖；§3.1 债清单 |

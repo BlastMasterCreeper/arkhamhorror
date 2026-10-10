@@ -1,34 +1,35 @@
 ---
-description: 自动交战由区域变更嵌套触发（地点或交战状态）
-globs: core/timing/engage_flow.gd,rules/subsystems/enemy_system.gd,rules/encounter/enemy_movement.gd
+description: 自动交战由区域变更嵌套触发；交战状态为 ENGAGEMENT Buff
+globs: core/timing/engage_flow.gd,rules/subsystems/enemy_system.gd,rules/encounter/enemy_movement.gd,rules/encounter/engagement_status.gd
 alwaysApply: false
 ---
 
-# 自动交战 · 区域变更
+# 交战 · `seq.engage` + ENGAGEMENT Buff
 
-## 命名
+## 状态分层
 
-- 统一使用 **`seq.engage`**（`mode`: `auto` / `action` / `effect`）
-- **禁止** 按场合单独命名（如 `seq.enemy.auto_engage`）
+| 层 | 含义 | 存储 |
+|---|---|---|
+| **交战状态** | 是否成对交战（权威） | `RestrictionKind.ENGAGEMENT` Buff |
+| **威胁区场面** | 敌人卡是否在威胁区 | `threat_area` / Domain `engaged_with` |
 
-## 触发：区域变更（不限地点移动）
+真实交战（`placement=enter_threat`）：场面 + Buff。  
+视为交战（`placement=grant`）：**仅** Buff。  
+查询：`EngagementStatus.is_engaged_with`。
 
-嵌套 `seq.engage`（`mode=auto`）当以下任一发生：
+## `mode`
 
-1. **地点区域**：调查员或敌人 `location_tag` 变化
-2. **交战区域**：`engaged_with` / `threat_area` 变化且双方仍同地点（如脱离后重选目标）
-3. **重整区域**：敌人 `exhausted` 由 true → false（横置经**重整**变为未横置）且同地点有调查员
+- `auto`：框架区域变更后自动交战  
+- `effect`：效果交战（含基础 Engage 行动外壳 nest）
 
-调用入口：`EngageFlow.nest_after_area_change(..., cause: &"location" | &"engagement" | &"ready")`
+## 自动交战触发（`mode=auto`）
 
-脱离统一走 `EnemySystem.disengage()`，默认 `trigger_area_change=true`。
-重整统一走 `EnemySystem.set_enemy_exhausted(..., false)`；Upkeep 4.3 走 `ready_all_exhausted_enemies()`。
+1. 地点区域变化  
+2. 交战区域变化（脱离后仍同地点）  
+3. 重整（exhausted → ready）
 
-## 死循环防护
+`EngageFlow.nest_after_area_change(..., cause: …)`
 
-- **已横置**（`exhausted`）：不参与自动交战（躲避成功 → 横置 → 不立刻再交战）
-- **效果抑制**（`EnemyState.auto_engage_suppressed`）：卡面/效果施加的暂不能自动交战窗口
+## 注销
 
-## 内核
-
-`EnemySystem.auto_engage_at_location` 仅负责同地点 Prey/Lead 选目标；由 `EngageFlow` 在 `mode=auto` 时调用。
+`disengage` / 敌人离场（`WHILE_IN_PLAY`）→ `EngagementStatus.clear`

@@ -65,6 +65,11 @@ LEAD_DRAW_FIRE = re.compile(
 
 TAKE_HORROR = re.compile(r"^Take (\d+) (direct )?horror\.?", re.I)
 TAKE_DAMAGE = re.compile(r"^Take (\d+) (direct )?damage\.?", re.I)
+## Optional / may 窄切片：You may take N (direct) horror|damage.
+YOU_MAY_TAKE = re.compile(
+    r"^You may take (\d+) (direct )?(horror|damage)\.?$",
+    re.I,
+)
 LOSE_RESOURCES = re.compile(r"^Lose (\d+) resource", re.I)
 LOSE_ALL_RESOURCES = re.compile(r"^Lose all of your resources\.?", re.I)
 GAIN_RESOURCES = re.compile(r"^Gain (\d+) resource", re.I)
@@ -139,6 +144,13 @@ TEST_WP_OR_INT_SUCCEED_DISCARD = re.compile(
 TEST_WP_OR_AGI_FAIL_BY = re.compile(
     r"^Test \[willpower\] or \[agility\] \((\d+)\)\. "
     r"Take (\d+) damage for each point you fail by\.?$",
+    re.I,
+)
+## 12127 Extraplanar Visions：难度 X = 手牌数；失败受伤+随机弃手。
+TEST_WP_OR_INT_HAND_X_FAIL = re.compile(
+    r"^Test \[willpower\] or \[intellect\] \(X\), where X is the number of cards "
+    r"in your hand\. If you fail, take (\d+) damage and discard (\d+) cards? "
+    r"at random from your hand\.?$",
     re.I,
 )
 EACH_INV_AT_LOCATION_HORROR = re.compile(
@@ -456,57 +468,130 @@ def compile_lose_or_attack(body: str) -> dict[str, Any] | None:
     }
 
 
+def _leaf_take_damage(amount: int, **extra: Any) -> dict[str, Any]:
+    """D→C：nest `seq.effect.damage`（kind + target + amount；source 由装载 card_id）。"""
+    out: dict[str, Any] = {
+        "template": "take_damage",
+        "flow_id": "seq.effect.damage",
+        "kind": "damage",
+        "amount": amount,
+        "target": "controller",
+    }
+    out.update(extra)
+    return out
+
+
+def _leaf_discard_from_hand(amount: int, mode: str = "random") -> dict[str, Any]:
+    """D→C：统一 nest `seq.effect.discard_card` + from=hand。"""
+    return {
+        "template": "discard_card",
+        "flow_id": "seq.effect.discard_card",
+        "from": "hand",
+        "investigator": "controller",
+        "amount": amount,
+        "mode": mode,
+    }
+
+
+def _leaf_discard_source() -> dict[str, Any]:
+    """弃置来源卡 · nest `seq.effect.discard_card`（card_id=source）。"""
+    return {
+        "template": "discard_source",
+        "flow_id": "seq.effect.discard_card",
+        "card_id": "source",
+    }
+
+
+def expand_skill_or_test(
+    skills: list[str],
+    prompt_id: str,
+    st7: dict[str, Any],
+    *,
+    difficulty: int | None = None,
+    difficulty_source: str | None = None,
+    memory_key: str = "picked_skill",
+) -> dict[str, Any]:
+    """应展尽展 · 禁糖：PI 只选技能 → nest `seq.skill_test`（检定体不重复）。"""
+    test: dict[str, Any] = {
+        "template": "nest_skill_test",
+        "flow_id": "seq.skill_test",
+        "investigator": "controller",
+        "skill": f"memory:{memory_key}",
+        "st7": st7,
+    }
+    if difficulty is not None:
+        test["difficulty"] = difficulty
+    if difficulty_source is not None:
+        test["difficulty_source"] = difficulty_source
+    return {
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+            {
+                "template": "pick_option",
+                "options": list(skills),
+                "prompt_id": prompt_id,
+                "memory_key": memory_key,
+            },
+            test,
+        ],
+    }
+
+
 def compile_test_wp_or_agi_fail_by(body: str) -> dict[str, Any] | None:
     m = TEST_WP_OR_AGI_FAIL_BY.match(body.strip())
     if not m:
         return None
     difficulty = int(m.group(1))
     amount = int(m.group(2))
-    st7 = {
-        "on_fail_by_each": {"template": "take_damage", "amount": amount},
-    }
-    return {
-        "template": "choice_must",
-        "prompt_id": "skill_test:willpower_or_agility",
-        "options": [
-            {
-                "id": "willpower",
-                "template": "skill_test",
-                "skill": "willpower",
-                "difficulty": difficulty,
-                "st7": dict(st7),
+    return expand_skill_or_test(
+        ["willpower", "agility"],
+        "skill_test:willpower_or_agility",
+        {"on_fail_by_each": _leaf_take_damage(amount)},
+        difficulty=difficulty,
+    )
+
+
+def compile_test_wp_or_int_hand_x_fail(body: str) -> dict[str, Any] | None:
+    """12127：Willpower/Intellect；难度 = 手牌张数；失败受伤+随机弃手。"""
+    m = TEST_WP_OR_INT_HAND_X_FAIL.match(body.strip())
+    if m is None:
+        return None
+    dmg = int(m.group(1))
+    discard_n = int(m.group(2))
+    return expand_skill_or_test(
+        ["willpower", "intellect"],
+        "skill_test:willpower_or_intellect",
+        {
+            "on_fail": {
+                "template": "seq",
+                "steps": [
+                    _leaf_take_damage(dmg),
+                    _leaf_discard_from_hand(discard_n, "random"),
+                ],
             },
-            {
-                "id": "agility",
-                "template": "skill_test",
-                "skill": "agility",
-                "difficulty": difficulty,
-                "st7": {
-                    "on_fail_by_each": {"template": "take_damage", "amount": amount},
-                },
-            },
-        ],
-    }
+        },
+        difficulty_source="hand_count",
+    )
 
 
 def compile_resign(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not RESIGN_ABILITY.match(text):
         return None
-    # 应展尽展：同帧内联撤退 L0（§4.0.5 无新时点锚 → 不 nest）。
-    steps: list[dict[str, Any]] = []
-    if NO_AOO_PHRASE.search(text):
-        steps.append({"template": "no_provoke_aoo"})
-    steps.append({"template": "resign"})
-    entry: dict[str, Any] = {
+    # Resign 类型本身不借机；卡面「does not provoke…」只是复述，不另挂 SKIP_AOO。
+    # 信封：nest seq.effect.resign（after_resign 可听）。叙事句不译效果。
+    return {
         "template": "seq",
         "action_types": ["activate", "resign"],
-        "steps": steps,
+        "steps": [
+            {
+                "template": "nest_resign",
+                "flow_id": "seq.effect.resign",
+            }
+        ],
         "translation": "full_expand",
     }
-    if NO_AOO_PHRASE.search(text):
-        entry["provokes_aoo"] = False
-    return entry
 
 
 def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
@@ -533,11 +618,28 @@ def compile_group_spend_clues_deal_damage(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_move_to_connecting_steps() -> list[dict[str, Any]]:
+    """PI 选连接地点 + nest 移动（无内嵌 Gate；清 nest_move_connecting 债）。"""
+    return [
+        {
+            "template": "pick_target",
+            "filter": "location_connecting",
+            "prompt_id": "pick:move_connecting",
+            "memory_key": "picked_location",
+        },
+        {
+            "template": "nest_move_to",
+            "location": "memory:picked_location",
+        },
+    ]
+
+
 def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
     text = body.strip()
     if not ENGAGE_FROM_CONNECTING.match(text):
         return None
-    # 应展尽展：不借机声明 → PI → 内联移入 → 内联交战（§4.0.5 连续 then）。
+    # SKIP_AOO → PI → 限制类抑制自动交战 → nest move（仍走 auto-engage 入口）→ nest 明示交战。
+    # 移入后按常识会尝试自动交战；SUPPRESS_AUTO_ENGAGE 在该入口读取后分支，改由 nest seq.engage。
     steps: list[dict[str, Any]] = []
     if NO_AOO_PHRASE.search(text):
         steps.append({"template": "no_provoke_aoo"})
@@ -550,27 +652,30 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
                 "memory_key": "picked_enemy",
             },
             {
-                "template": "move_enemy_to",
+                "template": "suppress_auto_engage",
+                "enemy": "memory:picked_enemy",
+            },
+            {
+                "template": "nest_enemy_move_to",
+                "flow_id": "seq.enemy.move",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
             },
             {
-                "template": "engage_target",
+                "template": "nest_engage",
+                "flow_id": "seq.engage",
                 "enemy": "memory:picked_enemy",
                 "investigator": "controller",
+                "mode": "effect",
             },
         ]
     )
-    entry: dict[str, Any] = {
+    return {
         "template": "seq",
         "action_types": ["activate", "engage"],
         "translation": "full_expand",
         "steps": steps,
     }
-    # Engage 默认会借机；卡面「does not provoke…」→ 覆盖为 false（Initiation 读此字段）。
-    if NO_AOO_PHRASE.search(text):
-        entry["provokes_aoo"] = False
-    return entry
 
 
 def compile_parley_discard_bystander(body: str) -> dict[str, Any] | None:
@@ -621,11 +726,7 @@ def compile_choose_discard_from_hand(body: str) -> dict[str, Any] | None:
     m = CHOOSE_DISCARD_FROM_HAND.match(body.strip())
     if not m:
         return None
-    return {
-        "template": "discard_from_hand",
-        "amount": int(m.group(1)),
-        "mode": "choose",
-    }
+    return _leaf_discard_from_hand(int(m.group(1)), "choose")
 
 
 def compile_choose_discard_asset(body: str) -> dict[str, Any] | None:
@@ -673,27 +774,12 @@ def compile_test_wp_or_int_succeed_discard(body: str) -> dict[str, Any] | None:
     if not m:
         return None
     difficulty = int(m.group(1))
-    st7 = {"on_success": {"template": "discard_source"}}
-    return {
-        "template": "choice_must",
-        "prompt_id": "skill_test:willpower_or_intellect",
-        "options": [
-            {
-                "id": "willpower",
-                "template": "skill_test",
-                "skill": "willpower",
-                "difficulty": difficulty,
-                "st7": dict(st7),
-            },
-            {
-                "id": "intellect",
-                "template": "skill_test",
-                "skill": "intellect",
-                "difficulty": difficulty,
-                "st7": {"on_success": {"template": "discard_source"}},
-            },
-        ],
-    }
+    return expand_skill_or_test(
+        ["willpower", "intellect"],
+        "skill_test:willpower_or_intellect",
+        {"on_success": _leaf_discard_source()},
+        difficulty=difficulty,
+    )
 
 
 def compile_each_investigator_at_location(body: str) -> dict[str, Any] | None:
@@ -762,9 +848,7 @@ def compile_test_fail_by_discard_or_lose(body: str) -> dict[str, Any] | None:
                 "options": [
                     {
                         "id": "discard",
-                        "template": "discard_from_hand",
-                        "amount": 1,
-                        "mode": "random",
+                        **_leaf_discard_from_hand(1, "random"),
                     },
                     {"id": "resource", "template": "lose_resources", "amount": 1},
                 ],
@@ -806,9 +890,33 @@ def compile_test_succeed_discard_source(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_you_may_take(body: str) -> dict[str, Any] | None:
+    """Optional 编译糖：You may take N horror/damage → choice_optional。"""
+    m = YOU_MAY_TAKE.match(body.strip())
+    if m is None:
+        return None
+    amount = int(m.group(1))
+    direct = bool(m.group(2))
+    kind = m.group(3).lower()
+    template = "take_horror" if kind == "horror" else "take_damage"
+    return {
+        "template": "choice_optional",
+        "prompt_id": f"may:{template}",
+        "memory_key": "optional_chose",
+        "body": {
+            "template": template,
+            "amount": amount,
+            "direct": direct,
+        },
+    }
+
+
 def compile_effect_body(body: str) -> dict[str, Any] | None:
     if not body:
         return None
+    you_may = compile_you_may_take(body)
+    if you_may is not None:
+        return you_may
     cosmic = compile_cosmic_evils(body)
     if cosmic is not None:
         return cosmic
@@ -833,6 +941,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     skill_choice = compile_test_wp_or_agi_fail_by(body)
     if skill_choice is not None:
         return skill_choice
+    hand_x = compile_test_wp_or_int_hand_x_fail(body)
+    if hand_x is not None:
+        return hand_x
     wp_or_int = compile_test_wp_or_int_succeed_discard(body)
     if wp_or_int is not None:
         return wp_or_int
@@ -936,10 +1047,11 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             "ability_kind": "free",
             "window": "during_your_turn",
             "status": "full",
+            "translation": "full_expand",
             "template": "seq",
             "steps": [
                 {"template": "exhaust_source"},
-                {"template": "nest_move_connecting"},
+                *compile_move_to_connecting_steps(),
             ],
         }
     if FAST_DURING_TURN_MOVE_INV_COUNT.match(body):
@@ -951,8 +1063,10 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             "ability_kind": "free",
             "window": "during_your_turn",
             "status": "partial",
+            "translation": "full_expand",
             "condition": "investigators_in_game_1_or_2",
-            "template": "nest_move_connecting",
+            "template": "seq",
+            "steps": compile_move_to_connecting_steps(),
         }
     group_clues = compile_group_spend_clues_deal_damage(body)
     if group_clues is not None:
@@ -983,7 +1097,7 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(action_types, list) or not action_types:
         action_types = ["activate"]
     status = "full"
-    if compiled.get("template") in ("if_else", "seq", "choice_must"):
+    if compiled.get("template") in ("if_else", "seq", "choice_must", "choice_optional"):
         status = "partial"
     elif compiled.get("template") == "skill_test" and "parley" not in [
         str(t).lower() for t in action_types
@@ -994,6 +1108,13 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     # 应展尽展的 Resign / Engage-from-connecting 视为 full。
     if compiled.get("translation") == "full_expand":
         status = "full"
+    if compiled.get("template") == "choice_optional":
+        body_tpl = ""
+        body_entry = compiled.get("body", {})
+        if isinstance(body_entry, dict):
+            body_tpl = str(body_entry.get("template", ""))
+        if body_tpl in ("take_horror", "take_damage"):
+            status = "full"
     entry: dict[str, Any] = {
         "segment_index": segment["index"],
         "register_as": "action",
@@ -1018,8 +1139,21 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         if compiled is None:
             return None
         status = "full"
-        if compiled.get("template") in ("if_else", "seq", "choice_must", "skill_test"):
+        if compiled.get("template") in (
+            "if_else",
+            "seq",
+            "choice_must",
+            "choice_optional",
+            "skill_test",
+        ):
             status = "partial"
+        if compiled.get("template") == "choice_optional":
+            body_entry = compiled.get("body", {})
+            if isinstance(body_entry, dict) and body_entry.get("template") in (
+                "take_horror",
+                "take_damage",
+            ):
+                status = "full"
         elif plain_text(body) != _template_body_preview(compiled):
             status = "partial"
         entry: dict[str, Any] = {
@@ -1088,6 +1222,58 @@ def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     return entry
 
 
+def _preview_skill_or_seq(steps: list[Any]) -> str | None:
+    """展开后的 pick_option + nest_skill_test 预览。"""
+    if len(steps) < 2:
+        return None
+    pick = steps[0] if isinstance(steps[0], dict) else None
+    test = steps[1] if isinstance(steps[1], dict) else None
+    if pick is None or test is None:
+        return None
+    if pick.get("template") != "pick_option":
+        return None
+    if test.get("template") not in ("nest_skill_test", "skill_test"):
+        return None
+    options = pick.get("options", [])
+    prompt = str(pick.get("prompt_id", ""))
+    st7 = test.get("st7", {}) if isinstance(test.get("st7"), dict) else {}
+    if (
+        options == ["willpower", "intellect"]
+        and test.get("difficulty_source") == "hand_count"
+    ):
+        on_fail = st7.get("on_fail", {}) if isinstance(st7.get("on_fail"), dict) else {}
+        fail_steps = on_fail.get("steps", []) if isinstance(on_fail.get("steps"), list) else []
+        dmg = 1
+        discard_n = 1
+        for step in fail_steps:
+            if not isinstance(step, dict):
+                continue
+            if step.get("template") == "take_damage":
+                dmg = int(step.get("amount", 1))
+            if step.get("template") in ("discard_from_hand", "discard_card") and (
+                step.get("from") in (None, "hand") or step.get("template") == "discard_from_hand"
+            ):
+                discard_n = int(step.get("amount", 1))
+        card_word = "card" if discard_n == 1 else "cards"
+        return (
+            f"Test [willpower] or [intellect] (X), where X is the number of cards "
+            f"in your hand. If you fail, take {dmg} damage and discard {discard_n} "
+            f"{card_word} at random from your hand."
+        )
+    if prompt == "skill_test:willpower_or_agility" or options == ["willpower", "agility"]:
+        diff = int(test.get("difficulty", 3))
+        each = st7.get("on_fail_by_each", {}) if isinstance(st7.get("on_fail_by_each"), dict) else {}
+        amount = int(each.get("amount", 1))
+        return (
+            f"Test [willpower] or [agility] ({diff}). "
+            f"Take {amount} damage for each point you fail by."
+        )
+    if prompt == "skill_test:willpower_or_intellect" or options == ["willpower", "intellect"]:
+        diff = int(test.get("difficulty", 0))
+        return f"Test [willpower] or [intellect] ({diff})."
+    return None
+
+
 def _template_body_preview(compiled: dict[str, Any]) -> str:
     template = compiled.get("template", "")
     amount = compiled.get("amount", 0)
@@ -1115,13 +1301,17 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "Put … into play in your threat area."
     if template == "discard_source":
         return "Discard …"
-    if template == "discard_from_hand":
+    if template == "discard_from_hand" or (
+        template == "discard_card" and compiled.get("from") == "hand"
+    ):
         mode = str(compiled.get("mode", "random")).lower()
         n = int(compiled.get("amount", 1))
         card_word = "card" if n == 1 else "cards"
         if mode == "choose":
             return f"Choose and discard {n} {card_word} from your hand."
         return f"Discard {n} {card_word} at random from your hand."
+    if template == "discard_card":
+        return "Discard …"
     if template == "draw":
         n = int(compiled.get("amount", 1))
         return f"Draw {n} card." if n == 1 else f"Draw {n} cards."
@@ -1131,7 +1321,7 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "Attach … to your location."
     if template == "deal_damage":
         return f"Deal {amount} damage."
-    if template == "skill_test":
+    if template in ("skill_test", "nest_skill_test"):
         return "Test …"
     if template == "lead_draw_topmost_encounter_discard_copy":
         return (
@@ -1142,12 +1332,14 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return "If you have no clues, … gains surge."
     if template == "seq":
         steps = compiled.get("steps", [])
+        skill_or = _preview_skill_or_seq(steps if isinstance(steps, list) else [])
+        if skill_or:
+            return skill_or
         if steps:
             first = steps[0]
             if first.get("template") == "resolve_location":
                 return (
-                    "The nearest non-[[Elite]] enemy moves once toward your location. "
-                    "If it engages an investigator, it makes an immediate attack."
+                    "The nearest non-[[Elite]] enemy moves once toward your location. "                    "If it engages an investigator, it makes an immediate attack."
                 )
             if first.get("template") == "lose_resources":
                 return "Lose 1 resource. If you cannot, this enemy attacks you."
@@ -1156,18 +1348,32 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
             if (
                 len(steps) >= 2
                 and first.get("template") == "exhaust_source"
-                and steps[1].get("template") == "nest_move_connecting"
+                and (
+                    steps[1].get("template") == "nest_move_connecting"
+                    or (
+                        steps[1].get("template") == "pick_target"
+                        and steps[1].get("filter") == "location_connecting"
+                    )
+                )
             ):
                 return "During your turn, exhaust …: Move to a connecting location."
+            if (
+                len(steps) >= 2
+                and first.get("template") == "pick_target"
+                and first.get("filter") == "location_connecting"
+                and steps[1].get("template") == "nest_move_to"
+            ):
+                return "Move to a connecting location."
         return "Place 1 doom on the nearest enemy…"
     if template == "choice_must":
-        prompt = str(compiled.get("prompt_id", ""))
-        if prompt == "skill_test:willpower_or_agility":
-            return (
-                "Test [willpower] or [agility] (3). "
-                "Take 1 damage for each point you fail by."
-            )
         return "You must either (choose one)…"
+    if template == "choice_optional":
+        body_entry = compiled.get("body", {})
+        if isinstance(body_entry, dict):
+            inner = _template_body_preview(body_entry)
+            if inner:
+                return f"You may {inner[0].lower() + inner[1:]}" if inner else ""
+        return "You may…"
     return ""
 
 

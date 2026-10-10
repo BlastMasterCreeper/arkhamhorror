@@ -213,12 +213,12 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 | 纸面 | 引擎命名 | 不是 |
 |---|---|---|
 | Draw / Skill Test / Fight action | 沿用规则书手续名：`seq.draw.*`、`seq.skill_test.*`、`seq.action.fight` | — |
-| 无名但可独立解释的效果句 | **铸造** `seq.effect.*`（或已有 `seq.gain_resource`） | 真空跑 Atom |
+| 无名但可独立解释的效果句 | **铸造** `seq.effect.*`（含 `seq.effect.gain_resource`） | 真空跑 Atom |
 | **创建 / 卸掉 Buff**（Register / Unregister） | **铸造** `seq.effect.register` / `seq.effect.unregister`（参数：template、lifetime、buff 种类） | 真空跑 `CompositionNode.REGISTER` |
 | 某张卡独有的整段故事 | 仍是 Composition 树，去 **组合** 上表条目 | `seq.card.12160` |
 | Then / If / Choice | 树的控制流，**不是** 效果，不铸造 seq | 把 Then 做成 `seq.then` |
 
-已有先例：`seq.effect.discover_clue`、`seq.gain_resource` — 纸面未必叫这个名字，引擎已经当命名流程压栈。
+已有先例：`seq.effect.discover_clue`、`seq.effect.gain_resource` — 纸面未必叫这个名字，引擎已经当命名流程压栈。
 
 **铸造判据（mint）**
 

@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.18 · 2026-09-21 — ApplicationContext.referents ≠ 历史
+> **状态**：v0.4.21 · 2026-10-10 — 庞大 REPLACE @ seq.enemy.attack
 
 ---
 
@@ -298,7 +298,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Peril** 险境 | `AT_DRAW_G2` | `WHILE_DRAWN_CARD_RESOLVING` | `FORBID_PLAY` / `TRIGGER` / `COMMIT`（非 drawer） | L4 | ✅ |
 | **Hidden** 隐私 | `AT_REVELATION` | 在手直至 expose | `FORBID_LEAVE_HAND`；另写 Domain `is_hidden` / FaceAudience | REST-E-MOVE；E4 秘密入手 | 运行时有；导入把 ArkhamDB `hidden` 旗标误当本词 |
 | **Aloof** 冷漠 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ |
-| **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 永不进威胁区；虚拟交战同地点全体 | Engage / AOO / 3.3 读交战结果 | ✅ |
+| **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 永不进威胁区；虚拟交战同地点全体 | Engage / AOO 读交战；**3.3 攻击路径见 §3.2.7 REPLACE** | ✅ |
 | **Permanent** 永久（对局） | `AT_SETUP` 开场进场 | 直至卡面允许离场 | `FORBID_MOVE` 离场 | REST-E-MOVE | △ Domain 旗标 |
 | **Unique** 独特 | 打出/进场前查询 | in-play 期间 | 同名已在场 → 拒绝进场 | Initiation L5 | 待接线 |
 
@@ -306,8 +306,8 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 | 关键词 | mount | Lifetime | trigger | 开火 payload | 现状 |
 |---|---|---|---|---|---|
-| **Hunter** 猎手 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | `(seq.enemy.3_2, WHEN)` | 向最近调查员移 1 步；等距内读 **Prey 指令** | △ `enemy_phase_flow` 按名分支 |
-| **Patrol** 巡逻 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 同 3.2 | 向 **Patrol 参数** 移 1 步 | △ |
+| **Hunter** 猎手 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | `(seq.enemy.3_2, ENEMY_3_2)` · pri **10** | nest `seq.keyword.hunter`（移 1 步；等距读 Prey） | ✅ §3.2.7 |
+| **Patrol** 巡逻 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 同锚 · pri **20** | nest `seq.keyword.patrol`（向括号目标移 1 步） | ✅ §3.2.7 |
 | **Retaliate** 反击 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | `perform_attack(RETALIATE)` | ✅ |
 | **Alert** 警戒 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ 未进 `keywords[]` |
 | **Elusive** 逃逸 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ 未进 `keywords[]` |
@@ -481,6 +481,75 @@ on_card_leave_play(card)
 | listener 跑完 | `UNTIL_FIRED` 自卸 |
 
 **禁止**：用 `on_card_leave_play` 清涌动/险境；把 Fast 事件当成进场 LISTENER；把显现 Register 成 `WHILE_IN_PLAY`；为险境/G4/抽取步骤发明独立场合节点。
+
+#### 3.2.7 关键词监听：挂载时点 × 开火锚 × 优先级（已裁决）
+
+> **前提**：关键词 LISTENER **不再由父流程 handler 内联管理**（例：`seq.enemy.3_2` 不含 Hunter/Patrol 移动路径）。因此必须写清三件事：**(1) 何时挂载**、**(2) 挂到哪条固定流程的哪个时点开火**、**(3) 同锚点多监听器的优先级**。
+
+##### A. 三层勿混
+
+| 层 | 字段（KeywordProfile） | 含义 |
+|---|---|---|
+| **挂载 mount** | `register_flow_id` + `register_slot`（或 zone `ENTER_PLAY`…） | 从何时起 **拥有 / 武装** LISTENER（可早于首次开火） |
+| **开火锚 fire** | `fire_flow_id` + `consume_slot` | 监听 **哪条固定 `seq.*` 的哪一砖**；父流程只 **打开该槽**，不写关键词体 |
+| **开火体 payload** | `consume_flow_id` → `seq.keyword.*` | nest 出去的移动/攻击/再抽等 |
+
+```text
+mount（进场 / G2 / …）
+  └─ RegistrationStore LISTENER（武装）
+固定流程到达 fire 锚
+  └─ COLLECT 同锚 listeners
+       ├─ 跨类：AbilityCategoryTier（06-ability §8.1）
+       └─ 同类关键词：fire_priority 升序（本节 B）
+            └─ nest consume_flow_id
+```
+
+**竖切现状**：`KeywordConsumer.consume_at(slot)` 在父流程 RESOLVE 砖内调用 = 落在 WHEN 响应批 **之后**，因而天然晚于同窗 **FORCED**（与 §8.1「LISTENER 整类在 FORCED 之后」一致）。目标态接入 TimingCatalog 后仍须保持该跨类序。
+
+##### B. 优先级两层
+
+| 层 | 规则 | 裁决者 |
+|---|---|---|
+| **跨类** | `FORCED` → `FRAMEWORK` → `TRIGGERED` → `DELAYED` → `LISTENER`（整批） | 引擎 · [06-ability §8.1](06-ability-initiation.md#8-timingbus-与优先级) |
+| **同锚 · 关键词之间** | `KeywordProfile.fire_priority` **升序**（小者先）；并列 → keyword 名字典序 | **引擎固定**；**不可**队长强制对调关键词种类序 |
+| **同锚 · 多实例同关键词** | 默认注册序；需要选用时走 Lead（§8.2 LISTENER 行） | 玩家 / 流程 |
+
+`category_tier`：涌动 / Starting / Swarming = **`DELAYED`**（父流程 AFTER **之后** 另开或延时）；Hunter / Patrol / Retaliate / Alert / Elusive / Doomed = **`LISTENER`**。
+
+##### C. 开火锚总表（Core 关键词 LISTENER）
+
+| 关键词 | 挂载 | 开火锚 `(fire_flow_id, slot)` | tier | `fire_priority` | payload |
+|---|---|---|---|---:|---|
+| **Surge** | 抽牌 WHEN / GRANT | `(seq.draw.encounter, AFTER_DRAWN_CARD)` | DELAYED | 10 | `seq.keyword.surge` |
+| **Hunter** | ENTER_PLAY | `(seq.enemy.3_2, ENEMY_3_2)` | LISTENER | **10** | `seq.keyword.hunter` |
+| **Patrol** | ENTER_PLAY | `(seq.enemy.3_2, ENEMY_3_2)` | LISTENER | **20** | `seq.keyword.patrol` |
+| **Massive** | ENTER_PLAY | `(seq.enemy.attack, ATTACK)` · PHASE kind | **REPLACE** | 10 | `seq.keyword.massive`（PHASE→batch；AOO 不替换为多目标） |
+| **Retaliate** | ENTER_PLAY | `(seq.skill_test, POST_ST7_FAIL)` · Fight 失败 | LISTENER | 10 | attack（竖切） |
+| **Alert** | ENTER_PLAY | `(seq.skill_test, POST_ST7_FAIL)` · Evade 失败 | LISTENER | 20 | attack（竖切） |
+| **Elusive** | ENTER_PLAY | `(seq.enemy.attack, AFTER_ATTACK)`（含被 Fight） | LISTENER | 10 | flee+exhaust |
+| **Doomed** | ENTER_PLAY | `(seq.enemy.defeat, ON_DEFEAT)` | LISTENER | 10 | +1 agenda doom |
+| **Starting** | setup / 库 | `(seq.setup, AFTER mulligan)` | DELAYED | 10 | 检索入手 |
+| **Swarming** | ENTER_PLAY | `(seq.encounter.spawn, AFTER)` | DELAYED | 10 | 垫 X swarm |
+
+**同锚已裁序**：
+
+- **`ENEMY_3_2`**：Hunter **先于** Patrol（同敌双关键词时引擎固定；非玩家可选）。
+- **`ATTACK`（庞大）**：**REPLACE** 挂在一般攻击效果 **`seq.enemy.attack`** 上 — PHASE kind 时替换为 batch；AOO 等仍单次（魔典）。敌军阶段 `phase_attacks` 只是固定手续 nest 攻击，**不是** REPLACE 锚。
+- **`POST_ST7_FAIL`**：Retaliate / Alert 由 **行动种类**（Fight vs Evade）互斥过滤；`fire_priority` 仅防双合法时的引擎序。
+- **遭遇抽牌队**：险境 / 显现 / G4 仍用 FrameworkPriority（[15 §4.0.5.2](15-timing-entry-catalog.md)）；**涌动不入该队**，在 AFTER 后以 DELAYED 开火。
+
+##### D. 父流程职责（对照）
+
+| 固定流程 | 基础手续（流程自己做） | 打开的关键词槽 | **不做** |
+|---|---|---|---|
+| `seq.enemy.3_2` | 枚举 ready / 未交战；开窗 | `ENEMY_3_2` | Hunter/Patrol 移动路径 |
+| `seq.enemy.phase_attacks` | 玩家顺序；枚举交战敌人；**nest `seq.enemy.attack`（PHASE）** | —（不挂庞大） | 平行 massive 流程；在框架里写死 batch |
+| `seq.enemy.attack` | 一般敌人攻击效果 | `ATTACK`（庞大 **REPLACE** · PHASE→batch）；`AFTER_ATTACK`（Elusive） | 把庞大写成 `phase_attacks` 的平行分支 |
+| `seq.draw.encounter` | G1–G4 队列 | `AFTER_DRAWN_CARD`（涌动） | 把涌动写进 G1–G4 优先队 |
+| `seq.skill_test` | ST.1–ST.8 | `POST_ST7_FAIL` | 在 ST handler 按名写死 Retaliate/Alert 体 |
+| `seq.enemy.defeat` | 击败内核 | `ON_DEFEAT` | 内联 Doomed 种类分支 |
+
+**禁止**：为关键词另开与固定流程平行的 `seq.enemy.3_2_*` / `seq.enemy.massive_phase_attacks`；把庞大 REPLACE 锚错挂到 `phase_attacks`；在父 handler `match keyword` 写移动/攻击体；用队长选序跨越 Hunter↔Patrol 的 `fire_priority`。
 
 ---
 
@@ -859,7 +928,8 @@ Grimoire 条文 / 卡面效果
 | Immune to treachery / player card effects | **RESTRICTION** | EffectGraph step 4 + `EffectOp`→Intent |
 | Aloof 不能攻击未 engage 敌人 | **RESTRICTION** | **FIGHT** Intent + `Condition`（engage 状态） |
 | Instead / Cancel | **否** | [07-composition](07-composition.md) `CancelPending` / `ReplacePending` |
-| Surge / Massive 流程 | **否** | 关键词 + **命名 seq**（非 BuffType） |
+| Surge 流程 | **否** | 关键词 + **命名 seq**（非 BuffType） |
+| Massive 攻击 | **否**（非第四 Buff） | **REPLACE** @ `seq.enemy.attack`（PHASE→`seq.keyword.massive`）；交战侧仍是 RESTRICTION；3.3 只 nest 攻击 |
 | 抽牌 D2 / 遭遇 E2 **Reveal** | **否**（非 Buff） | L0 **`AtomRevealCard`** / `StateMutator.reveal_to_*`；见 [07 §5.3](07-effect-primitives.md) |
 
 ### 16.3 MODIFIER · 查询站清单
@@ -869,7 +939,7 @@ Grimoire 条文 / 卡面效果
 | 查询站 ID | 何时调用 | `StatRef` | 典型 `ApplicationContext` | 状态 |
 |---|---|---|---|---|
 | **MOD-Q-SKILL** | 检定 ST.5 算 modified value | `SKILL_WILLPOWER` … `SKILL_AGILITY` | `skill_test` 填充 | **已实现**（`SkillTestEngine.step_calculate_modified_value`） |
-| **MOD-Q-GAIN-RES** | `seq.gain_resource` 落 resource 前 | `RESOURCE_GAIN_AMOUNT` | `framework_step` + `tags`（如 `gain_resource`） | **已实现**（`SequenceCatalogBootstrap._resolve_gain_resource`） |
+| **MOD-Q-GAIN-RES** | `seq.effect.gain_resource` 落 resource 前 | `RESOURCE_GAIN_AMOUNT` | `framework_step` + `tags`（如 `gain_resource`） | **已实现**（`SequenceCatalogBootstrap._resolve_gain_resource`；旧 id 别名） |
 | **MOD-Q-SHROUD** | 地点 investigate 算 difficulty | `SHROUD`（待 enum） | location + tags | 待实现 |
 | **MOD-Q-DAMAGE-AMT** | Deal damage Assign 前定 amount | `DAMAGE_AMOUNT`（待 enum） | source、target tags | 待实现 |
 | **MOD-Q-HORROR-AMT** | Deal horror Assign 前 | `HORROR_AMOUNT`（待 enum） | 同上 | 待实现 |
@@ -893,8 +963,19 @@ Grimoire 条文 / 卡面效果
 | **REST-E-ACTION** | `ActionSystem.execute` | 耗 action、发起 basic action 前 | `MOVE` `ENGAGE` `FIGHT` …（待扩） |
 | **REST-E-EFFECT** | `EffectResolutionGraph` step 4 / Composition 等价点 | submit `EffectRequest` 前 | 按 `EffectOp`→Intent（待接） |
 | **REST-E-ACTIVATE** | Asset `[action]` / `[free]` initiation | Pre-restrictions | `ACTIVATE`（待 enum） |
+| **REST-E-AOO** | `AttackOfOpportunityResolver` @ INIT_2B | 付完 cost、跑借机前 | —（读 `SKIP_AOO` 供 **原流程分支**） |
+| **REST-E-AUTO-ENGAGE** | `EnemySystem.auto_engage_at_location` | 区域变更后自动交战前 | —（读 `SUPPRESS_AUTO_ENGAGE`：跳过 Prey/Lead 自动交战） |
 
 L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **同一 Intent** 均可；payload / `drawer_id` 豁免在 `_matches` 内处理。
+
+**限制类 Buff 的两种用法**（均 ≠ LISTENER、≠ Cancel/Ignore）：
+
+| 用法 | 入口行为 | 例子 |
+|---|---|---|
+| **拦 Intent** | `RestrictionEvaluator.block_reason` → 拒绝发起 | `FORBID_PLAY` / peril |
+| **原流程读取分支** | 规范时刻 **读** Restriction → 该流程自己改道（仍在同一 handler） | `SKIP_AOO` @ REST-E-AOO；`SUPPRESS_AUTO_ENGAGE` @ REST-E-AUTO-ENGAGE |
+
+禁止把「原流程分支」译成 `seq.interrupt.cancel` / `ignore`，也禁止用 LISTENER 去「消掉」借机。
 
 #### 16.4.2 Intent 与 RestrictionKind（增长表）
 
@@ -905,6 +986,9 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `TRIGGER` | initiate 能力 | `FORBID_TRIGGER` | peril E3；[reaction]/Forced | REST-E-TRIGGER | Kind **已实现**；**L4 待接** |
 | `COMMIT_TO_TEST` | commit skill | `FORBID_COMMIT_TO_TEST` | peril E3 | REST-E-COMMIT | **已实现** |
 | `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
+| —（原流程分支） | 借机不跑 | `SKIP_AOO` | 「This action does not provoke…」 | REST-E-AOO：`read_skip_aoo` | **已实现** · 翻译叶见 [20 §4](20-card-translation-schema.md) |
+| —（原流程分支） | 自动交战不跑 | `SUPPRESS_AUTO_ENGAGE` | 「移入后 engages you」（明示交战，非 Prey/Lead；冷漠/横置仍靠 mode=effect） | REST-E-AUTO-ENGAGE：`read_suppress_auto_engage` | **已实现** · 理由见 [20 §4.2.1](20-card-translation-schema.md) |
+| —（状态查询） | 成对交战状态 | `ENGAGEMENT` | 真实交战 / 视为交战（与威胁区脱钩） | `EngagementStatus` / `has_engagement` | **已实现** · [08 §3.1.1](08-enemy-engagement.md) |
 | `MOVE` | 移动行动 / 效果移动调查员 | `FORBID_MOVE` | 「不能离开地点」 | REST-E-ACTION / REST-E-EFFECT | 待 enum + 接线 |
 | `ENGAGE` | engage 行动 | `FORBID_ENGAGE` | aloof 等（常配合 Condition） | REST-E-ACTION | 待 |
 | `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION | 待 |
@@ -1000,7 +1084,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 
 | 订阅线索 | Core 2026 命中 | 引擎路由 |
 |---|---:|---|
-| Hunter 关键词 | 13 | 敌人 phase · `hunter_patrol_move`（待接 LISTENER） |
+| Hunter 关键词 | 13 | `seq.enemy.3_2` → nest `seq.keyword.hunter` |
 | Retaliate 关键词 | 9 | 攻击后 handler（见 08 §6） |
 | `After you discover clues` | 6 | `after_clue` → TimingBus 增长 |
 | `When investigation phase ends` | 4 | 框架步 AFTER |
@@ -1039,6 +1123,9 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-10 | v0.4.21 | §3.2.7：庞大 REPLACE 锚改到 `seq.enemy.attack`；`phase_attacks` 仅为固定 nest 手续 |
+| 2026-10-10 | v0.4.20 | §3.2.7：庞大 = REPLACE → `seq.keyword.massive`；删平行 massive 流程 |
+| 2026-10-10 | v0.4.19 | **§3.2.7** 关键词挂载时点 × 开火锚 × 跨类/同锚优先级；`fire_priority`（Hunter 10 先于 Patrol 20） |
 | 2026-09-21 | v0.4.18 | §12：`referents` 是 Memory 切片，历史走 EventRecord / StatProjection（07 §1.4） |
 | 2026-09-21 | v0.4.17 | §4：卡面创建 Buff = nest `seq.effect.register`；管线 Register 仍是父 seq 砖 |
 | 2026-09-21 | v0.4.16 | 打出始终 `PLAY_CARD`；Fast 编译 `play_form`（窗口/花费对称），不收成 `ABILITY` |

@@ -81,10 +81,12 @@ func spawn_engaged(game_ctx: GameContext, card_id: StringName, drawer_id: String
 	var inv := _state.registry.get_investigator(drawer_id)
 	if enemy == null or inv == null:
 		return {"ok": false, "error": "spawn_materialize_failed"}
+	## 场面：进威胁区；交战状态：ENGAGEMENT Buff。
 	enemy.engaged_with = drawer_id
 	if not inv.threat_area.has(card_id):
 		inv.threat_area.append(card_id)
 	_mark_card_in_play(game_ctx, card_id)
+	EngagementStatus.grant(game_ctx, card_id, drawer_id)
 	_log.log(
 		AhcEnums.LogCategory.SCENARIO,
 		"spawn_engaged",
@@ -130,15 +132,22 @@ func auto_engage_at_location(
 	if enemy.massive:
 		MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
 		return {"ok": true, "skipped": true, "massive": true}
-	if enemy.engaged_with != &"":
+	if EngagementStatus.is_engaged(game_ctx, enemy_id):
 		return {"ok": true, "skipped": true}
 	if enemy.exhausted or enemy.auto_engage_suppressed:
 		return {"ok": true, "skipped": true}
+	## 限制类 Buff：原流程读取后跳过自动交战（明示交战不受影响）。
+	if (
+		game_ctx != null
+		and game_ctx.registrations != null
+		and game_ctx.registrations.read_suppress_auto_engage(enemy_id)
+	):
+		return {"ok": true, "skipped": true, "restricted_by_suppress_auto_engage": true}
 	var candidates := _investigators_at_location(location_tag)
 	if candidates.is_empty():
 		return {"ok": true, "skipped": true}
 	var target := _pick_engage_target(game_ctx, candidates, def_id)
-	_apply_engage(enemy_id, target)
+	_apply_engage(game_ctx, enemy_id, target, true)
 	return {"ok": true, "enemy_id": enemy_id, "investigator_id": target}
 
 
@@ -156,33 +165,16 @@ func discard_spawn_failed(game_ctx: GameContext, card_id: StringName) -> Diction
 	return {"ok": true, "discarded": true, "card_id": card_id}
 
 
-func hunter_patrol_move() -> void:
-	if _game_ctx != null and _game_ctx.enemy_phase != null:
-		_game_ctx.enemy_phase.run_hunter_patrol(_game_ctx)
-		return
-	_log.log(AhcEnums.LogCategory.SCENARIO, "hunter_patrol_move", {})
-
-
-func patrol_move() -> void:
-	if _game_ctx != null and _game_ctx.enemy_phase != null:
-		_game_ctx.enemy_phase.run_patrol(_game_ctx)
-		return
-	_log.log(AhcEnums.LogCategory.SCENARIO, "patrol_move", {})
-
-
 func enemy_phase_3_2_moves() -> void:
-	hunter_patrol_move()
-	patrol_move()
-
-
-func resolve_massive_phase_attacks() -> void:
+	## Framework 3.2 基础手续：一条 seq.enemy.3_2（含 Hunter + Patrol 关键词 resolve）。
 	if _game_ctx != null and _game_ctx.enemy_phase != null:
-		_game_ctx.enemy_phase.run_massive_phase_attacks(_game_ctx)
+		_game_ctx.enemy_phase.run_3_2(_game_ctx)
 		return
-	_log.log(AhcEnums.LogCategory.SCENARIO, "enemy:massive_phase_attacks", {})
+	_log.log(AhcEnums.LogCategory.SCENARIO, "enemy_phase_3_2", {})
 
 
 func resolve_phase_attacks_for(investigator_id: StringName) -> void:
+	## 3.3 基础攻击；Massive 在 phase_attacks 内作效果替换，无独立 massive 遍。
 	if _game_ctx != null and _game_ctx.enemy_phase != null:
 		_game_ctx.enemy_phase.run_phase_attacks(_game_ctx, investigator_id)
 		return
@@ -260,8 +252,14 @@ func _pick_engage_target(
 	return candidates[0]
 
 
-func apply_engage(enemy_id: StringName, inv_id: StringName) -> void:
-	_apply_engage(enemy_id, inv_id)
+func apply_engage(
+	enemy_id: StringName,
+	inv_id: StringName,
+	enter_threat: bool = true,
+	game_ctx: GameContext = null
+) -> void:
+	var ctx := game_ctx if game_ctx != null else _game_ctx
+	_apply_engage(ctx, enemy_id, inv_id, enter_threat)
 
 
 func disengage(
@@ -274,6 +272,8 @@ func disengage(
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
 	var location_tag := enemy.location_tag
+	## 先注销交战状态 Buff，再清场面威胁区。
+	EngagementStatus.clear(game_ctx, enemy_id)
 	if enemy.engaged_with != &"":
 		var prev := _state.registry.get_investigator(enemy.engaged_with)
 		if prev:
@@ -343,10 +343,19 @@ func discard_enemy_from_play(game_ctx: GameContext, enemy_id: StringName) -> Dic
 	return EnemyDefeatResolver.discard_from_play(game_ctx, enemy_id)
 
 
-func _apply_engage(enemy_id: StringName, inv_id: StringName) -> void:
+func _apply_engage(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	inv_id: StringName,
+	enter_threat: bool = true
+) -> void:
 	var enemy := _state.registry.get_enemy(enemy_id)
 	var inv := _state.registry.get_investigator(inv_id)
 	if enemy == null or inv == null:
+		return
+	## 交战状态 Buff（权威）；场面威胁区仅 enter_threat 时写入。
+	EngagementStatus.grant(game_ctx, enemy_id, inv_id)
+	if not enter_threat:
 		return
 	if enemy.engaged_with != &"" and enemy.engaged_with != inv_id:
 		var prev := _state.registry.get_investigator(enemy.engaged_with)
