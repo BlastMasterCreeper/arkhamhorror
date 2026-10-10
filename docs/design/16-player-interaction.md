@@ -486,6 +486,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-10 | v0.4.2 | **默认自动选用**：`compute_default` / `resolve_choice` / `used_default` + `INTERACTION_CHOICE`；deadline UI 暂缓 |
 | 2026-09-29 | v0.4.0 | 挂接 [21-selection-spec](21-selection-spec.md)：通用 filter / 基数 / Memory bind |
 | 2026-09-28 | v0.3.0 | **§1.1 / §3.1**：玩家选择=有限期确认+默认；≠ nest/内联；ChoiceRequest 加 deadline |
 | 2026-09-21 | v0.2.1 | §2：Gate 的答不写进 Composition 树；指称进 RulesMemory（07 §1.4） |
