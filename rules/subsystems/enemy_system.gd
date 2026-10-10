@@ -163,23 +163,12 @@ func discard_spawn_failed(game_ctx: GameContext, card_id: StringName) -> Diction
 	return {"ok": true, "discarded": true, "card_id": card_id}
 
 
-func hunter_patrol_move() -> void:
-	if _game_ctx != null and _game_ctx.enemy_phase != null:
-		_game_ctx.enemy_phase.run_hunter_patrol(_game_ctx)
-		return
-	_log.log(AhcEnums.LogCategory.SCENARIO, "hunter_patrol_move", {})
-
-
-func patrol_move() -> void:
-	if _game_ctx != null and _game_ctx.enemy_phase != null:
-		_game_ctx.enemy_phase.run_patrol(_game_ctx)
-		return
-	_log.log(AhcEnums.LogCategory.SCENARIO, "patrol_move", {})
-
-
 func enemy_phase_3_2_moves() -> void:
-	hunter_patrol_move()
-	patrol_move()
+	## Framework 3.2 基础手续：一条 seq.enemy.3_2（含 Hunter + Patrol 关键词 resolve）。
+	if _game_ctx != null and _game_ctx.enemy_phase != null:
+		_game_ctx.enemy_phase.run_3_2(_game_ctx)
+		return
+	_log.log(AhcEnums.LogCategory.SCENARIO, "enemy_phase_3_2", {})
 
 
 func resolve_massive_phase_attacks() -> void:

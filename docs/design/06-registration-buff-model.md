@@ -1013,7 +1013,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 
 | 订阅线索 | Core 2026 命中 | 引擎路由 |
 |---|---:|---|
-| Hunter 关键词 | 13 | 敌人 phase · `hunter_patrol_move`（待接 LISTENER） |
+| Hunter 关键词 | 13 | 敌人 phase · `seq.enemy.3_2`（移动体待接 LISTENER） |
 | Retaliate 关键词 | 9 | 攻击后 handler（见 08 §6） |
 | `After you discover clues` | 6 | `after_clue` → TimingBus 增长 |
 | `When investigation phase ends` | 4 | 框架步 AFTER |

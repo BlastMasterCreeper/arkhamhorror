@@ -334,24 +334,14 @@ static func scenario_trigger_resolution(
 	return t
 
 
-static func enemy_3_2_hunter_patrol(
-	after_timing: StringName = &"after_enemy_3_2_hunter_patrol"
+static func enemy_3_2(
+	after_timing: StringName = &"after_enemy_3_2"
 ) -> TriggeringCondition:
+	## Framework 3.2 基础手续（Hunter/Patrol 关键词 resolve）；非关键词平行流程。
 	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_3_2_hunter_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_3_2_hunter_patrol"
-	t.tags = [&"enemy", &"framework", &"move", &"hunter"]
-	t.after_timing = after_timing
-	return t
-
-
-static func enemy_3_2_patrol(
-	after_timing: StringName = &"after_enemy_3_2_patrol"
-) -> TriggeringCondition:
-	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_3_2_patrol_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_3_2_patrol"
-	t.tags = [&"enemy", &"framework", &"move", &"patrol"]
+	t.id = StringName("enemy_3_2_%d" % Time.get_ticks_msec())
+	t.kind = &"enemy_3_2"
+	t.tags = [&"enemy", &"framework", &"move", &"hunter", &"patrol"]
 	t.after_timing = after_timing
 	return t
 

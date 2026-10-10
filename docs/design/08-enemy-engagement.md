@@ -98,7 +98,22 @@ Prey 示例：`Prey (lowest [agility])` — 在 **等距** 或 **同地点** 候
 
 ## 5. Hunter / Patrol 移动（Enemy 3.2 · ③ 编译）
 
-Framework **3.2** emit `(seq.enemy.3_2, WHEN)` → **RESOLVE** Hunter / Patrol **LISTENER**（AbilityCompiler 共享模板 · L0 move）。**不**在 Framework handler 按关键词名分支。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
+### 5.0 敌军阶段基础流程（非空壳）
+
+Grimoire **III. Enemy Phase** 是完整 Framework 步进，不是「关键词 LISTENER 的挂载点」：
+
+| 步 | FrameworkStep | 基础手续 |
+|---|---|---|
+| 3.1 | `ENEMY_3_1_PHASE_BEGINS` | 阶段开始 |
+| 3.2 | `ENEMY_3_2_HUNTER_PATROL_MOVE` | **`seq.enemy.3_2`**：枚举 ready、未交战且带 Hunter/Patrol 的敌人 → 顺序 resolve 关键词 → `PW_ENEMY_AFTER_MOVE` |
+| 3.3 | `ENEMY_3_3_ENGAGED_ATTACKS` | 玩家顺序结算已交战攻击（`seq.enemy.phase_attacks`） |
+| 3.4 | `ENEMY_3_4_PHASE_ENDS` | 阶段结束 |
+
+### 5.1 3.2 分工：框架手续 vs LISTENER 移动体
+
+**框架步 `seq.enemy.3_2`**（基础手续）：合格枚举、结算顺序、WOULD/WHEN/AFTER、步末窗口。
+
+**Hunter / Patrol LISTENER**（③）：在 `(seq.enemy.3_2, WHEN)` 开火，执行「移 1 步」移动体（AbilityCompiler 共享模板 · L0 move）。**不**在 Framework handler 按关键词名写死移动路径；**不**另铸 `seq.enemy.3_2_*`。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
 
 | 关键词 | 编译 | 参数（①） |
 |---|---|---|
@@ -358,7 +373,7 @@ class EnemySystem:
     func spawn(enemy: EntityId, drawer: StringName, instruction: SpawnInstruction) -> Result  # 委托 §7.2
     func engage(enemy: EntityId, inv: StringName) -> Result             # Engage **action** 专用
     func disengage(enemy: EntityId) -> Result
-    func hunter_patrol_move() -> void
+    func enemy_phase_3_2_moves() -> void   # → seq.enemy.3_2
     func resolve_phase_attacks() -> void
     func perform_attack(attack: EnemyAttack) -> void
     func check_retaliate(test: SkillTestContext) -> void   # 触发 + 时点；满足时调用 perform_attack
@@ -414,3 +429,4 @@ class EnemySystem:
 | 2026-06-18 | v0.4.1 | §7.4 spawn 失败 → **owner 对应 discard pile**；EN-08/09 |
 | 2026-06-18 | v0.5 | §0.1 三档译法；Prey **①** 仅 engage 内核读参（不 nest/LISTENER）；Hunter/Patrol **③** 编译 |
 | 2026-06-18 | v0.5.1 | §3 威胁区=交战（常态）；§6.6 Fight 失败转嫁 · 庞大不进威胁区 |
+| 2026-10-10 | v0.5.2 | §5.0：敌军阶段 3.1–3.4 基础流程非空壳；3.2=`seq.enemy.3_2`；LISTENER 只承担移动体 |

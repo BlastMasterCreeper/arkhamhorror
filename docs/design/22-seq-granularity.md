@@ -93,14 +93,33 @@
 | `seq.effect.register` / `unregister` | lasting / Cannot / keyword 标记创建 | **保留**；勿为每个 keyword 开创建 seq |
 | `seq.gain_resource` | Gain resources | **保留种类**；建议改名前缀（§2） |
 
-### 3.4 敌人 / 交战
+### 3.4 敌军阶段 / 敌人 / 交战
+
+**敌军阶段 III 本身有基础流程**（[00](00-framework-step-index.md) / Grimoire pp.29），**不是**「只靠关键词 LISTENER 撑起来的空壳」：
+
+```text
+3.1 ENEMY_3_1_PHASE_BEGINS          阶段开始（形式化）
+3.2 ENEMY_3_2_HUNTER_PATROL_MOVE    → seq.enemy.3_2（见下）
+      └─ PW_ENEMY_AFTER_MOVE
+3.3 ENEMY_3_3_ENGAGED_ATTACKS       → seq.enemy.phase_attacks（按玩家顺序）
+      └─ PW_ENEMY_BETWEEN_ATTACKS（每位之间）
+3.4 ENEMY_3_4_PHASE_ENDS            阶段结束（形式化）
+```
+
+**3.2 框架步基础手续**（`seq.enemy.3_2` 的职责，非空壳）：
+
+1. 枚举 **ready、未交战、带 Hunter 和/或 Patrol** 的敌人  
+2. 按引擎顺序对每个敌人 **resolve 其关键词**（开 WOULD/WHEN/AFTER）  
+3. 步末玩家窗口  
+
+**LISTENER 只承担关键词移动体**（「向谁 / 向哪移 1 步」）；**不**替代上述枚举、顺序与开窗。禁止再铸 `seq.enemy.3_2_hunter_patrol` / `3_2_patrol` 平行流程。
 
 | flow_id | Grimoire | 粒度裁决（草案） |
 |---|---|---|
 | `seq.enemy.move` | Move（敌人） | **保留**：卡面/效果移敌内核 |
 | `seq.enemy.3_2_hunter_patrol` | （误铸） | **删除** → 见 §4 M2 |
 | `seq.enemy.3_2_patrol` | （误铸） | **删除** → 见 §4 M2 |
-| `seq.enemy.3_2`（应有） | Framework **3.2** 基础手续 | **待铸/收口**：有完整框架步（枚举合格敌人、开窗、RESOLVE）；**不是**空壳。Hunter/Patrol **行为**由 LISTENER 承担，不写进 handler 按名分支 |
+| `seq.enemy.3_2` | Framework **3.2** 基础手续 | **保留/收口**：上表三步；Hunter/Patrol **移动体**由 LISTENER 在 `(seq.enemy.3_2, WHEN)` 开火，handler **不**按关键词名写死移动逻辑 |
 | `seq.enemy.attack` | Enemy attack | **保留**：单次攻击结算 |
 | `seq.enemy.phase_attacks` | 3.3 Engaged attacks | **合并候选** → 见 §4 M3 |
 | `seq.enemy.massive_phase_attacks` | Massive @ 3.3 | **合并候选** → 见 §4 M3（Massive 另议） |
@@ -128,7 +147,7 @@
 | ID | 现状 | 建议 | 理由 | 敏感度注意 |
 |---|---|---|---|---|
 | M1 | ~~`discard_from_hand`~~ | **已并**入 `discard_card` + `from` | 同词条 Discard | Eligibility 须读 `from` / tag `from_hand` |
-| M2 | `3_2_hunter_patrol` / `3_2_patrol` | **删除**这两条「按关键词写死的流程」；框架只留薄壳 **`seq.enemy.3_2`**（emit WHEN）；**Hunter / Patrol = 进场 Register 的 LISTENER**，订 `(seq.enemy.3_2, WHEN)` 后在 handler 内移 1 步（Patrol 读括号 Spec） | [06 §3.2.5](06-registration-buff-model.md) 已裁决：关键词不写进父管线；现状 `enemy_phase_flow` 按名分支是债 | 订阅听的是框架步 3.2，不是 `seq.keyword.hunter` |
+| M2 | `3_2_hunter_patrol` / `3_2_patrol` | **已确认**：删平行关键词流程；收成 **`seq.enemy.3_2`** = Grimoire 3.2 **基础手续**（枚举合格敌人 → 顺序 resolve 关键词 → 开窗）。敌军阶段 3.1–3.4 整段亦是 Framework 基础流程。Hunter/Patrol = LISTENER 移动体 @ `(seq.enemy.3_2, WHEN)`（Patrol 括号 = Spec） | [08 §5](08-enemy-engagement.md)、[06 §3.2.5](06-registration-buff-model.md)、[00](00-framework-step-index.md) | **敌军阶段 ≠ 空壳**；LISTENER ≠ 替代框架步进 |
 | M3 | `phase_attacks` + `massive_phase_attacks` | 并成 **`seq.enemy.phase_attacks`** + params；**Massive** 是否改为关键词 Buff 驱动（同 Hunter 模式）另确认 | 同属 3.3 | Massive 批量打断仍可同 kind |
 | M4 | `seq.gain_resource` 命名 | **不改种类**，只校正前缀别名 | taxonomy | — |
 | M5 | `seq.engage` 命名 | **不改种类**，只校正前缀别名 | 与 action.engage 对称 | — |
@@ -185,7 +204,7 @@
 
 请对下列选项拍板（可直接回「M2/M3 合并、G1 要铸、G2 暂缓」这类）：
 
-1. **M2**：确认按 06 §3.2.5 拆掉 `3_2_hunter_patrol` / `3_2_patrol`，改薄壳 `seq.enemy.3_2` + Hunter/Patrol LISTENER？（文档已裁；待改代码）  
+1. ~~**M2**~~：**已确认** — `seq.enemy.3_2` = 框架基础手续；Hunter/Patrol = LISTENER 移动体（本轮改 Catalog）  
 2. **M3**：3.3 `phase_attacks` / `massive_phase_attacks` — 仅合并 params，还是 Massive 也改关键词 Buff？  
 3. **G1**：调查员效果移动是否升格为命名流程？  
 4. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
@@ -205,4 +224,5 @@
 | 日期 | 说明 |
 |---|---|
 | 2026-10-10 | 初稿：对照 Grimoire + 现 Catalog；并入 discard 的敏感度原则；列出 M* / G* |
-| 2026-10-10 | 纠正 M2：Hunter/Patrol 不是固定流程，应按 06 §3.2.5 为 LISTENER 订薄壳 `seq.enemy.3_2` |
+| 2026-10-10 | 纠正 M2：Hunter/Patrol 不是固定流程，应按 06 §3.2.5 为 LISTENER @ `seq.enemy.3_2` |
+| 2026-10-10 | 再纠：敌军阶段 III（3.1–3.4）与 3.2 本身有基础流程，不是空壳；LISTENER 只承担关键词移动体；M2 确认 |

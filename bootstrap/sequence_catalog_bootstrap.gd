@@ -265,18 +265,11 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 
 static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
-		&"seq.enemy.3_2_hunter_patrol",
+		&"seq.enemy.3_2",
 		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_3_2_hunter_patrol(),
+			return TriggeringCondition.enemy_3_2(),
 		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.hunter_patrol_3_2(game_ctx)
-	)
-	catalog.register_run(
-		&"seq.enemy.3_2_patrol",
-		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_3_2_patrol(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.patrol_3_2(game_ctx)
+			return EnemyPhaseFlow.framework_3_2(game_ctx)
 	)
 	catalog.register_run(
 		&"seq.enemy.phase_attacks",

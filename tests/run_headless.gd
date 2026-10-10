@@ -5954,7 +5954,7 @@ func _test_en13_patrol_move() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var result := h.ctx.enemy_phase.run_patrol(h.ctx)
+	var result := h.ctx.enemy_phase.run_3_2(h.ctx)
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		bool(result.get("ok", false))
@@ -5978,7 +5978,7 @@ func _test_en14_patrol_skip_at_target() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var result := h.ctx.enemy_phase.run_patrol(h.ctx)
+	var result := h.ctx.enemy_phase.run_3_2(h.ctx)
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		bool(result.get("ok", false))
