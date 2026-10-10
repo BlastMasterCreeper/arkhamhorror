@@ -109,16 +109,25 @@ Grimoire **III. Enemy Phase** 是完整 Framework 步进，不是「关键词 LI
 | 3.3 | `ENEMY_3_3_ENGAGED_ATTACKS` | 玩家顺序结算已交战攻击（`seq.enemy.phase_attacks`） |
 | 3.4 | `ENEMY_3_4_PHASE_ENDS` | 阶段结束 |
 
-### 5.1 3.2 分工：框架手续 vs LISTENER 移动体
+### 5.1 3.2 分工：框架手续 vs 关键词开火（已摘出）
 
-**框架步 `seq.enemy.3_2`**（基础手续）：合格枚举、结算顺序、WOULD/WHEN/AFTER、步末窗口。
+```text
+seq.enemy.3_2（框架基础手续）
+  for each ready, unengaged enemy:
+    KeywordConsumer @ ENEMY_3_2
+      ├─ nest seq.keyword.hunter   ← 关键词移动体（摘出）
+      └─ nest seq.keyword.patrol   ← 关键词移动体（摘出）
+  → PW_ENEMY_AFTER_MOVE
+```
 
-**Hunter / Patrol LISTENER**（③）：在 `(seq.enemy.3_2, WHEN)` 开火，执行「移 1 步」移动体（AbilityCompiler 共享模板 · L0 move）。**不**在 Framework handler 按关键词名写死移动路径；**不**另铸 `seq.enemy.3_2_*`。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
+**框架步 `seq.enemy.3_2`**：合格枚举（ready / 未交战）、顺序调用消费槽、步末窗口。**不含**「向谁移 / 向哪移」路径。
 
-| 关键词 | 编译 | 参数（①） |
+**Hunter / Patrol**（③ LISTENER 开火 · `seq.keyword.*`）：由 KeywordConsumer 在 `ENEMY_3_2` 槽 nest；**不**写回 Framework handler；**不**另铸 `seq.enemy.3_2_*`。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
+
+| 关键词 | 编译 / 开火 | 参数（①） |
 |---|---|---|
-| Hunter | **③** LISTENER · 最近 investigator 路径 | 无卡面 Spec |
-| Patrol | **③** LISTENER · 向 designated target 移动 1 步 | `PatrolTargetSpec` · handler 内 `PatrolTargetResolver` |
+| Hunter | **③** LISTENER → `seq.keyword.hunter` | 无卡面 Spec |
+| Patrol | **③** LISTENER → `seq.keyword.patrol` | `PatrolTargetSpec` · handler 内 `PatrolTargetResolver` |
 | 移动后遇 investigator | **②** | `auto_engage_at_location`（内读 Prey） |
 
 **不移动**：exhausted、已 engaged、hunter 已在有 investigator 地点；patrol 已在 designated target；card ability 阻挡。
@@ -430,3 +439,4 @@ class EnemySystem:
 | 2026-06-18 | v0.5 | §0.1 三档译法；Prey **①** 仅 engage 内核读参（不 nest/LISTENER）；Hunter/Patrol **③** 编译 |
 | 2026-06-18 | v0.5.1 | §3 威胁区=交战（常态）；§6.6 Fight 失败转嫁 · 庞大不进威胁区 |
 | 2026-10-10 | v0.5.2 | §5.0：敌军阶段 3.1–3.4 基础流程非空壳；3.2=`seq.enemy.3_2`；LISTENER 只承担移动体 |
+| 2026-10-10 | v0.5.3 | §5.1：Hunter/Patrol 移动体摘为 `seq.keyword.hunter` / `patrol`；框架只枚举+消费槽 |

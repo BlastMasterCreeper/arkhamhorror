@@ -306,8 +306,8 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 | 关键词 | mount | Lifetime | trigger | 开火 payload | 现状 |
 |---|---|---|---|---|---|
-| **Hunter** 猎手 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | `(seq.enemy.3_2, WHEN)` | 向最近调查员移 1 步；等距内读 **Prey 指令** | △ `enemy_phase_flow` 按名分支 |
-| **Patrol** 巡逻 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 同 3.2 | 向 **Patrol 参数** 移 1 步 | △ |
+| **Hunter** 猎手 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | `(seq.enemy.3_2, ENEMY_3_2)` | nest `seq.keyword.hunter`（移 1 步；等距读 Prey） | ✅ KeywordConsumer 竖切 |
+| **Patrol** 巡逻 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 同 3.2 | nest `seq.keyword.patrol`（向括号目标移 1 步） | ✅ KeywordConsumer 竖切 |
 | **Retaliate** 反击 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | `perform_attack(RETALIATE)` | ✅ |
 | **Alert** 警戒 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ 未进 `keywords[]` |
 | **Elusive** 逃逸 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ 未进 `keywords[]` |
@@ -1013,7 +1013,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 
 | 订阅线索 | Core 2026 命中 | 引擎路由 |
 |---|---:|---|
-| Hunter 关键词 | 13 | 敌人 phase · `seq.enemy.3_2`（移动体待接 LISTENER） |
+| Hunter 关键词 | 13 | `seq.enemy.3_2` → nest `seq.keyword.hunter` |
 | Retaliate 关键词 | 9 | 攻击后 handler（见 08 §6） |
 | `After you discover clues` | 6 | `after_clue` → TimingBus 增长 |
 | `When investigation phase ends` | 4 | 框架步 AFTER |

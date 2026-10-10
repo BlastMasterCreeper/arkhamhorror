@@ -13,11 +13,15 @@ const FLOW_ENCOUNTER_SPAWN: StringName = &"seq.encounter.spawn"
 const FLOW_ENTER_HAND: StringName = &"seq.enter_hand"
 const FLOW_SETUP: StringName = &"seq.setup"
 const FLOW_KEYWORD_SURGE: StringName = &"seq.keyword.surge"
+const FLOW_KEYWORD_HUNTER: StringName = &"seq.keyword.hunter"
+const FLOW_KEYWORD_PATROL: StringName = &"seq.keyword.patrol"
+const FLOW_ENEMY_3_2: StringName = &"seq.enemy.3_2"
 
 const SLOT_G2: StringName = &"G2"
 const SLOT_G4: StringName = &"G4"
 const SLOT_WHEN: StringName = &"WHEN"
 const SLOT_AFTER: StringName = &"AFTER"
+const SLOT_ENEMY_3_2: StringName = &"ENEMY_3_2"
 const SLOT_ENTER_PLAY: StringName = &"ENTER_PLAY"
 const SLOT_LEAVE_PLAY: StringName = &"LEAVE_PLAY"
 const SLOT_ENTER_HAND: StringName = &"ENTER_HAND"
@@ -121,14 +125,16 @@ static func _all() -> Array[KeywordProfile]:
 		&"", SLOT_FIRED,
 		ZONE_PLAY, LIFE_UNTIL_FIRED
 	))
-	## LISTENER · zone 变迁（spawn / 打出等已有流程里的 L0）
+	## LISTENER · 进场挂载；开火 payload = seq.keyword.* @ Framework 3.2 消费槽
 	profiles.append(_row(
 		&"hunter", BUFF_LISTENER,
-		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
+		SLOT_ENEMY_3_2, FLOW_KEYWORD_HUNTER
 	))
 	profiles.append(_row(
 		&"patrol", BUFF_LISTENER,
-		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
+		SLOT_ENEMY_3_2, FLOW_KEYWORD_PATROL
 	))
 	profiles.append(_row(
 		&"retaliate", BUFF_LISTENER,

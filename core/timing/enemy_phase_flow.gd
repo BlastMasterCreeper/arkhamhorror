@@ -2,12 +2,12 @@ class_name EnemyPhaseFlow
 extends RefCounted
 
 ## 敌军阶段 3.2–3.3 + 卡面 resolve_location / move / attack 命名流程。
-## 3.2 = Framework 基础手续（枚举 / 顺序 resolve 关键词），非空壳。
+## 3.2 = Framework 基础手续（枚举合格敌人 → 开关键词消费槽）；关键词移动体在 seq.keyword.*。
 
 
 static func framework_3_2(game_ctx: GameContext) -> Dictionary:
-	## Grimoire 3.2：对每个 ready、未交战且带 Hunter/Patrol 的敌人 resolve 其关键词。
-	## 移动体目标态由 LISTENER @ (seq.enemy.3_2, WHEN) 承担；此处仍内联移动体直至 Buff 接线完成。
+	## Grimoire 3.2 基础手续：对每个 ready、未交战的敌人，经 KeywordConsumer 开火
+	## Hunter/Patrol LISTENER（seq.keyword.hunter / patrol）。本 handler **不含**移动路径。
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	var moved: Array[StringName] = []
@@ -15,13 +15,13 @@ static func framework_3_2(game_ctx: GameContext) -> Dictionary:
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 		if not _eligible_for_3_2_move(enemy):
 			continue
-		var def_id := _definition_id(game_ctx, enemy_id)
-		var did_move := false
-		if CardRegistry.is_hunter(def_id):
-			did_move = _resolve_hunter_move(game_ctx, enemy_id) or did_move
-		if CardRegistry.is_patrol(def_id):
-			did_move = _resolve_patrol_move(game_ctx, enemy_id) or did_move
-		if did_move:
+		var fired := KeywordConsumer.consume_at(
+			game_ctx,
+			KeywordProfileTable.SLOT_ENEMY_3_2,
+			&"",
+			enemy_id
+		)
+		if bool(fired.get("moved", false)):
 			moved.append(enemy_id)
 	if game_ctx.log != null:
 		game_ctx.log.log(
@@ -143,54 +143,6 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	return {"ok": true, "enemy_id": enemy_id, "target": target}
 
 
-static func _resolve_hunter_move(game_ctx: GameContext, enemy_id: StringName) -> bool:
-	var target_inv := EnemyHunterTarget.pick_nearest_investigator(game_ctx, enemy_id)
-	if target_inv == &"":
-		return false
-	var loc := EnemyLocationTarget.resolve(
-		game_ctx, {"target": "investigator_location", "drawer_id": target_inv}
-	)
-	if not bool(loc.get("ok", false)):
-		return false
-	var body := move(
-		game_ctx,
-		{
-			"enemy_id": enemy_id,
-			"target_location": loc.get("location_tag", &""),
-			"steps": 1,
-		}
-	)
-	return bool(body.get("moved", false))
-
-
-static func _resolve_patrol_move(game_ctx: GameContext, enemy_id: StringName) -> bool:
-	var def_id := _definition_id(game_ctx, enemy_id)
-	var spec := CardRegistry.patrol_spec(def_id)
-	if spec == null:
-		return false
-	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-	if enemy == null:
-		return false
-	var target_loc := PatrolTargetResolver.resolve(spec, game_ctx, enemy_id)
-	if target_loc == &"" or enemy.location_tag == target_loc:
-		return false
-	var body := move(
-		game_ctx,
-		{
-			"enemy_id": enemy_id,
-			"target_location": target_loc,
-			"steps": 1,
-		}
-	)
-	return bool(body.get("moved", false))
-
-
 static func _eligible_for_3_2_move(enemy: EnemyState) -> bool:
+	## Framework 资格：ready + 未交战。是否带 Hunter/Patrol 由 KeywordConsumer 判定。
 	return enemy != null and not enemy.exhausted and enemy.engaged_with == &""
-
-
-static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
-	var card := game_ctx.state.registry.get_card(enemy_id)
-	if card == null:
-		return &""
-	return card.id.definition_id

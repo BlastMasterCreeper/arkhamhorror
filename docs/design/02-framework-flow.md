@@ -199,7 +199,7 @@ func begin_round() -> void:
 ### 5.4 Enemy Phase（3.1–3.4 · 基础流程，非空壳）
 
 - 3.1：阶段开始
-- 3.2：`EnemySystem.enemy_phase_3_2_moves()` → **`seq.enemy.3_2`**（枚举合格敌人 → resolve Hunter/Patrol 关键词；移动体由 LISTENER 承担）→ `PW_ENEMY_AFTER_MOVE`
+- 3.2：`EnemySystem.enemy_phase_3_2_moves()` → **`seq.enemy.3_2`**（枚举 ready/未交战 → KeywordConsumer @ `ENEMY_3_2` → nest `seq.keyword.hunter` / `patrol`）→ `PW_ENEMY_AFTER_MOVE`
 - 3.3：player order；每位调查员 resolve 其 engaged enemies 攻击 → exhaust attacker（间插 `PW_ENEMY_BETWEEN_ATTACKS`）
 - 3.4：阶段结束
 

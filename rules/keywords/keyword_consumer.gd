@@ -1,7 +1,8 @@
 class_name KeywordConsumer
 extends RefCounted
 
-## 延时 LISTENER 的竖切（06 §3.2.5）：开火 payload 为命名 seq 时 nest。抽牌管线只在 AFTER_DRAWN_CARD 调一次。
+## LISTENER 竖切（06 §3.2.5）：开火 payload 为命名 seq 时 nest。
+## 涌动 @ AFTER_DRAWN_CARD；Hunter/Patrol @ ENEMY_3_2（Framework 3.2 基础手续内调用）。
 
 
 static func consume_after_drawn_card(
@@ -26,6 +27,7 @@ static func consume_at(
 	var merged := {
 		"ok": true,
 		"surged": false,
+		"moved": false,
 		"cards": [] as Array[StringName],
 		"revelations": [] as Array[StringName],
 		"spawn_failed_discards": [] as Array[StringName],
@@ -86,6 +88,8 @@ static func _merge_nested(merged: Dictionary, nested: Dictionary) -> void:
 		return
 	if bool(nested.get("surged", false)):
 		merged["surged"] = true
+	if bool(nested.get("moved", false)):
+		merged["moved"] = true
 	merged["surge_depth"] = int(merged.get("surge_depth", 0)) + int(nested.get("surge_depth", 0))
 	merged["shuffles"] = int(merged.get("shuffles", 0)) + int(nested.get("shuffles", 0))
 	_append_ids(merged, "cards", nested.get("cards", []))

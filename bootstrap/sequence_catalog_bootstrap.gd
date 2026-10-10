@@ -417,6 +417,22 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return SurgeKeywordFlow.run(game_ctx, params)
 	)
+	catalog.register_run(
+		&"seq.keyword.hunter",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.keyword_hunter(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return HunterKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.keyword.patrol",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.keyword_patrol(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return PatrolKeywordFlow.run(game_ctx, params)
+	)
 
 
 static func _register_interrupt_flows(catalog: SequenceCatalog) -> void:
