@@ -36,8 +36,8 @@ static func phase_attacks_for(
 	game_ctx: GameContext,
 	investigator_id: StringName
 ) -> Dictionary:
-	## Framework 3.3 基础手续：本调查员结算与其交战的敌人攻击。
-	## Massive = 对「单次阶段攻击」的效果替换（seq.keyword.massive），非平行流程。
+	## Framework 3.3 固定攻击手续：枚举交战敌人 → nest 一般攻击 seq.enemy.attack。
+	## 庞大 REPLACE 挂在攻击效果上，不挂在本框架手续上。
 	if game_ctx == null or game_ctx.state == null or game_ctx.combat == null:
 		return {"ok": false}
 	var inv := game_ctx.state.registry.get_investigator(investigator_id)
@@ -48,27 +48,26 @@ static func phase_attacks_for(
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 		if enemy == null or enemy.exhausted:
 			continue
-		## 庞大：替换本敌本阶段攻击路径为 batch；已横置则跳过（batch 末或中断后）。
-		if _has_massive(game_ctx, enemy_id):
-			var replaced := _resolve_massive_replacement(game_ctx, enemy_id)
-			attack_count += int(replaced.get("attacks", 0))
-			continue
-		if enemy.engaged_with != investigator_id:
+		if not _has_massive(game_ctx, enemy_id) and enemy.engaged_with != investigator_id:
 			continue
 		var params := {
 			"enemy_id": enemy_id,
 			"target_investigator": investigator_id,
 			"exhaust_after": true,
+			"attack_kind": AhcEnums.AttackKind.PHASE,
 		}
-		## 经 catalog.nest 发出 enemy_attack WHEN/AFTER（卡面 Forced 可订阅）。
+		var body: Dictionary
 		if (
 			game_ctx.sequence_catalog != null
 			and game_ctx.sequence_catalog.has_flow(&"seq.enemy.attack")
 		):
-			game_ctx.sequence_catalog.nest(game_ctx, &"seq.enemy.attack", params)
+			body = game_ctx.sequence_catalog.nest(game_ctx, &"seq.enemy.attack", params)
 		else:
-			attack(game_ctx, params)
-		attack_count += 1
+			body = attack(game_ctx, params)
+		if bool(body.get("skipped", false)) or not bool(body.get("ok", true)):
+			continue
+		## 庞大 REPLACE 返回 batch.attacks；普通攻击默认 1。
+		attack_count += maxi(1, int(body.get("attacks", 1)))
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
@@ -120,7 +119,7 @@ static func _resolve_massive_replacement(
 	game_ctx: GameContext,
 	enemy_id: StringName
 ) -> Dictionary:
-	## 效果替换竖切：nest seq.keyword.massive（对齐 Hunter KeywordConsumer 模式）。
+	## 对一般攻击效果的 REPLACE：nest seq.keyword.massive。
 	if (
 		game_ctx.sequence_catalog != null
 		and game_ctx.sequence_catalog.has_flow(&"seq.keyword.massive")
@@ -166,24 +165,32 @@ static func move(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 
 
 static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	## 一般敌人攻击效果。庞大在 **敌军阶段攻击**（PHASE）上 REPLACE 为 batch；
+	## AOO 等其它 kind 仍单次命中（魔典：借机只打触发者）。
 	if game_ctx == null or game_ctx.combat == null:
 		return {"ok": false}
 	var enemy_id: StringName = params.get("enemy_id", &"")
 	var target: StringName = params.get(
 		"target_investigator", params.get("investigator_id", &"")
 	)
-	if enemy_id == &"" or target == &"":
+	if enemy_id == &"":
 		return {"ok": true, "skipped": true}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": false}
+	var attack_kind: int = int(params.get("attack_kind", AhcEnums.AttackKind.OPPORTUNITY))
+	if _has_massive(game_ctx, enemy_id) and attack_kind == AhcEnums.AttackKind.PHASE:
+		return _resolve_massive_replacement(game_ctx, enemy_id)
+	if target == &"":
+		return {"ok": true, "skipped": true}
 	var exhaust_after: bool = bool(params.get("exhaust_after", false))
 	var strike := EnemyAttack.enemy_strike(
 		enemy_id,
 		target,
 		enemy.attack_damage,
 		enemy.attack_horror,
-		exhaust_after
+		exhaust_after,
+		attack_kind as AhcEnums.AttackKind
 	)
 	game_ctx.combat.perform_attack(strike)
 	if game_ctx.log != null:
@@ -196,9 +203,10 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 				"damage": enemy.attack_damage,
 				"horror": enemy.attack_horror,
 				"exhaust_after": exhaust_after,
+				"attack_kind": attack_kind,
 			}
 		)
-	return {"ok": true, "enemy_id": enemy_id, "target": target}
+	return {"ok": true, "enemy_id": enemy_id, "target": target, "attacks": 1}
 
 
 static func _eligible_for_3_2_move(enemy: EnemyState) -> bool:

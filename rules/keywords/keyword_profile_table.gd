@@ -27,7 +27,7 @@ const SLOT_G4: StringName = &"G4"
 const SLOT_WHEN: StringName = &"WHEN"
 const SLOT_AFTER: StringName = &"AFTER"
 const SLOT_ENEMY_3_2: StringName = &"ENEMY_3_2"
-const SLOT_PHASE_ATTACK: StringName = &"PHASE_ATTACK"
+const SLOT_ATTACK: StringName = &"ATTACK"
 const SLOT_POST_ST7_FAIL: StringName = &"POST_ST7_FAIL"
 const SLOT_AFTER_ATTACK: StringName = &"AFTER_ATTACK"
 const SLOT_ON_DEFEAT: StringName = &"ON_DEFEAT"
@@ -227,12 +227,12 @@ static func _all() -> Array[KeywordProfile]:
 		&"aloof", BUFF_RESTRICTION,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
-	## 庞大：RESTRICTION（永不进威胁区 / 虚拟交战）+ 对阶段攻击的效果替换体
+	## 庞大：RESTRICTION（交战）+ 对一般攻击效果 seq.enemy.attack 的 REPLACE（PHASE→batch）
 	profiles.append(_row(
 		&"massive", BUFF_RESTRICTION,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
-		SLOT_PHASE_ATTACK, FLOW_KEYWORD_MASSIVE,
-		FLOW_PHASE_ATTACKS, 10, TIER_REPLACE
+		SLOT_ATTACK, FLOW_KEYWORD_MASSIVE,
+		FLOW_ENEMY_ATTACK, 10, TIER_REPLACE
 	))
 	profiles.append(_row(
 		&"permanent", BUFF_RESTRICTION,

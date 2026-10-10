@@ -1,9 +1,9 @@
 class_name MassiveKeywordFlow
 extends RefCounted
 
-## Massive（庞大）· 对基础阶段攻击的 **效果替换** 体。
-## 开火锚：(seq.enemy.phase_attacks / seq.enemy.attack@PHASE, REPLACE)
-## 不另铸 seq.enemy.massive_phase_attacks。
+## Massive（庞大）· 对一般敌人攻击效果（seq.enemy.attack）的 **REPLACE** 体。
+## 敌军阶段 3.3 只是固定手续，nest 攻击；PHASE kind 时本流程替换为 batch。
+## AOO 等非 PHASE 不走本替换（魔典：借机只打触发者）。
 
 
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:

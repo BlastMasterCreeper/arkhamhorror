@@ -4347,7 +4347,9 @@ func _test_kw_occ_profile_table() -> bool:
 	if KeywordProfileTable.profile_for(&"surge").category_tier != KeywordProfileTable.TIER_DELAYED:
 		return false
 	var massive := KeywordProfileTable.profile_for(&"massive")
-	if massive == null or massive.fire_flow_id != KeywordProfileTable.FLOW_PHASE_ATTACKS:
+	if massive == null or massive.fire_flow_id != KeywordProfileTable.FLOW_ENEMY_ATTACK:
+		return false
+	if massive.consume_slot != KeywordProfileTable.SLOT_ATTACK:
 		return false
 	if massive.consume_flow_id != KeywordProfileTable.FLOW_KEYWORD_MASSIVE:
 		return false
