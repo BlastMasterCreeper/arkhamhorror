@@ -1,8 +1,8 @@
 class_name KeywordProfileTable
 extends RefCounted
 
-## 06 §3.2.6 · 注册/注销绑已有流程砖或 zone 变迁。猎物 / 生成不进本表。
-## LISTENER 延时竖切仍按 consume_slot 过滤。
+## 06 §3.2.6–§3.2.7 · 注册/注销绑已有流程砖或 zone 变迁。猎物 / 生成不进本表。
+## LISTENER 开火：KeywordConsumer 按 (fire_flow_id, consume_slot) 收集，再按 fire_priority 排序。
 
 const SLOT_AFTER_DRAWN_CARD: StringName = &"AFTER_DRAWN_CARD"
 
@@ -16,12 +16,18 @@ const FLOW_KEYWORD_SURGE: StringName = &"seq.keyword.surge"
 const FLOW_KEYWORD_HUNTER: StringName = &"seq.keyword.hunter"
 const FLOW_KEYWORD_PATROL: StringName = &"seq.keyword.patrol"
 const FLOW_ENEMY_3_2: StringName = &"seq.enemy.3_2"
+const FLOW_ENEMY_ATTACK: StringName = &"seq.enemy.attack"
+const FLOW_ENEMY_DEFEAT: StringName = &"seq.enemy.defeat"
+const FLOW_SKILL_TEST: StringName = &"seq.skill_test"
 
 const SLOT_G2: StringName = &"G2"
 const SLOT_G4: StringName = &"G4"
 const SLOT_WHEN: StringName = &"WHEN"
 const SLOT_AFTER: StringName = &"AFTER"
 const SLOT_ENEMY_3_2: StringName = &"ENEMY_3_2"
+const SLOT_POST_ST7_FAIL: StringName = &"POST_ST7_FAIL"
+const SLOT_AFTER_ATTACK: StringName = &"AFTER_ATTACK"
+const SLOT_ON_DEFEAT: StringName = &"ON_DEFEAT"
 const SLOT_ENTER_PLAY: StringName = &"ENTER_PLAY"
 const SLOT_LEAVE_PLAY: StringName = &"LEAVE_PLAY"
 const SLOT_ENTER_HAND: StringName = &"ENTER_HAND"
@@ -54,6 +60,12 @@ const BUFF_DOMAIN: StringName = &"DOMAIN"
 const BUFF_DECKBUILDING: StringName = &"DECKBUILDING"
 const BUFF_INITIATION: StringName = &"INITIATION"
 
+const TIER_FORCED: StringName = &"FORCED"
+const TIER_FRAMEWORK: StringName = &"FRAMEWORK"
+const TIER_TRIGGERED: StringName = &"TRIGGERED"
+const TIER_DELAYED: StringName = &"DELAYED"
+const TIER_LISTENER: StringName = &"LISTENER"
+
 const PLAY_ACTION: StringName = &"PLAY_ACTION"
 const PLAY_FAST_WINDOW: StringName = &"PLAY_FAST_WINDOW"
 const PLAY_FAST_TIMING: StringName = &"PLAY_FAST_TIMING"
@@ -75,6 +87,32 @@ static func profiles_for_slot(slot: StringName) -> Array[KeywordProfile]:
 	for profile in _all():
 		if profile.consume_slot == slot:
 			matched.append(profile)
+	matched.sort_custom(func(a: KeywordProfile, b: KeywordProfile) -> bool:
+		if a.fire_priority != b.fire_priority:
+			return a.fire_priority < b.fire_priority
+		return str(a.keyword) < str(b.keyword)
+	)
+	return matched
+
+
+static func profiles_for_fire_anchor(
+	fire_flow_id: StringName,
+	fire_slot: StringName
+) -> Array[KeywordProfile]:
+	var matched: Array[KeywordProfile] = []
+	for profile in _all():
+		if profile.buff_type != BUFF_LISTENER:
+			continue
+		if profile.fire_flow_id != fire_flow_id:
+			continue
+		if profile.consume_slot != fire_slot:
+			continue
+		matched.append(profile)
+	matched.sort_custom(func(a: KeywordProfile, b: KeywordProfile) -> bool:
+		if a.fire_priority != b.fire_priority:
+			return a.fire_priority < b.fire_priority
+		return str(a.keyword) < str(b.keyword)
+	)
 	return matched
 
 
@@ -105,54 +143,69 @@ static func play_form(has_fast: bool, has_timing_point: bool) -> StringName:
 
 static func _all() -> Array[KeywordProfile]:
 	var profiles: Array[KeywordProfile] = []
-	## LISTENER · 绑 seq.draw.encounter 已有砖（不另开 PERIL_CHECK / CARD_DRAWN 节点）
+	## LISTENER · 涌动：挂载抽牌 WHEN；开火 = 本条 AFTER 之后（DELAYED）
 	profiles.append(_row(
 		&"surge", BUFF_LISTENER,
 		FLOW_DRAW_ENCOUNTER, SLOT_WHEN,
 		FLOW_DRAW_ENCOUNTER, SLOT_AFTER,
 		ZONE_LIMBO, LIFE_UNTIL_FIRED,
-		SLOT_AFTER_DRAWN_CARD, FLOW_KEYWORD_SURGE
+		SLOT_AFTER_DRAWN_CARD, FLOW_KEYWORD_SURGE,
+		FLOW_DRAW_ENCOUNTER, 10, TIER_DELAYED
 	))
 	profiles.append(_row(
 		&"starting", BUFF_LISTENER,
 		FLOW_SETUP, SLOT_SETUP,
 		FLOW_SETUP, SLOT_AFTER,
-		ZONE_DECK, LIFE_IN_DECK
+		ZONE_DECK, LIFE_IN_DECK,
+		&"", &"",
+		FLOW_SETUP, 10, TIER_DELAYED
 	))
 	profiles.append(_row(
 		&"swarming", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY,
 		&"", SLOT_FIRED,
-		ZONE_PLAY, LIFE_UNTIL_FIRED
+		ZONE_PLAY, LIFE_UNTIL_FIRED,
+		&"", &"",
+		FLOW_ENCOUNTER_SPAWN, 10, TIER_DELAYED
 	))
-	## LISTENER · 进场挂载；开火 payload = seq.keyword.* @ Framework 3.2 消费槽
+	## LISTENER · 进场挂载；开火锚在固定框架/攻击/检定流程（非流程内联管理体）
 	profiles.append(_row(
 		&"hunter", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
-		SLOT_ENEMY_3_2, FLOW_KEYWORD_HUNTER
+		SLOT_ENEMY_3_2, FLOW_KEYWORD_HUNTER,
+		FLOW_ENEMY_3_2, 10, TIER_LISTENER
 	))
 	profiles.append(_row(
 		&"patrol", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
-		SLOT_ENEMY_3_2, FLOW_KEYWORD_PATROL
+		SLOT_ENEMY_3_2, FLOW_KEYWORD_PATROL,
+		FLOW_ENEMY_3_2, 20, TIER_LISTENER
 	))
 	profiles.append(_row(
 		&"retaliate", BUFF_LISTENER,
-		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
+		SLOT_POST_ST7_FAIL, &"",
+		FLOW_SKILL_TEST, 10, TIER_LISTENER
 	))
 	profiles.append(_row(
 		&"alert", BUFF_LISTENER,
-		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
+		SLOT_POST_ST7_FAIL, &"",
+		FLOW_SKILL_TEST, 20, TIER_LISTENER
 	))
 	profiles.append(_row(
 		&"elusive", BUFF_LISTENER,
-		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
+		SLOT_AFTER_ATTACK, &"",
+		FLOW_ENEMY_ATTACK, 10, TIER_LISTENER
 	))
 	profiles.append(_row(
 		&"doomed", BUFF_LISTENER,
-		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
+		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
+		SLOT_ON_DEFEAT, &"",
+		FLOW_ENEMY_DEFEAT, 10, TIER_LISTENER
 	))
-	## RESTRICTION · 险境 = 遭遇抽牌 G2 / G4 已有砖
+	## RESTRICTION · 险境 = 遭遇抽牌 G2 / G4 已有砖（无 fire_priority；挂载即生效）
 	profiles.append(_row(
 		&"peril", BUFF_RESTRICTION,
 		FLOW_DRAW_ENCOUNTER, SLOT_G2,
@@ -219,7 +272,10 @@ static func _row(
 	armed_zone: StringName,
 	lifetime_kind: StringName,
 	consume_slot: StringName = &"",
-	consume_flow_id: StringName = &""
+	consume_flow_id: StringName = &"",
+	fire_flow_id: StringName = &"",
+	fire_priority: int = 100,
+	category_tier: StringName = TIER_LISTENER
 ) -> KeywordProfile:
 	var profile := KeywordProfile.new()
 	profile.keyword = keyword
@@ -232,4 +288,7 @@ static func _row(
 	profile.lifetime_kind = lifetime_kind
 	profile.consume_slot = consume_slot
 	profile.consume_flow_id = consume_flow_id
+	profile.fire_flow_id = fire_flow_id
+	profile.fire_priority = fire_priority
+	profile.category_tier = category_tier
 	return profile

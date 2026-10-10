@@ -4324,6 +4324,28 @@ func _test_kw_occ_profile_table() -> bool:
 		return false
 	if hunter.armed_zone != KeywordProfileTable.ZONE_PLAY:
 		return false
+	if hunter.fire_flow_id != KeywordProfileTable.FLOW_ENEMY_3_2:
+		return false
+	if hunter.consume_slot != KeywordProfileTable.SLOT_ENEMY_3_2:
+		return false
+	if hunter.consume_flow_id != KeywordProfileTable.FLOW_KEYWORD_HUNTER:
+		return false
+	if hunter.fire_priority != 10 or hunter.category_tier != KeywordProfileTable.TIER_LISTENER:
+		return false
+	var patrol := KeywordProfileTable.profile_for(&"patrol")
+	if patrol == null or patrol.fire_flow_id != KeywordProfileTable.FLOW_ENEMY_3_2:
+		return false
+	if patrol.fire_priority != 20:
+		return false
+	var enemy_3_2 := KeywordProfileTable.profiles_for_fire_anchor(
+		KeywordProfileTable.FLOW_ENEMY_3_2, KeywordProfileTable.SLOT_ENEMY_3_2
+	)
+	if enemy_3_2.size() < 2:
+		return false
+	if enemy_3_2[0].keyword != &"hunter" or enemy_3_2[1].keyword != &"patrol":
+		return false
+	if KeywordProfileTable.profile_for(&"surge").category_tier != KeywordProfileTable.TIER_DELAYED:
+		return false
 	var starting := KeywordProfileTable.profile_for(&"starting")
 	if starting == null or starting.register_flow_id != KeywordProfileTable.FLOW_SETUP:
 		return false

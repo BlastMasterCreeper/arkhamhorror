@@ -114,15 +114,17 @@ Grimoire **III. Enemy Phase** 是完整 Framework 步进，不是「关键词 LI
 ```text
 seq.enemy.3_2（框架基础手续）
   for each ready, unengaged enemy:
-    KeywordConsumer @ ENEMY_3_2
-      ├─ nest seq.keyword.hunter   ← 关键词移动体（摘出）
-      └─ nest seq.keyword.patrol   ← 关键词移动体（摘出）
+    KeywordConsumer @ 开火锚 (seq.enemy.3_2, ENEMY_3_2)
+      ├─ fire_priority 10 · nest seq.keyword.hunter
+      └─ fire_priority 20 · nest seq.keyword.patrol
   → PW_ENEMY_AFTER_MOVE
 ```
 
-**框架步 `seq.enemy.3_2`**：合格枚举（ready / 未交战）、顺序调用消费槽、步末窗口。**不含**「向谁移 / 向哪移」路径。
+**框架步 `seq.enemy.3_2`**：合格枚举（ready / 未交战）、打开开火槽、步末窗口。**不含**「向谁移 / 向哪移」路径。
 
-**Hunter / Patrol**（③ LISTENER 开火 · `seq.keyword.*`）：由 KeywordConsumer 在 `ENEMY_3_2` 槽 nest；**不**写回 Framework handler；**不**另铸 `seq.enemy.3_2_*`。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
+**挂载**：Hunter/Patrol 于 **ENTER_PLAY** Register（`WHILE_IN_PLAY`）。  
+**开火锚 / 优先级**：见 [06 §3.2.7](06-registration-buff-model.md#327-关键词监听挂载时点--开火锚--优先级已裁决) — 同锚 Hunter **先于** Patrol（引擎固定）；跨类晚于同窗 FORCED。  
+**开火体**：`seq.keyword.*`；**不**写回 Framework handler；**不**另铸 `seq.enemy.3_2_*`。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
 
 | 关键词 | 编译 / 开火 | 参数（①） |
 |---|---|---|
@@ -440,3 +442,4 @@ class EnemySystem:
 | 2026-06-18 | v0.5.1 | §3 威胁区=交战（常态）；§6.6 Fight 失败转嫁 · 庞大不进威胁区 |
 | 2026-10-10 | v0.5.2 | §5.0：敌军阶段 3.1–3.4 基础流程非空壳；3.2=`seq.enemy.3_2`；LISTENER 只承担移动体 |
 | 2026-10-10 | v0.5.3 | §5.1：Hunter/Patrol 移动体摘为 `seq.keyword.hunter` / `patrol`；框架只枚举+消费槽 |
+| 2026-10-10 | v0.5.4 | §5.1：开火锚 + fire_priority（Hunter 10 先于 Patrol 20）；链 06 §3.2.7 |

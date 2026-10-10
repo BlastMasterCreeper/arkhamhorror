@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.18 · 2026-09-21 — ApplicationContext.referents ≠ 历史
+> **状态**：v0.4.19 · 2026-10-10 — §3.2.7 关键词开火锚 + fire_priority
 
 ---
 
@@ -306,8 +306,8 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 | 关键词 | mount | Lifetime | trigger | 开火 payload | 现状 |
 |---|---|---|---|---|---|
-| **Hunter** 猎手 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | `(seq.enemy.3_2, ENEMY_3_2)` | nest `seq.keyword.hunter`（移 1 步；等距读 Prey） | ✅ KeywordConsumer 竖切 |
-| **Patrol** 巡逻 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 同 3.2 | nest `seq.keyword.patrol`（向括号目标移 1 步） | ✅ KeywordConsumer 竖切 |
+| **Hunter** 猎手 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | `(seq.enemy.3_2, ENEMY_3_2)` · pri **10** | nest `seq.keyword.hunter`（移 1 步；等距读 Prey） | ✅ §3.2.7 |
+| **Patrol** 巡逻 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 同锚 · pri **20** | nest `seq.keyword.patrol`（向括号目标移 1 步） | ✅ §3.2.7 |
 | **Retaliate** 反击 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | `perform_attack(RETALIATE)` | ✅ |
 | **Alert** 警戒 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ 未进 `keywords[]` |
 | **Elusive** 逃逸 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ 未进 `keywords[]` |
@@ -481,6 +481,71 @@ on_card_leave_play(card)
 | listener 跑完 | `UNTIL_FIRED` 自卸 |
 
 **禁止**：用 `on_card_leave_play` 清涌动/险境；把 Fast 事件当成进场 LISTENER；把显现 Register 成 `WHILE_IN_PLAY`；为险境/G4/抽取步骤发明独立场合节点。
+
+#### 3.2.7 关键词监听：挂载时点 × 开火锚 × 优先级（已裁决）
+
+> **前提**：关键词 LISTENER **不再由父流程 handler 内联管理**（例：`seq.enemy.3_2` 不含 Hunter/Patrol 移动路径）。因此必须写清三件事：**(1) 何时挂载**、**(2) 挂到哪条固定流程的哪个时点开火**、**(3) 同锚点多监听器的优先级**。
+
+##### A. 三层勿混
+
+| 层 | 字段（KeywordProfile） | 含义 |
+|---|---|---|
+| **挂载 mount** | `register_flow_id` + `register_slot`（或 zone `ENTER_PLAY`…） | 从何时起 **拥有 / 武装** LISTENER（可早于首次开火） |
+| **开火锚 fire** | `fire_flow_id` + `consume_slot` | 监听 **哪条固定 `seq.*` 的哪一砖**；父流程只 **打开该槽**，不写关键词体 |
+| **开火体 payload** | `consume_flow_id` → `seq.keyword.*` | nest 出去的移动/攻击/再抽等 |
+
+```text
+mount（进场 / G2 / …）
+  └─ RegistrationStore LISTENER（武装）
+固定流程到达 fire 锚
+  └─ COLLECT 同锚 listeners
+       ├─ 跨类：AbilityCategoryTier（06-ability §8.1）
+       └─ 同类关键词：fire_priority 升序（本节 B）
+            └─ nest consume_flow_id
+```
+
+**竖切现状**：`KeywordConsumer.consume_at(slot)` 在父流程 RESOLVE 砖内调用 = 落在 WHEN 响应批 **之后**，因而天然晚于同窗 **FORCED**（与 §8.1「LISTENER 整类在 FORCED 之后」一致）。目标态接入 TimingCatalog 后仍须保持该跨类序。
+
+##### B. 优先级两层
+
+| 层 | 规则 | 裁决者 |
+|---|---|---|
+| **跨类** | `FORCED` → `FRAMEWORK` → `TRIGGERED` → `DELAYED` → `LISTENER`（整批） | 引擎 · [06-ability §8.1](06-ability-initiation.md#8-timingbus-与优先级) |
+| **同锚 · 关键词之间** | `KeywordProfile.fire_priority` **升序**（小者先）；并列 → keyword 名字典序 | **引擎固定**；**不可**队长强制对调关键词种类序 |
+| **同锚 · 多实例同关键词** | 默认注册序；需要选用时走 Lead（§8.2 LISTENER 行） | 玩家 / 流程 |
+
+`category_tier`：涌动 / Starting / Swarming = **`DELAYED`**（父流程 AFTER **之后** 另开或延时）；Hunter / Patrol / Retaliate / Alert / Elusive / Doomed = **`LISTENER`**。
+
+##### C. 开火锚总表（Core 关键词 LISTENER）
+
+| 关键词 | 挂载 | 开火锚 `(fire_flow_id, slot)` | tier | `fire_priority` | payload |
+|---|---|---|---|---:|---|
+| **Surge** | 抽牌 WHEN / GRANT | `(seq.draw.encounter, AFTER_DRAWN_CARD)` | DELAYED | 10 | `seq.keyword.surge` |
+| **Hunter** | ENTER_PLAY | `(seq.enemy.3_2, ENEMY_3_2)` | LISTENER | **10** | `seq.keyword.hunter` |
+| **Patrol** | ENTER_PLAY | `(seq.enemy.3_2, ENEMY_3_2)` | LISTENER | **20** | `seq.keyword.patrol` |
+| **Retaliate** | ENTER_PLAY | `(seq.skill_test, POST_ST7_FAIL)` · Fight 失败 | LISTENER | 10 | attack（竖切） |
+| **Alert** | ENTER_PLAY | `(seq.skill_test, POST_ST7_FAIL)` · Evade 失败 | LISTENER | 20 | attack（竖切） |
+| **Elusive** | ENTER_PLAY | `(seq.enemy.attack, AFTER_ATTACK)`（含被 Fight） | LISTENER | 10 | flee+exhaust |
+| **Doomed** | ENTER_PLAY | `(seq.enemy.defeat, ON_DEFEAT)` | LISTENER | 10 | +1 agenda doom |
+| **Starting** | setup / 库 | `(seq.setup, AFTER mulligan)` | DELAYED | 10 | 检索入手 |
+| **Swarming** | ENTER_PLAY | `(seq.encounter.spawn, AFTER)` | DELAYED | 10 | 垫 X swarm |
+
+**同锚已裁序**：
+
+- **`ENEMY_3_2`**：Hunter **先于** Patrol（同敌双关键词时引擎固定；非玩家可选）。
+- **`POST_ST7_FAIL`**：Retaliate / Alert 由 **行动种类**（Fight vs Evade）互斥过滤；`fire_priority` 仅防双合法时的引擎序。
+- **遭遇抽牌队**：险境 / 显现 / G4 仍用 FrameworkPriority（[15 §4.0.5.2](15-timing-entry-catalog.md)）；**涌动不入该队**，在 AFTER 后以 DELAYED 开火。
+
+##### D. 父流程职责（对照）
+
+| 固定流程 | 基础手续（流程自己做） | 打开的关键词槽 | **不做** |
+|---|---|---|---|
+| `seq.enemy.3_2` | 枚举 ready / 未交战；开窗 | `ENEMY_3_2` | Hunter/Patrol 移动路径 |
+| `seq.draw.encounter` | G1–G4 队列 | `AFTER_DRAWN_CARD`（涌动） | 把涌动写进 G1–G4 优先队 |
+| `seq.skill_test` | ST.1–ST.8 | `POST_ST7_FAIL` | 在 ST handler 按名写死 Retaliate/Alert 体（目标：槽开火） |
+| `seq.enemy.attack` / `defeat` | 攻击 / 击败内核 | `AFTER_ATTACK` / `ON_DEFEAT` | 内联 Elusive / Doomed 种类分支 |
+
+**禁止**：为关键词另开与固定流程平行的 `seq.enemy.3_2_*`；在父 handler `match keyword` 写移动/攻击体；用队长选序跨越 Hunter↔Patrol 的 `fire_priority`。
 
 ---
 
@@ -1052,6 +1117,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-10 | v0.4.19 | **§3.2.7** 关键词挂载时点 × 开火锚 × 跨类/同锚优先级；`fire_priority`（Hunter 10 先于 Patrol 20） |
 | 2026-09-21 | v0.4.18 | §12：`referents` 是 Memory 切片，历史走 EventRecord / StatProjection（07 §1.4） |
 | 2026-09-21 | v0.4.17 | §4：卡面创建 Buff = nest `seq.effect.register`；管线 Register 仍是父 seq 砖 |
 | 2026-09-21 | v0.4.16 | 打出始终 `PLAY_CARD`；Fast 编译 `play_form`（窗口/花费对称），不收成 `ABILITY` |

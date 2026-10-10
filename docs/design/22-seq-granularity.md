@@ -121,6 +121,8 @@
 
 禁止再铸 `seq.enemy.3_2_hunter_patrol` / `3_2_patrol`（那是把关键词写回框架）。
 
+挂载 / 开火锚 / `fire_priority` 总表 → [06 §3.2.7](06-registration-buff-model.md#327-关键词监听挂载时点--开火锚--优先级已裁决)（Hunter 10 先于 Patrol 20）。
+
 | flow_id | Grimoire | 粒度裁决（草案） |
 |---|---|---|
 | `seq.enemy.move` | Move（敌人） | **保留**：卡面/效果移敌内核 |
@@ -236,3 +238,4 @@
 | 2026-10-10 | 纠正 M2：Hunter/Patrol 不是固定流程，应按 06 §3.2.5 为 LISTENER @ `seq.enemy.3_2` |
 | 2026-10-10 | 再纠：敌军阶段 III（3.1–3.4）与 3.2 本身有基础流程，不是空壳；LISTENER 只承担关键词移动体；M2 确认 |
 | 2026-10-10 | M2 落地：关键词移动体摘出为 `seq.keyword.hunter` / `patrol`；`seq.enemy.3_2` 只做枚举+消费槽 |
+| 2026-10-10 | 链 06 §3.2.7：关键词开火锚与同锚 fire_priority |

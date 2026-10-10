@@ -1,8 +1,8 @@
 class_name KeywordConsumer
 extends RefCounted
 
-## LISTENER 竖切（06 §3.2.5）：开火 payload 为命名 seq 时 nest。
-## 涌动 @ AFTER_DRAWN_CARD；Hunter/Patrol @ ENEMY_3_2（Framework 3.2 基础手续内调用）。
+## LISTENER 竖切（06 §3.2.7）：按 consume_slot 收集，**fire_priority 升序**开火；
+## payload 为命名 seq 时 nest。挂载时点 ≠ 开火锚；流程本身不管理关键词体。
 
 
 static func consume_after_drawn_card(
