@@ -1189,12 +1189,21 @@ func _execute_nest_engage(node: CompositionNode) -> bool:
 	var enemy_id := _resolve_enemy_spec(node, inv_id)
 	if enemy_id == &"":
 		return false
-	var mode := node.engage_mode if node.engage_mode != &"" else &"effect"
+	var mode := node.engage_mode if node.engage_mode != &"" else EngageFlow.SOURCE_EFFECT
+	var placement := (
+		node.engage_placement if node.engage_placement != &""
+		else EngageFlow.PLACEMENT_ENTER_THREAT
+	)
+	var require_same := placement != EngageFlow.PLACEMENT_GRANT
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
 		&"seq.engage",
 		{
+			"source": mode,
 			"mode": mode,
+			"initiation": EngageFlow.INITIATION_INVESTIGATOR,
+			"placement": placement,
+			"require_same_location": require_same,
 			"enemy_id": enemy_id,
 			"investigator_id": inv_id,
 		}
@@ -1383,7 +1392,7 @@ func _execute_nest_gain_resource(node: CompositionNode) -> bool:
 	var amount := maxi(node.marker_delta, 1)
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
-		&"seq.gain_resource",
+		&"seq.effect.gain_resource",
 		{
 			"controller_id": inv_id,
 			"base_amount": amount,

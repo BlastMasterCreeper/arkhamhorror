@@ -16,7 +16,7 @@ func gain(
 ) -> int:
 	var result := _catalog.run(
 		game_ctx,
-		&"seq.gain_resource",
+		&"seq.effect.gain_resource",
 		{
 			"controller_id": controller_id,
 			"base_amount": base_amount,

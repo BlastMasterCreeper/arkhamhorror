@@ -149,11 +149,13 @@ pick_target
 
 自动交战 ≠ 效果/行动交战（[08 §3](08-enemy-engagement.md)、RR Engage）：
 
-| | `auto_engage_at_location` | `seq.engage` mode=effect/action |
+| | `auto_engage_at_location`（`source=auto`） | `seq.engage` `source=effect/action` |
 |---|---|---|
 | 冷漠（Aloof） | **不**交战 | **可以**交战 |
 | 横置（exhausted） | **不**交战 | **可以**交战 |
 | 多调查员 WHO | Prey → Lead | 卡面指定（如 controller） |
+| `initiation` | `automatic` | 默认 `investigator` |
+| `placement` | `enter_threat` | 默认同；跨地点/无「进入」动作用 `grant` |
 
 因此 **禁止**用「给自动交战塞 forced target」替代明示交战——冷漠/横置场合自动路径根本不会开火，卡面「engages you」会丢。
 

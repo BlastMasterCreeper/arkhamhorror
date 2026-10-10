@@ -44,7 +44,27 @@ class EnemyState:
 
 **术语**：**`spawn_engaged`** = 进场时已是 engaged 状态（L0 一次提交）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标；**`Engage action`** = 调查员行动。三者 **不可** 混用。
 
-**多调查员同地点**：走 **`auto_engage_at_location`**（**② engage 内核**）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
+### 3.1 命名流程 `seq.engage`（已扩展）
+
+**唯一**交战内核；**禁止**按场合另铸 `seq.enemy.auto_engage` 等。行动外壳 `seq.action.engage` **nest** 本条（与 draw/gain 对称）。
+
+| 维度 | 说明 |
+|---|---|
+| **常态** | 同地点敌人 **进入** 调查员威胁区 → 成对写入 `engaged_with` + `threat_area` |
+| **特殊 · 地点** | 卡面可不要求「从所在地点进入」（`require_same_location=false`） |
+| **特殊 · 安置** | `placement=grant`：不强调「进入」区划动作，仅赋予成对交战状态（日后可叠 Register Buff，仍走本 flow） |
+| **成对** | 交战状态同时施加于敌/调查员双方（非单边 flag） |
+| **来源 vs 主动** | `source`（auto/action/effect）与 `initiation`（automatic/investigator）正交；订能力按二者过滤 |
+
+| `source` | 典型入口 | 默认 `initiation` | 冷漠/横置 |
+|---|---|---|---|
+| `auto` | 区域变更 nest（地点 / 脱离 / 重整） | `automatic` | **跳过** |
+| `action` | `seq.action.engage` nest | `investigator` | **可**交战 |
+| `effect` | 卡面 `nest_engage` | `investigator`（卡面可改） | **可**交战 |
+
+`spawn_engaged` 仍是 **L0 原子进场**，不压 `seq.engage`（无 auto 过程）。庞大虚拟交战见 §6.6，不进威胁区。
+
+**多调查员同地点**：走 **`auto_engage_at_location`**（**②** `seq.engage` source=auto）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
 
 ```gdscript
 func auto_engage_at_location(enemy_id: StringName, location: EntityId) -> void:
@@ -459,3 +479,4 @@ class EnemySystem:
 | 2026-10-10 | v0.5.4 | §5.1：开火锚 + fire_priority（Hunter 10 先于 Patrol 20）；链 06 §3.2.7 |
 | 2026-10-10 | v0.5.5 | §6.3 M3：删平行 massive_phase_attacks；庞大 REPLACE |
 | 2026-10-10 | v0.5.6 | §6.3：庞大 REPLACE 锚 = `seq.enemy.attack`；`phase_attacks` 只 nest 攻击 |
+| 2026-10-10 | v0.5.7 | §3.1：扩展 `seq.engage`（source/initiation/placement）；行动外壳 nest 内核 |

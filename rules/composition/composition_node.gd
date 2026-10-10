@@ -62,6 +62,8 @@ var target_filter: StringName = &""
 var selection_spec: SelectionSpec = null
 ## nest_engage / nest_enemy_move_to 等模式或开关载荷。
 var engage_mode: StringName = &"effect"
+## seq.engage placement：`enter_threat`（默认）或 `grant`（成对状态、可不要求同地点）。
+var engage_placement: StringName = &"enter_threat"
 var auto_engage: bool = true
 ## 弃牌来源区：空=指定/寻址单张；`hand` = 从手牌按 amount/mode。
 var from_zone: StringName = &""
@@ -465,7 +467,7 @@ static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
 	return move_to_connecting(controller_id)
 
 
-## L1 · 获得资源（反应/效果；nest `seq.gain_resource`）。
+## L1 · 获得资源（反应/效果；nest `seq.effect.gain_resource`）。
 static func nest_gain_resource(controller_id: StringName, amount: int = 1) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -1079,7 +1081,8 @@ static func nest_engage(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
 	mode: StringName = &"effect",
-	source_card_id: StringName = &""
+	source_card_id: StringName = &"",
+	placement: StringName = &"enter_threat"
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -1089,6 +1092,7 @@ static func nest_engage(
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec
 	n.engage_mode = mode
+	n.engage_placement = placement
 	return n
 
 

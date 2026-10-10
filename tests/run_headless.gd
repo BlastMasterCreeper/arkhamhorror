@@ -245,7 +245,10 @@ func _initialize() -> void:
 	_run_test("ACT-07 engage adds to threat area", _test_act_engage_success)
 	_run_test("ACT-08 engage steals enemy", _test_act_engage_steal)
 	_run_test("ACT-09 engage rejects massive", _test_act_engage_massive)
+	_run_test("ACT-09b action engage nests seq.engage investigator", _test_act_engage_nests_kernel)
 	_run_test("ACT-10 engage then fight aloof", _test_act_engage_then_fight)
+	_run_test("ENGAGE-01 grant placement skips same-location", _test_engage_grant_cross_location)
+	_run_test("M4-01 effect.gain_resource registered with alias", _test_m4_gain_resource_rename)
 	_run_test("ACT-16 fight fail redirects to engaged holder", _test_act_fight_fail_redirect)
 	_run_test("AOO-01 resource provokes damage", _test_aoo_resource)
 	_run_test("AOO-02 fight skips aoo", _test_aoo_fight_skip)
@@ -5375,6 +5378,73 @@ func _test_act_engage_massive() -> bool:
 	return not res.ok and res.error == "massive"
 
 
+func _test_act_engage_nests_kernel() -> bool:
+	## 行动外壳须 nest seq.engage，返回 investigator initiation + enter_threat。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		res.ok
+		and res.get("source", &"") == EngageFlow.SOURCE_ACTION
+		and res.get("initiation", &"") == EngageFlow.INITIATION_INVESTIGATOR
+		and res.get("placement", &"") == EngageFlow.PLACEMENT_ENTER_THREAT
+		and enemy != null
+		and enemy.is_engaged_with(&"inv_1")
+	)
+
+
+func _test_engage_grant_cross_location() -> bool:
+	## placement=grant：可不要求同地点，仍成对写入交战状态。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_far")
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_far", &"loc_far", 2, 2)
+	var res := h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.engage",
+		{
+			"source": EngageFlow.SOURCE_EFFECT,
+			"initiation": EngageFlow.INITIATION_INVESTIGATOR,
+			"placement": EngageFlow.PLACEMENT_GRANT,
+			"require_same_location": false,
+			"enemy_id": &"enemy_far",
+			"investigator_id": &"inv_1",
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_far")
+	return (
+		res.ok
+		and res.get("placement", &"") == EngageFlow.PLACEMENT_GRANT
+		and enemy != null
+		and enemy.is_engaged_with(&"inv_1")
+		and inv.threat_area.has(&"enemy_far")
+	)
+
+
+func _test_m4_gain_resource_rename() -> bool:
+	var h := RuleTestHarness.new(42)
+	var catalog := h.ctx.sequence_catalog
+	if catalog == null:
+		return false
+	if not catalog.has_flow(&"seq.effect.gain_resource"):
+		return false
+	## 旧 id 仍为别名。
+	if not catalog.has_flow(&"seq.gain_resource"):
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.resource_pool
+	var result := catalog.run(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{"controller_id": &"inv_1", "base_amount": 2, "source_tags": []}
+	)
+	return int(result.get("amount", 0)) == 2 and inv.resource_pool == before + 2
+
+
 func _test_act_engage_then_fight() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -5493,10 +5563,12 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.replace.instead",
 		&"seq.action.draw",
 		&"seq.action.gain_resource",
+		&"seq.effect.gain_resource",
 		&"seq.action.move",
 		&"seq.action.investigate",
 		&"seq.action.fight",
 		&"seq.action.engage",
+		&"seq.engage",
 		&"seq.action.evade",
 		&"seq.effect.discover_clue",
 	]

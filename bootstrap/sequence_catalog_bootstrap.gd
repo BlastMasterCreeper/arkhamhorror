@@ -81,18 +81,18 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return _resolve_draw_investigator(game_ctx, params, mutator, catalog)
 	)
-	catalog.register_run(
-		&"seq.gain_resource",
-		func(params: Dictionary) -> TriggeringCondition:
-			var controller_id: StringName = params.get("controller_id", &"")
-			var source_tags: Array = params.get("source_tags", [])
-			var tags: Array[StringName] = []
-			for tag in source_tags:
-				tags.append(tag as StringName)
-			return TriggeringCondition.gain_resource(controller_id, tags),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return _resolve_gain_resource(game_ctx, params, mutator)
-	)
+	## M4：正式 id = seq.effect.gain_resource；旧 id 保留为别名。
+	var gain_build := func(params: Dictionary) -> TriggeringCondition:
+		var controller_id: StringName = params.get("controller_id", &"")
+		var source_tags: Array = params.get("source_tags", [])
+		var tags: Array[StringName] = []
+		for tag in source_tags:
+			tags.append(tag as StringName)
+		return TriggeringCondition.gain_resource(controller_id, tags)
+	var gain_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return _resolve_gain_resource(game_ctx, params, mutator)
+	catalog.register_run(&"seq.effect.gain_resource", gain_build, gain_resolve)
+	catalog.register_run(&"seq.gain_resource", gain_build, gain_resolve)
 	_register_keyword_flows(catalog)
 	_register_interrupt_flows(catalog)
 	_register_replace_flows(catalog)
