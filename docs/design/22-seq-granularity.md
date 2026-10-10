@@ -98,12 +98,12 @@
 | flow_id | Grimoire | 粒度裁决（草案） |
 |---|---|---|
 | `seq.enemy.move` | Move（敌人） | **保留**：卡面/效果移敌内核 |
-| `seq.enemy.3_2_hunter_patrol` | （误铸） | **删除候选** → 见 §4 M2；Hunter = LISTENER |
-| `seq.enemy.3_2_patrol` | （误铸） | **删除候选** → 见 §4 M2；Patrol = LISTENER |
-| `seq.enemy.3_2`（应有） | Framework 3.2 空壳 | **待铸**：仅 emit WHEN，供关键词 LISTENER 开火 |
+| `seq.enemy.3_2_hunter_patrol` | （误铸） | **删除** → 见 §4 M2 |
+| `seq.enemy.3_2_patrol` | （误铸） | **删除** → 见 §4 M2 |
+| `seq.enemy.3_2`（应有） | Framework **3.2** 基础手续 | **待铸/收口**：有完整框架步（枚举合格敌人、开窗、RESOLVE）；**不是**空壳。Hunter/Patrol **行为**由 LISTENER 承担，不写进 handler 按名分支 |
 | `seq.enemy.attack` | Enemy attack | **保留**：单次攻击结算 |
 | `seq.enemy.phase_attacks` | 3.3 Engaged attacks | **合并候选** → 见 §4 M3 |
-| `seq.enemy.massive_phase_attacks` | Massive @ 3.3 | **合并候选** → 见 §4 M3（Massive 是否也走关键词 Buff 另议） |
+| `seq.enemy.massive_phase_attacks` | Massive @ 3.3 | **合并候选** → 见 §4 M3（Massive 另议） |
 | `seq.enemy.defeat` | Defeat（敌人） | **保留** |
 | `seq.enemy.resolve_location` | Prey / 地点解析辅助 | **保留或降为内部**（若无独立订阅需求） |
 | `seq.engage` | Engage | **保留内核**；与 `seq.action.engage` 外壳成对 |
@@ -205,3 +205,4 @@
 | 日期 | 说明 |
 |---|---|
 | 2026-10-10 | 初稿：对照 Grimoire + 现 Catalog；并入 discard 的敏感度原则；列出 M* / G* |
+| 2026-10-10 | 纠正 M2：Hunter/Patrol 不是固定流程，应按 06 §3.2.5 为 LISTENER 订薄壳 `seq.enemy.3_2` |
