@@ -1127,7 +1127,7 @@ func _execute_engage_target_inline(node: CompositionNode) -> bool:
 		return false
 	if not enemy.is_at_location(inv.location_tag):
 		return false
-	_game_ctx.enemy.apply_engage(enemy_id, inv_id)
+	_game_ctx.enemy.apply_engage(enemy_id, inv_id, true, _game_ctx)
 	_last_step_enemy_id = enemy_id
 	_last_step_engaged_investigator = inv_id
 	_last_step_created = true

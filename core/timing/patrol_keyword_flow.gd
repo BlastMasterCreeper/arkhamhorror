@@ -12,7 +12,7 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if enemy_id == &"":
 		return {"ok": false, "moved": false, "reason": &"missing_enemy"}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-	if enemy == null or enemy.exhausted or enemy.engaged_with != &"":
+	if enemy == null or enemy.exhausted or EngagementStatus.is_engaged(game_ctx, enemy_id):
 		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
 	var def_id: StringName = params.get("def_id", &"")
 	if def_id == &"":

@@ -73,6 +73,18 @@ static func suppress_auto_engage_until_fired(enemy_id: StringName) -> Registrati
 	return t
 
 
+## 交战状态：WHILE_IN_PLAY（敌人离场卸）；真实交战与视为交战共用。
+static func engagement_pair(enemy_id: StringName, investigator_id: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = investigator_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
+	t.drawn_card_id = enemy_id
+	t.buffs.append(
+		BuffSpec.restriction_buff(RestrictionPayload.engagement(enemy_id, investigator_id))
+	)
+	return t
+
+
 ## G2 peril Register：`WHILE_DRAWN_CARD_RESOLVING(card_id)` — G4 完 Unregister；不跨 Surge。
 static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()

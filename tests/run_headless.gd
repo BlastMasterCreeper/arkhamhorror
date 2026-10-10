@@ -247,7 +247,9 @@ func _initialize() -> void:
 	_run_test("ACT-09 engage rejects massive", _test_act_engage_massive)
 	_run_test("ACT-09b action engage nests seq.engage effect", _test_act_engage_nests_kernel)
 	_run_test("ACT-10 engage then fight aloof", _test_act_engage_then_fight)
-	_run_test("ENGAGE-01 grant placement skips same-location", _test_engage_grant_cross_location)
+	_run_test("ENGAGE-01 grant placement buff without threat area", _test_engage_grant_cross_location)
+	_run_test("ENGAGE-02 enter_threat registers engagement buff", _test_engage_enter_threat_buff)
+	_run_test("ENGAGE-03 disengage clears engagement buff", _test_engage_disengage_clears_buff)
 	_run_test("M4-01 effect.gain_resource registered with alias", _test_m4_gain_resource_rename)
 	_run_test("ACT-16 fight fail redirects to engaged holder", _test_act_fight_fail_redirect)
 	_run_test("AOO-01 resource provokes damage", _test_aoo_resource)
@@ -5396,7 +5398,7 @@ func _test_act_engage_nests_kernel() -> bool:
 
 
 func _test_engage_grant_cross_location() -> bool:
-	## placement=grant：可不要求同地点，仍成对写入交战状态。
+	## placement=grant：仅交战状态 Buff，不进威胁区场面。
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_location(h.ctx, &"loc_far")
 	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
@@ -5416,11 +5418,43 @@ func _test_engage_grant_cross_location() -> bool:
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_far")
 	return (
 		res.ok
-		and res.get("mode", &"") == EngageFlow.MODE_EFFECT
 		and res.get("placement", &"") == EngageFlow.PLACEMENT_GRANT
+		and bool(res.get("engagement_buff", false))
+		and not bool(res.get("enter_threat", true))
+		and EngagementStatus.is_engaged_with(h.ctx, &"enemy_far", &"inv_1")
 		and enemy != null
-		and enemy.is_engaged_with(&"inv_1")
-		and inv.threat_area.has(&"enemy_far")
+		and enemy.engaged_with == &""
+		and not inv.threat_area.has(&"enemy_far")
+	)
+
+
+func _test_engage_enter_threat_buff() -> bool:
+	## 真实交战：威胁区场面 + ENGAGEMENT Buff。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and inv.threat_area.has(&"enemy_1")
+		and EngagementStatus.is_engaged_with(h.ctx, &"enemy_1", &"inv_1")
+		and h.ctx.registrations.has_engagement(&"enemy_1", &"inv_1")
+	)
+
+
+func _test_engage_disengage_clears_buff() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	if not h.engage_action({"enemy_id": &"enemy_1"}).ok:
+		return false
+	h.ctx.enemy.disengage(h.ctx, &"enemy_1", false, false)
+	return (
+		not EngagementStatus.is_engaged_with(h.ctx, &"enemy_1", &"inv_1")
+		and not h.ctx.registrations.has_engagement(&"enemy_1", &"inv_1")
 	)
 
 

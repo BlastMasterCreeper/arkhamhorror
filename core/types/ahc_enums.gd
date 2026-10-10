@@ -284,8 +284,11 @@ enum RestrictionKind {
 	SKIP_AOO,
 	## 限制类：抑制 **自动交战**（Prey/Lead 选目标）。
 	## 效果移入后仍会走到 auto-engage 入口；入口 **读取** 本限制后自行跳过。
-	## 明示交战（seq.engage mode=effect/action）不受影响。
+	## 明示交战（seq.engage mode=effect）不受影响。
 	SUPPRESS_AUTO_ENGAGE,
+	## 交战状态（成对）：与威胁区场面脱钩。真实交战与「视为交战」均 Register 本 Buff。
+	## 查询入口读本 Kind；**不是** Intent 拦截，也不是 LISTENER。
+	ENGAGEMENT,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }

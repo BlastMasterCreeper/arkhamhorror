@@ -178,7 +178,7 @@
 | M2 | `3_2_hunter_patrol` / `3_2_patrol` | **已落地**：框架只留 **`seq.enemy.3_2`**（枚举 + 消费槽）；Hunter/Patrol 移动体摘为 **`seq.keyword.hunter` / `seq.keyword.patrol`**（KeywordConsumer @ `ENEMY_3_2`） | [08 §5](08-enemy-engagement.md)、[06 §3.2.5](06-registration-buff-model.md) | 关键词 ≠ 框架 handler 内联 |
 | M3 | `phase_attacks` + `massive_phase_attacks` | **已落地**：只留 **`seq.enemy.phase_attacks`**（固定 nest 攻击）；庞大 = 对一般攻击 **`seq.enemy.attack`** 的 **REPLACE**（PHASE→`seq.keyword.massive`）；删平行 massive 流程 | [06 §3.2.7](06-registration-buff-model.md)、[08 §6.3](08-enemy-engagement.md) | REPLACE 锚在攻击效果，不在 3.3 框架 |
 | M4 | `seq.gain_resource` | **已落地**：正式 `seq.effect.gain_resource`；旧 id 别名 | taxonomy | — |
-| M5 | `seq.engage` | **已收口**：`mode` 仅 `auto`/`effect`；行动外壳 nest **effect**；无 source/initiation 专轴 | 行动=效果交战；溯源靠栈 | placement 等复杂情况用 params |
+| M5 | `seq.engage` | **已收口**：`mode` 仅 `auto`/`effect`；交战状态 = **ENGAGEMENT Buff**（与威胁区脱钩）；grant/真实交战均 Register | 行动=效果交战 | 查询走 `EngagementStatus` |
 
 **不建议合并**（已确认或强烈倾向）：
 
@@ -240,7 +240,7 @@
 6. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
 7. **G3**：Search 是否本阶段铸造？  
 8. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？  
-9. **交战 grant / Buff**：`placement=grant` 现阶段仍 L0 成对写入；是否另层 Register？
+9. ~~**交战 grant / Buff**~~：**已落地** — `RestrictionKind.ENGAGEMENT`；grant 仅 Buff，enter_threat = 场面+Buff
 
 确认后：
 
@@ -262,3 +262,4 @@
 | 2026-10-10 | M3 纠正：庞大 = 对一般攻击效果 `seq.enemy.attack` 的 REPLACE（PHASE→batch）；敌军阶段 `phase_attacks` 只是固定手续 nest 攻击 |
 | 2026-10-10 | M4：`seq.effect.gain_resource`；M5：扩展 `seq.engage`（source/initiation/placement），保留根 id |
 | 2026-10-10 | M5 收口：仅 `auto`/`effect`；行动外壳 nest effect；去掉 source/initiation 专轴 |
+| 2026-10-10 | 交战状态 = ENGAGEMENT Buff；与威胁区场面脱钩 |

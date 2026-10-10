@@ -15,6 +15,8 @@ static func framework_3_2(game_ctx: GameContext) -> Dictionary:
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 		if not _eligible_for_3_2_move(enemy):
 			continue
+		if EngagementStatus.is_engaged(game_ctx, enemy_id):
+			continue
 		var fired := KeywordConsumer.consume_at(
 			game_ctx,
 			KeywordProfileTable.SLOT_ENEMY_3_2,
@@ -48,7 +50,7 @@ static func phase_attacks_for(
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 		if enemy == null or enemy.exhausted:
 			continue
-		if not _has_massive(game_ctx, enemy_id) and enemy.engaged_with != investigator_id:
+		if not EngagementStatus.is_engaged_with(game_ctx, enemy_id, investigator_id):
 			continue
 		var params := {
 			"enemy_id": enemy_id,
@@ -91,17 +93,13 @@ static func _enemies_attacking_investigator(
 			continue
 		seen[enemy_id] = true
 		out.append(enemy_id)
-	## 庞大永不进威胁区：虚拟交战同地点的 ready 庞大敌人也进入本步候选。
+	## 交战状态 Buff（含视为交战、不在威胁区）+ 庞大虚拟交战。
 	for enemy_id in game_ctx.state.registry.all_enemy_ids():
 		if seen.has(enemy_id):
 			continue
-		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-		if enemy == null or not _has_massive(game_ctx, enemy_id):
-			continue
-		if not MassiveEngagement.is_virtually_engaged_with(enemy, investigator_id, game_ctx):
-			continue
-		seen[enemy_id] = true
-		out.append(enemy_id)
+		if EngagementStatus.is_engaged_with(game_ctx, enemy_id, investigator_id):
+			seen[enemy_id] = true
+			out.append(enemy_id)
 	return out
 
 
@@ -210,5 +208,5 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 
 
 static func _eligible_for_3_2_move(enemy: EnemyState) -> bool:
-	## Framework 资格：ready + 未交战。是否带 Hunter/Patrol 由 KeywordConsumer 判定。
-	return enemy != null and not enemy.exhausted and enemy.engaged_with == &""
+	## Framework 资格：ready。是否已交战由 KeywordConsumer / EngagementStatus 再判。
+	return enemy != null and not enemy.exhausted

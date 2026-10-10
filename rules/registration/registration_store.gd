@@ -153,6 +153,94 @@ func _find_suppress_auto_engage_reg_id(enemy_id: StringName) -> StringName:
 	return &""
 
 
+## 交战状态 Buff：敌人是否与该调查员成对交战（与威胁区脱钩）。
+func has_engagement(enemy_id: StringName, investigator_id: StringName) -> bool:
+	return _find_engagement_reg_id(enemy_id, investigator_id) != &""
+
+
+## 该敌人当前交战的调查员（无则 &""）；一对一。
+func engagement_partner(enemy_id: StringName) -> StringName:
+	if enemy_id == &"":
+		return &""
+	for reg in _entries:
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+				continue
+			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+				var inv: StringName = buff.restriction.drawer_id
+				if inv == &"":
+					inv = reg.controller_id
+				return inv
+	return &""
+
+
+## 与该调查员成对交战的敌人列表。
+func engaged_enemies_for(investigator_id: StringName) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if investigator_id == &"":
+		return out
+	var seen: Dictionary = {}
+	for reg in _entries:
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+				continue
+			var inv: StringName = buff.restriction.drawer_id
+			if inv == &"":
+				inv = reg.controller_id
+			if inv != investigator_id:
+				continue
+			var enemy_id: StringName = buff.restriction.subject_id
+			if enemy_id == &"":
+				enemy_id = reg.drawn_card_id
+			if enemy_id == &"" or seen.has(enemy_id):
+				continue
+			seen[enemy_id] = true
+			out.append(enemy_id)
+	return out
+
+
+## 卸掉该敌人全部交战状态 Buff（脱离 / 抢怪前）。
+func clear_engagement(enemy_id: StringName) -> void:
+	if enemy_id == &"":
+		return
+	var to_remove: Array[StringName] = []
+	for reg in _entries:
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+				continue
+			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+				to_remove.append(reg.id)
+				break
+	for id in to_remove:
+		unregister(id)
+
+
+func _find_engagement_reg_id(enemy_id: StringName, investigator_id: StringName) -> StringName:
+	if enemy_id == &"" or investigator_id == &"":
+		return &""
+	for reg in _entries:
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+				continue
+			var subject: StringName = buff.restriction.subject_id
+			if subject == &"":
+				subject = reg.drawn_card_id
+			var inv: StringName = buff.restriction.drawer_id
+			if inv == &"":
+				inv = reg.controller_id
+			if subject == enemy_id and inv == investigator_id:
+				return reg.id
+	return &""
+
+
 func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
 	if card_id == &"" or keyword == &"":
 		return false

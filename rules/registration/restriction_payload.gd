@@ -62,3 +62,12 @@ static func suppress_auto_engage(enemy_id: StringName) -> RestrictionPayload:
 	p.kind = AhcEnums.RestrictionKind.SUPPRESS_AUTO_ENGAGE
 	p.subject_id = enemy_id
 	return p
+
+
+## 交战状态 Buff：敌人 subject ↔ 调查员 drawer 成对；与威胁区场面脱钩。
+static func engagement(enemy_id: StringName, investigator_id: StringName) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.ENGAGEMENT
+	p.subject_id = enemy_id
+	p.drawer_id = investigator_id
+	return p

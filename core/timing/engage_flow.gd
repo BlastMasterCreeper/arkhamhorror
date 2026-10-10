@@ -5,13 +5,10 @@ extends RefCounted
 ##
 ## 只有两条路径（`mode`）：
 ## - **auto**：框架区域变更后的自动交战（Prey/Lead；冷漠/横置跳过）
-## - **effect**：效果交战（卡面 nest、以及基础 Engage 行动外壳 nest —— 基础行动视为调查员自带能力）
+## - **effect**：效果交战（卡面 nest、以及基础 Engage 行动外壳 nest）
 ##
-## 溯源靠序列栈 / AbilityUnitRef，**不**另做 source / initiation 专轴。
-##
-## 常态：同地点敌人进入威胁区（成对写入）。特殊可用 `placement=grant` /
-## `require_same_location=false`（可不要求同地点、不强调「进入」区划动作）。
-##
+## 交战状态 = RestrictionKind.ENGAGEMENT Buff（与威胁区场面脱钩）。
+## enter_threat：场面进威胁区 + Register Buff；grant：仅 Register Buff（视为交战）。
 ## 禁止另铸 `seq.enemy.auto_engage` 等按场合拆名。
 
 
@@ -112,7 +109,9 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 			var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 			if enemy == null or enemy.location_tag != location_tag:
 				continue
-			if enemy.massive or enemy.aloof or enemy.engaged_with != &"":
+			if enemy.massive or enemy.aloof:
+				continue
+			if EngagementStatus.is_engaged(game_ctx, enemy_id):
 				continue
 			if enemy.exhausted or enemy.auto_engage_suppressed:
 				continue
@@ -161,17 +160,21 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 		return {"ok": false, "reason": &"unknown_entity"}
 	var placement: StringName = params.get("placement", PLACEMENT_ENTER_THREAT)
 	var require_same: bool = bool(params.get("require_same_location", true))
-	if enemy.is_engaged_with(inv_id):
+	if EngagementStatus.is_engaged_with(game_ctx, enemy_id, inv_id):
 		return {"ok": false, "reason": &"already_engaged", "error": "already_engaged"}
 	if require_same and not enemy.is_at_location(inv.location_tag):
 		return {"ok": false, "reason": &"wrong_location", "error": "wrong_location"}
-	game_ctx.enemy.apply_engage(enemy_id, inv_id)
+	## enter_threat：场面进威胁区 + Buff；grant：仅交战状态 Buff（视为交战）。
+	var enter_threat := placement != PLACEMENT_GRANT
+	game_ctx.enemy.apply_engage(enemy_id, inv_id, enter_threat, game_ctx)
 	return {
 		"ok": true,
 		"enemy_id": enemy_id,
 		"investigator_id": inv_id,
 		"mode": MODE_EFFECT,
 		"placement": placement,
+		"engagement_buff": true,
+		"enter_threat": enter_threat,
 	}
 
 

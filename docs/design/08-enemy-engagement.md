@@ -53,15 +53,23 @@ class EnemyState:
 | **`auto`** | 框架自动交战 | 区域变更 nest（地点 / 脱离 / 重整） | **跳过** |
 | **`effect`** | 效果交战 | 卡面 `nest_engage`；**以及** `seq.action.engage` 外壳 nest（基础行动 = 调查员自带能力） | **可**交战 |
 
-溯源靠序列栈 / AbilityUnitRef，**不**另做 source / initiation 专轴。
+#### 3.1.1 交战状态 = Buff（与场面脱钩）
 
-| 维度 | 说明 |
-|---|---|
-| **常态** | 同地点敌人 **进入** 威胁区 → 成对写入 `engaged_with` + `threat_area` |
-| **特殊** | `placement=grant` / `require_same_location=false`：可不要求同地点、不强调「进入」区划动作 |
-| **成对** | 交战状态同时施加于敌/调查员双方 |
+**「是否交战」权威** = `RestrictionKind.ENGAGEMENT` 成对 Buff（`EngagementStatus` / RegistrationStore），**不是**「敌人是否在威胁区」。
 
-`spawn_engaged` 仍是 **L0 原子进场**，不压 `seq.engage`。庞大虚拟交战见 §6.6。
+| | 真实交战（`placement=enter_threat`） | 视为交战（`placement=grant`） |
+|---|---|---|
+| **ENGAGEMENT Buff** | Register | Register |
+| **威胁区场面** | 写入 `threat_area` + Domain `engaged_with` | **不**写 |
+| 同地点要求 | 默认是 | 可 `require_same_location=false` |
+
+赋予：`seq.engage` 成功 / `spawn_engaged` → `EngagementStatus.grant`（经 `seq.effect.register`）。  
+注销：`disengage` / 敌人离场（`WHILE_IN_PLAY`）→ `EngagementStatus.clear`。  
+查询：`EngagementStatus.is_engaged_with`（Buff；庞大可叠虚拟同地点）。
+
+溯源靠序列栈；**不**另做 source / initiation 专轴。
+
+`spawn_engaged` 仍是 **L0 原子进场**（写场面 + Register Buff），不压 `seq.engage`。庞大虚拟交战见 §6.6。
 
 **多调查员同地点**：走 **`auto_engage_at_location`**（**②** `seq.engage` mode=auto）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
 
@@ -480,3 +488,4 @@ class EnemySystem:
 | 2026-10-10 | v0.5.6 | §6.3：庞大 REPLACE 锚 = `seq.enemy.attack`；`phase_attacks` 只 nest 攻击 |
 | 2026-10-10 | v0.5.7 | §3.1：扩展 `seq.engage`；行动外壳 nest 内核 |
 | 2026-10-10 | v0.5.8 | §3.1 收口：仅 auto/effect；行动=效果交战；无 source/initiation 专轴 |
+| 2026-10-10 | v0.5.9 | §3.1.1：交战状态 = ENGAGEMENT Buff；与威胁区场面脱钩；grant 仅 Buff |

@@ -1,37 +1,35 @@
 ---
-description: 自动交战由区域变更嵌套触发（地点或交战状态）
-globs: core/timing/engage_flow.gd,rules/subsystems/enemy_system.gd,rules/encounter/enemy_movement.gd
+description: 自动交战由区域变更嵌套触发；交战状态为 ENGAGEMENT Buff
+globs: core/timing/engage_flow.gd,rules/subsystems/enemy_system.gd,rules/encounter/enemy_movement.gd,rules/encounter/engagement_status.gd
 alwaysApply: false
 ---
 
-# 交战命名流程 · `seq.engage`
+# 交战 · `seq.engage` + ENGAGEMENT Buff
 
-## 命名
+## 状态分层
 
-- **唯一**交战内核：`seq.engage`（勿按场合拆 `seq.enemy.auto_engage`）
-- **两条路径**（`mode`）：`auto`（框架自动）/ `effect`（效果交战）
-- 基础 Engage 行动外壳 `seq.action.engage` → nest **`mode=effect`**（行动 = 调查员自带能力的效果交战）
-- 卡面 `nest_engage` → 同属 `mode=effect`
-- **溯源**靠序列栈 / AbilityUnitRef，**不**另做 source / initiation 专轴
-
-## Params
-
-| 键 | 值 | 含义 |
+| 层 | 含义 | 存储 |
 |---|---|---|
-| `mode` | `auto` / `effect` | 自动 vs 效果 |
-| `placement` | `enter_threat` / `grant` | 进入威胁区 vs 仅成对状态 |
-| `require_same_location` | bool | 默认随 placement |
-| `cause` | `location` / `engagement` / `ready` | 仅 auto：区域变更因由 |
+| **交战状态** | 是否成对交战（权威） | `RestrictionKind.ENGAGEMENT` Buff |
+| **威胁区场面** | 敌人卡是否在威胁区 | `threat_area` / Domain `engaged_with` |
+
+真实交战（`placement=enter_threat`）：场面 + Buff。  
+视为交战（`placement=grant`）：**仅** Buff。  
+查询：`EngagementStatus.is_engaged_with`。
+
+## `mode`
+
+- `auto`：框架区域变更后自动交战  
+- `effect`：效果交战（含基础 Engage 行动外壳 nest）
 
 ## 自动交战触发（`mode=auto`）
 
-1. **地点区域**：`location_tag` 变化
-2. **交战区域**：脱离后双方仍同地点
-3. **重整区域**：敌人重整且同地点有调查员
+1. 地点区域变化  
+2. 交战区域变化（脱离后仍同地点）  
+3. 重整（exhausted → ready）
 
-调用：`EngageFlow.nest_after_area_change(..., cause: …)`
+`EngageFlow.nest_after_area_change(..., cause: …)`
 
-## 死循环防护
+## 注销
 
-- **已横置**：不参与自动交战
-- **`SUPPRESS_AUTO_ENGAGE`**：卡面明示交战前抑制自动路径
+`disengage` / 敌人离场（`WHILE_IN_PLAY`）→ `EngagementStatus.clear`
