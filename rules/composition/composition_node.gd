@@ -62,7 +62,7 @@ var target_filter: StringName = &""
 var selection_spec: SelectionSpec = null
 ## nest_engage / nest_enemy_move_to 等模式或开关载荷。
 var engage_mode: StringName = &"effect"
-## seq.engage placement：`enter_threat`（默认）或 `grant`（成对状态、可不要求同地点）。
+## seq.engage placement：`enter_threat`（默认，常移入威胁区）或 `grant`（仅交战 Buff，可不要求同地点）。
 var engage_placement: StringName = &"enter_threat"
 var auto_engage: bool = true
 ## 弃牌来源区：空=指定/寻址单张；`hand` = 从手牌按 amount/mode。
