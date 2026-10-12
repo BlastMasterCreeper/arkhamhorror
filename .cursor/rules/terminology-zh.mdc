@@ -63,8 +63,8 @@ alwaysApply: true
 | **Card back (kind)** | **卡背类型** | **仅**背面轴；≠ 正面 cardtype；≠ `CardFace` A/B（哪一面朝上） |
 | **Search** | **搜寻** | `seq.effect.search`；搜牌库须洗（整库或顶 N）；弃牌堆不洗；≠ look at / find（FAQ 互不计） |
 | **Enter play** / put into play | **进场** | **信息**：广义移动结果为场外→场上；听广义移动+过滤；**不是效果**；不铸 `seq.effect.enter_play` |
-| **Defeat** | **击败** | **效果**（可 Cancel）；伤/恐达上限（常态检测）或卡面击败；成功后 **nest** 退场（广义移动），不内联 |
-| **Leave play** / 退场 | **退场** | 广义移动过滤：场上→场外；常为击败成功后的 nest 后续，≠ 击败本身 |
+| **Defeat** | **击败** | **效果**（可 Cancel）；伤/恐达上限（常态检测）或卡面击败；主体含敌人/调查员/**支援**；成功后 **nest** 退场，不内联 |
+| **Leave play** / 退场 | **退场** | 广义移动过滤：场上→场外；击败成功后 nest；支援/敌人进弃牌堆 ≠ `discard` 效果包装 |
 | **Player cardtype** | **玩家卡牌类型** | asset / event / skill 等；弱点可为此类型 + 玩家卡背 |
 
 ## 对话表述（已裁决）

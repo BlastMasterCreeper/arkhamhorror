@@ -114,6 +114,37 @@ static func add_test_card_to_deck(ctx: GameContext, inv_id: StringName, definiti
 	return instance_id
 
 
+## 测试用：支援进场（可带印刷 health/sanity）。
+static func add_asset_to_play(
+	ctx: GameContext,
+	inv_id: StringName,
+	definition_id: StringName = &"test_asset",
+	opts: Dictionary = {}
+) -> StringName:
+	var data := CardRegistry.definition_data(definition_id)
+	if data.is_empty():
+		data = {"card_type": &"asset"}
+	if opts.has("health"):
+		data["health"] = int(opts.get("health", 0))
+	if opts.has("sanity"):
+		data["sanity"] = int(opts.get("sanity", 0))
+	if not data.has("card_type"):
+		data["card_type"] = &"asset"
+	CardRegistry.register_definition(definition_id, data)
+	var instance_id := ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, definition_id)
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = inv_id
+	card.controller_id = inv_id
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	ctx.state.registry.register_card(card)
+	var inv := ctx.state.registry.get_investigator(inv_id)
+	if inv != null:
+		inv.play_area.append(instance_id)
+	return instance_id
+
+
 static func add_test_card_to_discard(
 	ctx: GameContext,
 	inv_id: StringName,

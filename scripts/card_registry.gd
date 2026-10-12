@@ -274,6 +274,16 @@ static func victory_points(definition_id: StringName) -> int:
 	return int(data.get("victory", 0))
 
 
+## 印刷生命（支援等）；0 = 无生命 / 不因伤害自动击败。
+static func printed_health(definition_id: StringName) -> int:
+	return int(definition_data(definition_id).get("health", 0))
+
+
+## 印刷神智（支援等）；0 = 无神智 / 不因恐惧自动击败。
+static func printed_sanity(definition_id: StringName) -> int:
+	return int(definition_data(definition_id).get("sanity", 0))
+
+
 static func is_act(definition_id: StringName) -> bool:
 	return card_type(definition_id) == &"act"
 

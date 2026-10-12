@@ -169,7 +169,9 @@
 | **是什么** | **明确的效果**（可 Cancel / 可被听到）；入口含敌人 `seq.enemy.defeat`、调查员淘汰路径等，宜收束为可 nest 的击败核 |
 | **不是什么** | 不是区划信息本身；**退场**（场上→场外的广义移动）是击败 **之后** 的后续，不是击败的同义词 |
 | **产生途径** | ① **伤害 / 恐惧** 达到该卡生命 / 神智上限（**常态检测**，同交战一类）；② 卡面 / 效果直接 **击败** |
+| **主体** | 敌人 / 调查员 / **支援资产**（`subject=asset`） |
 | **后续** | 击败 resolve 成功后 **nest** 退场处理（广义移动 · 离场过滤）。**禁止内联**退场于击败叶内 |
+| **支援退场** | L0 `move_card` → 拥有者弃牌堆（与敌人路由弃牌同类）；**不是** `seq.effect.discard_card` / discard 包装 |
 | **Cancel** | 击败效果被 Cancel → **不**做退场后续。① 伤害/恐惧路径：上限条件仍成立则常态检测会 **再次** 触发（同交战）；② 纯效果击败被 Cancel → 无后续、不自动重触 |
 
 ```text
@@ -263,7 +265,7 @@
 | `heal` | `kind`, `amount`, `target` |
 | `move`（狭义 · G1） | `subject`, `move_kind`（move\|move_to）, `destination_id`/`to`, 主体 id，`mode`/`steps`（敌·仅 move）, `amount`/`marker_kind`/`from_location`, `auto_engage_*` |
 | `search`（G3） | `controller_id`, `area`(s), `scope` entire\|top, `amount`（顶 N）, `definition_id`/`trait`/`card_type`, `take_count` |
-| `defeat`（G5） | `subject`（enemy/investigator/…）, `cause`（damage_cap / horror_cap / effect）, 实体 id；成功后 nest 退场 |
+| `defeat`（G5） | `subject`（enemy/investigator/asset）, `cause`（damage_cap / horror_cap / effect）, 实体 id；成功后 nest 退场；asset 退场≠ discard 效果 |
 | `skill_test` | `investigator`, `skill`, `difficulty` / `difficulty_source`, `st7` |
 | `engage` | `mode`（auto/effect）, `placement`, `require_same_location`, `enemy`, `investigator`, `cause` |
 | `register` | `template`（含 Buff 种类与 lifetime） |
@@ -323,3 +325,4 @@
 | 2026-10-12 | G4 补：听进场 = 听广义移动 + 场外→场上过滤；`ENTER_PLAY` 是别名非第二通道 |
 | 2026-10-12 | G5：击败是效果；退场 nest 不内联；伤/恐上限常态检测（Cancel 可再触） |
 | 2026-10-12 | G5 落地：`DefeatFlow`；`seq.effect.defeat` / `seq.enemy.defeat`；nest `seq.defeat.leave_play` |
+| 2026-10-12 | G5：支援资产 `subject=asset`；退场 L0 进弃牌堆，不走 discard 效果包装 |

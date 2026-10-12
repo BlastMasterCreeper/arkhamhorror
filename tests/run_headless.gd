@@ -282,6 +282,9 @@ func _initialize() -> void:
 	_run_test("G5-04 investigator horror cap defeat", _test_g5_investigator_horror_cap)
 	_run_test("G5-05 defeat catalog registered", _test_g5_defeat_catalog)
 	_run_test("G5-06 enemy attack damage cap defeats investigator", _test_g5_enemy_attack_damage_cap)
+	_run_test("G5-07 asset damage cap leave to discard not discard effect", _test_g5_asset_damage_cap)
+	_run_test("G5-08 asset effect defeat to discard", _test_g5_asset_effect_defeat)
+	_run_test("G5-09 asset defeat cancel skips leave", _test_g5_asset_cancel_no_leave)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6128,6 +6131,64 @@ func _test_g5_enemy_attack_damage_cap() -> bool:
 	)
 	h.ctx.combat.perform_attack(attack)
 	return inv.eliminated and inv.damage_taken >= inv.health
+
+
+func _test_g5_asset_damage_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_hp", {"health": 2, "sanity": 0}
+	)
+	var res := DefeatFlow.deal_damage_to_asset(h.ctx, card_id, 2)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var saw_discard_effect := false
+	for entry in h.ctx.memory.phase_trace:
+		if str(entry).contains("discard_card"):
+			saw_discard_effect = true
+			break
+	return (
+		bool(res.get("defeated", false))
+		and card != null
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(card_id)
+		and not inv.play_area.has(card_id)
+		and not bool(res.get("via_discard_effect", true))
+		and not saw_discard_effect
+	)
+
+
+func _test_g5_asset_effect_defeat() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_fx", {"health": 5}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.damage = 0
+	var res := DefeatFlow.defeat_asset_effect(h.ctx, card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("defeated", false))
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(card_id)
+		and not bool(res.get("via_discard_effect", true))
+	)
+
+
+func _test_g5_asset_cancel_no_leave() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_cancel", {"health": 1}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.damage = 1
+	h.ctx.memory.cancel_sequence(&"seq.effect.defeat", {"card_id": card_id})
+	var res := DefeatFlow.check_asset_caps(h.ctx, card_id)
+	return (
+		bool(res.get("cancelled", false))
+		and not bool(res.get("defeated", false))
+		and card.zone == AhcEnums.Zone.PLAY_AREA
+	)
 
 
 func _test_act_move_fail() -> bool:
