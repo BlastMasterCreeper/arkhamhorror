@@ -34,6 +34,9 @@ enum Zone {
 
 enum CardFace { A, B }
 
+## 卡背类型（无文本背面图案 / 牌库外观）。**仅**此用途；≠ 正面 cardtype；≠ CardFace A/B。
+enum CardBackKind { PLAYER, ENCOUNTER }
+
 enum SkillType { WILLPOWER, INTELLECT, COMBAT, AGILITY }
 
 enum ChaosTokenKind {

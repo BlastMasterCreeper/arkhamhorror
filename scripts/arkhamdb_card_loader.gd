@@ -66,6 +66,12 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 		"text": str(src.get("text", "")),
 		"keywords": kw_out,
 	}
+	## 卡背类型：仅背面图案/牌库外观；显式优先，否则按定义推断写入（与正面 card_type 分列）。
+	var back_raw := str(src.get("card_back", ""))
+	if back_raw == "player" or back_raw == "encounter":
+		out["card_back"] = StringName(back_raw)
+	else:
+		out["card_back"] = CardRegistry._infer_card_back(out)
 	if src.has("slot") and str(src.get("slot", "")) != "":
 		out["slot"] = StringName(str(src.get("slot")))
 	var traits: Array = src.get("traits", [])

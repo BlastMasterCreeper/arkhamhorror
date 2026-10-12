@@ -60,21 +60,27 @@ python tools/analyze_arkhamdb_cards.py
 | `doom` | 场景 | act/agenda |
 | `hidden` | 布尔 | 隐私 E4 |
 | `encounter_code` | 遭遇套 | **有值 ⇒ 冒险卡牌**（Scenario card）；与正面 type 正交 |
+| `card_back` | `player` \| `encounter` | **卡背类型**（无文本背面 / 牌库外观）；≠ `card_type`；≠ `CardFace` |
 | `tags` | hh/hd/pa/se/fa | 构筑规则（非运行时） |
 
 ### 3.1 卡牌身份三轴（已登记 · 勿被 FAQ 混称带偏）
 
 官方 FAQ 常把 encounter card 与 Scenario card 等同；引擎与文档拆开：
 
-| 轴 | 含义 | 例 |
-|---|---|---|
-| **正面 cardtype** | 玩家类型 vs 遭遇类型 → 默认能力包、Activate 默认谁可触发 | asset / enemy / location… |
-| **卡背** | player back / encounter back | 弱点 = 遭遇类型 + **玩家卡背** |
-| **遭遇组** `encounter_code` | 有 = **冒险卡牌** | 剧情支援有遭遇组，正面仍是 asset |
+| 轴 | 字段 / 枚举 | 含义 | 例 |
+|---|---|---|---|
+| **正面 cardtype** | `card_type` | 带文本一面的类型 → 能力包 / Activate | asset / enemy / location… |
+| **卡背类型** | `card_back` · `AhcEnums.CardBackKind` | **仅**无文本背面图案、牌库「哪套背」 | 弱点 = 遭遇类型 + **玩家卡背** |
+| **遭遇组** | `encounter_code` | 有 = **冒险卡牌** | 剧情支援有遭遇组，正面仍是 asset |
 
-**剧情支援**：冒险卡 + 玩家正面类型（背面可为遭遇卡背）。规则允许触发同地点**遭遇卡**能力；剧情支援不自动享受，故卡面常写「位于该地点的调查员都可以触发」。
+**卡背类型用法**：洗入哪类牌库的外观/背景、是否与遭遇库/玩家库背面对齐。**禁止**用 `card_back` 推断能力包或替代 `card_type`。  
+导入：源数据可显式给 `card_back`；否则 `CardRegistry._infer_card_back` 写入缺省（弱点→玩家背；enemy/treachery/location/act/agenda→遭遇背；有遭遇组的玩家类型常→遭遇背）。
 
-**双面组合**（面 × 背）：玩家+玩家背；玩家+遭遇背（可洗入遭遇库的绑定等）；双面玩家（翻面）；遭遇类型+遭遇背；遭遇类型+玩家背（弱点）；双面遭遇类型（翻面）。
+**剧情支援**：冒险卡 + 玩家正面类型（卡背常为遭遇卡背）。同地点遭遇卡可触发 ≠ 剧情支援自动可触发。
+
+**`CardFace` A/B**：哪一面朝上（翻面机制）；与卡背类型无关。
+
+**双面组合**（正面类型 × 卡背类型）：玩家+玩家背；玩家+遭遇背；双面玩家；遭遇类型+遭遇背；遭遇类型+玩家背（弱点）；双面遭遇类型。
 
 数值哨兵见 upstream README：`null`→`-`，`-2`→`X`，`-3`→`*`，`-4`→`?`。
 
