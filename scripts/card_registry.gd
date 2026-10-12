@@ -378,7 +378,7 @@ static func card_back(definition_id: StringName) -> StringName:
 	var explicit: StringName = data.get("card_back", &"") as StringName
 	if explicit == &"player" or explicit == &"encounter":
 		return explicit
-	return _infer_card_back(data)
+	return infer_card_back(data)
 
 
 static func has_player_back(definition_id: StringName) -> bool:
@@ -390,7 +390,7 @@ static func has_encounter_back(definition_id: StringName) -> bool:
 
 
 ## 导入缺省推断（可被定义里显式 `card_back` 覆盖）。**不**用此结果代替正面能力包。
-static func _infer_card_back(data: Dictionary) -> StringName:
+static func infer_card_back(data: Dictionary) -> StringName:
 	if bool(data.get("is_weakness", false)):
 		return &"player"
 	var ctype: StringName = data.get("card_type", &"") as StringName

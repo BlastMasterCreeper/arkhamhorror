@@ -212,6 +212,7 @@ func _initialize() -> void:
 	_run_test("WKN-01 asset weakness uses investigator draw", _test_wkn_asset_weakness_investigator_draw)
 	_run_test("WKN-03 enemy weakness uses encounter ability package", _test_wkn_enemy_weakness_encounter_package)
 	_run_test("ENC-28 drawn location uses encounter package into play", _test_enc_drawn_location_into_play)
+	_run_test("CARD-BACK-01 player vs encounter back axis", _test_card_back_axis)
 	_run_test("STAT-01 cold fold action spend count", _test_stat_cold_fold_action_count)
 	_run_test("STAT-02 hot projection increments", _test_stat_hot_projection_increments)
 	_run_test("STAT-03 unregister drops hot projection", _test_stat_unregister_drops_hot)
@@ -4949,6 +4950,33 @@ func _test_enc_drawn_location_into_play() -> bool:
 		and loc != null
 		and loc.revealed
 		and not h.ctx.state.encounter_discard.has(card_id)
+	)
+
+
+func _test_card_back_axis() -> bool:
+	## 卡背类型与正面 cardtype 正交：弱点 = 遭遇类型 + 玩家卡背；显式可覆盖推断。
+	CardRegistry.register_definition(
+		&"cb_wkn_enemy",
+		{"card_type": &"enemy", "is_weakness": true}
+	)
+	CardRegistry.register_definition(
+		&"cb_story_asset",
+		{"card_type": &"asset", "encounter_code": &"test_set"}
+	)
+	CardRegistry.register_definition(
+		&"cb_player_asset",
+		{"card_type": &"asset"}
+	)
+	CardRegistry.register_definition(
+		&"cb_explicit_player_enemy",
+		{"card_type": &"enemy", "card_back": &"player"}
+	)
+	return (
+		CardRegistry.has_player_back(&"cb_wkn_enemy")
+		and CardRegistry.has_encounter_back(&"cb_story_asset")
+		and CardRegistry.has_player_back(&"cb_player_asset")
+		and CardRegistry.has_player_back(&"cb_explicit_player_enemy")
+		and CardRegistry.card_type(&"cb_wkn_enemy") == &"enemy"
 	)
 
 

@@ -71,7 +71,7 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 	if back_raw == "player" or back_raw == "encounter":
 		out["card_back"] = StringName(back_raw)
 	else:
-		out["card_back"] = CardRegistry._infer_card_back(out)
+		out["card_back"] = CardRegistry.infer_card_back(out)
 	if src.has("slot") and str(src.get("slot", "")) != "":
 		out["slot"] = StringName(str(src.get("slot")))
 	var traits: Array = src.get("traits", [])
