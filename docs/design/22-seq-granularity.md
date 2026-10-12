@@ -148,19 +148,19 @@
 | **狭义地点变更** | 已位于地点的调查员 / 敌人 / 地点附属 / 标记，从当前地点到新地点 | **是**：统一 `seq.effect.move` |
 | ├ **移动** | 须沿地点连接 | `move_kind=move`（默认行动 / Hunter / Patrol / Elusive / `nest_enemy_move_to`） |
 | └ **移动到地点** | 无视连接，一次落到目标 | `move_kind=move_to`（`move_enemy_to` / 附属·标记卡面常见） |
-| **广义「移动」** | 场内外任意区域之间的转移（弃牌、入手、区划进场…） | **否** — 各走既有 seq / L0，不并入 |
-| **地点交换** | 两地点上实体互换位置（如 Ethereal Slip） | **否** — 原子；**不可 nest**；**不触发**移动时点 |
+| **广义「移动」** | 场内外任意区域之间的转移（弃牌、入手、进场/离场…） | **否** — **不**并入 `seq.effect.move`；监听区划变迁钉在此（L0 zone 写入），见下「进场」 |
+| **地点交换** | 两地点上实体互换位置（如 Ethereal Slip） | **否** — 原子；**不可 nest**；**不触发**狭义移动时点 |
 
-同核 params：`subject` + `move_kind`（+ 敌 `mode` toward/direct 仅在 `move` 下）。订阅用 tags 过滤。
+同核 params（仅狭义）：`subject` + `move_kind`（+ 敌 `mode` toward/direct 仅在 `move` 下）。订阅用 tags 过滤。
 
 **进场（Enter play · 已裁决）**
 
 | | |
 |---|---|
-| **是什么** | **信息 / 区划事实**：卡牌从**场外区域**迁到**场上区域**（in play）即「进场」 |
-| **不是什么** | **不是效果**；**不铸** `seq.effect.enter_play` / put-into-play 专属 seq |
-| **与效果关系** | 某条 seq / 打出 / Spawn 砖块等在 RESOLVE 里做 L0 区划写入时，**附带**产生进场事实；订阅（`AT_ENTER_PLAY` / after enters play）钉在该迁移上，不另开效果叶 |
-| **与 Spawn** | `seq.encounter.spawn` 等是**手续**（含落点）；进场仍是其区划结果的信息，不是并列的第二效果通道 |
+| **是什么** | **信息**：某次**广义移动**的结果满足「源 = 场外、目标 = 场上」 |
+| **不是什么** | **不是效果**；**不铸** `seq.effect.enter_play`；**不另开**进场专用监听通道 |
+| **怎么听** | 听**广义移动**（L0 区划迁移）；用谓词过滤场外→场上。`AT_ENTER_PLAY` / `ENTER_PLAY` / after enters play = 该过滤的**别名**，不是第二套 emit |
+| **与 Spawn / 打出** | 手续里做广义移动；进场只是结果信息。离场 = 对称过滤（场上→场外） |
 
 **交战 `seq.engage`（两条路径 · 非改名前缀）**
 
@@ -263,7 +263,7 @@
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
 6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线（躲避四层见术语表；尚未另铸 `seq.effect.evade`）  
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
-8. ~~**G4**~~：**已裁决** — 进场 = 场外→场上**区划信息**，**不是效果**；**不铸** `seq.effect.enter_play`  
+8. ~~**G4**~~：**已裁决** — 进场 = 广义移动上的场外→场上**信息**；听广义移动+过滤；**不铸** `seq.effect.enter_play`  
 9. ~~**`resolve_bound` / `resolve_location`**~~：**已裁决** — 废除重定向；抽出按**卡面能力**（类型默认能力包）结算 → `seq.encounter.resolve_card`。`resolve_location` 仍可降内部（落点辅助）。  
 10. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
 
@@ -301,3 +301,4 @@
 | 2026-10-12 | G3：铸 `seq.effect.search`；接线 lead_search；搜牌库须洗（整库/顶 N）；弃牌堆不洗 |
 | 2026-10-12 | G3 纠正：洗牌条件是「搜了牌库」，不是「仅整库」 |
 | 2026-10-12 | G4：进场 = 场外→场上区划信息，非效果；不铸 `seq.effect.enter_play` |
+| 2026-10-12 | G4 补：听进场 = 听广义移动 + 场外→场上过滤；`ENTER_PLAY` 是别名非第二通道 |
