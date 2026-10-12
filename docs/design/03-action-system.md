@@ -193,13 +193,22 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 - 不能 engage massive；不能 engage 已 engaged 自己的
 - 可对 aloof / exhausted enemy engage
 
-### 6.7 Evade
+### 6.7 Evade（躲避 · 四层）
 
-- 仅 engaged with self 的 enemy
-- Agility vs evade；成功 → exhaust + disengage to location
-- **隐式目标**：默认伴随 **躲避尝试（evasion attempt）** 检定，敌人目标与明示 Target 同构（[21 §3.2](21-selection-spec.md)）
-- **基础 Evade**：无合法敌人 → 整行动不能发起；**多步 Evade 能力**见 21 §3.2.1
-- **例外**：「automatically evade」不做检定 / 不要求成功躲避语义；极少卡面取消衍生检定者按文本
+勿把「evade」一词混成一层。与横置相关的是**躲避效果**，不是行动外壳本身。
+
+| 层 | 英文 | 简中 | 是什么 |
+|---|---|---|---|
+| 1 | Evade action | **躲避** | 行动种类（基础 / 指定）；外壳 `seq.action.evade` |
+| 2 | Evasion attempt | **躲避尝试** | 该行动（等）衍生的技能检定，通常敏捷 vs 敌人 evade |
+| 3 | Evade effect | **躲避效果** | 基础结算体：**解除交战 + 横置**该敌；成功躲避尝试所产生 |
+| 4 | Automatically evade | **自动躲避** | 对层 3 的**包装**：不做层 2、亦非「自动成功」的尝试；直接结算躲避效果 |
+
+- 仅 engaged with self 的 enemy（基础行动）
+- 层 1 → 层 2（检定）→ 成功则层 3（`disengage` + `seq.effect.exhaust`）
+- **隐式目标**：默认伴随躲避尝试，敌人目标与明示 Target 同构（[21 §3.2](21-selection-spec.md)）
+- **基础躲避行动**：无合法敌人 → 整行动不能发起；**多步躲避能力**见 21 §3.2.1
+- **自动躲避**：无检定 / 不算成功躲避尝试；直接套用躲避效果；极少卡面取消衍生检定者按文本
 
 ### 6.8 Fight（已裁决 OQ-03-01）
 

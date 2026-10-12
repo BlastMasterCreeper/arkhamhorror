@@ -235,8 +235,8 @@ must 多支选一：支级 dry-run（已有）与目标级 V **同引擎、不�
 |---|---|
 | **与明示 Target 同构** | 仍走 U–N → V（dry-run / CREATED）；Restriction 间接挡；可 PI 确认或唯一候选默认 |
 | **文本无 choose** | 不因此跳过目标规格；编译为隐式 `SelectionSpec`（`role: implicit_attack` / `implicit_evade`）或行动内核内建 filter |
-| **自动躲避例外** | 能力「automatically evade」：**不**做 evasion attempt / 不做检定，也不要求「成功躲避」语义；直接 exhaust + disengage（Grimoire）。此类 **无** 衍生检定隐式目标管线 |
-| **极少无衍生检定的 Evade** | 卡面显式取消检定或改写步骤时，按文本；默认 Evade **伴随** evasion attempt |
+| **自动躲避例外** | 「automatically evade」= **包装基础躲避效果**（解除交战 + 横置）：**不**做躲避尝试、不做检定，**≠** 自动成功的 evasion attempt（Grimoire）。此类 **无** 衍生检定隐式目标管线 |
+| **极少无衍生检定的 Evade** | 卡面显式取消检定或改写步骤时，按文本；默认躲避行动 **伴随** 躲避尝试 |
 | **Aloof 等** | 未交战 aloof 非法 Fight 目标：活路/dry-run 同入口 → 无 CREATED → 不进合法集 |
 
 #### 3.2.1 发起 L7：整段能力 vs 仅 Attack/Evade 内核
