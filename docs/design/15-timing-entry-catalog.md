@@ -537,7 +537,7 @@ Would / When 由 TC 槽位决定；发起 impact **写入** zone，因此各槽�
 | **ENCOUNTER_CARD_DRAWN** | `seq.draw.encounter` | **G1 commit** 打开卡牌结算队列；「抽取时」= 其中 When 95 |
 | **ENCOUNTER_CARD_RESOLVED** | `seq.draw.encounter` G4 | 75 档 = **抽取后**（`after_encounter_card_resolved`） |
 | **ENCOUNTER_REVELATION_COMMITTED** | `seq.encounter.revelation` | 遭遇显现 nest；priority **90**；**非** `seq.enter_hand` |
-| **MOVE_INTENT_COMMITTED** | `seq.effect.move`（行动外壳 `seq.action.move` nest） | 狭义移动 from/to **已确定**；leave+enter **规则上同时**（一个 brick）；**不含**地点交换 |
+| **MOVE_INTENT_COMMITTED** | `seq.effect.move`（行动 / 卡面 nest；含敌/附属/标记） | 狭义移动 from/to **已确定**；leave+enter **规则上同时**（一个 brick）；**不含**地点交换 |
 | **FIGHT_COMMITTED** | `seq.action.fight` | Fight 行动 **开始 RESOLVE**；默认与内嵌 test 的 AFTER **merge**（§7） |
 | **GAIN_COMMITTED** | `seq.gain_resource`（设计别名 `seq.action.gain_resource`） | 一次 gain 结算 commit（已实现竖切） |
 | **REVEAL_COMMITTED** | `seq.encounter.reveal` | 遭遇显现；`pre_impact=SPLIT` |

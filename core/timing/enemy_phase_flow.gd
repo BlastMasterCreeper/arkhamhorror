@@ -135,31 +135,12 @@ static func resolve_location(game_ctx: GameContext, params: Dictionary) -> Dicti
 
 
 static func move(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	if game_ctx == null:
-		return {"ok": false}
-	var enemy_id: StringName = params.get("enemy_id", &"")
-	var target_loc: StringName = params.get("target_location", &"")
-	if enemy_id == &"" or target_loc == &"":
-		return {"ok": false, "reason": &"missing_enemy_or_location"}
-	var steps: int = maxi(1, int(params.get("steps", 1)))
-	## 卡面「移入后再明示交战」时可关自动交战，避免 Prey 抢先。
-	var do_auto_engage: bool = bool(params.get("auto_engage", true))
-	var last := {"ok": true, "enemy_id": enemy_id, "target_location": target_loc}
-	for _i in steps:
-		last = EnemyMovement.move_one_step_toward_location(game_ctx, enemy_id, target_loc)
-		if not bool(last.get("moved", false)):
-			break
-		var to_loc: StringName = last.get("to_location", &"") as StringName
-		if to_loc != &"" and do_auto_engage:
-			var engage := EngageFlow.nest_after_area_change(game_ctx, to_loc, enemy_id)
-			last["engaged_investigator"] = engage.get("investigator_id", &"")
-			var moved_enemy := game_ctx.state.registry.get_enemy(enemy_id)
-			if moved_enemy != null and moved_enemy.massive:
-				MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
-	last["enemy_id"] = enemy_id
-	last["target_location"] = target_loc
-	last["ok"] = true
-	return last
+	## 薄封装 → 统一狭义移动核（subject=enemy）。
+	var p := params.duplicate()
+	p["subject"] = MoveFlow.SUBJECT_ENEMY
+	if not p.has("destination_id") and p.has("target_location"):
+		p["destination_id"] = p["target_location"]
+	return MoveFlow.run(game_ctx, p)
 
 
 static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:

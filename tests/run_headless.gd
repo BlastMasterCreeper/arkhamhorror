@@ -259,6 +259,9 @@ func _initialize() -> void:
 	_run_test("ACT-11b action move nests seq.effect.move", _test_act_move_nests_effect_move)
 	_run_test("ACT-12 move rejects disconnected", _test_act_move_fail)
 	_run_test("G1-01 seq.effect.move registered", _test_g1_effect_move_registered)
+	_run_test("G1-02 seq.effect.move enemy subject", _test_g1_effect_move_enemy)
+	_run_test("G1-03 seq.effect.move attachment", _test_g1_effect_move_attachment)
+	_run_test("G1-04 seq.effect.move marker clue", _test_g1_effect_move_marker)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -2511,7 +2514,7 @@ func _test_adb_compile_12113() -> bool:
 		and str(s1.get("filter", "")) == "enemy_at_connecting"
 		and str(s2.get("template", "")) == "suppress_auto_engage"
 		and str(s3.get("template", "")) == "nest_enemy_move_to"
-		and str(s3.get("flow_id", "")) == "seq.enemy.move"
+		and str(s3.get("flow_id", "")) == "seq.effect.move"
 		and str(s4.get("template", "")) == "nest_engage"
 		and str(s4.get("flow_id", "")) == "seq.engage"
 		and CardRegistry.has_triggered(&"12113")
@@ -5567,6 +5570,7 @@ func _test_g1_effect_move_registered() -> bool:
 		h.ctx,
 		&"seq.effect.move",
 		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
 			"investigator_id": &"inv_1",
 			"destination_id": &"loc_b",
 			"require_connected": true,
@@ -5574,7 +5578,96 @@ func _test_g1_effect_move_registered() -> bool:
 		}
 	)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
-	return res.ok and inv.location_tag == &"loc_b" and res.get("from", &"") == &"test_loc"
+	return (
+		res.ok
+		and inv.location_tag == &"loc_b"
+		and res.get("from", &"") == &"test_loc"
+		and res.get("subject", &"") == MoveFlow.SUBJECT_INVESTIGATOR
+	)
+
+
+func _test_g1_effect_move_enemy() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": &"enemy_1",
+			"destination_id": &"loc_b",
+			"steps": 1,
+			"auto_engage": false,
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		res.ok
+		and bool(res.get("moved", false))
+		and enemy.location_tag == &"loc_b"
+		and h.ctx.sequence_catalog.has_flow(&"seq.enemy.move")
+	)
+
+
+func _test_g1_effect_move_attachment() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 1, 0)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_attach_move", [])
+	h.ctx.state.encounter_deck.erase(card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.zone = AhcEnums.Zone.LIMBO
+	if not EncounterAttachment.attach_limbo_to_location(h.ctx, card_id, &"test_loc"):
+		return false
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_ATTACHMENT,
+			"attachment_id": card_id,
+			"destination_id": &"loc_b",
+		}
+	)
+	card = h.ctx.state.registry.get_card(card_id)
+	var host_b := h.ctx.state.registry.get_card(&"loc_b")
+	return (
+		res.ok
+		and card.zone == AhcEnums.Zone.ATTACHED
+		and card.attached_to != null
+		and card.attached_to.instance_id == &"loc_b"
+		and host_b != null
+		and host_b.attachments.has(card.id)
+		and res.get("from", &"") == &"test_loc"
+		and res.get("to", &"") == &"loc_b"
+	)
+
+
+func _test_g1_effect_move_marker() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a", 1, 3)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	var loc_a := h.ctx.state.registry.get_location(&"loc_a")
+	var loc_b := h.ctx.state.registry.get_location(&"loc_b")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_MARKER,
+			"from_location": &"loc_a",
+			"destination_id": &"loc_b",
+			"amount": 2,
+			"marker_kind": AhcEnums.MarkerKind.CLUE,
+		}
+	)
+	return (
+		res.ok
+		and loc_a.clues == 1
+		and loc_b.clues == 2
+		and int(res.get("amount", 0)) == 2
+		and res.get("subject", &"") == MoveFlow.SUBJECT_MARKER
+	)
 
 
 func _test_act_move_fail() -> bool:

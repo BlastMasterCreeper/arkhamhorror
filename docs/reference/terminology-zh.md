@@ -34,7 +34,7 @@
 | **Evade** | **躲避** | `seq.action.evade`；≠「闪避」「规避」 |
 | **Investigate** | **调查** | `seq.action.investigate` |
 | **Engage** | **接战** | 主动交战；`seq.action.engage` / `seq.engage` |
-| **Move** | **移动**（狭义） | 已位于地点 → 新地点；`seq.effect.move` / `seq.enemy.move`；≠ 广义场内外转移；≠ 地点交换 |
+| **Move** | **移动**（狭义） | 已位于地点 → 新地点；统一 `seq.effect.move`（investigator/enemy/attachment/marker）；≠ 广义场内外转移；≠ 地点交换 |
 | **Exhaust** | **横置** | `exhausted` = 已横置 |
 | **Ready** | **重整** | Upkeep 4.3 重整横置卡；**未横置** = `!exhausted` 状态表述 |
 | **Doom** | **毁灭** | doom 标记；密谋推进 |

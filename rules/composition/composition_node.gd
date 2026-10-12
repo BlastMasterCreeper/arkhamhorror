@@ -67,6 +67,10 @@ var engage_placement: StringName = &"enter_threat"
 var auto_engage: bool = true
 ## 弃牌来源区：空=指定/寻址单张；`hand` = 从手牌按 amount/mode。
 var from_zone: StringName = &""
+## 数量载荷（标记移动等）。
+var amount: int = 1
+## 地点标记种类（nest_move_marker_to）。
+var marker_kind: AhcEnums.MarkerKind = AhcEnums.MarkerKind.CLUE
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -358,6 +362,7 @@ static func nest_enemy_move(
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"nest_enemy_move"
+	n.nest_flow_id = &"seq.effect.move"
 	n.inv_id = controller_id
 	n.trait_exclude = trait_exclude.duplicate()
 	return n
@@ -434,7 +439,7 @@ static func disengage_enemy(
 	return n
 
 
-## L1 · 狭义调查员移动到指定地点（nest `seq.effect.move`；destination 可为 memory:）。
+## L1 · 狭义移动到指定地点（nest `seq.effect.move`；默认调查员；destination 可为 memory:）。
 static func nest_move_to(
 	controller_id: StringName,
 	location_spec: StringName = &"memory:picked_location",
@@ -447,6 +452,46 @@ static func nest_move_to(
 	n.inv_id = controller_id
 	n.card_id = source_card_id
 	n.location_target = location_spec
+	return n
+
+
+## L1 · 地点附属卡牌狭义移动（nest `seq.effect.move` subject=attachment）。
+static func nest_move_attachment_to(
+	controller_id: StringName,
+	attachment_spec: StringName = &"memory:picked_card",
+	location_spec: StringName = &"memory:picked_location",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_move_attachment_to"
+	n.nest_flow_id = &"seq.effect.move"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = attachment_spec
+	n.location_target = location_spec
+	return n
+
+
+## L1 · 地点标记狭义移动（nest `seq.effect.move` subject=marker；默认线索）。
+static func nest_move_marker_to(
+	controller_id: StringName,
+	from_location_spec: StringName = &"memory:from_location",
+	to_location_spec: StringName = &"memory:picked_location",
+	amount: int = 1,
+	marker_kind: AhcEnums.MarkerKind = AhcEnums.MarkerKind.CLUE,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_move_marker_to"
+	n.nest_flow_id = &"seq.effect.move"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.location_target = to_location_spec
+	n.enemy_ref_id = from_location_spec
+	n.amount = amount
+	n.marker_kind = marker_kind
 	return n
 
 
@@ -1056,7 +1101,7 @@ static func suppress_auto_engage(
 	return n
 
 
-## 卡面效果「移入地点」：nest `seq.enemy.move`（移入后仍走 auto-engage 入口）。
+## 卡面效果「移入地点」：nest `seq.effect.move`（subject=enemy；移入后仍走 auto-engage 入口）。
 ## 若需抑制自动交战、改由明示交战：先 `suppress_auto_engage`，再 nest `seq.engage`。
 static func nest_enemy_move_to(
 	controller_id: StringName,
@@ -1068,7 +1113,7 @@ static func nest_enemy_move_to(
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"nest_enemy_move_to"
-	n.nest_flow_id = &"seq.enemy.move"
+	n.nest_flow_id = &"seq.effect.move"
 	n.inv_id = controller_id
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec

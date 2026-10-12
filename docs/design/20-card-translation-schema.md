@@ -207,7 +207,7 @@ pick_target
 no_provoke_aoo                         # B · SKIP_AOO（行动开始挂）
 pick_target → memory:picked_enemy      # A · 确认并记录
 suppress_auto_engage @ memory:…        # B · 抑制自动交战
-nest seq.enemy.move                    # C · 移入（仍进 auto-engage 入口；B 使其分支）
+nest seq.effect.move                   # C · 移入 subject=enemy（仍进 auto-engage；B 使其分支）
 nest seq.engage mode=effect            # C · 明示交战（消费同一指称）
 ```
 
@@ -220,7 +220,9 @@ nest seq.engage mode=effect            # C · 明示交战（消费同一指称�
 | `no_provoke_aoo` | B | 无参；Initiation 挂 `SKIP_AOO` |
 | `pick_target` | A | `filter` / `prompt_id` / `memory_key` |
 | `suppress_auto_engage` | B | `enemy: memory:picked_enemy` |
-| `nest_enemy_move_to` | C | `flow_id: seq.enemy.move` + 指称 |
+| `nest_enemy_move_to` | C | `flow_id: seq.effect.move`（subject=enemy）+ 指称 |
+| `nest_move_attachment_to` | C | `flow_id: seq.effect.move`（subject=attachment）|
+| `nest_move_marker_to` | C | `flow_id: seq.effect.move`（subject=marker）|
 | `nest_engage` | C | `flow_id: seq.engage` + `mode: effect` |
 
 **12112** Resign 段：仅 `nest_resign` + `flow_id: seq.effect.resign`；借机豁免靠 `action_types: [activate, resign]`（§7），**不**挂 `no_provoke_aoo`。

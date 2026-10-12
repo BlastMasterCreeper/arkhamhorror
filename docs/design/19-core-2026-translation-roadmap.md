@@ -113,7 +113,7 @@
 - Fast 群体线索+伤：`spend_clues_group` + `deal_damage`（status=partial；分配交互后补）
 
 ### 12113 Engage（连结地点）✅（应展尽展）
-- `seq`：`no_provoke_aoo` → PI → Register **`SUPPRESS_AUTO_ENGAGE`** → nest **`seq.enemy.move`** → nest **`seq.engage`**
+- `seq`：`no_provoke_aoo` → PI → Register **`SUPPRESS_AUTO_ENGAGE`** → nest **`seq.effect.move`**（enemy）→ nest **`seq.engage`**
 - 移入仍走 auto-engage 入口；限制类在 REST-E-AUTO-ENGAGE **读取后分支**（不跑 Prey/Lead）；明示交战不受影响
 - **不可**用「强制自动交战 WHO」替代明示交战：冷漠/横置不走 auto，效果交战仍须开火（[20 §4.2.1](20-card-translation-schema.md)）
 - 「does not provoke…」→ 行动开始 `SKIP_AOO`；指标：ADB-48..50、ADB-60、ADB-61

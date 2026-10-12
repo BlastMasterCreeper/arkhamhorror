@@ -59,6 +59,7 @@ static func resolve_basic_action(
 					game_ctx,
 					&"seq.effect.move",
 					{
+						"subject": MoveFlow.SUBJECT_INVESTIGATOR,
 						"investigator_id": inv_id,
 						"destination_id": dest_id,
 						"require_connected": true,

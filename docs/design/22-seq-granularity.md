@@ -125,7 +125,7 @@
 
 | flow_id | Grimoire | 粒度裁决（草案） |
 |---|---|---|
-| `seq.enemy.move` | Move（敌人） | **保留**：卡面/效果移敌内核 |
+| ~~`seq.enemy.move`~~ | Move（敌人） | **已并** → `seq.effect.move`（`subject=enemy`；旧 id 别名） |
 | `seq.enemy.3_2_hunter_patrol` | （误铸） | **删除** → 见 §4 M2 |
 | `seq.enemy.3_2_patrol` | （误铸） | **删除** → 见 §4 M2 |
 | `seq.enemy.3_2` | Framework **3.2** 基础手续 | **已收口**：枚举 + `ENEMY_3_2` 消费槽；**不含**移动路径 |
@@ -138,17 +138,17 @@
 | `seq.enemy.defeat` | Defeat（敌人） | **保留** |
 | `seq.enemy.resolve_location` | Prey / 地点解析辅助 | **保留或降为内部**（若无独立订阅需求） |
 | `seq.engage` | Engage（交战） | **扩展内核**：见下「交战 params」；外壳 `seq.action.engage` nest 本条 |
-| `seq.effect.move` | 狭义 Move（调查员） | **已铸 · G1**：行动 / 卡面 nest；见下「移动三分」 |
+| `seq.effect.move` | 狭义 Move | **统一核**：`subject` = investigator / enemy / attachment / marker |
 
 **移动三分（已裁决）**
 
 | 种类 | 含义 | 是否本阶段命名流程 |
 |---|---|---|
-| **狭义移动** | 已位于地点的调查员 / 敌人 / 地点附属 / 标记，从当前地点到新地点 | **是**：调查员 = `seq.effect.move`；敌人 = `seq.enemy.move` |
+| **狭义移动** | 已位于地点的调查员 / 敌人 / 地点附属 / 标记，从当前地点到新地点 | **是**：统一 `seq.effect.move`（params.`subject` + tags 过滤） |
 | **广义「移动」** | 场内外任意区域之间的转移（弃牌、入手、进场…） | **否** — 各走既有 seq / L0，不并入 Move |
 | **地点交换** | 两地点上实体互换位置（如 Ethereal Slip） | **否** — 原子效果；**不可 nest**；**不触发**移动时点 |
 
-`seq.action.move` → nest `seq.effect.move`（外壳耗 action / AOO）。卡面 `nest_move_to` 同 nest 内核。
+`seq.action.move` → nest `seq.effect.move`（subject=investigator）。卡面 `nest_move_to` / `nest_enemy_move_to` / `nest_move_attachment_to` / `nest_move_marker_to` 同核。`seq.enemy.move` 为旧别名。
 
 **交战 `seq.engage`（两条路径 · 非改名前缀）**
 
@@ -209,7 +209,7 @@
 
 | ID | 词条 / 语义 | 现状 | 建议 |
 |---|---|---|---|
-| G1 | **狭义 Move**（调查员） | ~~直写 location~~ → **`seq.effect.move`**（行动外壳 / 卡面 nest 共用） | **已落地**；广义转移与地点交换 **不**入此 seq |
+| G1 | **狭义 Move** | **`seq.effect.move`**（investigator/enemy/attachment/marker） | **已统一**；`seq.enemy.move` 别名；广义转移与地点交换 **不**入此 seq |
 | G2 | **Exhaust / Ready** | `exhaust_card` / enemy exhaust 多为 **L0 直写** | 若存在「after … is exhausted/readied」订阅 → 铸 **`seq.effect.exhaust` / `ready`**（`target` 参数）；否则保持 L0 |
 | G3 | **Search** | roadmap 有、Catalog **无** | 铸 **`seq.effect.search`**（deck/discard + amount + 过滤）；勿按「搜顶 N / 搜弃牌」拆条 |
 | G4 | **Put into play / Enter play**（非 Spawn） | 部分走 mutator / 生成专用 | 玩家牌进场若需被听到 → **`seq.effect.enter_play`**（与 `seq.encounter.spawn` 分源） |
@@ -232,7 +232,7 @@
 | `damage` | `kind`, `amount`, `target`, `source`/`card_id`, `direct` |
 | `discard_card` | `from`, `investigator`, `amount`, `mode`, `card_id`, `trait`, `at` |
 | `heal` | `kind`, `amount`, `target` |
-| `move`（狭义 · G1） | `investigator_id`, `destination_id`/`to`, `require_connected`, `auto_engage_after` |
+| `move`（狭义 · G1） | `subject`, `destination_id`/`to`/`target_location`, 主体 id，`steps`（敌），`amount`/`marker_kind`/`from_location`（标记），`require_connected`/`auto_engage_*` |
 | `skill_test` | `investigator`, `skill`, `difficulty` / `difficulty_source`, `st7` |
 | `engage` | `mode`（auto/effect）, `placement`, `require_same_location`, `enemy`, `investigator`, `cause` |
 | `register` | `template`（含 Buff 种类与 lifetime） |
@@ -247,7 +247,7 @@
 2. ~~**M3**~~：**已落地** — `phase_attacks` nest 攻击；Massive REPLACE @ `seq.enemy.attack`  
 3. ~~**M4**~~：**已落地** — `seq.effect.gain_resource`（旧 id 别名）  
 4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
-5. ~~**G1**~~：**已落地** — 狭义调查员移动 = `seq.effect.move`；见下「移动三分」  
+5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
 6. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
 7. **G3**：Search 是否本阶段铸造？  
 8. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？  
@@ -276,3 +276,4 @@
 | 2026-10-10 | 交战状态 = ENGAGEMENT Buff；与威胁区脱钩 |
 | 2026-10-12 | 纠正：威胁区 = 区划检测信息，不是「写入/不写」的 Buff 并列层 |
 | 2026-10-12 | G1：铸造 `seq.effect.move`（狭义）；文档三分狭义 / 广义转移 / 地点交换 |
+| 2026-10-12 | G1 收编：`seq.enemy.move`→别名；扩展 attachment/marker；统一 TC `move` + subject tags |

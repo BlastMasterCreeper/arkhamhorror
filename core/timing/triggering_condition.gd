@@ -413,38 +413,58 @@ static func enemy_resolve_location(
 	return t
 
 
-static func enemy_move(
-	enemy_id: StringName,
-	after_timing: StringName = &"after_enemy_move"
+## 狭义移动（seq.effect.move）：调查员 / 敌人 / 附属 / 标记。
+## 订阅用 tags（subject）二次过滤；勿再按主体拆 flow_id。
+static func move(
+	params: Dictionary,
+	after_timing: StringName = &"after_move"
 ) -> TriggeringCondition:
+	var subject := MoveFlow.resolve_subject(params)
+	var dest: StringName = params.get(
+		"destination_id",
+		params.get("to", params.get("target_location", &""))
+	) as StringName
+	var entity: StringName = params.get(
+		"enemy_id",
+		params.get(
+			"investigator_id",
+			params.get(
+				"inv_id",
+				params.get("attachment_id", params.get("card_id", &""))
+			)
+		)
+	) as StringName
 	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_move_%s_%d" % [enemy_id, Time.get_ticks_msec()])
-	t.kind = &"enemy_move"
-	t.tags = [&"enemy", &"move"]
+	t.id = StringName("move_%s_%s_%s_%d" % [subject, entity, dest, Time.get_ticks_msec()])
+	t.kind = &"move"
+	t.tags = [&"move", subject]
 	t.after_timing = after_timing
-	t.payload = {"enemy_id": enemy_id}
+	t.payload = params.duplicate()
+	if subject == MoveFlow.SUBJECT_INVESTIGATOR and entity != &"":
+		t.controller_id = entity
 	return t
 
 
-## 狭义调查员移动（seq.effect.move）。
+static func enemy_move(
+	enemy_id: StringName,
+	after_timing: StringName = &"after_move"
+) -> TriggeringCondition:
+	return move({"subject": MoveFlow.SUBJECT_ENEMY, "enemy_id": enemy_id}, after_timing)
+
+
 static func investigator_move(
 	investigator_id: StringName,
 	destination_id: StringName = &"",
 	after_timing: StringName = &"after_move"
 ) -> TriggeringCondition:
-	var t := TriggeringCondition.new()
-	t.id = StringName(
-		"move_%s_%s_%d" % [investigator_id, destination_id, Time.get_ticks_msec()]
+	return move(
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": investigator_id,
+			"destination_id": destination_id,
+		},
+		after_timing
 	)
-	t.kind = &"investigator_move"
-	t.controller_id = investigator_id
-	t.tags = [&"move", &"investigator"]
-	t.after_timing = after_timing
-	t.payload = {
-		"investigator_id": investigator_id,
-		"destination_id": destination_id,
-	}
-	return t
 
 
 static func engage(

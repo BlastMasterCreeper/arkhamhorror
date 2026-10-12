@@ -447,6 +447,10 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_move_connecting_legacy(node)
 		&"nest_move_to":
 			return _execute_nest_move_to(node)
+		&"nest_move_attachment_to":
+			return _execute_nest_move_attachment_to(node)
+		&"nest_move_marker_to":
+			return _execute_nest_move_marker_to(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
 		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
@@ -780,9 +784,11 @@ func _execute_nest_enemy_move(node: CompositionNode) -> bool:
 		return false
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
-		&"seq.enemy.move",
+		&"seq.effect.move",
 		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
 			"enemy_id": enemy_id,
+			"destination_id": _last_resolved_location,
 			"target_location": _last_resolved_location,
 			"steps": 1,
 		}
@@ -1139,7 +1145,7 @@ func _execute_engage_target_inline(node: CompositionNode) -> bool:
 	return true
 
 
-## 仅 §4.0.5「是」：nest `seq.enemy.move`。
+## 仅 §4.0.5「是」：nest `seq.effect.move`（subject=enemy）。
 func _execute_nest_enemy_move_to(node: CompositionNode) -> bool:
 	if _game_ctx == null or _state == null or _game_ctx.sequence_catalog == null:
 		return false
@@ -1155,9 +1161,11 @@ func _execute_nest_enemy_move_to(node: CompositionNode) -> bool:
 		return false
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
-		&"seq.enemy.move",
+		&"seq.effect.move",
 		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
 			"enemy_id": enemy_id,
+			"destination_id": dest,
 			"target_location": dest,
 			"steps": 1,
 			"auto_engage": node.auto_engage,
@@ -1368,6 +1376,86 @@ func _execute_nest_move_to(node: CompositionNode) -> bool:
 	return _perform_investigator_move(inv_id, dest_id)
 
 
+func _execute_nest_move_attachment_to(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null or _game_ctx.sequence_catalog == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return false
+	var card_id := _resolve_enemy_spec(node, inv_id)
+	if card_id == &"":
+		return false
+	var dest := _resolve_location_spec(node, inv)
+	if dest == &"":
+		return false
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_ATTACHMENT,
+			"attachment_id": card_id,
+			"card_id": card_id,
+			"destination_id": dest,
+		}
+	)
+	_last_step_created = bool(result.get("ok", false))
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:nest_move_attachment_to",
+		{"card": card_id, "destination": dest, "ok": _last_step_created}
+	)
+	return _last_step_created
+
+
+func _execute_nest_move_marker_to(node: CompositionNode) -> bool:
+	if _game_ctx == null or _state == null or _game_ctx.sequence_catalog == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return false
+	## from 规格挂在 enemy_ref_id；to 在 location_target。
+	var from_spec := node.enemy_ref_id
+	var from_id: StringName = &""
+	if str(from_spec).begins_with("memory:"):
+		var mem_key := StringName(str(from_spec).substr(7))
+		if _game_ctx.memory != null:
+			var v: Variant = _game_ctx.memory.get_referent(inv_id, mem_key)
+			if v != null and str(v) != "":
+				from_id = StringName(str(v))
+	elif from_spec != &"" and _state.registry.get_location(from_spec) != null:
+		from_id = from_spec
+	elif inv.location_tag != &"":
+		from_id = inv.location_tag
+	var dest := _resolve_location_spec(node, inv)
+	if from_id == &"" or dest == &"":
+		return false
+	var result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_MARKER,
+			"from_location": from_id,
+			"destination_id": dest,
+			"amount": maxi(1, node.amount),
+			"marker_kind": node.marker_kind,
+		}
+	)
+	_last_step_created = bool(result.get("ok", false))
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:nest_move_marker_to",
+		{
+			"from": from_id,
+			"to": dest,
+			"amount": node.amount,
+			"ok": _last_step_created,
+		}
+	)
+	return _last_step_created
+
+
 func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool:
 	if _game_ctx == null or _state == null:
 		return false
@@ -1380,6 +1468,7 @@ func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool
 			_game_ctx,
 			&"seq.effect.move",
 			{
+				"subject": MoveFlow.SUBJECT_INVESTIGATOR,
 				"investigator_id": inv_id,
 				"destination_id": dest_id,
 				"require_connected": true,

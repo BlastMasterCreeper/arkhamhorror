@@ -105,19 +105,25 @@ static func _register_flows(
 
 
 static func _register_effect_flows(catalog: SequenceCatalog) -> void:
-	## G1：狭义调查员移动内核；行动外壳 / 卡面 nest 共用。
+	## 狭义移动核：调查员 / 敌人 / 地点附属 / 地点标记；行动与卡面 nest 共用。
+	var move_build := func(params: Dictionary) -> TriggeringCondition:
+		return TriggeringCondition.move(params)
+	var move_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return MoveFlow.run(game_ctx, params)
+	catalog.register_run(&"seq.effect.move", move_build, move_resolve)
+	## 旧 id 别名（敌人卡面 nest）；resolve 强制 subject=enemy。
 	catalog.register_run(
-		&"seq.effect.move",
+		&"seq.enemy.move",
 		func(params: Dictionary) -> TriggeringCondition:
-			var inv_id: StringName = params.get(
-				"investigator_id", params.get("inv_id", &"")
-			)
-			var dest: StringName = params.get(
-				"destination_id", params.get("to", &"")
-			)
-			return TriggeringCondition.investigator_move(inv_id, dest),
+			var p := params.duplicate()
+			p["subject"] = MoveFlow.SUBJECT_ENEMY
+			return TriggeringCondition.move(p),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return InvestigatorMoveFlow.run(game_ctx, params)
+			var p := params.duplicate()
+			p["subject"] = MoveFlow.SUBJECT_ENEMY
+			if not p.has("destination_id") and p.has("target_location"):
+				p["destination_id"] = p["target_location"]
+			return MoveFlow.run(game_ctx, p)
 	)
 	catalog.register_run(
 		&"seq.effect.discover_clue",
@@ -304,14 +310,7 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EnemyPhaseFlow.resolve_location(game_ctx, params)
 	)
-	catalog.register_run(
-		&"seq.enemy.move",
-		func(params: Dictionary) -> TriggeringCondition:
-			var enemy_id: StringName = params.get("enemy_id", &"")
-			return TriggeringCondition.enemy_move(enemy_id),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.move(game_ctx, params)
-	)
+	## seq.enemy.move 已并入 _register_effect_flows（别名 → seq.effect.move）。
 	catalog.register_run(
 		&"seq.engage",
 		func(params: Dictionary) -> TriggeringCondition:

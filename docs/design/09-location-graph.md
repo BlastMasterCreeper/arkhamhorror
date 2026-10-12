@@ -86,15 +86,15 @@ func per_investigator(base: int) -> int:
 
 ## 6. Move 集成
 
-**狭义移动**（已位于地点 → 另一地点）走命名流程：调查员 `seq.effect.move`；敌人 `seq.enemy.move`。  
+**狭义移动**（已位于地点 → 另一地点）走统一命名流程 `seq.effect.move`（`subject`：investigator / enemy / attachment / marker）。  
 **广义转移**（场内外区域）与 **地点交换**（原子、不触发移动时点）**不**并入本条 — 见 [22 §3.4 移动三分](22-seq-granularity.md)。
 
 ```gdscript
 class LocationGraph:
-    func move_investigator(inv: StringName, dest: EntityId) -> Result:
+    func move_entity(subject: StringName, id: StringName, dest: EntityId) -> Result:
         # leave + enter simultaneous · seq.effect.move
-        # unrevealed dest → reveal
-        # auto engage ready enemies at dest
+        # investigator: unrevealed dest → reveal; auto engage
+        # enemy: path steps + auto engage
 ```
 
 ---

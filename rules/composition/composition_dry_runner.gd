@@ -534,7 +534,7 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				sup_t.controller_id = _resolve_sim_inv(node, sim)
 				sim.registrations.register(sup_t)
 			return true
-		&"move_enemy_to", &"engage_target", &"nest_enemy_move_to", &"nest_engage":
+		&"move_enemy_to", &"engage_target", &"nest_enemy_move_to", &"nest_engage", &"nest_move_attachment_to", &"nest_move_marker_to":
 			var move_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if move_inv == null:
 				return false
