@@ -59,8 +59,22 @@ python tools/analyze_arkhamdb_cards.py
 | `shroud` / `clues` | 地点 | investigate |
 | `doom` | 场景 | act/agenda |
 | `hidden` | 布尔 | 隐私 E4 |
-| `encounter_code` | 遭遇套 | scenario deck |
+| `encounter_code` | 遭遇套 | **有值 ⇒ 冒险卡牌**（Scenario card）；与正面 type 正交 |
 | `tags` | hh/hd/pa/se/fa | 构筑规则（非运行时） |
+
+### 3.1 卡牌身份三轴（已登记 · 勿被 FAQ 混称带偏）
+
+官方 FAQ 常把 encounter card 与 Scenario card 等同；引擎与文档拆开：
+
+| 轴 | 含义 | 例 |
+|---|---|---|
+| **正面 cardtype** | 玩家类型 vs 遭遇类型 → 默认能力包、Activate 默认谁可触发 | asset / enemy / location… |
+| **卡背** | player back / encounter back | 弱点 = 遭遇类型 + **玩家卡背** |
+| **遭遇组** `encounter_code` | 有 = **冒险卡牌** | 剧情支援有遭遇组，正面仍是 asset |
+
+**剧情支援**：冒险卡 + 玩家正面类型（背面可为遭遇卡背）。规则允许触发同地点**遭遇卡**能力；剧情支援不自动享受，故卡面常写「位于该地点的调查员都可以触发」。
+
+**双面组合**（面 × 背）：玩家+玩家背；玩家+遭遇背（可洗入遭遇库的绑定等）；双面玩家（翻面）；遭遇类型+遭遇背；遭遇类型+玩家背（弱点）；双面遭遇类型（翻面）。
 
 数值哨兵见 upstream README：`null`→`-`，`-2`→`X`，`-3`→`*`，`-4`→`?`。
 
