@@ -61,7 +61,8 @@
 | `seq.draw.investigator` | Drawing Cards（玩家库） | **保留**：词条内核 |
 | `seq.action.draw` | Draw Action | **保留**：行动外壳 → Delegate 内核（OQ-SEQ-02：不同 RUN） |
 | `seq.draw.encounter` | Drawing encounter / 1.4 | **保留** |
-| `seq.draw.encounter.resolve_bound` | 弱点/重定向结算 | **保留为入口变体**（或将来降为同 flow + `mode=bound`； presently 独立 RUN 可接受） |
+| ~~`seq.draw.encounter.resolve_bound`~~ | （已废）重定向 | **删除** → `seq.encounter.resolve_card`（卡面能力包；非来源重定向） |
+| `seq.encounter.resolve_card` | 已持有实例 → 遭遇侧能力体系 | **保留**：与抽遭遇后结算同体 |
 | `seq.draw.empty_piles_defeated` | 空库+空弃 → defeated | **保留**：因果 nest 子手续 |
 | `seq.enter_hand` | Revelation @ 入手 | **保留**：跨 draw/add 共用入口 |
 | `seq.encounter.revelation` | Revelation（遭遇帧 E4） | **保留**：与 `enter_hand` 分源（遭遇 vs 玩家入手） |
@@ -252,7 +253,7 @@
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
 6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线（躲避四层见术语表；尚未另铸 `seq.effect.evade`）  
 7. **G3**：Search 是否本阶段铸造？  
-8. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？  
+8. ~~**`resolve_bound` / `resolve_location`**~~：**已裁决** — 废除重定向；抽出按**卡面能力**（类型默认能力包）结算 → `seq.encounter.resolve_card`。`resolve_location` 仍可降内部（落点辅助）。  
 9. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
 
 确认后：
@@ -284,3 +285,4 @@
 | 2026-10-12 | G2：铸 `seq.effect.exhaust` / `ready`；平放区+在场敌人；接线 4.3 / composition / combat / Elusive |
 | 2026-10-12 | 躲避四层：行动 / 躲避尝试 / 躲避效果 / 自动躲避（包装效果）；≠ 自动成功的尝试 |
 | 2026-10-12 | 纠正：躲避效果可由成功尝试**或**自动躲避产生，非仅前者 |
+| 2026-10-12 | 废除 `resolve_bound` 重定向；`CardAbilityPackage` + `seq.encounter.resolve_card` |

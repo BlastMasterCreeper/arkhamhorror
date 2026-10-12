@@ -206,6 +206,7 @@
 |---|---|---|
 | `seq.draw.investigator` | 调查员抽牌 D* | `DrawInvestigatorService`、`ActionSystem` DRAW、`Composition` draw |
 | `seq.draw.encounter` | 遭遇抽牌（抽取步骤 + 卡牌结算；不含涌动） | `DrawEncounterService`、Mythos 1.4 `ScenarioSystem` |
+| `seq.encounter.resolve_card` | 已持有实例 → 遭遇侧能力体系 | setup / 弃牌再结算 / 调查员库抽出的 enemy·treachery；**非**来源重定向 |
 | `seq.keyword.surge` | 涌动 LISTENER 开火：卸标记并 nest 新的遭遇抽牌 | `KeywordConsumer` @ `seq.draw.encounter` AFTER；06 §3.2.6 |
 | `seq.draw.empty_piles_defeated` | 两堆空 defeated（因果 nest） | nest from D1 内联 collect |
 | `seq.enter_hand` | 显现 batch | nest from investigator |

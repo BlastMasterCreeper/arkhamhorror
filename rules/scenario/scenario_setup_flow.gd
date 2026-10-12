@@ -35,11 +35,11 @@ static func _resolve_deferred_revelations(game_ctx: GameContext) -> int:
 		if game_ctx.sequence_catalog != null:
 			game_ctx.sequence_catalog.run(
 				game_ctx,
-				&"seq.draw.encounter.resolve_bound",
+				&"seq.encounter.resolve_card",
 				{"drawer_id": &"setup_14", "card_id": card_id}
 			)
 			count += 1
 		elif game_ctx.draw_encounter != null:
-			DrawEncounterFlow.resolve_bound(game_ctx, &"setup_14", card_id)
+			DrawEncounterFlow.resolve_card(game_ctx, &"setup_14", card_id)
 			count += 1
 	return count

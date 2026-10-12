@@ -155,21 +155,24 @@ Scenario 后：
 | **Weakness** | 卡**子类型**（缺陷/诅咒/伤/敌人/故事线等）；与 asset/event/skill/**enemy/treachery** 等 **cardtype 正交** |
 | **Revelation** | **能力类型**（**Revelation –**）；可在 encounter 牌、weakness、Dilemma 等上出现；**按 `has_revelation` 判定**，非 weakness 子类型 |
 
-### 10.1 按 cardtype 的 Weakness 路由
+### 10.1 抽出结算 = 卡面能力（类型默认能力包）
 
-| Weakness cardtype | Grimoire 行为摘要 | 引擎管线 |
+Weakness 是子类型；**结算键是卡面能力体系**（类型给出默认包），不是抽牌来源重定向。见 [15 §17.6](15-timing-entry-catalog.md)。
+
+| cardtype（默认能力包） | Grimoire 行为摘要 | 引擎 |
 |---|---|---|
-| **Enemy / Treachery** | as if drawn from **encounter deck** | `seq.draw.encounter.resolve_bound`（[15 §17.6](15-timing-entry-catalog.md)） |
-| **Asset** | Revelation（若有）→ **add to hand** → 作 asset 使用 | `seq.draw.investigator` D2–D3 + `seq.enter_hand` |
-| **Event** | 同上 → 作 event 使用 | 同上 |
-| **Skill** | 同上 → 作 skill 使用 | 同上 |
+| **Enemy / Treachery**（ENCOUNTER 包） | 按遭遇侧能力结算（弱点击败/弃牌等另调 owner） | `seq.encounter.resolve_card` |
+| **Asset**（INVESTIGATOR 包） | Revelation（若有）→ **add to hand** → 作 asset | `seq.draw.investigator` D2–D3 + `seq.enter_hand` |
+| **Event** | 同上 → 作 event | 同上 |
+| **Skill** | 同上 → 作 skill | 同上 |
 
 ```text
-Weakness 子类型          Cardtype 轴
-     │                    ├── ENEMY / TREACHERY  → 遭遇 draw 管线
-     │                    ├── ASSET              → 调查员 draw → hand → play asset
-     └─ (flaw/story…)     ├── EVENT              → 调查员 draw → hand → play event
-                          └── SKILL              → 调查员 draw → hand → commit skill
+卡面能力 / 类型默认包
+  ├── ENEMY / TREACHERY  → ENCOUNTER 包（揭示·险境·显现·spawn/discard）
+  ├── ASSET              → INVESTIGATOR 包 → hand → play asset
+  ├── EVENT              → INVESTIGATOR 包 → hand → play event
+  └── SKILL              → INVESTIGATOR 包 → hand → commit skill
+Weakness 子类型只调 owner / bearer / 战役残留，不另开管线
 ```
 
 ### 10.2 与 Revelation / 无显现
@@ -224,7 +227,7 @@ class InvestigatorCampaignSystem:
 | I-06 | Resign 4 player | [per_investigator] still 4 |
 | WKN-01 | Draw **asset** weakness w/ Revelation | D3 enter_hand；**非** encounter draw |
 | WKN-02 | Draw **event** weakness no Revelation | hand only；no enter_hand nest |
-| WKN-03 | Draw **enemy** weakness from deck | `resolve_bound`；spawn_engaged or discard_spawn_failed |
+| WKN-03 | Draw **enemy** weakness from deck | `seq.encounter.resolve_card`；spawn_engaged or discard_spawn_failed |
 | WKN-04 | Draw **skill** weakness | D3 hand；可 commit 至检定 |
 
 ---

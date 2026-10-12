@@ -210,7 +210,7 @@ func _initialize() -> void:
 	_run_test("ENC-15 both piles empty rules gap", _test_enc_both_piles_empty)
 	_run_test("ENC-16 surge chain shuffles discard", _test_enc_surge_shuffles_discard)
 	_run_test("WKN-01 asset weakness uses investigator draw", _test_wkn_asset_weakness_investigator_draw)
-	_run_test("WKN-03 enemy weakness redirects resolve_bound", _test_wkn_enemy_weakness_resolve_bound)
+	_run_test("WKN-03 enemy weakness uses encounter ability package", _test_wkn_enemy_weakness_encounter_package)
 	_run_test("STAT-01 cold fold action spend count", _test_stat_cold_fold_action_count)
 	_run_test("STAT-02 hot projection increments", _test_stat_hot_projection_increments)
 	_run_test("STAT-03 unregister drops hot projection", _test_stat_unregister_drops_hot)
@@ -894,19 +894,19 @@ func _test_sc23_agenda3_forced_draws_fire() -> bool:
 		return false
 	if _encounter_discard_count(h, &"12129") < 1:
 		return false
-	var bound_before := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
+	var settle_before := _sequence_kind_count(h, &"encounter_resolve_card")
 	h.ctx.sequence_catalog.run(h.ctx, &"seq.mythos.place_doom", {})
-	var bound_after := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
-	if bound_after <= bound_before:
+	var settle_after := _sequence_kind_count(h, &"encounter_resolve_card")
+	if settle_after <= settle_before:
 		return false
-	## 翻面卸下 Forced 后，再放置 doom 不应再 nest resolve_bound
+	## 翻面卸下 Forced 后，再放置 doom 不应再 nest resolve_card
 	h.ctx.state.doom_on_agenda = 10
-	var bound_mid := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
+	var settle_mid := _sequence_kind_count(h, &"encounter_resolve_card")
 	h.ctx.sequence_catalog.run(
 		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
 	)
 	h.ctx.sequence_catalog.run(h.ctx, &"seq.mythos.place_doom", {})
-	return _sequence_kind_count(h, &"draw_encounter_resolve_bound") == bound_mid
+	return _sequence_kind_count(h, &"encounter_resolve_card") == settle_mid
 
 
 func _sequence_kind_count(h: RuleTestHarness, kind: StringName) -> int:
@@ -979,7 +979,7 @@ func _test_sc25_fire_revelation_no_target_discards() -> bool:
 		lead = &"inv_1"
 	var result := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.draw.encounter.resolve_bound",
+		&"seq.encounter.resolve_card",
 		{"drawer_id": lead, "card_id": second}
 	)
 	return (
@@ -4895,7 +4895,7 @@ func _test_wkn_asset_weakness_investigator_draw() -> bool:
 	)
 
 
-func _test_wkn_enemy_weakness_resolve_bound() -> bool:
+func _test_wkn_enemy_weakness_encounter_package() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
 	var card_id := GameBootstrap.add_investigator_weakness_to_deck(

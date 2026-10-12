@@ -195,16 +195,17 @@ static func action_committed(
 	return t
 
 
-static func draw_encounter_resolve_bound(
+## 已持有实例 → 走遭遇侧能力体系结算（非「来源重定向」）。
+static func encounter_resolve_card(
 	drawer_id: StringName,
 	card_id: StringName,
-	after_timing: StringName = &"after_draw_encounter_bound"
+	after_timing: StringName = &"after_encounter_resolve_card"
 ) -> TriggeringCondition:
 	var t := TriggeringCondition.new()
-	t.id = StringName("enc_bound_%s_%d" % [card_id, Time.get_ticks_msec()])
-	t.kind = &"draw_encounter_resolve_bound"
+	t.id = StringName("enc_resolve_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"encounter_resolve_card"
 	t.controller_id = drawer_id
-	t.tags = [&"draw_encounter", &"weakness_encounter", &"ENCOUNTER_CARD_DRAWN"]
+	t.tags = [&"encounter", &"resolve_card", &"ENCOUNTER_CARD_DRAWN"]
 	t.after_timing = after_timing
 	t.payload = {"drawer_id": drawer_id, "card_id": card_id}
 	return t

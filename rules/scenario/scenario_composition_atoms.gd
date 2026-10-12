@@ -302,7 +302,7 @@ static func lead_search_draw_encounter_copies(
 	return drawn > 0
 
 
-## 队长抽遭遇弃牌堆顶（最近弃入）指定 definition 的副本；nest `seq.draw.encounter.resolve_bound`。
+## 队长抽遭遇弃牌堆顶（最近弃入）指定 definition 的副本；nest `seq.encounter.resolve_card`。
 static func lead_draw_topmost_encounter_discard_copy(
 	game_ctx: GameContext,
 	definition_id: StringName
@@ -322,11 +322,11 @@ static func lead_draw_topmost_encounter_discard_copy(
 	if game_ctx.sequence_catalog != null:
 		var result := game_ctx.sequence_catalog.nest(
 			game_ctx,
-			&"seq.draw.encounter.resolve_bound",
+			&"seq.encounter.resolve_card",
 			{"drawer_id": lead, "card_id": card_id}
 		)
 		return bool(result.get("ok", false))
-	return bool(DrawEncounterFlow.resolve_bound(game_ctx, lead, card_id).get("ok", false))
+	return bool(DrawEncounterFlow.resolve_card(game_ctx, lead, card_id).get("ok", false))
 
 
 static func _take_topmost_encounter_discard_copy(

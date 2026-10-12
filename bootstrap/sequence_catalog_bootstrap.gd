@@ -38,16 +38,17 @@ static func _register_flows(
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			return DrawEncounterFlow.run(game_ctx, drawer_id)
 	)
+	## 已持有实例 → 遭遇侧能力体系（与抽库后卡面结算同体；非来源重定向）。
 	catalog.register_run(
-		&"seq.draw.encounter.resolve_bound",
+		&"seq.encounter.resolve_card",
 		func(params: Dictionary) -> TriggeringCondition:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			var card_id: StringName = params.get("card_id", &"")
-			return TriggeringCondition.draw_encounter_resolve_bound(drawer_id, card_id),
+			return TriggeringCondition.encounter_resolve_card(drawer_id, card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			var card_id: StringName = params.get("card_id", &"")
-			return DrawEncounterFlow.resolve_bound(game_ctx, drawer_id, card_id)
+			return DrawEncounterFlow.resolve_card(game_ctx, drawer_id, card_id)
 	)
 	catalog.register_run(
 		&"seq.encounter.revelation",
