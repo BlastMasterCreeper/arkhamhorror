@@ -55,6 +55,12 @@ alwaysApply: true
 | **Free triggered ability** | **免费触发能力** | 魔典 `[free]`；ArkhamDB 玩家牌文本常标 `[fast]`；Player Window 内发起 |
 | **Reaction triggered ability** | **反应触发能力** | `[reaction]`；when/after 时点选用 |
 | **Action triggered ability** | **激活触发能力** | `[action]`；经 Activate 启动；勿笼统称「行动能力」 |
+| **Story asset** | **剧情支援** | 有遭遇组的冒险卡；**正面 cardtype 仍是玩家类型**（常 asset）；背面可为遭遇卡背。≠ 遭遇 cardtype |
+| **Scenario card**（引擎用法） | **冒险卡牌** | **有遭遇组**（encounter set）的卡；可含地点/敌人/诡计/剧情支援等；部分战役中可进玩家构筑 |
+| **Encounter cardtype** | **遭遇卡牌类型** | 正面印刷类型 ∈ enemy / treachery / location（可抽遭遇包） |
+| **Encounter card back** | **遭遇卡背** | 牌背样式；与正面类型、是否有遭遇组 **正交** |
+| **Player cardtype** | **玩家卡牌类型** | asset / event / skill 等；弱点可为此类型 + 玩家卡背 |
+| **Card back** | **卡背** | player back / encounter back；与正面 cardtype 独立组合 |
 
 ## 对话表述（已裁决）
 
@@ -86,3 +92,9 @@ alwaysApply: true
 - **永久（Permanent）** ≠ 常驻；**绑定（Bonded）** ≠ 羁绊；**独特（Unique）** ≠ 独一；**蜂拥（Swarming）**；**多重（Myriad）**。
 - **快速（Fast 关键词）** ≠ ArkhamDB 文本 `[fast]`（玩家牌闪电 = **免费触发** `[free]`）。打出始终不是能力。无快速的事件打出 **窗口/花费对称** 激活触发；无时点快速打出对称免费触发；有时点快速打出对称反应触发。
 - **命名流程** = 规则书手续（`seq.*`），**不是**卡牌正文。卡牌正文译 **效果组合**；禁止为每张卡登记 `seq.card…`。打出是 `PLAY_CARD`，两套都不是。
+- **卡牌身份三轴正交**（勿被 FAQ 混称带偏）：
+  1. **正面 cardtype**（玩家类型 vs 遭遇类型）→ 默认能力包 / 谁可 Activate 等；
+  2. **卡背**（玩家卡背 vs 遭遇卡背）；
+  3. **遭遇组**（有 = 冒险卡牌 / Scenario card）— 剧情支援有遭遇组但正面仍是玩家类型。
+- 官方 FAQ 常把 encounter card 与 Scenario card 等同，**剧情支援是裂缝**：规则允许触发同地点**遭遇卡**能力，剧情支援因是玩家类型，常须卡面写「该地点调查员可触发」。
+- **双面组合**（面类型 × 背）：玩家+玩家背；玩家+遭遇背（可洗入遭遇库的绑定等）；双面玩家（翻面）；遭遇类型+遭遇背；遭遇类型+玩家背（弱点）；双面遭遇类型（翻面）。
