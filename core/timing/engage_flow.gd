@@ -7,8 +7,8 @@ extends RefCounted
 ## - **auto**：框架区域变更后的自动交战（Prey/Lead；冷漠/横置跳过）
 ## - **effect**：效果交战（卡面 nest、以及基础 Engage 行动外壳 nest）
 ##
-## 交战状态 = RestrictionKind.ENGAGEMENT Buff（与威胁区场面脱钩）。
-## enter_threat：场面进威胁区 + Register Buff；grant：仅 Register Buff（视为交战）。
+## 交战状态 = RestrictionKind.ENGAGEMENT Buff（赋予/注销）。
+## 威胁区 = 区划占位，只做检测；enter_threat 常伴随移入威胁区，grant 不移入。
 ## 禁止另铸 `seq.enemy.auto_engage` 等按场合拆名。
 
 
@@ -164,9 +164,9 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 		return {"ok": false, "reason": &"already_engaged", "error": "already_engaged"}
 	if require_same and not enemy.is_at_location(inv.location_tag):
 		return {"ok": false, "reason": &"wrong_location", "error": "wrong_location"}
-	## enter_threat：场面进威胁区 + Buff；grant：仅交战状态 Buff（视为交战）。
-	var enter_threat := placement != PLACEMENT_GRANT
-	game_ctx.enemy.apply_engage(enemy_id, inv_id, enter_threat, game_ctx)
+	## enter_threat：Register Buff + 移入威胁区；grant：仅 Register Buff（视为交战，区划不变）。
+	var move_into_threat := placement != PLACEMENT_GRANT
+	game_ctx.enemy.apply_engage(enemy_id, inv_id, move_into_threat, game_ctx)
 	return {
 		"ok": true,
 		"enemy_id": enemy_id,
@@ -174,7 +174,7 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 		"mode": MODE_EFFECT,
 		"placement": placement,
 		"engagement_buff": true,
-		"enter_threat": enter_threat,
+		"moved_into_threat_area": move_into_threat,
 	}
 
 

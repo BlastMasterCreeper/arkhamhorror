@@ -6,16 +6,16 @@ alwaysApply: false
 
 # 交战 · `seq.engage` + ENGAGEMENT Buff
 
-## 状态分层
+## 两层勿混
 
-| 层 | 含义 | 存储 |
+| 概念 | 是什么 | 用法 |
 |---|---|---|
-| **交战状态** | 是否成对交战（权威） | `RestrictionKind.ENGAGEMENT` Buff |
-| **威胁区场面** | 敌人卡是否在威胁区 | `threat_area` / Domain `engaged_with` |
+| **交战状态** | `RestrictionKind.ENGAGEMENT` Buff | 赋予 / 注销；`EngagementStatus.is_engaged_with` |
+| **威胁区** | 敌人是否位于某调查员威胁区（区划占位） | **检测** `threat_area`；**不是** Buff |
 
-真实交战（`placement=enter_threat`）：场面 + Buff。  
-视为交战（`placement=grant`）：**仅** Buff。  
-查询：`EngagementStatus.is_engaged_with`。
+真实交战常 **移入** 威胁区（状态原语），之后检测为真。  
+视为交战（`placement=grant`）只 Register Buff，不做移入；检测威胁区可仍为假。  
+禁止把威胁区当成第二套交战状态去「写入/不写」。
 
 ## `mode`
 

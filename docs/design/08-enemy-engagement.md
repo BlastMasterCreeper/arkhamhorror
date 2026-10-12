@@ -40,7 +40,7 @@ class EnemyState:
 | **Aloof spawn**（含无 Spawn 的 encounter draw） | at drawer location，**unengaged**，**不**进 threat area |
 | Massive | ready: **虚拟交战**同地点全体调查员；exhausted: 不与任何人交战；**永不**进 threat area（见 §6.6） |
 
-**威胁区与交战（常态）**：对 **非庞大** 敌人，「与某调查员交战」⇔ 该敌人卡位于该调查员 **威胁区**（`inv.threat_area` · `engaged_with` 一致）。同地点但仅在 location 上的 unengaged 敌人 **不在** 任何人威胁区。**庞大** 例外：虚拟交战、不进威胁区 — 见 §6.6。
+**威胁区 ≠ 交战状态**：威胁区是 **区域占位信息**（敌人卡是否位于某调查员威胁区 — 可检测/查询）。交战状态是 **ENGAGEMENT Buff**（可赋予/注销）。二者脱钩：常态真实交战常伴随「移入威胁区」的区划变化，之后检测会显示在威胁区；「视为交战」只 Register Buff，卡可仍在地点上，检测威胁区不必为真。**庞大** 永不进威胁区，虚拟交战见 §6.6。
 
 **术语**：**`spawn_engaged`** = 进场时已是 engaged 状态（L0 一次提交）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标；**`Engage action`** = 调查员行动。三者 **不可** 混用。
 
@@ -53,23 +53,25 @@ class EnemyState:
 | **`auto`** | 框架自动交战 | 区域变更 nest（地点 / 脱离 / 重整） | **跳过** |
 | **`effect`** | 效果交战 | 卡面 `nest_engage`；**以及** `seq.action.engage` 外壳 nest（基础行动 = 调查员自带能力） | **可**交战 |
 
-#### 3.1.1 交战状态 = Buff（与场面脱钩）
+#### 3.1.1 交战状态 = Buff；威胁区 = 区域检测
 
-**「是否交战」权威** = `RestrictionKind.ENGAGEMENT` 成对 Buff（`EngagementStatus` / RegistrationStore），**不是**「敌人是否在威胁区」。
-
-| | 真实交战（`placement=enter_threat`） | 视为交战（`placement=grant`） |
+| 概念 | 是什么 | 怎么用 |
 |---|---|---|
-| **ENGAGEMENT Buff** | Register | Register |
-| **威胁区场面** | 写入 `threat_area` + Domain `engaged_with` | **不**写 |
-| 同地点要求 | 默认是 | 可 `require_same_location=false` |
+| **交战状态** | `RestrictionKind.ENGAGEMENT` 成对 Buff | Register / Unregister；`EngagementStatus.is_engaged_with` |
+| **威胁区** | 敌人是否位于某调查员威胁区（区划占位） | **检测** `threat_area`（及 Domain 镜像）；**不是** Buff |
 
-赋予：`seq.engage` 成功 / `spawn_engaged` → `EngagementStatus.grant`（经 `seq.effect.register`）。  
+| `placement` | 交战状态 Buff | 区划 |
+|---|---|---|
+| `enter_threat`（真实交战） | Register | 常伴随 **移入威胁区**（状态原语）；之后检测「在威胁区」为真 |
+| `grant`（视为交战） | Register | **不**做移入；检测「在威胁区」可仍为假 |
+
+赋予：`seq.engage` / `spawn_engaged` → `EngagementStatus.grant`。  
 注销：`disengage` / 敌人离场（`WHILE_IN_PLAY`）→ `EngagementStatus.clear`。  
-查询：`EngagementStatus.is_engaged_with`（Buff；庞大可叠虚拟同地点）。
+「是否交战」查 Buff；「是否在威胁区」查区划。勿把威胁区当成第二套交战状态去「写入/不写」。
 
 溯源靠序列栈；**不**另做 source / initiation 专轴。
 
-`spawn_engaged` 仍是 **L0 原子进场**（写场面 + Register Buff），不压 `seq.engage`。庞大虚拟交战见 §6.6。
+`spawn_engaged` 仍是 **L0 原子进场**（移入威胁区 + Register Buff），不压 `seq.engage`。庞大见 §6.6。
 
 **多调查员同地点**：走 **`auto_engage_at_location`**（**②** `seq.engage` mode=auto）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
 
@@ -489,3 +491,4 @@ class EnemySystem:
 | 2026-10-10 | v0.5.7 | §3.1：扩展 `seq.engage`；行动外壳 nest 内核 |
 | 2026-10-10 | v0.5.8 | §3.1 收口：仅 auto/effect；行动=效果交战；无 source/initiation 专轴 |
 | 2026-10-10 | v0.5.9 | §3.1.1：交战状态 = ENGAGEMENT Buff；与威胁区场面脱钩；grant 仅 Buff |
+| 2026-10-12 | v0.5.10 | §3.1.1：威胁区 = 区划检测信息，不是 Buff；纠正「写入/不写威胁区」表述 |

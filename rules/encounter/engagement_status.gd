@@ -3,8 +3,8 @@ extends RefCounted
 
 ## 交战状态（成对 Buff）门面。
 ## 权威：RegistrationStore · RestrictionKind.ENGAGEMENT。
-## 威胁区 / engaged_with Domain = 场面「位于威胁区」；与交战状态脱钩。
-## 庞大仍可用虚拟同地点查询（或 sync 时同步写 Buff）。
+## 威胁区是区划占位（检测用），不是本 Buff；勿把「在威胁区」当成交战状态存储。
+## 庞大仍可用虚拟同地点查询。
 
 
 ## 赋予交战状态 Buff（真实交战与「视为交战」共用）。

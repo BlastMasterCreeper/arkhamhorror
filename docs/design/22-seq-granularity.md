@@ -143,12 +143,12 @@
 
 只分 **框架自动** 与 **效果交战**。基础 Engage 行动 = 调查员自带能力 → 外壳 nest **`mode=effect`**（与卡面效果同路径）。溯源靠序列栈，**不**另做 source / initiation 专轴。
 
-常态：同地点敌人进入威胁区（成对写入）。特殊：`placement=grant` / `require_same_location=false`。
+交战状态 = ENGAGEMENT Buff。威胁区 = 区划占位（检测用，不是 Buff）。`enter_threat` 常伴随移入威胁区；`grant` 只 Register Buff。
 
 | 键 | 值 | 含义 |
 |---|---|---|
 | `mode` | `auto` / `effect` | 框架自动 vs 效果（含行动外壳 nest） |
-| `placement` | `enter_threat` / `grant` | 进入威胁区 vs 仅成对状态 |
+| `placement` | `enter_threat` / `grant` | 是否伴随移入威胁区（区划）；交战状态一律 Register Buff |
 | `require_same_location` | bool | 默认随 placement；`grant` 可 false |
 | `cause` | `location` / `engagement` / `ready` | 仅 auto：区域变更因由 |
 | `enemy_id` / `investigator_id` / `location_tag` | 实体 | 成对双方；auto 可扫地点 |
@@ -178,7 +178,7 @@
 | M2 | `3_2_hunter_patrol` / `3_2_patrol` | **已落地**：框架只留 **`seq.enemy.3_2`**（枚举 + 消费槽）；Hunter/Patrol 移动体摘为 **`seq.keyword.hunter` / `seq.keyword.patrol`**（KeywordConsumer @ `ENEMY_3_2`） | [08 §5](08-enemy-engagement.md)、[06 §3.2.5](06-registration-buff-model.md) | 关键词 ≠ 框架 handler 内联 |
 | M3 | `phase_attacks` + `massive_phase_attacks` | **已落地**：只留 **`seq.enemy.phase_attacks`**（固定 nest 攻击）；庞大 = 对一般攻击 **`seq.enemy.attack`** 的 **REPLACE**（PHASE→`seq.keyword.massive`）；删平行 massive 流程 | [06 §3.2.7](06-registration-buff-model.md)、[08 §6.3](08-enemy-engagement.md) | REPLACE 锚在攻击效果，不在 3.3 框架 |
 | M4 | `seq.gain_resource` | **已落地**：正式 `seq.effect.gain_resource`；旧 id 别名 | taxonomy | — |
-| M5 | `seq.engage` | **已收口**：`mode` 仅 `auto`/`effect`；交战状态 = **ENGAGEMENT Buff**（与威胁区脱钩）；grant/真实交战均 Register | 行动=效果交战 | 查询走 `EngagementStatus` |
+| M5 | `seq.engage` | **已收口**：交战状态 = **ENGAGEMENT Buff**；威胁区仅区划检测；`grant` 不移入威胁区 | 行动=效果交战 | `EngagementStatus` vs `threat_area` 分查 |
 
 **不建议合并**（已确认或强烈倾向）：
 
@@ -263,3 +263,4 @@
 | 2026-10-10 | M4：`seq.effect.gain_resource`；M5：扩展 `seq.engage`（source/initiation/placement），保留根 id |
 | 2026-10-10 | M5 收口：仅 `auto`/`effect`；行动外壳 nest effect；去掉 source/initiation 专轴 |
 | 2026-10-10 | 交战状态 = ENGAGEMENT Buff；与威胁区场面脱钩 |
+| 2026-10-12 | 纠正：威胁区 = 区划检测信息，不是「写入/不写」的 Buff 并列层 |

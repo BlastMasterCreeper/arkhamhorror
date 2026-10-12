@@ -5398,7 +5398,7 @@ func _test_act_engage_nests_kernel() -> bool:
 
 
 func _test_engage_grant_cross_location() -> bool:
-	## placement=grant：仅交战状态 Buff，不进威胁区场面。
+	## grant：Register 交战 Buff；不移入威胁区（检测威胁区仍为假）。
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_location(h.ctx, &"loc_far")
 	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
@@ -5420,7 +5420,7 @@ func _test_engage_grant_cross_location() -> bool:
 		res.ok
 		and res.get("placement", &"") == EngageFlow.PLACEMENT_GRANT
 		and bool(res.get("engagement_buff", false))
-		and not bool(res.get("enter_threat", true))
+		and not bool(res.get("moved_into_threat_area", true))
 		and EngagementStatus.is_engaged_with(h.ctx, &"enemy_far", &"inv_1")
 		and enemy != null
 		and enemy.engaged_with == &""
@@ -5429,7 +5429,7 @@ func _test_engage_grant_cross_location() -> bool:
 
 
 func _test_engage_enter_threat_buff() -> bool:
-	## 真实交战：威胁区场面 + ENGAGEMENT Buff。
+	## 真实交战：Register Buff，并移入威胁区（检测在威胁区为真）。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
