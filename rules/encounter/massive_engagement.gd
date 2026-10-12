@@ -99,10 +99,14 @@ static func resolve_phase_batch(
 				order.append(inv_id)
 		i += 1
 	if resolved > 0 and not enemy.exhausted:
-		if game_ctx.enemy != null:
-			game_ctx.enemy.set_enemy_exhausted(game_ctx, enemy_id, true, false)
-		else:
-			enemy.exhausted = true
+		ExhaustReadyFlow.nest_or_run_exhaust(
+			game_ctx,
+			{
+				"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+				"enemy_id": enemy_id,
+				"trigger_area_change": false,
+			}
+		)
 	return {
 		"ok": true,
 		"attacks": resolved,

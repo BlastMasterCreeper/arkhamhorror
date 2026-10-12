@@ -36,8 +36,8 @@
 | **Engage** | **接战** | 主动交战；`seq.action.engage` / `seq.engage` |
 | **Move** | **移动** | 狭义地点变更且**遵守连接**；`seq.effect.move` + `move_kind=move`；≠ 移动到地点；≠ 广义区划转移；≠ 地点交换 |
 | **Move to (a location)** | **移动到地点** | 狭义地点变更但**无视连接**；同核 `move_kind=move_to` |
-| **Exhaust** | **横置** | `exhausted` = 已横置 |
-| **Ready** | **重整** | Upkeep 4.3 重整横置卡；**未横置** = `!exhausted` 状态表述 |
+| **Exhaust** | **横置** | 改平放区卡牌/在场敌人 `exhausted`；`seq.effect.exhaust`；≠ 费用中的 exhaust |
+| **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
 | **Doom** | **毁灭** | doom 标记；密谋推进 |
 
 ---

@@ -40,7 +40,16 @@ func perform_attack(attack: EnemyAttack) -> void:
 			&"enemy_attack_completed",
 			{"enemy": attack.enemy_id, "target": attack.target_investigator, "kind": attack.kind}
 		)
-	if attack.exhaust_after:
+	if attack.exhaust_after and _game_ctx != null:
+		ExhaustReadyFlow.nest_or_run_exhaust(
+			_game_ctx,
+			{
+				"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+				"enemy_id": attack.enemy_id,
+				"trigger_area_change": false,
+			}
+		)
+	elif attack.exhaust_after:
 		var enemy := _state.registry.get_enemy(attack.enemy_id)
 		if enemy:
 			enemy.exhausted = true

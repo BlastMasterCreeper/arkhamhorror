@@ -450,20 +450,34 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if node.enemy_ref_id != &"" and node.target_investigator_id != &"":
 				return true
 			return sim.last_step_engaged_investigator != &""
-		&"exhaust_card":
+		&"exhaust_card", &"ready_card":
 			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
-			if exh == null or exh.exhausted:
+			if exh == null:
 				return false
-			exh.exhausted = true
+			var want_exh := node.atom_name == &"exhaust_card"
+			if exh.exhausted == want_exh:
+				return false
+			if want_exh and not (
+				exh.zone == AhcEnums.Zone.PLAY_AREA
+				or exh.zone == AhcEnums.Zone.THREAT_AREA
+				or exh.zone == AhcEnums.Zone.ATTACHED
+			):
+				return false
+			exh.exhausted = want_exh
 			return true
-		&"exhaust_enemy":
+		&"exhaust_enemy", &"ready_enemy":
 			var exh_enemy_id := _resolve_sim_enemy_spec(node, sim)
 			if exh_enemy_id == &"" or sim.state == null:
 				return false
 			var exh_enemy := sim.state.registry.get_enemy(exh_enemy_id)
-			if exh_enemy == null or exh_enemy.exhausted:
+			if exh_enemy == null:
 				return false
-			exh_enemy.exhausted = true
+			var want_enemy_exh := node.atom_name == &"exhaust_enemy"
+			if exh_enemy.exhausted == want_enemy_exh:
+				return false
+			if exh_enemy.location_tag == &"":
+				return false
+			exh_enemy.exhausted = want_enemy_exh
 			sim.last_step_enemy_id = exh_enemy_id
 			return true
 		&"deal_damage_enemy":

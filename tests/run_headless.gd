@@ -266,6 +266,11 @@ func _initialize() -> void:
 	_run_test("G1-06 elusive flee nests move", _test_g1_elusive_flee_nests_move)
 	_run_test("G1-07 move rejects disconnected", _test_g1_move_rejects_disconnected)
 	_run_test("G1-08 move_to ignores connections", _test_g1_move_to_ignores_connections)
+	_run_test("G2-01 seq.effect.exhaust enemy", _test_g2_exhaust_enemy)
+	_run_test("G2-02 seq.effect.ready enemy engages", _test_g2_ready_enemy_engages)
+	_run_test("G2-03 seq.effect.exhaust card in play", _test_g2_exhaust_card_in_play)
+	_run_test("G2-04 exhaust rejects hand card", _test_g2_exhaust_rejects_hand)
+	_run_test("G2-05 upkeep 4.3 readies flat cards", _test_g2_upkeep_ready_flat_cards)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -5778,6 +5783,104 @@ func _test_g1_move_to_ignores_connections() -> bool:
 	)
 
 
+func _test_g2_exhaust_enemy() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.exhaust",
+		{"target_kind": ExhaustReadyFlow.TARGET_ENEMY, "enemy_id": &"enemy_1"}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("changed", false))
+		and enemy.exhausted
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.ready")
+	)
+
+
+func _test_g2_ready_enemy_engages() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.exhausted = true
+	enemy.engaged_with = &""
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.threat_area.erase(&"enemy_1")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.ready",
+		{
+			"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+			"enemy_id": &"enemy_1",
+			"trigger_area_change": true,
+		}
+	)
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("changed", false))
+		and not enemy.exhausted
+		and enemy.engaged_with == &"inv_1"
+	)
+
+
+func _test_g2_exhaust_card_in_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"asset")
+	var card := CardInstance.new()
+	card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"test_asset")
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	card.controller_id = &"inv_1"
+	h.ctx.state.registry.register_card(card)
+	var res := ExhaustReadyFlow.nest_or_run_exhaust(
+		h.ctx,
+		{"target_kind": ExhaustReadyFlow.TARGET_CARD, "card_id": card_id}
+	)
+	return bool(res.get("ok", false)) and bool(res.get("changed", false)) and card.exhausted
+
+
+func _test_g2_exhaust_rejects_hand() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	## 入手到手牌区（非平放）。
+	inv.deck.erase(card_id)
+	inv.hand.append(card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.zone = AhcEnums.Zone.HAND
+	var res := ExhaustReadyFlow.exhaust(
+		h.ctx,
+		{"target_kind": ExhaustReadyFlow.TARGET_CARD, "card_id": card_id}
+	)
+	return (
+		not bool(res.get("ok", false))
+		and str(res.get("error", "")) == "not_flat_zone"
+		and not card.exhausted
+	)
+
+
+func _test_g2_upkeep_ready_flat_cards() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"asset")
+	var card := CardInstance.new()
+	card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"test_asset")
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	card.exhausted = true
+	h.ctx.state.registry.register_card(card)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.exhausted = true
+	var res := ExhaustReadyFlow.ready_all_in_play(h.ctx)
+	return (
+		bool(res.get("ok", false))
+		and not card.exhausted
+		and not enemy.exhausted
+		and (res.get("readied", []) as Array).has(card_id)
+		and (res.get("readied", []) as Array).has(&"enemy_1")
+	)
+
+
 func _test_act_move_fail() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -5839,6 +5942,8 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.effect.gain_resource",
 		&"seq.action.move",
 		&"seq.effect.move",
+		&"seq.effect.exhaust",
+		&"seq.effect.ready",
 		&"seq.action.investigate",
 		&"seq.action.fight",
 		&"seq.action.engage",

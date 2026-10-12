@@ -383,16 +383,17 @@ static func nest_enemy_attack(enemy_id: StringName, target: StringName) -> Compo
 	return n
 
 
-## L0 · 横置来源卡（Free / Action 费用常用）。
+## nest `seq.effect.exhaust`（平放区卡牌；能力体横置。费用 exhaust 仍走 Cost）。
 static func exhaust_card(card_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"exhaust_card"
+	n.nest_flow_id = &"seq.effect.exhaust"
 	n.card_id = card_id
 	return n
 
 
-## L0 · 横置敌人（choose and exhaust an enemy；支持 memory: 指称）。
+## nest `seq.effect.exhaust`（在场敌人；支持 memory: 指称）。
 static func exhaust_enemy(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -401,6 +402,33 @@ static func exhaust_enemy(
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"exhaust_enemy"
+	n.nest_flow_id = &"seq.effect.exhaust"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	return n
+
+
+## nest `seq.effect.ready`（平放区卡牌）。
+static func ready_card(card_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"ready_card"
+	n.nest_flow_id = &"seq.effect.ready"
+	n.card_id = card_id
+	return n
+
+
+## nest `seq.effect.ready`（在场敌人）。
+static func ready_enemy(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"ready_enemy"
+	n.nest_flow_id = &"seq.effect.ready"
 	n.inv_id = controller_id
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec

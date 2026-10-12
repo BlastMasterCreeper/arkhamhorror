@@ -409,6 +409,10 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_exhaust_card(node)
 		&"exhaust_enemy":
 			return _execute_exhaust_enemy(node)
+		&"ready_card":
+			return _execute_ready_card(node)
+		&"ready_enemy":
+			return _execute_ready_enemy(node)
 		&"deal_damage_enemy":
 			return _execute_deal_damage_enemy(node)
 		&"disengage_enemy":
@@ -831,19 +835,31 @@ func _execute_nest_enemy_attack(node: CompositionNode) -> bool:
 
 
 func _execute_exhaust_card(node: CompositionNode) -> bool:
-	if _state == null or node.card_id == &"":
+	if _game_ctx == null or node.card_id == &"":
 		return false
-	var card := _state.registry.get_card(node.card_id)
+	var card := _state.registry.get_card(node.card_id) if _state != null else null
 	if card == null or card.exhausted:
 		return false
-	card.exhausted = true
-	_log.log(AhcEnums.LogCategory.CARD, "composition:exhaust_card", {"card": node.card_id})
-	return true
+	var result := ExhaustReadyFlow.nest_or_run_exhaust(
+		_game_ctx,
+		{
+			"target_kind": ExhaustReadyFlow.TARGET_CARD,
+			"card_id": node.card_id,
+		}
+	)
+	var ok := bool(result.get("ok", false)) and bool(result.get("changed", false))
+	if ok:
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:exhaust_card",
+			{"card": node.card_id, "flow": &"seq.effect.exhaust"}
+		)
+	return ok
 
 
-## L0 · 横置敌人；已横置则无 CREATED（目标 V / Grimoire Target）。
+## nest `seq.effect.exhaust`；已横置则无 CREATED（目标 V / Grimoire Target）。
 func _execute_exhaust_enemy(node: CompositionNode) -> bool:
-	if _game_ctx == null or _game_ctx.enemy == null:
+	if _game_ctx == null:
 		return false
 	var inv_id := _ability_controller(_resolve_inv(node))
 	var enemy_id := _resolve_enemy_spec(node, inv_id)
@@ -852,15 +868,62 @@ func _execute_exhaust_enemy(node: CompositionNode) -> bool:
 	var enemy := _state.registry.get_enemy(enemy_id) if _state != null else null
 	if enemy == null or enemy.exhausted:
 		return false
-	var result := _game_ctx.enemy.set_enemy_exhausted(_game_ctx, enemy_id, true, false)
-	var ok := bool(result.get("ok", false)) and enemy.exhausted
+	var result := ExhaustReadyFlow.nest_or_run_exhaust(
+		_game_ctx,
+		{
+			"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+			"enemy_id": enemy_id,
+			"trigger_area_change": false,
+		}
+	)
+	var ok := bool(result.get("ok", false)) and bool(result.get("changed", false))
 	if ok:
 		_last_step_enemy_id = enemy_id
 		_log.log(
 			AhcEnums.LogCategory.CARD,
 			"composition:exhaust_enemy",
-			{"enemy": enemy_id, "inv": inv_id}
+			{"enemy": enemy_id, "inv": inv_id, "flow": &"seq.effect.exhaust"}
 		)
+	return ok
+
+
+func _execute_ready_card(node: CompositionNode) -> bool:
+	if _game_ctx == null or node.card_id == &"":
+		return false
+	var card := _state.registry.get_card(node.card_id) if _state != null else null
+	if card == null or not card.exhausted:
+		return false
+	var result := ExhaustReadyFlow.nest_or_run_ready(
+		_game_ctx,
+		{
+			"target_kind": ExhaustReadyFlow.TARGET_CARD,
+			"card_id": node.card_id,
+		}
+	)
+	return bool(result.get("ok", false)) and bool(result.get("changed", false))
+
+
+func _execute_ready_enemy(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var enemy := _state.registry.get_enemy(enemy_id) if _state != null else null
+	if enemy == null or not enemy.exhausted:
+		return false
+	var result := ExhaustReadyFlow.nest_or_run_ready(
+		_game_ctx,
+		{
+			"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+			"enemy_id": enemy_id,
+			"trigger_area_change": true,
+		}
+	)
+	var ok := bool(result.get("ok", false)) and bool(result.get("changed", false))
+	if ok:
+		_last_step_enemy_id = enemy_id
 	return ok
 
 

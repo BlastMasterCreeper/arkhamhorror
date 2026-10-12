@@ -212,7 +212,7 @@
 | ID | 词条 / 语义 | 现状 | 建议 |
 |---|---|---|---|
 | G1 | **狭义 Move** | **`seq.effect.move`**（investigator/enemy/attachment/marker） | **已统一**；`seq.enemy.move` 别名；广义转移与地点交换 **不**入此 seq |
-| G2 | **Exhaust / Ready** | `exhaust_card` / enemy exhaust 多为 **L0 直写** | 若存在「after … is exhausted/readied」订阅 → 铸 **`seq.effect.exhaust` / `ready`**（`target` 参数）；否则保持 L0 |
+| G2 | **Exhaust / Ready** | **已铸** `seq.effect.exhaust` / `seq.effect.ready` | 平放区卡牌 + 在场敌人；`target_kind` card\|enemy；费用 exhaust 仍走 Cost |
 | G3 | **Search** | roadmap 有、Catalog **无** | 铸 **`seq.effect.search`**（deck/discard + amount + 过滤）；勿按「搜顶 N / 搜弃牌」拆条 |
 | G4 | **Put into play / Enter play**（非 Spawn） | 部分走 mutator / 生成专用 | 玩家牌进场若需被听到 → **`seq.effect.enter_play`**（与 `seq.encounter.spawn` 分源） |
 | G5 | **Defeat**（调查员） | 淘汰多在 elimination 服务 | 若 Forced 订「when you are defeated」→ 明确 **`seq.effect.defeat`** 或挂在已有 elimination 帧 |
@@ -250,7 +250,7 @@
 3. ~~**M4**~~：**已落地** — `seq.effect.gain_resource`（旧 id 别名）  
 4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
-6. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
+6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避·攻击横置 / Elusive 接线  
 7. **G3**：Search 是否本阶段铸造？  
 8. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？  
 9. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
@@ -281,3 +281,4 @@
 | 2026-10-12 | G1 收编：`seq.enemy.move`→别名；扩展 attachment/marker；统一 TC `move` + subject tags |
 | 2026-10-12 | G1 接线：Elusive / move_enemy_to / Hunter / Patrol 均经 `seq.effect.move`；删 InvestigatorMoveFlow |
 | 2026-10-12 | G1：区分 **移动**（`move_kind=move` 遵守连接）与 **移动到地点**（`move_to` 无视连接） |
+| 2026-10-12 | G2：铸 `seq.effect.exhaust` / `ready`；平放区+在场敌人；接线 4.3 / composition / combat / Elusive |

@@ -299,36 +299,20 @@ func set_enemy_exhausted(
 	exhausted: bool,
 	trigger_area_change: bool = true
 ) -> Dictionary:
-	var enemy := _state.registry.get_enemy(enemy_id)
-	if enemy == null:
-		return {"ok": false, "error": "unknown_enemy"}
-	var was_exhausted := enemy.exhausted
-	if was_exhausted == exhausted:
-		return {"ok": true, "enemy_id": enemy_id, "exhausted": exhausted}
-	enemy.exhausted = exhausted
-	_log.log(
-		AhcEnums.LogCategory.SCENARIO,
-		"enemy:exhaust",
-		{"enemy_id": enemy_id, "exhausted": exhausted}
-	)
-	if not exhausted and was_exhausted:
-		enemy.auto_engage_suppressed = false
-		if trigger_area_change and game_ctx != null and enemy.location_tag != &"":
-			return EngageFlow.nest_after_area_change(
-				game_ctx, enemy.location_tag, enemy_id, &"ready"
-			)
-	return {"ok": true, "enemy_id": enemy_id, "exhausted": exhausted}
+	## 接线 → 统一横置/重整核（可被 after_exhaust / after_ready 听到）。
+	var params := {
+		"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+		"enemy_id": enemy_id,
+		"trigger_area_change": trigger_area_change,
+	}
+	if exhausted:
+		return ExhaustReadyFlow.nest_or_run_exhaust(game_ctx, params)
+	return ExhaustReadyFlow.nest_or_run_ready(game_ctx, params)
 
 
 func ready_all_exhausted_enemies(game_ctx: GameContext) -> Dictionary:
-	var readied: Array[StringName] = []
-	for enemy_id in _state.registry.all_enemy_ids():
-		var enemy := _state.registry.get_enemy(enemy_id)
-		if enemy == null or not enemy.exhausted:
-			continue
-		set_enemy_exhausted(game_ctx, enemy_id, false, true)
-		readied.append(enemy_id)
-	return {"ok": true, "readied": readied}
+	## 保养 4.3：敌人 + 平放区卡牌一并重整。
+	return ExhaustReadyFlow.ready_all_in_play(game_ctx)
 
 
 func deal_damage(game_ctx: GameContext, enemy_id: StringName, amount: int) -> Dictionary:

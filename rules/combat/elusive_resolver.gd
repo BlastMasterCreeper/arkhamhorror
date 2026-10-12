@@ -53,10 +53,14 @@ static func _try_flee(
 	enemy = game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": true, "fled": fled}
-	if game_ctx.enemy != null:
-		game_ctx.enemy.set_enemy_exhausted(game_ctx, enemy_id, true, false)
-	else:
-		enemy.exhausted = true
+	ExhaustReadyFlow.nest_or_run_exhaust(
+		game_ctx,
+		{
+			"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+			"enemy_id": enemy_id,
+			"trigger_area_change": false,
+		}
+	)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,

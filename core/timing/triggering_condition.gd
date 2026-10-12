@@ -413,6 +413,42 @@ static func enemy_resolve_location(
 	return t
 
 
+## 横置（seq.effect.exhaust）。
+static func exhaust(
+	params: Dictionary,
+	after_timing: StringName = &"after_exhaust"
+) -> TriggeringCondition:
+	var kind := ExhaustReadyFlow.resolve_target_kind(params)
+	var target: StringName = params.get(
+		"enemy_id", params.get("card_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("exhaust_%s_%s_%d" % [kind, target, Time.get_ticks_msec()])
+	t.kind = &"exhaust"
+	t.tags = [&"exhaust", kind]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+## 重整（seq.effect.ready）。
+static func ready(
+	params: Dictionary,
+	after_timing: StringName = &"after_ready"
+) -> TriggeringCondition:
+	var kind := ExhaustReadyFlow.resolve_target_kind(params)
+	var target: StringName = params.get(
+		"enemy_id", params.get("card_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("ready_%s_%s_%d" % [kind, target, Time.get_ticks_msec()])
+	t.kind = &"ready"
+	t.tags = [&"ready", kind]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 ## 狭义移动（seq.effect.move）：调查员 / 敌人 / 附属 / 标记。
 ## 订阅用 tags（subject）二次过滤；勿再按主体拆 flow_id。
 static func move(
