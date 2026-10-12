@@ -106,6 +106,14 @@ static func _register_flows(
 
 
 static func _register_effect_flows(catalog: SequenceCatalog) -> void:
+	## G3：搜寻（单条；区域/顶 N/过滤/是否取出 → params）。
+	catalog.register_run(
+		&"seq.effect.search",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.search(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SearchFlow.run(game_ctx, params)
+	)
 	## G2：横置 / 重整（平放区卡牌与在场敌人）。
 	catalog.register_run(
 		&"seq.effect.exhaust",

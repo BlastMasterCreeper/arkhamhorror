@@ -48,6 +48,7 @@
 | **Player card back** | **玩家卡背** | `card_back=player`；无文本背面 / 牌库外观 |
 | **Encounter card back** | **遭遇卡背** | `card_back=encounter`；同上 |
 | **Card back (kind)** | **卡背类型** | **仅**背面轴；≠ 正面 cardtype；≠ CardFace A/B |
+| **Search** | **搜寻** | `seq.effect.search`；整库搜完须洗；≠ look at / find |
 | **Player cardtype** | **玩家卡牌类型** | asset / event / skill 等 |
 
 ---

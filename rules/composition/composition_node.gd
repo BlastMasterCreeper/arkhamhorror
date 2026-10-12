@@ -383,6 +383,26 @@ static func nest_enemy_attack(enemy_id: StringName, target: StringName) -> Compo
 	return n
 
 
+## nest `seq.effect.search`（搜寻；from_zone=区域，amount=顶 N（0=整库），definition_id 过滤，atom_count=取出张数）。
+static func nest_search(
+	controller_id: StringName,
+	area: StringName,
+	definition_id: StringName = &"",
+	top_amount: int = 0,
+	take_count: int = 0
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_search"
+	n.nest_flow_id = &"seq.effect.search"
+	n.inv_id = controller_id
+	n.from_zone = area
+	n.definition_id = definition_id
+	n.amount = top_amount
+	n.atom_count = take_count
+	return n
+
+
 ## nest `seq.effect.exhaust`（平放区卡牌；能力体横置。费用 exhaust 仍走 Cost）。
 static func exhaust_card(card_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()

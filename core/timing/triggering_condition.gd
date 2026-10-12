@@ -414,6 +414,25 @@ static func enemy_resolve_location(
 	return t
 
 
+## 搜寻（seq.effect.search）。
+static func search(
+	params: Dictionary,
+	after_timing: StringName = &"after_search"
+) -> TriggeringCondition:
+	var controller: StringName = params.get(
+		"controller_id",
+		params.get("investigator_id", params.get("inv_id", &""))
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("search_%s_%d" % [controller, Time.get_ticks_msec()])
+	t.kind = &"search"
+	t.controller_id = controller
+	t.tags = [&"search", &"effect"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 ## 横置（seq.effect.exhaust）。
 static func exhaust(
 	params: Dictionary,

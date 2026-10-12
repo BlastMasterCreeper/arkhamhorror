@@ -450,6 +450,11 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if node.enemy_ref_id != &"" and node.target_investigator_id != &"":
 				return true
 			return sim.last_step_engaged_investigator != &""
+		&"nest_search":
+			## 有可搜寻区域且（无过滤或能命中）→ CREATED。
+			if sim.state == null or node.from_zone == &"":
+				return false
+			return true
 		&"exhaust_card", &"ready_card":
 			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
 			if exh == null:

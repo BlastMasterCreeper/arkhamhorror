@@ -286,12 +286,34 @@ static func lead_search_draw_encounter_copies(
 		else 1
 	)
 	var drawn := 0
-	var searched_deck := false
+	## 先搜遭遇库（整库→洗）；不足再搜弃牌堆（不洗库）。
 	for _i in count:
-		var card_id := _take_encounter_copy(game_ctx, definition_id, searched_deck)
-		if card_id == &"":
+		var search_deck := SearchFlow.nest_or_run(
+			game_ctx,
+			{
+				"controller_id": lead,
+				"area": SearchFlow.AREA_ENCOUNTER_DECK,
+				"scope": SearchFlow.SCOPE_ENTIRE,
+				"definition_id": definition_id,
+				"take_count": 1,
+			}
+		)
+		var taken: Array = search_deck.get("taken", [])
+		if taken.is_empty():
+			var search_disc := SearchFlow.nest_or_run(
+				game_ctx,
+				{
+					"controller_id": lead,
+					"area": SearchFlow.AREA_ENCOUNTER_DISCARD,
+					"scope": SearchFlow.SCOPE_ENTIRE,
+					"definition_id": definition_id,
+					"take_count": 1,
+				}
+			)
+			taken = search_disc.get("taken", [])
+		if taken.is_empty():
 			break
-		searched_deck = true
+		var card_id: StringName = taken[0]
 		var card := game_ctx.state.registry.get_card(card_id)
 		if card == null:
 			continue
@@ -340,27 +362,6 @@ static func _take_topmost_encounter_discard_copy(
 		if card != null and card.id.definition_id == definition_id:
 			discard.remove_at(i)
 			return card_id
-	return &""
-
-
-static func _take_encounter_copy(
-	game_ctx: GameContext,
-	definition_id: StringName,
-	allow_discard_search: bool
-) -> StringName:
-	for i in game_ctx.state.encounter_deck.size():
-		var card_id: StringName = game_ctx.state.encounter_deck[i]
-		var card := game_ctx.state.registry.get_card(card_id)
-		if card != null and card.id.definition_id == definition_id:
-			game_ctx.state.encounter_deck.remove_at(i)
-			return card_id
-	if allow_discard_search:
-		for i in game_ctx.state.encounter_discard.size():
-			var card_id: StringName = game_ctx.state.encounter_discard[i]
-			var card := game_ctx.state.registry.get_card(card_id)
-			if card != null and card.id.definition_id == definition_id:
-				game_ctx.state.encounter_discard.remove_at(i)
-				return card_id
 	return &""
 
 

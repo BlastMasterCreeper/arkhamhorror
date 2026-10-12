@@ -405,6 +405,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_move(node)
 		&"nest_enemy_attack":
 			return _execute_nest_enemy_attack(node)
+		&"nest_search":
+			return _execute_nest_search(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
 		&"exhaust_enemy":
@@ -832,6 +834,40 @@ func _execute_nest_enemy_attack(node: CompositionNode) -> bool:
 		{"enemy_id": enemy_id, "target_investigator": target, "exhaust_after": false}
 	)
 	return bool(result.get("ok", false))
+
+
+func _execute_nest_search(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	var controller := _ability_controller(_resolve_inv(node))
+	if controller == &"":
+		controller = node.inv_id
+	var params := {
+		"controller_id": controller,
+		"area": node.from_zone,
+		"definition_id": node.definition_id,
+		"take_count": maxi(node.atom_count, 0),
+	}
+	if node.amount > 0:
+		params["scope"] = SearchFlow.SCOPE_TOP
+		params["amount"] = node.amount
+	else:
+		params["scope"] = SearchFlow.SCOPE_ENTIRE
+	var result := SearchFlow.nest_or_run(_game_ctx, params)
+	var ok := bool(result.get("ok", false))
+	if ok:
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:nest_search",
+			{
+				"controller": controller,
+				"area": node.from_zone,
+				"found": (result.get("found", []) as Array).size(),
+				"taken": (result.get("taken", []) as Array).size(),
+				"flow": &"seq.effect.search",
+			}
+		)
+	return ok
 
 
 func _execute_exhaust_card(node: CompositionNode) -> bool:
