@@ -274,7 +274,7 @@ func _initialize() -> void:
 	_run_test("G2-04 exhaust rejects hand card", _test_g2_exhaust_rejects_hand)
 	_run_test("G2-05 upkeep 4.3 readies flat cards", _test_g2_upkeep_ready_flat_cards)
 	_run_test("G3-01 seq.effect.search entire deck take shuffle", _test_g3_search_entire_take_shuffle)
-	_run_test("G3-02 seq.effect.search top N no shuffle", _test_g3_search_top_no_shuffle)
+	_run_test("G3-02 seq.effect.search top N still shuffles deck", _test_g3_search_top_shuffles)
 	_run_test("G3-03 search catalog registered", _test_g3_search_catalog)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
@@ -5976,13 +5976,12 @@ func _test_g3_search_entire_take_shuffle() -> bool:
 	)
 
 
-func _test_g3_search_top_no_shuffle() -> bool:
+func _test_g3_search_top_shuffles() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_top_a")
 	var hit := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_top_hit")
 	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_top_c")
-	## 顶 1 张不含 hit（hit 在第 2 张）→ found 空；scope=top 不洗整库。
-	var order_before := h.ctx.state.encounter_deck.duplicate()
+	## 顶 1 张不含 hit（hit 在第 2 张）→ found 空；搜牌库仍须洗。
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
 		&"seq.effect.search",
@@ -5997,10 +5996,10 @@ func _test_g3_search_top_no_shuffle() -> bool:
 	)
 	return (
 		bool(res.get("ok", false))
-		and not bool(res.get("shuffled", false))
+		and bool(res.get("shuffled", false))
 		and (res.get("found", []) as Array).is_empty()
 		and h.ctx.state.encounter_deck.has(hit)
-		and h.ctx.state.encounter_deck == order_before
+		and h.ctx.state.encounter_deck.size() == 3
 	)
 
 

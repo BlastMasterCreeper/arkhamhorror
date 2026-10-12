@@ -214,7 +214,7 @@
 |---|---|---|---|
 | G1 | **狭义 Move** | **`seq.effect.move`**（investigator/enemy/attachment/marker） | **已统一**；`seq.enemy.move` 别名；广义转移与地点交换 **不**入此 seq |
 | G2 | **Exhaust / Ready** | **已铸** `seq.effect.exhaust` / `seq.effect.ready` | 平放区卡牌 + 在场敌人；`target_kind` card\|enemy；费用 exhaust 仍走 Cost |
-| G3 | **Search** | **已铸** `seq.effect.search` | 单条；`area`/`scope`/`amount`/`filter`/`take_count`；整库→洗；≠ look/find |
+| G3 | **Search** | **已铸** `seq.effect.search` | 单条；`area`/`scope`/`amount`/`filter`/`take_count`；搜牌库须洗（整库/顶 N）；≠ look/find |
 | G4 | **Put into play / Enter play**（非 Spawn） | 部分走 mutator / 生成专用 | 玩家牌进场若需被听到 → **`seq.effect.enter_play`**（与 `seq.encounter.spawn` 分源） |
 | G5 | **Defeat**（调查员） | 淘汰多在 elimination 服务 | 若 Forced 订「when you are defeated」→ 明确 **`seq.effect.defeat`** 或挂在已有 elimination 帧 |
 | G6 | **Phase begins/ends**（除调查结束） | 仅 `investigation_phase_ends` | 按需补 `seq.framework.*_phase_ends/begins`；**不要**一次铸满四阶段 |
@@ -253,7 +253,7 @@
 4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
 6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线（躲避四层见术语表；尚未另铸 `seq.effect.evade`）  
-7. ~~**G3**~~：**已落地** — `seq.effect.search`；整库洗；look/find 不入本 seq  
+7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
 8. ~~**`resolve_bound` / `resolve_location`**~~：**已裁决** — 废除重定向；抽出按**卡面能力**（类型默认能力包）结算 → `seq.encounter.resolve_card`。`resolve_location` 仍可降内部（落点辅助）。  
 9. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
 
@@ -288,4 +288,5 @@
 | 2026-10-12 | 纠正：躲避效果可由成功尝试**或**自动躲避产生，非仅前者 |
 | 2026-10-12 | 废除 `resolve_bound` 重定向；`CardAbilityPackage` + `seq.encounter.resolve_card` |
 | 2026-10-12 | 遭遇能力包含 location；可抽遭遇 = 诡计/敌人/地点；G4 地点默认进场 |
-| 2026-10-12 | G3：铸 `seq.effect.search`；接线 lead_search；整库洗、顶 N 不洗 |
+| 2026-10-12 | G3：铸 `seq.effect.search`；接线 lead_search；搜牌库须洗（整库/顶 N）；弃牌堆不洗 |
+| 2026-10-12 | G3 纠正：洗牌条件是「搜了牌库」，不是「仅整库」 |

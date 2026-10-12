@@ -2,7 +2,7 @@ class_name SearchFlow
 extends RefCounted
 
 ## 搜寻内核 · `seq.effect.search`。
-## 在指定区域翻找（对他人不揭示）；整库搜寻结束后洗牌；有合格对象则必须找到。
+## 在指定区域翻找（对他人不揭示）；搜了牌库须洗（整库或顶 N 皆然）；弃牌堆不洗。
 ## 不含：look at / find（FAQ 互不计为 Search）；拿入手/抽/结算等后续 nest。
 
 const AREA_INVESTIGATOR_DECK := &"investigator_deck"
@@ -72,12 +72,11 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var rest := game_ctx.state.registry.get_card(card_id)
 			if rest != null and prev_controllers.has(card_id):
 				rest.controller_id = prev_controllers[card_id] as StringName
-	## 整库搜寻 → 该库洗牌（已取出的不在库中）。
-	if scope == SCOPE_ENTIRE:
-		for area in areas:
-			if area == AREA_INVESTIGATOR_DECK or area == AREA_ENCOUNTER_DECK:
-				if _shuffle_deck_area(game_ctx, area, controller):
-					shuffled_areas.append(area)
+	## 搜了牌库 → 洗该库（整库 / 顶 N 皆然；弃牌堆不洗）。
+	for area in areas:
+		if area == AREA_INVESTIGATOR_DECK or area == AREA_ENCOUNTER_DECK:
+			if _shuffle_deck_area(game_ctx, area, controller):
+				shuffled_areas.append(area)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
@@ -213,6 +212,6 @@ static func _shuffle_deck_area(
 	var pile := _pile_ref(game_ctx, area, controller)
 	if pile.is_empty():
 		return false
-	## 空弃洗回库不算「搜整库后的洗」；此处仅打乱当前库内剩余牌。
+	## 仅打乱当前库内剩余牌（已取出者不在库中）。
 	pile.shuffle()
 	return true

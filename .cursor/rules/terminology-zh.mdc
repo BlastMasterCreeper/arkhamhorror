@@ -61,7 +61,7 @@ alwaysApply: true
 | **Player card back** | **玩家卡背** | `CardBackKind.PLAYER` / `card_back=player`；无文本背面；牌库外观 |
 | **Encounter card back** | **遭遇卡背** | `CardBackKind.ENCOUNTER` / `card_back=encounter`；无文本背面；牌库外观 |
 | **Card back (kind)** | **卡背类型** | **仅**背面轴；≠ 正面 cardtype；≠ `CardFace` A/B（哪一面朝上） |
-| **Search** | **搜寻** | `seq.effect.search`；整库搜完须洗；≠ look at / find（FAQ 互不计） |
+| **Search** | **搜寻** | `seq.effect.search`；搜牌库须洗（整库或顶 N）；弃牌堆不洗；≠ look at / find（FAQ 互不计） |
 | **Player cardtype** | **玩家卡牌类型** | asset / event / skill 等；弱点可为此类型 + 玩家卡背 |
 
 ## 对话表述（已裁决）

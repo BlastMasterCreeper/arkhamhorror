@@ -286,7 +286,7 @@ static func lead_search_draw_encounter_copies(
 		else 1
 	)
 	var drawn := 0
-	## 先搜遭遇库（整库→洗）；不足再搜弃牌堆（不洗库）。
+	## 先搜遭遇库（搜库须洗）；不足再搜弃牌堆（弃牌堆不洗）。
 	for _i in count:
 		var search_deck := SearchFlow.nest_or_run(
 			game_ctx,
