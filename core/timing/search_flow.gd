@@ -41,8 +41,6 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var shuffled_areas: Array[StringName] = []
 	for area in areas:
 		var pile := _pile_ref(game_ctx, area, controller)
-		if pile == null:
-			continue
 		var window := _window_ids(pile, scope, top_n)
 		for card_id in window:
 			viewed.append(card_id)
@@ -151,6 +149,7 @@ static func _pile_ref(
 	area: StringName,
 	controller: StringName
 ) -> Array:
+	var missing: Array = []
 	match area:
 		AREA_ENCOUNTER_DECK:
 			return game_ctx.state.encounter_deck
@@ -158,16 +157,16 @@ static func _pile_ref(
 			return game_ctx.state.encounter_discard
 		AREA_INVESTIGATOR_DECK:
 			var inv := game_ctx.state.registry.get_investigator(controller)
-			return inv.deck if inv != null else null
+			return inv.deck if inv != null else missing
 		AREA_INVESTIGATOR_DISCARD:
 			var inv_d := game_ctx.state.registry.get_investigator(controller)
-			return inv_d.discard if inv_d != null else null
-	return null
+			return inv_d.discard if inv_d != null else missing
+	return missing
 
 
 static func _window_ids(pile: Array, scope: StringName, top_n: int) -> Array[StringName]:
 	var out: Array[StringName] = []
-	if pile == null or pile.is_empty():
+	if pile.is_empty():
 		return out
 	if scope == SCOPE_TOP:
 		var n := mini(top_n, pile.size())
@@ -212,7 +211,7 @@ static func _shuffle_deck_area(
 	controller: StringName
 ) -> bool:
 	var pile := _pile_ref(game_ctx, area, controller)
-	if pile == null or pile.is_empty():
+	if pile.is_empty():
 		return false
 	## 空弃洗回库不算「搜整库后的洗」；此处仅打乱当前库内剩余牌。
 	pile.shuffle()
