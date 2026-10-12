@@ -7,6 +7,7 @@ extends RefCounted
 ## - 敌人 **攻击**（阶段 / 借机 / 反击 / 警戒）→ perform_attack 后 try_flee_after_enemy_attack
 ## - 敌人 **被攻击**（调查员 Fight）→ post-ST7 try_flee_was_attacked
 ## 借机攻击是敌人发起的攻击，走第一条，不是「被攻击」。
+## 地点变更走狭义移动核 `seq.effect.move`（subject=enemy, mode=direct）。
 
 
 static func try_flee_after_enemy_attack(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
@@ -33,9 +34,23 @@ static func _try_flee(
 	var from_loc := enemy.location_tag
 	_disengage_all(game_ctx, enemy_id)
 	var dest := _pick_flee_destination(game_ctx, from_loc)
+	var fled := false
 	if dest != &"" and dest != from_loc:
-		enemy.location_tag = dest
+		var move_res := MoveFlow.nest_or_run(
+			game_ctx,
+			{
+				"subject": MoveFlow.SUBJECT_ENEMY,
+				"enemy_id": enemy_id,
+				"destination_id": dest,
+				"mode": MoveFlow.MODE_DIRECT,
+				"auto_engage": false,
+			}
+		)
+		fled = bool(move_res.get("ok", false)) and bool(move_res.get("moved", false))
 	_disengage_all(game_ctx, enemy_id)
+	enemy = game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return {"ok": true, "fled": fled}
 	if game_ctx.enemy != null:
 		game_ctx.enemy.set_enemy_exhausted(game_ctx, enemy_id, true, false)
 	else:
@@ -49,9 +64,11 @@ static func _try_flee(
 				"cause": cause,
 				"from": from_loc,
 				"to": enemy.location_tag,
+				"via": &"seq.effect.move",
 			}
 		)
-	return {"ok": true, "fled": true, "to_location": enemy.location_tag}
+	## fled=true：逃逸能力已结算（即使无处可去、地点未变）。
+	return {"ok": true, "fled": true, "to_location": enemy.location_tag, "moved": fled}
 
 
 static func _disengage_all(game_ctx: GameContext, enemy_id: StringName) -> void:

@@ -1050,7 +1050,8 @@ static func pick_multi(
 	return select_entities(controller_id, spec, source_card_id)
 
 
-## 同帧内联：把敌人放到目标地点（L0 改 location_tag；不 nest、不自动交战）。
+## 卡面「把敌人放到目标地点」：nest `seq.effect.move`（direct；默认不自动交战）。
+## 需要寻路步进 + auto engage 时用 `nest_enemy_move_to`。
 static func move_enemy_to(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -1060,6 +1061,7 @@ static func move_enemy_to(
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"move_enemy_to"
+	n.nest_flow_id = &"seq.effect.move"
 	n.inv_id = controller_id
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec

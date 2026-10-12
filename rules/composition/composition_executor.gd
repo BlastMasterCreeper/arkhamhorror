@@ -1089,7 +1089,7 @@ func _apply_choice_bind(
 				_game_ctx.memory.set_referent(controller_id, key, StringName(str(picked)))
 
 
-## 同帧内联移敌（L0 location_tag；不自动交战、不压栈）。
+## nest `seq.effect.move`（subject=enemy, mode=direct；默认不自动交战）。
 func _execute_move_enemy_to_inline(node: CompositionNode) -> bool:
 	if _game_ctx == null or _state == null:
 		return false
@@ -1103,18 +1103,33 @@ func _execute_move_enemy_to_inline(node: CompositionNode) -> bool:
 	var dest := _resolve_location_spec(node, inv)
 	if dest == &"":
 		return false
-	var enemy := _state.registry.get_enemy(enemy_id)
-	if enemy == null:
+	if _state.registry.get_enemy(enemy_id) == null:
 		return false
-	enemy.location_tag = dest
+	var result := MoveFlow.nest_or_run(
+		_game_ctx,
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": enemy_id,
+			"destination_id": dest,
+			"mode": MoveFlow.MODE_DIRECT,
+			"auto_engage": node.auto_engage,
+		}
+	)
 	_last_step_enemy_id = enemy_id
-	_last_step_created = true
+	_last_step_engaged_investigator = result.get("engaged_investigator", &"") as StringName
+	_last_step_created = bool(result.get("ok", false))
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:move_enemy_to",
-		{"enemy": enemy_id, "location": dest}
+		{
+			"enemy": enemy_id,
+			"location": dest,
+			"flow": &"seq.effect.move",
+			"mode": MoveFlow.MODE_DIRECT,
+			"ok": _last_step_created,
+		}
 	)
-	return true
+	return _last_step_created
 
 
 ## 同帧内联交战（L0 apply_engage）。

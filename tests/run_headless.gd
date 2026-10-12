@@ -262,6 +262,8 @@ func _initialize() -> void:
 	_run_test("G1-02 seq.effect.move enemy subject", _test_g1_effect_move_enemy)
 	_run_test("G1-03 seq.effect.move attachment", _test_g1_effect_move_attachment)
 	_run_test("G1-04 seq.effect.move marker clue", _test_g1_effect_move_marker)
+	_run_test("G1-05 seq.effect.move enemy direct", _test_g1_effect_move_enemy_direct)
+	_run_test("G1-06 elusive flee nests move", _test_g1_elusive_flee_nests_move)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -5667,6 +5669,58 @@ func _test_g1_effect_move_marker() -> bool:
 		and loc_b.clues == 2
 		and int(res.get("amount", 0)) == 2
 		and res.get("subject", &"") == MoveFlow.SUBJECT_MARKER
+	)
+
+
+func _test_g1_effect_move_enemy_direct() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := MoveFlow.nest_or_run(
+		h.ctx,
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": &"enemy_1",
+			"destination_id": &"loc_b",
+			"mode": MoveFlow.MODE_DIRECT,
+			"auto_engage": false,
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		res.ok
+		and bool(res.get("moved", false))
+		and res.get("mode", &"") == MoveFlow.MODE_DIRECT
+		and enemy.location_tag == &"loc_b"
+	)
+
+
+func _test_g1_elusive_flee_nests_move() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"flee_loc")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"flee_loc")
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_elusive_wire",
+		&"test_loc",
+		{
+			"keywords": [&"elusive"],
+			"enemy": {"fight": 2, "evade": 2, "health": 2, "damage": 1, "horror": 0},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var flee := ElusiveResolver.try_flee_was_attacked(h.ctx, enemy_id)
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	return (
+		bool(flee.get("ok", false))
+		and bool(flee.get("fled", false))
+		and bool(flee.get("moved", false))
+		and enemy != null
+		and enemy.location_tag == &"flee_loc"
+		and enemy.exhausted
 	)
 
 

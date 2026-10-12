@@ -2,7 +2,8 @@ class_name PatrolKeywordFlow
 extends RefCounted
 
 ## Patrol LISTENER 开火体 · nest 自 `seq.enemy.3_2`（KeywordConsumer @ ENEMY_3_2）。
-## 括号目标 = PatrolTargetSpec（①）；不写进 Framework 3.2 handler。
+## 括号目标 = PatrolTargetSpec（①）；移动体 nest `seq.effect.move`。
+## 不写进 Framework 3.2 handler。
 
 
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -25,12 +26,15 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var target_loc := PatrolTargetResolver.resolve(spec, game_ctx, enemy_id)
 	if target_loc == &"" or enemy.location_tag == target_loc:
 		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
-	var body := EnemyPhaseFlow.move(
+	var body := MoveFlow.nest_or_run(
 		game_ctx,
 		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
 			"enemy_id": enemy_id,
+			"destination_id": target_loc,
 			"target_location": target_loc,
 			"steps": 1,
+			"mode": MoveFlow.MODE_TOWARD,
 		}
 	)
 	var did_move := bool(body.get("moved", false))

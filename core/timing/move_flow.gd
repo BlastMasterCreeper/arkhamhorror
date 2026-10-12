@@ -10,6 +10,21 @@ const SUBJECT_ENEMY := &"enemy"
 const SUBJECT_ATTACHMENT := &"attachment"
 const SUBJECT_MARKER := &"marker"
 
+## 敌人：`toward` = 寻路步进（默认）；`direct` = 一次写到目标地点。
+const MODE_TOWARD := &"toward"
+const MODE_DIRECT := &"direct"
+
+
+static func nest_or_run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	## 有 Catalog 时 nest 压栈（可被移动时点听到）；否则直跑内核。
+	if (
+		game_ctx != null
+		and game_ctx.sequence_catalog != null
+		and game_ctx.sequence_catalog.has_flow(&"seq.effect.move")
+	):
+		return game_ctx.sequence_catalog.nest(game_ctx, &"seq.effect.move", params)
+	return run(game_ctx, params)
+
 
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
@@ -114,8 +129,15 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 	var from_id: StringName = enemy.location_tag
 	if from_id == &"":
 		return {"ok": false, "error": "not_at_location"}
-	var steps: int = maxi(1, int(params.get("steps", 1)))
+	if game_ctx.state.registry.get_location(target_loc) == null:
+		return {"ok": false, "error": "unknown_location"}
+	var mode: StringName = params.get("mode", MODE_TOWARD) as StringName
 	var do_auto_engage := _auto_engage(params, true)
+	if mode == MODE_DIRECT:
+		return _move_enemy_direct(
+			game_ctx, enemy, enemy_id, from_id, target_loc, do_auto_engage
+		)
+	var steps: int = maxi(1, int(params.get("steps", 1)))
 	var last := {
 		"ok": true,
 		"subject": SUBJECT_ENEMY,
@@ -125,6 +147,7 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		"destination_id": target_loc,
 		"target_location": target_loc,
 		"moved": false,
+		"mode": MODE_TOWARD,
 	}
 	for _i in steps:
 		var hop := EnemyMovement.move_one_step_toward_location(
@@ -151,6 +174,36 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		last.get("to", from_id)
 	)
 	return last
+
+
+static func _move_enemy_direct(
+	game_ctx: GameContext,
+	enemy: EnemyState,
+	enemy_id: StringName,
+	from_id: StringName,
+	dest_id: StringName,
+	do_auto_engage: bool
+) -> Dictionary:
+	if from_id == dest_id:
+		return _ok_skipped(SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
+			"enemy_id": enemy_id,
+			"target_location": dest_id,
+			"mode": MODE_DIRECT,
+		})
+	enemy.location_tag = dest_id
+	var out := _ok_moved(SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
+		"enemy_id": enemy_id,
+		"target_location": dest_id,
+		"to_location": dest_id,
+		"mode": MODE_DIRECT,
+	})
+	if do_auto_engage:
+		var engage := EngageFlow.nest_after_area_change(game_ctx, dest_id, enemy_id)
+		out["engaged_investigator"] = engage.get("investigator_id", &"")
+		if enemy.massive:
+			MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
+	_log_move(game_ctx, SUBJECT_ENEMY, enemy_id, from_id, dest_id)
+	return out
 
 
 static func _move_attachment(game_ctx: GameContext, params: Dictionary) -> Dictionary:

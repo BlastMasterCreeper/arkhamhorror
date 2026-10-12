@@ -220,7 +220,8 @@ nest seq.engage mode=effect            # C · 明示交战（消费同一指称�
 | `no_provoke_aoo` | B | 无参；Initiation 挂 `SKIP_AOO` |
 | `pick_target` | A | `filter` / `prompt_id` / `memory_key` |
 | `suppress_auto_engage` | B | `enemy: memory:picked_enemy` |
-| `nest_enemy_move_to` | C | `flow_id: seq.effect.move`（subject=enemy）+ 指称 |
+| `nest_enemy_move_to` | C | `flow_id: seq.effect.move`（subject=enemy, toward）+ 指称 |
+| `move_enemy_to` | C | 同核 `mode=direct`；默认不 auto engage |
 | `nest_move_attachment_to` | C | `flow_id: seq.effect.move`（subject=attachment）|
 | `nest_move_marker_to` | C | `flow_id: seq.effect.move`（subject=marker）|
 | `nest_engage` | C | `flow_id: seq.engage` + `mode: effect` |
