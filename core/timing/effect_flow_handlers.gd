@@ -424,6 +424,8 @@ static func _apply_to_investigator(
 			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
 			amount
 		)
+	## 伤/恐常态检测 → 可能 nest 击败。
+	DefeatFlow.check_investigator_caps(game_ctx, inv_id)
 	return amount
 
 

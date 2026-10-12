@@ -580,6 +580,51 @@ static func enemy_defeated(
 	return t
 
 
+## 击败效果（seq.effect.defeat · 敌人/调查员）。
+static func defeat(
+	params: Dictionary,
+	after_timing: StringName = &"after_defeat"
+) -> TriggeringCondition:
+	var subject: StringName = params.get("subject", &"") as StringName
+	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
+	if subject == &"" and enemy_id != &"":
+		return enemy_defeated(
+			enemy_id,
+			params.get("location_id", &"") as StringName,
+			params.get("definition_id", &"") as StringName,
+			after_timing
+		)
+	var inv_id: StringName = params.get(
+		"investigator_id", params.get("inv_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName(
+		"defeat_%s_%s_%d"
+		% [subject, enemy_id if enemy_id != &"" else inv_id, Time.get_ticks_msec()]
+	)
+	t.kind = &"defeat"
+	t.tags = [&"defeat", &"effect", subject]
+	t.controller_id = inv_id
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+## 击败成功后的退场 nest（seq.defeat.leave_play）。
+static func defeat_leave_play(
+	params: Dictionary,
+	after_timing: StringName = &"after_defeat_leave_play"
+) -> TriggeringCondition:
+	var subject: StringName = params.get("subject", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("defeat_leave_%s_%d" % [subject, Time.get_ticks_msec()])
+	t.kind = &"defeat_leave_play"
+	t.tags = [&"defeat", &"leave_play", subject]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 static func discover_clue(
 	inv_id: StringName,
 	location_id: StringName,

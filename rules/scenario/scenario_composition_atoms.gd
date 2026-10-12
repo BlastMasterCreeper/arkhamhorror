@@ -165,8 +165,9 @@ static func defeat_surviving_non_resigned(
 			inv.physical_trauma += physical_trauma
 		if mental_trauma > 0:
 			inv.mental_trauma += mental_trauma
-		InvestigatorElimination.eliminate(game_ctx, inv_id)
-		affected = true
+		var defeat := DefeatFlow.defeat_investigator_effect(game_ctx, inv_id)
+		if bool(defeat.get("defeated", false)) or bool(defeat.get("eliminated", false)):
+			affected = true
 	if game_ctx.log != null and affected:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,

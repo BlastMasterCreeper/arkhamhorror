@@ -242,7 +242,7 @@
 | G2 | **Exhaust / Ready** | **已铸** `seq.effect.exhaust` / `seq.effect.ready` | 平放区卡牌 + 在场敌人；`target_kind` card\|enemy；费用 exhaust 仍走 Cost |
 | G3 | **Search** | **已铸** `seq.effect.search` | 单条；`area`/`scope`/`amount`/`filter`/`take_count`；搜牌库须洗（整库/顶 N）；≠ look/find |
 | G4 | **Put into play / Enter play** | 区划事实（场外→场上） | **不铸** `seq.effect.enter_play` — **不是效果**；见下「进场」 |
-| G5 | **Defeat**（击败） | 敌人有 `seq.enemy.defeat`；调查员多在 elimination | **是效果**；退场 **nest** 不内联；伤害/恐惧上限 = 常态检测（见「击败」）；统一/接线 G5 |
+| G5 | **Defeat**（击败） | **已铸** `seq.effect.defeat`；敌人别名 `seq.enemy.defeat`；退场 nest `seq.defeat.leave_play` | 伤/恐上限常态检测；Cancel → 无退场；卡面 `cause=effect` |
 | G6 | **Phase begins/ends**（除调查结束） | 仅 `investigation_phase_ends` | 按需补 `seq.framework.*_phase_ends/begins`；**不要**一次铸满四阶段 |
 | G7 | **Attack of opportunity** | 行动 Initiation 内联 | 保持内联，除非卡面大量订「after AOO」且难过滤 |
 | G8 | **Play（打出）** | 刻意非 seq（`PLAY_CARD`） | **不铸** `seq.play` 进命名流程表（17 已裁） |
@@ -282,7 +282,7 @@
 6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线（躲避四层见术语表；尚未另铸 `seq.effect.evade`）  
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
 8. ~~**G4**~~：**已裁决** — 进场 = 广义移动上的场外→场上**信息**；听广义移动+过滤；**不铸** `seq.effect.enter_play`  
-9. ~~**G5 模型**~~：**已裁决** — 击败是效果；退场 nest；伤害/恐惧上限常态检测（Cancel 仍可再触）；实现/统一接线待落地  
+9. ~~**G5**~~：**已落地** — `seq.effect.defeat` + nest `seq.defeat.leave_play`；敌人别名保留；伤/恐常态检测 |
 10. ~~**`resolve_bound` / `resolve_location`**~~：**已裁决** — 废除重定向；抽出按**卡面能力**（类型默认能力包）结算 → `seq.encounter.resolve_card`。`resolve_location` 仍可降内部（落点辅助）。  
 11. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
 
@@ -322,3 +322,4 @@
 | 2026-10-12 | G4：进场 = 场外→场上区划信息，非效果；不铸 `seq.effect.enter_play` |
 | 2026-10-12 | G4 补：听进场 = 听广义移动 + 场外→场上过滤；`ENTER_PLAY` 是别名非第二通道 |
 | 2026-10-12 | G5：击败是效果；退场 nest 不内联；伤/恐上限常态检测（Cancel 可再触） |
+| 2026-10-12 | G5 落地：`DefeatFlow`；`seq.effect.defeat` / `seq.enemy.defeat`；nest `seq.defeat.leave_play` |

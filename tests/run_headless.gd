@@ -276,6 +276,11 @@ func _initialize() -> void:
 	_run_test("G3-01 seq.effect.search entire deck take shuffle", _test_g3_search_entire_take_shuffle)
 	_run_test("G3-02 seq.effect.search top N still shuffles deck", _test_g3_search_top_shuffles)
 	_run_test("G3-03 search catalog registered", _test_g3_search_catalog)
+	_run_test("G5-01 defeat cancel skips leave-play", _test_g5_defeat_cancel_no_leave)
+	_run_test("G5-02 damage cap standing re-triggers after cancel", _test_g5_damage_cap_retriggers)
+	_run_test("G5-03 effect defeat ignores health", _test_g5_effect_defeat)
+	_run_test("G5-04 investigator horror cap defeat", _test_g5_investigator_horror_cap)
+	_run_test("G5-05 defeat catalog registered", _test_g5_defeat_catalog)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6008,6 +6013,110 @@ func _test_g3_search_catalog() -> bool:
 	return h.ctx.sequence_catalog.has_flow(&"seq.effect.search")
 
 
+func _test_g5_defeat_cancel_no_leave() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_cancel",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 3}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	enemy.damage = enemy.health
+	h.ctx.memory.cancel_sequence(
+		&"seq.enemy.defeat",
+		{"card_id": enemy_id}
+	)
+	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
+	return (
+		bool(res.get("cancelled", false))
+		and not bool(res.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) != null
+	)
+
+
+func _test_g5_damage_cap_retriggers() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_re",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 2}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	enemy.damage = enemy.health
+	h.ctx.memory.cancel_sequence(
+		&"seq.enemy.defeat",
+		{"card_id": enemy_id}
+	)
+	var cancelled := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
+	if not bool(cancelled.get("cancelled", false)):
+		return false
+	if h.ctx.state.registry.get_enemy(enemy_id) == null:
+		return false
+	## Cancel 已消费；伤仍满血 → 常态检测再次击败并 nest 退场。
+	var again := DefeatFlow.check_enemy_damage_cap(h.ctx, enemy_id)
+	return (
+		bool(again.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+	)
+
+
+func _test_g5_effect_defeat() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_fx",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 5}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	## 伤未满血仍可被卡面击败。
+	enemy.damage = 0
+	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_EFFECT)
+	return (
+		bool(res.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+	)
+
+
+func _test_g5_investigator_horror_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.sanity = 2
+	inv.horror_taken = 0
+	var applied := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.damage",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"horror",
+			"amount": 2,
+			"target": &"controller",
+		}
+	)
+	return (
+		bool(applied.get("ok", false))
+		and inv.eliminated
+		and inv.horror_taken >= inv.sanity
+	)
+
+
+func _test_g5_defeat_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	return (
+		h.ctx.sequence_catalog.has_flow(&"seq.effect.defeat")
+		and h.ctx.sequence_catalog.has_flow(&"seq.enemy.defeat")
+		and h.ctx.sequence_catalog.has_flow(&"seq.defeat.leave_play")
+	)
+
+
 func _test_act_move_fail() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -6072,6 +6181,9 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.effect.exhaust",
 		&"seq.effect.ready",
 		&"seq.effect.search",
+		&"seq.effect.defeat",
+		&"seq.enemy.defeat",
+		&"seq.defeat.leave_play",
 		&"seq.action.investigate",
 		&"seq.action.fight",
 		&"seq.action.engage",

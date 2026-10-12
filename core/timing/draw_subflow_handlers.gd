@@ -74,4 +74,5 @@ static func _settle_encounter_package(
 
 
 static func resolve_empty_piles_defeated(game_ctx: GameContext, inv_id: StringName) -> Dictionary:
-	return InvestigatorElimination.eliminate(game_ctx, inv_id)
+	## 空库+空弃 → 击败效果（nest 退场 / 淘汰清理）。
+	return DefeatFlow.defeat_investigator_effect(game_ctx, inv_id)

@@ -111,6 +111,8 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		inv.location_tag = inv_src.location_tag
 		inv.damage_taken = inv_src.damage_taken
 		inv.horror_taken = inv_src.horror_taken
+		inv.health = inv_src.health
+		inv.sanity = inv_src.sanity
 		inv.clues_on_card = inv_src.clues_on_card
 		inv.eliminated = inv_src.eliminated
 		inv.resigned = inv_src.resigned

@@ -176,6 +176,9 @@ static func setup_investigator_at_location(
 	inv.skill_intellect = int(skills.get("intellect", 3))
 	inv.skill_combat = int(skills.get("combat", 3))
 	inv.skill_agility = int(skills.get("agility", 3))
+	## 可选；未传则 0 = 伤恐不自动击败（测试按需设）。
+	inv.health = int(skills.get("health", 0))
+	inv.sanity = int(skills.get("sanity", 0))
 	ctx.state.registry.register_investigator(inv)
 
 

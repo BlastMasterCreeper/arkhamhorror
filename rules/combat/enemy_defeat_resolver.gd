@@ -3,7 +3,9 @@ extends RefCounted
 
 ## 敌人 defeat / discard-from-play · 08 §8
 ##
-## - damage >= health → defeat（触发 Doomed 等 defeat 关键词）
+## - damage >= health → 常态检测 → `DefeatFlow`（`seq.effect.defeat` / `seq.enemy.defeat`）
+## - 卡面击败：`defeat(..., cause=effect)` 无视伤量
+## - 击败成功后 nest 退场（`finalize_leave_play`）；Cancel → 无退场
 ## - discard_from_play：仅离场，不算 defeat
 
 
@@ -20,41 +22,35 @@ static func deal_damage(
 	enemy.damage += amount
 	if enemy.damage < enemy.health:
 		return {"ok": true, "defeated": false, "damage": enemy.damage}
-	return defeat(game_ctx, enemy_id)
+	return DefeatFlow.check_enemy_damage_cap(game_ctx, enemy_id)
 
 
-static func defeat(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
-	if game_ctx == null or game_ctx.state == null or enemy_id == &"":
-		return {"ok": false, "defeated": false}
-	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-	if enemy == null:
-		return {"ok": false, "defeated": false}
-	if enemy.damage < enemy.health:
-		return {"ok": true, "defeated": false}
-	var location_id := enemy.location_tag
-	var definition_id := _definition_id(game_ctx, enemy_id)
-	## 先收集 When/After defeated（仍 WHILE_IN_PLAY），再离场。
-	if (
-		game_ctx.sequence_catalog != null
-		and game_ctx.sequence_catalog.has_flow(&"seq.enemy.defeat")
-	):
-		game_ctx.sequence_catalog.run(
-			game_ctx,
-			&"seq.enemy.defeat",
-			{
-				"enemy_id": enemy_id,
-				"location_id": location_id,
-				"definition_id": definition_id,
-			}
-		)
-	return _finalize_defeat(game_ctx, enemy_id, definition_id)
+## 默认按伤害上限检测；卡面击败传 `DefeatFlow.CAUSE_EFFECT`。
+static func defeat(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	cause: StringName = DefeatFlow.CAUSE_DAMAGE_CAP
+) -> Dictionary:
+	if cause == DefeatFlow.CAUSE_EFFECT:
+		return DefeatFlow.defeat_enemy_effect(game_ctx, enemy_id)
+	return DefeatFlow.nest_or_run(
+		game_ctx,
+		{
+			"subject": DefeatFlow.SUBJECT_ENEMY,
+			"enemy_id": enemy_id,
+			"cause": cause,
+		}
+	)
 
 
-static func _finalize_defeat(
+## 击败成功后的退场（由 `seq.defeat.leave_play` nest 调用）。
+static func finalize_leave_play(
 	game_ctx: GameContext,
 	enemy_id: StringName,
 	definition_id: StringName = &""
 ) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null or enemy_id == &"":
+		return {"ok": false, "defeated": false}
 	if game_ctx.state.registry.get_enemy(enemy_id) == null:
 		return {"ok": false, "defeated": false}
 	_clear_engagement(game_ctx, enemy_id)
@@ -80,14 +76,8 @@ static func _finalize_defeat(
 		"defeated": true,
 		"enemy_id": enemy_id,
 		"victory_display": routed.get("victory_display", false),
+		"subject": DefeatFlow.SUBJECT_ENEMY,
 	}
-
-
-static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
-	var card := game_ctx.state.registry.get_card(enemy_id)
-	if card != null:
-		return card.id.definition_id
-	return enemy_id
 
 
 static func discard_from_play(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
@@ -135,6 +125,13 @@ static func _route_after_defeat(game_ctx: GameContext, enemy_id: StringName) -> 
 		return {"victory_display": moved}
 	_route_to_discard(game_ctx, enemy_id)
 	return {"victory_display": false}
+
+
+static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
+	var card := game_ctx.state.registry.get_card(enemy_id)
+	if card != null:
+		return card.id.definition_id
+	return enemy_id
 
 
 static func _route_to_victory_display(game_ctx: GameContext, enemy_id: StringName) -> bool:
