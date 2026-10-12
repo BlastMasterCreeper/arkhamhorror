@@ -281,6 +281,7 @@ func _initialize() -> void:
 	_run_test("G5-03 effect defeat ignores health", _test_g5_effect_defeat)
 	_run_test("G5-04 investigator horror cap defeat", _test_g5_investigator_horror_cap)
 	_run_test("G5-05 defeat catalog registered", _test_g5_defeat_catalog)
+	_run_test("G5-06 enemy attack damage cap defeats investigator", _test_g5_enemy_attack_damage_cap)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6117,6 +6118,16 @@ func _test_g5_defeat_catalog() -> bool:
 	)
 
 
+func _test_g5_enemy_attack_damage_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.health = 2
+	inv.damage_taken = 0
+	var attack := EnemyAttack.phase(&"enemy_atk", &"inv_1", 2, 0, false)
+	h.ctx.combat.perform_attack(attack)
+	return inv.eliminated and inv.damage_taken >= inv.health
+
+
 func _test_act_move_fail() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -6162,8 +6173,14 @@ func _test_act_draw_defeated() -> bool:
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	inv.deck.clear()
 	inv.discard.clear()
+	var trauma_before := inv.mental_trauma
 	var res := h.draw_action()
-	return res.ok and res.defeated and inv.eliminated
+	return (
+		res.ok
+		and res.defeated
+		and inv.eliminated
+		and inv.mental_trauma == trauma_before + 1
+	)
 
 
 func _test_act_catalog_registered() -> bool:

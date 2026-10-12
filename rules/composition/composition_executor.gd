@@ -1676,6 +1676,9 @@ func _execute_nest_damage(node: CompositionNode) -> bool:
 				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
 				amount
 			)
+		## 无 catalog 回退时仍跑伤/恐常态击败检测。
+		if _game_ctx != null:
+			DefeatFlow.check_investigator_caps(_game_ctx, inv_id)
 		return true
 	return bool(result.get("ok", false))
 

@@ -74,5 +74,9 @@ static func _settle_encounter_package(
 
 
 static func resolve_empty_piles_defeated(game_ctx: GameContext, inv_id: StringName) -> Dictionary:
-	## 空库+空弃 → 击败效果（nest 退场 / 淘汰清理）。
+	## 空库+空弃 → 立即击败并受 1 点精神创伤（Grimoire）。
+	if game_ctx != null and game_ctx.state != null:
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv != null:
+			inv.mental_trauma += 1
 	return DefeatFlow.defeat_investigator_effect(game_ctx, inv_id)
