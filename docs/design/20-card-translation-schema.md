@@ -154,7 +154,7 @@ pick_target
 | 冷漠（Aloof） | **不**交战 | **可以**交战 |
 | 横置（exhausted） | **不**交战 | **可以**交战 |
 | 多调查员 WHO | Prey → Lead | 卡面指定（如 controller） |
-| `placement` | `enter_threat` | 默认同；跨地点/无「进入」动作用 `grant` |
+| `placement` | `enter_threat`（常移入威胁区） | 默认同；仅交战 Buff、不移入用 `grant` |
 
 因此 **禁止**用「给自动交战塞 forced target」替代明示交战——冷漠/横置场合自动路径根本不会开火，卡面「engages you」会丢。
 

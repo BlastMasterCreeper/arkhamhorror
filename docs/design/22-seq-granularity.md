@@ -240,7 +240,7 @@
 6. **G2**：Exhaust/Ready 是否升格，或等出现真实订阅再铸？  
 7. **G3**：Search 是否本阶段铸造？  
 8. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？  
-9. ~~**交战 grant / Buff**~~：**已落地** — `RestrictionKind.ENGAGEMENT`；grant 仅 Buff，enter_threat = 场面+Buff
+9. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
 
 确认后：
 
@@ -262,5 +262,6 @@
 | 2026-10-10 | M3 纠正：庞大 = 对一般攻击效果 `seq.enemy.attack` 的 REPLACE（PHASE→batch）；敌军阶段 `phase_attacks` 只是固定手续 nest 攻击 |
 | 2026-10-10 | M4：`seq.effect.gain_resource`；M5：扩展 `seq.engage`（source/initiation/placement），保留根 id |
 | 2026-10-10 | M5 收口：仅 `auto`/`effect`；行动外壳 nest effect；去掉 source/initiation 专轴 |
-| 2026-10-10 | 交战状态 = ENGAGEMENT Buff；与威胁区场面脱钩 |
+| 2026-10-10 | 交战状态 = ENGAGEMENT Buff；与威胁区脱钩 |
+| 2026-10-12 | 纠正：威胁区 = 区划检测信息，不是「写入/不写」的 Buff 并列层 |
 | 2026-10-12 | 纠正：威胁区 = 区划检测信息，不是「写入/不写」的 Buff 并列层 |
