@@ -250,7 +250,7 @@
 3. ~~**M4**~~：**已落地** — `seq.effect.gain_resource`（旧 id 别名）  
 4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
-6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避·攻击横置 / Elusive 接线  
+6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线（躲避四层见术语表；尚未另铸 `seq.effect.evade`）  
 7. **G3**：Search 是否本阶段铸造？  
 8. **`resolve_bound` / `resolve_location`**：保持独立 RUN，还是降为同 flow 的 mode？  
 9. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
@@ -282,3 +282,4 @@
 | 2026-10-12 | G1 接线：Elusive / move_enemy_to / Hunter / Patrol 均经 `seq.effect.move`；删 InvestigatorMoveFlow |
 | 2026-10-12 | G1：区分 **移动**（`move_kind=move` 遵守连接）与 **移动到地点**（`move_to` 无视连接） |
 | 2026-10-12 | G2：铸 `seq.effect.exhaust` / `ready`；平放区+在场敌人；接线 4.3 / composition / combat / Elusive |
+| 2026-10-12 | 躲避四层：行动 / 躲避尝试 / 躲避效果 / 自动躲避（包装效果）；≠ 自动成功的尝试 |
