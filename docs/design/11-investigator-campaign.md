@@ -161,18 +161,19 @@ Weakness 是子类型；**结算键是卡面能力体系**（类型给出默认�
 
 | cardtype（默认能力包） | Grimoire 行为摘要 | 引擎 |
 |---|---|---|
-| **Enemy / Treachery**（ENCOUNTER 包） | 按遭遇侧能力结算（弱点击败/弃牌等另调 owner） | `seq.encounter.resolve_card` |
+| **Enemy / Treachery / Location**（ENCOUNTER 包） | 遭遇侧能力；地点常显现入场 | `seq.encounter.resolve_card` |
 | **Asset**（INVESTIGATOR 包） | Revelation（若有）→ **add to hand** → 作 asset | `seq.draw.investigator` D2–D3 + `seq.enter_hand` |
 | **Event** | 同上 → 作 event | 同上 |
 | **Skill** | 同上 → 作 skill | 同上 |
 
 ```text
 卡面能力 / 类型默认包
-  ├── ENEMY / TREACHERY  → ENCOUNTER 包（揭示·险境·显现·spawn/discard）
+  ├── ENEMY / TREACHERY / LOCATION → ENCOUNTER 包（揭示·险境·显现·spawn/discard/地点进场）
   ├── ASSET              → INVESTIGATOR 包 → hand → play asset
   ├── EVENT              → INVESTIGATOR 包 → hand → play event
   └── SKILL              → INVESTIGATOR 包 → hand → commit skill
 Weakness 子类型只调 owner / bearer / 战役残留，不另开管线
+可抽遭遇类型 = 诡计 / 敌人 / 地点（前两者为遭遇库大宗）
 ```
 
 ### 10.2 与 Revelation / 无显现

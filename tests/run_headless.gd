@@ -211,6 +211,7 @@ func _initialize() -> void:
 	_run_test("ENC-16 surge chain shuffles discard", _test_enc_surge_shuffles_discard)
 	_run_test("WKN-01 asset weakness uses investigator draw", _test_wkn_asset_weakness_investigator_draw)
 	_run_test("WKN-03 enemy weakness uses encounter ability package", _test_wkn_enemy_weakness_encounter_package)
+	_run_test("ENC-28 drawn location uses encounter package into play", _test_enc_drawn_location_into_play)
 	_run_test("STAT-01 cold fold action spend count", _test_stat_cold_fold_action_count)
 	_run_test("STAT-02 hot projection increments", _test_stat_hot_projection_increments)
 	_run_test("STAT-03 unregister drops hot projection", _test_stat_unregister_drops_hot)
@@ -4921,6 +4922,33 @@ func _test_wkn_enemy_weakness_encounter_package() -> bool:
 		and card.zone == AhcEnums.Zone.PLAY_AREA
 		and card.face_known_to(&"inv_1")
 		and card.face_known_to(&"inv_2")
+	)
+
+
+func _test_enc_drawn_location_into_play() -> bool:
+	## 遭遇库抽出地点 → ENCOUNTER 包；无显现时 G4 默认进场（非弃牌）。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(
+		h.ctx,
+		&"enc_loc_drawn",
+		[],
+		{
+			"card_type": &"location",
+			"location": {"shroud": 2, "clues": 1},
+		}
+	)
+	if not CardAbilityPackage.uses_encounter_package(h.ctx, card_id):
+		return false
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var card := h.ctx.state.registry.get_card(card_id)
+	var loc := h.ctx.state.registry.get_location(&"enc_loc_drawn")
+	return (
+		bool(res.get("ok", false))
+		and card != null
+		and card.zone == AhcEnums.Zone.LOCATION_AREA
+		and loc != null
+		and loc.revealed
+		and not h.ctx.state.encounter_discard.has(card_id)
 	)
 
 

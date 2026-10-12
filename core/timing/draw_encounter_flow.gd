@@ -277,19 +277,60 @@ static func _step_g4_resolve(ctx: Dictionary) -> void:
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return
-	if CardRegistry.card_type(def_id) == &"enemy":
+	var ctype := CardRegistry.card_type(def_id)
+	if ctype == &"enemy":
 		if _hidden_enemy_skips_spawn(card, def_id):
 			return
 		_nest_encounter_spawn(game_ctx, drawer_id, card_id, ctx.get("outcome", {}))
 		return
 	if card.is_hidden and card.zone == AhcEnums.Zone.HAND:
 		return  # 隐私 treachery · Framework 不得离手 → 跳过
-	if card.zone == AhcEnums.Zone.HAND \
-			or card.zone == AhcEnums.Zone.PLAY_AREA \
-			or card.zone == AhcEnums.Zone.ATTACHED:
+	## 显现已入场 / 入手 / 附着 → G4 不再默认弃置。
+	if (
+		card.zone == AhcEnums.Zone.HAND
+		or card.zone == AhcEnums.Zone.PLAY_AREA
+		or card.zone == AhcEnums.Zone.ATTACHED
+		or card.zone == AhcEnums.Zone.LOCATION_AREA
+	):
+		return
+	## 地点：常靠显现入场；若仍 limbo → Framework 默认进场（非弃牌）。
+	if ctype == &"location":
+		_put_drawn_location_into_play(game_ctx, card_id, def_id)
 		return
 	## 遭遇 treachery 默认落点 =「效果结算后仍在 limbo → finalize」（同 seq.enter_hand · 15 §16.4）
 	game_ctx.mutator.finalize_limbo_discard(card_id, drawer_id)
+
+
+static func _put_drawn_location_into_play(
+	game_ctx: GameContext,
+	card_id: StringName,
+	def_id: StringName
+) -> void:
+	if game_ctx == null or game_ctx.state == null:
+		return
+	var loc := game_ctx.state.registry.get_location(def_id)
+	if loc == null:
+		loc = LocationState.new()
+		loc.id = def_id
+		loc.shroud = CardRegistry.location_shroud(def_id)
+		game_ctx.state.registry.register_location(loc)
+	if not loc.revealed:
+		loc.revealed = true
+		var printed := CardRegistry.location_printed_clues(def_id)
+		if printed >= 0:
+			loc.clues = PerInvestigatorScale.place_location_clues(game_ctx.state, printed)
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card != null:
+		card.zone = AhcEnums.Zone.LOCATION_AREA
+		card.owner_id = &"encounter"
+		card.controller_id = &"encounter"
+	ScenarioDeckSetup.install_triggered_abilities(game_ctx, card_id)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"location:drawn_into_play",
+			{"card_id": card_id, "location_id": def_id, "clues": loc.clues}
+		)
 
 
 static func _step_after_card(ctx: Dictionary) -> void:

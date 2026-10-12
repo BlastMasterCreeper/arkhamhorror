@@ -2,8 +2,8 @@ class_name CardAbilityPackage
 extends RefCounted
 
 ## 抽出/拿到一张牌后的结算包：按卡面能力处理。
-## 不同类型自带默认能力体系（enemy/treachery ↔ 遭遇侧；asset/event/skill ↔ 调查员侧）。
-## 不是按抽牌来源重定向，也不以 is_weakness 为第一键。
+## 可抽遭遇类型：诡计 / 敌人 / 地点（后两者为遭遇库大宗；地点见于特殊冒险，常带显现入场）。
+## asset/event/skill ↔ 调查员侧。不是按抽牌来源重定向，也不以 is_weakness 为第一键。
 ## 注意：勿用 CardRegistry.card_type 的缺省 treachery——未印刷类型视为调查员包。
 
 enum Package { INVESTIGATOR, ENCOUNTER }
@@ -16,7 +16,7 @@ static func package_for_definition(definition_id: StringName) -> Package:
 	if ctype == &"":
 		ctype = data.get("type", &"") as StringName
 	match ctype:
-		&"enemy", &"treachery":
+		&"enemy", &"treachery", &"location":
 			return Package.ENCOUNTER
 		_:
 			return Package.INVESTIGATOR

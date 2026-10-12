@@ -840,7 +840,7 @@ var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
 
 | 默认能力包（cardtype） | 抽出后 | Revelation | 之后 |
 |---|---|---|---|
-| **Enemy / Treachery** | `seq.encounter.resolve_card`（遭遇侧能力体系；**非** D2–D3） | E4 `seq.encounter.revelation` | enemy spawn / treachery discard 等（§17 E5） |
+| **Enemy / Treachery / Location** | `seq.encounter.resolve_card`（遭遇侧；**非** D2–D3） | E4 `seq.encounter.revelation` | spawn / discard / **地点进场**（§17 E5） |
 | **Asset** | 调查员 D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **asset** 使用 |
 | **Event** | 调查员 D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **event** 从 hand play |
 | **Skill** | 调查员 D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **skill** commit（**不能** play） |
@@ -1373,20 +1373,22 @@ const ENCOUNTER_SHUFFLES := &"encounter_shuffles"
 enum Package { INVESTIGATOR, ENCOUNTER }
 
 func package_for_definition(def_id) -> Package:
-    match CardRegistry.card_type(def_id):
-        &"enemy", &"treachery":
-            return ENCOUNTER   # 遭遇侧：揭示 / 险境 / 显现 / spawn·discard
+    # 只认显式印刷 card_type；未印刷 ≠ CardRegistry 缺省 treachery
+    match printed_card_type(def_id):
+        &"enemy", &"treachery", &"location":
+            return ENCOUNTER
         _:
-            return INVESTIGATOR  # 调查员侧：揭示给控制者 / 入手 / 显现
+            return INVESTIGATOR
 ```
 
-| cardtype | 默认能力包 | 结算入口 | 牌面 reveal |
+| cardtype | 默认能力包 | 结算入口 | G4 默认（显现后仍 limbo） |
 |---|---|---|---|
-| **ENEMY** | ENCOUNTER | `seq.encounter.resolve_card` → E2–E6 | E2 **ALL** |
-| **TREACHERY** | ENCOUNTER | 同上 | E2 ALL 或 Hidden |
-| **ASSET / EVENT / SKILL** | INVESTIGATOR | D2–D3 + `seq.enter_hand`（若有显现） | D2 **CONTROLLER** |
+| **ENEMY** | ENCOUNTER | `seq.encounter.resolve_card` → E2–E6 | spawn |
+| **TREACHERY** | ENCOUNTER | 同上 | finalize → 遭遇弃牌堆 |
+| **LOCATION** | ENCOUNTER | 同上（特殊冒险可抽；常带显现入场） | **进场**（LOCATION_AREA）；显现已入场则跳过 |
+| **ASSET / EVENT / SKILL** | INVESTIGATOR | D2–D3 + `seq.enter_hand`（若有显现） | — |
 
-遭遇库也可能抽出非弱点的 event/story 等 → **同键**：按该牌能力包，而非「从遭遇库抽 → 一律遭遇抽牌语义」。Weakness 只调 owner/bearer/战役残留。
+可抽遭遇类型 = **诡计 / 敌人 / 地点**（前两者为遭遇库大宗）。Weakness 只调 owner/bearer/战役残留，不另开管线。
 
 #### 17.6.2 入口（来源只影响 collect / 默认 owner）
 
