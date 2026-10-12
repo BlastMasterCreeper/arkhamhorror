@@ -136,7 +136,7 @@
 | `seq.enemy.phase_attacks` | 3.3 Engaged attacks | **已收口**：固定手续；nest `seq.enemy.attack` |
 | `seq.enemy.massive_phase_attacks` | （误铸） | **删除** |
 | `seq.keyword.massive` | Massive REPLACE 体 | **已铸**：替换 `seq.enemy.attack`（PHASE→batch） |
-| `seq.enemy.defeat` | Defeat（敌人） | **保留** |
+| `seq.enemy.defeat` | Defeat（敌人） | **保留**；见下「击败」— 退场 **nest** 广义移动，不内联 |
 | `seq.enemy.resolve_location` | Prey / 地点解析辅助 | **保留或降为内部**（若无独立订阅需求） |
 | `seq.engage` | Engage（交战） | **扩展内核**：见下「交战 params」；外壳 `seq.action.engage` nest 本条 |
 | `seq.effect.move` | 狭义 Move | **统一核**：`subject` = investigator / enemy / attachment / marker |
@@ -161,6 +161,23 @@
 | **不是什么** | **不是效果**；**不铸** `seq.effect.enter_play`；**不另开**进场专用监听通道 |
 | **怎么听** | 听**广义移动**（L0 区划迁移）；用谓词过滤场外→场上。`AT_ENTER_PLAY` / `ENTER_PLAY` / after enters play = 该过滤的**别名**，不是第二套 emit |
 | **与 Spawn / 打出** | 手续里做广义移动；进场只是结果信息。离场 = 对称过滤（场上→场外） |
+
+**击败（Defeat · 已裁决）**
+
+| | |
+|---|---|
+| **是什么** | **明确的效果**（可 Cancel / 可被听到）；入口含敌人 `seq.enemy.defeat`、调查员淘汰路径等，宜收束为可 nest 的击败核 |
+| **不是什么** | 不是区划信息本身；**退场**（场上→场外的广义移动）是击败 **之后** 的后续，不是击败的同义词 |
+| **产生途径** | ① **伤害 / 恐惧** 达到该卡生命 / 神智上限（**常态检测**，同交战一类）；② 卡面 / 效果直接 **击败** |
+| **后续** | 击败 resolve 成功后 **nest** 退场处理（广义移动 · 离场过滤）。**禁止内联**退场于击败叶内 |
+| **Cancel** | 击败效果被 Cancel → **不**做退场后续。① 伤害/恐惧路径：上限条件仍成立则常态检测会 **再次** 触发（同交战）；② 纯效果击败被 Cancel → 无后续、不自动重触 |
+
+```text
+伤害/恐惧写入 → 常态检测 → nest/run 击败效果
+卡面击败效果 ──────────────→ nest/run 击败效果
+                                ├─ Cancel → 停；无退场
+                                └─ resolve → nest 退场（广义移动 场上→场外）
+```
 
 **交战 `seq.engage`（两条路径 · 非改名前缀）**
 
@@ -225,7 +242,7 @@
 | G2 | **Exhaust / Ready** | **已铸** `seq.effect.exhaust` / `seq.effect.ready` | 平放区卡牌 + 在场敌人；`target_kind` card\|enemy；费用 exhaust 仍走 Cost |
 | G3 | **Search** | **已铸** `seq.effect.search` | 单条；`area`/`scope`/`amount`/`filter`/`take_count`；搜牌库须洗（整库/顶 N）；≠ look/find |
 | G4 | **Put into play / Enter play** | 区划事实（场外→场上） | **不铸** `seq.effect.enter_play` — **不是效果**；见下「进场」 |
-| G5 | **Defeat**（调查员） | 淘汰多在 elimination 服务 | 若 Forced 订「when you are defeated」→ 明确 **`seq.effect.defeat`** 或挂在已有 elimination 帧 |
+| G5 | **Defeat**（击败） | 敌人有 `seq.enemy.defeat`；调查员多在 elimination | **是效果**；退场 **nest** 不内联；伤害/恐惧上限 = 常态检测（见「击败」）；统一/接线 G5 |
 | G6 | **Phase begins/ends**（除调查结束） | 仅 `investigation_phase_ends` | 按需补 `seq.framework.*_phase_ends/begins`；**不要**一次铸满四阶段 |
 | G7 | **Attack of opportunity** | 行动 Initiation 内联 | 保持内联，除非卡面大量订「after AOO」且难过滤 |
 | G8 | **Play（打出）** | 刻意非 seq（`PLAY_CARD`） | **不铸** `seq.play` 进命名流程表（17 已裁） |
@@ -246,6 +263,7 @@
 | `heal` | `kind`, `amount`, `target` |
 | `move`（狭义 · G1） | `subject`, `move_kind`（move\|move_to）, `destination_id`/`to`, 主体 id，`mode`/`steps`（敌·仅 move）, `amount`/`marker_kind`/`from_location`, `auto_engage_*` |
 | `search`（G3） | `controller_id`, `area`(s), `scope` entire\|top, `amount`（顶 N）, `definition_id`/`trait`/`card_type`, `take_count` |
+| `defeat`（G5） | `subject`（enemy/investigator/…）, `cause`（damage_cap / horror_cap / effect）, 实体 id；成功后 nest 退场 |
 | `skill_test` | `investigator`, `skill`, `difficulty` / `difficulty_source`, `st7` |
 | `engage` | `mode`（auto/effect）, `placement`, `require_same_location`, `enemy`, `investigator`, `cause` |
 | `register` | `template`（含 Buff 种类与 lifetime） |
@@ -264,8 +282,9 @@
 6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线（躲避四层见术语表；尚未另铸 `seq.effect.evade`）  
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
 8. ~~**G4**~~：**已裁决** — 进场 = 广义移动上的场外→场上**信息**；听广义移动+过滤；**不铸** `seq.effect.enter_play`  
-9. ~~**`resolve_bound` / `resolve_location`**~~：**已裁决** — 废除重定向；抽出按**卡面能力**（类型默认能力包）结算 → `seq.encounter.resolve_card`。`resolve_location` 仍可降内部（落点辅助）。  
-10. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
+9. ~~**G5 模型**~~：**已裁决** — 击败是效果；退场 nest；伤害/恐惧上限常态检测（Cancel 仍可再触）；实现/统一接线待落地  
+10. ~~**`resolve_bound` / `resolve_location`**~~：**已裁决** — 废除重定向；抽出按**卡面能力**（类型默认能力包）结算 → `seq.encounter.resolve_card`。`resolve_location` 仍可降内部（落点辅助）。  
+11. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
 
 确认后：
 
@@ -302,3 +321,4 @@
 | 2026-10-12 | G3 纠正：洗牌条件是「搜了牌库」，不是「仅整库」 |
 | 2026-10-12 | G4：进场 = 场外→场上区划信息，非效果；不铸 `seq.effect.enter_play` |
 | 2026-10-12 | G4 补：听进场 = 听广义移动 + 场外→场上过滤；`ENTER_PLAY` 是别名非第二通道 |
+| 2026-10-12 | G5：击败是效果；退场 nest 不内联；伤/恐上限常态检测（Cancel 可再触） |
