@@ -1369,17 +1369,36 @@ func _execute_nest_move_to(node: CompositionNode) -> bool:
 
 
 func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool:
-	if _game_ctx == null or _state == null or _game_ctx.skill_tests == null:
+	if _game_ctx == null or _state == null:
 		return false
-	var resolver := BasicActionResolver.new(_state, _game_ctx.skill_tests)
-	var move_result := resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
+	var move_result: Dictionary
+	if (
+		_game_ctx.sequence_catalog != null
+		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.move")
+	):
+		move_result = _game_ctx.sequence_catalog.nest(
+			_game_ctx,
+			&"seq.effect.move",
+			{
+				"investigator_id": inv_id,
+				"destination_id": dest_id,
+				"require_connected": true,
+				"auto_engage_after": true,
+			}
+		)
+	else:
+		if _game_ctx.skill_tests == null:
+			return false
+		var resolver := BasicActionResolver.new(_state, _game_ctx.skill_tests)
+		move_result = resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
+		if bool(move_result.get("ok", false)):
+			EngageFlow.nest_after_area_change(_game_ctx, dest_id)
 	if not bool(move_result.get("ok", false)):
 		return false
-	EngageFlow.nest_after_area_change(_game_ctx, dest_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:nest_move_to",
-		{"inv": inv_id, "destination": dest_id}
+		{"inv": inv_id, "destination": dest_id, "flow": &"seq.effect.move"}
 	)
 	return true
 

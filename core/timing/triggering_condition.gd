@@ -426,6 +426,27 @@ static func enemy_move(
 	return t
 
 
+## 狭义调查员移动（seq.effect.move）。
+static func investigator_move(
+	investigator_id: StringName,
+	destination_id: StringName = &"",
+	after_timing: StringName = &"after_move"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName(
+		"move_%s_%s_%d" % [investigator_id, destination_id, Time.get_ticks_msec()]
+	)
+	t.kind = &"investigator_move"
+	t.controller_id = investigator_id
+	t.tags = [&"move", &"investigator"]
+	t.after_timing = after_timing
+	t.payload = {
+		"investigator_id": investigator_id,
+		"destination_id": destination_id,
+	}
+	return t
+
+
 static func engage(
 	params: Dictionary,
 	after_timing: StringName = &"after_engage"

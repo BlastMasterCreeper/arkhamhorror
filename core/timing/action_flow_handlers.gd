@@ -52,6 +52,19 @@ static func resolve_basic_action(
 	var resolver := BasicActionResolver.new(game_ctx.state, game_ctx.skill_tests)
 	match action_type:
 		AhcEnums.ActionType.MOVE:
+			## 行动外壳 → nest 狭义移动内核（与 draw/gain/engage 对称）。
+			if game_ctx.sequence_catalog != null and game_ctx.sequence_catalog.has_flow(&"seq.effect.move"):
+				var dest_id: StringName = extra.get("destination_id", &"")
+				return game_ctx.sequence_catalog.nest(
+					game_ctx,
+					&"seq.effect.move",
+					{
+						"investigator_id": inv_id,
+						"destination_id": dest_id,
+						"require_connected": true,
+						"auto_engage_after": true,
+					}
+				)
 			var move_result := resolver.move(game_ctx, inv_id, extra)
 			if bool(move_result.get("ok", false)):
 				var dest: StringName = move_result.get("destination_id", &"") as StringName

@@ -256,7 +256,9 @@ func _initialize() -> void:
 	_run_test("AOO-02 fight skips aoo", _test_aoo_fight_skip)
 	_run_test("AOO-03 exhausted enemy skips aoo", _test_aoo_exhausted_skip)
 	_run_test("ACT-11 move to connected location", _test_act_move_success)
+	_run_test("ACT-11b action move nests seq.effect.move", _test_act_move_nests_effect_move)
 	_run_test("ACT-12 move rejects disconnected", _test_act_move_fail)
+	_run_test("G1-01 seq.effect.move registered", _test_g1_effect_move_registered)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -5538,6 +5540,43 @@ func _test_act_move_success() -> bool:
 	return res.ok and inv.location_tag == &"loc_b" and int(res.aoo_attacks) == 0
 
 
+func _test_act_move_nests_effect_move() -> bool:
+	## 行动外壳 nest 狭义移动内核 seq.effect.move。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	var res := h.move_action({"destination_id": &"loc_b"})
+	return (
+		res.ok
+		and res.get("from", &"") == &"test_loc"
+		and res.get("to", &"") == &"loc_b"
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.move")
+	)
+
+
+func _test_g1_effect_move_registered() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.move"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_b",
+			"require_connected": true,
+			"auto_engage_after": false,
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and inv.location_tag == &"loc_b" and res.get("from", &"") == &"test_loc"
+
+
 func _test_act_move_fail() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -5598,6 +5637,7 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.action.gain_resource",
 		&"seq.effect.gain_resource",
 		&"seq.action.move",
+		&"seq.effect.move",
 		&"seq.action.investigate",
 		&"seq.action.fight",
 		&"seq.action.engage",

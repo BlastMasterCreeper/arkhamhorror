@@ -434,7 +434,7 @@ static func disengage_enemy(
 	return n
 
 
-## L1 · 调查员移动到指定地点（无 PI；destination 可为 memory:）。
+## L1 · 狭义调查员移动到指定地点（nest `seq.effect.move`；destination 可为 memory:）。
 static func nest_move_to(
 	controller_id: StringName,
 	location_spec: StringName = &"memory:picked_location",
@@ -443,6 +443,7 @@ static func nest_move_to(
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"nest_move_to"
+	n.nest_flow_id = &"seq.effect.move"
 	n.inv_id = controller_id
 	n.card_id = source_card_id
 	n.location_target = location_spec

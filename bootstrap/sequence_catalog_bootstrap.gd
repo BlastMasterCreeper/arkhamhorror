@@ -105,6 +105,20 @@ static func _register_flows(
 
 
 static func _register_effect_flows(catalog: SequenceCatalog) -> void:
+	## G1：狭义调查员移动内核；行动外壳 / 卡面 nest 共用。
+	catalog.register_run(
+		&"seq.effect.move",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get(
+				"investigator_id", params.get("inv_id", &"")
+			)
+			var dest: StringName = params.get(
+				"destination_id", params.get("to", &"")
+			)
+			return TriggeringCondition.investigator_move(inv_id, dest),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return InvestigatorMoveFlow.run(game_ctx, params)
+	)
 	catalog.register_run(
 		&"seq.effect.discover_clue",
 		func(params: Dictionary) -> TriggeringCondition:
