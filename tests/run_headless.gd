@@ -6123,7 +6123,9 @@ func _test_g5_enemy_attack_damage_cap() -> bool:
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	inv.health = 2
 	inv.damage_taken = 0
-	var attack := EnemyAttack.phase(&"enemy_atk", &"inv_1", 2, 0, false)
+	var attack := EnemyAttack.enemy_strike(
+		&"enemy_atk", &"inv_1", 2, 0, false, AhcEnums.AttackKind.PHASE
+	)
 	h.ctx.combat.perform_attack(attack)
 	return inv.eliminated and inv.damage_taken >= inv.health
 
