@@ -400,16 +400,18 @@ AFTER 本条抽取
 
 > **问题**：支援资产的 Forced / `[reaction]` 可以 **进场 Register、离场 Unregister**（`WHILE_IN_PLAY`）。关键词和不少能力 **不在场上** 也要生效（涌动在暂存区、隐私在手、起始在牌库）。`on_card_leave_play` **只卸** `WHILE_IN_PLAY`，不能当唯一注销钩。
 >
-> **绑已有流程，不另开场合节点**：禁止 `PERIL_CHECK`、`DRAWN_CARD_FINALIZE`、`CARD_DRAWN` 一类 **只为挂载发明的独立钩**。注册/注销要么是 **已有 `seq.*` handler 里的砖**（G2 / G4 / WHEN / AFTER），要么是这些流程 **已经在做的 zone 变迁**（`ENTER_PLAY` 等 L0）。
+> **绑已有流程，不另开场合节点**：禁止 `PERIL_CHECK`、`DRAWN_CARD_FINALIZE`、`CARD_DRAWN` 一类 **只为挂载发明的独立钩**。注册/注销要么是 **已有 `seq.*` handler 里的砖**（G2 / G4 / WHEN / AFTER），要么是这些流程 **已经在做的广义区划迁移**（L0 zone 写入）。
+>
+> **进场 / 离场不是第二套钩**（[22](22-seq-granularity.md)）：`ENTER_PLAY` / `LEAVE_PLAY` = 对**广义移动**的过滤别名（场外↔场上），不是独立 emit，也不是效果 seq。
 
-**与能力 LISTENER 同一套 API**：`RegistrationStore.register` / `unregister`；差别只在 **绑哪条流程的哪一砖 / 哪次 zone 变迁**，不是第二套监听总线。
+**与能力 LISTENER 同一套 API**：`RegistrationStore.register` / `unregister`；差别只在 **绑哪条流程的哪一砖 / 哪次广义移动**，不是第二套监听总线。
 
 ##### 两类锚（不是第三套 enum）
 
 | 类 | 绑什么 | 例子 |
 |---|---|---|
 | **A. 已有 seq 砖** | `register_flow_id` + `register_slot` | 险境 Register = `seq.draw.encounter` **G2**（已有 `_step_peril_register`）；卸 = 同流程 **G4**（已有 `_step_g4_resolve`） |
-| **B. 已有 zone 变迁** | `register_flow_id` 可空；`register_slot` = `ENTER_PLAY` / `LEAVE_PLAY` / `ENTER_HAND` / `LEAVE_HAND` / `ENTER_SET_ASIDE` / `LEAVE_SET_ASIDE` | 猎手：spawn / 打出里的 L0 进场；隐私：`seq.encounter.revelation` 秘密入手 |
+| **B. 广义移动（区划）** | `register_flow_id` 可空；`register_slot` = 过滤别名 `ENTER_PLAY` / `LEAVE_PLAY` / `ENTER_HAND` / … | 猎手：spawn / 打出里的 L0 广义移动且目标为场上；隐私：秘密入手 = 迁入手牌 |
 
 `GRANT` = 效果 Register 砖（已有 Composition）；`FIRED` = `UNTIL_FIRED` 跑完自卸（已有 Lifetime）。二者都不是新检查节点。`seq.setup` = 现有开局管线（`ScenarioSetupFlow` / 换牌 / 游戏开始），不是为关键词另开的场合节点。
 
