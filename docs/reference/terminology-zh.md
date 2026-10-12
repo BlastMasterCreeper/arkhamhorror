@@ -33,8 +33,8 @@
 | **Fight** | **攻击** | Fight action；`seq.action.fight`；≠ 敌人 perform attack |
 | **Evade (action)** | **躲避** | 行动种类；`seq.action.evade`；≠「闪避」「规避」；≠ 躲避尝试 / 躲避效果 |
 | **Evasion attempt** | **躲避尝试** | 躲避行动等衍生的技能检定（通常敏捷）；≠ 自动躲避 |
-| **Evade (effect)** | **躲避效果** | 解除交战 + 横置；成功躲避尝试产生；可被自动躲避包装 |
-| **Automatically evade** | **自动躲避** | 包装躲避效果：无检定、非「自动成功」的尝试；直接拆交战+横置 |
+| **Evade (effect)** | **躲避效果** | 解除交战 + 横置；入口含成功躲避尝试、自动躲避等 |
+| **Automatically evade** | **自动躲避** | 包装并**产生**躲避效果：无检定、非「自动成功」的尝试 |
 | **Investigate** | **调查** | `seq.action.investigate` |
 | **Engage** | **接战** | 主动交战；`seq.action.engage` / `seq.engage` |
 | **Move** | **移动** | 狭义地点变更且**遵守连接**；`seq.effect.move` + `move_kind=move`；≠ 移动到地点；≠ 广义区划转移；≠ 地点交换 |
@@ -70,7 +70,7 @@
 |------|------|
 | Revelation | **显现**；≠ 弱点子类型；≠ 非规范的「揭示」「暴露」 |
 | Skill | **投入**检定；不能 **打出** |
-| Evade 四层 | **躲避**行动 ≠ **躲避尝试** ≠ **躲避效果** ≠ **自动躲避**（包装效果、无检定）；自动躲避 ≠ 自动成功的尝试 |
+| Evade 四层 | **躲避**行动 ≠ **躲避尝试** ≠ **躲避效果** ≠ **自动躲避**；效果入口含成功尝试与自动躲避；自动躲避 ≠ 自动成功的尝试 |
 | Evade | **躲避**；≠ 闪避 / 规避 |
 | Exhaust / Ready | **横置** / **重整**；未横置 = `!exhausted`；≠ 耗尽 / 疲劳 / 竖置 / 就绪 |
 | Fight action vs enemy attack | 调查员 **攻击**行动 ≠ 敌人 **perform attack**（借机攻击 / 反击 / 警戒 / 阶段攻击） |
