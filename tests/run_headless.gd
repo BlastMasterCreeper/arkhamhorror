@@ -262,8 +262,10 @@ func _initialize() -> void:
 	_run_test("G1-02 seq.effect.move enemy subject", _test_g1_effect_move_enemy)
 	_run_test("G1-03 seq.effect.move attachment", _test_g1_effect_move_attachment)
 	_run_test("G1-04 seq.effect.move marker clue", _test_g1_effect_move_marker)
-	_run_test("G1-05 seq.effect.move enemy direct", _test_g1_effect_move_enemy_direct)
+	_run_test("G1-05 seq.effect.move enemy move_to", _test_g1_effect_move_enemy_move_to)
 	_run_test("G1-06 elusive flee nests move", _test_g1_elusive_flee_nests_move)
+	_run_test("G1-07 move rejects disconnected", _test_g1_move_rejects_disconnected)
+	_run_test("G1-08 move_to ignores connections", _test_g1_move_to_ignores_connections)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -5575,7 +5577,7 @@ func _test_g1_effect_move_registered() -> bool:
 			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
 			"investigator_id": &"inv_1",
 			"destination_id": &"loc_b",
-			"require_connected": true,
+			"move_kind": MoveFlow.KIND_MOVE,
 			"auto_engage_after": false,
 		}
 	)
@@ -5585,6 +5587,7 @@ func _test_g1_effect_move_registered() -> bool:
 		and inv.location_tag == &"loc_b"
 		and res.get("from", &"") == &"test_loc"
 		and res.get("subject", &"") == MoveFlow.SUBJECT_INVESTIGATOR
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE
 	)
 
 
@@ -5600,6 +5603,7 @@ func _test_g1_effect_move_enemy() -> bool:
 			"subject": MoveFlow.SUBJECT_ENEMY,
 			"enemy_id": &"enemy_1",
 			"destination_id": &"loc_b",
+			"move_kind": MoveFlow.KIND_MOVE,
 			"steps": 1,
 			"auto_engage": false,
 		}
@@ -5609,6 +5613,7 @@ func _test_g1_effect_move_enemy() -> bool:
 		res.ok
 		and bool(res.get("moved", false))
 		and enemy.location_tag == &"loc_b"
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE
 		and h.ctx.sequence_catalog.has_flow(&"seq.enemy.move")
 	)
 
@@ -5630,6 +5635,7 @@ func _test_g1_effect_move_attachment() -> bool:
 			"subject": MoveFlow.SUBJECT_ATTACHMENT,
 			"attachment_id": card_id,
 			"destination_id": &"loc_b",
+			"move_kind": MoveFlow.KIND_MOVE_TO,
 		}
 	)
 	card = h.ctx.state.registry.get_card(card_id)
@@ -5661,6 +5667,7 @@ func _test_g1_effect_move_marker() -> bool:
 			"destination_id": &"loc_b",
 			"amount": 2,
 			"marker_kind": AhcEnums.MarkerKind.CLUE,
+			"move_kind": MoveFlow.KIND_MOVE_TO,
 		}
 	)
 	return (
@@ -5669,10 +5676,11 @@ func _test_g1_effect_move_marker() -> bool:
 		and loc_b.clues == 2
 		and int(res.get("amount", 0)) == 2
 		and res.get("subject", &"") == MoveFlow.SUBJECT_MARKER
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE_TO
 	)
 
 
-func _test_g1_effect_move_enemy_direct() -> bool:
+func _test_g1_effect_move_enemy_move_to() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
@@ -5682,7 +5690,7 @@ func _test_g1_effect_move_enemy_direct() -> bool:
 			"subject": MoveFlow.SUBJECT_ENEMY,
 			"enemy_id": &"enemy_1",
 			"destination_id": &"loc_b",
-			"mode": MoveFlow.MODE_DIRECT,
+			"move_kind": MoveFlow.KIND_MOVE_TO,
 			"auto_engage": false,
 		}
 	)
@@ -5690,7 +5698,7 @@ func _test_g1_effect_move_enemy_direct() -> bool:
 	return (
 		res.ok
 		and bool(res.get("moved", false))
-		and res.get("mode", &"") == MoveFlow.MODE_DIRECT
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE_TO
 		and enemy.location_tag == &"loc_b"
 	)
 
@@ -5721,6 +5729,52 @@ func _test_g1_elusive_flee_nests_move() -> bool:
 		and enemy != null
 		and enemy.location_tag == &"flee_loc"
 		and enemy.exhausted
+	)
+
+
+func _test_g1_move_rejects_disconnected() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_far", 1, 0)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_far",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		not bool(res.get("ok", false))
+		and str(res.get("error", "")) == "not_connected"
+		and inv.location_tag == &"test_loc"
+	)
+
+
+func _test_g1_move_to_ignores_connections() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_far", 1, 0)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_far",
+			"move_kind": MoveFlow.KIND_MOVE_TO,
+			"auto_engage_after": false,
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE_TO
+		and inv.location_tag == &"loc_far"
 	)
 
 

@@ -33,6 +33,7 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			"enemy_id": enemy_id,
 			"destination_id": target_loc,
 			"target_location": target_loc,
+			"move_kind": MoveFlow.KIND_MOVE,
 			"steps": 1,
 			"mode": MoveFlow.MODE_TOWARD,
 		}

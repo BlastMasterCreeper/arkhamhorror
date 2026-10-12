@@ -31,7 +31,8 @@ alwaysApply: true
 | **Fight** | **攻击** | 调查员行动（Fight action）；`seq.action.fight`；≠ 敌人 perform attack |
 | **Investigate** | **调查** | 调查员行动；`seq.action.investigate` |
 | **Engage** | **接战** | 调查员行动；主动与敌人交战；`seq.action.engage` / `seq.engage` |
-| **Move** | **移动** | 狭义：地点→地点（调查员/敌人/附属/标记）=`seq.effect.move`；行动外壳 `seq.action.move`；≠广义区划转移；≠地点交换 |
+| **Move** | **移动** | 狭义地点变更且**遵守连接**；`seq.effect.move` + `move_kind=move`；行动外壳 `seq.action.move`；≠移动到地点；≠广义区划转移；≠地点交换 |
+| **Move to (a location)** | **移动到地点** | 狭义地点变更但**无视连接**；同核 `move_kind=move_to` |
 | **Attack of Opportunity** | **借机攻击** | AOO；`AttackKind.OPPORTUNITY`；付完 action cost 后、主体效果前 |
 | **Retaliate** | **反击** | 敌人关键词；Fight 检定失败 vs **未横置**带 retaliate → **ST.7 apply 完成后** `perform_attack(RETALIATE)`；不横置 |
 | **Alert** | **警戒** | 敌人关键词；Evade 检定失败 vs **未横置**带 alert → **ST.7 apply 完成后** `perform_attack(ALERT)`；不要求 engaged；不横置 |

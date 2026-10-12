@@ -144,11 +144,13 @@
 
 | 种类 | 含义 | 是否本阶段命名流程 |
 |---|---|---|
-| **狭义移动** | 已位于地点的调查员 / 敌人 / 地点附属 / 标记，从当前地点到新地点 | **是**：统一 `seq.effect.move`（params.`subject` + tags 过滤） |
-| **广义「移动」** | 场内外任意区域之间的转移（弃牌、入手、进场…） | **否** — 各走既有 seq / L0，不并入 Move |
-| **地点交换** | 两地点上实体互换位置（如 Ethereal Slip） | **否** — 原子效果；**不可 nest**；**不触发**移动时点 |
+| **狭义地点变更** | 已位于地点的调查员 / 敌人 / 地点附属 / 标记，从当前地点到新地点 | **是**：统一 `seq.effect.move` |
+| ├ **移动** | 须沿地点连接 | `move_kind=move`（默认行动 / Hunter / Patrol / Elusive / `nest_enemy_move_to`） |
+| └ **移动到地点** | 无视连接，一次落到目标 | `move_kind=move_to`（`move_enemy_to` / 附属·标记卡面常见） |
+| **广义「移动」** | 场内外任意区域之间的转移（弃牌、入手、进场…） | **否** — 各走既有 seq / L0，不并入 |
+| **地点交换** | 两地点上实体互换位置（如 Ethereal Slip） | **否** — 原子；**不可 nest**；**不触发**移动时点 |
 
-`seq.action.move` → nest `seq.effect.move`（subject=investigator）。卡面 `nest_move_to` / `nest_enemy_move_to` / `move_enemy_to`（direct）/ `nest_move_attachment_to` / `nest_move_marker_to` 同核。Hunter / Patrol / Elusive flee 亦 nest 本核。
+同核 params：`subject` + `move_kind`（+ 敌 `mode` toward/direct 仅在 `move` 下）。订阅用 tags 过滤。
 
 **交战 `seq.engage`（两条路径 · 非改名前缀）**
 
@@ -232,7 +234,7 @@
 | `damage` | `kind`, `amount`, `target`, `source`/`card_id`, `direct` |
 | `discard_card` | `from`, `investigator`, `amount`, `mode`, `card_id`, `trait`, `at` |
 | `heal` | `kind`, `amount`, `target` |
-| `move`（狭义 · G1） | `subject`, `destination_id`/`to`/`target_location`, 主体 id，`mode`（敌 toward/direct），`steps`，`amount`/`marker_kind`/`from_location`，`require_connected`/`auto_engage_*` |
+| `move`（狭义 · G1） | `subject`, `move_kind`（move\|move_to）, `destination_id`/`to`, 主体 id，`mode`/`steps`（敌·仅 move）, `amount`/`marker_kind`/`from_location`, `auto_engage_*` |
 | `skill_test` | `investigator`, `skill`, `difficulty` / `difficulty_source`, `st7` |
 | `engage` | `mode`（auto/effect）, `placement`, `require_same_location`, `enemy`, `investigator`, `cause` |
 | `register` | `template`（含 Buff 种类与 lifetime） |
@@ -278,3 +280,4 @@
 | 2026-10-12 | G1：铸造 `seq.effect.move`（狭义）；文档三分狭义 / 广义转移 / 地点交换 |
 | 2026-10-12 | G1 收编：`seq.enemy.move`→别名；扩展 attachment/marker；统一 TC `move` + subject tags |
 | 2026-10-12 | G1 接线：Elusive / move_enemy_to / Hunter / Patrol 均经 `seq.effect.move`；删 InvestigatorMoveFlow |
+| 2026-10-12 | G1：区分 **移动**（`move_kind=move` 遵守连接）与 **移动到地点**（`move_to` 无视连接） |

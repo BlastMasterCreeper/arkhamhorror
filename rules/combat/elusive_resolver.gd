@@ -42,6 +42,8 @@ static func _try_flee(
 				"subject": MoveFlow.SUBJECT_ENEMY,
 				"enemy_id": enemy_id,
 				"destination_id": dest,
+				## 逃逸目标已从连接中选取 → 移动（遵守连接），邻接直达。
+				"move_kind": MoveFlow.KIND_MOVE,
 				"mode": MoveFlow.MODE_DIRECT,
 				"auto_engage": false,
 			}

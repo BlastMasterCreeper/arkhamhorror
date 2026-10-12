@@ -1,16 +1,23 @@
 class_name MoveFlow
 extends RefCounted
 
-## 狭义移动内核 · `seq.effect.move`。
+## 狭义地点变更内核 · `seq.effect.move`。
 ## 已位于地点的调查员 / 敌人 / 地点附属 / 地点标记 → 新地点（leave+enter 同时）。
 ## 不含：场内外区域广义转移；两地点实体交换（原子、不可 nest、不触发移动时点）。
+##
+## `move_kind`（连接规则 · 一等语义）：
+## - `move`：**移动** — 必须沿地点连接（调查员邻接；敌人寻路步进 / 邻接直达）
+## - `move_to`：**移动到地点** — 无视连接，一次落到目标地点
 
 const SUBJECT_INVESTIGATOR := &"investigator"
 const SUBJECT_ENEMY := &"enemy"
 const SUBJECT_ATTACHMENT := &"attachment"
 const SUBJECT_MARKER := &"marker"
 
-## 敌人：`toward` = 寻路步进（默认）；`direct` = 一次写到目标地点。
+const KIND_MOVE := &"move"
+const KIND_MOVE_TO := &"move_to"
+
+## 敌人在 `move` 下的路径实现：`toward` = 寻路步进（默认）；`direct` = 邻接一次写（仍校验连接）。
 const MODE_TOWARD := &"toward"
 const MODE_DIRECT := &"direct"
 
@@ -40,6 +47,22 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		SUBJECT_MARKER:
 			return _move_marker(game_ctx, params)
 	return {"ok": false, "error": "unknown_subject", "subject": subject}
+
+
+static func resolve_move_kind(params: Dictionary) -> StringName:
+	var explicit: StringName = params.get("move_kind", &"") as StringName
+	if explicit == KIND_MOVE or explicit == KIND_MOVE_TO:
+		return explicit
+	## 兼容旧 params：require_connected=false → 移动到地点。
+	if params.has("require_connected") and not bool(params.get("require_connected")):
+		return KIND_MOVE_TO
+	## 兼容旧敌人 mode=direct 且未声明 kind → 视为移动到地点。
+	if (
+		params.get("mode", &"") == MODE_DIRECT
+		and resolve_subject(params) == SUBJECT_ENEMY
+	):
+		return KIND_MOVE_TO
+	return KIND_MOVE
 
 
 static func resolve_subject(params: Dictionary) -> StringName:
@@ -86,6 +109,7 @@ static func _move_investigator(game_ctx: GameContext, params: Dictionary) -> Dic
 		"investigator_id", params.get("inv_id", &"")
 	)
 	var dest_id := _destination(params)
+	var move_kind := resolve_move_kind(params)
 	if inv_id == &"" or dest_id == &"":
 		return {"ok": false, "error": "missing_investigator_or_destination"}
 	var inv := game_ctx.state.registry.get_investigator(inv_id)
@@ -97,30 +121,34 @@ static func _move_investigator(game_ctx: GameContext, params: Dictionary) -> Dic
 	var from_id: StringName = inv.location_tag
 	if from_id == &"":
 		return {"ok": false, "error": "not_at_location"}
-	var require_connected := bool(params.get("require_connected", true))
-	if require_connected:
-		var current := game_ctx.state.registry.get_location(from_id)
-		if current == null:
-			return {"ok": false, "error": "not_at_location"}
-		if not _is_connected(current, dest_id):
-			return {"ok": false, "error": "not_connected"}
+	if move_kind == KIND_MOVE:
+		var conn_err := _reject_if_not_connected(game_ctx, from_id, dest_id)
+		if conn_err != &"":
+			return {"ok": false, "error": conn_err, "move_kind": move_kind}
 	if from_id == dest_id:
-		return _ok_skipped(SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id)
+		return _ok_skipped(SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id, {
+			"investigator_id": inv_id,
+			"move_kind": move_kind,
+		})
 	inv.location_tag = dest_id
 	if bool(params.get("reveal_on_enter", true)) and not dest.revealed:
 		dest.revealed = true
 		dest.clues = maxi(dest.clues, 1)
 	if _auto_engage(params, true):
 		EngageFlow.nest_after_area_change(game_ctx, dest_id)
-	_log_move(game_ctx, SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id)
+	_log_move(game_ctx, SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id, {
+		"move_kind": move_kind,
+	})
 	return _ok_moved(SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id, {
 		"investigator_id": inv_id,
+		"move_kind": move_kind,
 	})
 
 
 static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var enemy_id: StringName = params.get("enemy_id", &"")
 	var target_loc := _destination(params)
+	var move_kind := resolve_move_kind(params)
 	if enemy_id == &"" or target_loc == &"":
 		return {"ok": false, "error": "missing_enemy_or_location"}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
@@ -131,11 +159,20 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		return {"ok": false, "error": "not_at_location"}
 	if game_ctx.state.registry.get_location(target_loc) == null:
 		return {"ok": false, "error": "unknown_location"}
-	var mode: StringName = params.get("mode", MODE_TOWARD) as StringName
 	var do_auto_engage := _auto_engage(params, true)
-	if mode == MODE_DIRECT:
+	## 移动到地点：无视连接，一次落到目标。
+	if move_kind == KIND_MOVE_TO:
 		return _move_enemy_direct(
-			game_ctx, enemy, enemy_id, from_id, target_loc, do_auto_engage
+			game_ctx, enemy, enemy_id, from_id, target_loc, do_auto_engage, move_kind, MODE_DIRECT
+		)
+	## 移动：沿连接。mode=direct 时仅允许邻接一次写；默认 toward 寻路步进。
+	var mode: StringName = params.get("mode", MODE_TOWARD) as StringName
+	if mode == MODE_DIRECT:
+		var conn_err := _reject_if_not_connected(game_ctx, from_id, target_loc)
+		if conn_err != &"":
+			return {"ok": false, "error": conn_err, "move_kind": move_kind}
+		return _move_enemy_direct(
+			game_ctx, enemy, enemy_id, from_id, target_loc, do_auto_engage, move_kind, MODE_DIRECT
 		)
 	var steps: int = maxi(1, int(params.get("steps", 1)))
 	var last := {
@@ -148,6 +185,7 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		"target_location": target_loc,
 		"moved": false,
 		"mode": MODE_TOWARD,
+		"move_kind": move_kind,
 	}
 	for _i in steps:
 		var hop := EnemyMovement.move_one_step_toward_location(
@@ -171,7 +209,8 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		SUBJECT_ENEMY,
 		enemy_id,
 		last.get("from", from_id),
-		last.get("to", from_id)
+		last.get("to", from_id),
+		{"move_kind": move_kind}
 	)
 	return last
 
@@ -182,27 +221,33 @@ static func _move_enemy_direct(
 	enemy_id: StringName,
 	from_id: StringName,
 	dest_id: StringName,
-	do_auto_engage: bool
+	do_auto_engage: bool,
+	move_kind: StringName,
+	mode: StringName
 ) -> Dictionary:
 	if from_id == dest_id:
 		return _ok_skipped(SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
 			"enemy_id": enemy_id,
 			"target_location": dest_id,
-			"mode": MODE_DIRECT,
+			"mode": mode,
+			"move_kind": move_kind,
 		})
 	enemy.location_tag = dest_id
 	var out := _ok_moved(SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
 		"enemy_id": enemy_id,
 		"target_location": dest_id,
 		"to_location": dest_id,
-		"mode": MODE_DIRECT,
+		"mode": mode,
+		"move_kind": move_kind,
 	})
 	if do_auto_engage:
 		var engage := EngageFlow.nest_after_area_change(game_ctx, dest_id, enemy_id)
 		out["engaged_investigator"] = engage.get("investigator_id", &"")
 		if enemy.massive:
 			MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
-	_log_move(game_ctx, SUBJECT_ENEMY, enemy_id, from_id, dest_id)
+	_log_move(game_ctx, SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
+		"move_kind": move_kind,
+	})
 	return out
 
 
@@ -211,6 +256,7 @@ static func _move_attachment(game_ctx: GameContext, params: Dictionary) -> Dicti
 		"attachment_id", params.get("card_id", &"")
 	)
 	var dest_id := _destination(params)
+	var move_kind := resolve_move_kind(params)
 	if card_id == &"" or dest_id == &"":
 		return {"ok": false, "error": "missing_attachment_or_destination"}
 	var card := game_ctx.state.registry.get_card(card_id)
@@ -223,10 +269,15 @@ static func _move_attachment(game_ctx: GameContext, params: Dictionary) -> Dicti
 		return {"ok": false, "error": "not_at_location"}
 	if game_ctx.state.registry.get_location(dest_id) == null:
 		return {"ok": false, "error": "unknown_location"}
+	if move_kind == KIND_MOVE:
+		var conn_err := _reject_if_not_connected(game_ctx, from_id, dest_id)
+		if conn_err != &"":
+			return {"ok": false, "error": conn_err, "move_kind": move_kind}
 	if from_id == dest_id:
 		return _ok_skipped(SUBJECT_ATTACHMENT, card_id, from_id, dest_id, {
 			"card_id": card_id,
 			"attachment_id": card_id,
+			"move_kind": move_kind,
 		})
 	var old_host := game_ctx.state.registry.get_card(card.attached_to.instance_id)
 	if old_host == null:
@@ -247,10 +298,13 @@ static func _move_attachment(game_ctx: GameContext, params: Dictionary) -> Dicti
 	card.attached_to = new_host.id
 	if not new_host.attachments.has(card.id):
 		new_host.attachments.append(card.id)
-	_log_move(game_ctx, SUBJECT_ATTACHMENT, card_id, from_id, dest_id)
+	_log_move(game_ctx, SUBJECT_ATTACHMENT, card_id, from_id, dest_id, {
+		"move_kind": move_kind,
+	})
 	return _ok_moved(SUBJECT_ATTACHMENT, card_id, from_id, dest_id, {
 		"card_id": card_id,
 		"attachment_id": card_id,
+		"move_kind": move_kind,
 	})
 
 
@@ -261,16 +315,22 @@ static func _move_marker(game_ctx: GameContext, params: Dictionary) -> Dictionar
 	) as StringName
 	var amount: int = maxi(1, int(params.get("amount", 1)))
 	var kind: int = int(params.get("marker_kind", AhcEnums.MarkerKind.CLUE))
+	var move_kind := resolve_move_kind(params)
 	if dest_id == &"" or from_id == &"":
 		return {"ok": false, "error": "missing_from_or_destination"}
 	var from_loc := game_ctx.state.registry.get_location(from_id)
 	var dest_loc := game_ctx.state.registry.get_location(dest_id)
 	if from_loc == null or dest_loc == null:
 		return {"ok": false, "error": "unknown_location"}
+	if move_kind == KIND_MOVE:
+		var conn_err := _reject_if_not_connected(game_ctx, from_id, dest_id)
+		if conn_err != &"":
+			return {"ok": false, "error": conn_err, "move_kind": move_kind}
 	if from_id == dest_id:
 		return _ok_skipped(SUBJECT_MARKER, &"", from_id, dest_id, {
 			"marker_kind": kind,
 			"amount": amount,
+			"move_kind": move_kind,
 		})
 	## 地点上的标记：当前 Domain 以 LocationState.clues 承载线索。
 	if kind != AhcEnums.MarkerKind.CLUE and kind != int(AhcEnums.MarkerKind.CLUE):
@@ -279,11 +339,15 @@ static func _move_marker(game_ctx: GameContext, params: Dictionary) -> Dictionar
 		return {"ok": false, "error": "insufficient_markers"}
 	from_loc.clues -= amount
 	dest_loc.clues += amount
-	_log_move(game_ctx, SUBJECT_MARKER, &"clue", from_id, dest_id, {"amount": amount})
+	_log_move(game_ctx, SUBJECT_MARKER, &"clue", from_id, dest_id, {
+		"amount": amount,
+		"move_kind": move_kind,
+	})
 	return _ok_moved(SUBJECT_MARKER, &"clue", from_id, dest_id, {
 		"marker_kind": kind,
 		"amount": amount,
 		"from_location": from_id,
+		"move_kind": move_kind,
 	})
 
 
@@ -310,6 +374,19 @@ static func _is_connected(from_loc: LocationState, to_id: StringName) -> bool:
 	if from_loc.id == to_id:
 		return true
 	return from_loc.connections.has(to_id)
+
+
+static func _reject_if_not_connected(
+	game_ctx: GameContext,
+	from_id: StringName,
+	dest_id: StringName
+) -> StringName:
+	var current := game_ctx.state.registry.get_location(from_id)
+	if current == null:
+		return &"not_at_location"
+	if not _is_connected(current, dest_id):
+		return &"not_connected"
+	return &""
 
 
 static func _ok_skipped(

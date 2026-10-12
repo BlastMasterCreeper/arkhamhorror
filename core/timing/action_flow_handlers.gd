@@ -62,7 +62,7 @@ static func resolve_basic_action(
 						"subject": MoveFlow.SUBJECT_INVESTIGATOR,
 						"investigator_id": inv_id,
 						"destination_id": dest_id,
-						"require_connected": true,
+						"move_kind": MoveFlow.KIND_MOVE,
 						"auto_engage_after": true,
 					}
 				)

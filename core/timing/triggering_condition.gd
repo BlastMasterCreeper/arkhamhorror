@@ -434,12 +434,16 @@ static func move(
 			)
 		)
 	) as StringName
+	var move_kind := MoveFlow.resolve_move_kind(params)
 	var t := TriggeringCondition.new()
-	t.id = StringName("move_%s_%s_%s_%d" % [subject, entity, dest, Time.get_ticks_msec()])
+	t.id = StringName(
+		"move_%s_%s_%s_%s_%d" % [move_kind, subject, entity, dest, Time.get_ticks_msec()]
+	)
 	t.kind = &"move"
-	t.tags = [&"move", subject]
+	t.tags = [&"move", subject, move_kind]
 	t.after_timing = after_timing
 	t.payload = params.duplicate()
+	t.payload["move_kind"] = move_kind
 	if subject == MoveFlow.SUBJECT_INVESTIGATOR and entity != &"":
 		t.controller_id = entity
 	return t

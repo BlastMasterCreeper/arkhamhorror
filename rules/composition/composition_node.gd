@@ -439,7 +439,7 @@ static func disengage_enemy(
 	return n
 
 
-## L1 · 狭义移动到指定地点（nest `seq.effect.move`；默认调查员；destination 可为 memory:）。
+## L1 · **移动**（遵守连接）到指定地点（nest `seq.effect.move` move_kind=move）。
 static func nest_move_to(
 	controller_id: StringName,
 	location_spec: StringName = &"memory:picked_location",
@@ -455,7 +455,7 @@ static func nest_move_to(
 	return n
 
 
-## L1 · 地点附属卡牌狭义移动（nest `seq.effect.move` subject=attachment）。
+## L1 · 地点附属 **移动到地点**（无视连接；nest `seq.effect.move` move_kind=move_to）。
 static func nest_move_attachment_to(
 	controller_id: StringName,
 	attachment_spec: StringName = &"memory:picked_card",
@@ -473,7 +473,7 @@ static func nest_move_attachment_to(
 	return n
 
 
-## L1 · 地点标记狭义移动（nest `seq.effect.move` subject=marker；默认线索）。
+## L1 · 地点标记 **移动到地点**（无视连接；nest `seq.effect.move` move_kind=move_to）。
 static func nest_move_marker_to(
 	controller_id: StringName,
 	from_location_spec: StringName = &"memory:from_location",
@@ -1050,8 +1050,8 @@ static func pick_multi(
 	return select_entities(controller_id, spec, source_card_id)
 
 
-## 卡面「把敌人放到目标地点」：nest `seq.effect.move`（direct；默认不自动交战）。
-## 需要寻路步进 + auto engage 时用 `nest_enemy_move_to`。
+## 卡面「把敌人**移动到地点**」：nest `seq.effect.move`（move_kind=move_to；默认不自动交战）。
+## 需沿连接 **移动** 时用 `nest_enemy_move_to`。
 static func move_enemy_to(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -1103,7 +1103,7 @@ static func suppress_auto_engage(
 	return n
 
 
-## 卡面效果「移入地点」：nest `seq.effect.move`（subject=enemy；移入后仍走 auto-engage 入口）。
+## 卡面效果敌人 **移动**（沿连接寻路步进）：nest `seq.effect.move` move_kind=move。
 ## 若需抑制自动交战、改由明示交战：先 `suppress_auto_engage`，再 nest `seq.engage`。
 static func nest_enemy_move_to(
 	controller_id: StringName,

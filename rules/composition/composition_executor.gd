@@ -790,7 +790,9 @@ func _execute_nest_enemy_move(node: CompositionNode) -> bool:
 			"enemy_id": enemy_id,
 			"destination_id": _last_resolved_location,
 			"target_location": _last_resolved_location,
+			"move_kind": MoveFlow.KIND_MOVE,
 			"steps": 1,
+			"mode": MoveFlow.MODE_TOWARD,
 		}
 	)
 	_last_step_enemy_id = enemy_id
@@ -1111,7 +1113,7 @@ func _execute_move_enemy_to_inline(node: CompositionNode) -> bool:
 			"subject": MoveFlow.SUBJECT_ENEMY,
 			"enemy_id": enemy_id,
 			"destination_id": dest,
-			"mode": MoveFlow.MODE_DIRECT,
+			"move_kind": MoveFlow.KIND_MOVE_TO,
 			"auto_engage": node.auto_engage,
 		}
 	)
@@ -1125,7 +1127,7 @@ func _execute_move_enemy_to_inline(node: CompositionNode) -> bool:
 			"enemy": enemy_id,
 			"location": dest,
 			"flow": &"seq.effect.move",
-			"mode": MoveFlow.MODE_DIRECT,
+			"move_kind": MoveFlow.KIND_MOVE_TO,
 			"ok": _last_step_created,
 		}
 	)
@@ -1182,7 +1184,9 @@ func _execute_nest_enemy_move_to(node: CompositionNode) -> bool:
 			"enemy_id": enemy_id,
 			"destination_id": dest,
 			"target_location": dest,
+			"move_kind": MoveFlow.KIND_MOVE,
 			"steps": 1,
+			"mode": MoveFlow.MODE_TOWARD,
 			"auto_engage": node.auto_engage,
 		}
 	)
@@ -1412,6 +1416,7 @@ func _execute_nest_move_attachment_to(node: CompositionNode) -> bool:
 			"attachment_id": card_id,
 			"card_id": card_id,
 			"destination_id": dest,
+			"move_kind": MoveFlow.KIND_MOVE_TO,
 		}
 	)
 	_last_step_created = bool(result.get("ok", false))
@@ -1455,6 +1460,7 @@ func _execute_nest_move_marker_to(node: CompositionNode) -> bool:
 			"destination_id": dest,
 			"amount": maxi(1, node.amount),
 			"marker_kind": node.marker_kind,
+			"move_kind": MoveFlow.KIND_MOVE_TO,
 		}
 	)
 	_last_step_created = bool(result.get("ok", false))
@@ -1486,7 +1492,7 @@ func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool
 				"subject": MoveFlow.SUBJECT_INVESTIGATOR,
 				"investigator_id": inv_id,
 				"destination_id": dest_id,
-				"require_connected": true,
+				"move_kind": MoveFlow.KIND_MOVE,
 				"auto_engage_after": true,
 			}
 		)
