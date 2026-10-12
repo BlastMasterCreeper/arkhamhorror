@@ -49,6 +49,7 @@
 | **Encounter card back** | **遭遇卡背** | `card_back=encounter`；同上 |
 | **Card back (kind)** | **卡背类型** | **仅**背面轴；≠ 正面 cardtype；≠ CardFace A/B |
 | **Search** | **搜寻** | `seq.effect.search`；搜牌库须洗（整库或顶 N）；弃牌堆不洗；≠ look at / find |
+| **Enter play** / put into play | **进场** | **区划信息**：场外→场上；**不是效果**；不铸 `seq.effect.enter_play` |
 | **Player cardtype** | **玩家卡牌类型** | asset / event / skill 等 |
 
 ---
