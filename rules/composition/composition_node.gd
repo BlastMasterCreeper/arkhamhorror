@@ -472,12 +472,12 @@ static func deal_damage_enemy(
 	return n
 
 
-## nest `seq.effect.evade`（躲避效果：横置+解除交战）。
-## mode：attempt | automatic | effect（默认 effect）。
+## nest `seq.effect.evade`（引擎内用；卡面**执行**体请用 `automatically_evade`）。
+## mode：attempt（成功尝试后）| automatic（默认；卡面执行 = 自动躲避）。
 static func nest_evade(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
-	mode: StringName = &"effect",
+	mode: StringName = &"automatic",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
@@ -487,11 +487,12 @@ static func nest_evade(
 	n.inv_id = controller_id
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec
-	n.engage_mode = mode
+	n.engage_mode = EvadeFlow.normalize_mode(mode)
 	return n
 
 
-## 自动躲避：同核 `seq.effect.evade` mode=automatic（无检定）。
+## 卡面「automatically evade」执行体 → 同核 `mode=automatic`（无检定）。
+## 「evade」作效果措辞多用于时点描述，不另开执行 mode。
 static func automatically_evade(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -502,7 +503,7 @@ static func automatically_evade(
 	return n
 
 
-## L0 · 仅解除交战（非整躲避效果；完整躲避效果用 nest_evade）。
+## L0 · 仅解除交战（非整躲避效果；完整躲避效果用 automatically_evade / nest_evade）。
 static func disengage_enemy(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",

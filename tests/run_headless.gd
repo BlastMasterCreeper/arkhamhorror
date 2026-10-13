@@ -293,6 +293,7 @@ func _initialize() -> void:
 	_run_test("EV-01 seq.effect.evade catalog", _test_ev_catalog)
 	_run_test("EV-02 action success nests evade effect", _test_ev_action_nests_effect)
 	_run_test("EV-03 automatically evade no skill test", _test_ev_automatically_evade)
+	_run_test("EV-04 legacy mode=effect → automatic", _test_ev_mode_effect_normalizes)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6323,6 +6324,36 @@ func _test_ev_automatically_evade() -> bool:
 	return (
 		bool(res.get("ok", false))
 		and bool(res.get("automatic", false))
+		and enemy.exhausted
+		and enemy.engaged_with == &""
+	)
+
+
+func _test_ev_mode_effect_normalizes() -> bool:
+	## 卡面「evade」不作独立执行 mode；历史 mode=effect → automatic。
+	if EvadeFlow.normalize_mode(&"effect") != EvadeFlow.MODE_AUTOMATIC:
+		return false
+	if EvadeFlow.normalize_mode(&"") != EvadeFlow.MODE_AUTOMATIC:
+		return false
+	if EvadeFlow.normalize_mode(EvadeFlow.MODE_ATTEMPT) != EvadeFlow.MODE_ATTEMPT:
+		return false
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_legacy_ev", &"test_loc", 2, 99, &"inv_1"
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_legacy_ev")
+	var res := EvadeFlow.nest_or_run(
+		h.ctx,
+		{
+			"enemy_id": &"enemy_legacy_ev",
+			"controller_id": &"inv_1",
+			"mode": &"effect",
+		}
+	)
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("automatic", false))
+		and str(res.get("mode", &"")) == str(EvadeFlow.MODE_AUTOMATIC)
 		and enemy.exhausted
 		and enemy.engaged_with == &""
 	)

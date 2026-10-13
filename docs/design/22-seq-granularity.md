@@ -93,7 +93,7 @@
 | `seq.effect.resign` | Resign | **保留** |
 | `seq.effect.register` / `unregister` | lasting / Cannot / keyword 标记创建 | **保留**；勿为每个 keyword 开创建 seq |
 | `seq.effect.gain_resource` | Gain resources | **已迁**；旧 `seq.gain_resource` 别名 |
-| `seq.effect.evade` | Evade（效果） | **已铸**；横置+解除交战；`mode` attempt\|automatic\|effect；≠ `seq.action.evade` |
+| `seq.effect.evade` | Evade（效果） | **已铸**；横置+解除交战；`mode` attempt\|automatic；卡面**执行**=自动躲避；「evade」措辞多用于时点 |
 | `seq.effect.search` | Search | **已铸**；见 G3 |
 | `seq.effect.exhaust` / `ready` | Exhaust / Ready | **已铸**；见 G2 |
 | `seq.effect.move` | Move（狭义） | **已铸**；见 G1 |
@@ -317,7 +317,8 @@
 4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
 6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线  
-6b. ~~**躲避效果**~~：**已落地** — `seq.effect.evade`（attempt / automatic / effect）；≠ `seq.action.evade`  
+6b. ~~**躲避效果**~~：**已落地** — `seq.effect.evade`（attempt / automatic）；卡面执行=自动躲避；≠ `seq.action.evade`  
+
 
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
 8. ~~**G4**~~：**已裁决并落地** — `seq.zone.move`；进场/离场 = 过滤别名；**不铸** `seq.effect.enter_play`  
@@ -369,3 +370,4 @@
 | 2026-10-13 | G7–G11：不另铸；时点从攻击 / PLAY_CARD / ST / Cost / Register 过滤信息 |
 | 2026-10-13 | AOO 可栈溯源或 AttackKind；Spend/失去资源同 L0、场合不同 |
 | 2026-10-13 | 落地 `seq.effect.evade`（躲避效果核；automatic = 自动躲避） |
+| 2026-10-13 | 裁决：卡面「evade」效果措辞→时点；执行→自动躲避（无独立 effect mode） |

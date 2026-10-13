@@ -879,9 +879,7 @@ func _execute_nest_evade(node: CompositionNode) -> bool:
 	var enemy_id := _resolve_enemy_spec(node, inv_id)
 	if enemy_id == &"":
 		return false
-	var mode: StringName = node.engage_mode
-	if mode == &"":
-		mode = EvadeFlow.MODE_EFFECT
+	var mode := EvadeFlow.normalize_mode(node.engage_mode)
 	if node.atom_name == &"automatically_evade":
 		mode = EvadeFlow.MODE_AUTOMATIC
 	var result := EvadeFlow.nest_or_run(

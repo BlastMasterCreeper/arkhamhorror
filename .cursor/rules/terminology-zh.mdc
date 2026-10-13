@@ -26,8 +26,8 @@ alwaysApply: true
 | **timed confirmation** | **有限期确认** | PI：期内确认目标/分支；逾期用默认选择；≠ nest/内联 |
 | **Evade (action)** | **躲避** | 行动种类（基础/指定）；`seq.action.evade`；≠「闪避」「规避」；≠ 躲避尝试 / 躲避效果 |
 | **Evasion attempt** | **躲避尝试** | 躲避行动（等）衍生的技能检定，通常敏捷 vs 敌人 evade；**≠** 自动躲避 |
-| **Evade (effect)** | **躲避效果** | 基础躲避结算体：解除交战 + 横置该敌；**入口**含成功躲避尝试、自动躲避等 |
-| **Automatically evade** | **自动躲避** | 对**躲避效果**的包装：不做躲避尝试/检定，亦非「自动成功」的尝试；同样**产生**躲避效果 |
+| **Evade (effect)** | **躲避效果** | `seq.effect.evade` 核（横置+解除交战）。卡面「evade」作效果词多用于**时点**；**执行**体用自动躲避 |
+| **Automatically evade** | **自动躲避** | 卡面**执行**躲避效果的措辞；同核 `mode=automatic`（无检定）；≠ 自动成功的尝试 |
 | **Exhaust** | **横置** | 平放区卡牌/在场敌人；`seq.effect.exhaust`；`exhausted` = 已横置；≠ 费用 exhaust |
 | **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
 | **Doom** | **毁灭** | 场景/敌人上的 doom 标记；密谋推进相关 |

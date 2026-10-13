@@ -2,18 +2,26 @@ class_name EvadeFlow
 extends RefCounted
 
 ## 躲避效果核 · `seq.effect.evade`。
-## 横置该敌 + 解除交战。入口：成功躲避尝试（ST.7）、自动躲避、卡面效果。
+## 横置该敌 + 解除交战。
+##
+## 入口（产生本效果）：
+## - **成功躲避尝试**（ST.7）→ `mode=attempt`
+## - **自动躲避**（卡面执行体、无检定）→ `mode=automatic`
+##
+## 卡面措辞：
+## - 「automatically evade / 自动躲避」= **执行**本核（automatic）
+## - 「evade / 躲避」作效果词 = 多用于**时点描述**（听本 seq / after evade）；
+##   不是第三套执行 mode。历史 `mode=effect` 归一为 automatic。
+##
 ## 不含：躲避行动外壳 `seq.action.evade`；躲避尝试（检定本身）。
-## 自动躲避 = 本核包装（无检定）；≠ 自动成功的躲避尝试。
+## 自动躲避 ≠ 自动成功的躲避尝试。
 
 const FLOW := &"seq.effect.evade"
 
 ## 成功躲避尝试后产生的躲避效果。
 const MODE_ATTEMPT := &"attempt"
-## 自动躲避包装（不做躲避尝试）。
+## 自动躲避：不经躲避尝试，直接产生躲避效果（卡面执行入口）。
 const MODE_AUTOMATIC := &"automatic"
-## 卡面 / 其它效果直接产生躲避效果。
-const MODE_EFFECT := &"effect"
 
 
 static func nest_or_run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -26,7 +34,7 @@ static func nest_or_run(game_ctx: GameContext, params: Dictionary) -> Dictionary
 	return run(game_ctx, params)
 
 
-## 自动躲避：不经检定，直接产生躲避效果。
+## 自动躲避：不经检定，直接产生躲避效果（卡面「automatically evade」）。
 static func automatically_evade(
 	game_ctx: GameContext,
 	enemy_id: StringName,
@@ -42,6 +50,13 @@ static func automatically_evade(
 	)
 
 
+static func normalize_mode(mode: StringName) -> StringName:
+	if mode == MODE_ATTEMPT:
+		return MODE_ATTEMPT
+	## automatic，以及历史 effect / 空 → 自动躲避执行入口。
+	return MODE_AUTOMATIC
+
+
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false, "error": "no_context"}
@@ -51,9 +66,7 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
-	var mode: StringName = params.get("mode", MODE_EFFECT) as StringName
-	if mode == &"":
-		mode = MODE_EFFECT
+	var mode := normalize_mode(params.get("mode", MODE_AUTOMATIC) as StringName)
 	## 1. 横置（可被 after_exhaust 听到）→ nest seq.effect.exhaust。
 	var exhaust_res := ExhaustReadyFlow.nest_or_run_exhaust(
 		game_ctx,
