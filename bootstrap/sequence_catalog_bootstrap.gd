@@ -248,6 +248,18 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 			return EffectFlowHandlers.place_clue(game_ctx, params)
 	)
 	catalog.register_run(
+		&"seq.effect.place_token",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.place_token(
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				params.get("card_id", &"") as StringName,
+				StringName(str(params.get("kind", "ammo"))),
+				int(params.get("amount", 1))
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.place_token(game_ctx, params)
+	)
+	catalog.register_run(
 		&"seq.effect.spend_token",
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.spend_token(

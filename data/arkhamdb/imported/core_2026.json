@@ -5,20 +5,22 @@
     "count": 74,
     "skipped": 30,
     "ability_compile_summary": {
-      "segment_total": 72,
-      "compiled_total": 25,
+      "segment_total": 84,
+      "compiled_total": 37,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
         "action": 22,
         "revelation": 7,
-        "forced": 9
+        "forced": 9,
+        "keyword": 12
       },
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
         "nest_draw_investigator": 2,
         "skill_test": 1,
+        "place_token": 12,
         "seq": 3,
         "gain_resources": 4,
         "place_doom_on_source": 1,
@@ -682,21 +684,47 @@
     "text": "Isabelle Barnes deck only. Uses (6 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +1 [combat] and deal +1 damage for this attack.\n[reaction] After you resolve the above ability, spend 1 ammo and exhaust Isabelle's Twin .45s: <b>Fight</b> ([agility]). You get +1 [agility] and deal +1 damage for this attack.",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (6 ammo).",
+        "uses_kind": "ammo",
+        "uses_amount": 6,
+        "index": 0
+      },
+      {
         "kind": "action",
         "body": "Spend 1 ammo: Fight ([combat]). You get +1 [combat] and deal +1 damage for this attack.",
-        "index": 0
+        "index": 1
       },
       {
         "kind": "reaction",
         "body": "After you resolve the above ability, spend 1 ammo and exhaust Isabelle's Twin .45s: Fight ([agility]). You get +1 [agility] and deal +1 damage for this attack.",
-        "index": 1
+        "index": 2
       }
     ],
     "compiled_abilities": [
       {
         "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "ammo",
+        "amount": 6,
+        "card_id": "source"
+      },
+      {
+        "segment_index": 1,
         "register_as": "action",
-        "ability_id": "action:0",
+        "ability_id": "action:1",
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 1,
@@ -964,16 +992,42 @@
     "text": "Uses (4 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +1 [combat] and deal +1 damage for this attack.",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (4 ammo).",
+        "uses_kind": "ammo",
+        "uses_amount": 4,
+        "index": 0
+      },
+      {
         "kind": "action",
         "body": "Spend 1 ammo: Fight ([combat]). You get +1 [combat] and deal +1 damage for this attack.",
-        "index": 0
+        "index": 1
       }
     ],
     "compiled_abilities": [
       {
         "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "ammo",
+        "amount": 4,
+        "card_id": "source"
+      },
+      {
+        "segment_index": 1,
         "register_as": "action",
-        "ability_id": "action:0",
+        "ability_id": "action:1",
         "ability_kind": "action",
         "window": "during_your_turn",
         "action_cost": 1,
@@ -1264,9 +1318,37 @@
     "text": "Uses (3 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +3 [combat] for this attack. If you succeed, this attack deals +1 damage for each point you succeed by (to a maximum of +4). If you fail and would deal damage to another investigator, this attack deals 1 damage for each point you fail by (to a maximum of 5 damage).",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (3 ammo).",
+        "uses_kind": "ammo",
+        "uses_amount": 3,
+        "index": 0
+      },
+      {
         "kind": "action",
         "body": "Spend 1 ammo: Fight ([combat]). You get +3 [combat] for this attack. If you succeed, this attack deals +1 damage for each point you succeed by (to a maximum of +4). If you fail and would deal damage to another investigator, this attack deals 1 damage for each point you fail by (to a maximum of 5 damage).",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "ammo",
+        "amount": 3,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -1358,9 +1440,37 @@
     "text": "Uses (4 secrets).\n[action] Spend 1 secret: <b>Investigate</b> ([intellect]). Investigate a revealed connecting location. You get +1 [intellect] for this investigation. If you succeed, you may exhaust Local Map to move to that location.",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (4 secrets).",
+        "uses_kind": "secrets",
+        "uses_amount": 4,
+        "index": 0
+      },
+      {
         "kind": "action",
         "body": "Spend 1 secret: Investigate ([intellect]). Investigate a revealed connecting location. You get +1 [intellect] for this investigation. If you succeed, you may exhaust Local Map to move to that location.",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "secrets",
+        "amount": 4,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -1502,9 +1612,37 @@
     "text": "Uses (4 secrets).\n[fast] During your turn, spend 1 or 2 secrets and exhaust Mysterious Grimoire: Search the top 3 cards (or 6 cards instead if you spent 2 secrets) of your deck for a card and draw it. If 1 or more weaknesses are among the searched cards, draw them as well. Shuffle your deck.",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (4 secrets).",
+        "uses_kind": "secrets",
+        "uses_amount": 4,
+        "index": 0
+      },
+      {
         "kind": "fast",
         "body": "During your turn, spend 1 or 2 secrets and exhaust Mysterious Grimoire: Search the top 3 cards (or 6 cards instead if you spent 2 secrets) of your deck for a card and draw it. If 1 or more weaknesses are among the searched cards, draw them as well. Shuffle your deck.",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "secrets",
+        "amount": 4,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -1605,9 +1743,37 @@
     "text": "Uses (4 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([agility]). If the targeted enemy is exhausted, this attack deals +1 damage.",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (4 ammo).",
+        "uses_kind": "ammo",
+        "uses_amount": 4,
+        "index": 0
+      },
+      {
         "kind": "action",
         "body": "Spend 1 ammo: Fight ([agility]). If the targeted enemy is exhausted, this attack deals +1 damage.",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "ammo",
+        "amount": 4,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -2042,9 +2208,37 @@
     "text": "Uses (3 charges).\n[action]: <b>Fight</b> ([willpower]). If you succeed, you may spend 1 charge to deal +1 damage for this attack. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (3 charges).",
+        "uses_kind": "charges",
+        "uses_amount": 3,
+        "index": 0
+      },
+      {
         "kind": "action",
         "body": "Fight ([willpower]). If you succeed, you may spend 1 charge to deal +1 damage for this attack. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "charges",
+        "amount": 3,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -2139,9 +2333,37 @@
     "text": "Uses (4 charges).\n[fast] Spend 1 charge and exhaust Lucky Charm: Move 1 damage or 1 horror from a card at your location to a card you control <i>(with a health or sanity value)</i>.",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (4 charges).",
+        "uses_kind": "charges",
+        "uses_amount": 4,
+        "index": 0
+      },
+      {
         "kind": "fast",
         "body": "Spend 1 charge and exhaust Lucky Charm: Move 1 damage or 1 horror from a card at your location to a card you control (with a health or sanity value).",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "charges",
+        "amount": 4,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -2181,9 +2403,37 @@
     "text": "Uses (3 charges).\n[action]: <b>Investigate</b> ([willpower]). If you succeed, you may spend 1 charge to discover 1 additional clue at your location. If you reveal a [cultist] token during this test, remove 1 charge from Second Sight (if you cannot, take 1 horror and discard this card).",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (3 charges).",
+        "uses_kind": "charges",
+        "uses_amount": 3,
+        "index": 0
+      },
+      {
         "kind": "action",
         "body": "Investigate ([willpower]). If you succeed, you may spend 1 charge to discover 1 additional clue at your location. If you reveal a [cultist] token during this test, remove 1 charge from Second Sight (if you cannot, take 1 horror and discard this card).",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "charges",
+        "amount": 3,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -2327,9 +2577,37 @@
     "text": "Uses (3 charges).\n[reaction] When you would reveal a chaos token, spend 1 charge: Reveal 1 additional token. Choose 1 of those tokens to resolve and ignore the other. If you resolved a token with a symbol, take 1 horror.",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (3 charges).",
+        "uses_kind": "charges",
+        "uses_amount": 3,
+        "index": 0
+      },
+      {
         "kind": "reaction",
         "body": "When you would reveal a chaos token, spend 1 charge: Reveal 1 additional token. Choose 1 of those tokens to resolve and ignore the other. If you resolved a token with a symbol, take 1 horror.",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "charges",
+        "amount": 3,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -2402,9 +2680,37 @@
     "text": "Uses (4 charges).\n[action]: <b>Fight</b> ([willpower]). You get +2 [willpower] and deal +1 damage for this attack. If you succeed, you may spend 1 charge to deal 1 damage to an enemy at your location. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (4 charges).",
+        "uses_kind": "charges",
+        "uses_amount": 4,
+        "index": 0
+      },
+      {
         "kind": "action",
         "body": "Fight ([willpower]). You get +2 [willpower] and deal +1 damage for this attack. If you succeed, you may spend 1 charge to deal 1 damage to an enemy at your location. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "charges",
+        "amount": 4,
+        "card_id": "source"
       }
     ],
     "uses": {
@@ -2485,9 +2791,37 @@
     "text": "Limit 1 per investigator. Uses (3 supplies). If there are no supplies on Hunter's Instinct, discard it.\n[reaction] After you engage an enemy, spend 1 supply and exhaust Hunter's Instinct: Add a level 0 event in your discard pile to your hand.",
     "ability_segments": [
       {
+        "kind": "keyword",
+        "keyword": "uses",
+        "body": "Uses (3 supplies).",
+        "uses_kind": "supplies",
+        "uses_amount": 3,
+        "index": 0
+      },
+      {
         "kind": "reaction",
         "body": "After you engage an enemy, spend 1 supply and exhaust Hunter's Instinct: Add a level 0 event in your discard pile to your hand.",
-        "index": 0
+        "index": 1
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+          "sequence_id": "seq.zone.move",
+          "slot": "ENTER_PLAY"
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": "supplies",
+        "amount": 3,
+        "card_id": "source"
       }
     ],
     "uses": {

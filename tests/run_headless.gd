@@ -2958,16 +2958,28 @@ func _test_adb_pick_multi_compiler() -> bool:
 
 func _test_adb_compile_12019() -> bool:
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
-	## 关键词 Uses：拥有 = keywords∋uses；参数 = UsesSpec。
+	## 关键词 Uses：能力格式 register_as:keyword + keywords∋uses + UsesSpec。
 	if not CardRegistry.has_keyword(&"12019", &"uses"):
+		return false
+	if not CardRegistry.has_keyword_ability(&"12019", &"uses"):
 		return false
 	var uses := CardRegistry.uses_spec(&"12019")
 	var compiled := CardRegistry.compiled_abilities(&"12019")
-	if compiled.is_empty():
+	if compiled.size() < 2:
 		return false
-	var entry: Dictionary = compiled[0]
-	var types: Variant = entry.get("action_types", [])
-	var steps: Variant = entry.get("steps", [])
+	var kw_entry: Dictionary = {}
+	var action_entry: Dictionary = {}
+	for raw in compiled:
+		if not raw is Dictionary:
+			continue
+		match str((raw as Dictionary).get("register_as", "")):
+			"keyword":
+				kw_entry = raw as Dictionary
+			"action":
+				action_entry = raw as Dictionary
+	var hook: Dictionary = kw_entry.get("hook", {})
+	var types: Variant = action_entry.get("action_types", [])
+	var steps: Variant = action_entry.get("steps", [])
 	if not steps is Array or (steps as Array).size() != 4:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
@@ -2979,10 +2991,16 @@ func _test_adb_compile_12019() -> bool:
 	return (
 		CardRegistry.has_uses(&"12019")
 		and int(uses.get(&"ammo", 0)) == 4
-		and entry.get("register_as", "") == "action"
-		and entry.get("template", "") == "seq"
-		and entry.get("translation", "") == "full_expand"
-		and int(entry.get("action_cost", 0)) == 1
+		and kw_entry.get("keyword", "") == "uses"
+		and kw_entry.get("template", "") == "place_token"
+		and str(kw_entry.get("flow_id", "")) == "seq.effect.place_token"
+		and int(kw_entry.get("amount", 0)) == 4
+		and str(hook.get("sequence_id", "")) == "seq.zone.move"
+		and str(hook.get("slot", "")) == "ENTER_PLAY"
+		and action_entry.get("register_as", "") == "action"
+		and action_entry.get("template", "") == "seq"
+		and action_entry.get("translation", "") == "full_expand"
+		and int(action_entry.get("action_cost", 0)) == 1
 		and types is Array
 		and (types as Array).has("activate")
 		and (types as Array).has("fight")

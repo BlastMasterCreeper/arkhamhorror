@@ -923,6 +923,21 @@ static func nest_effect_register(template: RegistrationTemplate) -> CompositionN
 	return n
 
 
+## nest `seq.effect.place_token`：放置卡上 Uses（关键词 Uses 进场）。
+static func nest_place_token(
+	controller_id: StringName,
+	card_id: StringName,
+	kind: StringName = &"ammo",
+	amount: int = 1
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_place_token", &"seq.effect.place_token")
+	n.inv_id = controller_id
+	n.card_id = card_id
+	n.definition_id = kind
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
 ## nest `seq.effect.spend_token`：花费卡上 Uses（ammo / charges / …）。
 static func nest_spend_token(
 	controller_id: StringName,

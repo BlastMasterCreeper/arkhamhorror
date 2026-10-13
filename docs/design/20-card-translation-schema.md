@@ -283,7 +283,9 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 
 | 字段 | 用途 |
 |---|---|
-| `register_as` | `action` / `free` / `forced` / `revelation` / `reaction` |
+| `register_as` | `action` / `free` / `forced` / `revelation` / `reaction` / **`keyword`** |
+| `keyword` | 关键词 id（如 `uses`）；仅 `register_as:keyword` | 
+| `hook` | `{sequence_id, slot}`；关键词挂载槽（Uses → `seq.zone.move` / `ENTER_PLAY`） |
 | `action_types` | 行动类型全集（含 designator）；**借机类型层**由此判定 |
 | `action_cost` / `resource_cost` / `window` / `match_kind` / `phase` | 装载与 Eligibility |
 | `translation` | `full_expand` 等审计标记 |

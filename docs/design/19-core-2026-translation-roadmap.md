@@ -107,8 +107,8 @@
 - 指标：53 → **55**；SEQ-EFF-09 / ADB-41..43
 
 ### C1 Fight ammo ✅（12019 M1911）
-- **关键词 Uses**：`keywords` 含 `uses` + 参数 Spec `uses: {kind: N}`（UsesSpec）；进场 Domain 门控 keyword 后 L0 放 token（非旁路、非三种 Buff）
-- 铸造：`seq.effect.spend_token`；`register_modifier` → `seq.effect.register`（`THIS_SKILL_TEST`，ST.8 tick）
+- **关键词 Uses（能力格式）**：`register_as:keyword` + `hook:{seq.zone.move,ENTER_PLAY}` + nest `seq.effect.place_token`；另 `keywords∋uses` + UsesSpec
+- 铸造：`seq.effect.place_token` / `seq.effect.spend_token`；`register_modifier` → `seq.effect.register`（`THIS_SKILL_TEST`，ST.8 tick）
 - 编译：Spend ammo → Fight：PI 选敌 → MODIFIER → nest `seq.skill_test`（`difficulty_source=enemy_fight`）→ ST.7 `deal_damage_enemy`
 - 指标：ADB-73/74、SEQ-EFF-11
 

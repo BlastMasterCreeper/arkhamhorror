@@ -123,23 +123,59 @@ static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> voi
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return
-	_place_uses_on_enter_play(game_ctx, card)
+	var controller := card.controller_id
+	if controller == &"":
+		controller = card_id
+	## 关键词能力（Uses 等）：hook ENTER_PLAY → 能力格式 Composition。
+	_fire_keyword_abilities_on_enter_play(game_ctx, card, controller)
 	if game_ctx.triggered_abilities == null:
 		return
 	if not CardRegistry.has_triggered(card.id.definition_id):
 		return
-	var controller := card.controller_id
-	if controller == &"":
-		controller = card_id
 	game_ctx.triggered_abilities.install_card(controller, card_id)
 
 
-## 关键词 Uses（Domain）：进场 L0 读 UsesSpec 放 typed token（非 Composition、非三种 Buff）。
-static func _place_uses_on_enter_play(game_ctx: GameContext, card: CardInstance) -> void:
+## 开火 `register_as:keyword` 且 hook.slot=ENTER_PLAY 的能力体（已在 seq.zone.move 帧内）。
+static func _fire_keyword_abilities_on_enter_play(
+	game_ctx: GameContext,
+	card: CardInstance,
+	controller: StringName
+) -> void:
+	if game_ctx == null or card == null:
+		return
+	var units := CardRegistry.keyword_abilities_at(
+		card.id.definition_id, KeywordProfileTable.SLOT_ENTER_PLAY
+	)
+	if units.is_empty():
+		## 未编译能力格式时：Domain 回退读 UsesSpec（须 keywords∋uses）。
+		_place_uses_spec_fallback(game_ctx, card)
+		return
+	var bind := AbilityBindContext.new()
+	bind.controller_id = controller
+	bind.card_id = card.id.instance_id
+	for unit in units:
+		if not unit is Dictionary:
+			continue
+		var builder: Callable = (unit as Dictionary).get("builder", Callable())
+		if not builder.is_valid():
+			continue
+		var tree: CompositionNode = builder.call(bind)
+		if tree == null:
+			continue
+		CompositionMount.resolve_ability(
+			game_ctx,
+			tree,
+			controller,
+			(unit as Dictionary).get("ability_id", &"") as StringName,
+			card.id.instance_id
+		)
+
+
+## 无 keyword compiled 单元时的 UsesSpec Domain 回退。
+static func _place_uses_spec_fallback(game_ctx: GameContext, card: CardInstance) -> void:
 	if game_ctx == null or game_ctx.mutator == null or card == null:
 		return
 	var def_id := card.id.definition_id
-	## 门控：印刷关键词 uses（gained uses 他日走 EffectiveCharacteristicQuery）。
 	if not CardRegistry.has_keyword(def_id, &"uses"):
 		return
 	var uses := CardRegistry.uses_spec(def_id)

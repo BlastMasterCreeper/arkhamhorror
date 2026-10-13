@@ -819,6 +819,22 @@ static func place_clue(
 	)
 
 
+static func place_token(
+	controller_id: StringName,
+	card_id: StringName = &"",
+	kind: StringName = &"ammo",
+	amount: int = 1,
+	after_timing: StringName = &"after_place_token"
+) -> TriggeringCondition:
+	return _effect(
+		&"place_token",
+		controller_id,
+		[&"effect", &"place_token", kind],
+		after_timing,
+		{"card_id": card_id, "kind": kind, "amount": amount}
+	)
+
+
 static func spend_token(
 	controller_id: StringName,
 	card_id: StringName = &"",

@@ -210,6 +210,15 @@ static func build_composition(
 				int(params.get("amount", 1)),
 				bind.card_id
 			)
+		"place_token":
+			var place_card := str(params.get("card_id", "source"))
+			var place_id := bind.card_id if place_card == "source" or place_card == "" else StringName(place_card)
+			return CompositionNode.nest_place_token(
+				bind.controller_id,
+				place_id,
+				StringName(str(params.get("kind", "ammo"))),
+				int(params.get("amount", 1))
+			)
 		"spend_token":
 			var spend_card := str(params.get("card_id", "source"))
 			var spend_id := bind.card_id if spend_card == "source" or spend_card == "" else StringName(spend_card)
@@ -575,6 +584,24 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 	if register_as == "revelation":
 		CardRegistry.register_revelation(definition_id, ability_id, builder)
 		return true
+	if register_as == "keyword":
+		var hook: Variant = entry.get("hook", {})
+		var hook_seq := &"seq.zone.move"
+		var hook_slot := &"ENTER_PLAY"
+		if hook is Dictionary:
+			if str((hook as Dictionary).get("sequence_id", "")) != "":
+				hook_seq = StringName(str((hook as Dictionary).get("sequence_id")))
+			if str((hook as Dictionary).get("slot", "")) != "":
+				hook_slot = StringName(str((hook as Dictionary).get("slot")))
+		CardRegistry.register_keyword_ability(
+			definition_id,
+			ability_id,
+			StringName(str(entry.get("keyword", ""))),
+			hook_seq,
+			hook_slot,
+			builder
+		)
+		return true
 	if register_as == "free" or register_as == "action":
 		var provokes: Variant = null
 		if entry.has("provokes_aoo"):
@@ -677,6 +704,8 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"mode",
 		"stat",
 		"duration",
+		"hook",
+		"keyword",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

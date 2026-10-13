@@ -304,6 +304,22 @@ def segment_abilities(text: str) -> list[dict[str, Any]]:
     if not text:
         return []
     hits: list[tuple[int, dict[str, Any]]] = []
+    ## 关键词能力（Uses 等）：与 [action]/Revelation 同列分段，进能力格式编译。
+    for match in USES_LINE.finditer(text):
+        kind = match.group(2).lower()
+        amount = int(match.group(1))
+        hits.append(
+            (
+                match.start(),
+                {
+                    "kind": "keyword",
+                    "keyword": "uses",
+                    "body": f"Uses ({amount} {kind}).",
+                    "uses_kind": kind,
+                    "uses_amount": amount,
+                },
+            )
+        )
     for match in REVELATION.finditer(text):
         body = plain_text(match.group(1))
         hits.append(
@@ -1227,9 +1243,42 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     return entry
 
 
+def compile_uses_keyword_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
+    """关键词 Uses → 能力格式：hook ENTER_PLAY + nest place_token（Domain L0）。"""
+    kind = str(segment.get("uses_kind", "")).lower()
+    amount = int(segment.get("uses_amount", 0))
+    if not kind or amount <= 0:
+        spec = parse_uses_spec(str(segment.get("body", "")))
+        if not spec:
+            return None
+        kind, amount = next(iter(spec.items()))
+    return {
+        "segment_index": segment["index"],
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+            "sequence_id": "seq.zone.move",
+            "slot": "ENTER_PLAY",
+        },
+        "template": "place_token",
+        "flow_id": "seq.effect.place_token",
+        "kind": kind,
+        "amount": amount,
+        "card_id": "source",
+    }
+
+
 def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     kind = segment.get("kind", "")
     body = str(segment.get("body", ""))
+    if kind == "keyword":
+        if str(segment.get("keyword", "")) == "uses":
+            return compile_uses_keyword_segment(segment)
+        return None
     if kind == "revelation":
         compiled = compile_effect_body(body)
         if compiled is None and body.lower().startswith("take "):

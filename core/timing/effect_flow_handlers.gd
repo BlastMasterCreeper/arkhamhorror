@@ -174,6 +174,31 @@ static func place_clue(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	return {"ok": placed, "inv_id": inv_id}
 
 
+## 放置卡上 Uses token（ammo / charges / …）· L0 USES 增加（关键词 Uses 进场）。
+static func place_token(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	if game_ctx == null or game_ctx.mutator == null:
+		return {"ok": false, "amount": 0, "error": "no_mutator"}
+	var card_id: StringName = params.get("card_id", &"")
+	var kind := StringName(str(params.get("kind", "ammo")))
+	var amount := maxi(int(params.get("amount", 1)), 1)
+	if card_id == &"" or kind == &"":
+		return {"ok": false, "amount": 0, "error": "missing_card_or_kind"}
+	if game_ctx.state != null and game_ctx.state.registry.get_card(card_id) == null:
+		return {"ok": false, "amount": 0, "error": "unknown_card"}
+	var ok := game_ctx.mutator.adjust_marker(
+		MarkerSlot.card(card_id, AhcEnums.MarkerKind.USES, kind),
+		amount
+	)
+	if not ok:
+		return {"ok": false, "amount": 0, "error": "adjust_failed"}
+	_log(
+		game_ctx,
+		"effect:place_token",
+		{"card": card_id, "kind": kind, "amount": amount}
+	)
+	return {"ok": true, "amount": amount, "card_id": card_id, "kind": kind}
+
+
 ## 花费卡上 Uses token（ammo / charges / …）· L0 USES 扣减。
 static func spend_token(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null or game_ctx.mutator == null:

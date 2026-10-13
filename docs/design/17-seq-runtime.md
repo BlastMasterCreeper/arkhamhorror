@@ -228,7 +228,8 @@
 | `seq.effect.lose_action` | 失去行动 | 卡面 |
 | `seq.effect.place_doom` | 卡面放置毁灭（敌人 / 来源；**不是** `seq.mythos.place_doom`） | 显现 / Forced nest |
 | `seq.effect.place_clue` | 把调查员线索放到地点 | 检定 fail-by 等 |
-| `seq.effect.spend_token` | 花费卡上 Uses（ammo / charges / …） | `kind` + `amount` + `card_id`；进场放置 = 关键词 Uses Domain（`keywords`+UsesSpec） |
+| `seq.effect.place_token` | 放置卡上 Uses（ammo / charges / …） | 关键词 Uses 进场；`kind` + `amount` + `card_id` |
+| `seq.effect.spend_token` | 花费卡上 Uses（ammo / charges / …） | `kind` + `amount` + `card_id`；对称 place |
 | `seq.effect.register` | **创建 Buff / Registration** | 卡面 lasting、gains surge、Cannot；参数 = template |
 | `seq.effect.unregister` | 卸 Buff | 与创建对称；不是 `on_card_leave_play` 那种管线注销场合 |
 | `seq.effect.discard_card` | 统一弃牌：指定 `card_id` / 寻址过滤，或 `from=hand` + `amount`/`mode` | 弱点自弃、弃手、成功弃附着 |

@@ -489,6 +489,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_effect_register(node)
 		&"nest_effect_unregister":
 			return _execute_nest_effect_unregister(node)
+		&"nest_place_token", &"place_token":
+			return _execute_nest_place_token(node)
 		&"nest_spend_token", &"spend_token":
 			return _execute_nest_spend_token(node)
 		&"nest_discard_card":
@@ -1825,6 +1827,26 @@ func _execute_nest_place_clue(node: CompositionNode) -> bool:
 		_nest_or_direct(
 			&"seq.effect.place_clue",
 			{"controller_id": inv_id, "inv_id": inv_id}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_place_token(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var card_id := node.card_id
+	if card_id == &"":
+		return false
+	var kind := node.definition_id if node.definition_id != &"" else &"ammo"
+	var amount := maxi(node.marker_delta, 1)
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.place_token",
+			{
+				"controller_id": inv_id,
+				"card_id": card_id,
+				"kind": kind,
+				"amount": amount,
+			}
 		).get("ok", false)
 	)
 
