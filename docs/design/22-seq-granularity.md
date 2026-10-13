@@ -250,18 +250,35 @@
 | G7 | **Attack of opportunity** | **不另铸**；落在敌人攻击通道 | 见下「不另铸但可听」 |
 | G8 | **Play（打出）** | **不另铸**；`PLAY_CARD` Initiation | 同上 |
 | G9 | **Commit** | **不另铸**；落在 `seq.skill_test` / ST.2 | 同上 |
-| G10 | **Spend**（费用） | **不另铸**；CostPipeline | 同上；≠ 效果「失去资源」 |
+| G10 | **Spend**（费用） | **不另铸**；Initiation 付费场合 | 与失去资源 **同 L0**；见下 |
 | G11 | **Peril / Hidden 限制** | **不另铸**；父帧 Register RESTRICTION | 同上；不另开 check seq |
 
-**不另铸但可听（G7–G11 · 已裁决）** — 与进场同构：信息在更泛用通道上，时点用 **过滤 / tags / payload / Initiation 种类** 听见，不新开 `seq.*`。
+**不另铸但可听（G7–G11 · 已裁决）** — 与进场同构：信息在更泛用通道上，时点用 **过滤 / 栈溯源 / Initiation 场合** 听见，不新开 `seq.*`。
 
 | 信息 | 落在哪条泛用通道 | 怎么听（别名 / 过滤） |
 |---|---|---|
-| **借机攻击（AOO）** | 敌人攻击（`seq.enemy.attack` / `perform_attack`） | `AttackKind.OPPORTUNITY`（及 TC tags/payload）；「after AOO」= 听攻击 + kind 过滤，**不是** `seq.aoo` |
+| **借机攻击（AOO）** | 敌人攻击（`seq.enemy.attack` / `perform_attack`） | **多轴可辨**（见下）；**不是** `seq.aoo` |
 | **打出（Play）** | `PLAY_CARD` Initiation（进场区划 + 效果体 Composition） | 订 Initiation / 打出窗；进场结果仍听 `seq.zone.move` 场外→场上；**不** `seq.play` |
 | **投入（Commit）** | `seq.skill_test` 的 ST.2 | 订检定窗 / ST 步；卡面「投入时」挂在检定通道，**不** `seq.commit` |
-| **支付费用（Spend）** | CostPipeline（Initiation 付费） | 费用成功/失败是 Initiation 信息；与 `seq.effect.lose_resources` **分清**；**不**把 Spend 铸成效果 seq |
+| **支付费用（Spend）** | Initiation / Cost 付费 | 与 `seq.effect.lose_resources` **结算同核**（见下）；**不**另铸 Spend seq |
 | **险境 / 隐私限制** | 父遭遇帧 / 入手上的 **RESTRICTION Register** | 听限制是否成立（Eligibility / Intent）；注销跟父帧 G4 或 leave-hand，**不** `seq.peril.check` |
+
+**AOO 怎么辨（不必只靠 AttackKind）**
+
+| 轴 | 含义 | 用途 |
+|---|---|---|
+| **场合 / 栈** | 发生在 Initiation **付完费用后、主体效果前**（`INIT_2B`）；攻击帧挂在该 Initiation 之下 | 「借机」= 溯源父手续；听攻击时看栈是否在 AOO 砖 |
+| **资格集合** | 同地点、未横置、与你交战（等）的敌人各打一次 | 谁打属于 Eligibility，不是第二套攻击 seq |
+| **AttackKind.OPPORTUNITY** | 攻击载荷上的种类标记 | 叶上快捷过滤；与反击/警戒/阶段攻击并列；**可选轴**，不是唯一辨识 |
+
+「after you are attacked by an attack of opportunity」→ 听**敌人攻击** +（栈在 INIT_2B **或** kind=OPPORTUNITY）。禁止为好听另铸 `seq.aoo`。
+
+**支付资源 vs 失去资源**
+
+- **结算**：同一次资源池扣减（L0 / 同一写核）；没有两套「扣资源原语」。
+- **差别**：只是**适用场合的描述** — 支付常出现在 **发起 / Initiation 费用**；失去常出现在 **负面效果叶**（`seq.effect.lose_resources`，可被效果时点听到、可 Cancel 等）。
+- **时点**：订「失去资源」效果 → 订效果通道；Initiation 付费默认**不是**该效果的结算（场合过滤），不是因为另有一种 Spend 原子。
+- **禁止**：另铸 `seq.spend`；也禁止把「费用支付」与「效果失去」说成两套不同的状态写入。
 
 翻译 / 接线时点：先找**已有泛用 seq 或 Initiation**，再写过滤键；禁止为上述词条各铸一条「好听一点」的专属 flow。
 
@@ -343,3 +360,4 @@
 | 2026-10-13 | G4 落地：`seq.zone.move`；进场/离场 = 过滤别名 |
 | 2026-10-13 | G6 落地：单条 `seq.framework.phase_boundary`；旧 investigation_phase_ends 别名 |
 | 2026-10-13 | G7–G11：不另铸；时点从攻击 / PLAY_CARD / ST / Cost / Register 过滤信息 |
+| 2026-10-13 | AOO 可栈溯源或 AttackKind；Spend/失去资源同 L0、场合不同 |
