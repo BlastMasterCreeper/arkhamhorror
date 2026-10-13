@@ -110,6 +110,7 @@
 - **关键词 Uses（能力格式）**：`register_as:keyword` + `hook:{seq.zone.move,ENTER_PLAY}` + nest `seq.effect.place_token`；另 `keywords∋uses` + UsesSpec
 - 铸造：`seq.effect.place_token` / `seq.effect.spend_token`；`register_modifier` → `seq.effect.register`（`THIS_SKILL_TEST`，ST.8 tick）
 - 编译：Spend ammo → Fight：PI 选敌 → MODIFIER → nest `seq.skill_test`（`difficulty_source=enemy_fight`）→ ST.7 `deal_damage_enemy`
+- **翻译 IR（[20 §2](20-card-translation-schema.md) v0.5）**：目标外形 `op` ∈ seq/simultaneous/if/pi/nest/inline；nest 一律 `flow_id`+`params`；12019 新旧对照见 20 §5.5；编译器迁 IR 前旧 `template` 糖仍可装载
 - 指标：ADB-73/74、SEQ-EFF-11
 
 **下一批**：Investigate 宏；敌人 defeated 触发（12132）；asset 承伤。
