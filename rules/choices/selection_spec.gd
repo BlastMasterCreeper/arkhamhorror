@@ -82,10 +82,10 @@ static func implicit_evade(controller_id: StringName = &"") -> SelectionSpec:
 		&"picked_enemy"
 	)
 	s.role = &"implicit_evade"
-	s.viability_tail = CompositionNode.seq([
-		CompositionNode.exhaust_enemy(controller_id, &"memory:picked_enemy"),
-		CompositionNode.disengage_enemy(controller_id, &"memory:picked_enemy"),
-	])
+	## 躲避效果核干跑（横置+解除交战）；≠ 检定本身。
+	s.viability_tail = CompositionNode.nest_evade(
+		controller_id, &"memory:picked_enemy", EvadeFlow.MODE_ATTEMPT
+	)
 	return s
 
 

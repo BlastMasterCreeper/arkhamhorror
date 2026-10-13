@@ -82,13 +82,9 @@ static func seq(nodes: Array) -> CompositionNode:
 
 
 ## L2 宏 · 调查员抽牌指令（展开为 DrawInvestigatorFlow 原子链）。
+## 兼容旧名：展开为 nest `seq.draw.investigator`（禁糖 Atom `draw`）。
 static func draw(inv_id: StringName, amount: int = 1) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.inv_id = inv_id
-	n.atom_name = &"draw"
-	n.draw_amount = maxi(amount, 1)
-	return n
+	return nest_draw_investigator(inv_id, amount)
 
 
 ## L0 · AtomMoveCard
@@ -472,7 +468,38 @@ static func deal_damage_enemy(
 	return n
 
 
-## L0 · 敌人脱离交战（Evade 成功体之一；支持 memory: 指称）。
+## nest `seq.effect.evade`（引擎内用；卡面**执行**体请用 `automatically_evade`）。
+## mode：attempt（成功尝试后）| automatic（默认；卡面执行 = 自动躲避）。
+static func nest_evade(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	mode: StringName = &"automatic",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_evade"
+	n.nest_flow_id = &"seq.effect.evade"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.engage_mode = EvadeFlow.normalize_mode(mode)
+	return n
+
+
+## 卡面「automatically evade」执行体 → 同核 `mode=automatic`（无检定）。
+## 「evade」作效果措辞多用于时点描述，不另开执行 mode。
+static func automatically_evade(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := nest_evade(controller_id, enemy_spec, EvadeFlow.MODE_AUTOMATIC, source_card_id)
+	n.atom_name = &"automatically_evade"
+	return n
+
+
+## L0 · 仅解除交战（非整躲避效果；完整躲避效果用 automatically_evade / nest_evade）。
 static func disengage_enemy(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",

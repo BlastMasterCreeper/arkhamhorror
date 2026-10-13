@@ -233,16 +233,14 @@ func _resolve_forced(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
 func _execute_composition_on_stack(descriptor: TriggeredAbilityDescriptor) -> void:
 	if descriptor == null or descriptor.composition == null or _ctx == null:
 		return
-	if CompositionMount.resolve_ability(
+	if not CompositionMount.resolve_ability(
 		_ctx,
 		descriptor.composition,
 		_effective_controller(descriptor),
 		descriptor.id,
 		descriptor.source_id
 	):
-		return
-	if _ctx.composition != null:
-		_ctx.composition.execute(descriptor.composition)
+		push_error("TriggeredAbilityService: seq.ability.resolve failed; composition not executed")
 
 
 func _resolve_via_initiation(descriptor: TriggeredAbilityDescriptor) -> Dictionary:

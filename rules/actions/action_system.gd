@@ -125,9 +125,8 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 					1,
 					[&"draw_action"]
 				)
-			elif _mutator:
-				result = _mutator.perform_draw_action(investigator_id)
 			else:
+				## 禁 mutator 抽牌旁路（I2 / run_mutator_only）。
 				result = {"ok": false, "error": "draw_unavailable"}
 		AhcEnums.ActionType.MOVE:
 			result = _run_resolved_action(AhcEnums.ActionType.MOVE, investigator_id, extra)

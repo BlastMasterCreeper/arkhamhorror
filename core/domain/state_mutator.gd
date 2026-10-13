@@ -306,6 +306,7 @@ func finalize_limbo_discard(card_id: StringName, controller_id: StringName) -> b
 			return move_card(card_id, CardSlot.discard_top(controller_id))
 
 
+## dry-run / 模拟器用。生产抽牌走 `DrawInvestigatorService`（seq.draw.investigator）。
 func execute_draw_instruction(inv_id: StringName, amount: int) -> Dictionary:
 	return DrawInvestigatorFlow.run_mutator_only(self, inv_id, amount)
 

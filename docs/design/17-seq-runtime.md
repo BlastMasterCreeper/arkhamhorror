@@ -103,7 +103,7 @@
 | # | 项 | 说明 |
 |---|---|---|
 | I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **落在已压栈手续** 内解释（§4.0.5 为「是」才 nest 子帧） |
-| I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3 |
+| I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3；抽查纪要 [23](23-vacuum-audit.md) |
 | I3 | PlayerWindow | Framework / ST 开窗 → 窗口内走 W1–W3 |
 
 ### 3.7 测试
@@ -215,6 +215,7 @@
 | `seq.effect.exhaust` | 横置 | `ExhaustReadyFlow`；平放区卡 / 在场敌 |
 | `seq.effect.ready` | 重整 | 同上；Upkeep 4.3 batch |
 | `seq.effect.search` | 搜寻 | `SearchFlow`；区域/顶 N/过滤/取出；搜牌库须洗；≠ look/find |
+| `seq.effect.evade` | 躲避效果 | `EvadeFlow`；横置+解除交战；`mode` attempt\|automatic；卡面执行=自动躲避；≠ 行动外壳 |
 | `seq.zone.move` | 广义区划迁移（**信息**；进场/离场 = 过滤别名） | L0 `move_card` 成功后 `ZoneMoveFlow`；非 `seq.effect.move` |
 | `seq.effect.defeat` | 击败 | `DefeatFlow`；成功 nest `seq.defeat.leave_play`；Cancel 无退场 |
 | `seq.enemy.defeat` | 击败（敌人别名） | 同核；TC `enemy_defeated` |
