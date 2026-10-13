@@ -93,6 +93,11 @@
 | `seq.effect.resign` | Resign | **保留** |
 | `seq.effect.register` / `unregister` | lasting / Cannot / keyword 标记创建 | **保留**；勿为每个 keyword 开创建 seq |
 | `seq.effect.gain_resource` | Gain resources | **已迁**；旧 `seq.gain_resource` 别名 |
+| `seq.effect.evade` | Evade（效果） | **已铸**；横置+解除交战；`mode` attempt\|automatic\|effect；≠ `seq.action.evade` |
+| `seq.effect.search` | Search | **已铸**；见 G3 |
+| `seq.effect.exhaust` / `ready` | Exhaust / Ready | **已铸**；见 G2 |
+| `seq.effect.move` | Move（狭义） | **已铸**；见 G1 |
+| `seq.effect.defeat` | Defeat | **已铸**；见 G5 |
 
 ### 3.4 敌军阶段 / 敌人 / 交战
 
