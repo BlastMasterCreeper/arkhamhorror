@@ -639,6 +639,22 @@ static func _resolve_encounter_revelation(
 ) -> Dictionary:
 	var drawer_id: StringName = params.get("drawer_id", &"")
 	var card_id: StringName = params.get("card_id", &"")
+	# #region agent log
+	var _d := game_ctx.sequences.depth() if game_ctx != null and game_ctx.sequences != null else -1
+	var _f := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
+	if _f == null:
+		_f = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
+	if _f != null:
+		_f.seek_end()
+		_f.store_line(JSON.stringify({
+			"hypothesisId": "C",
+			"location": "sequence_catalog_bootstrap.gd:_resolve_encounter_revelation",
+			"message": "catalog_handler",
+			"data": {"card": str(card_id), "drawer": str(drawer_id), "depth": _d},
+			"timestamp": Time.get_ticks_msec(),
+		}))
+		_f.close()
+	# #endregion
 	if abilities != null and abilities.has_revelation(game_ctx, card_id):
 		var ok := abilities.resolve_revelations(
 			game_ctx, drawer_id, card_id, &"seq.encounter.revelation", true

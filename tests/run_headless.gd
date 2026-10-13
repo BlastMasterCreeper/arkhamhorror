@@ -7731,6 +7731,25 @@ func _test_enc_12163_move_attack() -> bool:
 		return false
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12163")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
+	# #region agent log
+	var _t63 := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
+	if _t63 == null:
+		_t63 = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
+	if _t63 != null:
+		_t63.seek_end()
+		_t63.store_line(JSON.stringify({
+			"hypothesisId": "A",
+			"location": "run_headless.gd:_test_enc_12163_move_attack",
+			"message": "before_direct_resolve_revelations",
+			"data": {
+				"card": str(card_id),
+				"depth": h.ctx.sequences.depth() if h.ctx.sequences else -1,
+				"has_catalog_flow": h.ctx.sequence_catalog != null and h.ctx.sequence_catalog.has_flow(&"seq.encounter.revelation"),
+			},
+			"timestamp": Time.get_ticks_msec(),
+		}))
+		_t63.close()
+	# #endregion
 	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
