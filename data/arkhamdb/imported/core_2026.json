@@ -1540,6 +1540,7 @@
           },
           {
             "template": "nest_move_to",
+            "flow_id": "seq.effect.move",
             "location": "memory:picked_location"
           }
         ]

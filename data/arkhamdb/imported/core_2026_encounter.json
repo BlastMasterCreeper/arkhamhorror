@@ -638,6 +638,7 @@
           },
           {
             "template": "nest_move_to",
+            "flow_id": "seq.effect.move",
             "location": "memory:picked_location"
           }
         ]
@@ -3062,11 +3063,13 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resolve_location",
+            "template": "nest_enemy_resolve_location",
+            "flow_id": "seq.enemy.resolve_location",
             "target": "drawer_location"
           },
           {
             "template": "nest_enemy_move",
+            "flow_id": "seq.effect.move",
             "trait_exclude": [
               "Elite"
             ]
@@ -3077,7 +3080,8 @@
             "evaluate": "after_step",
             "condition": "previous_step_engaged_investigator",
             "then": {
-              "template": "nest_enemy_attack"
+              "template": "nest_enemy_attack",
+              "flow_id": "seq.enemy.attack"
             }
           }
         ]
@@ -3149,6 +3153,7 @@
             "condition": "previous_step_not_created",
             "then": {
               "template": "nest_enemy_attack",
+              "flow_id": "seq.enemy.attack",
               "enemy": "source",
               "target": "controller"
             }

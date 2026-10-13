@@ -68,6 +68,7 @@
 | `no_provoke_aoo` / `suppress_auto_engage` / `grant_*` | **B** 具名 Buff（编译为 Register） |
 | `nest_*` | **C** nest 命名流程；**必须**带 `flow_id` |
 | ~~`draw`~~ → `nest_draw_investigator` | **C** 抽牌；`flow_id: seq.draw.investigator`（旧 `draw` 仅编译器别名） |
+| ~~`resolve_location`~~ → `nest_enemy_resolve_location` | **C** 落点辅助；`flow_id: seq.enemy.resolve_location` |
 | 其余（`take_horror`、`deal_damage`…） | **D** 效果叶：编译为内联或 nest（§4.0.5）；若 nest 则同时写 `flow_id` |
 | `seq` / `if_else` / `skill_test` | 控制流 |
 

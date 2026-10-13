@@ -142,6 +142,7 @@
 |---|---|---|
 | 2026-09-30 | v0.23 | 清债：LISTENER / peril / privacy / act-agenda-back 经 `CompositionMount` 装载 |
 | 2026-09-30 | v0.22 | 清债：`nest_move_connecting` 内嵌 PI → `pick_target` + `nest_move_to`（12116/12046） |
+| 2026-10-13 | v0.25 | 补齐 nest 空 `flow_id`；`resolve_location` → `nest_enemy_resolve_location` |
 | 2026-10-13 | v0.24 | 重译：`template=draw` → `nest_draw_investigator` + flow_id（imported 再导入） |
 | 2026-10-13 | v0.23 | I2 运行时收口：execute 守卫、删回退、隔离 mutator 抽牌（23 §6） |
 | 2026-10-13 | v0.22 | [23-vacuum-audit](23-vacuum-audit.md)：I2 抽查；§3.1 补结构性回退债 |

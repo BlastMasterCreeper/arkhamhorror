@@ -253,7 +253,8 @@ static func build_composition(
 			return _build_skill_test(params, bind)
 		"repeat_fail_by":
 			return _build_repeat_fail_by(params, bind)
-		"resolve_location":
+		"nest_enemy_resolve_location", "resolve_location":
+			## resolve_location = 旧 JSON 别名；须带 flow_id。
 			return _build_resolve_location(params, bind)
 		"nest_enemy_move":
 			return _build_nest_enemy_move(params, bind)
