@@ -1345,7 +1345,7 @@ func _test_enc_st7_fail_by_timing() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"horror"}])
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12126")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	var st6_idx := -1
 	var st7_idx := -1
@@ -1426,7 +1426,7 @@ func _test_enc_12124_choice_agenda() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"agenda"}])
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12124")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	return h.ctx.state.doom_on_agenda == 1
 
@@ -1439,7 +1439,7 @@ func _test_enc_12124_choice_agenda_advance() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"agenda"}])
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12124")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	return (
 		h.ctx.state.current_agenda_number == 2
@@ -1454,7 +1454,7 @@ func _test_enc_12124_choice_punish() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"punish"}])
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12124")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
@@ -1474,7 +1474,7 @@ func _test_enc_surge_12126_fail_by_horror() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"horror"}])
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12126")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
 	return inv.horror_taken == 1 and inv.clues_on_card == 2 and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
@@ -2256,7 +2256,7 @@ func _test_enc_12127_fail() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"willpower"}])
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12127")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
@@ -3538,7 +3538,7 @@ func _test_adb_breaking_point_revelation() -> bool:
 	card.zone = AhcEnums.Zone.LIMBO
 	h.ctx.state.registry.register_card(card)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	return inv.damage_taken == 1
 
@@ -4272,7 +4272,7 @@ func _test_enc_surge_12126_with_clues() -> bool:
 	inv.clues_on_card = 1
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12126")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	return not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
 
@@ -4325,7 +4325,7 @@ func _test_enc_surge_12160_no_target_gained() -> bool:
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12160")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	return h.ctx.registrations.has_keyword_buff(card_id, &"surge")
 
@@ -7731,7 +7731,7 @@ func _test_enc_12163_move_attack() -> bool:
 		return false
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12163")
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+	if not h.resolve_encounter_revelation(card_id):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
