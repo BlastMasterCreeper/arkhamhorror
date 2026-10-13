@@ -28,20 +28,10 @@ func resolve_revelations(
 ) -> bool:
 	if game_ctx == null or game_ctx.composition == null:
 		return false
-	var depth := game_ctx.sequences.depth() if game_ctx.sequences != null else -1
-	var trigger_kind := &""
-	if game_ctx.sequences != null and game_ctx.sequences.current_trigger() != null:
-		trigger_kind = game_ctx.sequences.current_trigger().kind
 	## I2：显现体只在已压栈入口 seq（enter_hand / encounter.revelation）内解释。
-	if game_ctx.sequences == null or depth <= 0:
-		# #region agent log
-		_agent_dbg("A", "card_ability_service.gd:resolve_revelations", "vacuum_refused", {"card": str(card_id), "controller": str(controller_id), "flow_id": str(flow_id), "depth": depth, "trigger": str(trigger_kind)})
-		# #endregion
+	if game_ctx.sequences == null or game_ctx.sequences.depth() <= 0:
 		push_error("CardAbilityService.resolve_revelations: no sequence frame; vacuum refused")
 		return false
-	# #region agent log
-	_agent_dbg("B", "card_ability_service.gd:resolve_revelations", "on_stack", {"card": str(card_id), "controller": str(controller_id), "flow_id": str(flow_id), "depth": depth, "trigger": str(trigger_kind), "defer": defer_limbo_finalize})
-	# #endregion
 	var card := _get_card(game_ctx, card_id)
 	if card == null:
 		return false
@@ -77,26 +67,6 @@ func resolve_revelations(
 	if not defer_limbo_finalize and _mutator != null:
 		_mutator.finalize_limbo_discard(card_id, controller_id)
 	return true
-
-
-# #region agent log
-func _agent_dbg(hyp: String, loc: String, msg: String, data: Dictionary) -> void:
-	var path := "/opt/cursor/logs/debug.log"
-	var f := FileAccess.open(path, FileAccess.READ_WRITE)
-	if f == null:
-		f = FileAccess.open(path, FileAccess.WRITE)
-	if f == null:
-		return
-	f.seek_end()
-	f.store_line(JSON.stringify({
-		"hypothesisId": hyp,
-		"location": loc,
-		"message": msg,
-		"data": data,
-		"timestamp": Time.get_ticks_msec(),
-	}))
-	f.close()
-# #endregion
 
 
 func _get_card(game_ctx: GameContext, card_id: StringName) -> CardInstance:

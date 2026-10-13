@@ -221,25 +221,6 @@ static func _step_revelation(ctx: Dictionary) -> void:
 		game_ctx.sequence_catalog != null
 		and game_ctx.sequence_catalog.has_flow(&"seq.encounter.revelation")
 	):
-		# #region agent log
-		var _df := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
-		if _df == null:
-			_df = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
-		if _df != null:
-			_df.seek_end()
-			_df.store_line(JSON.stringify({
-				"hypothesisId": "D",
-				"location": "draw_encounter_flow.gd:_step_revelation",
-				"message": "nest_encounter_revelation",
-				"data": {
-					"card": str(card_id),
-					"drawer": str(drawer_id),
-					"depth_before": game_ctx.sequences.depth() if game_ctx.sequences else -1,
-				},
-				"timestamp": Time.get_ticks_msec(),
-			}))
-			_df.close()
-		# #endregion
 		var nest_result := game_ctx.sequence_catalog.nest(
 			game_ctx,
 			&"seq.encounter.revelation",
@@ -248,21 +229,6 @@ static func _step_revelation(ctx: Dictionary) -> void:
 		if nest_result.get("resolved", false):
 			(outcome.get("revelations", []) as Array).append(card_id)
 		return
-	# #region agent log
-	var _vf := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
-	if _vf == null:
-		_vf = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
-	if _vf != null:
-		_vf.seek_end()
-		_vf.store_line(JSON.stringify({
-			"hypothesisId": "D",
-			"location": "draw_encounter_flow.gd:_step_revelation",
-			"message": "vacuum_fallback_resolve",
-			"data": {"card": str(card_id), "drawer": str(drawer_id)},
-			"timestamp": Time.get_ticks_msec(),
-		}))
-		_vf.close()
-	# #endregion
 	if game_ctx.card_abilities.resolve_revelations(
 		game_ctx, drawer_id, card_id, &"seq.draw.encounter", true
 	):
