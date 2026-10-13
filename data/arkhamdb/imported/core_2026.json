@@ -17,7 +17,7 @@
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
-        "draw": 2,
+        "nest_draw_investigator": 2,
         "skill_test": 1,
         "gain_resources": 4,
         "seq": 1,
@@ -236,7 +236,8 @@
         "ability_kind": "reaction",
         "status": "partial",
         "trigger": "After you successfully investigate",
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": 1
       }
     ]
@@ -1539,6 +1540,7 @@
           },
           {
             "template": "nest_move_to",
+            "flow_id": "seq.effect.move",
             "location": "memory:picked_location"
           }
         ]
@@ -1955,7 +1957,8 @@
         "ability_kind": "reaction",
         "status": "effect_only",
         "trigger": "After you take damage and/or horror, exhaust Jim Culver",
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": 1
       }
     ]

@@ -1853,6 +1853,7 @@ func _test_adb_compile_olivier_free() -> bool:
 		and step1.get("template", "") == "pick_target"
 		and step1.get("filter", "") == "location_connecting"
 		and step2.get("template", "") == "nest_move_to"
+		and str(step2.get("flow_id", "")) == "seq.effect.move"
 		and CardRegistry.has_triggered(&"12046")
 	)
 
@@ -2280,6 +2281,7 @@ func _test_adb_compile_12164_lose_or_attack() -> bool:
 		entry.get("template", "") == "seq"
 		and (steps[0] as Dictionary).get("template", "") == "lose_resources"
 		and then_entry.get("template", "") == "nest_enemy_attack"
+		and str(then_entry.get("flow_id", "")) == "seq.enemy.attack"
 		and then_entry.get("enemy", "") == "source"
 	)
 
@@ -3016,7 +3018,8 @@ func _test_adb_compile_12119() -> bool:
 	var entry: Dictionary = compiled[0]
 	return (
 		entry.get("register_as", "") == "reaction"
-		and entry.get("template", "") == "draw"
+		and entry.get("template", "") == "nest_draw_investigator"
+		and str(entry.get("flow_id", "")) == "seq.draw.investigator"
 		and int(entry.get("amount", 0)) == 1
 		and entry.get("match_kind", "") == "discover_clue"
 		and str(entry.get("phase", "")).to_upper() == "AFTER"
@@ -3033,7 +3036,8 @@ func _test_adb_compile_12120() -> bool:
 	var types: Variant = entry.get("action_types", [])
 	return (
 		entry.get("register_as", "") == "action"
-		and entry.get("template", "") == "draw"
+		and entry.get("template", "") == "nest_draw_investigator"
+		and str(entry.get("flow_id", "")) == "seq.draw.investigator"
 		and int(entry.get("amount", 0)) == 3
 		and int(entry.get("action_cost", 0)) == 2
 		and types is Array
@@ -3089,6 +3093,7 @@ func _test_adb_compile_12116() -> bool:
 		and step0.get("template", "") == "pick_target"
 		and step0.get("filter", "") == "location_connecting"
 		and step1.get("template", "") == "nest_move_to"
+		and str(step1.get("flow_id", "")) == "seq.effect.move"
 		and CardRegistry.has_triggered(&"12116")
 	)
 
@@ -7703,14 +7708,22 @@ func _test_adb_compile_aerial_pursuit() -> bool:
 	var steps: Variant = entry.get("steps", [])
 	if not steps is Array or (steps as Array).size() < 3:
 		return false
+	var s0: Dictionary = steps[0]
+	var s1: Dictionary = steps[1]
+	var s2: Dictionary = steps[2]
+	var then_atk: Dictionary = s2.get("then", {}) as Dictionary
 	return (
 		entry.get("template", "") == "seq"
 		and steps.size() >= 3
-		and (steps[0] as Dictionary).get("template", "") == "resolve_location"
-		and (steps[1] as Dictionary).get("template", "") == "nest_enemy_move"
-		and ((steps[1] as Dictionary).get("trait_exclude", []) as Array).has("Elite")
-		and (steps[2] as Dictionary).get("template", "") == "if_else"
-		and (steps[2] as Dictionary).get("condition", "") == "previous_step_engaged_investigator"
+		and str(s0.get("template", "")) == "nest_enemy_resolve_location"
+		and str(s0.get("flow_id", "")) == "seq.enemy.resolve_location"
+		and str(s1.get("template", "")) == "nest_enemy_move"
+		and str(s1.get("flow_id", "")) == "seq.effect.move"
+		and (s1.get("trait_exclude", []) as Array).has("Elite")
+		and str(s2.get("template", "")) == "if_else"
+		and str(s2.get("condition", "")) == "previous_step_engaged_investigator"
+		and str(then_atk.get("template", "")) == "nest_enemy_attack"
+		and str(then_atk.get("flow_id", "")) == "seq.enemy.attack"
 		and CardRegistry.has_revelation(&"12163")
 	)
 

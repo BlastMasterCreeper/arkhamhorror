@@ -346,6 +346,7 @@ static func nest_enemy_resolve_location(
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"nest_enemy_resolve_location"
+	n.nest_flow_id = &"seq.enemy.resolve_location"
 	n.inv_id = controller_id
 	n.location_target = location_target
 	return n

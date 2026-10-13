@@ -181,7 +181,8 @@ static func build_composition(
 				discard_from,
 				int(params.get("amount", 1))
 			)
-		"draw":
+		"nest_draw_investigator", "draw":
+			## draw = 旧 JSON 别名；新译用 nest_draw_investigator + flow_id。
 			return CompositionNode.nest_draw_investigator(
 				bind.controller_id,
 				int(params.get("amount", 1))
@@ -252,7 +253,8 @@ static func build_composition(
 			return _build_skill_test(params, bind)
 		"repeat_fail_by":
 			return _build_repeat_fail_by(params, bind)
-		"resolve_location":
+		"nest_enemy_resolve_location", "resolve_location":
+			## resolve_location = 旧 JSON 别名；须带 flow_id。
 			return _build_resolve_location(params, bind)
 		"nest_enemy_move":
 			return _build_nest_enemy_move(params, bind)

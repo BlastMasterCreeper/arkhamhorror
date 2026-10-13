@@ -19,7 +19,7 @@
         "lead_draw_topmost_encounter_discard_copy": 1,
         "seq": 14,
         "discard_card": 3,
-        "draw": 2,
+        "nest_draw_investigator": 2,
         "choice_must": 1,
         "enter_threat_area": 3,
         "take_horror": 3,
@@ -638,6 +638,7 @@
           },
           {
             "template": "nest_move_to",
+            "flow_id": "seq.effect.move",
             "location": "memory:picked_location"
           }
         ]
@@ -812,7 +813,8 @@
         "ability_kind": "reaction",
         "status": "partial",
         "trigger": "After you discover 1 or more clues at this location",
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": 1,
         "match_kind": "discover_clue",
         "phase": "AFTER",
@@ -869,7 +871,8 @@
           "activate"
         ],
         "status": "partial",
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": 3
       }
     ]
@@ -3060,11 +3063,13 @@
         "template": "seq",
         "steps": [
           {
-            "template": "resolve_location",
+            "template": "nest_enemy_resolve_location",
+            "flow_id": "seq.enemy.resolve_location",
             "target": "drawer_location"
           },
           {
             "template": "nest_enemy_move",
+            "flow_id": "seq.effect.move",
             "trait_exclude": [
               "Elite"
             ]
@@ -3075,7 +3080,8 @@
             "evaluate": "after_step",
             "condition": "previous_step_engaged_investigator",
             "then": {
-              "template": "nest_enemy_attack"
+              "template": "nest_enemy_attack",
+              "flow_id": "seq.enemy.attack"
             }
           }
         ]
@@ -3147,6 +3153,7 @@
             "condition": "previous_step_not_created",
             "then": {
               "template": "nest_enemy_attack",
+              "flow_id": "seq.enemy.attack",
               "enemy": "source",
               "target": "controller"
             }

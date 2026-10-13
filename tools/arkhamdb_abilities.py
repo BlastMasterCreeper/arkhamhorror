@@ -410,9 +410,14 @@ def compile_aerial_pursuit(body: str) -> dict[str, Any] | None:
     return {
         "template": "seq",
         "steps": [
-            {"template": "resolve_location", "target": "drawer_location"},
+            {
+                "template": "nest_enemy_resolve_location",
+                "flow_id": "seq.enemy.resolve_location",
+                "target": "drawer_location",
+            },
             {
                 "template": "nest_enemy_move",
+                "flow_id": "seq.effect.move",
                 "trait_exclude": ["Elite"],
             },
             {
@@ -420,7 +425,10 @@ def compile_aerial_pursuit(body: str) -> dict[str, Any] | None:
                 "if_kind": "condition",
                 "evaluate": "after_step",
                 "condition": "previous_step_engaged_investigator",
-                "then": {"template": "nest_enemy_attack"},
+                "then": {
+                    "template": "nest_enemy_attack",
+                    "flow_id": "seq.enemy.attack",
+                },
             },
         ],
     }
@@ -460,6 +468,7 @@ def compile_lose_or_attack(body: str) -> dict[str, Any] | None:
                 "condition": "previous_step_not_created",
                 "then": {
                     "template": "nest_enemy_attack",
+                    "flow_id": "seq.enemy.attack",
                     "enemy": "source",
                     "target": "controller",
                 },
@@ -629,6 +638,7 @@ def compile_move_to_connecting_steps() -> list[dict[str, Any]]:
         },
         {
             "template": "nest_move_to",
+            "flow_id": "seq.effect.move",
             "location": "memory:picked_location",
         },
     ]
@@ -657,7 +667,7 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
             },
             {
                 "template": "nest_enemy_move_to",
-                "flow_id": "seq.enemy.move",
+                "flow_id": "seq.effect.move",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
             },
@@ -745,8 +755,10 @@ def compile_draw_cards(body: str) -> dict[str, Any] | None:
     m = DRAW_CARDS.match(body.strip())
     if not m:
         return None
+    ## 应展尽展：nest seq.draw.investigator（禁糖 template=draw）。
     return {
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": int(m.group(1)),
     }
 
@@ -1312,7 +1324,7 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return f"Discard {n} {card_word} at random from your hand."
     if template == "discard_card":
         return "Discard …"
-    if template == "draw":
+    if template in ("draw", "nest_draw_investigator"):
         n = int(compiled.get("amount", 1))
         return f"Draw {n} card." if n == 1 else f"Draw {n} cards."
     if template == "attach_nearest_without_same":
@@ -1337,9 +1349,13 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
             return skill_or
         if steps:
             first = steps[0]
-            if first.get("template") == "resolve_location":
+            if first.get("template") in (
+                "resolve_location",
+                "nest_enemy_resolve_location",
+            ):
                 return (
-                    "The nearest non-[[Elite]] enemy moves once toward your location. "                    "If it engages an investigator, it makes an immediate attack."
+                    "The nearest non-[[Elite]] enemy moves once toward your location. "
+                    "If it engages an investigator, it makes an immediate attack."
                 )
             if first.get("template") == "lose_resources":
                 return "Lose 1 resource. If you cannot, this enemy attacks you."
