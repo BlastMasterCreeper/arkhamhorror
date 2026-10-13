@@ -157,7 +157,10 @@ func discard_spawn_failed(game_ctx: GameContext, card_id: StringName) -> Diction
 		return {"ok": false, "error": "unknown_card"}
 	if _state.registry.get_enemy(card_id) != null:
 		_state.registry.unregister_enemy(card_id)
-	ZoneMoveFlow.to_discard(game_ctx, card_id)
+	if card.owner_id == &"encounter":
+		game_ctx.mutator.move_card(card_id, CardSlot.encounter_discard_top())
+	else:
+		game_ctx.mutator.move_card(card_id, CardSlot.discard_top(card.owner_id))
 	_log.log(AhcEnums.LogCategory.SCENARIO, "spawn_failed_discard", {"card_id": card_id})
 	return {"ok": true, "discarded": true, "card_id": card_id}
 
@@ -201,7 +204,15 @@ func _materialize_enemy(
 
 
 func _mark_card_in_play(game_ctx: GameContext, card_id: StringName) -> void:
-	ZoneMoveFlow.mark_in_play(game_ctx, card_id)
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return
+	var from_zone := card.zone
+	if from_zone == AhcEnums.Zone.PLAY_AREA:
+		return
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	if game_ctx != null:
+		ZoneMoveFlow.notify_zone_set(game_ctx, card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
 
 
 func _drawer_location_tag(drawer_id: StringName) -> StringName:

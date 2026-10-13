@@ -159,9 +159,9 @@
 |---|---|
 | **是什么** | **信息**：某次**广义移动**的结果满足「源 = 场外、目标 = 场上」 |
 | **不是什么** | **不是效果**；**不铸** `seq.effect.enter_play`；**不另开**进场专用监听通道 |
-| **怎么听** | 听**广义移动**（`seq.zone.move` · L0 `move_card` / notify）；用谓词过滤场外→场上。`AT_ENTER_PLAY` / `ENTER_PLAY` / after enters play = 该过滤的**别名**，不是第二套 emit |
+| **怎么听** | 听**广义移动**（`seq.zone.move` · L0 `move_card` / `notify_zone_set`）；用谓词过滤场外→场上。`AT_ENTER_PLAY` / `ENTER_PLAY` / after enters play = 该过滤的**别名**，不是第二套 emit |
 | **与 Spawn / 打出** | 手续里做广义移动；进场只是结果信息。离场 = 对称过滤（场上→场外） |
-| **常用薄包装** | `ZoneMoveFlow.to_discard` / `to_victory_display` / `into_play` / `mark_in_play` — 仍走同一通道；**不是**新 `seq.effect.*` |
+| **翻译注意** | 卡面「弃置 / 放入场 / 移出游戏 / 入手…」等措辞 = **区划转移序列**，落地为 L0 写入（可被 `seq.zone.move` 听到）；**勿**另铸进场效果 seq，也**勿**为去向加时点 facade |
 
 **击败（Defeat · 已裁决）**
 

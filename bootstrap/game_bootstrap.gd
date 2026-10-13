@@ -138,9 +138,13 @@ static func add_asset_to_play(
 	card.id = eid
 	card.owner_id = inv_id
 	card.controller_id = inv_id
+	card.zone = AhcEnums.Zone.PLAY_AREA
 	ctx.state.registry.register_card(card)
-	## 测试进场：经 ZoneMoveFlow.into_play 触发 ENTER_PLAY 通道。
-	ZoneMoveFlow.into_play(ctx, instance_id, inv_id)
+	var inv := ctx.state.registry.get_investigator(inv_id)
+	if inv != null:
+		inv.play_area.append(instance_id)
+	## 测试进场：补发区划通道（未走 move_card）。
+	ZoneMoveFlow.notify_zone_set(ctx, instance_id, AhcEnums.Zone.DECK, AhcEnums.Zone.PLAY_AREA)
 	return instance_id
 
 

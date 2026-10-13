@@ -131,8 +131,26 @@ static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> Strin
 
 
 static func _route_to_victory_display(game_ctx: GameContext, enemy_id: StringName) -> bool:
-	return ZoneMoveFlow.to_victory_display(game_ctx, enemy_id)
+	var card := game_ctx.state.registry.get_card(enemy_id)
+	if card == null or game_ctx.mutator == null:
+		return false
+	return game_ctx.mutator.move_card(enemy_id, CardSlot.victory_display())
 
 
 static func _route_to_discard(game_ctx: GameContext, enemy_id: StringName) -> void:
-	ZoneMoveFlow.to_discard(game_ctx, enemy_id)
+	var card := game_ctx.state.registry.get_card(enemy_id)
+	if card == null or game_ctx.mutator == null:
+		return
+	if card.owner_id == &"encounter":
+		game_ctx.mutator.move_card(enemy_id, CardSlot.encounter_discard_top())
+		return
+	if game_ctx.state.registry.get_investigator(card.owner_id) != null:
+		game_ctx.mutator.move_card(enemy_id, CardSlot.discard_top(card.owner_id))
+		return
+	var from_zone := card.zone
+	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
+	if not game_ctx.state.removed_from_game.has(enemy_id):
+		game_ctx.state.removed_from_game.append(enemy_id)
+	ZoneMoveFlow.notify_zone_set(
+		game_ctx, enemy_id, from_zone, AhcEnums.Zone.REMOVED_FROM_GAME
+	)

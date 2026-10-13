@@ -243,7 +243,18 @@ static func put_story_asset_from_set_aside(
 		return false
 	var card_id: StringName = cards[0]
 	ScenarioSetAsideService.remove_from_set_aside(game_ctx, card_id)
-	return ZoneMoveFlow.into_play(game_ctx, card_id, owner)
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	var from_zone := card.zone
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	card.controller_id = owner
+	card.owner_id = owner
+	var inv := game_ctx.state.registry.get_investigator(owner)
+	if inv != null and not inv.play_area.has(card_id):
+		inv.play_area.append(card_id)
+	ZoneMoveFlow.notify_zone_set(game_ctx, card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
+	return true
 
 
 static func place_clues_on_location(
