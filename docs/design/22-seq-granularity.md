@@ -371,3 +371,4 @@
 | 2026-10-13 | AOO 可栈溯源或 AttackKind；Spend/失去资源同 L0、场合不同 |
 | 2026-10-13 | 落地 `seq.effect.evade`（躲避效果核；automatic = 自动躲避） |
 | 2026-10-13 | 裁决：卡面「evade」效果措辞→时点；执行→自动躲避（无独立 effect mode） |
+| 2026-10-13 | I2 真空抽查 → [23-vacuum-audit](23-vacuum-audit.md)；铸造清单已收口，下一刀偏结构性硬门槛 |
