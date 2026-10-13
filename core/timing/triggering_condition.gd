@@ -277,12 +277,39 @@ static func mythos_check_doom_threshold(
 static func investigation_phase_ends(
 	after_timing: StringName = &"after_investigation_phase_ends"
 ) -> TriggeringCondition:
+	return phase_boundary(&"investigation", &"ends", after_timing)
+
+
+static func phase_boundary_kind(phase: StringName, boundary: StringName) -> StringName:
+	return StringName("%s_phase_%s" % [phase, boundary])
+
+
+## 阶段边界（G6 · 单条 seq）：phase / boundary → params；kind 仍细分供 match_kind。
+static func phase_boundary(
+	phase: StringName,
+	boundary: StringName,
+	after_timing: StringName = &""
+) -> TriggeringCondition:
+	var kind := phase_boundary_kind(phase, boundary)
 	var t := TriggeringCondition.new()
-	t.id = StringName("investigation_phase_ends_%d" % Time.get_ticks_msec())
-	t.kind = &"investigation_phase_ends"
-	t.tags = [&"framework", &"investigation"]
-	t.after_timing = after_timing
+	t.id = StringName("%s_%d" % [kind, Time.get_ticks_msec()])
+	t.kind = kind
+	t.tags = [&"framework", &"phase_boundary", phase, boundary]
+	if after_timing == &"":
+		t.after_timing = StringName("after_%s" % kind)
+	else:
+		t.after_timing = after_timing
+	t.payload = {"phase": phase, "boundary": boundary}
 	return t
+
+
+static func phase_boundary_from_params(
+	params: Dictionary,
+	after_timing: StringName = &""
+) -> TriggeringCondition:
+	var phase: StringName = params.get("phase", &"") as StringName
+	var boundary: StringName = params.get("boundary", &"") as StringName
+	return phase_boundary(phase, boundary, after_timing)
 
 
 static func agenda_advance(

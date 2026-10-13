@@ -235,7 +235,8 @@
 | `seq.effect.resign` | 撤退（线索留地点 + resigned + eliminate） | 12112；nest 自 Composition |
 | `seq.ability.resolve` | Initiation / Forced 效果体装载帧 | 禁真空：树在此 RESOLVE 内解释 |
 | `seq.skill_test` | Skill Test Timing（**一条**；`params.skill`） | 显现内检定、行动检定 nest |
-| `seq.framework.investigation_phase_ends` | 调查阶段结束钩子（WHEN/AFTER） | Fire! / 地点 Forced |
+| `seq.framework.phase_boundary` | 阶段 begins/ends（G6 · 单条） | `phase`+`boundary`；TC.kind=`{phase}_phase_{boundary}` |
+| `seq.framework.investigation_phase_ends` | 上条别名（调查结束） | Fire! / 地点 Forced |
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 

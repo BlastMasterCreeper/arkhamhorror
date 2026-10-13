@@ -276,14 +276,8 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_TURN)
 	elif step == AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_PHASE)
-		if _game_ctx != null and _game_ctx.sequence_catalog != null:
-			_game_ctx.sequence_catalog.run(
-				_game_ctx, &"seq.framework.investigation_phase_ends", {}
-			)
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_ROUND)
-		if _game_ctx != null:
-			ScenarioObjectiveFlow.check_end_of_round(_game_ctx)
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_2_HUNTER_PATROL_MOVE:
 		if _enemy:
 			_enemy.enemy_phase_3_2_moves()
@@ -298,6 +292,11 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 		_resolve_upkeep_draw_and_resource()
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_5_CHECK_HAND_SIZE:
 		investigators_remaining_this_phase = player_order.duplicate()
+	## G6：阶段 begins/ends 钩子（无映射则 no-op）。
+	if _game_ctx != null:
+		PhaseBoundaryFlow.emit_for_step(_game_ctx, step)
+		if step == AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
+			ScenarioObjectiveFlow.check_end_of_round(_game_ctx)
 
 
 func _resolve_upkeep_draw_and_resource() -> void:
