@@ -68,15 +68,17 @@ static func _build_op_node(node: Dictionary, bind: AbilityBindContext) -> Compos
 
 static func _build_pi(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
 	var kind := str(node.get("kind", "select")).to_lower()
+	var params := node.duplicate()
+	params.erase("op")
 	match kind:
 		"multi":
-			return build_composition("pick_multi", node, bind)
+			return build_composition("pick_multi", params, bind)
 		"option":
-			return build_composition("choice_must", node, bind)
+			return build_composition("choice_must", params, bind)
 		"optional":
-			return build_composition("choice_optional", node, bind)
+			return build_composition("choice_optional", params, bind)
 		_:
-			return build_composition("pick_target", node, bind)
+			return build_composition("pick_target", params, bind)
 
 
 static func _build_nest_flow(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
@@ -141,7 +143,8 @@ static func build_composition(
 	params: Dictionary,
 	bind: AbilityBindContext
 ) -> CompositionNode:
-	if params.has("op"):
+	## 仅空 template 时走 IR；已指定 template 时忽略残留 `op`，避免 pi→build_composition 死循环。
+	if template_id == "" and params.has("op"):
 		return build_node(params, bind)
 	match template_id:
 		"take_horror":
