@@ -850,3 +850,23 @@ static func _flag_field_from_raw(raw: Variant) -> AhcEnums.FlagField:
 			return AhcEnums.FlagField.ELIMINATED
 		_:
 			return AhcEnums.FlagField.RESIGNED
+
+
+# #region agent log
+static func _agent_dbg(hyp: String, loc: String, msg: String, data: Dictionary) -> void:
+	var path := "/opt/cursor/logs/debug.log"
+	var f := FileAccess.open(path, FileAccess.READ_WRITE)
+	if f == null:
+		f = FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		return
+	f.seek_end()
+	f.store_line(JSON.stringify({
+		"hypothesisId": hyp,
+		"location": loc,
+		"message": msg,
+		"data": data,
+		"timestamp": Time.get_ticks_msec(),
+	}))
+	f.close()
+# #endregion

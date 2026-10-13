@@ -3044,6 +3044,16 @@ func _test_adb_12019_fight_ammo() -> bool:
 	inv.location_tag = &"test_loc"
 	inv.skill_combat = 3
 	inv.actions_remaining = 2
+	# #region agent log
+	ArkhamDbAbilityCompiler._agent_build_depth = 0
+	var _tf0 := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
+	if _tf0 == null:
+		_tf0 = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
+	if _tf0 != null:
+		_tf0.seek_end()
+		_tf0.store_line(JSON.stringify({"hypothesisId": "TEST", "location": "run_headless.gd:_test_adb_12019_fight_ammo", "message": "before_add_asset", "data": {}, "timestamp": Time.get_ticks_msec()}))
+		_tf0.close()
+	# #endregion
 	var gun_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12019")
 	var gun := h.ctx.state.registry.get_card(gun_id)
 	if gun == null or int(gun.tokens.uses.get(&"ammo", 0)) != 4:
@@ -3058,6 +3068,16 @@ func _test_adb_12019_fight_ammo() -> bool:
 	if not h.ctx.framework.waiting_player_window:
 		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
 	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	# #region agent log
+	var _tf1 := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
+	if _tf1 == null:
+		_tf1 = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
+	if _tf1 != null:
+		_tf1.seek_end()
+		var has_comp := listed.size() > 0 and listed[0].composition != null
+		_tf1.store_line(JSON.stringify({"hypothesisId": "B", "location": "run_headless.gd:_test_adb_12019_fight_ammo", "message": "listed", "data": {"listed": listed.size(), "has_composition": has_comp, "ammo": int(gun.tokens.uses.get(&"ammo", 0))}, "timestamp": Time.get_ticks_msec()}))
+		_tf1.close()
+	# #endregion
 	if listed.is_empty():
 		return false
 	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
@@ -3068,6 +3088,15 @@ func _test_adb_12019_fight_ammo() -> bool:
 		for reg in h.ctx.registrations.all_registrations():
 			if (reg as Registration).duration == AhcEnums.DurationAnchorKind.THIS_SKILL_TEST:
 				lingering += 1
+	# #region agent log
+	var _tf2 := FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.READ_WRITE)
+	if _tf2 == null:
+		_tf2 = FileAccess.open("/opt/cursor/logs/debug.log", FileAccess.WRITE)
+	if _tf2 != null:
+		_tf2.seek_end()
+		_tf2.store_line(JSON.stringify({"hypothesisId": "TEST", "location": "run_headless.gd:_test_adb_12019_fight_ammo", "message": "after_activate", "data": {"ok": bool(result.get("ok", false)), "ammo": ammo_left, "enemy_dmg": enemy.damage, "actions": inv.actions_remaining, "lingering": lingering}, "timestamp": Time.get_ticks_msec()}))
+		_tf2.close()
+	# #endregion
 	return (
 		bool(result.get("ok", false))
 		and ammo_left == 3
