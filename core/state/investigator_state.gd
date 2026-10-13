@@ -19,12 +19,17 @@ var skill_agility: int = 0
 var resource_pool: int = 0
 var damage_taken: int = 0
 var horror_taken: int = 0
+## 印刷生命 / 神智（伤恐常态击败检测）；0 = 未设置（不因伤恐自动击败）。
+var health: int = 0
+var sanity: int = 0
 var clues_on_card: int = 0
 var actions_remaining: int = 0
 var actions_bonus_next_turn: int = 0
 var actions_penalty_next_turn: int = 0
 var eliminated: bool = false
 var resigned: bool = false
+var physical_trauma: int = 0
+var mental_trauma: int = 0
 var is_active_turn: bool = false
 
 

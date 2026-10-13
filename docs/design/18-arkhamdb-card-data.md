@@ -59,8 +59,28 @@ python tools/analyze_arkhamdb_cards.py
 | `shroud` / `clues` | 地点 | investigate |
 | `doom` | 场景 | act/agenda |
 | `hidden` | 布尔 | 隐私 E4 |
-| `encounter_code` | 遭遇套 | scenario deck |
+| `encounter_code` | 遭遇套 | **有值 ⇒ 冒险卡牌**（Scenario card）；与正面 type 正交 |
+| `card_back` | `player` \| `encounter` | **卡背类型**（无文本背面 / 牌库外观）；≠ `card_type`；≠ `CardFace` |
 | `tags` | hh/hd/pa/se/fa | 构筑规则（非运行时） |
+
+### 3.1 卡牌身份三轴（已登记 · 勿被 FAQ 混称带偏）
+
+官方 FAQ 常把 encounter card 与 Scenario card 等同；引擎与文档拆开：
+
+| 轴 | 字段 / 枚举 | 含义 | 例 |
+|---|---|---|---|
+| **正面 cardtype** | `card_type` | 带文本一面的类型 → 能力包 / Activate | asset / enemy / location… |
+| **卡背类型** | `card_back` · `AhcEnums.CardBackKind` | **仅**无文本背面图案、牌库「哪套背」 | 弱点 = 遭遇类型 + **玩家卡背** |
+| **遭遇组** | `encounter_code` | 有 = **冒险卡牌** | 剧情支援有遭遇组，正面仍是 asset |
+
+**卡背类型用法**：洗入哪类牌库的外观/背景、是否与遭遇库/玩家库背面对齐。**禁止**用 `card_back` 推断能力包或替代 `card_type`。  
+导入：源数据可显式给 `card_back`；否则 `CardRegistry._infer_card_back` 写入缺省（弱点→玩家背；enemy/treachery/location/act/agenda→遭遇背；有遭遇组的玩家类型常→遭遇背）。
+
+**剧情支援**：冒险卡 + 玩家正面类型（卡背常为遭遇卡背）。同地点遭遇卡可触发 ≠ 剧情支援自动可触发。
+
+**`CardFace` A/B**：哪一面朝上（翻面机制）；与卡背类型无关。
+
+**双面组合**（正面类型 × 卡背类型）：玩家+玩家背；玩家+遭遇背；双面玩家；遭遇类型+遭遇背；遭遇类型+玩家背（弱点）；双面遭遇类型。**不存在**双面皆为卡背的牌。
 
 数值哨兵见 upstream README：`null`→`-`，`-2`→`X`，`-3`→`*`，`-4`→`?`。
 
@@ -144,11 +164,13 @@ python tools/analyze_arkhamdb_cards.py
 ### Phase 3 — 能力编译（P1）✅（竖切）
 
 - [x] 文本分段：`tools/arkhamdb_abilities.py` → `ability_segments`（revelation / forced / reaction / action / fast）
-- [x] 模板编译 → `compiled_abilities` JSON + `ArkhamDbAbilityCompiler` → `CardRegistry.register_revelation`
-- [x] 首批模板：`take_horror` / `take_damage` / `lose_resources` / `lose_all_resources` / `enter_threat_area`
-- [x] Core 2026 统计：162 段 / 18 条已编译（`ability_compile_summary` in `_meta`）
-- [ ] Forced → `TriggeredAbilityService` 直执 / LISTENER（效果模板已识别，触发器注册待接）
-- [ ] Reaction/Action → `register_triggered` + Initiation（分段已存，待模板/脚本）
+- [x] 模板编译 → `compiled_abilities` JSON + `ArkhamDbAbilityCompiler` → `CardRegistry.register_revelation` / `register_triggered`（字段与 A/B/C/D 构件见 [20-card-translation-schema](20-card-translation-schema.md)）
+- [x] 首批模板：`take_horror` / `take_damage` / `lose_resources` / `lose_all_resources` / `enter_threat_area` / `gain_resources`
+- [x] Core 2026 统计：分段存档；模板可表达子集已编译（`ability_compile_summary` in `_meta`）
+- [x] Forced → `TriggeredAbilityService` 直执；`TRIGGER_PHRASE_MAP` → `match_kind`/`phase`；锚 12125 / 12108 ✅
+- [x] Reaction → `register_triggered` + Initiation + `ask_use_ability`；锚 12145 ✅（ADB-30～32）
+- [ ] Action → `register_triggered` + Activate（分段已存，待模板/脚本）
+- [x] Free triggered（ArkhamDB `[fast]`）→ `register_as:free` + Player Window `list_free_abilities` / `activate_free`；锚 12046 ✅
 - [ ] 全量 32+29+49 能力覆盖（当前为模板可表达子集）
 
 **运行**：`python tools/arkhamdb_import.py` → `ArkhamDbCardLoader.load_core_2026()`
@@ -179,8 +201,8 @@ Gained characteristics 统计：[`core_2026_gained_characteristics.md`](../data/
 |---|---|---|
 | 打出 asset/event | `Initiation` + `play_card` | on_play 编译（部分） |
 | Revelation treachery | `CardAbilityService` + G3/G4 | Phase 3 模板编译 + 注册 ✅（部分） |
-| Forced | `TriggeredAbilityService` 直执 | 分段+效果模板已识别，触发器注册待接 |
-| Reaction/Action | Initiation + ResponseWindow | 分段已存，待模板/脚本 |
+| Forced | `TriggeredAbilityService` 直执 | `TRIGGER_PHRASE_MAP` + `register_triggered` ✅（12125 / 12108） |
+| Reaction/Action | Initiation + ResponseWindow | Reaction 竖切 ✅（12145）；Action 分段已存，待 Activate |
 | Spawn/Prey | `SpawnInstructionSpec` / `PreyInstructionSpec` | Phase 2 编译 + 运行时解析 ✅ |
 | Hidden | E4 + `FORBID_LEAVE_HAND` | 从 `hidden` 字段批量 |
 | Surge/Peril | ENC 测试 + Register | 卡表驱动测试 fixture |
@@ -191,6 +213,7 @@ Gained characteristics 统计：[`core_2026_gained_characteristics.md`](../data/
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-08-13 | v0.6 | Reaction 竖切：12145 Downtown 发现线索后选用获得资源（ADB-30～32） |
 | 2026-07-06 | v0.5 | Phase 4 完成 + Gained characteristics 报告（06 §3.2） |
 | 2026-07-06 | v0.4 | Phase 4：设计表回填报告 + 06/12/15/OQ 同步 |
 | 2026-07-06 | v0.3 | Phase 3：能力分段、模板编译、ADB-14～17 |

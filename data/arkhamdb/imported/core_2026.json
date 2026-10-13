@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 11,
+      "compiled_total": 23,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -17,7 +17,13 @@
       "by_template": {
         "enter_threat_area": 6,
         "take_damage": 4,
-        "take_horror": 1
+        "draw": 2,
+        "skill_test": 1,
+        "gain_resources": 4,
+        "seq": 1,
+        "place_doom_on_source": 1,
+        "take_horror": 1,
+        "discard_source": 3
       }
     }
   },
@@ -171,6 +177,7 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After you deal damage to an enemy",
         "template": "take_damage",
@@ -219,6 +226,18 @@
         "kind": "reaction",
         "body": "After you successfully investigate: Draw 1 card. (Limit once per round.)",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "partial",
+        "trigger": "After you successfully investigate",
+        "template": "draw",
+        "amount": 1
       }
     ]
   },
@@ -557,6 +576,26 @@
         "ability_id": "revelation:0",
         "status": "partial",
         "template": "enter_threat_area"
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate"
+        ],
+        "status": "partial",
+        "template": "skill_test",
+        "skill": "willpower",
+        "difficulty": 5,
+        "st7": {
+          "on_success": {
+            "template": "discard_source"
+          }
+        }
       }
     ]
   },
@@ -816,6 +855,18 @@
         "kind": "reaction",
         "body": "After you defeat an enemy, exhaust Logan Hastings: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you defeat an enemy, exhaust Logan Hastings",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },
@@ -1138,6 +1189,18 @@
         "body": "After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons: Gain 1 resource.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons",
+        "template": "gain_resources",
+        "amount": 1
+      }
     ]
   },
   "12033": {
@@ -1453,6 +1516,33 @@
         "body": "During your turn, exhaust Olivier Bishop: Move to a connecting location.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "free",
+        "ability_id": "free:0",
+        "ability_kind": "free",
+        "window": "during_your_turn",
+        "status": "full",
+        "translation": "full_expand",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "exhaust_source"
+          },
+          {
+            "template": "pick_target",
+            "filter": "location_connecting",
+            "prompt_id": "pick:move_connecting",
+            "memory_key": "picked_location"
+          },
+          {
+            "template": "nest_move_to",
+            "location": "memory:picked_location"
+          }
+        ]
+      }
     ]
   },
   "12047": {
@@ -1532,6 +1622,18 @@
         "kind": "reaction",
         "body": "After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },
@@ -1656,6 +1758,18 @@
         "kind": "reaction",
         "body": "After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
+        "template": "gain_resources",
+        "amount": 1
       }
     ]
   },
@@ -1831,6 +1945,18 @@
         "kind": "reaction",
         "body": "After you take damage and/or horror, exhaust Jim Culver: Draw 1 card.",
         "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "effect_only",
+        "trigger": "After you take damage and/or horror, exhaust Jim Culver",
+        "template": "draw",
+        "amount": 1
       }
     ]
   },
@@ -2723,6 +2849,18 @@
         "index": 0
       }
     ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "forced",
+        "ability_id": "forced:0",
+        "ability_kind": "forced",
+        "status": "effect_only",
+        "trigger": "When the investigation phase ends, if The Nameless Lurker is ready and has no doom on it",
+        "template": "place_doom_on_source",
+        "amount": 1
+      }
+    ],
     "spawn_instruction": {
       "selector": "farthest_empty"
     }
@@ -2786,11 +2924,25 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After an enemy enters (moves into or spawns at) your location",
         "template": "take_horror",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -2854,11 +3006,25 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "After you spend 1 or more resources",
         "template": "take_damage",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   },
@@ -2921,11 +3087,25 @@
         "segment_index": 1,
         "register_as": "forced",
         "ability_id": "forced:1",
+        "ability_kind": "forced",
         "status": "effect_only",
         "trigger": "The first time you move each turn",
         "template": "take_damage",
         "amount": 1,
         "direct": false
+      },
+      {
+        "segment_index": 2,
+        "register_as": "action",
+        "ability_id": "action:2",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 2,
+        "action_types": [
+          "activate"
+        ],
+        "status": "full",
+        "template": "discard_source"
       }
     ]
   }

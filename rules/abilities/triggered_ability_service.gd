@@ -10,10 +10,14 @@ func bind_game_context(ctx: GameContext) -> void:
 
 
 func register(descriptor: TriggeredAbilityDescriptor) -> void:
-	if descriptor == null or _ctx == null or _ctx.sequences == null:
+	if descriptor == null or _ctx == null:
 		return
+	for existing in _descriptors:
+		if existing != null and existing.source_id == descriptor.source_id and existing.id == descriptor.id:
+			return
 	_descriptors.append(descriptor)
-	_install_handler(descriptor)
+	if descriptor.uses_timing_handler() and _ctx.sequences != null:
+		_install_handler(descriptor)
 
 
 func install_card(controller_id: StringName, card_id: StringName) -> void:
@@ -34,9 +38,179 @@ func install_card(controller_id: StringName, card_id: StringName) -> void:
 		)
 
 
+func uninstall_by_source(source_id: StringName) -> void:
+	if source_id == &"" or _ctx == null:
+		return
+	if _ctx.sequences != null:
+		_ctx.sequences.unregister_handlers_by_source(source_id)
+	for i in range(_descriptors.size() - 1, -1, -1):
+		if _descriptors[i].source_id == source_id:
+			_descriptors.remove_at(i)
+
+
+func list_free_abilities(controller_id: StringName) -> Array[TriggeredAbilityDescriptor]:
+	var out: Array[TriggeredAbilityDescriptor] = []
+	for desc in _descriptors:
+		if desc == null:
+			continue
+		if desc.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
+			continue
+		if desc.controller_id != controller_id:
+			continue
+		if not is_free_eligible(desc):
+			continue
+		out.append(desc)
+	return out
+
+
+func is_free_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or _ctx == null or _ctx.framework == null or _ctx.state == null:
+		return false
+	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
+		return false
+	if not _ctx.framework.waiting_player_window:
+		return false
+	var window: AhcEnums.PlayerWindow = _ctx.framework.pending_player_window
+	if not _window_allows(descriptor, window):
+		return false
+	return _source_playable(descriptor)
+
+
+func is_action_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or _ctx == null or _ctx.framework == null or _ctx.state == null:
+		return false
+	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.ACTION:
+		return false
+	if not _ctx.framework.waiting_player_window:
+		return false
+	var window: AhcEnums.PlayerWindow = _ctx.framework.pending_player_window
+	if not _is_investigation_player_window(window):
+		return false
+	var activator := _action_activator(descriptor)
+	if activator == &"" or _ctx.state.active_investigator_id != activator:
+		return false
+	var inv := _ctx.state.registry.get_investigator(activator)
+	if inv == null or inv.actions_remaining < maxi(descriptor.action_cost, 1):
+		return false
+	return _source_playable(descriptor)
+
+
+func list_action_abilities(controller_id: StringName) -> Array[TriggeredAbilityDescriptor]:
+	var out: Array[TriggeredAbilityDescriptor] = []
+	for desc in _descriptors:
+		if desc == null:
+			continue
+		if desc.ability_kind != TriggeredAbilityDescriptor.AbilityKind.ACTION:
+			continue
+		if _action_activator(desc) != controller_id:
+			continue
+		if not is_action_eligible(desc):
+			continue
+		out.append(desc)
+	return out
+
+
+func _action_activator(descriptor: TriggeredAbilityDescriptor) -> StringName:
+	if _ctx != null and _ctx.state != null:
+		if _ctx.state.registry.get_investigator(descriptor.controller_id) != null:
+			return descriptor.controller_id
+		if _is_shared_activate_source(descriptor):
+			return _ctx.state.active_investigator_id
+	return descriptor.controller_id
+
+
+func _is_shared_activate_source(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or descriptor.source_id == &"" or _ctx == null:
+		return false
+	var card := _ctx.state.registry.get_card(descriptor.source_id)
+	if card == null:
+		return false
+	match card.zone:
+		AhcEnums.Zone.CURRENT_AGENDA, AhcEnums.Zone.CURRENT_ACT, AhcEnums.Zone.LOCATION_AREA:
+			return true
+		_:
+			return false
+
+
+func _source_playable(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor.source_id == &"":
+		return true
+	var card := _ctx.state.registry.get_card(descriptor.source_id)
+	if card == null:
+		return false
+	match card.zone:
+		AhcEnums.Zone.PLAY_AREA, AhcEnums.Zone.THREAT_AREA, \
+		AhcEnums.Zone.CURRENT_AGENDA, AhcEnums.Zone.CURRENT_ACT, \
+		AhcEnums.Zone.LOCATION_AREA:
+			pass
+		_:
+			return false
+	if card.exhausted:
+		return false
+	return true
+
+
+## Player Window 内已选定的免费触发能力；跳过二次 ask。
+func activate_free(ability_id: StringName) -> Dictionary:
+	var descriptor := _find_by_id(ability_id)
+	if descriptor == null:
+		return {"ok": false, "error": "unknown_ability"}
+	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
+		return {"ok": false, "error": "not_free"}
+	if not is_free_eligible(descriptor):
+		return {"ok": false, "error": "not_eligible"}
+	if descriptor.composition == null:
+		return {"ok": false, "error": "invalid_intent"}
+	return _resolve_via_initiation(descriptor)
+
+
+func activate_action(ability_id: StringName) -> Dictionary:
+	var descriptor := _find_by_id(ability_id)
+	if descriptor == null:
+		return {"ok": false, "error": "unknown_ability"}
+	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.ACTION:
+		return {"ok": false, "error": "not_action"}
+	if not is_action_eligible(descriptor):
+		return {"ok": false, "error": "not_eligible"}
+	var activator := _action_activator(descriptor)
+	if _is_shared_activate_source(descriptor) and activator != &"":
+		descriptor = _rebind_descriptor(descriptor, activator)
+	if descriptor.composition == null:
+		return {"ok": false, "error": "invalid_intent"}
+	return _resolve_via_initiation(descriptor)
+
+
+func _rebind_descriptor(
+	descriptor: TriggeredAbilityDescriptor,
+	controller_id: StringName
+) -> TriggeredAbilityDescriptor:
+	if descriptor == null or _ctx == null:
+		return descriptor
+	var units := CardRegistry.triggered_units_at(descriptor.definition_id)
+	for unit in units:
+		if not unit is Dictionary:
+			continue
+		if (unit as Dictionary).get("ability_id", &"") != descriptor.id:
+			continue
+		var bind := AbilityBindContext.new()
+		bind.controller_id = controller_id
+		bind.card_id = descriptor.source_id
+		return TriggeredAbilityDescriptor.from_registry_unit(
+			unit as Dictionary,
+			controller_id,
+			descriptor.source_id,
+			descriptor.definition_id,
+			bind
+		)
+	descriptor.controller_id = controller_id
+	return descriptor
+
+
 func resolve(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
 	if descriptor == null or _ctx == null:
 		return {"ok": false, "error": "no_context"}
+	if not _trigger_applies(descriptor):
+		return {"ok": false, "error": "not_eligible"}
 	if not _should_use(descriptor):
 		return {"ok": false, "error": "declined"}
 	if descriptor.composition == null:
@@ -50,11 +224,25 @@ func _resolve_forced(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
 	var source_id := descriptor.source_id
 	if source_id != &"" and _ctx.sequences != null:
 		_ctx.sequences.begin_ability_resolution(source_id)
-	if _ctx.composition != null:
-		_ctx.composition.execute(descriptor.composition)
+	_execute_composition_on_stack(descriptor)
 	if source_id != &"" and _ctx.sequences != null:
 		_ctx.sequences.end_ability_resolution()
 	return {"ok": true}
+
+
+func _execute_composition_on_stack(descriptor: TriggeredAbilityDescriptor) -> void:
+	if descriptor == null or descriptor.composition == null or _ctx == null:
+		return
+	if CompositionMount.resolve_ability(
+		_ctx,
+		descriptor.composition,
+		_effective_controller(descriptor),
+		descriptor.id,
+		descriptor.source_id
+	):
+		return
+	if _ctx.composition != null:
+		_ctx.composition.execute(descriptor.composition)
 
 
 func _resolve_via_initiation(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
@@ -75,27 +263,34 @@ func _should_use(descriptor: TriggeredAbilityDescriptor) -> bool:
 		return true
 	if descriptor.is_player_initiated():
 		return _ctx.interaction.ask_use_ability(
-			descriptor, descriptor.controller_id, _ctx
+			descriptor, _effective_controller(descriptor), _ctx
 		)
 	if descriptor.optional:
 		return _ctx.interaction.ask_optional_effect(
-			descriptor.controller_id, descriptor.id, _ctx
+			_effective_controller(descriptor), descriptor.id, _ctx
 		)
 	return true
 
 
 func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 	var intent: InitiationIntent
-	if descriptor.provokes_aoo():
+	var controller_id := _effective_controller(descriptor)
+	var action_types := descriptor.resolved_action_types()
+	if descriptor.ability_kind == TriggeredAbilityDescriptor.AbilityKind.ACTION:
 		intent = InitiationIntent.action_ability(
-			descriptor.controller_id,
+			controller_id,
 			descriptor.composition,
-			descriptor.action_cost
+			descriptor.action_cost,
+			AhcEnums.ActionType.ACTIVATE,
+			action_types
 		)
+		## 类型层判定；卡面「does not provoke…」靠限制类 SKIP_AOO（INIT_2B 读取分支）。
+		intent.provokes_aoo = descriptor.provokes_aoo()
 	else:
-		intent = InitiationIntent.ability(descriptor.controller_id, descriptor.composition)
+		intent = InitiationIntent.ability(controller_id, descriptor.composition)
 		intent.resource_cost = descriptor.resource_cost
 		intent.action_cost = descriptor.action_cost
+		intent.action_types = action_types
 	intent.source_id = descriptor.source_id
 	intent.ability_id = descriptor.id
 	return intent
@@ -111,11 +306,77 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 	match descriptor.ability_kind:
 		TriggeredAbilityDescriptor.AbilityKind.FORCED:
 			handler.tier = SequenceHandler.Tier.FORCED
-		TriggeredAbilityDescriptor.AbilityKind.FREE:
-			handler.tier = SequenceHandler.Tier.TRIGGERED
 		_:
 			handler.tier = SequenceHandler.Tier.TRIGGERED
 	var desc := descriptor
 	handler.callback = func() -> void:
+		if not _trigger_applies(desc):
+			return
 		resolve(desc)
 	_ctx.sequences.register_handler(handler)
+
+
+func _effective_controller(descriptor: TriggeredAbilityDescriptor) -> StringName:
+	if _ctx != null and _ctx.state != null:
+		if _ctx.state.registry.get_investigator(descriptor.controller_id) != null:
+			return descriptor.controller_id
+	if _ctx != null and _ctx.sequences != null:
+		var trigger := _ctx.sequences.current_trigger()
+		if trigger != null and _ctx.state != null:
+			if _ctx.state.registry.get_investigator(trigger.controller_id) != null:
+				return trigger.controller_id
+	return descriptor.controller_id
+
+
+func _trigger_applies(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or _ctx == null or _ctx.sequences == null:
+		return true
+	var trigger := _ctx.sequences.current_trigger()
+	if trigger == null:
+		return true
+	## 敌人击败 Forced：仅本实例源卡响应。
+	if descriptor.match_kind == &"enemy_defeated":
+		var defeated_id: StringName = trigger.payload.get("enemy_id", &"") as StringName
+		return defeated_id != &"" and defeated_id == descriptor.source_id
+	## 敌人攻击 AFTER：仅本实例攻击源。
+	if descriptor.match_kind == &"enemy_attack":
+		var attacker_id: StringName = trigger.payload.get("enemy_id", &"") as StringName
+		return attacker_id != &"" and attacker_id == descriptor.source_id
+	if CardRegistry.card_type(descriptor.definition_id) != &"location":
+		return true
+	var loc: StringName = trigger.payload.get("location_id", &"") as StringName
+	if loc == &"":
+		return true
+	return loc == descriptor.definition_id or loc == descriptor.source_id
+
+
+func _find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
+	for desc in _descriptors:
+		if desc != null and desc.id == ability_id:
+			return desc
+	return null
+
+
+func _window_allows(
+	descriptor: TriggeredAbilityDescriptor,
+	window: AhcEnums.PlayerWindow
+) -> bool:
+	var constraint := descriptor.window
+	if constraint == &"" or constraint == &"any_player_window":
+		return true
+	if constraint == &"during_your_turn":
+		if not _is_investigation_player_window(window):
+			return false
+		return _ctx.state.active_investigator_id == descriptor.controller_id
+	return true
+
+
+func _is_investigation_player_window(window: AhcEnums.PlayerWindow) -> bool:
+	match window:
+		AhcEnums.PlayerWindow.PW_INV_AFTER_PHASE_BEGIN, \
+		AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION, \
+		AhcEnums.PlayerWindow.PW_INV_AFTER_ACTION, \
+		AhcEnums.PlayerWindow.PW_INV_BEFORE_TURN_END:
+			return true
+		_:
+			return false

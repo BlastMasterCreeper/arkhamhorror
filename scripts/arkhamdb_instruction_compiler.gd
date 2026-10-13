@@ -13,6 +13,11 @@ static func apply_instructions(out: Dictionary, src: Dictionary) -> void:
 		var prey_spec := prey_from_dict(prey as Dictionary)
 		if prey_spec != null:
 			out["prey_instruction"] = prey_spec
+	var patrol: Variant = src.get("patrol_instruction")
+	if patrol is Dictionary:
+		var patrol_spec := patrol_from_dict(patrol as Dictionary)
+		if patrol_spec != null:
+			out["patrol_instruction"] = patrol_spec
 
 
 static func spawn_from_dict(data: Dictionary) -> SpawnInstructionSpec:
@@ -48,6 +53,27 @@ static func prey_from_dict(data: Dictionary) -> PreyInstructionSpec:
 	if compare == "lowest":
 		return PreyInstructionSpec.lowest(skill)
 	return PreyInstructionSpec.highest(skill)
+
+
+static func patrol_from_dict(data: Dictionary) -> PatrolTargetSpec:
+	var selector := str(data.get("selector", "named_location"))
+	match selector:
+		"named_location":
+			var tag := StringName(str(data.get("location_tag", "")))
+			if tag == &"":
+				return null
+			return PatrolTargetSpec.at_named_location(tag)
+		"named_location_choice":
+			var raw: Array = data.get("location_tags", [])
+			var tags: Array[StringName] = []
+			for item in raw:
+				var t := StringName(str(item))
+				if t != &"":
+					tags.append(t)
+			if tags.is_empty():
+				return null
+			return PatrolTargetSpec.choose_named_location(tags)
+	return null
 
 
 static func _skill_from_name(name: String) -> AhcEnums.SkillType:

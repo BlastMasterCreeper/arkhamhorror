@@ -17,6 +17,7 @@ var auto_success: bool = false
 var nested_depth: int = 0
 var encounter_resolution_id: StringName = &""
 var pending_nested_tests: Array[SkillTestContext] = []
+var target_enemy_id: StringName = &""
 var on_success: Callable
 var on_fail: Callable
 var st7_fail_by_effects: Array[Callable] = []

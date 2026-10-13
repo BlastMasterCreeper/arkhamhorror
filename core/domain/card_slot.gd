@@ -36,3 +36,9 @@ static func encounter_discard_top() -> CardSlot:
 	s.owner_id = &"encounter"
 	s.insert = AhcEnums.InsertMode.TOP
 	return s
+
+
+static func victory_display() -> CardSlot:
+	var s := CardSlot.new()
+	s.owner_id = &"victory_display"
+	return s

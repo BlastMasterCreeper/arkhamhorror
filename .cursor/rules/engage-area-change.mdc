@@ -1,0 +1,35 @@
+---
+description: 自动交战由区域变更嵌套触发；交战状态为 ENGAGEMENT Buff
+globs: core/timing/engage_flow.gd,rules/subsystems/enemy_system.gd,rules/encounter/enemy_movement.gd,rules/encounter/engagement_status.gd
+alwaysApply: false
+---
+
+# 交战 · `seq.engage` + ENGAGEMENT Buff
+
+## 两层勿混
+
+| 概念 | 是什么 | 用法 |
+|---|---|---|
+| **交战状态** | `RestrictionKind.ENGAGEMENT` Buff | 赋予 / 注销；`EngagementStatus.is_engaged_with` |
+| **威胁区** | 敌人是否位于某调查员威胁区（区划占位） | **检测** `threat_area`；**不是** Buff |
+
+真实交战常 **移入** 威胁区（状态原语），之后检测为真。  
+视为交战（`placement=grant`）只 Register Buff，不做移入；检测威胁区可仍为假。  
+禁止把威胁区当成第二套交战状态去「写入/不写」。
+
+## `mode`
+
+- `auto`：框架区域变更后自动交战  
+- `effect`：效果交战（含基础 Engage 行动外壳 nest）
+
+## 自动交战触发（`mode=auto`）
+
+1. 地点区域变化  
+2. 交战区域变化（脱离后仍同地点）  
+3. 重整（exhausted → ready）
+
+`EngageFlow.nest_after_area_change(..., cause: …)`
+
+## 注销
+
+`disengage` / 敌人离场（`WHILE_IN_PLAY`）→ `EngagementStatus.clear`

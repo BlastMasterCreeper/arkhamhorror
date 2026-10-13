@@ -1,7 +1,41 @@
 class_name InvestigatorElimination
 extends RefCounted
 
-## 调查员淘汰 · 遭遇牌清理（威胁区 + 手牌隐私遭遇 → 遭遇弃牌堆）。
+## 调查员淘汰 / 撤退 · 遭遇牌清理（威胁区 + 手牌隐私遭遇 → 遭遇弃牌堆）。
+
+
+## Resign（撤退）：线索留地点 → resigned → eliminate。
+## 卡面编译应展为三步 Composition；本函数供 `seq.effect.resign` / 旧单 Atom 兼容。
+static func resign(game_ctx: GameContext, inv_id: StringName) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false, "resigned": false}
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null or inv.eliminated:
+		return {"ok": false, "resigned": false}
+	var clues_left := inv.clues_on_card
+	if clues_left > 0 and inv.location_tag != &"":
+		var loc := game_ctx.state.registry.get_location(inv.location_tag)
+		if loc != null:
+			loc.clues += clues_left
+		inv.clues_on_card = 0
+	if game_ctx.mutator != null:
+		game_ctx.mutator.set_flag(inv_id, AhcEnums.FlagField.RESIGNED, true)
+	else:
+		inv.resigned = true
+	var elim := eliminate(game_ctx, inv_id)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.ACTION,
+			"investigator:resigned",
+			{"inv": inv_id, "clues_left_on_location": clues_left}
+		)
+	return {
+		"ok": bool(elim.get("eliminated", false)),
+		"resigned": true,
+		"eliminated": bool(elim.get("eliminated", false)),
+		"clues_left_on_location": clues_left,
+		"discarded": elim.get("discarded", []),
+	}
 
 
 static func eliminate(game_ctx: GameContext, inv_id: StringName) -> Dictionary:

@@ -237,7 +237,9 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
         "ability_hints": extract_ability_hints(text),
         "text": text,
     }
-    segments, compiled = compile_card_abilities(text)
+    # 能力分段只用正面文本；背面是翻面效果，勿并入 Forced 捕获。
+    front_text = card.get("text") or ""
+    segments, compiled = compile_card_abilities(front_text)
     if segments:
         out["ability_segments"] = segments
     if compiled:

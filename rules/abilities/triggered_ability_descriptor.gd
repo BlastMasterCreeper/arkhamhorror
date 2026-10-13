@@ -4,7 +4,7 @@ extends RefCounted
 enum AbilityKind {
 	FORCED,
 	REACTION,
-	FREE,
+	FREE_TRIGGERED,
 	ACTION,
 }
 
@@ -19,14 +19,45 @@ var composition: CompositionNode = null
 var resource_cost: int = 0
 var action_cost: int = 0
 var optional: bool = false
+## Free：`during_your_turn` | `any_player_window`（空 = any）。
+var window: StringName = &""
+## 行动类型全集（可多选，如 Activate+Parley）；借机攻击按全集判断。
+var action_types: Array = []
+## 卡面显式覆盖借机（如「不引发借机攻击」）；null = 按 action_types 判定。
+## Engage 类型本身会借机；仅卡面写明豁免时才覆盖为 false。
+var provokes_aoo_override: Variant = null
 
 
 func is_player_initiated() -> bool:
-	return ability_kind == AbilityKind.REACTION
+	return (
+		ability_kind == AbilityKind.REACTION
+		or ability_kind == AbilityKind.FREE_TRIGGERED
+		or ability_kind == AbilityKind.ACTION
+	)
 
 
 func provokes_aoo() -> bool:
-	return ability_kind == AbilityKind.ACTION
+	if ability_kind != AbilityKind.ACTION:
+		return false
+	if provokes_aoo_override != null:
+		return bool(provokes_aoo_override)
+	var types := resolved_action_types()
+	return AttackOfOpportunityResolver.provokes_for_types(types)
+
+
+func resolved_action_types() -> Array:
+	if not action_types.is_empty():
+		return action_types.duplicate()
+	if ability_kind == AbilityKind.ACTION:
+		return [AhcEnums.ActionType.ACTIVATE]
+	return []
+
+
+func uses_timing_handler() -> bool:
+	return (
+		ability_kind == AbilityKind.FORCED
+		or ability_kind == AbilityKind.REACTION
+	)
 
 
 static func forced(
@@ -64,6 +95,24 @@ static func reaction(
 	return desc
 
 
+static func free_triggered(
+	controller_id: StringName,
+	composition: CompositionNode,
+	window: StringName = &"any_player_window",
+	source_id: StringName = &"",
+	definition_id: StringName = &""
+) -> TriggeredAbilityDescriptor:
+	var desc := TriggeredAbilityDescriptor.new()
+	desc.id = StringName("free_%d" % Time.get_ticks_msec())
+	desc.ability_kind = AbilityKind.FREE_TRIGGERED
+	desc.controller_id = controller_id
+	desc.composition = composition
+	desc.window = window
+	desc.source_id = source_id
+	desc.definition_id = definition_id
+	return desc
+
+
 static func from_registry_unit(
 	unit: Dictionary,
 	controller_id: StringName,
@@ -78,7 +127,7 @@ static func from_registry_unit(
 	var desc := TriggeredAbilityDescriptor.new()
 	desc.id = unit.get("ability_id", &"") as StringName
 	desc.match_kind = unit.get("match_kind", &"") as StringName
-	desc.phase = int(unit.get("phase", AhcEnums.SequencePhase.AFTER)) as AhcEnums.SequencePhase
+	desc.phase = phase_from_raw(unit.get("phase", AhcEnums.SequencePhase.AFTER))
 	desc.controller_id = controller_id
 	desc.source_id = card_id
 	desc.definition_id = definition_id
@@ -86,8 +135,53 @@ static func from_registry_unit(
 	desc.resource_cost = int(unit.get("resource_cost", 0))
 	desc.action_cost = int(unit.get("action_cost", 0))
 	desc.optional = bool(unit.get("optional", false))
+	desc.window = unit.get("window", &"") as StringName
 	desc.ability_kind = _parse_kind(unit.get("ability_kind", &"forced"))
+	desc.action_types = _parse_action_types(unit.get("action_types", []))
+	if unit.has("provokes_aoo"):
+		desc.provokes_aoo_override = bool(unit.get("provokes_aoo"))
 	return desc
+
+
+static func _parse_action_types(raw: Variant) -> Array:
+	var out: Array = []
+	if not raw is Array:
+		return out
+	for entry in raw:
+		var parsed := action_type_from_raw(entry)
+		if parsed >= 0:
+			out.append(parsed)
+	return out
+
+
+static func action_type_from_raw(raw: Variant) -> int:
+	if raw is int:
+		return int(raw)
+	match str(raw).to_lower():
+		"draw":
+			return AhcEnums.ActionType.DRAW
+		"resource":
+			return AhcEnums.ActionType.RESOURCE
+		"activate":
+			return AhcEnums.ActionType.ACTIVATE
+		"play":
+			return AhcEnums.ActionType.PLAY
+		"move":
+			return AhcEnums.ActionType.MOVE
+		"investigate":
+			return AhcEnums.ActionType.INVESTIGATE
+		"engage":
+			return AhcEnums.ActionType.ENGAGE
+		"evade":
+			return AhcEnums.ActionType.EVADE
+		"fight":
+			return AhcEnums.ActionType.FIGHT
+		"parley":
+			return AhcEnums.ActionType.PARLEY
+		"resign":
+			return AhcEnums.ActionType.RESIGN
+		_:
+			return -1
 
 
 static func _parse_kind(raw: Variant) -> AbilityKind:
@@ -95,9 +189,21 @@ static func _parse_kind(raw: Variant) -> AbilityKind:
 	match name:
 		"reaction":
 			return AbilityKind.REACTION
-		"free":
-			return AbilityKind.FREE
+		"free", "fast":
+			return AbilityKind.FREE_TRIGGERED
 		"action":
 			return AbilityKind.ACTION
 		_:
 			return AbilityKind.FORCED
+
+
+static func phase_from_raw(raw: Variant) -> AhcEnums.SequencePhase:
+	if raw is int:
+		return raw as AhcEnums.SequencePhase
+	match str(raw).to_upper():
+		"WHEN":
+			return AhcEnums.SequencePhase.WHEN
+		"RESOLVE":
+			return AhcEnums.SequencePhase.RESOLVE
+		_:
+			return AhcEnums.SequencePhase.AFTER

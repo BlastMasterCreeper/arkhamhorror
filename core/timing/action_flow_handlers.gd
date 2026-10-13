@@ -31,7 +31,7 @@ static func resolve_action_gain_resource(
 	var tags := _merge_tags([&"resource_action"], params.get("source_tags", []))
 	return catalog.nest(
 		game_ctx,
-		&"seq.gain_resource",
+		&"seq.effect.gain_resource",
 		{
 			"controller_id": controller_id,
 			"base_amount": base_amount,
@@ -52,12 +52,48 @@ static func resolve_basic_action(
 	var resolver := BasicActionResolver.new(game_ctx.state, game_ctx.skill_tests)
 	match action_type:
 		AhcEnums.ActionType.MOVE:
-			return resolver.move(game_ctx, inv_id, extra)
+			## 行动外壳 → nest 狭义移动内核（与 draw/gain/engage 对称）。
+			if game_ctx.sequence_catalog != null and game_ctx.sequence_catalog.has_flow(&"seq.effect.move"):
+				var dest_id: StringName = extra.get("destination_id", &"")
+				return game_ctx.sequence_catalog.nest(
+					game_ctx,
+					&"seq.effect.move",
+					{
+						"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+						"investigator_id": inv_id,
+						"destination_id": dest_id,
+						"move_kind": MoveFlow.KIND_MOVE,
+						"auto_engage_after": true,
+					}
+				)
+			var move_result := resolver.move(game_ctx, inv_id, extra)
+			if bool(move_result.get("ok", false)):
+				var dest: StringName = move_result.get("destination_id", &"") as StringName
+				if dest != &"":
+					EngageFlow.nest_after_area_change(game_ctx, dest)
+			return move_result
 		AhcEnums.ActionType.INVESTIGATE:
 			return resolver.investigate(game_ctx, inv_id, extra)
 		AhcEnums.ActionType.FIGHT:
 			return resolver.fight(game_ctx, inv_id, extra)
 		AhcEnums.ActionType.ENGAGE:
+			## 基础行动 = 调查员自带能力 → nest 效果交战（mode=effect）；溯源靠行动外壳栈帧。
+			if game_ctx.sequence_catalog != null and game_ctx.sequence_catalog.has_flow(&"seq.engage"):
+				var enemy_id: StringName = extra.get("enemy_id", &"")
+				var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+				if enemy != null and enemy.massive:
+					return {"ok": false, "error": "massive"}
+				return game_ctx.sequence_catalog.nest(
+					game_ctx,
+					&"seq.engage",
+					{
+						"mode": EngageFlow.MODE_EFFECT,
+						"placement": EngageFlow.PLACEMENT_ENTER_THREAT,
+						"require_same_location": true,
+						"enemy_id": enemy_id,
+						"investigator_id": inv_id,
+					}
+				)
 			return resolver.engage(game_ctx, inv_id, extra)
 		AhcEnums.ActionType.EVADE:
 			return resolver.evade(game_ctx, inv_id, extra)

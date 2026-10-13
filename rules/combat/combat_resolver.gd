@@ -4,12 +4,17 @@ extends RefCounted
 var _state: GameStateStore
 var _log: GameLog
 var _timing: TimingBus
+var _game_ctx: GameContext = null
 
 
 func _init(state: GameStateStore, log: GameLog, timing: TimingBus = null) -> void:
 	_state = state
 	_log = log
 	_timing = timing
+
+
+func bind_game_context(ctx: GameContext) -> void:
+	_game_ctx = ctx
 
 
 func perform_attack(attack: EnemyAttack) -> void:
@@ -30,12 +35,26 @@ func perform_attack(attack: EnemyAttack) -> void:
 			"horror": attack.horror,
 		}
 	)
+	## 伤/恐常态检测（与 seq.effect.damage 路径对称）。
+	if _game_ctx != null and (attack.damage > 0 or attack.horror > 0):
+		DefeatFlow.check_investigator_caps(_game_ctx, attack.target_investigator)
 	if _timing:
 		_timing.emit_timing(
 			&"enemy_attack_completed",
 			{"enemy": attack.enemy_id, "target": attack.target_investigator, "kind": attack.kind}
 		)
-	if attack.exhaust_after:
+	if attack.exhaust_after and _game_ctx != null:
+		ExhaustReadyFlow.nest_or_run_exhaust(
+			_game_ctx,
+			{
+				"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+				"enemy_id": attack.enemy_id,
+				"trigger_area_change": false,
+			}
+		)
+	elif attack.exhaust_after:
 		var enemy := _state.registry.get_enemy(attack.enemy_id)
 		if enemy:
 			enemy.exhausted = true
+	if _game_ctx != null:
+		ElusiveResolver.try_flee_after_enemy_attack(_game_ctx, attack.enemy_id)

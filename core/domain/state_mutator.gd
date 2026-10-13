@@ -4,6 +4,7 @@ extends RefCounted
 var _state: GameStateStore
 var _information: InformationExecutor
 var _registrations: RegistrationStore = null
+var _after_zone_move: Callable = Callable()
 
 
 func _init(state: GameStateStore) -> void:
@@ -13,6 +14,10 @@ func _init(state: GameStateStore) -> void:
 
 func bind_registration_store(store: RegistrationStore) -> void:
 	_registrations = store
+
+
+func bind_after_zone_move(callback: Callable) -> void:
+	_after_zone_move = callback
 
 
 func state() -> GameStateStore:
@@ -28,6 +33,7 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
+	var from_zone := card.zone
 	if _would_leave_hand(card, to) and _blocks_leave_hand(card_id):
 		return false
 	if _would_leave_hand(card, to):
@@ -43,8 +49,25 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 			_remove_from_pile(card, owner_inv)
 		elif card.zone == AhcEnums.Zone.LIMBO:
 			pass
+		elif card.zone == AhcEnums.Zone.VICTORY_DISPLAY:
+			_state.victory_display.erase(card.id.instance_id)
+		elif card.zone == AhcEnums.Zone.PLAY_AREA and card.owner_id == &"encounter":
+			_state.encounter_deck.erase(card.id.instance_id)
+			_state.encounter_discard.erase(card.id.instance_id)
+			for inv_id in _state.registry.all_investigator_ids():
+				var inv := _state.registry.get_investigator(inv_id)
+				if inv != null:
+					inv.threat_area.erase(card.id.instance_id)
 	if to.owner_id == &"encounter":
-		return _insert_encounter_discard(card)
+		if not _insert_encounter_discard(card):
+			return false
+		_emit_zone_move(card_id, from_zone, card.zone)
+		return true
+	if to.owner_id == &"victory_display":
+		if not _insert_victory_display(card):
+			return false
+		_emit_zone_move(card_id, from_zone, card.zone)
+		return true
 	var target_inv := _state.registry.get_investigator(to.owner_id)
 	if target_inv == null:
 		return false
@@ -53,7 +76,19 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	card.zone = _zone_for_pile(to.pile)
 	if to.pile == AhcEnums.PileKind.INV_HAND:
 		card.controller_id = to.owner_id
+	_emit_zone_move(card_id, from_zone, card.zone)
 	return true
+
+
+func _emit_zone_move(
+	card_id: StringName,
+	from_zone: AhcEnums.Zone,
+	to_zone: AhcEnums.Zone
+) -> void:
+	if from_zone == to_zone:
+		return
+	if _after_zone_move.is_valid():
+		_after_zone_move.call(card_id, from_zone, to_zone)
 
 
 ## L0 · AtomTransferMarker
@@ -85,6 +120,12 @@ func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Variant) 
 			if inv == null:
 				return false
 			inv.eliminated = bool(value)
+			return true
+		AhcEnums.FlagField.RESIGNED:
+			var resigned_inv := _state.registry.get_investigator(bearer_id)
+			if resigned_inv == null:
+				return false
+			resigned_inv.resigned = bool(value)
 			return true
 	return false
 
@@ -242,12 +283,14 @@ func commit_enter_threat_area(card_id: StringName, inv_id: StringName) -> bool:
 	var inv := _state.registry.get_investigator(inv_id)
 	if card == null or inv == null:
 		return false
+	var from_zone := card.zone
 	inv.hand.erase(card_id)
 	inv.deck.erase(card_id)
 	if not inv.threat_area.has(card_id):
 		inv.threat_area.append(card_id)
 	card.controller_id = inv_id
 	card.zone = AhcEnums.Zone.PLAY_AREA
+	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
 	return true
 
 
@@ -317,17 +360,30 @@ func _enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
+	var from_zone := card.zone
 	var inv := _state.registry.get_investigator(card.owner_id)
 	if inv != null:
 		_remove_from_pile(card, inv)
+	_state.encounter_deck.erase(card.id.instance_id)
+	_state.encounter_discard.erase(card.id.instance_id)
 	card.zone = AhcEnums.Zone.LIMBO
 	card.controller_id = controller_id
+	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.LIMBO)
 	return true
 
 
 func _insert_encounter_discard(card: CardInstance) -> bool:
 	_state.encounter_discard.append(card.id.instance_id)
 	card.zone = AhcEnums.Zone.DISCARD
+	return true
+
+
+func _insert_victory_display(card: CardInstance) -> bool:
+	_state.encounter_deck.erase(card.id.instance_id)
+	_state.encounter_discard.erase(card.id.instance_id)
+	_state.victory_display.erase(card.id.instance_id)
+	_state.victory_display.append(card.id.instance_id)
+	card.zone = AhcEnums.Zone.VICTORY_DISPLAY
 	return true
 
 
@@ -381,6 +437,9 @@ func _remove_from_pile(card: CardInstance, inv: InvestigatorState) -> void:
 			inv.hand.erase(card.id.instance_id)
 		AhcEnums.Zone.DISCARD:
 			inv.discard.erase(card.id.instance_id)
+		AhcEnums.Zone.PLAY_AREA, AhcEnums.Zone.THREAT_AREA:
+			inv.threat_area.erase(card.id.instance_id)
+			inv.play_area.erase(card.id.instance_id)
 
 
 func _insert_into_pile(card: CardInstance, inv: InvestigatorState, to: CardSlot) -> bool:

@@ -9,6 +9,8 @@
 
 管理敌人 **Spawn、Engagement、移动、攻击** 及关键词：Aloof、Hunter、Patrol、Prey、Massive、Retaliate、Alert、Elusive、Doomed。
 
+> **简中对照**：冷漠 / 猎手 / 巡逻 / 猎物 / 庞大 / **反击** / **警戒** 等见 [`reference/terminology-zh.md`](../reference/terminology-zh.md)。
+
 ---
 
 ## 2. 敌人状态
@@ -36,11 +38,42 @@ class EnemyState:
 | **Engage action** | 手动 engage（与 spawn 无关的 **[action]**） |
 | Evade success | disengage → enemy at location |
 | **Aloof spawn**（含无 Spawn 的 encounter draw） | at drawer location，**unengaged**，**不**进 threat area |
-| Massive | ready: engaged with **all** at location; exhausted: none; **never** in threat area |
+| Massive | ready: **虚拟交战**同地点全体调查员；exhausted: 不与任何人交战；**永不**进 threat area（见 §6.6） |
+
+**威胁区 ≠ 交战状态**：威胁区是 **区域占位信息**（敌人卡是否位于某调查员威胁区 — 可检测/查询）。交战状态是 **ENGAGEMENT Buff**（可赋予/注销）。二者脱钩：常态真实交战常伴随「移入威胁区」的区划变化，之后检测会显示在威胁区；「视为交战」只 Register Buff，卡可仍在地点上，检测威胁区不必为真。**庞大** 永不进威胁区，虚拟交战见 §6.6。
 
 **术语**：**`spawn_engaged`** = 进场时已是 engaged 状态（L0 一次提交）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标；**`Engage action`** = 调查员行动。三者 **不可** 混用。
 
-**多调查员同地点**：走 **`auto_engage_at_location`**（**② engage 内核**）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
+### 3.1 命名流程 `seq.engage`（已收口）
+
+**唯一**交战内核；**禁止**按场合另铸 `seq.enemy.auto_engage` 等。
+
+| `mode` | 含义 | 典型入口 | 冷漠/横置 |
+|---|---|---|---|
+| **`auto`** | 框架自动交战 | 区域变更 nest（地点 / 脱离 / 重整） | **跳过** |
+| **`effect`** | 效果交战 | 卡面 `nest_engage`；**以及** `seq.action.engage` 外壳 nest（基础行动 = 调查员自带能力） | **可**交战 |
+
+#### 3.1.1 交战状态 = Buff；威胁区 = 区域检测
+
+| 概念 | 是什么 | 怎么用 |
+|---|---|---|
+| **交战状态** | `RestrictionKind.ENGAGEMENT` 成对 Buff | Register / Unregister；`EngagementStatus.is_engaged_with` |
+| **威胁区** | 敌人是否位于某调查员威胁区（区划占位） | **检测** `threat_area`（及 Domain 镜像）；**不是** Buff |
+
+| `placement` | 交战状态 Buff | 区划 |
+|---|---|---|
+| `enter_threat`（真实交战） | Register | 常伴随 **移入威胁区**（状态原语）；之后检测「在威胁区」为真 |
+| `grant`（视为交战） | Register | **不**做移入；检测「在威胁区」可仍为假 |
+
+赋予：`seq.engage` / `spawn_engaged` → `EngagementStatus.grant`。  
+注销：`disengage` / 敌人离场（`WHILE_IN_PLAY`）→ `EngagementStatus.clear`。  
+「是否交战」查 Buff；「是否在威胁区」查区划。勿把威胁区当成第二套交战状态去「写入/不写」。
+
+溯源靠序列栈；**不**另做 source / initiation 专轴。
+
+`spawn_engaged` 仍是 **L0 原子进场**（移入威胁区 + Register Buff），不压 `seq.engage`。庞大见 §6.6。
+
+**多调查员同地点**：走 **`auto_engage_at_location`**（**②** `seq.engage` mode=auto）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
 
 ```gdscript
 func auto_engage_at_location(enemy_id: StringName, location: EntityId) -> void:
@@ -94,12 +127,38 @@ Prey 示例：`Prey (lowest [agility])` — 在 **等距** 或 **同地点** 候
 
 ## 5. Hunter / Patrol 移动（Enemy 3.2 · ③ 编译）
 
-Framework **3.2** emit `(seq.enemy.3_2, WHEN)` → **RESOLVE** Hunter / Patrol **LISTENER**（AbilityCompiler 共享模板 · L0 move）。**不**在 Framework handler 按关键词名分支。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
+### 5.0 敌军阶段基础流程（非空壳）
 
-| 关键词 | 编译 | 参数（①） |
+Grimoire **III. Enemy Phase** 是完整 Framework 步进，不是「关键词 LISTENER 的挂载点」：
+
+| 步 | FrameworkStep | 基础手续 |
 |---|---|---|
-| Hunter | **③** LISTENER · 最近 investigator 路径 | 无卡面 Spec |
-| Patrol | **③** LISTENER · 向 designated target 移动 1 步 | `PatrolTargetSpec` · handler 内 `PatrolTargetResolver` |
+| 3.1 | `ENEMY_3_1_PHASE_BEGINS` | 阶段开始 |
+| 3.2 | `ENEMY_3_2_HUNTER_PATROL_MOVE` | **`seq.enemy.3_2`**：枚举 ready、未交战且带 Hunter/Patrol 的敌人 → 顺序 resolve 关键词 → `PW_ENEMY_AFTER_MOVE` |
+| 3.3 | `ENEMY_3_3_ENGAGED_ATTACKS` | 玩家顺序 · `seq.enemy.phase_attacks` → nest `seq.enemy.attack`（庞大 REPLACE 在攻击效果上） |
+| 3.4 | `ENEMY_3_4_PHASE_ENDS` | 阶段结束 |
+
+### 5.1 3.2 分工：框架手续 vs 关键词开火（已摘出）
+
+```text
+seq.enemy.3_2（框架基础手续）
+  for each ready, unengaged enemy:
+    KeywordConsumer @ 开火锚 (seq.enemy.3_2, ENEMY_3_2)
+      ├─ fire_priority 10 · nest seq.keyword.hunter
+      └─ fire_priority 20 · nest seq.keyword.patrol
+  → PW_ENEMY_AFTER_MOVE
+```
+
+**框架步 `seq.enemy.3_2`**：合格枚举（ready / 未交战）、打开开火槽、步末窗口。**不含**「向谁移 / 向哪移」路径。
+
+**挂载**：Hunter/Patrol 于 **ENTER_PLAY** Register（`WHILE_IN_PLAY`）。  
+**开火锚 / 优先级**：见 [06 §3.2.7](06-registration-buff-model.md#327-关键词监听挂载时点--开火锚--优先级已裁决) — 同锚 Hunter **先于** Patrol（引擎固定）；跨类晚于同窗 FORCED。  
+**开火体**：`seq.keyword.*`；**不**写回 Framework handler；**不**另铸 `seq.enemy.3_2_*`。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
+
+| 关键词 | 编译 / 开火 | 参数（①） |
+|---|---|---|
+| Hunter | **③** LISTENER → `seq.keyword.hunter` | 无卡面 Spec |
+| Patrol | **③** LISTENER → `seq.keyword.patrol` | `PatrolTargetSpec` · handler 内 `PatrolTargetResolver` |
 | 移动后遇 investigator | **②** | `auto_engage_at_location`（内读 Prey） |
 
 **不移动**：exhausted、已 engaged、hunter 已在有 investigator 地点；patrol 已在 designated target；card ability 阻挡。
@@ -148,7 +207,7 @@ class AttackOfOpportunityResolver:   # 见 03-action-system §5
 
 class RetaliateTrigger:
     func check_trigger(test: SkillTestContext) -> bool: ...  # fail fight vs ready + Retaliate
-    func resolve_timing(test: SkillTestContext) -> void: ... # ST.7 内 / fight fail 后果链
+    func resolve_timing(test: SkillTestContext) -> void: ... # ST.7 apply 完成后（post-ST7）
 
 class AlertTrigger:
     func check_trigger(test: SkillTestContext) -> bool: ...  # fail evade vs ready + Alert
@@ -164,8 +223,8 @@ class EnemyPhaseAttackResolver:
 | AttackKind | 触发条件 | 时点 | 攻击效果 (`perform_attack`) |
 |---|---|---|---|
 | **OPPORTUNITY** | 调查员 provoke：付完 action cost；非 Fight/Evade/Parley/Resign；ready engaged enemy | Action 管线内，**全部 AOO 完成后**才 resolve 原 action | `exhaust_after = false` |
-| **RETALIATE** | Fail **fight** test vs **ready** enemy（带 Retaliate） | Fight test **ST.7** 后果链 | `exhaust_after = false` |
-| **ALERT** | Fail **evade** test vs **ready** enemy（带 Alert） | Evade test **ST.7 之后** | `exhaust_after = false`；可不 engaged |
+| **RETALIATE** | Fail **fight** test vs **ready** enemy（带 Retaliate） | Fight test **ST.7 apply 完成之后**（ST.8 之前） | `exhaust_after = false` |
+| **ALERT** | Fail **evade** test vs **ready** enemy（带 Alert） | Evade test **ST.7 apply 完成之后**（ST.8 之前） | `exhaust_after = false`；可不 engaged |
 | **PHASE** | Enemy Phase 3.3；enemy engaged（Massive 见 §6.3） | `ENEMY_PHASE_ATTACK` FrameworkStep | `exhaust_after = true`（Massive batch 例外） |
 
 **统一边界**：上述四种在 **攻击效果层** 均属 **enemy attack**，共用 `perform_attack()`，可触发「After enemy attacks you / After enemy attacks」等 [reaction]。**触发与时点逻辑不得并入 `perform_attack()`**，须保留在各 Resolver / Trigger 中。
@@ -181,29 +240,89 @@ class EnemyPhaseAttackResolver:
 
 - Player order
 - 每位调查员 resolve **全部** engaged enemies 攻击（顺序由被攻击调查员选）
-- **Massive**（已裁决 OQ-08-02）：
-  - **发起攻击时**确定本 batch 的 **攻击效果序列**（对该 enemy engaged 的每位调查员各 1 次；顺序 Lead 选）
-  - 序列 **尽量全部结算**；**batch 开始时锁定**，中途 **横置（exhaust）不影响** 后续每次攻击
-  - **全部**攻击完成后才 exhaust Massive enemy
+- **Massive**（已裁决 OQ-08-02 · 魔典 p.16 + FAQ 2.29；**M3 粒度**）：
+  - **不是**平行 `seq.enemy.massive_phase_attacks`
+  - **REPLACE 锚 = 一般攻击效果 `seq.enemy.attack`**（PHASE kind → batch）；敌军阶段 `phase_attacks` 只是固定手续 nest 攻击
+  - AOO：魔典规定只打触发者 → **不**走多目标 REPLACE
+  - 玩家顺序走到与该庞大虚拟交战的调查员时：nest `seq.enemy.attack`（PHASE）→ 替换体开火
+  - **发起替换时**确定本 batch 目标（同地点每位调查员各 1 次；Lead `ORDER_ATTACKS`）
+  - batch 进行中若庞大敌人被**横置** → **剩余攻击不发起**
+  - batch 进行中若有调查员新进入交战 → **追加**至待攻击列表
+  - **全部**攻击完成后才横置庞大敌人（单次 `exhaust_after=false`）
 
 ```gdscript
-func resolve_massive_phase_attacks(enemy: EntityId) -> void:
-    var targets := get_engaged_investigators(enemy)
-    var order := ui.lead_investigator_choose_order(targets)
-    var sequence := order.map(inv -> EnemyAttack.new(enemy, inv, AttackKind.PHASE, ..., exhaust_after=false))
-    for attack in sequence:
-        perform_attack(attack)   # 中途 enemy 被 exhaust 仍继续
-    exhaust(enemy)               # batch 结束后统一 exhaust
+# seq.enemy.phase_attacks（3.3 固定手续）
+catalog.nest(seq.enemy.attack, {enemy, target_inv, kind: PHASE, exhaust_after: true})
+
+# seq.enemy.attack（一般攻击效果）
+if enemy.massive and kind == PHASE:
+    catalog.nest(seq.keyword.massive, {enemy})  # REPLACE
+else:
+    perform_attack(...)  # AOO 等仍单次
+
+# seq.keyword.massive
+func resolve_massive_batch(enemy: EntityId) -> void:
+    var order := ui.lead_investigator_choose_order(targets_at_location)
+    for target in order:
+        if enemy.exhausted:
+            break
+        perform_attack(..., exhaust_after=false)
+        append_newly_engaged_investigators_to_order()
+    if not enemy.exhausted:
+        exhaust(enemy)
 ```
 
 ### 6.4 Retaliate / Alert（触发 + 时点摘要）
 
-- **Retaliate**：触发 = fail fight vs ready enemy；时点 = ST.7；效果 → `perform_attack(RETALIATE)`
-- **Alert**：触发 = fail evade vs ready enemy；时点 = ST.7 之后；效果 → `perform_attack(ALERT)`；**不要求 engaged**，enemy 不在 threat area 仍 **deal damage**（已裁决 OQ-08-03）
+Grimoire *Retaliate* / *Alert* 均写 **after applying all results for that skill test** — 即 **ST.7 全部 apply 完成之后**、**ST.8 之前**（`SkillTestEngine.resolve_post_st7`），**不是** ST.7 `on_fail` 回调内的同步后果。
 
-### 6.5 Elusive
+| 关键词 | 触发 | 时点 | 攻击效果 |
+|---|---|---|---|
+| **反击（Retaliate）** | fail fight vs **未横置** + retaliate | post-ST7 | `perform_attack(RETALIATE)` |
+| **警戒（Alert）** | fail evade vs **未横置** + alert | post-ST7 | `perform_attack(ALERT)`；不要求 engaged（OQ-08-03） |
 
-Ready elusive 在 **attack resolves 后**（含 fail）：disengage all → move to connecting（优先无 investigator）→ exhaust。
+**ST.7 `on_fail` 内**（apply 进行中）：Fight **失败转嫁**（§6.6）、卡面 *If you fail* Composition 等 — **不含** retaliate/alert 的 `perform_attack`。
+
+### 6.5 Elusive（逃逸）
+
+Grimoire：未横置 + elusive 在 **攻击** 或 **被攻击** resolve 之后 → disengage all → 移相邻（优先无调查员）→ exhaust。
+
+| 分类 | 含 | 时点 | 实现 |
+|---|---|---|---|
+| 敌人 **攻击** | 阶段 / **借机** / 反击 / 警戒 | `perform_attack` 完成后 | `try_flee_after_enemy_attack` |
+| 敌人 **被攻击** | 调查员 Fight 检定（含失败） | post-ST7（反击之后） | `try_flee_was_attacked` |
+
+**借机攻击** 是敌人发起的 **攻击**（`AttackKind.OPPORTUNITY`），走上行 hook，**不是**「被攻击」。Fight 才是「被攻击」。
+
+**OQ-03-05**（已裁决）：借机攻击 **会** 触发逃逸 — 归入敌人 **攻击** 路径。
+
+### 6.6 Fight 失败转嫁伤害 · 威胁区 · 庞大（Grimoire Fight Action）
+
+Grimoire *Fight Action*：攻击检定 **失败** 时，若目标敌人与 **另一名且仅一名** 调查员交战，则 **攻击的伤害** 由与该敌人交战的调查员承受（非 performing investigator）。
+
+**威胁区解释（引擎模型）**：
+
+| 概念 | 常态（非庞大） | 庞大 |
+|---|---|---|
+| 「与调查员交战」 | 敌人位于该调查员 **威胁区** | **虚拟交战**（`MassiveEngagement.is_virtually_engaged_with`）；**不在** 威胁区 |
+| 帮打「队友交战的敌人」 | 敌人卡在 **队友威胁区**、同地点 | 敌人卡在 **地点上**；与同地点所有人虚拟交战 |
+| Fight 失败转嫁 | **适用** — 伤害转由威胁区内与该敌人交战的调查员承受 | **不适用**典型结构 — 见下 |
+
+**为何庞大「攻击失败不对其他交战调查员造成伤害」**：
+
+1. Fight 失败转嫁规则，严格说是针对 **位于威胁区、与某调查员交战** 的敌人（帮打队友威胁区里的怪并失败 → 队友受伤）。
+2. **庞大** 敌人 **永不进入威胁区**（魔典 *Massive* · `MassiveEngagement.sync_*` 清 threat area），故 **不会出现**「目标在他人威胁区内交战」这一前提。
+3. 魔典 *Massive* 另列专条：对庞大敌人攻击失败时，**不向与该庞大敌人虚拟交战的其他调查员** 造成上述转嫁伤害（Grimoire p.16）。
+
+```gdscript
+## Fight ST.7 on_fail — 见 `FightFailRedirectResolver.try_redirect`
+func apply_fight_fail_redirect(attacker: StringName, enemy_id: StringName, fight_damage: int = 1) -> void:
+    FightFailRedirectResolver.try_redirect(game_ctx, attacker, enemy_id, fight_damage)
+```
+
+**与反击（Retaliate）区分**：二者 **先后**、非同时 —— 转嫁在 **ST.7 apply**（`on_fail`）；反击在 **ST.7 全部 apply 完成后**（post-ST7）对 **攻击者** `perform_attack(RETALIATE)`。庞大 + retaliate 时，反击仍可能命中攻击者；本节仅约束 **转嫁给其他虚拟交战调查员** 的伤害。
+
+**与警戒（Alert）区分**：OQ-08-03 指 **aloof / 同地点未进威胁区** 的 alert 敌人躲避失败仍可攻击；与庞大 Fight 失败转嫁无关。
 
 ---
 
@@ -290,9 +409,9 @@ func discard_spawn_failed(enemy_id: StringName) -> void:
 
 ## 8. Defeat / Victory / Doomed
 
-- Damage >= health → defeated → encounter discard（或 weakness owner discard）
-- Victory X → victory display
-- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）
+- Damage >= health → defeated → encounter discard（或 weakness owner discard）；**Victory X > 0** → `victory_display`（`EnemyDefeatResolver`）
+- Victory X → victory display（discard 不算 defeat，不进 victory display）
+- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）；实现见 `DoomedResolver` / `EnemyDefeatResolver`
 
 ---
 
@@ -308,7 +427,7 @@ class EnemySystem:
     func spawn(enemy: EntityId, drawer: StringName, instruction: SpawnInstruction) -> Result  # 委托 §7.2
     func engage(enemy: EntityId, inv: StringName) -> Result             # Engage **action** 专用
     func disengage(enemy: EntityId) -> Result
-    func hunter_patrol_move() -> void
+    func enemy_phase_3_2_moves() -> void   # → seq.enemy.3_2
     func resolve_phase_attacks() -> void
     func perform_attack(attack: EnemyAttack) -> void
     func check_retaliate(test: SkillTestContext) -> void   # 触发 + 时点；满足时调用 perform_attack
@@ -327,7 +446,7 @@ class EnemySystem:
 | EN-03 | Hunter move toward nearest | 1 step |
 | EN-04 | Retaliate on fight fail | attack, no exhaust |
 | EN-05 | Massive 2 investigators | 2 attacks then exhaust |
-| EN-07 | Massive batch 第 1 击后 card exhaust enemy | 第 2 击仍 resolve |
+| EN-07 | Massive batch 第 1 击后 card exhaust enemy | **第 2 击不发起**（FAQ 2.29） |
 | EN-06 | Elusive after AOO | flee + exhaust |
 | EN-08 | Spawn 指向未进场 location | **encounter discard**；不 enter play |
 | EN-09 | Weakness enemy spawn 失败 | **bearer discard pile** |
@@ -347,7 +466,7 @@ class EnemySystem:
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-03-02 | **攻击效果层**统一 `EnemyAttack` + `AttackKind`；**触发条件与时点**各 kind 独立 Resolver。均属 enemy attack，共用 `perform_attack()`。见 §6.1。 | 2026-05-25 |
-| OQ-08-02 | Massive 多次攻击 **batch 发起时锁定序列**，尽量全部结算；**中途横置不取消**后续攻击。见 §6.3。 | 2026-05-25 |
+| OQ-08-02 | Massive batch **进行中横置则中断**剩余攻击；全部完成后才横置庞大敌人。魔典 + FAQ 2.29。见 §6.3。 | 2026-06-18 |
 | OQ-08-03 | Alert 攻击 **不要求 engaged**；enemy 不在 threat area 仍 **deal damage**。见 §6.4。 | 2026-05-25 |
 | OQ-08-01 | Hunter：**等距子集 → Prey 过滤 → Lead 选**。Prey 必须在等距内。见 §4。 | 2026-05-25 |
 
@@ -363,3 +482,13 @@ class EnemySystem:
 | 2026-06-18 | v0.4 | §3/§7 **`spawn_engaged` vs `auto_engage_at_location` vs Engage action**；对齐 15 §17 E5 |
 | 2026-06-18 | v0.4.1 | §7.4 spawn 失败 → **owner 对应 discard pile**；EN-08/09 |
 | 2026-06-18 | v0.5 | §0.1 三档译法；Prey **①** 仅 engage 内核读参（不 nest/LISTENER）；Hunter/Patrol **③** 编译 |
+| 2026-06-18 | v0.5.1 | §3 威胁区=交战（常态）；§6.6 Fight 失败转嫁 · 庞大不进威胁区 |
+| 2026-10-10 | v0.5.2 | §5.0：敌军阶段 3.1–3.4 基础流程非空壳；3.2=`seq.enemy.3_2`；LISTENER 只承担移动体 |
+| 2026-10-10 | v0.5.3 | §5.1：Hunter/Patrol 移动体摘为 `seq.keyword.hunter` / `patrol`；框架只枚举+消费槽 |
+| 2026-10-10 | v0.5.4 | §5.1：开火锚 + fire_priority（Hunter 10 先于 Patrol 20）；链 06 §3.2.7 |
+| 2026-10-10 | v0.5.5 | §6.3 M3：删平行 massive_phase_attacks；庞大 REPLACE |
+| 2026-10-10 | v0.5.6 | §6.3：庞大 REPLACE 锚 = `seq.enemy.attack`；`phase_attacks` 只 nest 攻击 |
+| 2026-10-10 | v0.5.7 | §3.1：扩展 `seq.engage`；行动外壳 nest 内核 |
+| 2026-10-10 | v0.5.8 | §3.1 收口：仅 auto/effect；行动=效果交战；无 source/initiation 专轴 |
+| 2026-10-10 | v0.5.9 | §3.1.1：交战状态 = ENGAGEMENT Buff；与威胁区场面脱钩；grant 仅 Buff |
+| 2026-10-12 | v0.5.10 | §3.1.1：威胁区 = 区划检测信息，不是 Buff；纠正「写入/不写威胁区」表述 |

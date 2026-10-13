@@ -158,7 +158,7 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - 从 deck 顶抽 1；deck 空 → shuffle discard + take 1 horror + draw（同时发生）
 - discard 也空 → defeated + 1 mental trauma
-- **规范抽牌序列**（信息 D2 可见、WHEN=D2–D3、Weakness 显现于入手）：见 **[15-timing-entry-catalog §16](15-timing-entry-catalog.md)**
+- **规范抽牌序列**（信息 D2 可见、When 在发起 impact 后、Weakness 显现于入手后 nest）：见 **[15-timing-entry-catalog §16](15-timing-entry-catalog.md)**
 
 ### 6.2 Resource
 
@@ -170,7 +170,10 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 - Event：resolve → discard
 - Asset：进 play area；检查 slots，不足则 discard 已有 asset
 - Skill **不可** Play
-- Fast：不耗 action，走 Initiation Pipeline，任意指定 player window
+- **无 Fast**：Play action，窗口/花费对称激活触发；耗 action，可引起借机攻击；种类仍是打出
+- **Fast、无时点**：窗口/花费对称免费触发；Player Window / 期间限制；不耗 Play action，不引起借机攻击；种类仍是打出
+- **Fast、有时点**：窗口/花费对称反应触发；when/after 槽打出；不耗 Play action，不引起借机攻击；种类仍是打出
+- 见 [06-ability-initiation §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)
 
 ### 6.4 Move
 
@@ -181,6 +184,7 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 
 - Intellect test vs location shroud
 - 成功：discover 1 clue（即使 location 0 clue 也可 investigate，Grimoire）
+- **隐式地点**：默认所在地；无地点 / 不在该地 → 发起失败（付费前；[21 §3.2.2](21-selection-spec.md)）
 
 ### 6.6 Engage
 
@@ -189,14 +193,34 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 - 不能 engage massive；不能 engage 已 engaged 自己的
 - 可对 aloof / exhausted enemy engage
 
-### 6.7 Evade
+### 6.7 Evade（躲避 · 四层）
 
-- 仅 engaged with self 的 enemy
-- Agility vs evade；成功 → exhaust + disengage to location
+勿把「evade」一词混成一层。与横置相关的是**躲避效果**，不是行动外壳本身。
+
+| 层 | 英文 | 简中 | 是什么 |
+|---|---|---|---|
+| 1 | Evade action | **躲避** | 行动种类（基础 / 指定）；外壳 `seq.action.evade` |
+| 2 | Evasion attempt | **躲避尝试** | 该行动（等）衍生的技能检定，通常敏捷 vs 敌人 evade |
+| 3 | Evade effect | **躲避效果** | 基础结算体：**解除交战 + 横置**该敌；**多入口**可产生 |
+| 4 | Automatically evade | **自动躲避** | 对层 3 的**包装**：不做层 2、亦非「自动成功」的尝试；同样产生层 3 |
+
+- 仅 engaged with self 的 enemy（基础行动）
+- 路径 A：层 1 → 层 2（检定）→ 成功 → 层 3
+- 路径 B：层 4 → 层 3（无检定）
+- **隐式目标**：默认伴随躲避尝试，敌人目标与明示 Target 同构（[21 §3.2](21-selection-spec.md)）
+- **基础躲避行动**：无合法敌人 → 整行动不能发起；**多步躲避能力**见 21 §3.2.1
+- **自动躲避**：无检定 / 不算成功躲避尝试；仍产生躲避效果；极少卡面取消衍生检定者按文本
 
 ### 6.8 Fight（已裁决 OQ-03-01）
 
 **以 Grimoire（魔典书）为准**；Rulebook 入门描述仅为简化。
+
+**隐式目标**：Fight 衍生 **攻击（Attack）**（通常为 combat 检定）；文本未必写 Target/choose，仍须合法敌人（[21 §3.2](21-selection-spec.md)）。
+
+| 形态 | 发起 L7 |
+|---|---|
+| **基础 Fight** | 无合法攻击目标 → 整行动不可发起 |
+| **Fight 能力含前置效果**（如先 choose 移动再 Attack） | 整树 dry-run：移动等能 CREATED → **可通过** L7，即使目的地无敌人、随后 Attack 不能发（[21 §3.2.1](21-selection-spec.md)） |
 
 **默认合法目标**（基础 Fight 行动）：performing investigator **当前地点**上的敌人，包括：
 
@@ -222,7 +246,7 @@ func is_valid_fight_target(inv: StringName, enemy: EntityId, ability: AbilityDef
 
 - Combat vs fight value
 - 成功：deal 1 damage（可被武器修改）
-- 失败且 enemy engaged 他人：damage → 该调查员
+- **失败转嫁**（Grimoire *Fight Action*）：目标敌人位于 **另一名且仅一名** 调查员的 **威胁区** 时，攻击的伤害由该调查员承受。**庞大** 不进威胁区，不适用典型转嫁结构；魔典 *Massive* 另禁向其他虚拟交战调查员转嫁 — 见 [08 §6.6](08-enemy-engagement.md#66-fight-失败转嫁伤害--威胁区--庞大grimoire-fight-action)
 
 ### 6.9 Parley / Resign
 
@@ -276,7 +300,7 @@ class ActionSystem:
 | A-02 | [action] Fight 能力 | 无 AOO |
 | A-03 | Fast event 在他人 turn window | 不耗 action |
 | A-04 | Fight 打 aloof unengaged | 非法 |
-| A-05 | Fight fail，enemy engaged 队友 | 队友受伤 |
+| A-05 | Fight fail，enemy 在队友威胁区 | 队友承受攻击伤害（ACT-16） |
 | A-06 | [action][action] Activate | actions **一次 -2**；**至多 1 轮** AOO（非按 [action] 次数重复） |
 
 ---
@@ -285,13 +309,13 @@ class ActionSystem:
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-03-05 | P2 | Elusive 在 AOO 后是否仍触发（AOO 算 attack）？ |
 | OQ-03-06 | P1 | Play asset 时 slot 弃置：玩家选顺序还是引擎默认最旧 asset？ |
 
 ### 已裁决
 
 | ID | 裁决 | 日期 |
 |---|---|---|
+| OQ-03-05 | 借机攻击是敌人 **攻击**（非「被攻击」），**会**触发逃逸 → `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 | 2026-06-18 |
 | OQ-03-01 | **以 Grimoire 为准。** 基础 Fight 目标 = 调查员**当前地点**上的敌人（含 unengaged、自己 threat 区、同地点他人 engaged 的敌人）。特殊卡牌能力可扩展目标范围至地点外。Aloof 未 engage 不可打。 | 2026-05-25 |
 | OQ-03-02 | **攻击效果层**统一 `EnemyAttack` + `AttackKind`（PHASE / OPPORTUNITY / RETALIATE / ALERT），共用 `perform_attack()`，均属 enemy attack。**触发条件与时点**各 kind 独立（AOO→Action 管线、Retaliate/Alert→Skill Test、Phase→Enemy Phase）；不得把 provoke / ST.7 插入逻辑并入 `perform_attack()`。见 08 §6.1。 | 2026-05-25 |
 | OQ-03-03 | **Agenda 无地点概念**；可 Activate agenda 能力，**不**视为 Parley 同地点。见 §6.10。 | 2026-05-25 |
@@ -303,8 +327,12 @@ class ActionSystem:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-29 | v0.5.4 | §6.8：Fight 前置移动可过 L7；Attack 无目标只挡衍生步（21 §3.2.1） |
+| 2026-09-29 | v0.5.3 | §6.7–6.8：Fight/Evade **隐式目标**与 21 §3.2 对齐 |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-03-01 裁决：Fight 目标以 Grimoire 同地点为准 |
 | 2026-05-25 | v0.3 | OQ-03-02 裁决：EnemyAttack 统一攻击效果层 |
 | 2026-05-25 | v0.4 | OQ-03-02 补充：触发 / 时点 / 攻击效果三层结构 |
 | 2026-05-25 | v0.5 | OQ-03-03/04 裁决：Agenda 无地点；一次行动花费 + 一次 AOO |
+| 2026-09-21 | v0.5.2 | §6.3 Fast 只改打出窗口/花费；种类仍是打出（06 §4.2） |
+| 2026-09-20 | v0.5.1 | §6.1 抽牌 When 锚在发起 impact 之后（15 §16） |

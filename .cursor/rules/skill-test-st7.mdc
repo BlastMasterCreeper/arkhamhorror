@@ -1,0 +1,53 @@
+---
+description: 检定 ST.7 后果 = 内联 Composition（SkillTestSt7Plan）；非 ST.6 nest、非 nest pop 后父 Seq
+alwaysApply: true
+---
+
+# 检定 ST.7 内联后果（已裁决 · 2026-07-08）
+
+> 详 04-skill-test-engine §3.7 · 07-composition §3.3 · `SkillTestSt7Plan` / `SkillTestSt7Composition`
+
+## 规则
+
+凡 **依附本次检定 success/fail 判定** 的后果，均在 **ST.7 Apply results** 执行，落点为 **内联 Composition**（`SkillTestSt7Plan` → `CompositionExecutor`）。
+
+| 卡面 / 来源 | 典型措辞 | Plan 槽 |
+|---|---|---|
+| 发起方 | *If you succeed/fail* · *If this test is successful/failed* | `on_success` / `on_fail` |
+| Fail-by | *For each point you fail by…* | `on_fail_by_each`（× `fail_by`） |
+| Commit | committed skill *If this test is successful…* | 同上（并入 plan） |
+| Chaos | symbol *fail by X+* | `st7_fail_by_effects` 回调 |
+
+## 禁止
+
+- **ST.6** 执行上述后果（ST.6 只判 success/fail + 算 `fail_by`）
+- **`seq.skill_test.*` nest pop 之后**，在父显现/Revelation 的 Composition **Seq** 里跑 success/fail/fail-by 后果
+- 把 ST.7 后果做成 **新 TriggeringCondition / timing nest**（Choice 在 ST.7 内仍是非 timing 的内联 Composition）
+
+## 允许
+
+- 检定 **nest** `seq.skill_test.*`（独立 ST 栈 · 15 §17.5）
+- ST.7 内 **Choice / Seq / Atom**（含 must choose + dry-run 过滤）
+
+## 编译 JSON
+
+```json
+{
+  "template": "skill_test",
+  "skill": "intellect",
+  "difficulty": 3,
+  "st7": {
+    "on_success": { "template": "..." },
+    "on_fail": { "template": "..." },
+    "on_fail_by_each": { "template": "choice_must", "options": [ ... ] }
+  }
+}
+```
+
+## 后续引擎改动时
+
+新增/修改 **investigate·fight·evade 成功后果**、**committed skill 支**、**卡面 test 成功/失败句** 时：
+
+1. 写入 `SkillTestSt7Plan`，经 `SkillTestSt7Composition.register_plan` 挂 ST.7
+2. **不要**在 `BasicActionResolver` / 父 Composition 末尾加 post-test Seq 步
+3. 12126 锚例：`st7.on_fail_by_each` + must choose

@@ -15,12 +15,19 @@ static func register_if_absent(
 	if game_ctx.registrations.has_keyword_buff(card_id, keyword):
 		return
 	var template := RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword)
-	var node := CompositionNode.register(template)
-	if provenance != null:
-		node.provenance = provenance
-	else:
-		node.provenance = AbilityUnitRef.from_framework(&"seq.draw.encounter")
-	game_ctx.composition.execute(node)
+	if game_ctx.sequence_catalog != null:
+		game_ctx.sequence_catalog.nest(
+			game_ctx,
+			&"seq.effect.register",
+			{
+				"controller_id": &"",
+				"card_id": card_id,
+				"template": template,
+			}
+		)
+		return
+	if game_ctx.registrations != null:
+		game_ctx.registrations.register(template)
 
 
 static func register_surge(

@@ -122,10 +122,20 @@ base = investigator.get_skill(skill)
 
 ### 3.7 ST.7 Apply results
 
-- 发起方文本 success/fail 后果
-- **Fail by 条件效果**（如 Spreading Flames Skull「fail by 2+ draw Fire!」）作为 **失败效果的一部分** 在此结算（已裁决 OQ-05-03）
-- Committed skill 卡「If this test is successful...」
-- 调查员选顺序（多个 ST.7 结果）
+> **FAQ / Grimoire**：凡依附 **本次检定 success/fail 判定** 的后果 — 包括 *If you succeed/fail*、*If this test is successful/failed*、*for each point you fail by*、committed skill *If this test is successful…*、chaos token *fail by X+* — **均在 ST.7 统一执行**；**不是** ST.6 嵌套时点，**不是** `seq.skill_test.*` nest pop 后父 Composition 的 Seq 步（OQ-05-03 · 07-composition §3.3）。
+
+**引擎落点**：`SkillTestSt7Plan` — 内联 **Composition 树**（可含 Choice / Seq / Atom），由 `SkillTestEngine.step_apply_results` 在 ST.7 调用 `CompositionExecutor`；**不**新建 TriggeringCondition。
+
+| 卡面模式 | `SkillTestSt7Plan` 槽 | ST.7 行为 |
+|---|---|---|
+| *If this test is successful…* / *If you succeed…* | `on_success` | success 时 execute 一次 |
+| *If you fail…* / *If this test fails…* | `on_fail` | fail 时 execute 一次 |
+| *For each point you fail by…* | `on_fail_by_each` | fail 时 execute × `fail_by` |
+| Committed skill 成功/失败支 | 同上（由 commit 注册进 plan） | 同左 |
+| Symbol *fail by X+* | `st7_fail_by_effects` 回调 | fail 且 `fail_by ≥ X` |
+
+- ST.6 仅判定 success/fail 并计算 `fail_by`（**不在 ST.6 执行上述后果**）
+- 调查员选顺序（多个 ST.7 结果）— 待 `PlayerInteractionGate.ORDER_ST7`（open question）
 
 ### 3.8 ST.8 End
 
@@ -195,7 +205,7 @@ class EncounterResolutionFrame:
 push frame (E0) — 可跨 Surge 圈（仅 drawer 上下文）
   per card: ENCOUNTER_CARD_DRAWN → priority 100 Register peril (card_id)
             → … 90 revelation → 80 G4 → Unregister peril(card_id)
-            → 75 AFTER → 70 surge?
+            → 75 AFTER(card) 抽取后 → 70 surge?
 pop frame (E7)
 ```
 
@@ -203,7 +213,7 @@ pop frame (E7)
 
 > **术语**：**子时点** = 遭遇结算 WHEN 内的 commit 边界；**Register 结算** = G2 Register 写入 RegistrationStore。
 
-**与显现的区别**：E3 nest **Register RESTRICTION**（peril 检测子时点触发）；E4 nest Forced。见 [15 §4.0.5.1–§4.0.5.2](15-timing-entry-catalog.md)。
+**与显现的区别**：E3 nest **Register RESTRICTION**（peril 检测子时点触发）；E4 nest 显现类（非 Forced）。见 [15 §4.0.5.1–§4.0.5.2](15-timing-entry-catalog.md)。
 
 **禁止** `PerilPolicy` / 平行 cannot 分支。E3 = **nest** 内 `composition.execute(register_template)`：
 
@@ -420,3 +430,5 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | 2026-06-18 | v0.6 | **§4 收紧**：险境 = E3 Register RESTRICTION；删 `PerilPolicy`；统一 `RestrictionEvaluator` |
 | 2026-06-18 | v0.5 | **§4 Peril 重设计**：持续 Cannot、L4/07 冲突链第 0 步；PERIL-01～06 |
 | 2026-06-18 | v0.5.1 | **§4.9–11** 帧栈 / AppContext / E3 catalog；`EncounterResolutionFrame`；PERIL-01/04/05 测试 |
+| 2026-09-20 | v0.6.1 | §4.4 E4 显现独立类（非 Forced nest） |
+| 2026-09-20 | v0.6.3 | §4.3：75 档 = 抽取后（整段结算完毕） |

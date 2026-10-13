@@ -2,7 +2,7 @@
 
 > **用途**：供资深玩家审阅并裁决；裁决结果将回填各子系统设计文档。  
 > **版本**：v0.3 · 2026-05-25（OQ-00-06 ~ OQ-10-01 等已裁决）  
-> **合计**：81 条（P0: 16 · P1: 43 · P2: 22）  
+> **合计**：82 条（P0: 16 · P1: 44 · P2: 22）  
 > **同步来源**：`00-architecture-overview.md` + `design/00`–`12` 各文档 Open Questions 节
 
 ---
@@ -42,13 +42,13 @@
 | OQ-06-02 | [06-ability](design/06-ability-initiation.md) | Play restriction 是否需要 dry-run simulate？ | **需要。** L7 终端 dry-run；COLLECT 不批量 dry-run。见 06 §7.2。 |
 | OQ-07-02 | [07-effect](design/07-effect-resolution.md) | Moving damage/horror 是否独立 `EffectOp.TRANSFER_AFFLICTION` 且不算 heal？ | **是。** 独立 `TRANSFER_AFFLICTION`；**不算 heal**。见 07 §4.1。 |
 | OQ-07-06 | [07-effect](design/07-effect-resolution.md) | Replacement stack 与 Cancel 交互：cancel 已替换后的 effect 还是原始 trigger？ | **看触发先后。** Replacement 一般为 Delayed，与 Forced 同优先级。Replacement 先 → Cancel 无法发动；Cancel 先 → Replacement 不结算。见 07 §6.1。 |
-| OQ-08-02 | [08-enemy](design/08-enemy-engagement.md) | Massive 攻击中途 exhaust：剩余攻击取消时点？ | **batch 发起时锁定序列**，尽量全部结算；**中途横置不取消**后续攻击。见 08 §6.3。 |
+| OQ-08-02 | [08-enemy](design/08-enemy-engagement.md) | Massive 攻击中途横置：剩余攻击取消时点？ | **batch 进行中**若庞大敌人被横置（其他能力），**剩余攻击不发起**；全部攻击结算完才横置庞大敌人。魔典 p.16 + FAQ 2.29。见 08 §6.3。 |
 | OQ-10-01 | [10-scenario](design/10-scenario-encounter.md) | Setup surge：无 player window 时 nested surge 如何 UI？ | **场景不存在。** Setup 1–13 不结算显现 → 无 Surge 链。若有 setup 显现/涌动，仅在 **Setup 14 game begins** 结算。见 10 §2.1。 |
 | OQ-12-01 | [12-api](design/12-card-script-api.md) | AbilityTemplate vs CardScript 目标比例？ | **不设固定比例**；实现时 **逐卡选型**，优先 Template。见 12 §1.1。 |
 
 ---
 
-## P1 — 影响大量卡牌或 UX（43 条）
+## P1 — 影响大量卡牌或 UX（44 条）
 
 | ID | 来源 | 问题 | 裁决 |
 |---|---|---|---|
@@ -61,14 +61,16 @@
 | OQ-01-03 | [01-state](design/01-game-state-zones.md) | Committed skill：LIMBO 还是 Context？ | **`SkillTestContext.committed`**；zone 留 **HAND** 至 ST.8；不进 LIMBO。 |
 | OQ-03-03 | [03-action](design/03-action-system.md) | Parley current agenda 是否同地点？ | **否。** Agenda **无地点**；可 Activate 其能力，不适用 Parley 同地点。见 03 §6.10。 |
 | OQ-06-03 | [06-ability](design/06-ability-initiation.md) | 多个 [reaction] 谁选顺序？ | **Lead Investigator**（均已选用后）；选用权在控制者。见 06 §8.2。 |
-| OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **D2–D3 区间**（§16.3）。 |
+| OQ-06-07 | [06-ability](design/06-ability-initiation.md) | 显现是否并入 Forced 优先级类？ | **否。** 独立 `REVELATION` 类；抽取步骤 When 95 之后的后续步骤 90。见 06 §8.1.1。 |
+| OQ-TIMING-01 | [15-timing](design/15-timing-entry-catalog.md) | When you draw 锚点 | **抽取步骤**发起 impact 之后。调查员：已在 **HAND**；遭遇：已在 **LIMBO**。**不**含显现 / G4。见 15 §3.1、§16.3。 |
 | OQ-TIMING-02 | [15-timing](design/15-timing-entry-catalog.md) | Move leave/enter | **MOVE_ATOMIC** 单 brick、单 entry。见 15 §5.3。 |
-| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when | **SPLIT**；WOULD=D1 后 D2 前；WHEN=D2–D3。见 15 §16。 |
+| OQ-TIMING-03 | [15-timing](design/15-timing-entry-catalog.md) | Draw would/when/after | 卡面「draw」不细；**转译钉语义**。Would / When / After 绑在 **一条抽牌指令** 上。同一指令抽多张 = **同时抽出**。涌动 = 抽取并结算后的延时，另开指令。见 15 §3.2。 |
 | OQ-TIMING-04 | [15-timing](design/15-timing-entry-catalog.md) | 玩家牌 **Revelation 能力** 于入手时的 nest 时点 | **ENTER_HAND（D3）**；`seq.enter_hand` + `TriggeringCondition.enter_hand`；**按 `has_revelation` 判定**，与 weakness 子类型无关。见 15 §16.2。 |
-| OQ-TIMING-05 | [15-timing](design/15-timing-entry-catalog.md) | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **设计师待定**；FORCED 类内自排；`EnterHandTimingPolicy`。跨类优先级见 06 §8.1。 |
-| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN 区间 | **E2–E5**（§17.3）；Surge 每圈独立 WHEN。 |
-| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | **E1 bind 后、E2 前**（§17.3）。 |
-| OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **顺序** full resolve（含 Surge 链）再下一张。见 15 §17.2 E6。 |
+| OQ-TIMING-05 | [15-timing](design/15-timing-entry-catalog.md) | `enter_hand` 时点多张牌 / 多条显现的 **同类内** 顺序 | **设计师待定**；**REVELATION 类内**自排；`EnterHandTimingPolicy`。显现不并入 FORCED，见 06 §8.1.1。 |
+| OQ-TIMING-06 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WHEN | **同时抽出之后** 95 档（§17.3）；**不**包 G3/G4。涌动是之后另开的指令。 |
+| OQ-TIMING-07 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 draw WOULD 锚点 | 这条指令 PreImpact（任何一张 pop 前）。 |
+| OQ-TIMING-08 | [15-timing](design/15-timing-entry-catalog.md) | `amount > 1` encounter draw | **同时抽出**；显现等按抽出顺序结算。涌动是结算后延时，另开指令。**禁止**按张含涌动再抽下一张。见 15 §3.2。 |
+| OQ-TIMING-09 | [15-timing](design/15-timing-entry-catalog.md) | 遭遇 抽取后 | **抽取后** = 这条指令的同时抽出组都收完。涌动在此之后。 |
 | OQ-ENC-01 | [15-timing §17](design/15-timing-entry-catalog.md) | 遭遇 deck + discard 皆空 | v0：**RULES_GAP**。 |
 | OQ-ENC-02 | [08-enemy §7.4](design/08-enemy-engagement.md) | drawer 无 location 时 spawn_engaged | v0：**`discard_spawn_failed`**。 |
 | OQ-PERIL-01 | [04-skill-test §4](design/04-skill-test-engine.md) | drawer confer | **Presentation**；引擎不拦 drawer 行动。 |
@@ -119,7 +121,7 @@
 | OQ-01-04 | [01-state](design/01-game-state-zones.md) | `SET_ASIDE` 与 `REMOVED_FROM_GAME` 是否需子类型（campaign 指定 area）？ | |
 | OQ-01-06 | [01-state](design/01-game-state-zones.md) | Attachment 链（A attach B attach C）leave play 时 discard 顺序是否由 owner 选？ | |
 | OQ-02-05 | [02-framework](design/02-framework-flow.md) | Framework 与嵌套 Skill Test 的 EventRecord 层级如何缩进展示？ | |
-| OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发（AOO 算 attack）？ | |
+| OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），经 `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 |
 | OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | |
 | OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ | |
 | OQ-05-06 | [05-chaos-bag](design/05-chaos-bag.md) | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ | |
@@ -170,12 +172,17 @@
 | OQ-ADB-04 | [06 §16.4](design/06-registration-buff-model.md) / 12012 | Necronomicon：`cannot leave play` + threat area — Permanent Domain vs RESTRICTION | P2 |
 | OQ-ADB-05 | [15 §17.4.3](design/15-timing-entry-catalog.md) / 12179b | Hidden enemy 手牌 spawn — ENC-22/23 已竖切；多 copy 待补 | P2 |
 
-**已裁决（涌动）**：
+**已裁决（涌动 · 动态 surge 编译）**：
 
 | ID | 裁决 |
 |---|---|
 | OQ-ADB-02 | 动态 `gains surge` = KEYWORD 标记 · `WHILE_DRAWN_CARD_RESOLVING`；G5 与印刷 surge 合并 evaluate，**不叠加**。12124 选伤害分支时 G3 Register。见 [15 §17.4.5](design/15-timing-entry-catalog.md)。 |
 | OQ-ADB-03 | 12126：`clue==0` 在 **G3 显现入口**判定；Register surge 标记并跳过 intellect；与印刷 surge 仍只 G5 再抽 1 次。同 OQ-10-06。 |
+| OQ-ADB-06 | *your clues* 默认 = **调查员卡上** clue（`clues_on_card`）。见 [07 §3.3](design/07-composition.md)。 |
+| OQ-ADB-07 | 12160 *no doom was placed* = place 步 **未 CREATED**；`after_step` if；nearest 等距 **当前交互玩家**选。见 07 §3.3、16 §7.2.1。 |
+| OQ-ADB-08 | 12124 **must choose** 可执行项 + doom 支 **密谋推进框架**（阈值检测）。见 07 §3.3、16 §7.2.1。 |
+| OQ-ADB-09 | 12126 fail-by either/or：印刷漏 **must**，按 must choose 可执行项。见 07 §3.3。 |
+| OQ-ADB-10 | Forced **When + if** 等多要素 **能拆就拆**（timing · condition · cost · effect）。见 07 §3.3。 |
 
 ---
 
@@ -215,6 +222,15 @@
 | 2026-05-25 | v0.4.6 | OQ-12-01 裁决：Template/Script 逐卡选型，无固定比例 |
 | 2026-05-25 | v0.5.0 | 批次 P1：IDX-01/02、12-06、01-01、02-04、00-01 裁决 |
 | 2026-05-25 | v0.5.1 | 批次 B 部分：01-03、03-03、06-03、08-03 裁决 |
+| 2026-07-07 | v0.5.5 | OQ-ADB-06～10：clues 域、must choose、12160 after_step、多要素拆分 |
 | 2026-07-06 | v0.5.4 | OQ-ADB-02/03、OQ-10-06 裁决：涌动 KEYWORD 标记 · 不叠加 |
 | 2026-07-06 | v0.5.3 | 新增 OQ-ADB-01～05（ArkhamDB Phase 4 回填） |
 | 2026-05-25 | v0.5.2 | OQ-03-04、OQ-08-01 裁决 |
+| 2026-09-20 | v0.5.6 | OQ-06-07：显现独立类；OQ-TIMING-05 改为 REVELATION 类内 |
+| 2026-09-20 | v0.5.7 | OQ-TIMING-01/03/06/07：Would/When 对齐同一 TC；步骤差=发起 impact |
+| 2026-09-20 | v0.5.8 | Would 时 DECK；When 时 HAND / LIMBO |
+| 2026-09-20 | v0.5.9 | OQ-TIMING-03：SPLIT=同一事件前后槽，非同一时刻 |
+| 2026-09-20 | v0.6.0 | OQ-TIMING-01/03/06/07：抽取时钉抽取步骤 |
+| 2026-09-20 | v0.6.1 | OQ-TIMING-03/09：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
+| 2026-09-20 | v0.6.2 | OQ-TIMING-03/07：Would = 这次抽取 PreImpact |
+| 2026-09-21 | v0.6.4 | OQ-TIMING-08/03：同一指令抽多张 = 同时抽出；涌动 = 抽取并结算后的延时 |

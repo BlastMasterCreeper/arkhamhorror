@@ -34,6 +34,9 @@ enum Zone {
 
 enum CardFace { A, B }
 
+## 卡背类型（无文本背面图案 / 牌库外观）。**仅**此用途；≠ 正面 cardtype；≠ CardFace A/B。
+enum CardBackKind { PLAYER, ENCOUNTER }
+
 enum SkillType { WILLPOWER, INTELLECT, COMBAT, AGILITY }
 
 enum ChaosTokenKind {
@@ -232,6 +235,8 @@ enum EventRecordKind {
 	ACTION_SPEND,
 	ACTION_SPEND_VOID,
 	ACTION_GRANT,
+	## 玩家交互（含 used_default）；见 16 §3 / Gate.ask。
+	INTERACTION_CHOICE,
 }
 
 enum StatKey {
@@ -268,7 +273,7 @@ enum BearerKind { CARD, INVESTIGATOR, GLOBAL }
 
 enum AtomOp { MOVE_CARD, TRANSFER_MARKER, ADJUST_MARKER, REVEAL_CARD, SET_FLAG, SET_REF }
 
-enum FlagField { ELIMINATED }
+enum FlagField { ELIMINATED, RESIGNED }
 
 enum RestrictionKind {
 	FORBID_DRAW,
@@ -276,11 +281,22 @@ enum RestrictionKind {
 	FORBID_TRIGGER,
 	FORBID_COMMIT_TO_TEST,
 	FORBID_LEAVE_HAND,
+	## 限制类：卡面「This action does not provoke attacks of opportunity」。
+	## 行动开始 Register；INIT_2B 由 AOO **原流程读取** 后自行分支（不跑借机）。
+	## 不是 LISTENER，不是 Cancel/Ignore。
+	SKIP_AOO,
+	## 限制类：抑制 **自动交战**（Prey/Lead 选目标）。
+	## 效果移入后仍会走到 auto-engage 入口；入口 **读取** 本限制后自行跳过。
+	## 明示交战（seq.engage mode=effect）不受影响。
+	SUPPRESS_AUTO_ENGAGE,
+	## 交战状态（成对）：与威胁区场面脱钩。真实交战与「视为交战」均 Register 本 Buff。
+	## 查询入口读本 Kind；**不是** Intent 拦截，也不是 LISTENER。
+	ENGAGEMENT,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }
 
-enum CompositionNodeKind { SEQ, ATOM, REGISTER }
+enum CompositionNodeKind { SEQ, ATOM, REGISTER, IF, CHOICE, OPTIONAL, REPEAT, FOR_EACH }
 
 enum LifetimeKind {
 	WHILE_IN_PLAY,
@@ -289,6 +305,9 @@ enum LifetimeKind {
 	WHILE_ENCOUNTER_FRAME,
 	WHILE_DRAWN_CARD_RESOLVING,
 	WHILE_HIDDEN_IN_HAND,
+	WHILE_IN_HAND,
+	WHILE_IN_DECK,
+	WHILE_SET_ASIDE,
 }
 
 enum DurationAnchorKind { THIS_TURN, THIS_PHASE, THIS_SKILL_TEST, THIS_ROUND }

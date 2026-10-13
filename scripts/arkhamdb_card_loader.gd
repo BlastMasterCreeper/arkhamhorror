@@ -52,15 +52,26 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 		"aloof": bool(src.get("aloof", false)),
 		"hunter": "hunter" in keywords,
 		"retaliate": "retaliate" in keywords,
+		"alert": "alert" in keywords,
+		"elusive": "elusive" in keywords,
 		"massive": "massive" in keywords,
+		"doomed": "doomed" in keywords or _text_has_doomed(str(src.get("text", ""))),
 		"permanent": bool(src.get("permanent", false)),
 		"victory": int(src.get("victory", 0)),
+		"back_text": str(src.get("back_text", "")),
+		"back_name": str(src.get("back_name", "")),
 		"pack_code": StringName(str(src.get("pack_code", ""))),
 		"faction_code": StringName(str(src.get("faction_code", ""))),
 		"encounter_code": StringName(str(src.get("encounter_code", ""))),
 		"text": str(src.get("text", "")),
 		"keywords": kw_out,
 	}
+	## 卡背类型：仅背面图案/牌库外观；显式优先，否则按定义推断写入（与正面 card_type 分列）。
+	var back_raw := str(src.get("card_back", ""))
+	if back_raw == "player" or back_raw == "encounter":
+		out["card_back"] = StringName(back_raw)
+	else:
+		out["card_back"] = CardRegistry.infer_card_back(out)
 	if src.has("slot") and str(src.get("slot", "")) != "":
 		out["slot"] = StringName(str(src.get("slot")))
 	var traits: Array = src.get("traits", [])
@@ -79,6 +90,8 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 	var enemy: Variant = src.get("enemy", {})
 	if enemy is Dictionary and not enemy.is_empty():
 		out["enemy"] = enemy.duplicate()
+	if src.has("doom"):
+		out["doom"] = src.get("doom")
 	var location: Variant = src.get("location", {})
 	if location is Dictionary and not location.is_empty():
 		out["location"] = location.duplicate()
@@ -91,3 +104,7 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 	ArkhamDbInstructionCompiler.apply_instructions(out, src)
 	_AbilityCompiler.apply_to_registry(definition_id, src)
 	return out
+
+
+static func _text_has_doomed(text: String) -> bool:
+	return text.to_lower().contains("doomed")

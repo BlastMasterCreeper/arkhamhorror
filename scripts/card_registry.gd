@@ -11,6 +11,16 @@ static func register_definition(definition_id: StringName, data: Dictionary = {}
 	_definitions[definition_id] = data
 
 
+static func patch_definition(definition_id: StringName, data: Dictionary) -> void:
+	var base: Dictionary = _definitions.get(definition_id, {})
+	if base.is_empty():
+		_definitions[definition_id] = data.duplicate()
+	else:
+		var merged := base.duplicate()
+		merged.merge(data, true)
+		_definitions[definition_id] = merged
+
+
 static func definition_data(definition_id: StringName) -> Dictionary:
 	var data: Variant = _definitions.get(definition_id, {})
 	if data is Dictionary:
@@ -143,22 +153,28 @@ static func register_triggered(
 	builder: Callable,
 	resource_cost: int = 0,
 	action_cost: int = 0,
-	optional: bool = false
+	optional: bool = false,
+	window: StringName = &"",
+	action_types: Array = [],
+	provokes_aoo: Variant = null
 ) -> void:
 	if not _triggered.has(definition_id):
 		_triggered[definition_id] = []
-	(_triggered[definition_id] as Array).append(
-		{
-			"ability_id": ability_id,
-			"match_kind": match_kind,
-			"phase": phase,
-			"ability_kind": ability_kind,
-			"resource_cost": resource_cost,
-			"action_cost": action_cost,
-			"optional": optional,
-			"builder": builder,
-		}
-	)
+	var unit := {
+		"ability_id": ability_id,
+		"match_kind": match_kind,
+		"phase": phase,
+		"ability_kind": ability_kind,
+		"resource_cost": resource_cost,
+		"action_cost": action_cost,
+		"optional": optional,
+		"window": window,
+		"action_types": action_types.duplicate(),
+		"builder": builder,
+	}
+	if provokes_aoo != null:
+		unit["provokes_aoo"] = bool(provokes_aoo)
+	(_triggered[definition_id] as Array).append(unit)
 
 
 static func triggered_units_at(definition_id: StringName) -> Array:
@@ -178,7 +194,13 @@ static func enter_hand_zone(definition_id: StringName) -> AhcEnums.Zone:
 ## 显现后仍在 limbo 时弃入的牌堆：`owner_discard` | `encounter_discard`。
 static func limbo_discard_pile(definition_id: StringName) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
-	return data.get("limbo_discard_pile", &"owner_discard") as StringName
+	if data.has("limbo_discard_pile"):
+		return data.get("limbo_discard_pile") as StringName
+	## 遭遇 treachery / enemy 默认进遭遇弃牌堆。
+	var card_type: StringName = data.get("card_type", &"") as StringName
+	if card_type == &"treachery" or card_type == &"enemy":
+		return &"encounter_discard"
+	return &"owner_discard"
 
 
 static func has_keyword(definition_id: StringName, keyword: StringName) -> bool:
@@ -197,6 +219,21 @@ static func is_hunter(definition_id: StringName) -> bool:
 	return has_keyword(definition_id, &"hunter")
 
 
+static func is_patrol(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("patrol", false):
+		return true
+	return has_keyword(definition_id, &"patrol")
+
+
+static func patrol_spec(definition_id: StringName) -> PatrolTargetSpec:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	var spec = data.get("patrol_instruction", null)
+	if spec is PatrolTargetSpec:
+		return spec
+	return null
+
+
 static func is_retaliate(definition_id: StringName) -> bool:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	if data.get("retaliate", false):
@@ -204,11 +241,125 @@ static func is_retaliate(definition_id: StringName) -> bool:
 	return has_keyword(definition_id, &"retaliate")
 
 
+static func is_alert(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("alert", false):
+		return true
+	return has_keyword(definition_id, &"alert")
+
+
+static func is_elusive(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("elusive", false):
+		return true
+	return has_keyword(definition_id, &"elusive")
+
+
 static func is_massive(definition_id: StringName) -> bool:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	if data.get("massive", false):
 		return true
 	return has_keyword(definition_id, &"massive")
+
+
+static func is_doomed(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("doomed", false):
+		return true
+	return has_keyword(definition_id, &"doomed")
+
+
+static func victory_points(definition_id: StringName) -> int:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return int(data.get("victory", 0))
+
+
+## 印刷生命（支援等）；0 = 无生命 / 不因伤害自动击败。
+static func printed_health(definition_id: StringName) -> int:
+	return int(definition_data(definition_id).get("health", 0))
+
+
+## 印刷神智（支援等）；0 = 无神智 / 不因恐惧自动击败。
+static func printed_sanity(definition_id: StringName) -> int:
+	return int(definition_data(definition_id).get("sanity", 0))
+
+
+static func is_act(definition_id: StringName) -> bool:
+	return card_type(definition_id) == &"act"
+
+
+static func is_agenda(definition_id: StringName) -> bool:
+	return card_type(definition_id) == &"agenda"
+
+
+static func back_text(definition_id: StringName) -> String:
+	return str(definition_data(definition_id).get("back_text", ""))
+
+
+static func back_name(definition_id: StringName) -> String:
+	return str(definition_data(definition_id).get("back_name", ""))
+
+
+static func back_effects(definition_id: StringName) -> Array:
+	var raw: Variant = definition_data(definition_id).get("back_effects", [])
+	if raw is Array:
+		return (raw as Array).duplicate(true)
+	return []
+
+
+static func scenario_objective(definition_id: StringName) -> Dictionary:
+	var raw: Variant = definition_data(definition_id).get("objective", {})
+	if raw is Dictionary:
+		return (raw as Dictionary).duplicate(true)
+	return {}
+
+
+static func scenario_doom_threshold(definition_id: StringName) -> int:
+	var data := definition_data(definition_id)
+	if not data.has("doom"):
+		return 7
+	var doom_val: Variant = data.get("doom")
+	if doom_val == null:
+		return -1
+	return int(doom_val)
+
+
+static func scenario_clue_threshold(definition_id: StringName) -> int:
+	return location_printed_clues(definition_id)
+
+
+static func all_definition_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key in _definitions.keys():
+		out.append(key as StringName)
+	out.sort()
+	return out
+
+
+static func encounter_code(definition_id: StringName) -> StringName:
+	return StringName(str(definition_data(definition_id).get("encounter_code", "")))
+
+
+static func location_shroud(definition_id: StringName) -> int:
+	var loc: Variant = definition_data(definition_id).get("location", {})
+	if loc is Dictionary:
+		return int((loc as Dictionary).get("shroud", 0))
+	return 0
+
+
+static func location_printed_clues(definition_id: StringName) -> int:
+	var loc: Variant = definition_data(definition_id).get("location", {})
+	if loc is Dictionary:
+		var clues: Variant = (loc as Dictionary).get("clues")
+		if clues == null or str(clues) == "dash":
+			return -1
+		return int(clues)
+	return -1
+
+
+static func goes_in_encounter_deck(definition_id: StringName) -> bool:
+	var ctype := card_type(definition_id)
+	return ctype == &"enemy" or ctype == &"treachery"
 
 
 static func has_surge(definition_id: StringName) -> bool:
@@ -229,6 +380,39 @@ static func is_permanent(definition_id: StringName) -> bool:
 static func card_type(definition_id: StringName) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	return data.get("card_type", &"treachery") as StringName
+
+
+## 卡背类型：`player` | `encounter`。只描述无文本背面；与正面 cardtype / CardFace 正交。
+static func card_back(definition_id: StringName) -> StringName:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	var explicit: StringName = data.get("card_back", &"") as StringName
+	if explicit == &"player" or explicit == &"encounter":
+		return explicit
+	return infer_card_back(data)
+
+
+static func has_player_back(definition_id: StringName) -> bool:
+	return card_back(definition_id) == &"player"
+
+
+static func has_encounter_back(definition_id: StringName) -> bool:
+	return card_back(definition_id) == &"encounter"
+
+
+## 导入缺省推断（可被定义里显式 `card_back` 覆盖）。**不**用此结果代替正面能力包。
+static func infer_card_back(data: Dictionary) -> StringName:
+	if bool(data.get("is_weakness", false)):
+		return &"player"
+	var ctype: StringName = data.get("card_type", &"") as StringName
+	match ctype:
+		&"enemy", &"treachery", &"location", &"act", &"agenda", &"scenario":
+			return &"encounter"
+		_:
+			pass
+	## 剧情支援等：有遭遇组 + 玩家正面类型 → 常见遭遇卡背。
+	if str(data.get("encounter_code", "")) != "":
+		return &"encounter"
+	return &"player"
 
 
 static func resource_cost(definition_id: StringName) -> int:

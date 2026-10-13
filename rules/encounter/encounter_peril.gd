@@ -15,9 +15,7 @@ static func register_if_peril(
 	if game_ctx.registrations.has_peril_for_drawn_card(card_id):
 		return
 	var template := RegistrationTemplate.peril_drawn_card_resolving(drawer_id, card_id)
-	var node := CompositionNode.register(template)
-	node.provenance = AbilityUnitRef.from_framework(&"seq.draw.encounter")
-	game_ctx.composition.execute(node)
+	CompositionMount.register_effect(game_ctx, template, drawer_id, card_id)
 
 
 static func unregister_for_card(game_ctx: GameContext, card_id: StringName) -> void:
