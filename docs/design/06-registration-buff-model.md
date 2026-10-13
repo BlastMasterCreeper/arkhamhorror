@@ -280,7 +280,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | Spawn 地点选择器（farthest empty / named / …） | **指令** Spawn – | `SpawnInstructionSpec.selector` | `SpawnLocationResolver` | 与指令同一 Spec，不另开类型 | ✅ |
 | Prey `(lowest [agility])` 等 | **指令** Prey – | `PreyInstructionSpec` 比较/过滤 | `PreyResolver.best_match` | 等距或同地点子集内比较；并列 Lead | ✅ |
 | Patrol `(地点 / 目标)` | **关键词** 巡逻 | `PatrolTargetSpec` | 3.2 LISTENER handler 内 `PatrolTargetResolver` | **不是** 第三条指令；括号不 Register | △ 测试合成 |
-| Uses `(X type)` 的 X 与 type | **关键词** Uses | `UsesSpec {count, type}` | 进场 L0 放 token；能力 cost 扣同 type | 禁止把 ammo 当成 charges | Domain `uses` 有；Spec 未模块化 |
+| Uses `(X type)` 的 X 与 type | **关键词** Uses | `UsesSpec`（import `uses: {type: count}`） | 进场 L0 放 token；能力 cost 扣同 type | 禁止把 ammo 当成 charges；**禁止**无 `keywords∋uses` 只留旁路字段 | ✅ C1（12019） |
 | Victory **X** | **关键词** Victory | 标量 `victory: int` | 击败 / 场景结束改去向 | 不是 Buff | ✅ |
 | Swarming **X** | **关键词** Swarming | 标量 count | 延时 LISTENER payload | 垫 X 张 facedown swarm | Core 无 |
 | Seal 选哪个 token | **关键词** Seal | `SealSpec` | 打出成本 / 进场 L0 | `CHAOS_PICK` | Choice 已列；无卡 |

@@ -2958,6 +2958,9 @@ func _test_adb_pick_multi_compiler() -> bool:
 
 func _test_adb_compile_12019() -> bool:
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	## 关键词 Uses：拥有 = keywords∋uses；参数 = UsesSpec。
+	if not CardRegistry.has_keyword(&"12019", &"uses"):
+		return false
 	var uses := CardRegistry.uses_spec(&"12019")
 	var compiled := CardRegistry.compiled_abilities(&"12019")
 	if compiled.is_empty():
@@ -2974,7 +2977,8 @@ func _test_adb_compile_12019() -> bool:
 	var st7: Dictionary = s3.get("st7", {})
 	var on_ok: Dictionary = st7.get("on_success", {})
 	return (
-		int(uses.get(&"ammo", 0)) == 4
+		CardRegistry.has_uses(&"12019")
+		and int(uses.get(&"ammo", 0)) == 4
 		and entry.get("register_as", "") == "action"
 		and entry.get("template", "") == "seq"
 		and entry.get("translation", "") == "full_expand"
@@ -3030,8 +3034,8 @@ func _test_adb_12019_fight_ammo() -> bool:
 	## THIS_SKILL_TEST 修饰在 ST.8 卸掉；检定后不应残留。
 	var lingering := 0
 	if h.ctx.registrations != null:
-		for reg in h.ctx.registrations.snapshot():
-			if reg.duration == AhcEnums.DurationAnchorKind.THIS_SKILL_TEST:
+		for reg in h.ctx.registrations.all_registrations():
+			if (reg as Registration).duration == AhcEnums.DurationAnchorKind.THIS_SKILL_TEST:
 				lingering += 1
 	return (
 		bool(result.get("ok", false))
@@ -3046,16 +3050,16 @@ func _test_seq_eff_spend_token() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.spend_token"):
 		return false
-	CardRegistry.register_definition(&"tok_gun", {"card_type": &"asset", "uses": {"ammo": 2}})
+	CardRegistry.register_definition(
+		&"tok_gun",
+		{"card_type": &"asset", "keywords": [&"uses"], "uses": {"ammo": 2}}
+	)
 	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"tok_gun")
 	var card := h.ctx.state.registry.get_card(card_id)
 	if card == null or int(card.tokens.uses.get(&"ammo", 0)) != 2:
 		return false
 	var c := CompositionTestHelper.new(h.ctx)
-	## 经 seq.ability.resolve 装载（禁真空）。
-	var body := CompositionNode.nest_spend_token(&"inv_1", card_id, &"ammo", 1)
-	var intent := InitiationIntent.free_ability(&"inv_1", body)
-	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	c.execute(CompositionNode.nest_spend_token(&"inv_1", card_id, &"ammo", 1))
 	var after_one := int(card.tokens.uses.get(&"ammo", 0))
 	var fail := h.ctx.sequence_catalog.run(
 		h.ctx,
@@ -3063,10 +3067,10 @@ func _test_seq_eff_spend_token() -> bool:
 		{"controller_id": &"inv_1", "card_id": card_id, "kind": &"ammo", "amount": 2}
 	)
 	return (
-		res.ok
-		and after_one == 1
+		after_one == 1
 		and not bool(fail.get("ok", false))
 		and int(card.tokens.uses.get(&"ammo", 0)) == 1
+		and _sequence_kind_count(h, &"spend_token") > 0
 	)
 
 

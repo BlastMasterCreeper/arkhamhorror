@@ -763,7 +763,10 @@ def compile_choose_discard_asset(body: str) -> dict[str, Any] | None:
 
 
 def parse_uses_spec(text: str) -> dict[str, int] | None:
-    """卡面 Uses (N kind) → {kind: N}；进场放置用。"""
+    """关键词 Uses 的参数 Spec：Uses (N kind) → {kind: N}。
+
+    拥有 = keywords 含 uses；本 Spec 只带 X/type。进场 Domain 读 Spec 放 token。
+    """
     m = USES_LINE.search(text or "")
     if not m:
         return None

@@ -134,11 +134,15 @@ static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> voi
 	game_ctx.triggered_abilities.install_card(controller, card_id)
 
 
-## Uses (N kind) 关键词：进场 L0 放置 uses token（非卡面 Composition）。
+## 关键词 Uses（Domain）：进场 L0 读 UsesSpec 放 typed token（非 Composition、非三种 Buff）。
 static func _place_uses_on_enter_play(game_ctx: GameContext, card: CardInstance) -> void:
 	if game_ctx == null or game_ctx.mutator == null or card == null:
 		return
-	var uses := CardRegistry.uses_spec(card.id.definition_id)
+	var def_id := card.id.definition_id
+	## 门控：印刷关键词 uses（gained uses 他日走 EffectiveCharacteristicQuery）。
+	if not CardRegistry.has_keyword(def_id, &"uses"):
+		return
+	var uses := CardRegistry.uses_spec(def_id)
 	if uses.is_empty():
 		return
 	for kind in uses.keys():

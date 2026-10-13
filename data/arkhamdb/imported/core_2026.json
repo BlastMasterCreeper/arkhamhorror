@@ -657,7 +657,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Item",
       "Weapon",
@@ -940,7 +942,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Item",
       "Weapon",
@@ -1238,7 +1242,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Item",
       "Weapon",
@@ -1332,7 +1338,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Item"
     ],
@@ -1473,7 +1481,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Item",
       "Tome"
@@ -1573,7 +1583,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Item",
       "Weapon",
@@ -2010,7 +2022,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Spell"
     ],
@@ -2103,7 +2117,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Item",
       "Charm",
@@ -2145,7 +2161,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Spell"
     ],
@@ -2286,7 +2304,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Item",
       "Mask",
@@ -2360,7 +2380,9 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [],
+    "keywords": [
+      "uses"
+    ],
     "traits": [
       "Spell"
     ],
@@ -2442,7 +2464,8 @@
     "permanent": false,
     "victory": 0,
     "keywords": [
-      "hunter"
+      "hunter",
+      "uses"
     ],
     "traits": [
       "Talent"

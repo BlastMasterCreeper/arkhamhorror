@@ -64,7 +64,8 @@ static func compiled_abilities(definition_id: StringName) -> Array:
 	return []
 
 
-## Uses (N kind) → {StringName kind: int count}；空 = 无 Uses。
+## 关键词 Uses 的参数 Spec：{StringName kind: int count}；空 = 无 Spec。
+## 拥有看 `has_keyword(..., &"uses")`；本函数只读参数。
 static func uses_spec(definition_id: StringName) -> Dictionary:
 	var data := definition_data(definition_id)
 	var uses: Variant = data.get("uses", {})
@@ -74,6 +75,10 @@ static func uses_spec(definition_id: StringName) -> Dictionary:
 	for key in (uses as Dictionary).keys():
 		out[StringName(str(key))] = int((uses as Dictionary)[key])
 	return out
+
+
+static func has_uses(definition_id: StringName) -> bool:
+	return has_keyword(definition_id, &"uses")
 
 
 ## builder: Callable(AbilityBindContext) -> CompositionNode
