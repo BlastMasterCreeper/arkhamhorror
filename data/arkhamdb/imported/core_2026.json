@@ -1018,11 +1018,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "ammo",
-        "amount": 4,
-        "card_id": "source"
+        "effect": {
+          "op": "nest",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "ammo",
+            "amount": 4,
+            "card_id": "source"
+          }
+        }
       },
       {
         "segment_index": 1,
@@ -1036,44 +1040,60 @@
           "fight"
         ],
         "status": "full",
-        "template": "seq",
         "translation": "full_expand",
-        "steps": [
-          {
-            "template": "spend_token",
-            "flow_id": "seq.effect.spend_token",
-            "kind": "ammo",
-            "amount": 1,
-            "card_id": "source"
-          },
-          {
-            "template": "pick_target",
-            "filter": "enemy_fight_target",
-            "prompt_id": "pick:fight_enemy",
-            "memory_key": "picked_enemy"
-          },
-          {
-            "template": "register_modifier",
-            "flow_id": "seq.effect.register",
-            "stat": "combat",
-            "amount": 1,
-            "duration": "this_skill_test"
-          },
-          {
-            "template": "nest_skill_test",
-            "flow_id": "seq.skill_test",
-            "skill": "combat",
-            "difficulty_source": "enemy_fight",
-            "enemy": "memory:picked_enemy",
-            "st7": {
-              "on_success": {
-                "template": "deal_damage_enemy",
+        "effect": {
+          "op": "seq",
+          "steps": [
+            {
+              "op": "nest",
+              "flow_id": "seq.effect.spend_token",
+              "params": {
+                "kind": "ammo",
+                "amount": 1,
+                "card_id": "source"
+              }
+            },
+            {
+              "op": "pi",
+              "kind": "select",
+              "filter": "enemy_fight_target",
+              "prompt_id": "pick:fight_enemy",
+              "bind": {
+                "key": "picked_enemy",
+                "shape": "entity"
+              }
+            },
+            {
+              "op": "nest",
+              "flow_id": "seq.effect.register",
+              "params": {
+                "stat": "combat",
+                "amount": 1,
+                "duration": "this_skill_test"
+              }
+            },
+            {
+              "op": "nest",
+              "flow_id": "seq.skill_test",
+              "params": {
+                "skill": "combat",
+                "difficulty_source": "enemy_fight",
                 "enemy": "memory:picked_enemy",
-                "amount": 2
+                "st7": {
+                  "on_success": {
+                    "op": "nest",
+                    "flow_id": "seq.effect.damage",
+                    "params": {
+                      "target": "memory:picked_enemy",
+                      "amount": 2,
+                      "kind": "damage"
+                    }
+                  }
+                }
               }
             }
-          }
-        ]
+          ]
+        }
       }
     ],
     "uses": {

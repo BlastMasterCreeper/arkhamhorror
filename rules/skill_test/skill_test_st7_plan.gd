@@ -17,9 +17,11 @@ static func from_compile_dict(
 	for key in ["on_success", "on_fail", "on_fail_by_each"]:
 		var entry: Variant = entries.get(key)
 		if entry is Dictionary and not (entry as Dictionary).is_empty():
+			var entry_dict := entry as Dictionary
+			## build_fn = ArkhamDbAbilityCompiler.build_composition；支持 op IR（空 template）。
 			var node: CompositionNode = build_fn.call(
-				str((entry as Dictionary).get("template", "")),
-				entry as Dictionary,
+				str(entry_dict.get("template", "")),
+				entry_dict,
 				bind
 			)
 			if node != null:

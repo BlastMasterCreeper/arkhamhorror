@@ -790,7 +790,7 @@ def parse_uses_spec(text: str) -> dict[str, int] | None:
 
 
 def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
-    """C1：Spend ammo → Fight 指定行动（激活+攻击类型）。"""
+    """C1：Spend ammo → Fight 指定行动（激活+攻击类型）。统一 IR（20 §2 / §5.5）。"""
     text = body.strip()
     m = FIGHT_SPEND_AMMO.match(text)
     if not m:
@@ -803,50 +803,56 @@ def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
     damage_total = 1 + damage_bonus
     steps: list[dict[str, Any]] = [
         {
-            "template": "spend_token",
+            "op": "nest",
             "flow_id": "seq.effect.spend_token",
-            "kind": "ammo",
-            "amount": ammo_n,
-            "card_id": "source",
+            "params": {"kind": "ammo", "amount": ammo_n, "card_id": "source"},
         },
         {
-            "template": "pick_target",
+            "op": "pi",
+            "kind": "select",
             "filter": "enemy_fight_target",
             "prompt_id": "pick:fight_enemy",
-            "memory_key": "picked_enemy",
+            "bind": {"key": "picked_enemy", "shape": "entity"},
         },
     ]
     if skill_bonus > 0:
         steps.append(
             {
-                "template": "register_modifier",
+                "op": "nest",
                 "flow_id": "seq.effect.register",
-                "stat": skill,
-                "amount": skill_bonus,
-                "duration": "this_skill_test",
+                "params": {
+                    "stat": skill,
+                    "amount": skill_bonus,
+                    "duration": "this_skill_test",
+                },
             }
         )
     steps.append(
         {
-            "template": "nest_skill_test",
+            "op": "nest",
             "flow_id": "seq.skill_test",
-            "skill": skill,
-            "difficulty_source": "enemy_fight",
-            "enemy": "memory:picked_enemy",
-            "st7": {
-                "on_success": {
-                    "template": "deal_damage_enemy",
-                    "enemy": "memory:picked_enemy",
-                    "amount": damage_total,
-                }
+            "params": {
+                "skill": skill,
+                "difficulty_source": "enemy_fight",
+                "enemy": "memory:picked_enemy",
+                "st7": {
+                    "on_success": {
+                        "op": "nest",
+                        "flow_id": "seq.effect.damage",
+                        "params": {
+                            "target": "memory:picked_enemy",
+                            "amount": damage_total,
+                            "kind": "damage",
+                        },
+                    }
+                },
             },
         }
     )
     return {
-        "template": "seq",
         "translation": "full_expand",
         "action_types": ["activate", "fight"],
-        "steps": steps,
+        "effect": {"op": "seq", "steps": steps},
     }
 
 
@@ -1204,25 +1210,32 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     if compiled is None:
         return None
     # 弱点自弃常为 [action][action]；分段后 body 可能只剩 Discard …
-    action_cost = 2 if compiled.get("template") == "discard_source" else 1
+    effect_root = compiled.get("effect") if isinstance(compiled.get("effect"), dict) else None
+    root_op = str(effect_root.get("op", "")) if effect_root else ""
+    root_template = str(compiled.get("template", ""))
+    action_cost = 2 if root_template == "discard_source" else 1
     if body.lower().startswith("[action]"):
         action_cost = 2
     action_types = compiled.pop("action_types", ["activate"])
     if not isinstance(action_types, list) or not action_types:
         action_types = ["activate"]
     status = "full"
-    if compiled.get("template") in ("if_else", "seq", "choice_must", "choice_optional"):
+    if root_template in ("if_else", "seq", "choice_must", "choice_optional") or root_op in (
+        "seq",
+        "if",
+        "pi",
+    ):
         status = "partial"
-    elif compiled.get("template") == "skill_test" and "parley" not in [
+    elif root_template == "skill_test" and "parley" not in [
         str(t).lower() for t in action_types
     ]:
         status = "partial"
     elif "(limit" in body.lower():
         status = "partial"
-    # 应展尽展的 Resign / Engage-from-connecting 视为 full。
+    # 应展尽展的 Resign / Engage-from-connecting / Fight-ammo IR 视为 full。
     if compiled.get("translation") == "full_expand":
         status = "full"
-    if compiled.get("template") == "choice_optional":
+    if root_template == "choice_optional":
         body_tpl = ""
         body_entry = compiled.get("body", {})
         if isinstance(body_entry, dict):
@@ -1244,7 +1257,7 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def compile_uses_keyword_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
-    """关键词 Uses → 能力格式：hook ENTER_PLAY + nest place_token（Domain L0）。"""
+    """关键词 Uses → 能力格式：hook ENTER_PLAY + nest place_token（统一 IR）。"""
     kind = str(segment.get("uses_kind", "")).lower()
     amount = int(segment.get("uses_amount", 0))
     if not kind or amount <= 0:
@@ -1264,11 +1277,11 @@ def compile_uses_keyword_segment(segment: dict[str, Any]) -> dict[str, Any] | No
             "sequence_id": "seq.zone.move",
             "slot": "ENTER_PLAY",
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": kind,
-        "amount": amount,
-        "card_id": "source",
+        "effect": {
+            "op": "nest",
+            "flow_id": "seq.effect.place_token",
+            "params": {"kind": kind, "amount": amount, "card_id": "source"},
+        },
     }
 
 

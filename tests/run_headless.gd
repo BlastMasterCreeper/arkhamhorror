@@ -2979,42 +2979,55 @@ func _test_adb_compile_12019() -> bool:
 				action_entry = raw as Dictionary
 	var hook: Dictionary = kw_entry.get("hook", {})
 	var types: Variant = action_entry.get("action_types", [])
-	var steps: Variant = action_entry.get("steps", [])
+	var kw_effect: Dictionary = kw_entry.get("effect", {})
+	var kw_params: Dictionary = kw_effect.get("params", {})
+	var action_effect: Dictionary = action_entry.get("effect", {})
+	var steps: Variant = action_effect.get("steps", [])
 	if not steps is Array or (steps as Array).size() != 4:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
 	var s1: Dictionary = (steps as Array)[1]
 	var s2: Dictionary = (steps as Array)[2]
 	var s3: Dictionary = (steps as Array)[3]
-	var st7: Dictionary = s3.get("st7", {})
+	var s0p: Dictionary = s0.get("params", {})
+	var s2p: Dictionary = s2.get("params", {})
+	var s3p: Dictionary = s3.get("params", {})
+	var st7: Dictionary = s3p.get("st7", {})
 	var on_ok: Dictionary = st7.get("on_success", {})
+	var on_ok_p: Dictionary = on_ok.get("params", {})
+	var bind1: Dictionary = s1.get("bind", {})
 	return (
 		CardRegistry.has_uses(&"12019")
 		and int(uses.get(&"ammo", 0)) == 4
 		and kw_entry.get("keyword", "") == "uses"
-		and kw_entry.get("template", "") == "place_token"
-		and str(kw_entry.get("flow_id", "")) == "seq.effect.place_token"
-		and int(kw_entry.get("amount", 0)) == 4
+		and str(kw_effect.get("op", "")) == "nest"
+		and str(kw_effect.get("flow_id", "")) == "seq.effect.place_token"
+		and int(kw_params.get("amount", 0)) == 4
+		and str(kw_params.get("kind", "")) == "ammo"
 		and str(hook.get("sequence_id", "")) == "seq.zone.move"
 		and str(hook.get("slot", "")) == "ENTER_PLAY"
 		and action_entry.get("register_as", "") == "action"
-		and action_entry.get("template", "") == "seq"
+		and str(action_effect.get("op", "")) == "seq"
 		and action_entry.get("translation", "") == "full_expand"
 		and int(action_entry.get("action_cost", 0)) == 1
 		and types is Array
 		and (types as Array).has("activate")
 		and (types as Array).has("fight")
-		and s0.get("template", "") == "spend_token"
+		and str(s0.get("op", "")) == "nest"
 		and str(s0.get("flow_id", "")) == "seq.effect.spend_token"
-		and int(s0.get("amount", 0)) == 1
-		and s1.get("template", "") == "pick_target"
-		and s1.get("filter", "") == "enemy_fight_target"
-		and s2.get("template", "") == "register_modifier"
-		and str(s2.get("duration", "")) == "this_skill_test"
-		and s3.get("template", "") == "nest_skill_test"
-		and str(s3.get("difficulty_source", "")) == "enemy_fight"
-		and on_ok.get("template", "") == "deal_damage_enemy"
-		and int(on_ok.get("amount", 0)) == 2
+		and int(s0p.get("amount", 0)) == 1
+		and str(s1.get("op", "")) == "pi"
+		and str(s1.get("filter", "")) == "enemy_fight_target"
+		and str(bind1.get("key", "")) == "picked_enemy"
+		and str(s2.get("op", "")) == "nest"
+		and str(s2.get("flow_id", "")) == "seq.effect.register"
+		and str(s2p.get("duration", "")) == "this_skill_test"
+		and str(s3.get("op", "")) == "nest"
+		and str(s3.get("flow_id", "")) == "seq.skill_test"
+		and str(s3p.get("difficulty_source", "")) == "enemy_fight"
+		and str(on_ok.get("op", "")) == "nest"
+		and str(on_ok.get("flow_id", "")) == "seq.effect.damage"
+		and int(on_ok_p.get("amount", 0)) == 2
 		and CardRegistry.has_triggered(&"12019")
 	)
 
