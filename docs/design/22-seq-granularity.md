@@ -247,11 +247,23 @@
 | G4 | **Put into play / Enter play** | 区划事实（场外→场上） | **不铸** `seq.effect.enter_play` — **不是效果**；见下「进场」 |
 | G5 | **Defeat**（击败） | **已铸** `seq.effect.defeat`；敌人别名 `seq.enemy.defeat`；退场 nest `seq.defeat.leave_play` | 伤/恐上限常态检测；Cancel → 无退场；卡面 `cause=effect` |
 | G6 | **Phase begins/ends** | **已铸** 单条 `seq.framework.phase_boundary` | params：`phase` × `boundary`；框架步进进入时 `run`；订阅靠 TC.kind |
-| G7 | **Attack of opportunity** | 行动 Initiation 内联 | 保持内联，除非卡面大量订「after AOO」且难过滤 |
-| G8 | **Play（打出）** | 刻意非 seq（`PLAY_CARD`） | **不铸** `seq.play` 进命名流程表（17 已裁） |
-| G9 | **Commit** | ST.2 内 | **不另铸**；订检定窗即可 |
-| G10 | **Spend**（费用） | CostPipeline | **不铸**为效果 seq；与效果「失去资源」分清 |
-| G11 | **Peril / Hidden 限制** | 父遭遇帧 Register | **不另铸** check seq（15 已禁） |
+| G7 | **Attack of opportunity** | **不另铸**；落在敌人攻击通道 | 见下「不另铸但可听」 |
+| G8 | **Play（打出）** | **不另铸**；`PLAY_CARD` Initiation | 同上 |
+| G9 | **Commit** | **不另铸**；落在 `seq.skill_test` / ST.2 | 同上 |
+| G10 | **Spend**（费用） | **不另铸**；CostPipeline | 同上；≠ 效果「失去资源」 |
+| G11 | **Peril / Hidden 限制** | **不另铸**；父帧 Register RESTRICTION | 同上；不另开 check seq |
+
+**不另铸但可听（G7–G11 · 已裁决）** — 与进场同构：信息在更泛用通道上，时点用 **过滤 / tags / payload / Initiation 种类** 听见，不新开 `seq.*`。
+
+| 信息 | 落在哪条泛用通道 | 怎么听（别名 / 过滤） |
+|---|---|---|
+| **借机攻击（AOO）** | 敌人攻击（`seq.enemy.attack` / `perform_attack`） | `AttackKind.OPPORTUNITY`（及 TC tags/payload）；「after AOO」= 听攻击 + kind 过滤，**不是** `seq.aoo` |
+| **打出（Play）** | `PLAY_CARD` Initiation（进场区划 + 效果体 Composition） | 订 Initiation / 打出窗；进场结果仍听 `seq.zone.move` 场外→场上；**不** `seq.play` |
+| **投入（Commit）** | `seq.skill_test` 的 ST.2 | 订检定窗 / ST 步；卡面「投入时」挂在检定通道，**不** `seq.commit` |
+| **支付费用（Spend）** | CostPipeline（Initiation 付费） | 费用成功/失败是 Initiation 信息；与 `seq.effect.lose_resources` **分清**；**不**把 Spend 铸成效果 seq |
+| **险境 / 隐私限制** | 父遭遇帧 / 入手上的 **RESTRICTION Register** | 听限制是否成立（Eligibility / Intent）；注销跟父帧 G4 或 leave-hand，**不** `seq.peril.check` |
+
+翻译 / 接线时点：先找**已有泛用 seq 或 Initiation**，再写过滤键；禁止为上述词条各铸一条「好听一点」的专属 flow。
 
 ---
 
@@ -330,3 +342,4 @@
 | 2026-10-12 | G5：支援资产 `subject=asset`；退场 L0 进弃牌堆，不走 discard 效果包装 |
 | 2026-10-13 | G4 落地：`seq.zone.move`；进场/离场 = 过滤别名 |
 | 2026-10-13 | G6 落地：单条 `seq.framework.phase_boundary`；旧 investigation_phase_ends 别名 |
+| 2026-10-13 | G7–G11：不另铸；时点从攻击 / PLAY_CARD / ST / Cost / Register 过滤信息 |
