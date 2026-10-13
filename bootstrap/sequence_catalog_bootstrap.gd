@@ -390,13 +390,47 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 
 
 static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
+	## G6：四阶段 begins/ends 钩子（仅 WHEN/AFTER；步进仍在 FrameworkFlowEngine）。
+	_register_phase_boundary(
+		catalog, PhaseBoundaryFlow.FLOW_MYTHOS_BEGINS, &"mythos", &"begins"
+	)
+	_register_phase_boundary(
+		catalog, PhaseBoundaryFlow.FLOW_MYTHOS_ENDS, &"mythos", &"ends"
+	)
+	_register_phase_boundary(
+		catalog, PhaseBoundaryFlow.FLOW_INVESTIGATION_BEGINS, &"investigation", &"begins"
+	)
+	_register_phase_boundary(
+		catalog, PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS, &"investigation", &"ends"
+	)
+	_register_phase_boundary(
+		catalog, PhaseBoundaryFlow.FLOW_ENEMY_BEGINS, &"enemy", &"begins"
+	)
+	_register_phase_boundary(
+		catalog, PhaseBoundaryFlow.FLOW_ENEMY_ENDS, &"enemy", &"ends"
+	)
+	_register_phase_boundary(
+		catalog, PhaseBoundaryFlow.FLOW_UPKEEP_BEGINS, &"upkeep", &"begins"
+	)
+	_register_phase_boundary(
+		catalog, PhaseBoundaryFlow.FLOW_UPKEEP_ENDS, &"upkeep", &"ends"
+	)
+
+
+static func _register_phase_boundary(
+	catalog: SequenceCatalog,
+	flow_id: StringName,
+	phase: StringName,
+	boundary: StringName
+) -> void:
 	catalog.register_run(
-		&"seq.framework.investigation_phase_ends",
+		flow_id,
 		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.investigation_phase_ends(),
-		func(_game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			## 仅提供 WHEN/AFTER 钩子供 Forced 订阅；框架步进本身已在 FrameworkFlowEngine。
-			return {"ok": true}
+			return TriggeringCondition.phase_boundary(phase, boundary),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			var p := params.duplicate() if params != null else {}
+			p["flow_id"] = flow_id
+			return PhaseBoundaryFlow.resolve(game_ctx, p)
 	)
 	catalog.register_run(
 		&"seq.mythos.place_doom",

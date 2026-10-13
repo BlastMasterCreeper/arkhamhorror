@@ -288,6 +288,8 @@ func _initialize() -> void:
 	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
 	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
 	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
+	_run_test("G6-01 phase boundary catalog", _test_g6_phase_boundary_catalog)
+	_run_test("G6-02 framework emits phase boundary seq", _test_g6_framework_emits)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6237,6 +6239,43 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 		and store.count() == 0
 		and h.ctx.state.registry.get_enemy(card_id) == null
 	)
+
+
+func _test_g6_phase_boundary_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	for flow_id in PhaseBoundaryFlow.ALL_FLOWS:
+		if not h.ctx.sequence_catalog.has_flow(flow_id):
+			return false
+	return (
+		PhaseBoundaryFlow.flow_for_step(AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS)
+		== PhaseBoundaryFlow.FLOW_MYTHOS_BEGINS
+		and PhaseBoundaryFlow.flow_for_step(AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS)
+		== PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS
+		and PhaseBoundaryFlow.flow_for_step(AhcEnums.FrameworkStep.ENEMY_3_4_PHASE_ENDS)
+		== PhaseBoundaryFlow.FLOW_ENEMY_ENDS
+		and PhaseBoundaryFlow.flow_for_step(AhcEnums.FrameworkStep.UPKEEP_4_1_PHASE_BEGINS)
+		== PhaseBoundaryFlow.FLOW_UPKEEP_BEGINS
+	)
+
+
+func _test_g6_framework_emits() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS)
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.ENEMY_3_1_PHASE_BEGINS)
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS)
+	var saw_mythos := false
+	var saw_enemy := false
+	var saw_upkeep := false
+	for entry in h.ctx.memory.phase_trace:
+		var s := str(entry)
+		if s.contains("mythos_phase_begins"):
+			saw_mythos = true
+		if s.contains("enemy_phase_begins"):
+			saw_enemy = true
+		if s.contains("upkeep_phase_ends"):
+			saw_upkeep = true
+	return saw_mythos and saw_enemy and saw_upkeep
 
 
 func _test_act_move_fail() -> bool:
