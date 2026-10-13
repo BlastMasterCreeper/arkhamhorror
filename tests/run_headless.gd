@@ -45,12 +45,18 @@ func _initialize() -> void:
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
-	_run_test("C-08 initiation dry-run gate", _test_initiation_dry_run_gate)
-	_run_test("C-09 choice dry-run OR branch", _test_dry_run_choice_or)
-	_run_test("C-10 must choice auto-picks sole branch", _test_must_choice_auto_pick)
-	_run_test("C-11 must choice skips all fizzle", _test_must_choice_skip_fizzle)
-	_run_test("C-12 must choice asks when multiple", _test_must_choice_pick_option)
-	_run_test("C-13 repeat fail-by must choice", _test_repeat_fail_by_must_choice)
+	_run_test("C-08 listener fires via seq.ability.resolve", _test_listener_no_vacuum)
+	_run_test("C-09 initiation dry-run gate", _test_initiation_dry_run_gate)
+	_run_test("C-10 choice dry-run OR branch", _test_dry_run_choice_or)
+	_run_test("C-11 must choice auto-picks sole branch", _test_must_choice_auto_pick)
+	_run_test("C-12 must choice skips all fizzle", _test_must_choice_skip_fizzle)
+	_run_test("C-13 must choice asks when multiple", _test_must_choice_pick_option)
+	_run_test("C-14 repeat fail-by must choice", _test_repeat_fail_by_must_choice)
+	_run_test("C-15 choice_optional default declines", _test_choice_optional_default_decline)
+	_run_test("C-16 choice_optional accept runs body", _test_choice_optional_accept)
+	_run_test("C-17 choice_optional dry-run OR body", _test_choice_optional_dry_run)
+	_run_test("C-18 choice_optional compiler sugar", _test_choice_optional_compiler)
+	_run_test("C-19 choice_optional fizzle skips ask", _test_choice_optional_fizzle_skip)
 	_run_test("ENC-ST-01 revelation skill test nests", _test_enc_skill_test_nest)
 	_run_test("ENC-ST-02 fail-by resolves at ST.7", _test_enc_st7_fail_by_timing)
 	_run_test("INIT-01 initiation records full sequence", _test_initiation_sequence_events)
@@ -85,6 +91,8 @@ func _initialize() -> void:
 	_run_test("SEQ-EFF-08 nest deal damage at location", _test_seq_eff_deal_damage_at_location)
 	_run_test("SEQ-EFF-09 nest deal damage attached fire", _test_seq_eff_deal_damage_attached)
 	_run_test("ADB-33 compile 12130 skill choice", _test_adb_compile_12130_skill_choice)
+	_run_test("ADB-72 compile 12127 hand-count difficulty", _test_adb_compile_12127)
+	_run_test("ENC-12127 extraplanar visions fail path", _test_enc_12127_fail)
 	_run_test("ADB-34 compile 12164 lose or attack", _test_adb_compile_12164_lose_or_attack)
 	_run_test("ADB-35 compile 12188 place doom source", _test_adb_compile_12188_place_doom)
 	_run_test("ADB-36 compile 12184 lose action", _test_adb_compile_12184_lose_action)
@@ -112,6 +120,18 @@ func _initialize() -> void:
 	_run_test("ADB-57 12132 defeat deals location horror", _test_adb_12132_defeat_horror)
 	_run_test("ADB-58 compile 12122 after attack discard asset", _test_adb_compile_12122)
 	_run_test("ADB-59 12122 phase attack discards asset", _test_adb_12122_discard_asset)
+	_run_test("ADB-60 SKIP_AOO restriction read branches AOO", _test_adb_skip_aoo_buff_consume)
+	_run_test("ADB-61 SUPPRESS_AUTO_ENGAGE after move keeps explicit engage", _test_adb_suppress_auto_engage_explicit)
+	_run_test("ADB-62 SelectionSpec filter ready enemy at connecting", _test_adb_selection_filter_ready)
+	_run_test("ADB-63 V dry-run drops already-exhausted for choose exhaust", _test_adb_viability_exhaust_enemy)
+	_run_test("ADB-64 V empty set fizzles choose exhaust when all exhausted", _test_adb_viability_exhaust_all_exhausted)
+	_run_test("ADB-65 N preds fight le filters weak enemy", _test_adb_preds_fight_le)
+	_run_test("ADB-66 N preds controller resources gate", _test_adb_preds_controller_resources)
+	_run_test("ADB-67 pick_multi default takes first max", _test_adb_pick_multi_default)
+	_run_test("ADB-68 pick_multi scripting subset", _test_adb_pick_multi_scripting)
+	_run_test("ADB-69 pick_multi for_each exhausts list", _test_adb_pick_multi_for_each)
+	_run_test("ADB-70 pick_multi min unsatisfied fizzles", _test_adb_pick_multi_min_fizzle)
+	_run_test("ADB-71 pick_multi compiler sugar", _test_adb_pick_multi_compiler)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -190,7 +210,9 @@ func _initialize() -> void:
 	_run_test("ENC-15 both piles empty rules gap", _test_enc_both_piles_empty)
 	_run_test("ENC-16 surge chain shuffles discard", _test_enc_surge_shuffles_discard)
 	_run_test("WKN-01 asset weakness uses investigator draw", _test_wkn_asset_weakness_investigator_draw)
-	_run_test("WKN-03 enemy weakness redirects resolve_bound", _test_wkn_enemy_weakness_resolve_bound)
+	_run_test("WKN-03 enemy weakness uses encounter ability package", _test_wkn_enemy_weakness_encounter_package)
+	_run_test("ENC-28 drawn location uses encounter package into play", _test_enc_drawn_location_into_play)
+	_run_test("CARD-BACK-01 player vs encounter back axis", _test_card_back_axis)
 	_run_test("STAT-01 cold fold action spend count", _test_stat_cold_fold_action_count)
 	_run_test("STAT-02 hot projection increments", _test_stat_hot_projection_increments)
 	_run_test("STAT-03 unregister drops hot projection", _test_stat_unregister_drops_hot)
@@ -208,6 +230,7 @@ func _initialize() -> void:
 	_run_test("PERIL-02 peril blocks teammate play", _test_peril_blocks_teammate_play)
 	_run_test("PERIL-03 peril blocks teammate trigger", _test_peril_blocks_teammate_trigger)
 	_run_test("PERIL-06 drawer play and trigger allowed", _test_peril_drawer_play_trigger_ok)
+	_run_test("PERIL-07 peril registers via seq.effect.register", _test_peril_register_no_vacuum)
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
@@ -216,16 +239,57 @@ func _initialize() -> void:
 	_run_test("ACT-04 evade disengages enemy", _test_act_evade_success)
 	_run_test("ACT-05 evade requires engagement", _test_act_evade_not_engaged)
 	_run_test("ACT-06 fight rejects aloof", _test_act_fight_aloof)
+	_run_test("ACT-IMP-01 fight auto-binds sole enemy", _test_act_imp_fight_auto_bind)
+	_run_test("ACT-IMP-02 fight empty legal set fails pre-spend", _test_act_imp_fight_no_target)
+	_run_test("ACT-IMP-03 evade auto-binds engaged enemy", _test_act_imp_evade_auto_bind)
+	_run_test("ACT-IMP-04 fight picks among two enemies", _test_act_imp_fight_two_enemies)
+	_run_test("ACT-IMP-05 investigate wrong location fails pre-spend", _test_act_imp_investigate_wrong_loc)
 	_run_test("ACT-07 engage adds to threat area", _test_act_engage_success)
 	_run_test("ACT-08 engage steals enemy", _test_act_engage_steal)
 	_run_test("ACT-09 engage rejects massive", _test_act_engage_massive)
+	_run_test("ACT-09b action engage nests seq.engage effect", _test_act_engage_nests_kernel)
 	_run_test("ACT-10 engage then fight aloof", _test_act_engage_then_fight)
+	_run_test("ENGAGE-01 grant buff without moving into threat area", _test_engage_grant_cross_location)
+	_run_test("ENGAGE-02 enter_threat moves into threat area and buff", _test_engage_enter_threat_buff)
+	_run_test("ENGAGE-03 disengage clears engagement buff", _test_engage_disengage_clears_buff)
+	_run_test("M4-01 effect.gain_resource registered with alias", _test_m4_gain_resource_rename)
 	_run_test("ACT-16 fight fail redirects to engaged holder", _test_act_fight_fail_redirect)
 	_run_test("AOO-01 resource provokes damage", _test_aoo_resource)
 	_run_test("AOO-02 fight skips aoo", _test_aoo_fight_skip)
 	_run_test("AOO-03 exhausted enemy skips aoo", _test_aoo_exhausted_skip)
 	_run_test("ACT-11 move to connected location", _test_act_move_success)
+	_run_test("ACT-11b action move nests seq.effect.move", _test_act_move_nests_effect_move)
 	_run_test("ACT-12 move rejects disconnected", _test_act_move_fail)
+	_run_test("G1-01 seq.effect.move registered", _test_g1_effect_move_registered)
+	_run_test("G1-02 seq.effect.move enemy subject", _test_g1_effect_move_enemy)
+	_run_test("G1-03 seq.effect.move attachment", _test_g1_effect_move_attachment)
+	_run_test("G1-04 seq.effect.move marker clue", _test_g1_effect_move_marker)
+	_run_test("G1-05 seq.effect.move enemy move_to", _test_g1_effect_move_enemy_move_to)
+	_run_test("G1-06 elusive flee nests move", _test_g1_elusive_flee_nests_move)
+	_run_test("G1-07 move rejects disconnected", _test_g1_move_rejects_disconnected)
+	_run_test("G1-08 move_to ignores connections", _test_g1_move_to_ignores_connections)
+	_run_test("G2-01 seq.effect.exhaust enemy", _test_g2_exhaust_enemy)
+	_run_test("G2-02 seq.effect.ready enemy engages", _test_g2_ready_enemy_engages)
+	_run_test("G2-03 seq.effect.exhaust card in play", _test_g2_exhaust_card_in_play)
+	_run_test("G2-04 exhaust rejects hand card", _test_g2_exhaust_rejects_hand)
+	_run_test("G2-05 upkeep 4.3 readies flat cards", _test_g2_upkeep_ready_flat_cards)
+	_run_test("G3-01 seq.effect.search entire deck take shuffle", _test_g3_search_entire_take_shuffle)
+	_run_test("G3-02 seq.effect.search top N still shuffles deck", _test_g3_search_top_shuffles)
+	_run_test("G3-03 search catalog registered", _test_g3_search_catalog)
+	_run_test("G5-01 defeat cancel skips leave-play", _test_g5_defeat_cancel_no_leave)
+	_run_test("G5-02 damage cap standing re-triggers after cancel", _test_g5_damage_cap_retriggers)
+	_run_test("G5-03 effect defeat ignores health", _test_g5_effect_defeat)
+	_run_test("G5-04 investigator horror cap defeat", _test_g5_investigator_horror_cap)
+	_run_test("G5-05 defeat catalog registered", _test_g5_defeat_catalog)
+	_run_test("G5-06 enemy attack damage cap defeats investigator", _test_g5_enemy_attack_damage_cap)
+	_run_test("G5-07 asset damage cap leave to discard not discard effect", _test_g5_asset_damage_cap)
+	_run_test("G5-08 asset effect defeat to discard", _test_g5_asset_effect_defeat)
+	_run_test("G5-09 asset defeat cancel skips leave", _test_g5_asset_cancel_no_leave)
+	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
+	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
+	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
+	_run_test("G6-01 phase boundary catalog", _test_g6_phase_boundary_catalog)
+	_run_test("G6-02 framework emits phase boundary seq", _test_g6_framework_emits)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -250,6 +314,11 @@ func _initialize() -> void:
 	_run_test("NS-06 reaction blocked on own resolution", _test_ns_self_response_blocked)
 	_run_test("PI-01 default optional declines", _test_pi_default_optional_decline)
 	_run_test("PI-02 scripting resolver by prompt_id", _test_pi_scripting_resolver)
+	_run_test("PI-03 default pick_target used_default", _test_pi_default_pick_used_default)
+	_run_test("PI-04 scripting explicit not used_default", _test_pi_scripting_not_default)
+	_run_test("PI-05 scripting miss falls to default", _test_pi_scripting_miss_default)
+	_run_test("PI-06 INTERACTION_CHOICE event record", _test_pi_interaction_event_record)
+	_run_test("PI-07 compute_default pick_multi first N", _test_pi_compute_default_multi)
 	_run_test("FWK-01 upkeep 4.4 draw and gain via catalog", _test_fwk_upkeep_44_catalog)
 	_run_test("FWK-02 mythos 1.4 encounter draw", _test_fwk_mythos_14_encounter_draw)
 	_run_test("FWK-03 mythos 1.4 two investigators", _test_fwk_mythos_14_two_investigators)
@@ -673,10 +742,15 @@ func _test_sc16_agenda1_flip_skill_horror() -> bool:
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	inv.skill_willpower = 0
 	h.ctx.state.doom_on_agenda = 3
+	var before_resolve := _sequence_kind_count(h, &"ability_resolve")
 	var adv := h.ctx.sequence_catalog.run(
 		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
 	)
-	return adv.get("advanced", false) and inv.horror_taken == 1
+	return (
+		adv.get("advanced", false)
+		and inv.horror_taken == 1
+		and _sequence_kind_count(h, &"ability_resolve") > before_resolve
+	)
 
 
 func _test_sc17_agenda2_flip_skill_damage() -> bool:
@@ -839,19 +913,19 @@ func _test_sc23_agenda3_forced_draws_fire() -> bool:
 		return false
 	if _encounter_discard_count(h, &"12129") < 1:
 		return false
-	var bound_before := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
+	var settle_before := _sequence_kind_count(h, &"encounter_resolve_card")
 	h.ctx.sequence_catalog.run(h.ctx, &"seq.mythos.place_doom", {})
-	var bound_after := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
-	if bound_after <= bound_before:
+	var settle_after := _sequence_kind_count(h, &"encounter_resolve_card")
+	if settle_after <= settle_before:
 		return false
-	## 翻面卸下 Forced 后，再放置 doom 不应再 nest resolve_bound
+	## 翻面卸下 Forced 后，再放置 doom 不应再 nest resolve_card
 	h.ctx.state.doom_on_agenda = 10
-	var bound_mid := _sequence_kind_count(h, &"draw_encounter_resolve_bound")
+	var settle_mid := _sequence_kind_count(h, &"encounter_resolve_card")
 	h.ctx.sequence_catalog.run(
 		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
 	)
 	h.ctx.sequence_catalog.run(h.ctx, &"seq.mythos.place_doom", {})
-	return _sequence_kind_count(h, &"draw_encounter_resolve_bound") == bound_mid
+	return _sequence_kind_count(h, &"encounter_resolve_card") == settle_mid
 
 
 func _sequence_kind_count(h: RuleTestHarness, kind: StringName) -> int:
@@ -924,7 +998,7 @@ func _test_sc25_fire_revelation_no_target_discards() -> bool:
 		lead = &"inv_1"
 	var result := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.draw.encounter.resolve_bound",
+		&"seq.encounter.resolve_card",
 		{"drawer_id": lead, "card_id": second}
 	)
 	return (
@@ -1013,6 +1087,21 @@ func _test_until_fired_listener() -> bool:
 		return false
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return inv.hand.size() == 1 and inv.deck.size() == 1
+
+
+func _test_listener_no_vacuum() -> bool:
+	## LISTENER 开火经 seq.ability.resolve 装载（禁直 execute）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionTestHelper.delayed_draw_listener(&"inv_1", &"after_fight"))
+	var before := _sequence_kind_count(h, &"ability_resolve")
+	h.ctx.timing.emit_timing(&"after_fight")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		inv.hand.size() == 1
+		and _sequence_kind_count(h, &"ability_resolve") > before
+	)
 
 
 func _test_initiation_dry_run_gate() -> bool:
@@ -1106,6 +1195,95 @@ func _test_must_choice_pick_option() -> bool:
 	c.execute(node)
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
 	return inv.horror_taken == 0 and h.ctx.registrations.count() == 1
+
+
+func _test_choice_optional_default_decline() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.choice_optional(
+		_must_choice_horror(),
+		&"inv_1",
+		&"may:horror",
+		&"optional_chose"
+	)
+	c.execute(node)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var chose: Variant = h.ctx.memory.get_referent(&"inv_1", &"optional_chose")
+	return inv.horror_taken == 0 and chose == false
+
+
+func _test_choice_optional_accept() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"may:horror", "pick": true},
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.choice_optional(
+		_must_choice_horror(2),
+		&"inv_1",
+		&"may:horror",
+		&"optional_chose"
+	)
+	c.execute(node)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var chose: Variant = h.ctx.memory.get_referent(&"inv_1", &"optional_chose")
+	return inv.horror_taken == 2 and chose == true
+
+
+func _test_choice_optional_dry_run() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.choice_optional(
+		_must_choice_horror(),
+		&"inv_1",
+		&"may:horror"
+	)
+	var fizzle := CompositionNode.choice_optional(
+		CompositionNode.draw(&"inv_1"),
+		&"inv_1",
+		&"may:draw"
+	)
+	return c.dry_run(node) and not c.dry_run(fizzle)
+
+
+func _test_choice_optional_compiler() -> bool:
+	var bind := AbilityBindContext.new()
+	bind.controller_id = &"inv_1"
+	var node := ArkhamDbAbilityCompiler.build_composition(
+		"choice_optional",
+		{
+			"prompt_id": "may:horror",
+			"memory_key": "optional_chose",
+			"body": {"template": "take_horror", "amount": 1},
+		},
+		bind
+	)
+	return (
+		node != null
+		and node.kind == AhcEnums.CompositionNodeKind.OPTIONAL
+		and node.choice_prompt_id == &"may:horror"
+		and node.memory_key == &"optional_chose"
+		and node.children.size() == 1
+	)
+
+
+func _test_choice_optional_fizzle_skip() -> bool:
+	var h := RuleTestHarness.new(42)
+	## Scripting 若被调用会返回 true；fizzle 路径不得 ask。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"may:draw", "pick": true},
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	var node := CompositionNode.choice_optional(
+		CompositionNode.draw(&"inv_1"),
+		&"inv_1",
+		&"may:draw",
+		&"optional_chose"
+	)
+	c.execute(node)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var chose: Variant = h.ctx.memory.get_referent(&"inv_1", &"optional_chose")
+	return inv.hand.is_empty() and chose == null
 
 
 func _test_repeat_fail_by_must_choice() -> bool:
@@ -1656,16 +1834,19 @@ func _test_adb_compile_olivier_free() -> bool:
 		return false
 	var entry: Dictionary = compiled[0]
 	var steps: Variant = entry.get("steps", [])
-	if not steps is Array or (steps as Array).size() != 2:
+	if not steps is Array or (steps as Array).size() != 3:
 		return false
 	var step0: Dictionary = steps[0]
 	var step1: Dictionary = steps[1]
+	var step2: Dictionary = steps[2]
 	return (
 		entry.get("register_as", "") == "free"
 		and entry.get("window", "") == "during_your_turn"
 		and entry.get("template", "") == "seq"
 		and step0.get("template", "") == "exhaust_source"
-		and step1.get("template", "") == "nest_move_connecting"
+		and step1.get("template", "") == "pick_target"
+		and step1.get("filter", "") == "location_connecting"
+		and step2.get("template", "") == "nest_move_to"
 		and CardRegistry.has_triggered(&"12046")
 	)
 
@@ -1915,8 +2096,11 @@ func _test_seq_eff_place_doom_source() -> bool:
 
 
 func _test_seq_eff_discard_from_hand() -> bool:
+	## from=hand 走统一 seq.effect.discard_card（不再有平行 discard_from_hand flow）。
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.discard_from_hand"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.discard_card"):
+		return false
+	if h.ctx.sequence_catalog.has_flow(&"seq.effect.discard_from_hand"):
 		return false
 	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER)
 	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT)
@@ -1925,7 +2109,7 @@ func _test_seq_eff_discard_from_hand() -> bool:
 		return false
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionNode.nest_discard_from_hand(&"inv_1", 1, &"random"))
-	return inv.hand.size() == 1 and _sequence_kind_count(h, &"discard_from_hand") > 0
+	return inv.hand.size() == 1 and _sequence_kind_count(h, &"discard_card") > 0
 
 
 func _test_seq_eff_attach_controller_location() -> bool:
@@ -1981,19 +2165,98 @@ func _test_seq_eff_deal_damage_at_location() -> bool:
 
 
 func _test_adb_compile_12130_skill_choice() -> bool:
+	## 应展尽展：pick_option → nest_skill_test(flow_id) + 单次 st7。
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	var compiled := CardRegistry.compiled_abilities(&"12130")
 	if compiled.size() != 1:
 		return false
 	var entry: Dictionary = compiled[0]
-	var options: Variant = entry.get("options", [])
-	if not options is Array or (options as Array).size() != 2:
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
 		return false
+	var pick: Dictionary = steps[0] as Dictionary
+	var test: Dictionary = steps[1] as Dictionary
+	var st7: Dictionary = test.get("st7", {})
+	var each: Dictionary = st7.get("on_fail_by_each", {})
 	return (
 		CardRegistry.has_revelation(&"12130")
-		and entry.get("template", "") == "choice_must"
-		and (options[0] as Dictionary).get("skill", "") == "willpower"
-		and (options[1] as Dictionary).get("skill", "") == "agility"
+		and entry.get("template", "") == "seq"
+		and entry.get("translation", "") == "full_expand"
+		and pick.get("template", "") == "pick_option"
+		and (pick.get("options", []) as Array) == ["willpower", "agility"]
+		and test.get("template", "") == "nest_skill_test"
+		and test.get("flow_id", "") == "seq.skill_test"
+		and test.get("skill", "") == "memory:picked_skill"
+		and int(test.get("difficulty", 0)) == 3
+		and each.get("template", "") == "take_damage"
+		and each.get("flow_id", "") == "seq.effect.damage"
+		and each.get("kind", "") == "damage"
+		and each.get("target", "") == "controller"
+		and test.get("investigator", "") == "controller"
+	)
+
+
+func _test_adb_compile_12127() -> bool:
+	## 应展尽展：PI 只选技能；nest seq.skill_test；fail 叶带 flow_id。
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12127")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var pick: Dictionary = steps[0] as Dictionary
+	var test: Dictionary = steps[1] as Dictionary
+	var st7: Dictionary = test.get("st7", {})
+	var on_fail: Dictionary = st7.get("on_fail", {})
+	var fail_steps: Variant = on_fail.get("steps", [])
+	return (
+		CardRegistry.has_revelation(&"12127")
+		and entry.get("template", "") == "seq"
+		and entry.get("translation", "") == "full_expand"
+		and pick.get("template", "") == "pick_option"
+		and pick.get("prompt_id", "") == "skill_test:willpower_or_intellect"
+		and (pick.get("options", []) as Array) == ["willpower", "intellect"]
+		and test.get("template", "") == "nest_skill_test"
+		and test.get("flow_id", "") == "seq.skill_test"
+		and test.get("skill", "") == "memory:picked_skill"
+		and test.get("difficulty_source", "") == "hand_count"
+		and test.get("investigator", "") == "controller"
+		and fail_steps is Array
+		and (fail_steps as Array).size() == 2
+		and ((fail_steps as Array)[0] as Dictionary).get("flow_id", "") == "seq.effect.damage"
+		and ((fail_steps as Array)[0] as Dictionary).get("kind", "") == "damage"
+		and ((fail_steps as Array)[0] as Dictionary).get("target", "") == "controller"
+		and ((fail_steps as Array)[1] as Dictionary).get("flow_id", "")
+			== "seq.effect.discard_card"
+		and ((fail_steps as Array)[1] as Dictionary).get("from", "") == "hand"
+		and ((fail_steps as Array)[1] as Dictionary).get("investigator", "") == "controller"
+	)
+
+
+func _test_enc_12127_fail() -> bool:
+	## 手牌 2 → 难度 2；willpower 低 + 0 token → 失败：1 伤 + 随机弃 1。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.skill_willpower = 1
+	inv.skill_intellect = 5
+	inv.damage_taken = 0
+	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.COMBAT)
+	GameBootstrap.add_skill_card_to_hand(h.ctx, &"inv_1", AhcEnums.SkillType.AGILITY)
+	var hand_before := inv.hand.size()
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([{"pick": &"willpower"}])
+	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12127")
+	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
+	if not h.ctx.card_abilities.resolve_revelations(h.ctx, &"inv_1", card_id):
+		return false
+	inv = h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		inv.damage_taken == 1
+		and inv.hand.size() == hand_before - 1
+		and h.ctx.composition.last_skill_test_fail_by() >= 1
 	)
 
 
@@ -2049,7 +2312,8 @@ func _test_adb_compile_12128_fail_by() -> bool:
 		and choice.get("template", "") == "choice_must"
 		and options is Array
 		and (options as Array).size() == 2
-		and ((options as Array)[0] as Dictionary).get("template", "") == "discard_from_hand"
+		and ((options as Array)[0] as Dictionary).get("template", "") == "discard_card"
+		and ((options as Array)[0] as Dictionary).get("from", "") == "hand"
 	)
 
 
@@ -2188,19 +2452,19 @@ func _test_adb_compile_12112() -> bool:
 	var types: Variant = resign_entry.get("action_types", [])
 	var steps: Variant = free_entry.get("steps", [])
 	var resign_steps: Variant = resign_entry.get("steps", [])
-	if not resign_steps is Array or (resign_steps as Array).size() < 2:
+	if not resign_steps is Array or (resign_steps as Array).size() != 1:
 		return false
 	if not steps is Array or (steps as Array).size() != 2:
 		return false
 	if not types is Array:
 		return false
+	var r0: Dictionary = (resign_steps as Array)[0]
 	return (
 		str(resign_entry.get("template", "")) == "seq"
 		and str(resign_entry.get("translation", "")) == "full_expand"
-		and resign_entry.has("provokes_aoo")
-		and bool(resign_entry.get("provokes_aoo")) == false
-		and str(((resign_steps as Array)[0] as Dictionary).get("template", "")) == "no_provoke_aoo"
-		and str(((resign_steps as Array)[1] as Dictionary).get("template", "")) == "resign"
+		and not resign_entry.has("provokes_aoo")
+		and str(r0.get("template", "")) == "nest_resign"
+		and str(r0.get("flow_id", "")) == "seq.effect.resign"
 		and (types as Array).has("activate")
 		and (types as Array).has("resign")
 		and str(free_entry.get("template", "")) == "seq"
@@ -2220,10 +2484,15 @@ func _test_adb_resign_inline_initiation() -> bool:
 	inv.actions_remaining = 1
 	var loc := h.ctx.state.registry.get_location(&"test_loc")
 	var clues_before := loc.clues
-	## 内联 resign；经 seq.ability.resolve 装载（禁真空）；不 nest seq.effect.resign。
+	## nest seq.effect.resign 信封；经 seq.ability.resolve 装载（禁真空）。
+	var body := CompositionNode.nest_resign(&"inv_1")
+	if str(body.atom_name) != "nest_resign":
+		return false
+	if body.nest_flow_id != &"seq.effect.resign":
+		return false
 	var intent := InitiationIntent.action_ability(
 		&"inv_1",
-		CompositionNode.resign(&"inv_1"),
+		body,
 		1,
 		AhcEnums.ActionType.ACTIVATE,
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.RESIGN]
@@ -2238,6 +2507,7 @@ func _test_adb_resign_inline_initiation() -> bool:
 		and loc.clues == clues_before + 2
 		and inv.actions_remaining == 0
 		and h.ctx.sequence_catalog.has_flow(&"seq.ability.resolve")
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.resign")
 	)
 
 
@@ -2249,12 +2519,13 @@ func _test_adb_compile_12113() -> bool:
 	var entry: Dictionary = compiled[0]
 	var types: Variant = entry.get("action_types", [])
 	var steps: Variant = entry.get("steps", [])
-	if not steps is Array or (steps as Array).size() != 4:
+	if not steps is Array or (steps as Array).size() != 5:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
 	var s1: Dictionary = (steps as Array)[1]
 	var s2: Dictionary = (steps as Array)[2]
 	var s3: Dictionary = (steps as Array)[3]
+	var s4: Dictionary = (steps as Array)[4]
 	if not types is Array:
 		return false
 	return (
@@ -2265,13 +2536,15 @@ func _test_adb_compile_12113() -> bool:
 		and int(entry.get("action_cost", 0)) == 1
 		and (types as Array).has("activate")
 		and (types as Array).has("engage")
-		and entry.has("provokes_aoo")
-		and bool(entry.get("provokes_aoo")) == false
+		and not entry.has("provokes_aoo")
 		and str(s0.get("template", "")) == "no_provoke_aoo"
 		and str(s1.get("template", "")) == "pick_target"
 		and str(s1.get("filter", "")) == "enemy_at_connecting"
-		and str(s2.get("template", "")) == "move_enemy_to"
-		and str(s3.get("template", "")) == "engage_target"
+		and str(s2.get("template", "")) == "suppress_auto_engage"
+		and str(s3.get("template", "")) == "nest_enemy_move_to"
+		and str(s3.get("flow_id", "")) == "seq.effect.move"
+		and str(s4.get("template", "")) == "nest_engage"
+		and str(s4.get("flow_id", "")) == "seq.engage"
 		and CardRegistry.has_triggered(&"12113")
 	)
 
@@ -2314,14 +2587,14 @@ func _test_adb_engage_types_provoke_aoo() -> bool:
 
 
 func _test_adb_12113_engage_connecting() -> bool:
-	## 12113：选连结地点敌人移入并交战；卡面覆盖不借机。
+	## 12113：Engage 类型会借机；限制类 SKIP_AOO 在 INIT_2B 被原流程读取后分支。
 	var h := RuleTestHarness.new(42)
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
 	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
-	## 本地点已交战敌人：若未豁免借机则应受伤。
+	## 本地点已交战敌人：无限制时应受伤；读取到 SKIP_AOO 则原流程不跑借机。
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_here", &"test_loc", 2, 2, &"inv_1")
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_conn", &"loc_b", 2, 2)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -2339,7 +2612,8 @@ func _test_adb_12113_engage_connecting() -> bool:
 	if listed.is_empty():
 		return false
 	var desc: TriggeredAbilityDescriptor = listed[0]
-	if desc.provokes_aoo():
+	## 类型层仍会借机；豁免靠限制类读取分支，不是 provokes_aoo override / Cancel。
+	if not desc.provokes_aoo():
 		return false
 	var result := h.ctx.triggered_abilities.activate_action(desc.id)
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_conn")
@@ -2347,11 +2621,363 @@ func _test_adb_12113_engage_connecting() -> bool:
 		bool(result.get("ok", false))
 		and inv.damage_taken == 0
 		and int(result.get("aoo_attacks", 0)) == 0
+		and not h.ctx.registrations.has_skip_aoo(&"inv_1")
 		and enemy != null
 		and enemy.location_tag == &"test_loc"
 		and enemy.engaged_with == &"inv_1"
 		and inv.threat_area.has(&"enemy_conn")
 		and inv.actions_remaining == 1
+	)
+
+
+func _test_adb_suppress_auto_engage_explicit() -> bool:
+	## 移入仍走 auto-engage 入口；SUPPRESS_AUTO_ENGAGE 读取后跳过；明示交战绑定 controller。
+	## 创建须经 seq.effect.register（非真空 Store）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_conn", &"loc_b", 2, 2)
+	## 第二调查员同地点：若走 Prey/Lead 自动交战可能交战到他人。
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.actions_remaining = 2
+	var body := CompositionNode.seq([
+		CompositionNode.suppress_auto_engage(&"inv_1", &"enemy_conn"),
+		CompositionNode.nest_enemy_move_to(
+			&"inv_1", &"enemy_conn", &"test_loc", true
+		),
+		CompositionNode.nest_engage(&"inv_1", &"enemy_conn", &"effect"),
+	])
+	var intent := InitiationIntent.action_ability(
+		&"inv_1", body, 1, AhcEnums.ActionType.ACTIVATE,
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
+	)
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_conn")
+	return (
+		res.ok
+		and enemy != null
+		and enemy.location_tag == &"test_loc"
+		and enemy.engaged_with == &"inv_1"
+		and inv.threat_area.has(&"enemy_conn")
+		and not h.ctx.registrations.has_suppress_auto_engage(&"enemy_conn")
+		and _sequence_kind_count(h, &"effect_register") > 0
+	)
+
+
+func _test_adb_selection_filter_ready() -> bool:
+	## CandidateFilter：connecting + exhausted=false；横置敌不入选；bind → Memory。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ready", &"loc_b", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_exh", &"loc_b", 2, 2)
+	var exh := h.ctx.state.registry.get_enemy(&"enemy_exh")
+	exh.exhausted = true
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_connecting",
+		"exhausted": false,
+	})
+	var candidates := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
+	if candidates.size() != 1 or candidates[0] != &"enemy_ready":
+		return false
+	var spec := SelectionSpec.pick_entity(filter, &"pick:ready_conn", &"picked_enemy")
+	var body := CompositionNode.seq([
+		CompositionNode.select_entities(&"inv_1", spec),
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
+	return mem != null and StringName(str(mem)) == &"enemy_ready"
+
+
+func _test_adb_viability_exhaust_enemy() -> bool:
+	## V：不靠 filter.exhausted；已横置敌 dry-run 无 CREATED → 不入合法集；ready 被横置。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ready", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_exh", &"test_loc", 2, 2)
+	var exh := h.ctx.state.registry.get_enemy(&"enemy_exh")
+	exh.exhausted = true
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_controller_location",
+	})
+	var spec := SelectionSpec.pick_entity(filter, &"pick:exhaust", &"picked_enemy")
+	var body := CompositionNode.seq([
+		CompositionNode.select_entities(&"inv_1", spec),
+		CompositionNode.exhaust_enemy(&"inv_1", &"memory:picked_enemy"),
+	])
+	var helper := CompositionTestHelper.new(h.ctx)
+	if not helper.dry_run(body):
+		return false
+	helper.execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
+	var ready := h.ctx.state.registry.get_enemy(&"enemy_ready")
+	return (
+		mem != null
+		and StringName(str(mem)) == &"enemy_ready"
+		and ready != null
+		and ready.exhausted
+		and exh.exhausted
+	)
+
+
+func _test_adb_viability_exhaust_all_exhausted() -> bool:
+	## 全部已横置 → V 后空集 → select fizzle；L7 无 CREATED。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_a").exhausted = true
+	h.ctx.state.registry.get_enemy(&"enemy_b").exhausted = true
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_controller_location",
+	})
+	var spec := SelectionSpec.pick_entity(filter, &"pick:exhaust", &"picked_enemy")
+	var body := CompositionNode.seq([
+		CompositionNode.select_entities(&"inv_1", spec),
+		CompositionNode.exhaust_enemy(&"inv_1", &"memory:picked_enemy"),
+	])
+	var helper := CompositionTestHelper.new(h.ctx)
+	if helper.dry_run(body):
+		return false
+	helper.execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemy")
+	return mem == null
+
+
+func _test_adb_preds_fight_le() -> bool:
+	## N：fight ≤ 2 只保留弱敌。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_weak", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_strong", &"test_loc", 4, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_controller_location",
+		"preds": [
+			{"on": "candidate", "field": "fight", "op": "le", "value": 2},
+		],
+	})
+	var candidates := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
+	return candidates.size() == 1 and candidates[0] == &"enemy_weak"
+
+
+func _test_adb_preds_controller_resources() -> bool:
+	## N：controller.resources ≥ 1 才过；0 资源时全集剔除。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.resource_pool = 0
+	var filter := CandidateFilter.from_variant({
+		"preset": "enemy_at_controller_location",
+		"preds": [
+			{"on": "controller", "field": "resources", "op": "ge", "value": 1},
+		],
+	})
+	var empty := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
+	if not empty.is_empty():
+		return false
+	inv.resource_pool = 2
+	var ok := CandidateEnumerator.enumerate(filter, h.ctx, &"inv_1")
+	return ok.size() == 1 and ok[0] == &"enemy_1"
+
+
+func _test_adb_pick_multi_default() -> bool:
+	## pick_multi max=2：headless 默认取前 2；bind entity_list。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_c", &"test_loc", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	var body := CompositionNode.pick_multi(
+		&"inv_1",
+		&"enemy_at_controller_location",
+		1,
+		2,
+		&"pick:multi",
+		&"picked_enemies"
+	)
+	CompositionTestHelper.new(h.ctx).execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemies")
+	if not mem is Array:
+		return false
+	var list := mem as Array
+	return list.size() == 2 and list.has(&"enemy_a") and list.has(&"enemy_b")
+
+
+func _test_adb_pick_multi_scripting() -> bool:
+	## Scripting 指定子集；截断遵守 max_picks。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_c", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pick:multi", "pick": [&"enemy_c", &"enemy_a"]},
+	])
+	var body := CompositionNode.pick_multi(
+		&"inv_1", &"enemy_at_controller_location", 1, 2, &"pick:multi", &"picked_enemies"
+	)
+	CompositionTestHelper.new(h.ctx).execute(body)
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemies")
+	if not mem is Array:
+		return false
+	var list := mem as Array
+	return list.size() == 2 and list[0] == &"enemy_c" and list[1] == &"enemy_a"
+
+
+func _test_adb_pick_multi_for_each() -> bool:
+	## pick_multi → for_each_memory → exhaust：两敌均横置；V 剔除已横置。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ready_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ready_b", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_exh", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_exh").exhausted = true
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	var pick := CompositionNode.pick_multi(
+		&"inv_1", &"enemy_at_controller_location", 1, 2, &"pick:multi", &"picked_enemies"
+	)
+	var body := CompositionNode.seq([
+		pick,
+		CompositionNode.for_each_memory(
+			&"inv_1",
+			&"picked_enemies",
+			CompositionNode.exhaust_enemy(&"inv_1", &"memory:picked_enemy"),
+			&"picked_enemy"
+		),
+	])
+	var helper := CompositionTestHelper.new(h.ctx)
+	if not helper.dry_run(body):
+		return false
+	helper.execute(body)
+	var a := h.ctx.state.registry.get_enemy(&"enemy_ready_a")
+	var b := h.ctx.state.registry.get_enemy(&"enemy_ready_b")
+	var exh := h.ctx.state.registry.get_enemy(&"enemy_exh")
+	var mem: Variant = h.ctx.memory.get_referent(&"inv_1", &"picked_enemies")
+	return (
+		a != null and a.exhausted
+		and b != null and b.exhausted
+		and exh != null and exh.exhausted
+		and mem is Array
+		and (mem as Array).size() == 2
+		and not (mem as Array).has(&"enemy_exh")
+	)
+
+
+func _test_adb_pick_multi_min_fizzle() -> bool:
+	## exactly 2 但仅 1 合法候选 → fizzle，不写 Memory。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_only", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	var body := CompositionNode.pick_multi(
+		&"inv_1", &"enemy_at_controller_location", 2, 2, &"pick:multi", &"picked_enemies"
+	)
+	var helper := CompositionTestHelper.new(h.ctx)
+	if helper.dry_run(body):
+		return false
+	helper.execute(body)
+	return h.ctx.memory.get_referent(&"inv_1", &"picked_enemies") == null
+
+
+func _test_adb_pick_multi_compiler() -> bool:
+	var bind := AbilityBindContext.new()
+	bind.controller_id = &"inv_1"
+	var node := ArkhamDbAbilityCompiler.build_composition(
+		"pick_multi",
+		{
+			"filter": "enemy_at_controller_location",
+			"min": 1,
+			"max": 3,
+			"prompt_id": "pick:multi",
+			"memory_key": "picked_enemies",
+		},
+		bind
+	)
+	if node == null or node.selection_spec == null:
+		return false
+	var spec: SelectionSpec = node.selection_spec
+	var each := ArkhamDbAbilityCompiler.build_composition(
+		"for_each_memory",
+		{
+			"memory_key": "picked_enemies",
+			"each_key": "picked_enemy",
+			"body": {"template": "exhaust_enemy", "enemy": "memory:picked_enemy"},
+		},
+		bind
+	)
+	return (
+		node.atom_name == &"select"
+		and spec.choice_kind == AhcEnums.ChoiceKind.PICK_MULTI
+		and spec.bind_shape == &"entity_list"
+		and spec.min_picks == 1
+		and spec.max_picks == 3
+		and each != null
+		and each.kind == AhcEnums.CompositionNodeKind.FOR_EACH
+		and each.for_each_source == &"memory_list"
+	)
+
+
+func _test_adb_skip_aoo_buff_consume() -> bool:
+	## 限制类 SKIP_AOO：行动开始经 seq.effect.register；INIT_2B 原流程读取后分支。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.threat_area.append(&"enemy_1")
+	inv.actions_remaining = 2
+	inv.damage_taken = 0
+	var body := CompositionNode.seq([
+		CompositionNode.no_provoke_aoo(&"inv_1"),
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		),
+	])
+	var intent := InitiationIntent.action_ability(
+		&"inv_1",
+		body,
+		1,
+		AhcEnums.ActionType.ACTIVATE,
+		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
+	)
+	if not intent.provokes_aoo:
+		return false
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return (
+		res.ok
+		and inv.damage_taken == 0
+		and int(res.get("aoo_attacks", 0)) == 0
+		and not h.ctx.registrations.has_skip_aoo(&"inv_1")
+		and inv.actions_remaining == 1
+		and _sequence_kind_count(h, &"effect_register") > 0
 	)
 
 
@@ -2363,9 +2989,12 @@ func _test_adb_compile_12118() -> bool:
 	var entry: Dictionary = compiled[0]
 	return (
 		entry.get("register_as", "") == "forced"
-		and entry.get("template", "") == "discard_from_hand"
+		and entry.get("template", "") == "discard_card"
+		and entry.get("from", "") == "hand"
+		and entry.get("flow_id", "") == "seq.effect.discard_card"
 		and entry.get("mode", "") == "choose"
 		and int(entry.get("amount", 0)) == 1
+		and entry.get("investigator", "") == "controller"
 		and entry.get("match_kind", "") == "discover_clue"
 		and str(entry.get("phase", "")).to_upper() == "AFTER"
 		and entry.get("status", "") == "full"
@@ -2441,11 +3070,19 @@ func _test_adb_compile_12116() -> bool:
 	if compiled.is_empty():
 		return false
 	var entry: Dictionary = compiled[0]
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var step0: Dictionary = steps[0]
+	var step1: Dictionary = steps[1]
 	return (
 		entry.get("register_as", "") == "free"
-		and entry.get("template", "") == "nest_move_connecting"
+		and entry.get("template", "") == "seq"
 		and entry.get("condition", "") == "investigators_in_game_1_or_2"
 		and entry.get("window", "") == "during_your_turn"
+		and step0.get("template", "") == "pick_target"
+		and step0.get("filter", "") == "location_connecting"
+		and step1.get("template", "") == "nest_move_to"
 		and CardRegistry.has_triggered(&"12116")
 	)
 
@@ -3725,6 +4362,37 @@ func _test_kw_occ_profile_table() -> bool:
 		return false
 	if hunter.armed_zone != KeywordProfileTable.ZONE_PLAY:
 		return false
+	if hunter.fire_flow_id != KeywordProfileTable.FLOW_ENEMY_3_2:
+		return false
+	if hunter.consume_slot != KeywordProfileTable.SLOT_ENEMY_3_2:
+		return false
+	if hunter.consume_flow_id != KeywordProfileTable.FLOW_KEYWORD_HUNTER:
+		return false
+	if hunter.fire_priority != 10 or hunter.category_tier != KeywordProfileTable.TIER_LISTENER:
+		return false
+	var patrol := KeywordProfileTable.profile_for(&"patrol")
+	if patrol == null or patrol.fire_flow_id != KeywordProfileTable.FLOW_ENEMY_3_2:
+		return false
+	if patrol.fire_priority != 20:
+		return false
+	var enemy_3_2 := KeywordProfileTable.profiles_for_fire_anchor(
+		KeywordProfileTable.FLOW_ENEMY_3_2, KeywordProfileTable.SLOT_ENEMY_3_2
+	)
+	if enemy_3_2.size() < 2:
+		return false
+	if enemy_3_2[0].keyword != &"hunter" or enemy_3_2[1].keyword != &"patrol":
+		return false
+	if KeywordProfileTable.profile_for(&"surge").category_tier != KeywordProfileTable.TIER_DELAYED:
+		return false
+	var massive := KeywordProfileTable.profile_for(&"massive")
+	if massive == null or massive.fire_flow_id != KeywordProfileTable.FLOW_ENEMY_ATTACK:
+		return false
+	if massive.consume_slot != KeywordProfileTable.SLOT_ATTACK:
+		return false
+	if massive.consume_flow_id != KeywordProfileTable.FLOW_KEYWORD_MASSIVE:
+		return false
+	if massive.category_tier != KeywordProfileTable.TIER_REPLACE:
+		return false
 	var starting := KeywordProfileTable.profile_for(&"starting")
 	if starting == null or starting.register_flow_id != KeywordProfileTable.FLOW_SETUP:
 		return false
@@ -4246,7 +4914,7 @@ func _test_wkn_asset_weakness_investigator_draw() -> bool:
 	)
 
 
-func _test_wkn_enemy_weakness_resolve_bound() -> bool:
+func _test_wkn_enemy_weakness_encounter_package() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
 	var card_id := GameBootstrap.add_investigator_weakness_to_deck(
@@ -4272,6 +4940,60 @@ func _test_wkn_enemy_weakness_resolve_bound() -> bool:
 		and card.zone == AhcEnums.Zone.PLAY_AREA
 		and card.face_known_to(&"inv_1")
 		and card.face_known_to(&"inv_2")
+	)
+
+
+func _test_enc_drawn_location_into_play() -> bool:
+	## 遭遇库抽出地点 → ENCOUNTER 包；无显现时 G4 默认进场（非弃牌）。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(
+		h.ctx,
+		&"enc_loc_drawn",
+		[],
+		{
+			"card_type": &"location",
+			"location": {"shroud": 2, "clues": 1},
+		}
+	)
+	if not CardAbilityPackage.uses_encounter_package(h.ctx, card_id):
+		return false
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var card := h.ctx.state.registry.get_card(card_id)
+	var loc := h.ctx.state.registry.get_location(&"enc_loc_drawn")
+	return (
+		bool(res.get("ok", false))
+		and card != null
+		and card.zone == AhcEnums.Zone.LOCATION_AREA
+		and loc != null
+		and loc.revealed
+		and not h.ctx.state.encounter_discard.has(card_id)
+	)
+
+
+func _test_card_back_axis() -> bool:
+	## 卡背类型与正面 cardtype 正交：弱点 = 遭遇类型 + 玩家卡背；显式可覆盖推断。
+	CardRegistry.register_definition(
+		&"cb_wkn_enemy",
+		{"card_type": &"enemy", "is_weakness": true}
+	)
+	CardRegistry.register_definition(
+		&"cb_story_asset",
+		{"card_type": &"asset", "encounter_code": &"test_set"}
+	)
+	CardRegistry.register_definition(
+		&"cb_player_asset",
+		{"card_type": &"asset"}
+	)
+	CardRegistry.register_definition(
+		&"cb_explicit_player_enemy",
+		{"card_type": &"enemy", "card_back": &"player"}
+	)
+	return (
+		CardRegistry.has_player_back(&"cb_wkn_enemy")
+		and CardRegistry.has_encounter_back(&"cb_story_asset")
+		and CardRegistry.has_player_back(&"cb_player_asset")
+		and CardRegistry.has_player_back(&"cb_explicit_player_enemy")
+		and CardRegistry.card_type(&"cb_wkn_enemy") == &"enemy"
 	)
 
 
@@ -4444,6 +5166,17 @@ func _setup_peril_for_drawer(h: RuleTestHarness, drawer_id: StringName, enc_id: 
 	EncounterPeril.register_if_peril(h.ctx, drawer_id, enc_id, true)
 
 
+func _test_peril_register_no_vacuum() -> bool:
+	## 险境挂载经 seq.effect.register（对齐 gained keyword）。
+	var h := RuleTestHarness.new(42)
+	var before := _sequence_kind_count(h, &"effect_register")
+	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_vac")
+	return (
+		h.ctx.registrations.has_peril_for_drawn_card(&"enc_peril_vac")
+		and _sequence_kind_count(h, &"effect_register") > before
+	)
+
+
 func _test_rest_draw_action_blocked() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
@@ -4594,8 +5327,14 @@ func _test_act_evade_not_engaged() -> bool:
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
 	var res := h.evade_action({"enemy_id": &"enemy_1"})
-	return not res.ok and res.error == "not_engaged"
+	return (
+		not res.ok
+		and res.error == "not_engaged"
+		and inv.actions_remaining == before
+	)
 
 
 func _test_act_fight_aloof() -> bool:
@@ -4603,8 +5342,85 @@ func _test_act_fight_aloof() -> bool:
 	if not h.prepare_action_phase():
 		return false
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"", true)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
 	var res := h.fight_action({"enemy_id": &"enemy_1"})
-	return not res.ok and res.error == "aloof"
+	return not res.ok and res.error == "aloof" and inv.actions_remaining == before
+
+
+func _test_act_imp_fight_auto_bind() -> bool:
+	## 未传 enemy_id：唯一合法敌人自动绑定。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.health = 2
+	var res := h.fight_action({})
+	enemy = h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy != null and enemy.damage == 1
+
+
+func _test_act_imp_fight_no_target() -> bool:
+	## 无合法敌人 → 付费前失败。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
+	var res := h.fight_action({})
+	return (
+		not res.ok
+		and res.error == "no_legal_target"
+		and inv.actions_remaining == before
+	)
+
+
+func _test_act_imp_evade_auto_bind() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1"
+	)
+	var res := h.evade_action({})
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy.exhausted and enemy.engaged_with == &""
+
+
+func _test_act_imp_fight_two_enemies() -> bool:
+	## 两敌同地：Gate 默认 first_option；攻击成功。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_a").health = 3
+	h.ctx.state.registry.get_enemy(&"enemy_b").health = 3
+	var res := h.fight_action({})
+	var a := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var b := h.ctx.state.registry.get_enemy(&"enemy_b")
+	var damaged := (a != null and a.damage == 1) or (b != null and b.damage == 1)
+	var other_ok := (
+		(a != null and a.damage == 1 and b != null and b.damage == 0)
+		or (b != null and b.damage == 1 and a != null and a.damage == 0)
+	)
+	return res.ok and res.success and damaged and other_ok
+
+
+func _test_act_imp_investigate_wrong_loc() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
+	var res := h.investigate_action({"location_id": &"loc_b"})
+	return (
+		not res.ok
+		and res.error == "not_at_location"
+		and inv.actions_remaining == before
+	)
 
 
 func _test_act_engage_success() -> bool:
@@ -4649,6 +5465,104 @@ func _test_act_engage_massive() -> bool:
 	)
 	var res := h.engage_action({"enemy_id": &"enemy_1"})
 	return not res.ok and res.error == "massive"
+
+
+func _test_act_engage_nests_kernel() -> bool:
+	## 基础行动 = 效果交战：外壳 nest seq.engage mode=effect。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		res.ok
+		and res.get("mode", &"") == EngageFlow.MODE_EFFECT
+		and res.get("placement", &"") == EngageFlow.PLACEMENT_ENTER_THREAT
+		and enemy != null
+		and enemy.is_engaged_with(&"inv_1")
+	)
+
+
+func _test_engage_grant_cross_location() -> bool:
+	## grant：Register 交战 Buff；不移入威胁区（检测威胁区仍为假）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_far")
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_far", &"loc_far", 2, 2)
+	var res := h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.engage",
+		{
+			"mode": EngageFlow.MODE_EFFECT,
+			"placement": EngageFlow.PLACEMENT_GRANT,
+			"require_same_location": false,
+			"enemy_id": &"enemy_far",
+			"investigator_id": &"inv_1",
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_far")
+	return (
+		res.ok
+		and res.get("placement", &"") == EngageFlow.PLACEMENT_GRANT
+		and bool(res.get("engagement_buff", false))
+		and not bool(res.get("moved_into_threat_area", true))
+		and EngagementStatus.is_engaged_with(h.ctx, &"enemy_far", &"inv_1")
+		and enemy != null
+		and enemy.engaged_with == &""
+		and not inv.threat_area.has(&"enemy_far")
+	)
+
+
+func _test_engage_enter_threat_buff() -> bool:
+	## 真实交战：Register Buff，并移入威胁区（检测在威胁区为真）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and inv.threat_area.has(&"enemy_1")
+		and EngagementStatus.is_engaged_with(h.ctx, &"enemy_1", &"inv_1")
+		and h.ctx.registrations.has_engagement(&"enemy_1", &"inv_1")
+	)
+
+
+func _test_engage_disengage_clears_buff() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	if not h.engage_action({"enemy_id": &"enemy_1"}).ok:
+		return false
+	h.ctx.enemy.disengage(h.ctx, &"enemy_1", false, false)
+	return (
+		not EngagementStatus.is_engaged_with(h.ctx, &"enemy_1", &"inv_1")
+		and not h.ctx.registrations.has_engagement(&"enemy_1", &"inv_1")
+	)
+
+
+func _test_m4_gain_resource_rename() -> bool:
+	var h := RuleTestHarness.new(42)
+	var catalog := h.ctx.sequence_catalog
+	if catalog == null:
+		return false
+	if not catalog.has_flow(&"seq.effect.gain_resource"):
+		return false
+	## 旧 id 仍为别名。
+	if not catalog.has_flow(&"seq.gain_resource"):
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.resource_pool
+	var result := catalog.run(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{"controller_id": &"inv_1", "base_amount": 2, "source_tags": []}
+	)
+	return int(result.get("amount", 0)) == 2 and inv.resource_pool == before + 2
 
 
 func _test_act_engage_then_fight() -> bool:
@@ -4711,6 +5625,660 @@ func _test_act_move_success() -> bool:
 	return res.ok and inv.location_tag == &"loc_b" and int(res.aoo_attacks) == 0
 
 
+func _test_act_move_nests_effect_move() -> bool:
+	## 行动外壳 nest 狭义移动内核 seq.effect.move。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	var res := h.move_action({"destination_id": &"loc_b"})
+	return (
+		res.ok
+		and res.get("from", &"") == &"test_loc"
+		and res.get("to", &"") == &"loc_b"
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.move")
+	)
+
+
+func _test_g1_effect_move_registered() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.move"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_b",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and inv.location_tag == &"loc_b"
+		and res.get("from", &"") == &"test_loc"
+		and res.get("subject", &"") == MoveFlow.SUBJECT_INVESTIGATOR
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE
+	)
+
+
+func _test_g1_effect_move_enemy() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_b")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": &"enemy_1",
+			"destination_id": &"loc_b",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"steps": 1,
+			"auto_engage": false,
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		res.ok
+		and bool(res.get("moved", false))
+		and enemy.location_tag == &"loc_b"
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE
+		and h.ctx.sequence_catalog.has_flow(&"seq.enemy.move")
+	)
+
+
+func _test_g1_effect_move_attachment() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 1, 0)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_attach_move", [])
+	h.ctx.state.encounter_deck.erase(card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.zone = AhcEnums.Zone.LIMBO
+	if not EncounterAttachment.attach_limbo_to_location(h.ctx, card_id, &"test_loc"):
+		return false
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_ATTACHMENT,
+			"attachment_id": card_id,
+			"destination_id": &"loc_b",
+			"move_kind": MoveFlow.KIND_MOVE_TO,
+		}
+	)
+	card = h.ctx.state.registry.get_card(card_id)
+	var host_b := h.ctx.state.registry.get_card(&"loc_b")
+	return (
+		res.ok
+		and card.zone == AhcEnums.Zone.ATTACHED
+		and card.attached_to != null
+		and card.attached_to.instance_id == &"loc_b"
+		and host_b != null
+		and host_b.attachments.has(card.id)
+		and res.get("from", &"") == &"test_loc"
+		and res.get("to", &"") == &"loc_b"
+	)
+
+
+func _test_g1_effect_move_marker() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a", 1, 3)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	var loc_a := h.ctx.state.registry.get_location(&"loc_a")
+	var loc_b := h.ctx.state.registry.get_location(&"loc_b")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_MARKER,
+			"from_location": &"loc_a",
+			"destination_id": &"loc_b",
+			"amount": 2,
+			"marker_kind": AhcEnums.MarkerKind.CLUE,
+			"move_kind": MoveFlow.KIND_MOVE_TO,
+		}
+	)
+	return (
+		res.ok
+		and loc_a.clues == 1
+		and loc_b.clues == 2
+		and int(res.get("amount", 0)) == 2
+		and res.get("subject", &"") == MoveFlow.SUBJECT_MARKER
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE_TO
+	)
+
+
+func _test_g1_effect_move_enemy_move_to() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 1, 0)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := MoveFlow.nest_or_run(
+		h.ctx,
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": &"enemy_1",
+			"destination_id": &"loc_b",
+			"move_kind": MoveFlow.KIND_MOVE_TO,
+			"auto_engage": false,
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		res.ok
+		and bool(res.get("moved", false))
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE_TO
+		and enemy.location_tag == &"loc_b"
+	)
+
+
+func _test_g1_elusive_flee_nests_move() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"flee_loc")
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"flee_loc")
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_elusive_wire",
+		&"test_loc",
+		{
+			"keywords": [&"elusive"],
+			"enemy": {"fight": 2, "evade": 2, "health": 2, "damage": 1, "horror": 0},
+		}
+	)
+	if enemy_id == &"":
+		return false
+	var flee := ElusiveResolver.try_flee_was_attacked(h.ctx, enemy_id)
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	return (
+		bool(flee.get("ok", false))
+		and bool(flee.get("fled", false))
+		and bool(flee.get("moved", false))
+		and enemy != null
+		and enemy.location_tag == &"flee_loc"
+		and enemy.exhausted
+	)
+
+
+func _test_g1_move_rejects_disconnected() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_far", 1, 0)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_far",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		not bool(res.get("ok", false))
+		and str(res.get("error", "")) == "not_connected"
+		and inv.location_tag == &"test_loc"
+	)
+
+
+func _test_g1_move_to_ignores_connections() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_far", 1, 0)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_far",
+			"move_kind": MoveFlow.KIND_MOVE_TO,
+			"auto_engage_after": false,
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE_TO
+		and inv.location_tag == &"loc_far"
+	)
+
+
+func _test_g2_exhaust_enemy() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.exhaust",
+		{"target_kind": ExhaustReadyFlow.TARGET_ENEMY, "enemy_id": &"enemy_1"}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("changed", false))
+		and enemy.exhausted
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.ready")
+	)
+
+
+func _test_g2_ready_enemy_engages() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.exhausted = true
+	enemy.engaged_with = &""
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.threat_area.erase(&"enemy_1")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.ready",
+		{
+			"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+			"enemy_id": &"enemy_1",
+			"trigger_area_change": true,
+		}
+	)
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("changed", false))
+		and not enemy.exhausted
+		and enemy.engaged_with == &"inv_1"
+	)
+
+
+func _test_g2_exhaust_card_in_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"asset")
+	var card := CardInstance.new()
+	card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"test_asset")
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	card.controller_id = &"inv_1"
+	h.ctx.state.registry.register_card(card)
+	var res := ExhaustReadyFlow.nest_or_run_exhaust(
+		h.ctx,
+		{"target_kind": ExhaustReadyFlow.TARGET_CARD, "card_id": card_id}
+	)
+	return bool(res.get("ok", false)) and bool(res.get("changed", false)) and card.exhausted
+
+
+func _test_g2_exhaust_rejects_hand() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	## 入手到手牌区（非平放）。
+	inv.deck.erase(card_id)
+	inv.hand.append(card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.zone = AhcEnums.Zone.HAND
+	var res := ExhaustReadyFlow.exhaust(
+		h.ctx,
+		{"target_kind": ExhaustReadyFlow.TARGET_CARD, "card_id": card_id}
+	)
+	return (
+		not bool(res.get("ok", false))
+		and str(res.get("error", "")) == "not_flat_zone"
+		and not card.exhausted
+	)
+
+
+func _test_g2_upkeep_ready_flat_cards() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"asset")
+	var card := CardInstance.new()
+	card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"test_asset")
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	card.exhausted = true
+	h.ctx.state.registry.register_card(card)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.exhausted = true
+	var res := ExhaustReadyFlow.ready_all_in_play(h.ctx)
+	return (
+		bool(res.get("ok", false))
+		and not card.exhausted
+		and not enemy.exhausted
+		and (res.get("readied", []) as Array).has(card_id)
+		and (res.get("readied", []) as Array).has(&"enemy_1")
+	)
+
+
+func _test_g3_search_entire_take_shuffle() -> bool:
+	var h := RuleTestHarness.new(42)
+	var decoy := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_decoy_a")
+	var target := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_search_hit")
+	var decoy2 := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_decoy_b")
+	var before := h.ctx.state.encounter_deck.duplicate()
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.search",
+		{
+			"controller_id": &"inv_1",
+			"area": SearchFlow.AREA_ENCOUNTER_DECK,
+			"scope": SearchFlow.SCOPE_ENTIRE,
+			"definition_id": &"enc_search_hit",
+			"take_count": 1,
+		}
+	)
+	var taken: Array = res.get("taken", [])
+	var decoy_card := h.ctx.state.registry.get_card(decoy)
+	var target_card := h.ctx.state.registry.get_card(target)
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("shuffled", false))
+		and taken.has(target)
+		and not h.ctx.state.encounter_deck.has(target)
+		and h.ctx.state.encounter_deck.has(decoy)
+		and h.ctx.state.encounter_deck.has(decoy2)
+		and h.ctx.state.encounter_deck != before
+		and target_card != null
+		and target_card.zone == AhcEnums.Zone.LIMBO
+		and decoy_card != null
+		and decoy_card.controller_id != &"inv_1"
+		and decoy_card.face_visibility.audience == AhcEnums.FaceAudience.HIDDEN_ALL
+	)
+
+
+func _test_g3_search_top_shuffles() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_top_a")
+	var hit := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_top_hit")
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_top_c")
+	## 顶 1 张不含 hit（hit 在第 2 张）→ found 空；搜牌库仍须洗。
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.search",
+		{
+			"controller_id": &"inv_1",
+			"area": SearchFlow.AREA_ENCOUNTER_DECK,
+			"scope": SearchFlow.SCOPE_TOP,
+			"amount": 1,
+			"definition_id": &"enc_top_hit",
+			"take_count": 1,
+		}
+	)
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("shuffled", false))
+		and (res.get("found", []) as Array).is_empty()
+		and h.ctx.state.encounter_deck.has(hit)
+		and h.ctx.state.encounter_deck.size() == 3
+	)
+
+
+func _test_g3_search_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	return h.ctx.sequence_catalog.has_flow(&"seq.effect.search")
+
+
+func _test_g5_defeat_cancel_no_leave() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_cancel",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 3}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	enemy.damage = enemy.health
+	h.ctx.memory.cancel_sequence(
+		&"seq.enemy.defeat",
+		{"card_id": enemy_id}
+	)
+	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
+	return (
+		bool(res.get("cancelled", false))
+		and not bool(res.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) != null
+	)
+
+
+func _test_g5_damage_cap_retriggers() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_re",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 2}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	enemy.damage = enemy.health
+	h.ctx.memory.cancel_sequence(
+		&"seq.enemy.defeat",
+		{"card_id": enemy_id}
+	)
+	var cancelled := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
+	if not bool(cancelled.get("cancelled", false)):
+		return false
+	if h.ctx.state.registry.get_enemy(enemy_id) == null:
+		return false
+	## Cancel 已消费；伤仍满血 → 常态检测再次击败并 nest 退场。
+	var again := DefeatFlow.check_enemy_damage_cap(h.ctx, enemy_id)
+	return (
+		bool(again.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+	)
+
+
+func _test_g5_effect_defeat() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_fx",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 5}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	## 伤未满血仍可被卡面击败。
+	enemy.damage = 0
+	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_EFFECT)
+	return (
+		bool(res.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+	)
+
+
+func _test_g5_investigator_horror_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.sanity = 2
+	inv.horror_taken = 0
+	var applied := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.damage",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"horror",
+			"amount": 2,
+			"target": &"controller",
+		}
+	)
+	return (
+		bool(applied.get("ok", false))
+		and inv.eliminated
+		and inv.horror_taken >= inv.sanity
+	)
+
+
+func _test_g5_defeat_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	return (
+		h.ctx.sequence_catalog.has_flow(&"seq.effect.defeat")
+		and h.ctx.sequence_catalog.has_flow(&"seq.enemy.defeat")
+		and h.ctx.sequence_catalog.has_flow(&"seq.defeat.leave_play")
+	)
+
+
+func _test_g5_enemy_attack_damage_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.health = 2
+	inv.damage_taken = 0
+	var attack := EnemyAttack.enemy_strike(
+		&"enemy_atk", &"inv_1", 2, 0, false, AhcEnums.AttackKind.PHASE
+	)
+	h.ctx.combat.perform_attack(attack)
+	return inv.eliminated and inv.damage_taken >= inv.health
+
+
+func _test_g5_asset_damage_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_hp", {"health": 2, "sanity": 0}
+	)
+	var res := DefeatFlow.deal_damage_to_asset(h.ctx, card_id, 2)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var saw_discard_effect := false
+	for entry in h.ctx.memory.phase_trace:
+		if str(entry).contains("discard_card"):
+			saw_discard_effect = true
+			break
+	return (
+		bool(res.get("defeated", false))
+		and card != null
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(card_id)
+		and not inv.play_area.has(card_id)
+		and not bool(res.get("via_discard_effect", true))
+		and not saw_discard_effect
+	)
+
+
+func _test_g5_asset_effect_defeat() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_fx", {"health": 5}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.damage = 0
+	var res := DefeatFlow.defeat_asset_effect(h.ctx, card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("defeated", false))
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(card_id)
+		and not bool(res.get("via_discard_effect", true))
+	)
+
+
+func _test_g5_asset_cancel_no_leave() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_cancel", {"health": 1}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.damage = 1
+	h.ctx.memory.cancel_sequence(&"seq.effect.defeat", {"card_id": card_id})
+	var res := DefeatFlow.check_asset_caps(h.ctx, card_id)
+	return (
+		bool(res.get("cancelled", false))
+		and not bool(res.get("defeated", false))
+		and card.zone == AhcEnums.Zone.PLAY_AREA
+	)
+
+
+func _test_zm_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	return h.ctx.sequence_catalog.has_flow(&"seq.zone.move")
+
+
+func _test_zm_leave_play_discard_asset() -> bool:
+	var h := RuleTestHarness.new(42)
+	var store := h.ctx.registrations
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_zm_leave", {"health": 1}
+	)
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, card_id)
+	if store.count() != 1:
+		return false
+	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		moved
+		and store.count() == 0
+		and inv.discard.has(card_id)
+		and not inv.play_area.has(card_id)
+	)
+
+
+func _test_zm_enemy_discard_leave_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx, &"enc_zm_discard", {"health": 1}
+	)
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var store := h.ctx.registrations
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, card_id)
+	if store.count() != 1:
+		return false
+	var res := EnemyDefeatResolver.discard_from_play(h.ctx, card_id)
+	return (
+		bool(res.get("ok", false))
+		and store.count() == 0
+		and h.ctx.state.registry.get_enemy(card_id) == null
+	)
+
+
+func _test_g6_phase_boundary_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	var mythos_begins := PhaseBoundaryFlow.params_for_step(
+		AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS
+	)
+	var inv_ends := PhaseBoundaryFlow.params_for_step(
+		AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS
+	)
+	return (
+		h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW)
+		and h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS_ALIAS)
+		and mythos_begins.get("phase", &"") == PhaseBoundaryFlow.PHASE_MYTHOS
+		and mythos_begins.get("boundary", &"") == PhaseBoundaryFlow.BOUNDARY_BEGINS
+		and inv_ends.get("phase", &"") == PhaseBoundaryFlow.PHASE_INVESTIGATION
+		and inv_ends.get("boundary", &"") == PhaseBoundaryFlow.BOUNDARY_ENDS
+	)
+
+
+func _test_g6_framework_emits() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS)
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.ENEMY_3_1_PHASE_BEGINS)
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS)
+	var saw_mythos := false
+	var saw_enemy := false
+	var saw_upkeep := false
+	for entry in h.ctx.memory.phase_trace:
+		var s := str(entry)
+		if s.contains("mythos_phase_begins"):
+			saw_mythos = true
+		if s.contains("enemy_phase_begins"):
+			saw_enemy = true
+		if s.contains("upkeep_phase_ends"):
+			saw_upkeep = true
+	return saw_mythos and saw_enemy and saw_upkeep
+
+
 func _test_act_move_fail() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -4756,8 +6324,14 @@ func _test_act_draw_defeated() -> bool:
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	inv.deck.clear()
 	inv.discard.clear()
+	var trauma_before := inv.mental_trauma
 	var res := h.draw_action()
-	return res.ok and res.defeated and inv.eliminated
+	return (
+		res.ok
+		and res.defeated
+		and inv.eliminated
+		and inv.mental_trauma == trauma_before + 1
+	)
 
 
 func _test_act_catalog_registered() -> bool:
@@ -4769,10 +6343,20 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.replace.instead",
 		&"seq.action.draw",
 		&"seq.action.gain_resource",
+		&"seq.effect.gain_resource",
 		&"seq.action.move",
+		&"seq.effect.move",
+		&"seq.effect.exhaust",
+		&"seq.effect.ready",
+		&"seq.effect.search",
+		&"seq.effect.defeat",
+		&"seq.enemy.defeat",
+		&"seq.defeat.leave_play",
+		&"seq.zone.move",
 		&"seq.action.investigate",
 		&"seq.action.fight",
 		&"seq.action.engage",
+		&"seq.engage",
 		&"seq.action.evade",
 		&"seq.effect.discover_clue",
 	]
@@ -5102,7 +6686,7 @@ func _test_ns_self_response_blocked() -> bool:
 func _test_pi_default_optional_decline() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.ctx.interaction.ask_optional_effect(&"inv_1", &"may:heal", h.ctx, false):
-		return true
+		return h.ctx.interaction.last_used_default
 	return false
 
 
@@ -5112,7 +6696,69 @@ func _test_pi_scripting_resolver() -> bool:
 		{"prompt_id": &"pick:enemy", "pick": &"enemy_1"},
 	])
 	var pick: Variant = h.ctx.interaction.ask_pick_target([&"enemy_0", &"enemy_1"], &"inv_1", &"pick:enemy", h.ctx)
-	return pick == &"enemy_1"
+	return pick == &"enemy_1" and not h.ctx.interaction.last_used_default
+
+
+func _test_pi_default_pick_used_default() -> bool:
+	var h := RuleTestHarness.new(42)
+	var pick: Variant = h.ctx.interaction.ask_pick_target(
+		[&"enemy_0", &"enemy_1"], &"inv_1", &"pick:enemy", h.ctx
+	)
+	return pick == &"enemy_0" and h.ctx.interaction.last_used_default
+
+
+func _test_pi_scripting_not_default() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pick:enemy", "pick": &"enemy_1"},
+	])
+	var pick: Variant = h.ctx.interaction.ask_pick_target(
+		[&"enemy_0", &"enemy_1"], &"inv_1", &"pick:enemy", h.ctx
+	)
+	## 显式脚本应答即使等于「非默认项」也 used_default=false。
+	return pick == &"enemy_1" and not h.ctx.interaction.last_used_default
+
+
+func _test_pi_scripting_miss_default() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"other:prompt", "pick": &"enemy_1"},
+	])
+	var pick: Variant = h.ctx.interaction.ask_pick_target(
+		[&"enemy_0", &"enemy_1"], &"inv_1", &"pick:enemy", h.ctx
+	)
+	return pick == &"enemy_0" and h.ctx.interaction.last_used_default
+
+
+func _test_pi_interaction_event_record() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.ask_pick_target([&"a", &"b"], &"inv_1", &"pick:ev", h.ctx)
+	var found := false
+	for rec in h.ctx.events.get_records():
+		if rec.kind != AhcEnums.EventRecordKind.INTERACTION_CHOICE:
+			continue
+		found = true
+		if not bool(rec.payload.get("used_default", false)):
+			return false
+		if str(rec.payload.get("picked", "")) != "a":
+			return false
+	return found
+
+
+func _test_pi_compute_default_multi() -> bool:
+	var req := ChoiceRequest.new()
+	req.kind = AhcEnums.ChoiceKind.PICK_MULTI
+	req.options = [&"e1", &"e2", &"e3"]
+	req.min_picks = 1
+	req.max_picks = 2
+	req.default_policy = &"first_option"
+	var pick: Variant = DefaultChoiceResolver.compute_default(req)
+	if not pick is Array or (pick as Array).size() != 2:
+		return false
+	req.min_picks = 0
+	req.default_policy = &"skip"
+	var skip: Variant = DefaultChoiceResolver.compute_default(req)
+	return skip is Array and (skip as Array).is_empty()
 
 
 func _test_fwk_upkeep_44_catalog() -> bool:
@@ -5199,7 +6845,7 @@ func _test_en13_patrol_move() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var result := h.ctx.enemy_phase.run_patrol(h.ctx)
+	var result := h.ctx.enemy_phase.run_3_2(h.ctx)
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		bool(result.get("ok", false))
@@ -5223,7 +6869,7 @@ func _test_en14_patrol_skip_at_target() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var result := h.ctx.enemy_phase.run_patrol(h.ctx)
+	var result := h.ctx.enemy_phase.run_3_2(h.ctx)
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		bool(result.get("ok", false))
@@ -5393,13 +7039,16 @@ func _test_en09_massive_phase_both() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
 		{"prompt_id": &"order:massive_phase_attacks", "pick": [&"inv_1", &"inv_2"]},
 	])
-	var result := MassiveEngagement.resolve_phase_batch(h.ctx, enemy_id)
+	## 经 3.3 基础手续；庞大 REPLACE → seq.keyword.massive（非平行 massive 流程）。
+	var result := h.ctx.enemy_phase.run_phase_attacks(h.ctx, &"inv_1")
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		int(result.get("attacks", 0)) == 2
 		and inv1.damage_taken == 2
 		and inv2.damage_taken == 2
 		and enemy.exhausted
+		and h.ctx.sequence_catalog.has_flow(&"seq.keyword.massive")
+		and not h.ctx.sequence_catalog.has_flow(&"seq.enemy.massive_phase_attacks")
 	)
 
 

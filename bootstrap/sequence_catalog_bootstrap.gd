@@ -38,16 +38,17 @@ static func _register_flows(
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			return DrawEncounterFlow.run(game_ctx, drawer_id)
 	)
+	## 已持有实例 → 遭遇侧能力体系（与抽库后卡面结算同体；非来源重定向）。
 	catalog.register_run(
-		&"seq.draw.encounter.resolve_bound",
+		&"seq.encounter.resolve_card",
 		func(params: Dictionary) -> TriggeringCondition:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			var card_id: StringName = params.get("card_id", &"")
-			return TriggeringCondition.draw_encounter_resolve_bound(drawer_id, card_id),
+			return TriggeringCondition.encounter_resolve_card(drawer_id, card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			var card_id: StringName = params.get("card_id", &"")
-			return DrawEncounterFlow.resolve_bound(game_ctx, drawer_id, card_id)
+			return DrawEncounterFlow.resolve_card(game_ctx, drawer_id, card_id)
 	)
 	catalog.register_run(
 		&"seq.encounter.revelation",
@@ -81,18 +82,18 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return _resolve_draw_investigator(game_ctx, params, mutator, catalog)
 	)
-	catalog.register_run(
-		&"seq.gain_resource",
-		func(params: Dictionary) -> TriggeringCondition:
-			var controller_id: StringName = params.get("controller_id", &"")
-			var source_tags: Array = params.get("source_tags", [])
-			var tags: Array[StringName] = []
-			for tag in source_tags:
-				tags.append(tag as StringName)
-			return TriggeringCondition.gain_resource(controller_id, tags),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return _resolve_gain_resource(game_ctx, params, mutator)
-	)
+	## M4：正式 id = seq.effect.gain_resource；旧 id 保留为别名。
+	var gain_build := func(params: Dictionary) -> TriggeringCondition:
+		var controller_id: StringName = params.get("controller_id", &"")
+		var source_tags: Array = params.get("source_tags", [])
+		var tags: Array[StringName] = []
+		for tag in source_tags:
+			tags.append(tag as StringName)
+		return TriggeringCondition.gain_resource(controller_id, tags)
+	var gain_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return _resolve_gain_resource(game_ctx, params, mutator)
+	catalog.register_run(&"seq.effect.gain_resource", gain_build, gain_resolve)
+	catalog.register_run(&"seq.gain_resource", gain_build, gain_resolve)
 	_register_keyword_flows(catalog)
 	_register_interrupt_flows(catalog)
 	_register_replace_flows(catalog)
@@ -105,6 +106,57 @@ static func _register_flows(
 
 
 static func _register_effect_flows(catalog: SequenceCatalog) -> void:
+	## 广义区划迁移（进场/离场 = 过滤别名；非效果）。
+	catalog.register_run(
+		&"seq.zone.move",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.zone_move(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ZoneMoveFlow.run(game_ctx, params)
+	)
+	## G3：搜寻（单条；区域/顶 N/过滤/是否取出 → params）。
+	catalog.register_run(
+		&"seq.effect.search",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.search(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SearchFlow.run(game_ctx, params)
+	)
+	## G2：横置 / 重整（平放区卡牌与在场敌人）。
+	catalog.register_run(
+		&"seq.effect.exhaust",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.exhaust(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ExhaustReadyFlow.exhaust(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.ready",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.ready(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ExhaustReadyFlow.ready(game_ctx, params)
+	)
+	## 狭义移动核：调查员 / 敌人 / 地点附属 / 地点标记；行动与卡面 nest 共用。
+	var move_build := func(params: Dictionary) -> TriggeringCondition:
+		return TriggeringCondition.move(params)
+	var move_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return MoveFlow.run(game_ctx, params)
+	catalog.register_run(&"seq.effect.move", move_build, move_resolve)
+	## 旧 id 别名（敌人卡面 nest）；resolve 强制 subject=enemy。
+	catalog.register_run(
+		&"seq.enemy.move",
+		func(params: Dictionary) -> TriggeringCondition:
+			var p := params.duplicate()
+			p["subject"] = MoveFlow.SUBJECT_ENEMY
+			return TriggeringCondition.move(p),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			var p := params.duplicate()
+			p["subject"] = MoveFlow.SUBJECT_ENEMY
+			if not p.has("destination_id") and p.has("target_location"):
+				p["destination_id"] = p["target_location"]
+			return MoveFlow.run(game_ctx, p)
+	)
 	catalog.register_run(
 		&"seq.effect.discover_clue",
 		func(params: Dictionary) -> TriggeringCondition:
@@ -207,26 +259,20 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.unregister_buff(game_ctx, params)
 	)
+	## 统一弃牌：指定卡 / 寻址过滤 / from=hand + amount/mode。
 	catalog.register_run(
 		&"seq.effect.discard_card",
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.discard_card(
-				params.get("controller_id", &"") as StringName,
-				params.get("card_id", &"") as StringName
+				params.get("controller_id", params.get("inv_id", &"")) as StringName,
+				params.get("card_id", &"") as StringName,
+				&"after_discard_card",
+				StringName(str(params.get("from", ""))),
+				int(params.get("amount", 1)),
+				StringName(str(params.get("mode", "choose")))
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.discard_card(game_ctx, params)
-	)
-	catalog.register_run(
-		&"seq.effect.discard_from_hand",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.discard_from_hand(
-				params.get("controller_id", params.get("inv_id", &"")) as StringName,
-				int(params.get("amount", 1)),
-				StringName(str(params.get("mode", "random")))
-			),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.discard_from_hand(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.effect.attach",
@@ -271,18 +317,11 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 
 static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
-		&"seq.enemy.3_2_hunter_patrol",
+		&"seq.enemy.3_2",
 		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_3_2_hunter_patrol(),
+			return TriggeringCondition.enemy_3_2(),
 		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.hunter_patrol_3_2(game_ctx)
-	)
-	catalog.register_run(
-		&"seq.enemy.3_2_patrol",
-		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_3_2_patrol(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.patrol_3_2(game_ctx)
+			return EnemyPhaseFlow.framework_3_2(game_ctx)
 	)
 	catalog.register_run(
 		&"seq.enemy.phase_attacks",
@@ -294,13 +333,6 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 			return EnemyPhaseFlow.phase_attacks_for(game_ctx, inv_id)
 	)
 	catalog.register_run(
-		&"seq.enemy.massive_phase_attacks",
-		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.enemy_massive_phase_attacks(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.massive_phase_attacks_all(game_ctx)
-	)
-	catalog.register_run(
 		&"seq.enemy.resolve_location",
 		func(params: Dictionary) -> TriggeringCondition:
 			var drawer_id: StringName = params.get(
@@ -310,14 +342,7 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EnemyPhaseFlow.resolve_location(game_ctx, params)
 	)
-	catalog.register_run(
-		&"seq.enemy.move",
-		func(params: Dictionary) -> TriggeringCondition:
-			var enemy_id: StringName = params.get("enemy_id", &"")
-			return TriggeringCondition.enemy_move(enemy_id),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EnemyPhaseFlow.move(game_ctx, params)
-	)
+	## seq.enemy.move 已并入 _register_effect_flows（别名 → seq.effect.move）。
 	catalog.register_run(
 		&"seq.engage",
 		func(params: Dictionary) -> TriggeringCondition:
@@ -334,28 +359,56 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EnemyPhaseFlow.attack(game_ctx, params)
 	)
+	## G5：击败效果；成功后 nest 退场。敌人别名保留 TC `enemy_defeated`。
+	var defeat_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return DefeatFlow.resolve(game_ctx, params)
+	catalog.register_run(
+		&"seq.effect.defeat",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.defeat(params),
+		defeat_resolve
+	)
 	catalog.register_run(
 		&"seq.enemy.defeat",
 		func(params: Dictionary) -> TriggeringCondition:
+			var p := params.duplicate()
+			p["subject"] = DefeatFlow.SUBJECT_ENEMY
 			return TriggeringCondition.enemy_defeated(
-				params.get("enemy_id", &"") as StringName,
-				params.get("location_id", &"") as StringName,
-				params.get("definition_id", &"") as StringName
+				p.get("enemy_id", &"") as StringName,
+				p.get("location_id", &"") as StringName,
+				p.get("definition_id", &"") as StringName
 			),
-		func(_game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			## WHEN/AFTER 钩子：离场 L0 在 catalog.run 返回后由 EnemyDefeatResolver 执行。
-			return {"ok": true}
+		defeat_resolve
+	)
+	catalog.register_run(
+		&"seq.defeat.leave_play",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.defeat_leave_play(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return DefeatFlow.leave_play(game_ctx, params)
 	)
 
 
 static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
+	## G6：单条阶段边界；phase/boundary → params；TC.kind 仍细分。
+	var phase_build := func(params: Dictionary) -> TriggeringCondition:
+		return TriggeringCondition.phase_boundary_from_params(params)
+	var phase_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return PhaseBoundaryFlow.resolve(game_ctx, params)
+	catalog.register_run(PhaseBoundaryFlow.FLOW, phase_build, phase_resolve)
+	## 旧 id：调查结束别名 → 固定 params。
 	catalog.register_run(
-		&"seq.framework.investigation_phase_ends",
+		PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS_ALIAS,
 		func(_params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.investigation_phase_ends(),
-		func(_game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			## 仅提供 WHEN/AFTER 钩子供 Forced 订阅；框架步进本身已在 FrameworkFlowEngine。
-			return {"ok": true}
+		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			return PhaseBoundaryFlow.resolve(
+				game_ctx,
+				{
+					"phase": PhaseBoundaryFlow.PHASE_INVESTIGATION,
+					"boundary": PhaseBoundaryFlow.BOUNDARY_ENDS,
+				}
+			)
 	)
 	catalog.register_run(
 		&"seq.mythos.place_doom",
@@ -429,6 +482,30 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			return TriggeringCondition.keyword_surge(drawer_id, card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return SurgeKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.keyword.hunter",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.keyword_hunter(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return HunterKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.keyword.patrol",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.keyword_patrol(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return PatrolKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.keyword.massive",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.keyword_massive(card_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return MassiveKeywordFlow.run(game_ctx, params)
 	)
 
 

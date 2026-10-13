@@ -86,12 +86,15 @@ func per_investigator(base: int) -> int:
 
 ## 6. Move 集成
 
+**狭义地点变更**走统一 `seq.effect.move`（`subject` + `move_kind`）：  
+- **移动**（`move`）遵守地点连接；**移动到地点**（`move_to`）无视连接。  
+**广义转移**与 **地点交换** **不**并入 — 见 [22 §3.4](22-seq-granularity.md)。
+
 ```gdscript
 class LocationGraph:
-    func move_investigator(inv: StringName, dest: EntityId) -> Result:
-        # leave + enter simultaneous
-        # unrevealed dest → reveal
-        # auto engage ready enemies at dest
+    func move_entity(subject: StringName, id: StringName, dest: EntityId, move_kind: StringName) -> Result:
+        # leave + enter simultaneous · seq.effect.move
+        # move: along connections; move_to: ignore connections
 ```
 
 ---
@@ -135,7 +138,7 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 | OQ-09-02 | P2 | 同 title 多 copy location（罕见）— 仍算 different locations — 如何 instance 化？ |
 | OQ-09-03 | P1 | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ |
 | OQ-09-04 | P2 | Farthest location 计算：blocked path 是否参与？ |
-| OQ-09-05 | P1 | Your Friend's Room [action] Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） |
+| OQ-09-05 | P1 | Your Friend's Room [action] Engage 跨连接 — 文本不借机 → ✅ 限制类 `SKIP_AOO`，INIT_2B 原流程读取分支 |
 | OQ-09-06 | P2 | Location enter play already revealed — clues 在 setup 还是 enter 时放？ |
 
 ---

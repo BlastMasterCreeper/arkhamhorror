@@ -38,6 +38,16 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 				return {"ok": false, "amount": 0}
 			var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
 			applied = amount if bool(result.get("ok", false)) else 0
+		&"asset", &"card":
+			var asset_id: StringName = params.get("card_id", params.get("asset_id", &""))
+			if game_ctx.state.registry.get_card(asset_id) == null:
+				return {"ok": false, "amount": 0, "error": "unknown_asset"}
+			var asset_res: Dictionary
+			if kind == &"horror":
+				asset_res = DefeatFlow.deal_horror_to_asset(game_ctx, asset_id, amount)
+			else:
+				asset_res = DefeatFlow.deal_damage_to_asset(game_ctx, asset_id, amount)
+			applied = amount if bool(asset_res.get("ok", false)) else 0
 		_:
 			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
 				return {"ok": false, "amount": 0, "error": "unknown_investigator"}
@@ -192,11 +202,15 @@ static func unregister_buff(game_ctx: GameContext, params: Dictionary) -> Dictio
 	return {"ok": true, "reg_id": reg_id}
 
 
+## 统一弃牌：`from=hand` 按 amount/mode 选手牌；否则弃指定/寻址到的单张。
 static func discard_card(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	var inv_id := _controller_id(game_ctx, params)
-	var card_id: StringName = params.get("card_id", &"")
 	if game_ctx == null:
 		return {"ok": false, "error": "invalid_params"}
+	var from_zone := StringName(str(params.get("from", "")))
+	if from_zone == &"hand":
+		return _discard_cards_from_hand(game_ctx, params)
+	var inv_id := _controller_id(game_ctx, params)
+	var card_id: StringName = params.get("card_id", &"")
 	if card_id == &"":
 		card_id = _pick_discard_target(game_ctx, params, inv_id)
 	if card_id == &"":
@@ -210,9 +224,14 @@ static func discard_card(game_ctx: GameContext, params: Dictionary) -> Dictionar
 	_log(
 		game_ctx,
 		"effect:discard_card",
-		{"card": card_id, "inv": inv_id, "zone": card.zone if card != null else &""}
+		{
+			"card": card_id,
+			"inv": inv_id,
+			"from": from_zone,
+			"zone": card.zone if card != null else &"",
+		}
 	)
-	return {"ok": ok, "card_id": card_id}
+	return {"ok": ok, "card_id": card_id, "amount": 1 if ok else 0, "from": from_zone}
 
 
 ## 统一弃牌去向：遭遇单面→遭遇弃牌堆；玩家所属单面→其弃牌堆；否则从游戏中移除。
@@ -329,15 +348,22 @@ static func _matches_trait_or_title(definition_id: StringName, needle: String) -
 	return false
 
 
+## 兼容旧调用：转发到统一 discard_card（from=hand）。
 static func discard_from_hand(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	var p := params.duplicate()
+	p["from"] = &"hand"
+	return discard_card(game_ctx, p)
+
+
+static func _discard_cards_from_hand(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var inv_id := _controller_id(game_ctx, params)
 	var amount := maxi(int(params.get("amount", 1)), 1)
 	var mode := StringName(str(params.get("mode", "random")))
 	if game_ctx == null or game_ctx.mutator == null or inv_id == &"":
-		return {"ok": false, "amount": 0}
+		return {"ok": false, "amount": 0, "from": &"hand"}
 	var inv := game_ctx.state.registry.get_investigator(inv_id)
 	if inv == null or inv.hand.is_empty():
-		return {"ok": false, "amount": 0, "inv_id": inv_id}
+		return {"ok": false, "amount": 0, "inv_id": inv_id, "from": &"hand"}
 	var discarded: Array[StringName] = []
 	var n := mini(amount, inv.hand.size())
 	for _i in n:
@@ -346,7 +372,7 @@ static func discard_from_hand(game_ctx: GameContext, params: Dictionary) -> Dict
 			pick = inv.hand[randi() % inv.hand.size()] as StringName
 		elif game_ctx.interaction != null:
 			var chosen: Variant = game_ctx.interaction.ask_pick_target(
-				inv.hand.duplicate(), inv_id, &"pick:discard_from_hand", game_ctx
+				inv.hand.duplicate(), inv_id, &"pick:discard_card", game_ctx
 			)
 			if chosen != null:
 				pick = chosen as StringName
@@ -358,10 +384,15 @@ static func discard_from_hand(game_ctx: GameContext, params: Dictionary) -> Dict
 			discarded.append(pick)
 	_log(
 		game_ctx,
-		"effect:discard_from_hand",
-		{"inv": inv_id, "amount": discarded.size(), "mode": mode}
+		"effect:discard_card",
+		{"inv": inv_id, "amount": discarded.size(), "mode": mode, "from": &"hand"}
 	)
-	return {"ok": not discarded.is_empty(), "amount": discarded.size(), "cards": discarded}
+	return {
+		"ok": not discarded.is_empty(),
+		"amount": discarded.size(),
+		"cards": discarded,
+		"from": &"hand",
+	}
 
 
 static func attach(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -403,6 +434,8 @@ static func _apply_to_investigator(
 			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
 			amount
 		)
+	## 伤/恐常态检测 → 可能 nest 击败。
+	DefeatFlow.check_investigator_caps(game_ctx, inv_id)
 	return amount
 
 

@@ -274,6 +274,16 @@ static func victory_points(definition_id: StringName) -> int:
 	return int(data.get("victory", 0))
 
 
+## 印刷生命（支援等）；0 = 无生命 / 不因伤害自动击败。
+static func printed_health(definition_id: StringName) -> int:
+	return int(definition_data(definition_id).get("health", 0))
+
+
+## 印刷神智（支援等）；0 = 无神智 / 不因恐惧自动击败。
+static func printed_sanity(definition_id: StringName) -> int:
+	return int(definition_data(definition_id).get("sanity", 0))
+
+
 static func is_act(definition_id: StringName) -> bool:
 	return card_type(definition_id) == &"act"
 
@@ -370,6 +380,39 @@ static func is_permanent(definition_id: StringName) -> bool:
 static func card_type(definition_id: StringName) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	return data.get("card_type", &"treachery") as StringName
+
+
+## 卡背类型：`player` | `encounter`。只描述无文本背面；与正面 cardtype / CardFace 正交。
+static func card_back(definition_id: StringName) -> StringName:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	var explicit: StringName = data.get("card_back", &"") as StringName
+	if explicit == &"player" or explicit == &"encounter":
+		return explicit
+	return infer_card_back(data)
+
+
+static func has_player_back(definition_id: StringName) -> bool:
+	return card_back(definition_id) == &"player"
+
+
+static func has_encounter_back(definition_id: StringName) -> bool:
+	return card_back(definition_id) == &"encounter"
+
+
+## 导入缺省推断（可被定义里显式 `card_back` 覆盖）。**不**用此结果代替正面能力包。
+static func infer_card_back(data: Dictionary) -> StringName:
+	if bool(data.get("is_weakness", false)):
+		return &"player"
+	var ctype: StringName = data.get("card_type", &"") as StringName
+	match ctype:
+		&"enemy", &"treachery", &"location", &"act", &"agenda", &"scenario":
+			return &"encounter"
+		_:
+			pass
+	## 剧情支援等：有遭遇组 + 玩家正面类型 → 常见遭遇卡背。
+	if str(data.get("encounter_code", "")) != "":
+		return &"encounter"
+	return &"player"
 
 
 static func resource_cost(definition_id: StringName) -> int:

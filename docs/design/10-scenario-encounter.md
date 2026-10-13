@@ -43,7 +43,7 @@ seq.draw.encounter
 | E5 Treachery | **G4** priority **80** discard |
 | E5 Enemy | **G4** priority **80** · 默认/指令 `spawn_from_encounter_draw` |
 | 涌动 | 本条 AFTER **之后**的延时 → 另开 `seq.draw.encounter`（§3.2）；**不是** G5 同帧再抽 |
-| Weakness 重定向 | `seq.draw.encounter.resolve_bound` → 同 priority 队列（skip G1） |
+| 已持有实例结算 | `seq.encounter.resolve_card` → 同 priority 队列（能力包；非重定向） |
 
 ### 2.1 Setup 与显现 / Surge（已裁决 OQ-10-01）
 
@@ -180,7 +180,7 @@ class ScenarioSystem:
 | ENC-01 | 遭遇空库洗弃，无 horror | discard → deck |
 | ENC-02 | Surge treachery | 抽取后延时另开指令，非同 frame 再抽 |
 | ENC-03 | Peril test | 他人不可 commit（04 §4.1） |
-| ENC-04 | encounter weakness 从 inv deck | `resolve_bound`，非 enter_hand |
+| ENC-04 | enemy/treachery 从 inv deck | `seq.encounter.resolve_card`，非 enter_hand |
 | ENC-08 | 无 Spawn enemy | spawn_engaged；无 Engage 子流程 |
 | ENC-11 | Spawn 无合法 location | encounter discard（`discard_spawn_failed`） |
 

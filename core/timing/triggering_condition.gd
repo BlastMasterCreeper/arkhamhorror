@@ -195,16 +195,17 @@ static func action_committed(
 	return t
 
 
-static func draw_encounter_resolve_bound(
+## 已持有实例 → 走遭遇侧能力体系结算（非「来源重定向」）。
+static func encounter_resolve_card(
 	drawer_id: StringName,
 	card_id: StringName,
-	after_timing: StringName = &"after_draw_encounter_bound"
+	after_timing: StringName = &"after_encounter_resolve_card"
 ) -> TriggeringCondition:
 	var t := TriggeringCondition.new()
-	t.id = StringName("enc_bound_%s_%d" % [card_id, Time.get_ticks_msec()])
-	t.kind = &"draw_encounter_resolve_bound"
+	t.id = StringName("enc_resolve_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"encounter_resolve_card"
 	t.controller_id = drawer_id
-	t.tags = [&"draw_encounter", &"weakness_encounter", &"ENCOUNTER_CARD_DRAWN"]
+	t.tags = [&"encounter", &"resolve_card", &"ENCOUNTER_CARD_DRAWN"]
 	t.after_timing = after_timing
 	t.payload = {"drawer_id": drawer_id, "card_id": card_id}
 	return t
@@ -222,6 +223,32 @@ static func keyword_surge(
 	t.tags = [&"keyword", &"surge"]
 	t.after_timing = after_timing
 	t.payload = {"drawer_id": drawer_id, "card_id": card_id}
+	return t
+
+
+static func keyword_hunter(
+	enemy_id: StringName,
+	after_timing: StringName = &"after_keyword_hunter"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("keyword_hunter_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"keyword_hunter"
+	t.tags = [&"keyword", &"hunter", &"move"]
+	t.after_timing = after_timing
+	t.payload = {"card_id": enemy_id, "enemy_id": enemy_id}
+	return t
+
+
+static func keyword_patrol(
+	enemy_id: StringName,
+	after_timing: StringName = &"after_keyword_patrol"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("keyword_patrol_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"keyword_patrol"
+	t.tags = [&"keyword", &"patrol", &"move"]
+	t.after_timing = after_timing
+	t.payload = {"card_id": enemy_id, "enemy_id": enemy_id}
 	return t
 
 
@@ -250,12 +277,39 @@ static func mythos_check_doom_threshold(
 static func investigation_phase_ends(
 	after_timing: StringName = &"after_investigation_phase_ends"
 ) -> TriggeringCondition:
+	return phase_boundary(&"investigation", &"ends", after_timing)
+
+
+static func phase_boundary_kind(phase: StringName, boundary: StringName) -> StringName:
+	return StringName("%s_phase_%s" % [phase, boundary])
+
+
+## 阶段边界（G6 · 单条 seq）：phase / boundary → params；kind 仍细分供 match_kind。
+static func phase_boundary(
+	phase: StringName,
+	boundary: StringName,
+	after_timing: StringName = &""
+) -> TriggeringCondition:
+	var kind := phase_boundary_kind(phase, boundary)
 	var t := TriggeringCondition.new()
-	t.id = StringName("investigation_phase_ends_%d" % Time.get_ticks_msec())
-	t.kind = &"investigation_phase_ends"
-	t.tags = [&"framework", &"investigation"]
-	t.after_timing = after_timing
+	t.id = StringName("%s_%d" % [kind, Time.get_ticks_msec()])
+	t.kind = kind
+	t.tags = [&"framework", &"phase_boundary", phase, boundary]
+	if after_timing == &"":
+		t.after_timing = StringName("after_%s" % kind)
+	else:
+		t.after_timing = after_timing
+	t.payload = {"phase": phase, "boundary": boundary}
 	return t
+
+
+static func phase_boundary_from_params(
+	params: Dictionary,
+	after_timing: StringName = &""
+) -> TriggeringCondition:
+	var phase: StringName = params.get("phase", &"") as StringName
+	var boundary: StringName = params.get("boundary", &"") as StringName
+	return phase_boundary(phase, boundary, after_timing)
 
 
 static func agenda_advance(
@@ -334,24 +388,14 @@ static func scenario_trigger_resolution(
 	return t
 
 
-static func enemy_3_2_hunter_patrol(
-	after_timing: StringName = &"after_enemy_3_2_hunter_patrol"
+static func enemy_3_2(
+	after_timing: StringName = &"after_enemy_3_2"
 ) -> TriggeringCondition:
+	## Framework 3.2 基础手续（Hunter/Patrol 关键词 resolve）；非关键词平行流程。
 	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_3_2_hunter_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_3_2_hunter_patrol"
-	t.tags = [&"enemy", &"framework", &"move", &"hunter"]
-	t.after_timing = after_timing
-	return t
-
-
-static func enemy_3_2_patrol(
-	after_timing: StringName = &"after_enemy_3_2_patrol"
-) -> TriggeringCondition:
-	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_3_2_patrol_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_3_2_patrol"
-	t.tags = [&"enemy", &"framework", &"move", &"patrol"]
+	t.id = StringName("enemy_3_2_%d" % Time.get_ticks_msec())
+	t.kind = &"enemy_3_2"
+	t.tags = [&"enemy", &"framework", &"move", &"hunter", &"patrol"]
 	t.after_timing = after_timing
 	return t
 
@@ -370,14 +414,17 @@ static func enemy_phase_attacks(
 	return t
 
 
-static func enemy_massive_phase_attacks(
-	after_timing: StringName = &"after_enemy_massive_phase_attacks"
+static func keyword_massive(
+	enemy_id: StringName,
+	after_timing: StringName = &"after_keyword_massive"
 ) -> TriggeringCondition:
+	## 庞大对阶段攻击的效果替换体（非平行 framework 流程）。
 	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_massive_phase_%d" % Time.get_ticks_msec())
-	t.kind = &"enemy_massive_phase_attacks"
-	t.tags = [&"enemy", &"framework", &"attack", &"massive"]
+	t.id = StringName("keyword_massive_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"keyword_massive"
+	t.tags = [&"keyword", &"massive", &"attack", &"replace"]
 	t.after_timing = after_timing
+	t.payload = {"card_id": enemy_id, "enemy_id": enemy_id}
 	return t
 
 
@@ -394,17 +441,132 @@ static func enemy_resolve_location(
 	return t
 
 
+## 搜寻（seq.effect.search）。
+## 广义区划迁移（seq.zone.move · 进场/离场信息别名）。
+static func zone_move(
+	params: Dictionary,
+	after_timing: StringName = &"after_zone_move"
+) -> TriggeringCondition:
+	var card_id: StringName = params.get("card_id", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("zone_move_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"zone_move"
+	t.tags = [&"zone_move"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+static func search(
+	params: Dictionary,
+	after_timing: StringName = &"after_search"
+) -> TriggeringCondition:
+	var controller: StringName = params.get(
+		"controller_id",
+		params.get("investigator_id", params.get("inv_id", &""))
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("search_%s_%d" % [controller, Time.get_ticks_msec()])
+	t.kind = &"search"
+	t.controller_id = controller
+	t.tags = [&"search", &"effect"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+## 横置（seq.effect.exhaust）。
+static func exhaust(
+	params: Dictionary,
+	after_timing: StringName = &"after_exhaust"
+) -> TriggeringCondition:
+	var kind := ExhaustReadyFlow.resolve_target_kind(params)
+	var target: StringName = params.get(
+		"enemy_id", params.get("card_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("exhaust_%s_%s_%d" % [kind, target, Time.get_ticks_msec()])
+	t.kind = &"exhaust"
+	t.tags = [&"exhaust", kind]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+## 重整（seq.effect.ready）。
+static func ready(
+	params: Dictionary,
+	after_timing: StringName = &"after_ready"
+) -> TriggeringCondition:
+	var kind := ExhaustReadyFlow.resolve_target_kind(params)
+	var target: StringName = params.get(
+		"enemy_id", params.get("card_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("ready_%s_%s_%d" % [kind, target, Time.get_ticks_msec()])
+	t.kind = &"ready"
+	t.tags = [&"ready", kind]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+## 狭义移动（seq.effect.move）：调查员 / 敌人 / 附属 / 标记。
+## 订阅用 tags（subject）二次过滤；勿再按主体拆 flow_id。
+static func move(
+	params: Dictionary,
+	after_timing: StringName = &"after_move"
+) -> TriggeringCondition:
+	var subject := MoveFlow.resolve_subject(params)
+	var dest: StringName = params.get(
+		"destination_id",
+		params.get("to", params.get("target_location", &""))
+	) as StringName
+	var entity: StringName = params.get(
+		"enemy_id",
+		params.get(
+			"investigator_id",
+			params.get(
+				"inv_id",
+				params.get("attachment_id", params.get("card_id", &""))
+			)
+		)
+	) as StringName
+	var move_kind := MoveFlow.resolve_move_kind(params)
+	var t := TriggeringCondition.new()
+	t.id = StringName(
+		"move_%s_%s_%s_%s_%d" % [move_kind, subject, entity, dest, Time.get_ticks_msec()]
+	)
+	t.kind = &"move"
+	t.tags = [&"move", subject, move_kind]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	t.payload["move_kind"] = move_kind
+	if subject == MoveFlow.SUBJECT_INVESTIGATOR and entity != &"":
+		t.controller_id = entity
+	return t
+
+
 static func enemy_move(
 	enemy_id: StringName,
-	after_timing: StringName = &"after_enemy_move"
+	after_timing: StringName = &"after_move"
 ) -> TriggeringCondition:
-	var t := TriggeringCondition.new()
-	t.id = StringName("enemy_move_%s_%d" % [enemy_id, Time.get_ticks_msec()])
-	t.kind = &"enemy_move"
-	t.tags = [&"enemy", &"move"]
-	t.after_timing = after_timing
-	t.payload = {"enemy_id": enemy_id}
-	return t
+	return move({"subject": MoveFlow.SUBJECT_ENEMY, "enemy_id": enemy_id}, after_timing)
+
+
+static func investigator_move(
+	investigator_id: StringName,
+	destination_id: StringName = &"",
+	after_timing: StringName = &"after_move"
+) -> TriggeringCondition:
+	return move(
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": investigator_id,
+			"destination_id": destination_id,
+		},
+		after_timing
+	)
 
 
 static func engage(
@@ -414,11 +576,12 @@ static func engage(
 	var t := TriggeringCondition.new()
 	var location_tag: StringName = params.get("location_tag", &"")
 	var enemy_id: StringName = params.get("enemy_id", &"")
+	var mode: StringName = params.get("mode", &"auto") as StringName
 	t.id = StringName(
 		"engage_%s_%s_%d" % [location_tag, enemy_id, Time.get_ticks_msec()]
 	)
 	t.kind = &"engage"
-	t.tags = [&"engage"]
+	t.tags = [&"engage", mode]
 	t.after_timing = after_timing
 	t.payload = params.duplicate()
 	return t
@@ -456,6 +619,51 @@ static func enemy_defeated(
 		"location_id": location_id,
 		"definition_id": definition_id,
 	}
+	return t
+
+
+## 击败效果（seq.effect.defeat · 敌人/调查员）。
+static func defeat(
+	params: Dictionary,
+	after_timing: StringName = &"after_defeat"
+) -> TriggeringCondition:
+	var subject: StringName = params.get("subject", &"") as StringName
+	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
+	if subject == &"" and enemy_id != &"":
+		return enemy_defeated(
+			enemy_id,
+			params.get("location_id", &"") as StringName,
+			params.get("definition_id", &"") as StringName,
+			after_timing
+		)
+	var inv_id: StringName = params.get(
+		"investigator_id", params.get("inv_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName(
+		"defeat_%s_%s_%d"
+		% [subject, enemy_id if enemy_id != &"" else inv_id, Time.get_ticks_msec()]
+	)
+	t.kind = &"defeat"
+	t.tags = [&"defeat", &"effect", subject]
+	t.controller_id = inv_id
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+## 击败成功后的退场 nest（seq.defeat.leave_play）。
+static func defeat_leave_play(
+	params: Dictionary,
+	after_timing: StringName = &"after_defeat_leave_play"
+) -> TriggeringCondition:
+	var subject: StringName = params.get("subject", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("defeat_leave_%s_%d" % [subject, Time.get_ticks_msec()])
+	t.kind = &"defeat_leave_play"
+	t.tags = [&"defeat", &"leave_play", subject]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
 	return t
 
 
@@ -622,30 +830,31 @@ static func effect_unregister(
 static func discard_card(
 	controller_id: StringName,
 	card_id: StringName = &"",
-	after_timing: StringName = &"after_discard_card"
+	after_timing: StringName = &"after_discard_card",
+	from_zone: StringName = &"",
+	amount: int = 1,
+	mode: StringName = &"choose"
 ) -> TriggeringCondition:
+	var tags: Array[StringName] = [&"effect", &"discard_card"]
+	if from_zone == &"hand":
+		tags.append(&"from_hand")
 	return _effect(
 		&"discard_card",
 		controller_id,
-		[&"effect", &"discard_card"],
+		tags,
 		after_timing,
-		{"card_id": card_id}
+		{"card_id": card_id, "from": from_zone, "amount": amount, "mode": mode}
 	)
 
 
+## 兼容旧工厂：统一为 discard_card + from=hand。
 static func discard_from_hand(
 	controller_id: StringName,
 	amount: int = 1,
 	mode: StringName = &"random",
-	after_timing: StringName = &"after_discard_from_hand"
+	after_timing: StringName = &"after_discard_card"
 ) -> TriggeringCondition:
-	return _effect(
-		&"discard_from_hand",
-		controller_id,
-		[&"effect", &"discard_from_hand"],
-		after_timing,
-		{"amount": amount, "mode": mode}
-	)
+	return discard_card(controller_id, &"", after_timing, &"hand", amount, mode)
 
 
 static func attach_card(

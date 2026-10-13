@@ -537,7 +537,7 @@ Would / When 由 TC 槽位决定；发起 impact **写入** zone，因此各槽�
 | **ENCOUNTER_CARD_DRAWN** | `seq.draw.encounter` | **G1 commit** 打开卡牌结算队列；「抽取时」= 其中 When 95 |
 | **ENCOUNTER_CARD_RESOLVED** | `seq.draw.encounter` G4 | 75 档 = **抽取后**（`after_encounter_card_resolved`） |
 | **ENCOUNTER_REVELATION_COMMITTED** | `seq.encounter.revelation` | 遭遇显现 nest；priority **90**；**非** `seq.enter_hand` |
-| **MOVE_INTENT_COMMITTED** | `seq.action.move` | from/to **已确定**；leave+enter **规则上同时**（一个 brick） |
+| **MOVE_INTENT_COMMITTED** | `seq.effect.move`（行动 / 卡面 nest；含敌/附属/标记） | 狭义移动 from/to **已确定**；leave+enter **规则上同时**（一个 brick）；**不含**地点交换 |
 | **FIGHT_COMMITTED** | `seq.action.fight` | Fight 行动 **开始 RESOLVE**；默认与内嵌 test 的 AFTER **merge**（§7） |
 | **GAIN_COMMITTED** | `seq.gain_resource`（设计别名 `seq.action.gain_resource`） | 一次 gain 结算 commit（已实现竖切） |
 | **REVEAL_COMMITTED** | `seq.encounter.reveal` | 遭遇显现；`pre_impact=SPLIT` |
@@ -827,7 +827,7 @@ var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
 
 | | `seq.draw.investigator` | `seq.draw.encounter`（§17） |
 |---|---|---|
-| 来源 | 调查员 deck | encounter deck（或 weakness 重定向，§17.6） |
+| 来源 | 调查员 deck（collect）；结算按能力包 §17.6 | encounter deck（collect）；结算按能力包 §17.6 |
 | 牌面默认 | D2 → **CONTROLLER** | E2 → **ALL**（Hidden 例外，§17.2） |
 | Revelation | **D3** 经 `nest_batch seq.enter_hand` | E4 经 **`seq.encounter.revelation`** |
 | 空库 | 洗弃 + 1 horror | 洗遭遇弃牌堆，**无 horror** |
@@ -836,15 +836,15 @@ var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
 | AFTER 槽 | 显现 nest 完 = **抽取后** | G4 后 75 档 = **抽取后**；E7 是批量信封 |
 
 **Weakness（卡子类型）** 与 **Revelation（能力类型）** 正交（Grimoire Glossary 分列）。  
-**Weakness 按 cardtype 分流**（Grimoire *Weakness*）：**仅 encounter cardtype**（enemy / treachery）走遭遇管线；**player cardtype**（asset / event / skill 等）走调查员 draw + 入手。
+**抽出后按卡面能力结算**：不同类型自带默认能力体系（§17.6）；**不是**按抽牌来源「重定向」。Weakness 只影响 owner/bearer 等，不另开管线。
 
-| Weakness cardtype | 从调查员 deck 抽出时 | Revelation | 入手后 |
+| 默认能力包（cardtype） | 抽出后 | Revelation | 之后 |
 |---|---|---|---|
-| **Enemy / Treachery**（遭遇型） | **重定向** §17.6 → `resolve_bound`；**非** D2–D3 | E4 `seq.encounter.revelation` | enemy spawn / treachery discard 等（§17 E5） |
-| **Asset**（支援型弱点） | **本节** D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **asset** 使用（play 进 play area / 槽位） |
-| **Event**（事件型弱点） | **本节** D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **event** 从 hand play |
-| **Skill**（技能型弱点） | **本节** D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **skill** commit 至检定（**不能** play） |
-| **任意 player 型，无 Revelation** | D2–D3 仅 zone→hand | 无 nest | 留在 hand；**不可** 主动 discard（除非卡牌另说） |
+| **Enemy / Treachery / Location** | `seq.encounter.resolve_card`（遭遇侧；**非** D2–D3） | E4 `seq.encounter.revelation` | spawn / discard / **地点进场**（§17 E5） |
+| **Asset** | 调查员 D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **asset** 使用 |
+| **Event** | 调查员 D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **event** 从 hand play |
+| **Skill** | 调查员 D2–D3 | 若有 → D3 `seq.enter_hand` | 作 **skill** commit（**不能** play） |
+| **player 型，无 Revelation** | D2–D3 仅 zone→hand | 无 nest | 留在 hand |
 
 | 情况（非 weakness 维度） | 行为 |
 |---|---|
@@ -1030,8 +1030,8 @@ seq.encounter.spawn              # RUN · nest · priority 80 结算体（非第
     # 默认生成（无 Spawn 文本）→ spawn_engaged | spawn_at_location(Aloof)
     # 指令生成（Spawn –）→ resolve_spawn_location → spawn_at_location + optional auto_engage
 
-seq.draw.encounter.resolve_bound   # RUN · weakness 重定向
-  bind card_id → 同上 priority 队列（skip G1）
+seq.encounter.resolve_card         # RUN · 已持有实例 → 遭遇侧能力体系（同 priority 队列；非来源重定向）
+  enter_limbo(card_id) → 同上 priority 队列
 
 seq.encounter.revelation           # RUN · nest · priority 90 结算体（非第二 timing 锚）
 ```
@@ -1359,69 +1359,65 @@ const ENCOUNTER_SHUFFLES := &"encounter_shuffles"
 
 **嵌套检定**：revelation 内 skill test 走 `seq.skill_test.*` nest；ST.8 后入队仍属 **同一 frame**（OQ-04-02 已裁决）。
 
-### 17.6 Weakness 与跨管线重定向
+### 17.6 抽出结算 = 卡面能力（类型自带默认能力体系）
 
-> **Grimoire**：*Weaknesses are resolved differently depending upon their **cardtype**.*  
-> **Encounter cardtype**（enemy / treachery weakness）≈ 遭遇抽牌；**Player cardtype**（asset / event / skill weakness）≈ 调查员抽牌 + 入手。
+> **已裁决**：处理方式以 **卡面能力** 为准；不同类型有自带的一套能力体系。  
+> **废除**「按抽牌来源重定向 / `resolve_bound` / `WeaknessRoute`」。  
+> Grimoire *Weaknesses are resolved differently depending upon their cardtype* 应读作：**类型默认能力包不同**，不是 weakness 专用旁路。
 
-#### 17.6.1 路由判定（引擎）
+#### 17.6.1 能力包判定（引擎 · `CardAbilityPackage`）
 
-**第一键 = `CardDefinition.cardtype`**，**第二键 = `is_weakness` 子类型**；**不**用 weakness 子类型 alone 推断管线。
+**键 = 卡面能力体系**；类型给出默认包。**不**以 `is_weakness`、**不**以抽牌来源为第一键。
 
 ```gdscript
-enum WeaknessRoute { INVESTIGATOR_DRAW, ENCOUNTER_DRAW, AS_IF_ENCOUNTER }
+enum Package { INVESTIGATOR, ENCOUNTER }
 
-func weakness_route(def: CardDefinition) -> WeaknessRoute:
-    if not def.is_weakness:
-        return INVESTIGATOR_DRAW   # 非 weakness；普通玩家牌
-    match def.cardtype:
-        AhcEnums.CardType.ENEMY, AhcEnums.CardType.TREACHERY:
-            return ENCOUNTER_DRAW
-        AhcEnums.CardType.ASSET, AhcEnums.CardType.EVENT, AhcEnums.CardType.SKILL:
-            return INVESTIGATOR_DRAW
+func package_for_definition(def_id) -> Package:
+    # 只认显式印刷 card_type；未印刷 ≠ CardRegistry 缺省 treachery
+    match printed_card_type(def_id):
+        &"enemy", &"treachery", &"location":
+            return ENCOUNTER
         _:
-            return INVESTIGATOR_DRAW   # 其它 player 印刷类型；默认调查员线
+            return INVESTIGATOR
 ```
 
-| cardtype | 典型印刷 | 管线 | 牌面 reveal（从 deck 抽） |
+| cardtype | 默认能力包 | 结算入口 | G4 默认（显现后仍 limbo） |
 |---|---|---|---|
-| **ENEMY** weakness | 弱点敌人 | `resolve_bound` → E2–E6 | E2 **ALL**（遭遇规则） |
-| **TREACHERY** weakness | 弱点诡计 | 同上 | E2 ALL 或 Hidden 分支 |
-| **ASSET** weakness | 诅咒资产、故事弱点资产 | D2–D3 + `seq.enter_hand` | D2 **CONTROLLER** |
-| **EVENT** weakness | 事件型弱点 | D2–D3 + `seq.enter_hand` | D2 CONTROLLER |
-| **SKILL** weakness | 技能型弱点 | D2–D3 + `seq.enter_hand` | D2 CONTROLLER |
+| **ENEMY** | ENCOUNTER | `seq.encounter.resolve_card` → E2–E6 | spawn |
+| **TREACHERY** | ENCOUNTER | 同上 | finalize → 遭遇弃牌堆 |
+| **LOCATION** | ENCOUNTER | 同上（特殊冒险可抽；常带显现入场） | **进场**（LOCATION_AREA）；显现已入场则跳过 |
+| **ASSET / EVENT / SKILL** | INVESTIGATOR | D2–D3 + `seq.enter_hand`（若有显现） | — |
 
-**Player cardtype weakness** 入手后按 **该 cardtype** 正常打牌（Grimoire：*used as any other player card of its cardtype*）；**不**进 encounter discard（除非 defeat 等另定规则）。
+可抽遭遇类型 = **诡计 / 敌人 / 地点**（前两者为遭遇库大宗）。Weakness 只调 owner/bearer/战役残留，不另开管线。
 
-#### 17.6.2 来源与入口
+#### 17.6.2 入口（来源只影响 collect / 默认 owner）
 
-| 来源 | 路由 |
+| 入口 | 行为 |
 |---|---|
-| Mythos 1.4 / 效果「draw encounter」 | 正常 `seq.draw.encounter` |
-| 调查员 deck **D1 pop** + **encounter cardtype** weakness | **重定向** `resolve_bound`；skip E1；abort 调查员 D2 |
-| 调查员 deck **D1 pop** + **player cardtype** weakness | **不**重定向；完整 D2–D3 + `seq.enter_hand`（若有 Revelation） |
-| Weakness **非 draw** 入手（search/add 等） | player 型：`seq.enter_hand` / as-if-drawn 调查员线；encounter 型：`resolve_bound`（Grimoire as if drawn from encounter deck） |
+| Mythos 1.4 /「draw encounter」 | `seq.draw.encounter` collect 后 → 卡面能力包 |
+| 调查员 deck D1 pop → ENCOUNTER 包 | nest `seq.encounter.resolve_card`；**不**进 draw_pending / D2 |
+| 调查员 deck D1 pop → INVESTIGATOR 包 | 完整 D2–D3（含 player 型 weakness） |
+| 已持有实例（setup / 弃牌再结算 / search 取出等） | 直接 `seq.encounter.resolve_card` 或调查员入手线 |
 | Setup mulligan 抽到 weakness | set aside redraw；**不** resolve（[11 §6](11-investigator-campaign.md)） |
 
 ```text
 seq.draw.investigator RESOLVE (D1 collect_one_step):
   card_id := pop_deck_top(...)
-  match weakness_route(card.definition):
-    ENCOUNTER_DRAW:
-      nest seq.draw.encounter.resolve_bound
-        { drawer_id: inv_id, card_id, skip_collect: true }
-      return   # 本张 **不** 进入 draw_pending / D2 reveal_batch
-    INVESTIGATOR_DRAW:
-      append draw_pending; continue  # 含 asset/event/skill weakness
+  match CardAbilityPackage.package_for_card(...):
+    ENCOUNTER:
+      nest seq.encounter.resolve_card { drawer_id, card_id }
+      return   # 不进 draw_pending
+    INVESTIGATOR:
+      append draw_pending; continue
 ```
 
-`resolve_bound` → **`resolve_card_body`**（§17.4）；与主循环 **同一** E2–E6 实现。
+`seq.encounter.resolve_card` → 与遭遇抽牌后 **同一** priority 队列 / 能力体（§17.4）。
 
 #### 17.6.3 Owner 与弃牌堆（spawn 失败 / defeat）
 
-| Weakness cardtype | `owner_id` | spawn 失败 discard | defeat 默认 |
+| 情形 | `owner_id` | spawn 失败 discard | defeat 默认 |
 |---|---|---|---|
-| Encounter 型 | **bearer** 调查员 | bearer **discard**（08 §7.4） | owner discard 或 encounter discard 视 defeat 规则 |
+| Weakness · Encounter 包 | **bearer** 调查员 | bearer **discard**（08 §7.4） | owner discard 或 encounter discard 视 defeat 规则 |
 | Player 型 | bearer | 不适用（无 spawn） | owner discard |
 
 ---
@@ -1552,11 +1548,11 @@ static func encounter_revelation(
 ) -> TriggeringCondition
 # kind = &"encounter_revelation"; nest 于 E4
 
-static func draw_encounter_resolve_bound(
+static func encounter_resolve_card(
     drawer_id: StringName,
     card_id: StringName
 ) -> TriggeringCondition
-# weakness 重定向；tags 含 &"weakness_encounter"
+# 已持有实例 → 遭遇侧能力体系；tags 含 &"resolve_card"
 ```
 
 **ApplicationContext.tags**（frame 注入，供 Peril / Eligibility）：
@@ -1617,7 +1613,7 @@ P-ENC-2  EncounterDrawPriorityPolicy + peril Register（WHILE_DRAWN_CARD_RESOLVI
 P-ENC-3  seq.draw.encounter RUN + DrawEncounterService + ScenarioSystem 接线
 P-ENC-4  revelation nest + priority 80 spawn（默认/指令分支）
 P-ENC-5  Surge priority 70 + peril 不跨 Surge 断言（PERIL-04/05）
-P-ENC-6  resolve_bound（weakness 重定向）+ 11 §10 路由
+P-ENC-6  seq.encounter.resolve_card（能力包）+ 11 §10
 P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 ```
 
@@ -1674,7 +1670,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | `seq.enter_hand` | NEST_BATCH | 入手 timing + Revelation Composition（**玩家牌**） |
 | `seq.gain_resource` | RUN | 资源 gain + modifier |
 | `seq.draw.encounter` | RUN | 遭遇抽 N；E1 内联；Surge 同 frame |
-| `seq.draw.encounter.resolve_bound` | RUN（重定向） | weakness → `resolve_card_body` |
+| `seq.encounter.resolve_card` | RUN | 已持有实例 → 遭遇侧能力体系（同 `resolve_card_body`） |
 | `seq.encounter.revelation` | RUN（nest） | priority **90** 结算体（`ENCOUNTER_CARD_DRAWN`） |
 | `seq.encounter.spawn` | RUN（nest） | priority **80** 敌人生成结算体（`ENCOUNTER_CARD_DRAWN`）；默认/指令共用 |
 
@@ -1706,7 +1702,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | ENC-26 | `discard_encounter_from_hand` 合法离手 → 遭遇弃牌堆 |
 | ENC-27 | 淘汰 → 手牌隐私遭遇 → 遭遇弃牌堆 |
 | ENC-06 | E2 默认 ALL；Hidden 不公开 |
-| ENC-07 | encounter cardtype weakness 从 inv deck 重定向 resolve_bound |
+| ENC-07 | enemy/treachery 从 inv deck → encounter 能力包 resolve_card |
 | ENC-08 | 无 Spawn enemy draw | `spawn_engaged`；不调用 auto engage / Engage action |
 | ENC-09 | 有 Spawn + 非 Aloof | spawn_at_location 后 `auto_engage_at_location` |
 | ENC-10 | Aloof encounter draw（无 Spawn） | unengaged at drawer location；不进 threat area |
@@ -1714,11 +1710,11 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | ENC-12 | Weakness enemy spawn 失败 | → bearer **investigator discard** |
 | ENC-13 | Hidden treachery | E2 不 ALL；E4 秘密 hand；E5 不 discard |
 | ENC-14 | Cancel treachery 效果 | 仍 encounter discard；仍算 drawn |
-| ENC-15 | `resolve_bound` vs 主 draw | 同一 `resolve_card_body` |
-| WKN-01 | Asset weakness + Revelation | 调查员 D3 `enter_hand`；非 encounter 管线 |
+| ENC-15 | `resolve_card` vs 主 draw | 同一 `resolve_card_body` |
+| WKN-01 | Asset weakness + Revelation | 调查员 D3 `enter_hand`；INVESTIGATOR 包 |
 | WKN-02 | Event weakness 无 Revelation | D3 hand only |
-| WKN-03 | Enemy weakness from inv deck | `resolve_bound` / E5 spawn |
-| WKN-04 | Skill weakness | D3 hand；player cardtype 规则 |
+| WKN-03 | Enemy weakness from inv deck | `seq.encounter.resolve_card` / E5 spawn |
+| WKN-04 | Skill weakness | D3 hand；INVESTIGATOR 包 |
 
 ---
 
