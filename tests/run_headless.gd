@@ -6243,18 +6243,19 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 
 func _test_g6_phase_boundary_catalog() -> bool:
 	var h := RuleTestHarness.new(42)
-	for flow_id in PhaseBoundaryFlow.ALL_FLOWS:
-		if not h.ctx.sequence_catalog.has_flow(flow_id):
-			return false
+	var mythos_begins := PhaseBoundaryFlow.params_for_step(
+		AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS
+	)
+	var inv_ends := PhaseBoundaryFlow.params_for_step(
+		AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS
+	)
 	return (
-		PhaseBoundaryFlow.flow_for_step(AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS)
-		== PhaseBoundaryFlow.FLOW_MYTHOS_BEGINS
-		and PhaseBoundaryFlow.flow_for_step(AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS)
-		== PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS
-		and PhaseBoundaryFlow.flow_for_step(AhcEnums.FrameworkStep.ENEMY_3_4_PHASE_ENDS)
-		== PhaseBoundaryFlow.FLOW_ENEMY_ENDS
-		and PhaseBoundaryFlow.flow_for_step(AhcEnums.FrameworkStep.UPKEEP_4_1_PHASE_BEGINS)
-		== PhaseBoundaryFlow.FLOW_UPKEEP_BEGINS
+		h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW)
+		and h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS_ALIAS)
+		and mythos_begins.get("phase", &"") == PhaseBoundaryFlow.PHASE_MYTHOS
+		and mythos_begins.get("boundary", &"") == PhaseBoundaryFlow.BOUNDARY_BEGINS
+		and inv_ends.get("phase", &"") == PhaseBoundaryFlow.PHASE_INVESTIGATION
+		and inv_ends.get("boundary", &"") == PhaseBoundaryFlow.BOUNDARY_ENDS
 	)
 
 

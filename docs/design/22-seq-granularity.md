@@ -206,7 +206,7 @@
 | `seq.mythos.check_doom_threshold` | 1.3 | **保留** |
 | `seq.agenda.advance` / `seq.act.advance` | Agenda/Act advance | **保留** |
 | `seq.act_agenda.resolve_back` | 背面结算 | **保留** |
-| `seq.framework.*_phase_begins` / `*_phase_ends` | 各阶段 1.x / 2.x / 3.x / 4.x 边界 | **已铸**（G6）；仅 WHEN/AFTER 钩；步进仍在 Framework |
+| `seq.framework.phase_boundary` | 各阶段 begins/ends | **已铸**（G6 · **一条**）；`phase`+`boundary` params；TC.kind 仍细分；旧 `investigation_phase_ends` 别名 |
 | `seq.interrupt.cancel` / `ignore` | Cancel / Ignore | **保留** |
 | `seq.replace.instead` | Instead / Would | **保留** |
 | `seq.ability.resolve` | Initiation 装载 | **保留**（工程帧，非词条） |
@@ -246,7 +246,7 @@
 | G3 | **Search** | **已铸** `seq.effect.search` | 单条；`area`/`scope`/`amount`/`filter`/`take_count`；搜牌库须洗（整库/顶 N）；≠ look/find |
 | G4 | **Put into play / Enter play** | 区划事实（场外→场上） | **不铸** `seq.effect.enter_play` — **不是效果**；见下「进场」 |
 | G5 | **Defeat**（击败） | **已铸** `seq.effect.defeat`；敌人别名 `seq.enemy.defeat`；退场 nest `seq.defeat.leave_play` | 伤/恐上限常态检测；Cancel → 无退场；卡面 `cause=effect` |
-| G6 | **Phase begins/ends** | **已铸** 四阶段 × begins/ends | `seq.framework.{mythos,investigation,enemy,upkeep}_phase_{begins,ends}`；框架步进进入时 `run` |
+| G6 | **Phase begins/ends** | **已铸** 单条 `seq.framework.phase_boundary` | params：`phase` × `boundary`；框架步进进入时 `run`；订阅靠 TC.kind |
 | G7 | **Attack of opportunity** | 行动 Initiation 内联 | 保持内联，除非卡面大量订「after AOO」且难过滤 |
 | G8 | **Play（打出）** | 刻意非 seq（`PLAY_CARD`） | **不铸** `seq.play` 进命名流程表（17 已裁） |
 | G9 | **Commit** | ST.2 内 | **不另铸**；订检定窗即可 |
@@ -286,7 +286,7 @@
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
 8. ~~**G4**~~：**已裁决并落地** — `seq.zone.move`；进场/离场 = 过滤别名；**不铸** `seq.effect.enter_play`  
 9. ~~**G5**~~：**已落地** — `seq.effect.defeat` + nest `seq.defeat.leave_play`；敌人别名保留；伤/恐常态检测  
-9b. ~~**G6**~~：**已落地** — 四阶段 `seq.framework.*_phase_{begins,ends}` |
+9b. ~~**G6**~~：**已落地** — 单条 `seq.framework.phase_boundary`（phase/boundary params） |
 10. ~~**`resolve_bound` / `resolve_location`**~~：**已裁决** — 废除重定向；抽出按**卡面能力**（类型默认能力包）结算 → `seq.encounter.resolve_card`。`resolve_location` 仍可降内部（落点辅助）。  
 11. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
 
@@ -329,4 +329,4 @@
 | 2026-10-12 | G5 落地：`DefeatFlow`；`seq.effect.defeat` / `seq.enemy.defeat`；nest `seq.defeat.leave_play` |
 | 2026-10-12 | G5：支援资产 `subject=asset`；退场 L0 进弃牌堆，不走 discard 效果包装 |
 | 2026-10-13 | G4 落地：`seq.zone.move`；进场/离场 = 过滤别名 |
-| 2026-10-13 | G6 落地：四阶段 `seq.framework.*_phase_{begins,ends}`；框架步进进入时 emit |
+| 2026-10-13 | G6 落地：单条 `seq.framework.phase_boundary`；旧 investigation_phase_ends 别名 |

@@ -1,67 +1,66 @@
 class_name PhaseBoundaryFlow
 extends RefCounted
 
-## 阶段边界钩子 · `seq.framework.*_phase_{begins,ends}`。
-## 仅提供 WHEN/AFTER 订点；框架步进本身仍在 FrameworkFlowEngine。
+## 阶段边界钩子 · 单条 `seq.framework.phase_boundary`。
+## params：`phase` = mythos|investigation|enemy|upkeep；`boundary` = begins|ends。
+## TC.kind 仍为 `{phase}_phase_{boundary}`，供 Forced match_kind 过滤（如 Fire!）。
 
-const FLOW_MYTHOS_BEGINS := &"seq.framework.mythos_phase_begins"
-const FLOW_MYTHOS_ENDS := &"seq.framework.mythos_phase_ends"
-const FLOW_INVESTIGATION_BEGINS := &"seq.framework.investigation_phase_begins"
-const FLOW_INVESTIGATION_ENDS := &"seq.framework.investigation_phase_ends"
-const FLOW_ENEMY_BEGINS := &"seq.framework.enemy_phase_begins"
-const FLOW_ENEMY_ENDS := &"seq.framework.enemy_phase_ends"
-const FLOW_UPKEEP_BEGINS := &"seq.framework.upkeep_phase_begins"
-const FLOW_UPKEEP_ENDS := &"seq.framework.upkeep_phase_ends"
+const FLOW := &"seq.framework.phase_boundary"
+## 旧 id 别名（调查结束）；仍转发到本条 + 固定 params。
+const FLOW_INVESTIGATION_ENDS_ALIAS := &"seq.framework.investigation_phase_ends"
 
-const ALL_FLOWS: Array[StringName] = [
-	FLOW_MYTHOS_BEGINS,
-	FLOW_MYTHOS_ENDS,
-	FLOW_INVESTIGATION_BEGINS,
-	FLOW_INVESTIGATION_ENDS,
-	FLOW_ENEMY_BEGINS,
-	FLOW_ENEMY_ENDS,
-	FLOW_UPKEEP_BEGINS,
-	FLOW_UPKEEP_ENDS,
-]
+const PHASE_MYTHOS := &"mythos"
+const PHASE_INVESTIGATION := &"investigation"
+const PHASE_ENEMY := &"enemy"
+const PHASE_UPKEEP := &"upkeep"
+const BOUNDARY_BEGINS := &"begins"
+const BOUNDARY_ENDS := &"ends"
 
 
-static func flow_for_step(step: AhcEnums.FrameworkStep) -> StringName:
+static func params_for_step(step: AhcEnums.FrameworkStep) -> Dictionary:
 	match step:
 		AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS:
-			return FLOW_MYTHOS_BEGINS
+			return {"phase": PHASE_MYTHOS, "boundary": BOUNDARY_BEGINS}
 		AhcEnums.FrameworkStep.MYTHOS_1_5_PHASE_ENDS:
-			return FLOW_MYTHOS_ENDS
+			return {"phase": PHASE_MYTHOS, "boundary": BOUNDARY_ENDS}
 		AhcEnums.FrameworkStep.INV_2_1_PHASE_BEGINS:
-			return FLOW_INVESTIGATION_BEGINS
+			return {"phase": PHASE_INVESTIGATION, "boundary": BOUNDARY_BEGINS}
 		AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS:
-			return FLOW_INVESTIGATION_ENDS
+			return {"phase": PHASE_INVESTIGATION, "boundary": BOUNDARY_ENDS}
 		AhcEnums.FrameworkStep.ENEMY_3_1_PHASE_BEGINS:
-			return FLOW_ENEMY_BEGINS
+			return {"phase": PHASE_ENEMY, "boundary": BOUNDARY_BEGINS}
 		AhcEnums.FrameworkStep.ENEMY_3_4_PHASE_ENDS:
-			return FLOW_ENEMY_ENDS
+			return {"phase": PHASE_ENEMY, "boundary": BOUNDARY_ENDS}
 		AhcEnums.FrameworkStep.UPKEEP_4_1_PHASE_BEGINS:
-			return FLOW_UPKEEP_BEGINS
+			return {"phase": PHASE_UPKEEP, "boundary": BOUNDARY_BEGINS}
 		AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
-			return FLOW_UPKEEP_ENDS
-	return &""
+			return {"phase": PHASE_UPKEEP, "boundary": BOUNDARY_ENDS}
+	return {}
 
 
 static func emit_for_step(game_ctx: GameContext, step: AhcEnums.FrameworkStep) -> Dictionary:
-	var flow_id := flow_for_step(step)
-	if flow_id == &"":
+	var params := params_for_step(step)
+	if params.is_empty():
 		return {"ok": false, "skipped": true}
-	return emit(game_ctx, flow_id)
+	return emit(game_ctx, params)
 
 
-static func emit(game_ctx: GameContext, flow_id: StringName) -> Dictionary:
+static func emit(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if (
 		game_ctx != null
 		and game_ctx.sequence_catalog != null
-		and game_ctx.sequence_catalog.has_flow(flow_id)
+		and game_ctx.sequence_catalog.has_flow(FLOW)
 	):
-		return game_ctx.sequence_catalog.run(game_ctx, flow_id, {})
-	return {"ok": true, "flow_id": flow_id}
+		return game_ctx.sequence_catalog.run(game_ctx, FLOW, params)
+	return resolve(game_ctx, params)
 
 
 static func resolve(_game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	return {"ok": true, "flow_id": params.get("flow_id", &"")}
+	var phase: StringName = params.get("phase", &"") as StringName
+	var boundary: StringName = params.get("boundary", &"") as StringName
+	return {
+		"ok": phase != &"" and boundary != &"",
+		"phase": phase,
+		"boundary": boundary,
+		"kind": TriggeringCondition.phase_boundary_kind(phase, boundary),
+	}

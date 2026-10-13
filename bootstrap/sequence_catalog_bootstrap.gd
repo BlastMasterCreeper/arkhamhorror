@@ -390,47 +390,25 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 
 
 static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
-	## G6：四阶段 begins/ends 钩子（仅 WHEN/AFTER；步进仍在 FrameworkFlowEngine）。
-	_register_phase_boundary(
-		catalog, PhaseBoundaryFlow.FLOW_MYTHOS_BEGINS, &"mythos", &"begins"
-	)
-	_register_phase_boundary(
-		catalog, PhaseBoundaryFlow.FLOW_MYTHOS_ENDS, &"mythos", &"ends"
-	)
-	_register_phase_boundary(
-		catalog, PhaseBoundaryFlow.FLOW_INVESTIGATION_BEGINS, &"investigation", &"begins"
-	)
-	_register_phase_boundary(
-		catalog, PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS, &"investigation", &"ends"
-	)
-	_register_phase_boundary(
-		catalog, PhaseBoundaryFlow.FLOW_ENEMY_BEGINS, &"enemy", &"begins"
-	)
-	_register_phase_boundary(
-		catalog, PhaseBoundaryFlow.FLOW_ENEMY_ENDS, &"enemy", &"ends"
-	)
-	_register_phase_boundary(
-		catalog, PhaseBoundaryFlow.FLOW_UPKEEP_BEGINS, &"upkeep", &"begins"
-	)
-	_register_phase_boundary(
-		catalog, PhaseBoundaryFlow.FLOW_UPKEEP_ENDS, &"upkeep", &"ends"
-	)
-
-
-static func _register_phase_boundary(
-	catalog: SequenceCatalog,
-	flow_id: StringName,
-	phase: StringName,
-	boundary: StringName
-) -> void:
+	## G6：单条阶段边界；phase/boundary → params；TC.kind 仍细分。
+	var phase_build := func(params: Dictionary) -> TriggeringCondition:
+		return TriggeringCondition.phase_boundary_from_params(params)
+	var phase_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return PhaseBoundaryFlow.resolve(game_ctx, params)
+	catalog.register_run(PhaseBoundaryFlow.FLOW, phase_build, phase_resolve)
+	## 旧 id：调查结束别名 → 固定 params。
 	catalog.register_run(
-		flow_id,
+		PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS_ALIAS,
 		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.phase_boundary(phase, boundary),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			var p := params.duplicate() if params != null else {}
-			p["flow_id"] = flow_id
-			return PhaseBoundaryFlow.resolve(game_ctx, p)
+			return TriggeringCondition.investigation_phase_ends(),
+		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			return PhaseBoundaryFlow.resolve(
+				game_ctx,
+				{
+					"phase": PhaseBoundaryFlow.PHASE_INVESTIGATION,
+					"boundary": PhaseBoundaryFlow.BOUNDARY_ENDS,
+				}
+			)
 	)
 	catalog.register_run(
 		&"seq.mythos.place_doom",
