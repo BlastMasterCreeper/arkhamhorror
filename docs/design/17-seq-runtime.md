@@ -103,7 +103,7 @@
 | # | 项 | 说明 |
 |---|---|---|
 | I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **落在已压栈手续** 内解释（§4.0.5 为「是」才 nest 子帧） |
-| I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3 |
+| I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3；抽查纪要 [23](23-vacuum-audit.md) |
 | I3 | PlayerWindow | Framework / ST 开窗 → 窗口内走 W1–W3 |
 
 ### 3.7 测试
