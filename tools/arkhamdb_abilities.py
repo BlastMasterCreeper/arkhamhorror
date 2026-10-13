@@ -657,7 +657,7 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
             },
             {
                 "template": "nest_enemy_move_to",
-                "flow_id": "seq.enemy.move",
+                "flow_id": "seq.effect.move",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
             },
