@@ -19,7 +19,7 @@
         "lead_draw_topmost_encounter_discard_copy": 1,
         "seq": 14,
         "discard_card": 3,
-        "draw": 2,
+        "nest_draw_investigator": 2,
         "choice_must": 1,
         "enter_threat_area": 3,
         "take_horror": 3,
@@ -489,7 +489,7 @@
           },
           {
             "template": "nest_enemy_move_to",
-            "flow_id": "seq.effect.move",
+            "flow_id": "seq.enemy.move",
             "enemy": "memory:picked_enemy",
             "location": "source_location"
           },
@@ -812,7 +812,8 @@
         "ability_kind": "reaction",
         "status": "partial",
         "trigger": "After you discover 1 or more clues at this location",
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": 1,
         "match_kind": "discover_clue",
         "phase": "AFTER",
@@ -869,7 +870,8 @@
           "activate"
         ],
         "status": "partial",
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": 3
       }
     ]

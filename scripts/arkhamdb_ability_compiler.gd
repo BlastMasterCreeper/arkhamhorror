@@ -181,7 +181,8 @@ static func build_composition(
 				discard_from,
 				int(params.get("amount", 1))
 			)
-		"draw":
+		"nest_draw_investigator", "draw":
+			## draw = 旧 JSON 别名；新译用 nest_draw_investigator + flow_id。
 			return CompositionNode.nest_draw_investigator(
 				bind.controller_id,
 				int(params.get("amount", 1))

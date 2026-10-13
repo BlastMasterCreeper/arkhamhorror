@@ -66,6 +66,7 @@
 | Mount / Register Catalog 缺失回退 | ✅ 删除 | 报错拒绝；含 Engagement / SKIP_AOO / keyword |
 | `DrawInvestigatorFlow.run_mutator_only` | ✅ 隔离 | 仅 dry-run/sim；生产禁旁路 |
 | `CompositionNode.draw` 糖 Atom | ✅ | 工厂改指向 `nest_draw_investigator` |
+| 翻译 JSON `template=draw` | ✅ | 重译为 `nest_draw_investigator` + `flow_id`（12004/12060/12119/12120） |
 
 ---
 
@@ -141,6 +142,7 @@
 |---|---|---|
 | 2026-09-30 | v0.23 | 清债：LISTENER / peril / privacy / act-agenda-back 经 `CompositionMount` 装载 |
 | 2026-09-30 | v0.22 | 清债：`nest_move_connecting` 内嵌 PI → `pick_target` + `nest_move_to`（12116/12046） |
+| 2026-10-13 | v0.24 | 重译：`template=draw` → `nest_draw_investigator` + flow_id（imported 再导入） |
 | 2026-10-13 | v0.23 | I2 运行时收口：execute 守卫、删回退、隔离 mutator 抽牌（23 §6） |
 | 2026-10-13 | v0.22 | [23-vacuum-audit](23-vacuum-audit.md)：I2 抽查；§3.1 补结构性回退债 |
 | 2026-09-29 | v0.21 | 21 §3.1：候选范围分层 U/S/N/R/V（数值 preds + Restriction `for_intent`） |

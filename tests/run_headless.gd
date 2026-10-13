@@ -3016,7 +3016,8 @@ func _test_adb_compile_12119() -> bool:
 	var entry: Dictionary = compiled[0]
 	return (
 		entry.get("register_as", "") == "reaction"
-		and entry.get("template", "") == "draw"
+		and entry.get("template", "") == "nest_draw_investigator"
+		and str(entry.get("flow_id", "")) == "seq.draw.investigator"
 		and int(entry.get("amount", 0)) == 1
 		and entry.get("match_kind", "") == "discover_clue"
 		and str(entry.get("phase", "")).to_upper() == "AFTER"
@@ -3033,7 +3034,8 @@ func _test_adb_compile_12120() -> bool:
 	var types: Variant = entry.get("action_types", [])
 	return (
 		entry.get("register_as", "") == "action"
-		and entry.get("template", "") == "draw"
+		and entry.get("template", "") == "nest_draw_investigator"
+		and str(entry.get("flow_id", "")) == "seq.draw.investigator"
 		and int(entry.get("amount", 0)) == 3
 		and int(entry.get("action_cost", 0)) == 2
 		and types is Array

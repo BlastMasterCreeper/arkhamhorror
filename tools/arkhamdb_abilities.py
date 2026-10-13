@@ -745,8 +745,10 @@ def compile_draw_cards(body: str) -> dict[str, Any] | None:
     m = DRAW_CARDS.match(body.strip())
     if not m:
         return None
+    ## 应展尽展：nest seq.draw.investigator（禁糖 template=draw）。
     return {
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": int(m.group(1)),
     }
 
@@ -1312,7 +1314,7 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return f"Discard {n} {card_word} at random from your hand."
     if template == "discard_card":
         return "Discard …"
-    if template == "draw":
+    if template in ("draw", "nest_draw_investigator"):
         n = int(compiled.get("amount", 1))
         return f"Draw {n} card." if n == 1 else f"Draw {n} cards."
     if template == "attach_nearest_without_same":
