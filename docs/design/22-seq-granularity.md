@@ -253,6 +253,20 @@
 | G10 | **Spend**（费用） | **不另铸**；Initiation 付费场合 | 与失去资源 **同 L0**；见下 |
 | G11 | **Peril / Hidden 限制** | **不另铸**；父帧 Register RESTRICTION | 同上；不另开 check seq |
 
+**合入后 Catalog 审计（2026-10-13 · main）**
+
+G1–G6 与区划通道已在 `main`。仍值得单独评估的铸造缺口：
+
+| 优先级 | 词条 | 现状 | 建议 |
+|---|---|---|---|
+| **高** | **躲避效果 / 自动躲避** | 仅有行动外壳 `seq.action.evade`；效果体多为内联解除交战+横置；22 曾注「尚未另铸 `seq.effect.evade`」 | **宜铸** `seq.effect.evade`（躲避效果核）；自动躲避 = 同核包装（无检定）；与躲避尝试 / 行动外壳三分法对齐 |
+| 低 | Look at / Find | FAQ 与 Search 互不计 | **不铸**进 Search；若卡面大量订 look 时点再议 |
+| 低 | Shuffle | 多为牌库域操作（搜库后洗等） | **不另铸**；挂在父手续内联 |
+| 低 | Flip（翻面） | 议程/场景等有专用手续 | 按入口复用；勿为每张双面卡铸 seq |
+| — | G7–G11 | 信息过滤 | **不铸**（见上） |
+
+下一刀实现建议：**`seq.effect.evade`**（含自动躲避入口），再按已有卡填参数。
+
 **不另铸但可听（G7–G11 · 已裁决）** — 与进场同构：信息在更泛用通道上，时点用 **过滤 / 栈溯源 / Initiation 场合** 听见，不新开 `seq.*`。
 
 | 信息 | 落在哪条泛用通道 | 怎么听（别名 / 过滤） |
@@ -361,3 +375,4 @@
 | 2026-10-13 | G6 落地：单条 `seq.framework.phase_boundary`；旧 investigation_phase_ends 别名 |
 | 2026-10-13 | G7–G11：不另铸；时点从攻击 / PLAY_CARD / ST / Cost / Register 过滤信息 |
 | 2026-10-13 | AOO 可栈溯源或 AttackKind；Spend/失去资源同 L0、场合不同 |
+| 2026-10-13 | 合入 PR #3–#9 → main；Catalog 审计：优先补 `seq.effect.evade` |
