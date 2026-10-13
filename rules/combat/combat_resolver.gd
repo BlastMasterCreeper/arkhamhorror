@@ -35,6 +35,9 @@ func perform_attack(attack: EnemyAttack) -> void:
 			"horror": attack.horror,
 		}
 	)
+	## 伤/恐常态检测（与 seq.effect.damage 路径对称）。
+	if _game_ctx != null and (attack.damage > 0 or attack.horror > 0):
+		DefeatFlow.check_investigator_caps(_game_ctx, attack.target_investigator)
 	if _timing:
 		_timing.emit_timing(
 			&"enemy_attack_completed",

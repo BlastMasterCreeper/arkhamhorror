@@ -276,6 +276,20 @@ func _initialize() -> void:
 	_run_test("G3-01 seq.effect.search entire deck take shuffle", _test_g3_search_entire_take_shuffle)
 	_run_test("G3-02 seq.effect.search top N still shuffles deck", _test_g3_search_top_shuffles)
 	_run_test("G3-03 search catalog registered", _test_g3_search_catalog)
+	_run_test("G5-01 defeat cancel skips leave-play", _test_g5_defeat_cancel_no_leave)
+	_run_test("G5-02 damage cap standing re-triggers after cancel", _test_g5_damage_cap_retriggers)
+	_run_test("G5-03 effect defeat ignores health", _test_g5_effect_defeat)
+	_run_test("G5-04 investigator horror cap defeat", _test_g5_investigator_horror_cap)
+	_run_test("G5-05 defeat catalog registered", _test_g5_defeat_catalog)
+	_run_test("G5-06 enemy attack damage cap defeats investigator", _test_g5_enemy_attack_damage_cap)
+	_run_test("G5-07 asset damage cap leave to discard not discard effect", _test_g5_asset_damage_cap)
+	_run_test("G5-08 asset effect defeat to discard", _test_g5_asset_effect_defeat)
+	_run_test("G5-09 asset defeat cancel skips leave", _test_g5_asset_cancel_no_leave)
+	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
+	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
+	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
+	_run_test("G6-01 phase boundary catalog", _test_g6_phase_boundary_catalog)
+	_run_test("G6-02 framework emits phase boundary seq", _test_g6_framework_emits)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6008,6 +6022,263 @@ func _test_g3_search_catalog() -> bool:
 	return h.ctx.sequence_catalog.has_flow(&"seq.effect.search")
 
 
+func _test_g5_defeat_cancel_no_leave() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_cancel",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 3}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	enemy.damage = enemy.health
+	h.ctx.memory.cancel_sequence(
+		&"seq.enemy.defeat",
+		{"card_id": enemy_id}
+	)
+	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
+	return (
+		bool(res.get("cancelled", false))
+		and not bool(res.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) != null
+	)
+
+
+func _test_g5_damage_cap_retriggers() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_re",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 2}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	enemy.damage = enemy.health
+	h.ctx.memory.cancel_sequence(
+		&"seq.enemy.defeat",
+		{"card_id": enemy_id}
+	)
+	var cancelled := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
+	if not bool(cancelled.get("cancelled", false)):
+		return false
+	if h.ctx.state.registry.get_enemy(enemy_id) == null:
+		return false
+	## Cancel 已消费；伤仍满血 → 常态检测再次击败并 nest 退场。
+	var again := DefeatFlow.check_enemy_damage_cap(h.ctx, enemy_id)
+	return (
+		bool(again.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+	)
+
+
+func _test_g5_effect_defeat() -> bool:
+	var h := RuleTestHarness.new(42)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_g5_fx",
+		&"test_loc",
+		{"enemy": {"fight": 1, "evade": 1, "health": 5}}
+	)
+	if enemy_id == &"":
+		return false
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	## 伤未满血仍可被卡面击败。
+	enemy.damage = 0
+	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_EFFECT)
+	return (
+		bool(res.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(enemy_id) == null
+	)
+
+
+func _test_g5_investigator_horror_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.sanity = 2
+	inv.horror_taken = 0
+	var applied := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.damage",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"horror",
+			"amount": 2,
+			"target": &"controller",
+		}
+	)
+	return (
+		bool(applied.get("ok", false))
+		and inv.eliminated
+		and inv.horror_taken >= inv.sanity
+	)
+
+
+func _test_g5_defeat_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	return (
+		h.ctx.sequence_catalog.has_flow(&"seq.effect.defeat")
+		and h.ctx.sequence_catalog.has_flow(&"seq.enemy.defeat")
+		and h.ctx.sequence_catalog.has_flow(&"seq.defeat.leave_play")
+	)
+
+
+func _test_g5_enemy_attack_damage_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.health = 2
+	inv.damage_taken = 0
+	var attack := EnemyAttack.enemy_strike(
+		&"enemy_atk", &"inv_1", 2, 0, false, AhcEnums.AttackKind.PHASE
+	)
+	h.ctx.combat.perform_attack(attack)
+	return inv.eliminated and inv.damage_taken >= inv.health
+
+
+func _test_g5_asset_damage_cap() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_hp", {"health": 2, "sanity": 0}
+	)
+	var res := DefeatFlow.deal_damage_to_asset(h.ctx, card_id, 2)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var saw_discard_effect := false
+	for entry in h.ctx.memory.phase_trace:
+		if str(entry).contains("discard_card"):
+			saw_discard_effect = true
+			break
+	return (
+		bool(res.get("defeated", false))
+		and card != null
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(card_id)
+		and not inv.play_area.has(card_id)
+		and not bool(res.get("via_discard_effect", true))
+		and not saw_discard_effect
+	)
+
+
+func _test_g5_asset_effect_defeat() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_fx", {"health": 5}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.damage = 0
+	var res := DefeatFlow.defeat_asset_effect(h.ctx, card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("defeated", false))
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(card_id)
+		and not bool(res.get("via_discard_effect", true))
+	)
+
+
+func _test_g5_asset_cancel_no_leave() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_g5_cancel", {"health": 1}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.damage = 1
+	h.ctx.memory.cancel_sequence(&"seq.effect.defeat", {"card_id": card_id})
+	var res := DefeatFlow.check_asset_caps(h.ctx, card_id)
+	return (
+		bool(res.get("cancelled", false))
+		and not bool(res.get("defeated", false))
+		and card.zone == AhcEnums.Zone.PLAY_AREA
+	)
+
+
+func _test_zm_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	return h.ctx.sequence_catalog.has_flow(&"seq.zone.move")
+
+
+func _test_zm_leave_play_discard_asset() -> bool:
+	var h := RuleTestHarness.new(42)
+	var store := h.ctx.registrations
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_zm_leave", {"health": 1}
+	)
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, card_id)
+	if store.count() != 1:
+		return false
+	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		moved
+		and store.count() == 0
+		and inv.discard.has(card_id)
+		and not inv.play_area.has(card_id)
+	)
+
+
+func _test_zm_enemy_discard_leave_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx, &"enc_zm_discard", {"health": 1}
+	)
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var store := h.ctx.registrations
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, card_id)
+	if store.count() != 1:
+		return false
+	var res := EnemyDefeatResolver.discard_from_play(h.ctx, card_id)
+	return (
+		bool(res.get("ok", false))
+		and store.count() == 0
+		and h.ctx.state.registry.get_enemy(card_id) == null
+	)
+
+
+func _test_g6_phase_boundary_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	var mythos_begins := PhaseBoundaryFlow.params_for_step(
+		AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS
+	)
+	var inv_ends := PhaseBoundaryFlow.params_for_step(
+		AhcEnums.FrameworkStep.INV_2_3_PHASE_ENDS
+	)
+	return (
+		h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW)
+		and h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS_ALIAS)
+		and mythos_begins.get("phase", &"") == PhaseBoundaryFlow.PHASE_MYTHOS
+		and mythos_begins.get("boundary", &"") == PhaseBoundaryFlow.BOUNDARY_BEGINS
+		and inv_ends.get("phase", &"") == PhaseBoundaryFlow.PHASE_INVESTIGATION
+		and inv_ends.get("boundary", &"") == PhaseBoundaryFlow.BOUNDARY_ENDS
+	)
+
+
+func _test_g6_framework_emits() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.MYTHOS_1_1_PHASE_BEGINS)
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.ENEMY_3_1_PHASE_BEGINS)
+	h.ctx.framework._on_enter_step(AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS)
+	var saw_mythos := false
+	var saw_enemy := false
+	var saw_upkeep := false
+	for entry in h.ctx.memory.phase_trace:
+		var s := str(entry)
+		if s.contains("mythos_phase_begins"):
+			saw_mythos = true
+		if s.contains("enemy_phase_begins"):
+			saw_enemy = true
+		if s.contains("upkeep_phase_ends"):
+			saw_upkeep = true
+	return saw_mythos and saw_enemy and saw_upkeep
+
+
 func _test_act_move_fail() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -6053,8 +6324,14 @@ func _test_act_draw_defeated() -> bool:
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	inv.deck.clear()
 	inv.discard.clear()
+	var trauma_before := inv.mental_trauma
 	var res := h.draw_action()
-	return res.ok and res.defeated and inv.eliminated
+	return (
+		res.ok
+		and res.defeated
+		and inv.eliminated
+		and inv.mental_trauma == trauma_before + 1
+	)
 
 
 func _test_act_catalog_registered() -> bool:
@@ -6072,6 +6349,10 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.effect.exhaust",
 		&"seq.effect.ready",
 		&"seq.effect.search",
+		&"seq.effect.defeat",
+		&"seq.enemy.defeat",
+		&"seq.defeat.leave_play",
+		&"seq.zone.move",
 		&"seq.action.investigate",
 		&"seq.action.fight",
 		&"seq.action.engage",

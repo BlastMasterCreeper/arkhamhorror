@@ -165,8 +165,9 @@ static func defeat_surviving_non_resigned(
 			inv.physical_trauma += physical_trauma
 		if mental_trauma > 0:
 			inv.mental_trauma += mental_trauma
-		InvestigatorElimination.eliminate(game_ctx, inv_id)
-		affected = true
+		var defeat := DefeatFlow.defeat_investigator_effect(game_ctx, inv_id)
+		if bool(defeat.get("defeated", false)) or bool(defeat.get("eliminated", false)):
+			affected = true
 	if game_ctx.log != null and affected:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
@@ -245,12 +246,14 @@ static func put_story_asset_from_set_aside(
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return false
+	var from_zone := card.zone
 	card.zone = AhcEnums.Zone.PLAY_AREA
 	card.controller_id = owner
 	card.owner_id = owner
 	var inv := game_ctx.state.registry.get_investigator(owner)
 	if inv != null and not inv.play_area.has(card_id):
 		inv.play_area.append(card_id)
+	ZoneMoveFlow.notify_zone_set(game_ctx, card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
 	return true
 
 
