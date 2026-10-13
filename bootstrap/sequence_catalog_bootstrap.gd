@@ -708,10 +708,7 @@ static func _nest_enter_hand_revelations(
 		var cid := card_id as StringName
 		if abilities.has_revelation(game_ctx, cid):
 			if game_ctx.sequences == null:
-				abilities.resolve_revelations(
-					game_ctx, controller_id, cid, provenance_flow_id, true
-				)
-				resolved.append(cid)
+				push_error("seq.enter_hand: no ResolutionSequenceStack; vacuum refused")
 			else:
 				var trigger := TriggeringCondition.enter_hand(controller_id, cid, tags)
 				game_ctx.sequences.nest(
