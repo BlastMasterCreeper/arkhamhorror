@@ -3,7 +3,9 @@ extends RefCounted
 
 ## 敌人 defeat / discard-from-play · 08 §8
 ##
-## - damage >= health → defeat（触发 Doomed 等 defeat 关键词）
+## - damage >= health → 常态检测 → `DefeatFlow`（`seq.effect.defeat` / `seq.enemy.defeat`）
+## - 卡面击败：`defeat(..., cause=effect)` 无视伤量
+## - 击败成功后 nest 退场（`finalize_leave_play`）；Cancel → 无退场
 ## - discard_from_play：仅离场，不算 defeat
 
 
@@ -20,17 +22,37 @@ static func deal_damage(
 	enemy.damage += amount
 	if enemy.damage < enemy.health:
 		return {"ok": true, "defeated": false, "damage": enemy.damage}
-	return defeat(game_ctx, enemy_id)
+	return DefeatFlow.check_enemy_damage_cap(game_ctx, enemy_id)
 
 
-static func defeat(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
+## 默认按伤害上限检测；卡面击败传 `DefeatFlow.CAUSE_EFFECT`。
+static func defeat(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	cause: StringName = DefeatFlow.CAUSE_DAMAGE_CAP
+) -> Dictionary:
+	if cause == DefeatFlow.CAUSE_EFFECT:
+		return DefeatFlow.defeat_enemy_effect(game_ctx, enemy_id)
+	return DefeatFlow.nest_or_run(
+		game_ctx,
+		{
+			"subject": DefeatFlow.SUBJECT_ENEMY,
+			"enemy_id": enemy_id,
+			"cause": cause,
+		}
+	)
+
+
+## 击败成功后的退场（由 `seq.defeat.leave_play` nest 调用）。
+static func finalize_leave_play(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	definition_id: StringName = &""
+) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null or enemy_id == &"":
 		return {"ok": false, "defeated": false}
-	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-	if enemy == null:
+	if game_ctx.state.registry.get_enemy(enemy_id) == null:
 		return {"ok": false, "defeated": false}
-	if enemy.damage < enemy.health:
-		return {"ok": true, "defeated": false}
 	_clear_engagement(game_ctx, enemy_id)
 	DoomedResolver.try_on_defeat(game_ctx, enemy_id)
 	var routed := _route_after_defeat(game_ctx, enemy_id)
@@ -42,13 +64,17 @@ static func defeat(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
 			{"enemy_id": enemy_id, "victory_display": routed.get("victory_display", false)}
 		)
 	var card := game_ctx.state.registry.get_card(enemy_id)
+	var def_id := definition_id
+	if def_id == &"" and card != null:
+		def_id = card.id.definition_id
 	if card != null and bool(routed.get("victory_display", false)):
-		ScenarioObjectiveFlow.check_enemy_defeated(game_ctx, card.id.definition_id)
+		ScenarioObjectiveFlow.check_enemy_defeated(game_ctx, def_id)
 	return {
 		"ok": true,
 		"defeated": true,
 		"enemy_id": enemy_id,
 		"victory_display": routed.get("victory_display", false),
+		"subject": DefeatFlow.SUBJECT_ENEMY,
 	}
 
 
@@ -97,6 +123,13 @@ static func _route_after_defeat(game_ctx: GameContext, enemy_id: StringName) -> 
 	return {"victory_display": false}
 
 
+static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
+	var card := game_ctx.state.registry.get_card(enemy_id)
+	if card != null:
+		return card.id.definition_id
+	return enemy_id
+
+
 static func _route_to_victory_display(game_ctx: GameContext, enemy_id: StringName) -> bool:
 	var card := game_ctx.state.registry.get_card(enemy_id)
 	if card == null or game_ctx.mutator == null:
@@ -110,12 +143,14 @@ static func _route_to_discard(game_ctx: GameContext, enemy_id: StringName) -> vo
 		return
 	if card.owner_id == &"encounter":
 		game_ctx.mutator.move_card(enemy_id, CardSlot.encounter_discard_top())
-	else:
+		return
+	if game_ctx.state.registry.get_investigator(card.owner_id) != null:
 		game_ctx.mutator.move_card(enemy_id, CardSlot.discard_top(card.owner_id))
-
-
-static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
-	var card := game_ctx.state.registry.get_card(enemy_id)
-	if card == null:
-		return enemy_id
-	return card.id.definition_id
+		return
+	var from_zone := card.zone
+	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
+	if not game_ctx.state.removed_from_game.has(enemy_id):
+		game_ctx.state.removed_from_game.append(enemy_id)
+	ZoneMoveFlow.notify_zone_set(
+		game_ctx, enemy_id, from_zone, AhcEnums.Zone.REMOVED_FROM_GAME
+	)

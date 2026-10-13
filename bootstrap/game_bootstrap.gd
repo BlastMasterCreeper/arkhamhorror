@@ -38,7 +38,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.state, ctx.registrations, ctx.mutator, ctx.log
 	)
 	ctx.composition.bind_game_context(ctx)
-	ctx.listeners = ListenerDispatcher.new(ctx.registrations, ctx.composition)
+	ctx.listeners = ListenerDispatcher.new(ctx.registrations, ctx)
 	ctx.timing.bind_listeners(ctx.listeners)
 	ctx.legality = InitiationLegalityChecker.new()
 	ctx.initiation = AbilityInitiationPipeline.new(
@@ -73,6 +73,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.triggered_abilities.bind_game_context(ctx)
 	ctx.sequences.bind_game_context(ctx)
 	ctx.effects.bind_game_context(ctx)
+	ZoneMoveFlow.bind_mutator(ctx)
 	return ctx
 
 
@@ -82,10 +83,7 @@ static func register_enter_hand_test_definitions() -> void:
 		&"rev_take_horror",
 		&"revelation:0",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				1
-			)
+			return CompositionNode.nest_take_horror(bind.controller_id, 1)
 	)
 	CardRegistry.register_definition(
 		&"rev_limbo_discard",
@@ -114,6 +112,39 @@ static func add_test_card_to_deck(ctx: GameContext, inv_id: StringName, definiti
 	var inv := ctx.state.registry.get_investigator(inv_id)
 	if inv:
 		inv.deck.append(instance_id)
+	return instance_id
+
+
+## 测试用：支援进场（可带印刷 health/sanity）。
+static func add_asset_to_play(
+	ctx: GameContext,
+	inv_id: StringName,
+	definition_id: StringName = &"test_asset",
+	opts: Dictionary = {}
+) -> StringName:
+	var data := CardRegistry.definition_data(definition_id)
+	if data.is_empty():
+		data = {"card_type": &"asset"}
+	if opts.has("health"):
+		data["health"] = int(opts.get("health", 0))
+	if opts.has("sanity"):
+		data["sanity"] = int(opts.get("sanity", 0))
+	if not data.has("card_type"):
+		data["card_type"] = &"asset"
+	CardRegistry.register_definition(definition_id, data)
+	var instance_id := ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, definition_id)
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = inv_id
+	card.controller_id = inv_id
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	ctx.state.registry.register_card(card)
+	var inv := ctx.state.registry.get_investigator(inv_id)
+	if inv != null:
+		inv.play_area.append(instance_id)
+	## 测试进场：补发区划通道（未走 move_card）。
+	ZoneMoveFlow.notify_zone_set(ctx, instance_id, AhcEnums.Zone.DECK, AhcEnums.Zone.PLAY_AREA)
 	return instance_id
 
 
@@ -179,6 +210,9 @@ static func setup_investigator_at_location(
 	inv.skill_intellect = int(skills.get("intellect", 3))
 	inv.skill_combat = int(skills.get("combat", 3))
 	inv.skill_agility = int(skills.get("agility", 3))
+	## 可选；未传则 0 = 伤恐不自动击败（测试按需设）。
+	inv.health = int(skills.get("health", 0))
+	inv.sanity = int(skills.get("sanity", 0))
 	ctx.state.registry.register_investigator(inv)
 
 
@@ -230,7 +264,8 @@ static func add_encounter_card_to_deck(
 	def_data.merge(extra_def, true)
 	if not keywords.is_empty():
 		def_data["keywords"] = keywords
-	CardRegistry.register_definition(definition_id, def_data)
+	## 保留已 import 的 title/traits 等，仅补测试所需字段。
+	CardRegistry.patch_definition(definition_id, def_data)
 	return instance_id
 
 
@@ -256,7 +291,7 @@ static func add_encounter_card_to_discard(
 	def_data.merge(extra_def, true)
 	if not keywords.is_empty():
 		def_data["keywords"] = keywords
-	CardRegistry.register_definition(definition_id, def_data)
+	CardRegistry.patch_definition(definition_id, def_data)
 	return instance_id
 
 

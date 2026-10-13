@@ -125,7 +125,7 @@ func evade(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	var enemy := _state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
-	if not enemy.is_engaged_with(inv_id):
+	if not EngagementStatus.is_engaged_with(game_ctx, enemy_id, inv_id):
 		return {"ok": false, "error": "not_engaged"}
 	var commits := _commits_from_extra(extra)
 	var test := SkillTestContext.new()

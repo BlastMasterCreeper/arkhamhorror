@@ -31,13 +31,28 @@
 | English | 简中（规范） | 备注 |
 |---------|-------------|------|
 | **Fight** | **攻击** | Fight action；`seq.action.fight`；≠ 敌人 perform attack |
-| **Evade** | **躲避** | `seq.action.evade`；≠「闪避」「规避」 |
+| **Evade (action)** | **躲避** | 行动种类；`seq.action.evade`；≠「闪避」「规避」；≠ 躲避尝试 / 躲避效果 |
+| **Evasion attempt** | **躲避尝试** | 躲避行动等衍生的技能检定（通常敏捷）；≠ 自动躲避 |
+| **Evade (effect)** | **躲避效果** | 解除交战 + 横置；入口含成功躲避尝试、自动躲避等 |
+| **Automatically evade** | **自动躲避** | 包装并**产生**躲避效果：无检定、非「自动成功」的尝试 |
 | **Investigate** | **调查** | `seq.action.investigate` |
 | **Engage** | **接战** | 主动交战；`seq.action.engage` / `seq.engage` |
-| **Move** | **移动** | `seq.action.move` |
-| **Exhaust** | **横置** | `exhausted` = 已横置 |
-| **Ready** | **重整** | Upkeep 4.3 重整横置卡；**未横置** = `!exhausted` 状态表述 |
+| **Move** | **移动** | 狭义地点变更且**遵守连接**；`seq.effect.move` + `move_kind=move`；≠ 移动到地点；≠ 广义区划转移；≠ 地点交换 |
+| **Move to (a location)** | **移动到地点** | 狭义地点变更但**无视连接**；同核 `move_kind=move_to` |
+| **Exhaust** | **横置** | 改平放区卡牌/在场敌人 `exhausted`；`seq.effect.exhaust`；≠ 费用中的 exhaust |
+| **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
 | **Doom** | **毁灭** | doom 标记；密谋推进 |
+| **Story asset** | **剧情支援** | 有遭遇组；正面仍是玩家 cardtype；背面可为遭遇卡背 |
+| **Scenario card**（引擎） | **冒险卡牌** | 有遭遇组的卡；≠「遭遇 cardtype」 |
+| **Encounter cardtype** | **遭遇卡牌类型** | enemy / treachery / location |
+| **Player card back** | **玩家卡背** | `card_back=player`；无文本背面 / 牌库外观 |
+| **Encounter card back** | **遭遇卡背** | `card_back=encounter`；同上 |
+| **Card back (kind)** | **卡背类型** | **仅**背面轴；≠ 正面 cardtype；≠ CardFace A/B |
+| **Search** | **搜寻** | `seq.effect.search`；搜牌库须洗（整库或顶 N）；弃牌堆不洗；≠ look at / find |
+| **Enter play** / put into play | **进场** | 广义移动（`seq.zone.move`）结果：场外→场上；听 L0 区划+过滤；**不是效果**；不铸 `seq.effect.enter_play` |
+| **Defeat** | **击败** | **效果**；伤/恐上限或卡面击败；主体含敌人/调查员/支援；成功后 nest 退场 |
+| **Leave play** / 退场 | **退场** | 广义移动场上→场外；支援/敌人进弃牌堆 ≠ discard 效果包装 |
+| **Player cardtype** | **玩家卡牌类型** | asset / event / skill 等 |
 
 ---
 
@@ -66,11 +81,15 @@
 |------|------|
 | Revelation | **显现**；≠ 弱点子类型；≠ 非规范的「揭示」「暴露」 |
 | Skill | **投入**检定；不能 **打出** |
+| Evade 四层 | **躲避**行动 ≠ **躲避尝试** ≠ **躲避效果** ≠ **自动躲避**；效果入口含成功尝试与自动躲避；自动躲避 ≠ 自动成功的尝试 |
 | Evade | **躲避**；≠ 闪避 / 规避 |
 | Exhaust / Ready | **横置** / **重整**；未横置 = `!exhausted`；≠ 耗尽 / 疲劳 / 竖置 / 就绪 |
 | Fight action vs enemy attack | 调查员 **攻击**行动 ≠ 敌人 **perform attack**（借机攻击 / 反击 / 警戒 / 阶段攻击） |
 | Retaliate vs Alert | **反击** / **警戒** 均在 **ST.7 apply 完成后**（post-ST7）；均须敌人 **未横置**；≠ ST.7 `on_fail` 内的失败转嫁 |
 | Doom | **毁灭**；≠ 厄运 |
+| Encounter vs Scenario | FAQ 常混用；三轴：正面 **cardtype** / **卡背类型** / **遭遇组**。剧情支援 = 有遭遇组 + 玩家正面类型（卡背常为遭遇卡背） |
+| 卡背类型 | **仅**无文本背面；勿与正面类型或翻面（CardFace）混用；**无**双面皆卡背 |
+| 剧情支援 Activate | 同地点遭遇卡可触发 ≠ 剧情支援自动可触发；后者常靠卡面「该地点调查员可…」 |
 
 ---
 

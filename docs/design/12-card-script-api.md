@@ -1,22 +1,23 @@
 # 12 — 卡牌脚本 API 规格 (CardScriptAPI)
 
 > **依赖**：全部 design/01–11  
-> **目标**：定义 Script Layer 唯一入口，使 Core 2026 卡牌可脚本化实现
+> **目标**：自然语言 → 静态效果组合 → 装载到命名流程栈 → 解释器执行。Script Layer 是编译入口，不是第二套运行时。
 
 ---
 
 ## 1. 设计原则
 
+0. **静态树才进运行时** — 卡面自然语言先编译成效果组合（Composition）；框架装载到已有 `seq.*` 上，由解释器在栈帧里跑。见 [07-composition §1.3](07-composition.md#13-静态信息编译装载解释已裁决-2026-09-21)。
 1. **脚本不持有 State 裸引用** — 仅 `GameContext` + 门面 API
-2. **声明 + 命令** — `register_abilities()` 声明；运行时通过 `EffectBuilder` 提交
-3. **双轨** — 优先 `AbilityTemplate`；模板无法表达时用 `CardScript`。**不设固定比例**，按卡逐张选型（已裁决 OQ-12-01，见 §1.1）
-4. **可测试** — 脚本可在 headless `GameContext` 下 unit test
+2. **声明 + 命令** — 编译产物登记 hook + 静态 `effect` 树；运行时 **解释该树**，不在脚本里直接结算正文
+3. **双轨只在编译侧** — 优先 template 编出树；编不出时用手写同等 Composition（旧称 CardScript）。**产物同构**。`on_custom_effect` 真空改局面 **不是** 目标（OQ-12-01 仍「逐卡选型」，选的是 **怎么写出那棵树**）
+4. **可测试** — 静态树可在 headless 下 dry-run + 解释
 
-### 1.1 Template vs Script 选型（已裁决 OQ-12-01）
+### 1.1 Template vs 手写树（OQ-12-01）
 
 **不设 70/30 等目标比例**；设计阶段无法预判。实现 Core 2026 卡牌时 **逐张裁决**，并在 `data/cards/` 或变更记录中注明选型理由。
 
-| 优先 **AbilityTemplate** | 优先 **CardScript**（或 `on_custom_effect`） |
+| 优先 **template 编树** | 优先 **手写同等 Composition 树** |
 |---|---|
 | 标准 EffectOp 链（draw / heal / discover / deal） | 多分支 player choice、复杂条件树 |
 | 单 timing + 固定 cost | 动态 X、跨卡/跨区状态查询 |
@@ -24,7 +25,7 @@
 | Committed skill「If successful…」 | Replacement / fail-by / 嵌套检定特规 |
 | Constant modifier 注册 | Template 表达力不足或维护成本更高 |
 
-**流程**：导入卡牌文本 → 尝试 `AbilityTemplate` → 无法无损表达或 dry-run 无法通过 → 补 `CardScript` / `ScenarioScript`。比例随卡池自然形成，**不作为 KPI**。
+**流程**：导入卡牌文本 → 编译器规范化为 `compiled_abilities`（hook + effect 树）→ 装载到 seq 栈 → 解释。编不出的段落标 `uncompiled`，再手写同等树。比例随覆盖上升，**不作为 KPI**。
 
 ### 1.2 Core 2026 选型快照（ArkhamDB · Phase 4）
 
@@ -392,6 +393,7 @@ func test_cancel_non_weakness_treachery():
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-09-21 | v0.4 | **§1** 对齐 07 §1.3：CardScript/模板只编静态树；运行时是栈上解释器 |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-12-01 裁决：逐卡选型，无固定比例 |
 | 2026-05-25 | v0.3 | OQ-12-06 裁决：YAML in data/ |

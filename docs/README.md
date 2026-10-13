@@ -29,6 +29,7 @@
 21. [design/16-player-interaction.md](design/16-player-interaction.md) — **玩家交互**（§5 完整目录）
 22. [design/17-seq-runtime.md](design/17-seq-runtime.md) — **命名流程运行时**（seq.* checklist · 缺口 · 实施顺序）
 23. [design/18-arkhamdb-card-data.md](design/18-arkhamdb-card-data.md) — **ArkhamDB JSON 卡池**（字段映射 · Core 2026 统计 · 导入计划）
+24. [design/19-core-2026-translation-roadmap.md](design/19-core-2026-translation-roadmap.md) — **2.0 基础卡牌翻译路线图**（分轨 · DoD · 实施顺序）
 
 ## 卡池数据（离线）
 

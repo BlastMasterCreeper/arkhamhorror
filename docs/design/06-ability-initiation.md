@@ -4,7 +4,7 @@
 > **引擎统一模型**：[06-registration-buff-model.md](06-registration-buff-model.md)（Register / Buff / Context）  
 > **规则来源**：Grimoire Ability, Triggered Abilities, Initiation Sequence (p.31)  
 > **符号记法**：[`[reaction]` / `[action]` 等](../reference/arkham-symbol-notation.md)（ArkhamDB 标准）  
-> **状态**：v0.3 · 2026-05-25
+> **状态**：v0.4.15 · 2026-09-21 — 卡牌正文译 Composition；hook 只订 seq 槽
 
 ---
 
@@ -37,7 +37,7 @@ enum AbilityKind {
 | Free `[free]` | 玩家 | Player Window 或文本指定 |
 | Reaction `[reaction]` | 玩家 | when/at/after 条件 |
 | Action `[action]` | 玩家 | Activate action |
-| Keyword | 引擎 | 规则 shorthand；**③** 编译 REGISTER/LISTENER（险境、涌动、Hunter/Patrol 移动…）；Patrol 括号 = **①** `PatrolTargetSpec`（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)） |
+| Keyword | 引擎 | 规则 shorthand；**③** 编译 REGISTER/LISTENER（险境、涌动、Hunter/Patrol 移动…）；Patrol 括号 = **①** `PatrolTargetSpec`（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)）。**Fast.** 快速 **不是** 本表独立 AbilityKind 消费者：打出走 §4.2 与触发对称的 Initiation |
 | **Spawn – 指令** | — | **非本表** — `CardDefinition.spawn_instruction`；G4 内联读 WHERE（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)、[15 §17.4.1b](15-timing-entry-catalog.md)） |
 | **Prey – 指令** | — | **非本表** — `CardDefinition.prey_instruction`（**①**）；**②** engage / **③** Hunter 等距 handler 内 `PreyResolver`；**不 nest**（[07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)） |
 
@@ -80,17 +80,18 @@ class AbilitySpec:
 class AbilityHook:
     var sequence_id: StringName           # RuleSequence / 事件族 id（见 15）
     var slot: TimingSlot                  # WOULD | WHEN | AFTER
-    var tier: AbilityTier                 # FORCED | TRIGGERED | LISTENER
+    var tier: AbilityTier                 # FORCED | TRIGGERED | REVELATION | LISTENER
 ```
 
-> **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot)`，见 [15 §2–§3](15-timing-entry-catalog.md)。
+> **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot)`，见 [15 §2–§3](15-timing-entry-catalog.md)。  
+> 卡面 would / when / after draw **转译**为 `(seq.draw.*, WOULD\|WHEN\|AFTER)`：Would = 这次抽取 PreImpact；When = 抽取步骤；After = 整段结算完毕。显现 / G4 ≠ 「抽取时」。
 
 | 部分 | 引擎含义 | 参与订阅？ | 参与门槛？ |
 |---|---|---|---|
 | **Hook** | catalog 入口 `(sequence_id, slot)` + tier | ✅ L0 | ✅ L2 |
 | **情景** | 卡面特殊情景 | ❌ | ✅ L3 |
 | **费用** | Initiation 支付 | ❌ | ✅ L6（Initiation 专段） |
-| **效果** | Composition resolve | ❌ | ✅ L7 dry_run |
+| **效果** | Composition resolve（**卡牌正文**；不为该能力另开 `seq.card…`） | ❌ | ✅ L7 dry_run |
 
 **修正值**无 Hook：仅在 `ModifierEngine.compute` 时用 **L3 情景** + scope。
 
@@ -107,6 +108,29 @@ class AbilityHook:
 例：调查员「仅 Upkeep 4.4 框架 gain +1」→ 订阅 `seq.action.gain_resource`, `AFTER`；L3：`framework_step == UPKEEP_4_4` 且 tags 含 `framework`。
 
 详见 [06-registration-buff-model §12](06-registration-buff-model.md)。
+
+### 4.2 打出与触发对称（Fast）；打出 **不是** 能力
+
+事件和支援是对称设计，但 **打出（Play）始终不是能力**：
+
+| | 支援（asset） | 事件（event） |
+|---|---|---|
+| 核心形式 | 进场后，其上的 **触发能力** 经 Initiation **发起** | **打出** 卡牌（游戏核心形式，独立入口） |
+| 引擎入口 | `InitiationIntent.Kind.ABILITY` | `InitiationIntent.Kind.PLAY_CARD`（**保持独立**） |
+
+二者可以 **共用 Initiation Sequence 七步**（付费、AOO、resolve），因为打出和发起能力都要过这套手续；**不要**把 `PLAY_CARD` 收成 `ABILITY` + `[action]`/`[free]`/`[reaction]`。
+
+**快速（Fast）** 只改 **何时允许打出** 以及 **这次打出是否耗 Play action**，与三种触发 **窗口/花费对称**，种类仍是打出：
+
+| 打出 | 窗口 / 花费（对称） | 种类 |
+|---|---|---|
+| **无 Fast** | 对称 **激活触发** `[action]`：耗 1 Play action，可引起借机攻击 | 仍是 `PLAY_CARD` |
+| **Fast、无时点**（常有「你的回合」等期间限制；无时点快速支援同此） | 对称 **免费触发** `[free]`：Player Window；不耗 Play action，不引起借机攻击 | 仍是 `PLAY_CARD` |
+| **Fast、有时点**（`Play when/after …`） | 对称 **反应触发** `[reaction]`：该 when/after 槽；不耗 Play action，不引起借机攻击 | 仍是 `PLAY_CARD` |
+
+编译：`KeywordProfileTable.play_form(has_fast, has_timing_point)` → `PLAY_ACTION` / `PLAY_FAST_WINDOW` / `PLAY_FAST_TIMING`。
+
+**禁止**：把打出改成 `AbilityKind`；把规则书 **Fast.** 与 ArkhamDB `[fast]`（= 免费触发符号）合并；为快速另建 `*FastPolicy`；把有时点快速事件 Register 成场上 LISTENER。
 
 ---
 
@@ -354,6 +378,7 @@ COLLECT → eligible（按 tier 分组）
   → 再 resolve 整个 FRAMEWORK 类（类内自排）
   → 再 TRIGGERED 类 …
   → 禁止「一条 [reaction] 插进 Forced 批次中间」
+  → 显现（Revelation）**不在本批**：见 §8.1.1
 ```
 
 ### 8.1 类别优先级（跨类 · 引擎固定）
@@ -362,7 +387,7 @@ COLLECT → eligible（按 tier 分组）
 
 | 顺序 | `AbilityCategoryTier` | 典型能力 |
 |---|---|---|
-| 1 | **FORCED** | Forced – when/after/at；显现（Revelation）nest |
+| 1 | **FORCED** | Forced – when/after/at（**不含**显现） |
 | 2 | **FRAMEWORK** | 框架步内嵌 forced / 规则流程 |
 | 3 | **TRIGGERED** | `[reaction]` / `[action]` / `[free]` 触发 |
 | 4 | **DELAYED** | 延时替换、延时监听（timing 匹配时） |
@@ -370,10 +395,25 @@ COLLECT → eligible（按 tier 分组）
 
 ```gdscript
 ## 与 SequenceHandler.Tier 对齐；数值越小越先（整类 batch）。
+## REVELATION 不进入本表同窗口批（§8.1.1）；代码枚举见 SequenceHandler.Tier。
 enum AbilityCategoryTier { FORCED, FRAMEWORK, TRIGGERED, DELAYED, LISTENER }
+enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 ```
 
 > **与 Cannot / Silver Rule / Replacement 分工**：**Cannot** 非竞争、绝对拦截（07 §3.2）。**同时点竞争** 含 **替换竞争**（Instead：最后 initiate，§3.4）与 **能力竞争**（本节 tier + 类内自排）。**Silver Rule** 仅文本无法调和。
+
+#### 8.1.1 显现（Revelation）独立类（已裁决）
+
+显现 **不是** 流程上的 Forced，也 **不** 并入 §8.1 同窗口 FORCED 批。`AbilityKind.REVELATION` 与 `SequenceHandler.Tier.REVELATION` 是 **独立优先级类**。
+
+抽牌 **When 打断槽**（Fast 打出 / `[reaction]` When you draw，FrameworkPriority **95** `PLAYER_WHEN_DRAW`）之后，显现作为抽牌 **管线后续步骤** nest（FrameworkPriority **90** `REVELATION`），**不是**「抽取时」窗内：
+
+| 入口 | 命名流程 | 档位 |
+|---|---|---|
+| 遭遇 G3 | `seq.encounter.revelation` | 90 · 在 When 槽之后 |
+| 玩家 D3 | `seq.enter_hand` 内显现 nest | 入手子时点触发；**非** When 窗 Forced 批 |
+
+**禁止**：把显现收进 When 窗 Forced 批，从而得到「Forced 整类先于 [reaction]」的假跨类序（那会挡 Ward 等 When-draw Fast）。Fast 在 When 槽内是 **打出发起**，不是 TRIGGERED 对 Forced 的全局倒置。
 
 ### 8.2 同类内顺序（仅同 tier · 玩家自排）
 
@@ -386,19 +426,24 @@ enum AbilityCategoryTier { FORCED, FRAMEWORK, TRIGGERED, DELAYED, LISTENER }
 | 多个 **[reaction]** eligible | **控制者**对每条 **选用 / 不选用**（非队长） |
 | 多个 **[reaction]** **均已选用** | **Lead Investigator** 在 **TRIGGERED 类内** 排顺序（OQ-06-03） |
 | 多个 **LISTENER** | 默认注册顺序；若设计师要求可选则另定 |
-| **enter_hand** 多张牌显现（均属 FORCED 类） | `EnterHandTimingPolicy` 管 **类内** 牌序（见 [15 §16.4.1](15-timing-entry-catalog.md)） |
+| **enter_hand** 多张牌显现（均属 **REVELATION 类**） | `EnterHandTimingPolicy` 管 **类内** 牌序（见 [15 §16.4.1](15-timing-entry-catalog.md)） |
 
-### 8.3 When / At / After
+### 8.3 When / At / After / Would
 
 | 词 | 相对 timing |
 |---|---|
-| when | 触发后、impact 前；**打断** resolution |
+| would | 该次流程 **PreImpact**（抽牌转译：这次抽取尚未发生） |
+| when | 发起 impact **之后**（抽牌转译：抽取步骤已完成，不含显现 / G4） |
 | at / if | 与 impact **同时** |
-| after | impact **之后**、下一步之前 |
+| after | 该次结算 **整段完毕** 之后、下一步之前 |
 
-### 8.4 Then 优先
+卡面「draw」不细，**转译钉语义**，不为原文买单。Would 时 zone=**DECK**；When 时调查员 **HAND**、遭遇默认 **LIMBO**。见 [15 §2–§3](15-timing-entry-catalog.md)。
 
-效果文本含 **then**：then 前段完全 resolve 后，then 后段优先于该前段间接产生的 **after** 触发（Grimoire Then）。
+### 8.4 Then（内联顺序，不是时点）
+
+卡面 **Then** = 同一棵效果组合（Composition）上的 `Seq`：**内联**顺序结算。后段读前段已 CREATED 的局面；前段未 CREATED 则后段不进。
+
+Then **不是** timing 槽，**不**在 Then 前后另开反应窗。前段间接产生的 **after** 等整段 Seq 跑完再 flush，后段优先于该 after（Grimoire Then 优先）——这是 After 冲洗顺序，不是在 Then 中间插入反应。见 [07-composition §3.1.1](07-composition.md)。
 
 ---
 
@@ -440,7 +485,8 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 
 ## 11. Play Restrictions 常见类型
 
-- Fast event：指定 window / when 条件
+- **快速** 打出：无时点 → Player Window / 期间限制（窗口对称 `[free]`）；有时点 → when/after 槽（窗口对称 `[reaction]`）。种类仍是打出。见 §4.2。
+- 无 Fast 的 event/asset：仅能用 Play action 打出（花费对称 `[action]`）。种类仍是打出。
 - Asset：slots 可用、unique 不在场
 - Activate：来源合法、exhausted 否（若 cost 含 exhaust）
 - Target 存在且 valid
@@ -479,6 +525,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | OQ-06-02 | 打出/发动须 **dry-run**（**L7 终端**）；COLLECT 不批量 dry-run。见 §7.2。 | 2026-05-25 |
 | OQ-06-03 | 多个 [reaction] 同时选用后：**Lead Investigator** 选顺序；选用权在控制者。见 §8.2。 | 2026-05-25 |
 | OQ-IDX-02 | Initiation 各步完整 **EventRecord**，与 Framework 同级。见 §4 pipeline。 | 2026-05-25 |
+| OQ-06-07 | 显现 **不是** 流程 Forced；独立 `REVELATION` 类；抽取步骤 When 95 之后的后续步骤 90。见 §8.1.1。 | 2026-09-20 |
 
 ---
 
@@ -493,3 +540,15 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-06-18 | v0.4 | **§8** 两层优先级：类别整批 vs 同类内自排 |
 | 2026-06-18 | v0.4.1 | 移除 Replacement→Silver Rule 误链；指向 07 §3.2 Cannot |
 | 2026-06-18 | v0.4.2 | §8 链 07 同时点竞争；§8.2 replacement 类内自动最近 initiate |
+| 2026-09-20 | v0.4.4 | **§8.1.1** 显现独立类：不并入 FORCED 批；When 槽 95 之后剩余 impact 90 |
+| 2026-09-20 | v0.4.5 | **§8.3** Would/When 对齐同一 TC；步骤差=发起 impact |
+| 2026-09-20 | v0.4.6 | §8.3 Would=DECK；When 调查员 HAND / 遭遇 LIMBO |
+| 2026-09-20 | v0.4.7 | §8.3 中间有 impact 非同一时刻 |
+| 2026-09-20 | v0.4.8 | §4 Hook：would/when 为同一 seq 的槽，不是两套流程 |
+| 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
+| 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
+| 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
+| 2026-09-21 | v0.4.15 | §4：卡牌正文 = Composition；hook 只订阅已有 seq 槽，不建 `seq.card…` |
+| 2026-09-21 | v0.4.14 | **§4.2** 打出始终 `PLAY_CARD`（不是能力）；Fast 只改窗口/花费。**§8.4** Then = 内联 Seq |
+| 2026-09-21 | v0.4.13 | **§4.2** 快速：打出与触发对称；无 Fast≈激活、无时点 Fast≈免费、有时点 Fast≈反应 |
+| 2026-09-20 | v0.4.12 | §8.3：卡面时点不细、转译钉语义 |

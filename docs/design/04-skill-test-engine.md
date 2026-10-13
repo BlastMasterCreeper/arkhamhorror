@@ -205,7 +205,7 @@ class EncounterResolutionFrame:
 push frame (E0) — 可跨 Surge 圈（仅 drawer 上下文）
   per card: ENCOUNTER_CARD_DRAWN → priority 100 Register peril (card_id)
             → … 90 revelation → 80 G4 → Unregister peril(card_id)
-            → 75 AFTER → 70 surge?
+            → 75 AFTER(card) 抽取后 → 70 surge?
 pop frame (E7)
 ```
 
@@ -213,7 +213,7 @@ pop frame (E7)
 
 > **术语**：**子时点** = 遭遇结算 WHEN 内的 commit 边界；**Register 结算** = G2 Register 写入 RegistrationStore。
 
-**与显现的区别**：E3 nest **Register RESTRICTION**（peril 检测子时点触发）；E4 nest Forced。见 [15 §4.0.5.1–§4.0.5.2](15-timing-entry-catalog.md)。
+**与显现的区别**：E3 nest **Register RESTRICTION**（peril 检测子时点触发）；E4 nest 显现类（非 Forced）。见 [15 §4.0.5.1–§4.0.5.2](15-timing-entry-catalog.md)。
 
 **禁止** `PerilPolicy` / 平行 cannot 分支。E3 = **nest** 内 `composition.execute(register_template)`：
 
@@ -430,3 +430,5 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | 2026-06-18 | v0.6 | **§4 收紧**：险境 = E3 Register RESTRICTION；删 `PerilPolicy`；统一 `RestrictionEvaluator` |
 | 2026-06-18 | v0.5 | **§4 Peril 重设计**：持续 Cannot、L4/07 冲突链第 0 步；PERIL-01～06 |
 | 2026-06-18 | v0.5.1 | **§4.9–11** 帧栈 / AppContext / E3 catalog；`EncounterResolutionFrame`；PERIL-01/04/05 测试 |
+| 2026-09-20 | v0.6.1 | §4.4 E4 显现独立类（非 Forced nest） |
+| 2026-09-20 | v0.6.3 | §4.3：75 档 = 抽取后（整段结算完毕） |

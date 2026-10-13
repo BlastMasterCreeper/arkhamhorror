@@ -55,13 +55,10 @@ static func _resolve_back_direct(
 		game_ctx.state.scenario_resolution if game_ctx.state != null else -1
 	)
 	var executed := false
-	if (
-		game_ctx.composition != null
-		and tree != null
-		and not _seq_is_empty(tree)
-	):
-		game_ctx.composition.execute(tree)
-		executed = true
+	if tree != null and not _seq_is_empty(tree):
+		executed = CompositionMount.resolve_ability(
+			game_ctx, tree, &"", &"act_agenda_back", definition_id
+		)
 	var resolution := resolution_before
 	if game_ctx.state != null and game_ctx.state.scenario_resolution != resolution_before:
 		resolution = game_ctx.state.scenario_resolution

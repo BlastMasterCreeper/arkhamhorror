@@ -6,15 +6,20 @@ var registrations: RegistrationStore
 var mutator: StateMutator
 var last_step_created: bool = false
 var last_step_engaged_investigator: StringName = &""
+var last_step_enemy_id: StringName = &""
 var last_resolved_location: StringName = &""
 var last_skill_test_fail_by: int = 0
 var for_each_inv_override: StringName = &""
+## controller_id -> { memory_key -> referent }；供候选 V dry-run 临时 bind。
+var memory_referents: Dictionary = {}
 
 
 static func from_context(ctx: GameContext) -> GameSimulator:
 	var sim := GameSimulator.new()
 	sim.state = _duplicate_state(ctx.state)
 	sim.registrations = ctx.registrations.duplicate_store()
+	if ctx.memory != null:
+		sim.memory_referents = ctx.memory.duplicate_referents()
 	sim._bind_mutator()
 	return sim
 
@@ -24,9 +29,37 @@ func fork() -> GameSimulator:
 	copy.state = _duplicate_state(state)
 	copy.registrations = registrations.duplicate_store()
 	copy.last_skill_test_fail_by = last_skill_test_fail_by
+	copy.last_step_enemy_id = last_step_enemy_id
+	copy.last_step_engaged_investigator = last_step_engaged_investigator
+	copy.last_resolved_location = last_resolved_location
 	copy.for_each_inv_override = for_each_inv_override
+	copy.memory_referents = _duplicate_memory(memory_referents)
 	copy._bind_mutator()
 	return copy
+
+
+func set_referent(controller_id: StringName, key: StringName, value: Variant) -> void:
+	if controller_id == &"" or key == &"":
+		return
+	if not memory_referents.has(controller_id):
+		memory_referents[controller_id] = {}
+	(memory_referents[controller_id] as Dictionary)[key] = value
+
+
+func get_referent(controller_id: StringName, key: StringName) -> Variant:
+	if not memory_referents.has(controller_id):
+		return null
+	var bucket: Dictionary = memory_referents[controller_id]
+	return bucket.get(key, null)
+
+
+static func _duplicate_memory(src: Dictionary) -> Dictionary:
+	var out := {}
+	for ctrl in src.keys():
+		var inner: Variant = src[ctrl]
+		if inner is Dictionary:
+			out[ctrl] = (inner as Dictionary).duplicate(true)
+	return out
 
 
 func _bind_mutator() -> void:
@@ -78,6 +111,8 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		inv.location_tag = inv_src.location_tag
 		inv.damage_taken = inv_src.damage_taken
 		inv.horror_taken = inv_src.horror_taken
+		inv.health = inv_src.health
+		inv.sanity = inv_src.sanity
 		inv.clues_on_card = inv_src.clues_on_card
 		inv.eliminated = inv_src.eliminated
 		inv.resigned = inv_src.resigned
@@ -86,6 +121,8 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		inv.deck = inv_src.deck.duplicate()
 		inv.hand = inv_src.hand.duplicate()
 		inv.discard = inv_src.discard.duplicate()
+		inv.threat_area = inv_src.threat_area.duplicate()
+		inv.play_area = inv_src.play_area.duplicate()
 		copy.registry.register_investigator(inv)
 	for card_id in src.registry.all_card_ids():
 		var card_src: CardInstance = src.registry.get_card(card_id)
@@ -95,6 +132,7 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		card.controller_id = card_src.controller_id
 		card.zone = card_src.zone
 		card.zone_index = card_src.zone_index
+		card.exhausted = card_src.exhausted
 		copy.registry.register_card(card)
 	for loc_id in src.registry.all_location_ids():
 		var loc_src := src.registry.get_location(loc_id)
@@ -105,4 +143,25 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		loc.revealed = loc_src.revealed
 		loc.connections = loc_src.connections.duplicate()
 		copy.registry.register_location(loc)
+	## dry-run 需要敌人场面（pick_target / nest_engage 等）。
+	for enemy_id in src.registry.all_enemy_ids():
+		var enemy_src := src.registry.get_enemy(enemy_id)
+		if enemy_src == null:
+			continue
+		var enemy := EnemyState.new()
+		enemy.id = enemy_src.id
+		enemy.location_tag = enemy_src.location_tag
+		enemy.fight = enemy_src.fight
+		enemy.evade = enemy_src.evade
+		enemy.health = enemy_src.health
+		enemy.damage = enemy_src.damage
+		enemy.doom = enemy_src.doom
+		enemy.attack_damage = enemy_src.attack_damage
+		enemy.attack_horror = enemy_src.attack_horror
+		enemy.exhausted = enemy_src.exhausted
+		enemy.aloof = enemy_src.aloof
+		enemy.massive = enemy_src.massive
+		enemy.engaged_with = enemy_src.engaged_with
+		enemy.auto_engage_suppressed = enemy_src.auto_engage_suppressed
+		copy.registry.register_enemy(enemy)
 	return copy
