@@ -407,6 +407,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_attack(node)
 		&"nest_search":
 			return _execute_nest_search(node)
+		&"nest_evade", &"automatically_evade":
+			return _execute_nest_evade(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
 		&"exhaust_enemy":
@@ -866,6 +868,37 @@ func _execute_nest_search(node: CompositionNode) -> bool:
 				"taken": (result.get("taken", []) as Array).size(),
 				"flow": &"seq.effect.search",
 			}
+		)
+	return ok
+
+
+func _execute_nest_evade(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var mode: StringName = node.engage_mode
+	if mode == &"":
+		mode = EvadeFlow.MODE_EFFECT
+	if node.atom_name == &"automatically_evade":
+		mode = EvadeFlow.MODE_AUTOMATIC
+	var result := EvadeFlow.nest_or_run(
+		_game_ctx,
+		{
+			"enemy_id": enemy_id,
+			"investigator_id": inv_id,
+			"mode": mode,
+		}
+	)
+	var ok := bool(result.get("ok", false))
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:nest_evade",
+			{"enemy": enemy_id, "inv": inv_id, "mode": mode, "flow": EvadeFlow.FLOW}
 		)
 	return ok
 

@@ -472,7 +472,37 @@ static func deal_damage_enemy(
 	return n
 
 
-## L0 · 敌人脱离交战（Evade 成功体之一；支持 memory: 指称）。
+## nest `seq.effect.evade`（躲避效果：横置+解除交战）。
+## mode：attempt | automatic | effect（默认 effect）。
+static func nest_evade(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	mode: StringName = &"effect",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_evade"
+	n.nest_flow_id = &"seq.effect.evade"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.engage_mode = mode
+	return n
+
+
+## 自动躲避：同核 `seq.effect.evade` mode=automatic（无检定）。
+static func automatically_evade(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := nest_evade(controller_id, enemy_spec, EvadeFlow.MODE_AUTOMATIC, source_card_id)
+	n.atom_name = &"automatically_evade"
+	return n
+
+
+## L0 · 仅解除交战（非整躲避效果；完整躲避效果用 nest_evade）。
 static func disengage_enemy(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",

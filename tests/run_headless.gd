@@ -290,6 +290,9 @@ func _initialize() -> void:
 	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
 	_run_test("G6-01 phase boundary catalog", _test_g6_phase_boundary_catalog)
 	_run_test("G6-02 framework emits phase boundary seq", _test_g6_framework_emits)
+	_run_test("EV-01 seq.effect.evade catalog", _test_ev_catalog)
+	_run_test("EV-02 action success nests evade effect", _test_ev_action_nests_effect)
+	_run_test("EV-03 automatically evade no skill test", _test_ev_automatically_evade)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6279,6 +6282,52 @@ func _test_g6_framework_emits() -> bool:
 	return saw_mythos and saw_enemy and saw_upkeep
 
 
+func _test_ev_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	return h.ctx.sequence_catalog.has_flow(&"seq.effect.evade")
+
+
+func _test_ev_action_nests_effect() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_ev", &"test_loc", 2, 1, &"inv_1"
+	)
+	h.ctx.memory.clear_trace()
+	var res := h.evade_action({"enemy_id": &"enemy_ev"})
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_ev")
+	var saw_evade := false
+	for entry in h.ctx.memory.phase_trace:
+		if str(entry).contains("evade_effect"):
+			saw_evade = true
+			break
+	return (
+		res.ok
+		and res.success
+		and enemy != null
+		and enemy.exhausted
+		and enemy.engaged_with == &""
+		and saw_evade
+	)
+
+
+func _test_ev_automatically_evade() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_auto_ev", &"test_loc", 2, 99, &"inv_1"
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_auto_ev")
+	## 难度极高：若走检定几乎必失败；自动躲避不检定。
+	var res := EvadeFlow.automatically_evade(h.ctx, &"enemy_auto_ev", &"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("automatic", false))
+		and enemy.exhausted
+		and enemy.engaged_with == &""
+	)
+
+
 func _test_act_move_fail() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -6358,6 +6407,7 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.action.engage",
 		&"seq.engage",
 		&"seq.action.evade",
+		&"seq.effect.evade",
 		&"seq.effect.discover_clue",
 	]
 	for flow_id in flows:
