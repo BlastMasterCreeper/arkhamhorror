@@ -288,6 +288,7 @@ func _initialize() -> void:
 	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
 	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
 	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
+	_run_test("ZM-04 into_play wrapper then to_discard", _test_zm_into_play_wrapper)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6208,7 +6209,7 @@ func _test_zm_leave_play_discard_asset() -> bool:
 	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, card_id)
 	if store.count() != 1:
 		return false
-	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	var moved := ZoneMoveFlow.to_investigator_discard(h.ctx, card_id, &"inv_1")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
 		moved
@@ -6236,6 +6237,32 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 		bool(res.get("ok", false))
 		and store.count() == 0
 		and h.ctx.state.registry.get_enemy(card_id) == null
+	)
+
+
+func _test_zm_into_play_wrapper() -> bool:
+	var h := RuleTestHarness.new(42)
+	var instance_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	CardRegistry.register_definition(&"zm_into_asset", {"card_type": &"asset"})
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, &"zm_into_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.zone = AhcEnums.Zone.SET_ASIDE
+	h.ctx.state.registry.register_card(card)
+	h.ctx.state.set_aside.append(instance_id)
+	if not ZoneMoveFlow.into_play(h.ctx, instance_id, &"inv_1"):
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var store := h.ctx.registrations
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, instance_id)
+	if not ZoneMoveFlow.to_discard(h.ctx, instance_id):
+		return false
+	return (
+		card.zone == AhcEnums.Zone.DISCARD
+		and inv.play_area.has(instance_id) == false
+		and inv.discard.has(instance_id)
+		and store.count() == 0
 	)
 
 

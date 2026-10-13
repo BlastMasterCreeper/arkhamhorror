@@ -283,12 +283,14 @@ func commit_enter_threat_area(card_id: StringName, inv_id: StringName) -> bool:
 	var inv := _state.registry.get_investigator(inv_id)
 	if card == null or inv == null:
 		return false
+	var from_zone := card.zone
 	inv.hand.erase(card_id)
 	inv.deck.erase(card_id)
 	if not inv.threat_area.has(card_id):
 		inv.threat_area.append(card_id)
 	card.controller_id = inv_id
 	card.zone = AhcEnums.Zone.PLAY_AREA
+	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
 	return true
 
 
@@ -358,6 +360,7 @@ func _enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
+	var from_zone := card.zone
 	var inv := _state.registry.get_investigator(card.owner_id)
 	if inv != null:
 		_remove_from_pile(card, inv)
@@ -365,6 +368,7 @@ func _enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
 	_state.encounter_discard.erase(card.id.instance_id)
 	card.zone = AhcEnums.Zone.LIMBO
 	card.controller_id = controller_id
+	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.LIMBO)
 	return true
 
 

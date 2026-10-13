@@ -352,16 +352,7 @@ static func _leave_asset(game_ctx: GameContext, params: Dictionary) -> Dictionar
 	if card == null:
 		return {"ok": false, "defeated": false}
 	var owner_id: StringName = card.owner_id
-	var moved := false
-	if game_ctx.mutator != null and game_ctx.state.registry.get_investigator(owner_id) != null:
-		moved = game_ctx.mutator.move_card(card_id, CardSlot.discard_top(owner_id))
-	elif game_ctx.mutator != null and owner_id == &"encounter":
-		moved = game_ctx.mutator.move_card(card_id, CardSlot.encounter_discard_top())
-	else:
-		card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
-		if not game_ctx.state.removed_from_game.has(card_id):
-			game_ctx.state.removed_from_game.append(card_id)
-		moved = true
+	var moved := ZoneMoveFlow.to_discard(game_ctx, card_id)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
