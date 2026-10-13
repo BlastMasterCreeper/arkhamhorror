@@ -10,6 +10,8 @@ static func run(game_ctx: GameContext, inv_id: StringName, amount: int) -> Dicti
 	return _run_core(game_ctx, inv_id, amount)
 
 
+## 仅供 dry-run / GameSimulator（无 Catalog、无堆栈）。
+## 生产路径必须走 `DrawInvestigatorService.draw_cards` → `seq.draw.investigator`。
 static func run_mutator_only(mutator: StateMutator, inv_id: StringName, amount: int) -> Dictionary:
 	var inv := mutator.state().registry.get_investigator(inv_id)
 	if inv == null:
@@ -20,6 +22,7 @@ static func run_mutator_only(mutator: StateMutator, inv_id: StringName, amount: 
 	var ctx := GameContext.new()
 	ctx.mutator = mutator
 	ctx.memory = memory
+	## 故意不绑 composition / sequences：走 L0 旁路，避免误触 I2 execute 守卫。
 	return _run_core(ctx, inv_id, amount)
 
 

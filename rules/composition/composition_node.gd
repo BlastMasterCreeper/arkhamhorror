@@ -82,13 +82,9 @@ static func seq(nodes: Array) -> CompositionNode:
 
 
 ## L2 宏 · 调查员抽牌指令（展开为 DrawInvestigatorFlow 原子链）。
+## 兼容旧名：展开为 nest `seq.draw.investigator`（禁糖 Atom `draw`）。
 static func draw(inv_id: StringName, amount: int = 1) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.inv_id = inv_id
-	n.atom_name = &"draw"
-	n.draw_amount = maxi(amount, 1)
-	return n
+	return nest_draw_investigator(inv_id, amount)
 
 
 ## L0 · AtomMoveCard

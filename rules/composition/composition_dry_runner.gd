@@ -594,11 +594,8 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 					pool += ginv.clues_on_card
 			return pool >= need
 		&"nest_move_connecting":
-			var move_free_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
-			if move_free_inv == null or move_free_inv.location_tag == &"":
-				return false
-			var from_loc := sim.state.registry.get_location(move_free_inv.location_tag)
-			return from_loc != null and not from_loc.connections.is_empty()
+			## 运行时已废；dry-run 亦拒（工厂已展开为 select+nest_move_to）。
+			return false
 		&"nest_move_to":
 			var move_to_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if move_to_inv == null:

@@ -15,7 +15,8 @@ func dry_run(node: CompositionNode) -> bool:
 
 
 func execute(node: CompositionNode) -> void:
-	_ctx.composition.execute(node)
+	## 经 seq.ability.resolve 装载，满足 I2 depth()>0。
+	CompositionMount.resolve_ability(_ctx, node)
 
 
 func modifier_willpower(base: int, controller_id: StringName) -> int:
@@ -41,7 +42,9 @@ static func forbid_draw_turn(inv_id: StringName) -> CompositionNode:
 
 
 static func delayed_draw_listener(inv_id: StringName, timing: StringName) -> CompositionNode:
-	var listener := ListenerPayload.at_timing(timing, CompositionNode.draw(inv_id))
+	var listener := ListenerPayload.at_timing(
+		timing, CompositionNode.nest_draw_investigator(inv_id)
+	)
 	var template := RegistrationTemplate.delayed_listener(inv_id, listener)
 	return CompositionNode.register(template)
 

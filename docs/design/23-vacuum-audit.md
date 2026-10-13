@@ -76,11 +76,11 @@
 
 ## 6. 建议修复顺序（下一刀）
 
-1. **`CompositionExecutor.execute` 硬门槛** — `sequences.depth() > 0`（或等价「当前 Catalog 帧」）；失败响亮报错。一次堵住静默真空。  
-2. **删除 Mount / Initiation / Triggered 裸 execute 回退** — Catalog 缺 `seq.ability.resolve` = 错误，不再绕栈。Register 回退同理。  
-3. **隔离或废除 `run_mutator_only`** — 仅 dry-run / 测试；生产 atom/Action 不得走 mutator 抽牌旁路。  
-4. **`CardAbilityService.resolve_revelations`** — 断言已压栈；拒绝 `sequences == null`。  
-5. **清糖残留** — 删 executor `nest_move_connecting` 遗留分支；迁尽 `CompositionNode.draw` 调用点。
+1. ~~**`CompositionExecutor.execute` 硬门槛**~~：**已落地** — `depth() > 0` 否则 `push_error` 并返回 false（I2-01）  
+2. ~~**删除 Mount / Initiation / Triggered 裸 execute 回退**~~：**已落地** — Catalog 缺失 = 错误；Register / Engagement / gained-keyword / SKIP_AOO 同理  
+3. ~~**隔离 `run_mutator_only`**~~：**已落地** — 仅 dry-run/sim；生产 draw atom / ActionSystem 禁 mutator 旁路  
+4. ~~**`CardAbilityService.resolve_revelations`**~~：**已落地** — 断言已压栈  
+5. ~~**清糖残留**~~：**已落地** — executor 拒 `nest_move_connecting` ATOM；`CompositionNode.draw` → `nest_draw_investigator`；测试 helper 经 Mount
 
 ---
 
@@ -89,3 +89,4 @@
 | 日期 | 说明 |
 |---|---|
 | 2026-10-13 | 首轮抽查：主路径 OK；回退 + `run_mutator_only` 为结构性债 |
+| 2026-10-13 | §6 五项落地：execute 守卫、删回退、隔离 mutator 抽牌、revelations 断言、清糖 |

@@ -130,19 +130,19 @@ func _mount_skip_aoo_buff(intent: InitiationIntent, ctx: GameContext) -> void:
 		return
 	var template := RegistrationTemplate.skip_aoo_for_action(intent.controller_id)
 	if (
-		ctx.sequence_catalog != null
-		and ctx.sequence_catalog.has_flow(&"seq.effect.register")
+		ctx.sequence_catalog == null
+		or not ctx.sequence_catalog.has_flow(&"seq.effect.register")
 	):
-		ctx.sequence_catalog.run(
-			ctx,
-			&"seq.effect.register",
-			{
-				"controller_id": intent.controller_id,
-				"template": template,
-			}
-		)
+		push_error("AbilityInitiationPipeline: seq.effect.register missing; SKIP_AOO vacuum refused")
 		return
-	ctx.registrations.register(template)
+	ctx.sequence_catalog.run(
+		ctx,
+		&"seq.effect.register",
+		{
+			"controller_id": intent.controller_id,
+			"template": template,
+		}
+	)
 
 
 static func _composition_declares_skip_aoo(node: CompositionNode) -> bool:
@@ -162,20 +162,18 @@ static func _composition_declares_skip_aoo(node: CompositionNode) -> bool:
 	return false
 
 
-## 禁止真空：优先 nest `seq.ability.resolve`；Catalog 缺失时才直 execute。
+## 禁止真空：必须 nest `seq.ability.resolve`（无裸 execute 回退）。
 func _resolve_composition_on_stack(intent: InitiationIntent, ctx: GameContext) -> void:
 	if intent == null or intent.composition == null:
 		return
-	if CompositionMount.resolve_ability(
+	if not CompositionMount.resolve_ability(
 		ctx,
 		intent.composition,
 		intent.controller_id,
 		intent.ability_id,
 		intent.source_id
 	):
-		return
-	if _composition != null:
-		_composition.execute(intent.composition)
+		push_error("AbilityInitiationPipeline: seq.ability.resolve failed; composition not executed")
 
 
 func _intent_payload(intent: InitiationIntent) -> Dictionary:

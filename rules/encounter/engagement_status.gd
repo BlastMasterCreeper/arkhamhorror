@@ -21,16 +21,17 @@ static func grant(
 	game_ctx.registrations.clear_engagement(enemy_id)
 	var template := RegistrationTemplate.engagement_pair(enemy_id, investigator_id)
 	if (
-		game_ctx.sequence_catalog != null
-		and game_ctx.sequence_catalog.has_flow(&"seq.effect.register")
+		game_ctx.sequence_catalog == null
+		or not game_ctx.sequence_catalog.has_flow(&"seq.effect.register")
 	):
-		var result := game_ctx.sequence_catalog.nest(
-			game_ctx,
-			&"seq.effect.register",
-			{"template": template}
-		)
-		return result.get("reg_id", &"") as StringName
-	return game_ctx.registrations.register(template)
+		push_error("EngagementStatus.grant: seq.effect.register missing; vacuum refused")
+		return &""
+	var result := game_ctx.sequence_catalog.nest(
+		game_ctx,
+		&"seq.effect.register",
+		{"template": template}
+	)
+	return result.get("reg_id", &"") as StringName
 
 
 ## 注销该敌人的交战状态 Buff。

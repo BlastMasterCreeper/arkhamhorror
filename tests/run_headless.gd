@@ -294,6 +294,8 @@ func _initialize() -> void:
 	_run_test("EV-02 action success nests evade effect", _test_ev_action_nests_effect)
 	_run_test("EV-03 automatically evade no skill test", _test_ev_automatically_evade)
 	_run_test("EV-04 legacy mode=effect → automatic", _test_ev_mode_effect_normalizes)
+	_run_test("I2-01 vacuum execute refused", _test_i2_vacuum_execute_refused)
+	_run_test("I2-02 mount nests ability.resolve", _test_i2_mount_nests_frame)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6356,6 +6358,33 @@ func _test_ev_mode_effect_normalizes() -> bool:
 		and str(res.get("mode", &"")) == str(EvadeFlow.MODE_AUTOMATIC)
 		and enemy.exhausted
 		and enemy.engaged_with == &""
+	)
+
+
+func _test_i2_vacuum_execute_refused() -> bool:
+	## 栈空时裸 execute 不得改局面。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	if h.ctx.sequences.depth() != 0:
+		return false
+	var ok := h.ctx.composition.execute(CompositionNode.nest_draw_investigator(&"inv_1"))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return not ok and inv.hand.is_empty() and inv.deck.size() == 1
+
+
+func _test_i2_mount_nests_frame() -> bool:
+	## Mount → seq.ability.resolve → 栈上 execute 可落地。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
+	var before := _sequence_kind_count(h, &"ability_resolve")
+	var mounted := CompositionMount.resolve_ability(
+		h.ctx, CompositionNode.nest_draw_investigator(&"inv_1"), &"inv_1"
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		mounted
+		and inv.hand.size() == 1
+		and _sequence_kind_count(h, &"ability_resolve") > before
 	)
 
 

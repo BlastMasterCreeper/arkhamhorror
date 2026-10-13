@@ -317,8 +317,9 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var tree: Variant = params.get("composition", null)
 			if tree is CompositionNode and game_ctx != null and game_ctx.composition != null:
-				game_ctx.composition.execute(tree as CompositionNode)
-				return {"ok": true}
+				if game_ctx.composition.execute(tree as CompositionNode):
+					return {"ok": true}
+				return {"ok": false, "reason": &"vacuum_refused"}
 			return {"ok": false, "reason": &"no_composition"}
 	)
 

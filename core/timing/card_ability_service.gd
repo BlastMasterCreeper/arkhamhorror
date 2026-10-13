@@ -28,6 +28,10 @@ func resolve_revelations(
 ) -> bool:
 	if game_ctx == null or game_ctx.composition == null:
 		return false
+	## I2：显现体只在已压栈入口 seq（enter_hand / encounter.revelation）内解释。
+	if game_ctx.sequences == null or game_ctx.sequences.depth() <= 0:
+		push_error("CardAbilityService.resolve_revelations: no sequence frame; vacuum refused")
+		return false
 	var card := _get_card(game_ctx, card_id)
 	if card == null:
 		return false

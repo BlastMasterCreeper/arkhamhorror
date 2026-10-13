@@ -47,7 +47,12 @@ func last_skill_test_fail_by() -> int:
 	return _last_skill_test_fail_by
 
 
-func execute(node: CompositionNode) -> void:
+## 返回 false = 真空拒绝（未压栈）；true = 已在栈内走树。
+func execute(node: CompositionNode) -> bool:
+	## I2 硬门槛：禁止真空 — 必须已在命名流程栈帧内（17 I2 / 23）。
+	if not _has_sequence_frame():
+		push_error("CompositionExecutor.execute: vacuum refused (sequences.depth()==0)")
+		return false
 	_last_step_created = false
 	_last_skill_test_fail_by = 0
 	_last_step_enemy_id = &""
@@ -55,6 +60,15 @@ func execute(node: CompositionNode) -> void:
 	_last_resolved_location = &""
 	_inv_override_stack.clear()
 	_run_node(node)
+	return true
+
+
+func _has_sequence_frame() -> bool:
+	return (
+		_game_ctx != null
+		and _game_ctx.sequences != null
+		and _game_ctx.sequences.depth() > 0
+	)
 
 
 func _run_node(node: CompositionNode) -> void:
@@ -213,14 +227,15 @@ func _record_composition_step(node: CompositionNode, created: bool) -> void:
 func _execute_atom(node: CompositionNode) -> bool:
 	match node.atom_name:
 		&"draw":
+			## 糖残留：新树用 nest_draw_investigator；此处仍须走 catalog，禁 mutator 旁路。
 			if RestrictionEvaluator.blocks_draw(node.inv_id, _registrations):
 				_log.log(AhcEnums.LogCategory.CARD, "composition:draw_blocked", {"inv": node.inv_id})
 				return false
+			if _draw == null or _game_ctx == null:
+				push_error("CompositionExecutor: draw atom requires DrawInvestigatorService")
+				return false
 			var amount := maxi(node.draw_amount, 1)
-			if _draw and _game_ctx:
-				_draw.draw_cards(_game_ctx, node.inv_id, amount, [&"composition_draw"])
-			else:
-				_mutator.execute_draw_instruction(node.inv_id, amount)
+			_draw.draw_cards(_game_ctx, node.inv_id, amount, [&"composition_draw"])
 			_log.log(AhcEnums.LogCategory.CARD, "composition:draw", {"inv": node.inv_id, "amount": amount})
 			return true
 		&"move_card":
@@ -451,8 +466,9 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"spend_clues_group":
 			return _execute_spend_clues_group(node)
 		&"nest_move_connecting":
-			## 兼容旧单 Atom；新树应为 select + nest_move_to。
-			return _execute_nest_move_connecting_legacy(node)
+			## 工厂已展开为 select+nest_move_to；原始 ATOM 不再执行（禁糖）。
+			push_error("CompositionExecutor: nest_move_connecting atom retired; use move_to_connecting")
+			return false
 		&"nest_move_to":
 			return _execute_nest_move_to(node)
 		&"nest_move_attachment_to":
@@ -1486,32 +1502,6 @@ func _execute_spend_clues_group(node: CompositionNode) -> bool:
 	return spent >= need
 
 
-## 旧单 Atom：内嵌选地点（仅兼容；新编译勿用）。
-func _execute_nest_move_connecting_legacy(node: CompositionNode) -> bool:
-	if _game_ctx == null or _state == null:
-		return false
-	var inv_id := _resolve_inv(node)
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null or inv.location_tag == &"":
-		return false
-	var current := _state.registry.get_location(inv.location_tag)
-	if current == null:
-		return false
-	var candidates: Array[StringName] = []
-	for conn in current.connections:
-		candidates.append(conn)
-	if candidates.is_empty():
-		return false
-	var dest_id: StringName = candidates[0]
-	if _game_ctx.interaction != null:
-		var picked: Variant = _game_ctx.interaction.ask_pick_target(
-			candidates, inv_id, &"pick:move_connecting", _game_ctx
-		)
-		if picked != null:
-			dest_id = StringName(str(picked))
-	return _perform_investigator_move(inv_id, dest_id)
-
-
 func _execute_nest_move_to(node: CompositionNode) -> bool:
 	if _game_ctx == null or _state == null:
 		return false
@@ -1947,7 +1937,7 @@ func _execute_register(node: CompositionNode) -> bool:
 	return ok
 
 
-## 卡面 Buff 创建唯一落地：nest/run `seq.effect.register`（Catalog 缺失才直写 Store）。
+## 卡面 Buff 创建唯一落地：nest/run `seq.effect.register`（禁真空 Store）。
 func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
 	if template == null:
 		return false
@@ -1959,6 +1949,7 @@ func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
 			"template": template,
 		}
 	)
-	if result.is_empty() and _registrations != null:
-		return _registrations.register(template) != &""
+	if result.is_empty():
+		push_error("CompositionExecutor: seq.effect.register unavailable; refused vacuum register")
+		return false
 	return bool(result.get("ok", false))

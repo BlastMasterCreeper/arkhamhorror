@@ -58,14 +58,14 @@
 |---|---|---|
 | 12113 `engage_from_connecting` | ✅ 已展 | SKIP_AOO → PI → `suppress_auto_engage` → nest move → nest engage |
 | 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign`（Resign 类型本身不借机，不挂 SKIP_AOO） |
-| Initiation / Forced 裸 `execute` | ✅ 主路径收口 | nest `seq.ability.resolve`；**仍留 Catalog 缺失回退**（见 [23](23-vacuum-audit.md)） |
-| `nest_move_connecting` 内嵌 PI | ✅ 已展 | 12116 / 12046：`pick_target(location_connecting)` → `nest_move_to` |
-| LISTENER / peril / act-agenda-back | ✅ 主路径收口 | `CompositionMount`；回退债同 [23](23-vacuum-audit.md) |
+| Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve`；Catalog 缺失报错、无回退 |
+| `nest_move_connecting` 内嵌 PI | ✅ 已展 | 工厂展开；executor 拒原始 ATOM |
+| LISTENER / peril / act-agenda-back | ✅ 收口 | `CompositionMount`；无裸回退 |
 | 编译侧「叶子一律 nest」习惯 | 文档已裁 | 新译先判三分法 |
-| `CompositionExecutor.execute` 无栈守卫 | ⬜ 结构性 | 建议 `depth()>0` 硬门槛（23 §6.1） |
-| Mount / Register Catalog 缺失回退 | ⬜ 结构性 | 裸 execute / 直写 Store；应改为报错 |
-| `DrawInvestigatorFlow.run_mutator_only` | ⬜ 潜伏真空 | 无栈 GameContext；生产旁路应收口 |
-| Executor 遗留 `nest_move_connecting` atom | ⬜ 糖残留 | 工厂/编译已展；运行时 ATOM 分支仍在 |
+| `CompositionExecutor.execute` 栈守卫 | ✅ | `depth()>0` 硬门槛（I2-01/02） |
+| Mount / Register Catalog 缺失回退 | ✅ 删除 | 报错拒绝；含 Engagement / SKIP_AOO / keyword |
+| `DrawInvestigatorFlow.run_mutator_only` | ✅ 隔离 | 仅 dry-run/sim；生产禁旁路 |
+| `CompositionNode.draw` 糖 Atom | ✅ | 工厂改指向 `nest_draw_investigator` |
 
 ---
 
@@ -141,6 +141,7 @@
 |---|---|---|
 | 2026-09-30 | v0.23 | 清债：LISTENER / peril / privacy / act-agenda-back 经 `CompositionMount` 装载 |
 | 2026-09-30 | v0.22 | 清债：`nest_move_connecting` 内嵌 PI → `pick_target` + `nest_move_to`（12116/12046） |
+| 2026-10-13 | v0.23 | I2 运行时收口：execute 守卫、删回退、隔离 mutator 抽牌（23 §6） |
 | 2026-10-13 | v0.22 | [23-vacuum-audit](23-vacuum-audit.md)：I2 抽查；§3.1 补结构性回退债 |
 | 2026-09-29 | v0.21 | 21 §3.1：候选范围分层 U/S/N/R/V（数值 preds + Restriction `for_intent`） |
 | 2026-09-29 | v0.20 | [21-selection-spec](21-selection-spec.md)：通用选择 filter/基数/bind；`select`/`pick_multi` |
