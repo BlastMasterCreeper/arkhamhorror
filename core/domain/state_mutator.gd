@@ -4,6 +4,7 @@ extends RefCounted
 var _state: GameStateStore
 var _information: InformationExecutor
 var _registrations: RegistrationStore = null
+var _after_zone_move: Callable = Callable()
 
 
 func _init(state: GameStateStore) -> void:
@@ -13,6 +14,10 @@ func _init(state: GameStateStore) -> void:
 
 func bind_registration_store(store: RegistrationStore) -> void:
 	_registrations = store
+
+
+func bind_after_zone_move(callback: Callable) -> void:
+	_after_zone_move = callback
 
 
 func state() -> GameStateStore:
@@ -28,6 +33,7 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
+	var from_zone := card.zone
 	if _would_leave_hand(card, to) and _blocks_leave_hand(card_id):
 		return false
 	if _would_leave_hand(card, to):
@@ -53,9 +59,15 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 				if inv != null:
 					inv.threat_area.erase(card.id.instance_id)
 	if to.owner_id == &"encounter":
-		return _insert_encounter_discard(card)
+		if not _insert_encounter_discard(card):
+			return false
+		_emit_zone_move(card_id, from_zone, card.zone)
+		return true
 	if to.owner_id == &"victory_display":
-		return _insert_victory_display(card)
+		if not _insert_victory_display(card):
+			return false
+		_emit_zone_move(card_id, from_zone, card.zone)
+		return true
 	var target_inv := _state.registry.get_investigator(to.owner_id)
 	if target_inv == null:
 		return false
@@ -64,7 +76,19 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	card.zone = _zone_for_pile(to.pile)
 	if to.pile == AhcEnums.PileKind.INV_HAND:
 		card.controller_id = to.owner_id
+	_emit_zone_move(card_id, from_zone, card.zone)
 	return true
+
+
+func _emit_zone_move(
+	card_id: StringName,
+	from_zone: AhcEnums.Zone,
+	to_zone: AhcEnums.Zone
+) -> void:
+	if from_zone == to_zone:
+		return
+	if _after_zone_move.is_valid():
+		_after_zone_move.call(card_id, from_zone, to_zone)
 
 
 ## L0 · AtomTransferMarker

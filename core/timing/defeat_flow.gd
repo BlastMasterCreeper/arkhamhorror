@@ -351,10 +351,6 @@ static func _leave_asset(game_ctx: GameContext, params: Dictionary) -> Dictionar
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return {"ok": false, "defeated": false}
-	if game_ctx.triggered_abilities != null:
-		game_ctx.triggered_abilities.uninstall_by_source(card_id)
-	if game_ctx.registrations != null:
-		game_ctx.registrations.on_card_leave_play(card_id)
 	var owner_id: StringName = card.owner_id
 	var moved := false
 	if game_ctx.mutator != null and game_ctx.state.registry.get_investigator(owner_id) != null:

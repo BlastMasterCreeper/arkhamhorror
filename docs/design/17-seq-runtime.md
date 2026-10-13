@@ -215,6 +215,7 @@
 | `seq.effect.exhaust` | 横置 | `ExhaustReadyFlow`；平放区卡 / 在场敌 |
 | `seq.effect.ready` | 重整 | 同上；Upkeep 4.3 batch |
 | `seq.effect.search` | 搜寻 | `SearchFlow`；区域/顶 N/过滤/取出；搜牌库须洗；≠ look/find |
+| `seq.zone.move` | 广义区划迁移（**信息**；进场/离场 = 过滤别名） | L0 `move_card` 成功后 `ZoneMoveFlow`；非 `seq.effect.move` |
 | `seq.effect.defeat` | 击败 | `DefeatFlow`；成功 nest `seq.defeat.leave_play`；Cancel 无退场 |
 | `seq.enemy.defeat` | 击败（敌人别名） | 同核；TC `enemy_defeated` |
 | `seq.defeat.leave_play` | 击败后退场 | nest from defeat；敌人路由 / 调查员淘汰清理 |

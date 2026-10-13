@@ -56,8 +56,6 @@ static func finalize_leave_play(
 	_clear_engagement(game_ctx, enemy_id)
 	DoomedResolver.try_on_defeat(game_ctx, enemy_id)
 	var routed := _route_after_defeat(game_ctx, enemy_id)
-	if game_ctx.triggered_abilities != null:
-		game_ctx.triggered_abilities.uninstall_by_source(enemy_id)
 	game_ctx.state.registry.unregister_enemy(enemy_id)
 	if game_ctx.log != null:
 		game_ctx.log.log(
@@ -88,8 +86,6 @@ static func discard_from_play(game_ctx: GameContext, enemy_id: StringName) -> Di
 		return {"ok": false, "discarded": false}
 	_clear_engagement(game_ctx, enemy_id)
 	_route_to_discard(game_ctx, enemy_id)
-	if game_ctx.triggered_abilities != null:
-		game_ctx.triggered_abilities.uninstall_by_source(enemy_id)
 	game_ctx.state.registry.unregister_enemy(enemy_id)
 	if game_ctx.log != null:
 		game_ctx.log.log(

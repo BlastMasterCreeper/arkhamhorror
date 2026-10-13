@@ -148,7 +148,7 @@
 | **狭义地点变更** | 已位于地点的调查员 / 敌人 / 地点附属 / 标记，从当前地点到新地点 | **是**：统一 `seq.effect.move` |
 | ├ **移动** | 须沿地点连接 | `move_kind=move`（默认行动 / Hunter / Patrol / Elusive / `nest_enemy_move_to`） |
 | └ **移动到地点** | 无视连接，一次落到目标 | `move_kind=move_to`（`move_enemy_to` / 附属·标记卡面常见） |
-| **广义「移动」** | 场内外任意区域之间的转移（弃牌、入手、进场/离场…） | **否** — **不**并入 `seq.effect.move`；监听区划变迁钉在此（L0 zone 写入），见下「进场」 |
+| **广义「移动」** | 场内外任意区域之间的转移（弃牌、入手、进场/离场…） | **否** — **不**并入 `seq.effect.move`；**已铸** `seq.zone.move`（L0 `move_card` 成功后）；见下「进场」 |
 | **地点交换** | 两地点上实体互换位置（如 Ethereal Slip） | **否** — 原子；**不可 nest**；**不触发**狭义移动时点 |
 
 同核 params（仅狭义）：`subject` + `move_kind`（+ 敌 `mode` toward/direct 仅在 `move` 下）。订阅用 tags 过滤。

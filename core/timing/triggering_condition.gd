@@ -415,6 +415,21 @@ static func enemy_resolve_location(
 
 
 ## 搜寻（seq.effect.search）。
+## 广义区划迁移（seq.zone.move · 进场/离场信息别名）。
+static func zone_move(
+	params: Dictionary,
+	after_timing: StringName = &"after_zone_move"
+) -> TriggeringCondition:
+	var card_id: StringName = params.get("card_id", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("zone_move_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"zone_move"
+	t.tags = [&"zone_move"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 static func search(
 	params: Dictionary,
 	after_timing: StringName = &"after_search"

@@ -106,6 +106,14 @@ static func _register_flows(
 
 
 static func _register_effect_flows(catalog: SequenceCatalog) -> void:
+	## 广义区划迁移（进场/离场 = 过滤别名；非效果）。
+	catalog.register_run(
+		&"seq.zone.move",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.zone_move(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ZoneMoveFlow.run(game_ctx, params)
+	)
 	## G3：搜寻（单条；区域/顶 N/过滤/是否取出 → params）。
 	catalog.register_run(
 		&"seq.effect.search",

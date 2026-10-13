@@ -285,6 +285,9 @@ func _initialize() -> void:
 	_run_test("G5-07 asset damage cap leave to discard not discard effect", _test_g5_asset_damage_cap)
 	_run_test("G5-08 asset effect defeat to discard", _test_g5_asset_effect_defeat)
 	_run_test("G5-09 asset defeat cancel skips leave", _test_g5_asset_cancel_no_leave)
+	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
+	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
+	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
 	_run_test("ACT-14 draw shuffles discard", _test_act_draw_shuffle)
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
@@ -6191,6 +6194,51 @@ func _test_g5_asset_cancel_no_leave() -> bool:
 	)
 
 
+func _test_zm_catalog() -> bool:
+	var h := RuleTestHarness.new(42)
+	return h.ctx.sequence_catalog.has_flow(&"seq.zone.move")
+
+
+func _test_zm_leave_play_discard_asset() -> bool:
+	var h := RuleTestHarness.new(42)
+	var store := h.ctx.registrations
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_zm_leave", {"health": 1}
+	)
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, card_id)
+	if store.count() != 1:
+		return false
+	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		moved
+		and store.count() == 0
+		and inv.discard.has(card_id)
+		and not inv.play_area.has(card_id)
+	)
+
+
+func _test_zm_enemy_discard_leave_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx, &"enc_zm_discard", {"health": 1}
+	)
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var store := h.ctx.registrations
+	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, card_id)
+	if store.count() != 1:
+		return false
+	var res := EnemyDefeatResolver.discard_from_play(h.ctx, card_id)
+	return (
+		bool(res.get("ok", false))
+		and store.count() == 0
+		and h.ctx.state.registry.get_enemy(card_id) == null
+	)
+
+
 func _test_act_move_fail() -> bool:
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
@@ -6264,6 +6312,7 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.effect.defeat",
 		&"seq.enemy.defeat",
 		&"seq.defeat.leave_play",
+		&"seq.zone.move",
 		&"seq.action.investigate",
 		&"seq.action.fight",
 		&"seq.action.engage",
