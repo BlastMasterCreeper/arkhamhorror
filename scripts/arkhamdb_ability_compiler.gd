@@ -2,6 +2,9 @@ class_name ArkhamDbAbilityCompiler
 extends RefCounted
 
 static var _registered_definitions: Dictionary = {}
+# #region agent log
+static var _agent_build_depth: int = 0
+# #endregion
 
 
 static func apply_to_registry(definition_id: StringName, src: Dictionary) -> Dictionary:
@@ -30,14 +33,24 @@ static func apply_to_registry(definition_id: StringName, src: Dictionary) -> Dic
 
 ## 统一 IR（20 §2）：优先读 `op`；旧 `template` 糖仍可走。
 static func build_node(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	# #region agent log
+	_agent_build_depth += 1
+	if _agent_build_depth <= 6:
+		_agent_dbg("A", "arkhamdb_ability_compiler.gd:build_node", "enter", {"depth": _agent_build_depth, "has_op": node.has("op"), "op": str(node.get("op", "")), "keys": node.keys()})
+	# #endregion
+	var out: CompositionNode = null
 	if node.has("op"):
-		return _build_op_node(node, bind)
-	if node.has("effect") and node["effect"] is Dictionary:
-		return build_node(node["effect"] as Dictionary, bind)
-	var template_id := str(node.get("template", ""))
-	if template_id == "":
-		return null
-	return build_composition(template_id, node, bind)
+		out = _build_op_node(node, bind)
+	elif node.has("effect") and node["effect"] is Dictionary:
+		out = build_node(node["effect"] as Dictionary, bind)
+	else:
+		var template_id := str(node.get("template", ""))
+		if template_id != "":
+			out = build_composition(template_id, node, bind)
+	# #region agent log
+	_agent_build_depth = maxi(_agent_build_depth - 1, 0)
+	# #endregion
+	return out
 
 
 static func _build_op_node(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
@@ -68,6 +81,10 @@ static func _build_op_node(node: Dictionary, bind: AbilityBindContext) -> Compos
 
 static func _build_pi(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
 	var kind := str(node.get("kind", "select")).to_lower()
+	# #region agent log
+	if _agent_build_depth <= 6:
+		_agent_dbg("A", "arkhamdb_ability_compiler.gd:_build_pi", "dispatch", {"depth": _agent_build_depth, "kind": kind, "still_has_op": node.has("op"), "filter": str(node.get("filter", ""))})
+	# #endregion
 	match kind:
 		"multi":
 			return build_composition("pick_multi", node, bind)
@@ -142,6 +159,10 @@ static func build_composition(
 	bind: AbilityBindContext
 ) -> CompositionNode:
 	if params.has("op"):
+		# #region agent log
+		if _agent_build_depth <= 6:
+			_agent_dbg("A", "arkhamdb_ability_compiler.gd:build_composition", "reenter_via_op", {"depth": _agent_build_depth, "template_id": template_id, "op": str(params.get("op", "")), "kind": str(params.get("kind", ""))})
+		# #endregion
 		return build_node(params, bind)
 	match template_id:
 		"take_horror":
