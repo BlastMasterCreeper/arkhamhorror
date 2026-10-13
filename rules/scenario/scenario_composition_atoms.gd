@@ -165,8 +165,9 @@ static func defeat_surviving_non_resigned(
 			inv.physical_trauma += physical_trauma
 		if mental_trauma > 0:
 			inv.mental_trauma += mental_trauma
-		InvestigatorElimination.eliminate(game_ctx, inv_id)
-		affected = true
+		var defeat := DefeatFlow.defeat_investigator_effect(game_ctx, inv_id)
+		if bool(defeat.get("defeated", false)) or bool(defeat.get("eliminated", false)):
+			affected = true
 	if game_ctx.log != null and affected:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
@@ -245,12 +246,14 @@ static func put_story_asset_from_set_aside(
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return false
+	var from_zone := card.zone
 	card.zone = AhcEnums.Zone.PLAY_AREA
 	card.controller_id = owner
 	card.owner_id = owner
 	var inv := game_ctx.state.registry.get_investigator(owner)
 	if inv != null and not inv.play_area.has(card_id):
 		inv.play_area.append(card_id)
+	ZoneMoveFlow.notify_zone_set(game_ctx, card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
 	return true
 
 
@@ -286,12 +289,34 @@ static func lead_search_draw_encounter_copies(
 		else 1
 	)
 	var drawn := 0
-	var searched_deck := false
+	## 先搜遭遇库（搜库须洗）；不足再搜弃牌堆（弃牌堆不洗）。
 	for _i in count:
-		var card_id := _take_encounter_copy(game_ctx, definition_id, searched_deck)
-		if card_id == &"":
+		var search_deck := SearchFlow.nest_or_run(
+			game_ctx,
+			{
+				"controller_id": lead,
+				"area": SearchFlow.AREA_ENCOUNTER_DECK,
+				"scope": SearchFlow.SCOPE_ENTIRE,
+				"definition_id": definition_id,
+				"take_count": 1,
+			}
+		)
+		var taken: Array = search_deck.get("taken", [])
+		if taken.is_empty():
+			var search_disc := SearchFlow.nest_or_run(
+				game_ctx,
+				{
+					"controller_id": lead,
+					"area": SearchFlow.AREA_ENCOUNTER_DISCARD,
+					"scope": SearchFlow.SCOPE_ENTIRE,
+					"definition_id": definition_id,
+					"take_count": 1,
+				}
+			)
+			taken = search_disc.get("taken", [])
+		if taken.is_empty():
 			break
-		searched_deck = true
+		var card_id: StringName = taken[0]
 		var card := game_ctx.state.registry.get_card(card_id)
 		if card == null:
 			continue
@@ -340,27 +365,6 @@ static func _take_topmost_encounter_discard_copy(
 		if card != null and card.id.definition_id == definition_id:
 			discard.remove_at(i)
 			return card_id
-	return &""
-
-
-static func _take_encounter_copy(
-	game_ctx: GameContext,
-	definition_id: StringName,
-	allow_discard_search: bool
-) -> StringName:
-	for i in game_ctx.state.encounter_deck.size():
-		var card_id: StringName = game_ctx.state.encounter_deck[i]
-		var card := game_ctx.state.registry.get_card(card_id)
-		if card != null and card.id.definition_id == definition_id:
-			game_ctx.state.encounter_deck.remove_at(i)
-			return card_id
-	if allow_discard_search:
-		for i in game_ctx.state.encounter_discard.size():
-			var card_id: StringName = game_ctx.state.encounter_discard[i]
-			var card := game_ctx.state.registry.get_card(card_id)
-			if card != null and card.id.definition_id == definition_id:
-				game_ctx.state.encounter_discard.remove_at(i)
-				return card_id
 	return &""
 
 

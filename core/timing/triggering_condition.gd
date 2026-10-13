@@ -277,12 +277,39 @@ static func mythos_check_doom_threshold(
 static func investigation_phase_ends(
 	after_timing: StringName = &"after_investigation_phase_ends"
 ) -> TriggeringCondition:
+	return phase_boundary(&"investigation", &"ends", after_timing)
+
+
+static func phase_boundary_kind(phase: StringName, boundary: StringName) -> StringName:
+	return StringName("%s_phase_%s" % [phase, boundary])
+
+
+## 阶段边界（G6 · 单条 seq）：phase / boundary → params；kind 仍细分供 match_kind。
+static func phase_boundary(
+	phase: StringName,
+	boundary: StringName,
+	after_timing: StringName = &""
+) -> TriggeringCondition:
+	var kind := phase_boundary_kind(phase, boundary)
 	var t := TriggeringCondition.new()
-	t.id = StringName("investigation_phase_ends_%d" % Time.get_ticks_msec())
-	t.kind = &"investigation_phase_ends"
-	t.tags = [&"framework", &"investigation"]
-	t.after_timing = after_timing
+	t.id = StringName("%s_%d" % [kind, Time.get_ticks_msec()])
+	t.kind = kind
+	t.tags = [&"framework", &"phase_boundary", phase, boundary]
+	if after_timing == &"":
+		t.after_timing = StringName("after_%s" % kind)
+	else:
+		t.after_timing = after_timing
+	t.payload = {"phase": phase, "boundary": boundary}
 	return t
+
+
+static func phase_boundary_from_params(
+	params: Dictionary,
+	after_timing: StringName = &""
+) -> TriggeringCondition:
+	var phase: StringName = params.get("phase", &"") as StringName
+	var boundary: StringName = params.get("boundary", &"") as StringName
+	return phase_boundary(phase, boundary, after_timing)
 
 
 static func agenda_advance(
@@ -411,6 +438,40 @@ static func enemy_resolve_location(
 	t.controller_id = drawer_id
 	t.tags = [&"enemy", &"location"]
 	t.after_timing = after_timing
+	return t
+
+
+## 搜寻（seq.effect.search）。
+## 广义区划迁移（seq.zone.move · 进场/离场信息别名）。
+static func zone_move(
+	params: Dictionary,
+	after_timing: StringName = &"after_zone_move"
+) -> TriggeringCondition:
+	var card_id: StringName = params.get("card_id", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("zone_move_%s_%d" % [card_id, Time.get_ticks_msec()])
+	t.kind = &"zone_move"
+	t.tags = [&"zone_move"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+static func search(
+	params: Dictionary,
+	after_timing: StringName = &"after_search"
+) -> TriggeringCondition:
+	var controller: StringName = params.get(
+		"controller_id",
+		params.get("investigator_id", params.get("inv_id", &""))
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("search_%s_%d" % [controller, Time.get_ticks_msec()])
+	t.kind = &"search"
+	t.controller_id = controller
+	t.tags = [&"search", &"effect"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
 	return t
 
 
@@ -558,6 +619,51 @@ static func enemy_defeated(
 		"location_id": location_id,
 		"definition_id": definition_id,
 	}
+	return t
+
+
+## 击败效果（seq.effect.defeat · 敌人/调查员）。
+static func defeat(
+	params: Dictionary,
+	after_timing: StringName = &"after_defeat"
+) -> TriggeringCondition:
+	var subject: StringName = params.get("subject", &"") as StringName
+	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
+	if subject == &"" and enemy_id != &"":
+		return enemy_defeated(
+			enemy_id,
+			params.get("location_id", &"") as StringName,
+			params.get("definition_id", &"") as StringName,
+			after_timing
+		)
+	var inv_id: StringName = params.get(
+		"investigator_id", params.get("inv_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName(
+		"defeat_%s_%s_%d"
+		% [subject, enemy_id if enemy_id != &"" else inv_id, Time.get_ticks_msec()]
+	)
+	t.kind = &"defeat"
+	t.tags = [&"defeat", &"effect", subject]
+	t.controller_id = inv_id
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+## 击败成功后的退场 nest（seq.defeat.leave_play）。
+static func defeat_leave_play(
+	params: Dictionary,
+	after_timing: StringName = &"after_defeat_leave_play"
+) -> TriggeringCondition:
+	var subject: StringName = params.get("subject", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("defeat_leave_%s_%d" % [subject, Time.get_ticks_msec()])
+	t.kind = &"defeat_leave_play"
+	t.tags = [&"defeat", &"leave_play", subject]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
 	return t
 
 

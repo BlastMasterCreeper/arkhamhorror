@@ -214,6 +214,11 @@
 | `seq.effect.move` | 狭义移动（四主体） | `MoveFlow`；行动 / 卡面 / Hunter·Patrol·Elusive nest |
 | `seq.effect.exhaust` | 横置 | `ExhaustReadyFlow`；平放区卡 / 在场敌 |
 | `seq.effect.ready` | 重整 | 同上；Upkeep 4.3 batch |
+| `seq.effect.search` | 搜寻 | `SearchFlow`；区域/顶 N/过滤/取出；搜牌库须洗；≠ look/find |
+| `seq.zone.move` | 广义区划迁移（**信息**；进场/离场 = 过滤别名） | L0 `move_card` 成功后 `ZoneMoveFlow`；非 `seq.effect.move` |
+| `seq.effect.defeat` | 击败 | `DefeatFlow`；成功 nest `seq.defeat.leave_play`；Cancel 无退场 |
+| `seq.enemy.defeat` | 击败（敌人别名） | 同核；TC `enemy_defeated` |
+| `seq.defeat.leave_play` | 击败后退场 | nest from defeat；敌人路由 / 调查员淘汰清理 |
 | `seq.engage` | 交战内核（auto / effect） | `EngageFlow`；行动外壳 nest effect |
 | `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅 |
 | `seq.effect.damage` | **造成伤害/恐惧**（Dealing Damage/Horror；take/deal 同 seq） | `kind` + `source` + `target`；卡面 / 显现 / Fire! |
@@ -230,7 +235,8 @@
 | `seq.effect.resign` | 撤退（线索留地点 + resigned + eliminate） | 12112；nest 自 Composition |
 | `seq.ability.resolve` | Initiation / Forced 效果体装载帧 | 禁真空：树在此 RESOLVE 内解释 |
 | `seq.skill_test` | Skill Test Timing（**一条**；`params.skill`） | 显现内检定、行动检定 nest |
-| `seq.framework.investigation_phase_ends` | 调查阶段结束钩子（WHEN/AFTER） | Fire! / 地点 Forced |
+| `seq.framework.phase_boundary` | 阶段 begins/ends（G6 · 单条） | `phase`+`boundary`；TC.kind=`{phase}_phase_{boundary}` |
+| `seq.framework.investigation_phase_ends` | 上条别名（调查结束） | Fire! / 地点 Forced |
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 

@@ -22,6 +22,11 @@ func is_sequence_cancelled(flow_id: StringName, bind: Dictionary = {}) -> bool:
 	return bool(_cancelled_sequence_keys.get(sequence_bind_key(flow_id, bind), false))
 
 
+## 消费一次 Cancel（击败常态检测等：本次停退场，之后可再触）。
+func clear_sequence_cancel(flow_id: StringName, bind: Dictionary = {}) -> void:
+	_cancelled_sequence_keys.erase(sequence_bind_key(flow_id, bind))
+
+
 func push_encounter_frame(frame: EncounterResolutionFrame) -> void:
 	if frame != null:
 		_encounter_frame_stack.append(frame)

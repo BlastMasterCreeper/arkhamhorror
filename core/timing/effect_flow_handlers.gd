@@ -38,6 +38,16 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 				return {"ok": false, "amount": 0}
 			var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
 			applied = amount if bool(result.get("ok", false)) else 0
+		&"asset", &"card":
+			var asset_id: StringName = params.get("card_id", params.get("asset_id", &""))
+			if game_ctx.state.registry.get_card(asset_id) == null:
+				return {"ok": false, "amount": 0, "error": "unknown_asset"}
+			var asset_res: Dictionary
+			if kind == &"horror":
+				asset_res = DefeatFlow.deal_horror_to_asset(game_ctx, asset_id, amount)
+			else:
+				asset_res = DefeatFlow.deal_damage_to_asset(game_ctx, asset_id, amount)
+			applied = amount if bool(asset_res.get("ok", false)) else 0
 		_:
 			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
 				return {"ok": false, "amount": 0, "error": "unknown_investigator"}
@@ -424,6 +434,8 @@ static func _apply_to_investigator(
 			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
 			amount
 		)
+	## 伤/恐常态检测 → 可能 nest 击败。
+	DefeatFlow.check_investigator_caps(game_ctx, inv_id)
 	return amount
 
 
