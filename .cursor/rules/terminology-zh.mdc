@@ -86,7 +86,7 @@ alwaysApply: true
 - **显现（Revelation）** ≠ **弱点（Weakness 子类型）**；路由看 cardtype + `has_revelation`。
 - 避免把 Revelation 写成「揭示」「暴露」等非规范译法（除非引用第三方非官方文本并标明）。
 - **Skill 不能打出**：`FORBID_PLAY` 仅 asset/event；skill 走 `FORBID_COMMIT_TO_TEST`。险境与卡面 cannot 均经 **RESTRICTION Register**，无独立 Policy。
-- **躲避四层勿混**：躲避行动 ≠ 躲避尝试（检定）≠ 躲避效果（拆交战+横置）≠ 自动躲避（包装并产生躲避效果、无检定）。躲避效果 **不**仅来自成功尝试；自动躲避 **≠** 自动成功的躲避尝试。
+- **躲避四层勿混**：躲避行动 ≠ 躲避尝试（检定）≠ 躲避效果（核：横置+解除交战）≠ 自动躲避（卡面**执行**入口，无检定）。卡面「evade」作效果词多用于**时点**；执行体用自动躲避。自动躲避 **≠** 自动成功的躲避尝试。
 - **躲避（Evade）** ≠ 闪避/规避；**横置（Exhaust）** ≠ 耗尽/疲劳（中文表述用「横置」）。
 - **重整（Ready）** = 将横置卡变为未横置（Framework 4.3 等）；**未横置** = `!exhausted`；≠「竖置」「就绪」。
 - **反击（Retaliate）** / **警戒（Alert）**：均在 skill test **全部 ST.7 结果 apply 完成后**（post-ST7、ST.8 前）才 `perform_attack`；均要求敌人 **未横置**；**不属于** ST.7 `on_fail` 链。见 [08 §6.4](docs/design/08-enemy-engagement.md)。
