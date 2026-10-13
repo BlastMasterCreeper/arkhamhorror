@@ -73,6 +73,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.triggered_abilities.bind_game_context(ctx)
 	ctx.sequences.bind_game_context(ctx)
 	ctx.effects.bind_game_context(ctx)
+	ZoneMoveFlow.bind_mutator(ctx)
 	return ctx
 
 
@@ -142,6 +143,8 @@ static func add_asset_to_play(
 	var inv := ctx.state.registry.get_investigator(inv_id)
 	if inv != null:
 		inv.play_area.append(instance_id)
+	## 测试进场：补发区划通道（未走 move_card）。
+	ZoneMoveFlow.notify_zone_set(ctx, instance_id, AhcEnums.Zone.DECK, AhcEnums.Zone.PLAY_AREA)
 	return instance_id
 
 

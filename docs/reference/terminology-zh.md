@@ -49,7 +49,7 @@
 | **Encounter card back** | **遭遇卡背** | `card_back=encounter`；同上 |
 | **Card back (kind)** | **卡背类型** | **仅**背面轴；≠ 正面 cardtype；≠ CardFace A/B |
 | **Search** | **搜寻** | `seq.effect.search`；搜牌库须洗（整库或顶 N）；弃牌堆不洗；≠ look at / find |
-| **Enter play** / put into play | **进场** | 广义移动结果：场外→场上；听广义移动+过滤；**不是效果**；不铸 `seq.effect.enter_play` |
+| **Enter play** / put into play | **进场** | 广义移动（`seq.zone.move`）结果：场外→场上；听 L0 区划+过滤；**不是效果**；不铸 `seq.effect.enter_play` |
 | **Defeat** | **击败** | **效果**；伤/恐上限或卡面击败；主体含敌人/调查员/支援；成功后 nest 退场 |
 | **Leave play** / 退场 | **退场** | 广义移动场上→场外；支援/敌人进弃牌堆 ≠ discard 效果包装 |
 | **Player cardtype** | **玩家卡牌类型** | asset / event / skill 等 |

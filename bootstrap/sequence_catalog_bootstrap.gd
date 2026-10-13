@@ -106,6 +106,14 @@ static func _register_flows(
 
 
 static func _register_effect_flows(catalog: SequenceCatalog) -> void:
+	## 广义区划迁移（进场/离场 = 过滤别名；非效果）。
+	catalog.register_run(
+		&"seq.zone.move",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.zone_move(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ZoneMoveFlow.run(game_ctx, params)
+	)
 	## G3：搜寻（单条；区域/顶 N/过滤/是否取出 → params）。
 	catalog.register_run(
 		&"seq.effect.search",
@@ -382,13 +390,25 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 
 
 static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
+	## G6：单条阶段边界；phase/boundary → params；TC.kind 仍细分。
+	var phase_build := func(params: Dictionary) -> TriggeringCondition:
+		return TriggeringCondition.phase_boundary_from_params(params)
+	var phase_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return PhaseBoundaryFlow.resolve(game_ctx, params)
+	catalog.register_run(PhaseBoundaryFlow.FLOW, phase_build, phase_resolve)
+	## 旧 id：调查结束别名 → 固定 params。
 	catalog.register_run(
-		&"seq.framework.investigation_phase_ends",
+		PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS_ALIAS,
 		func(_params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.investigation_phase_ends(),
-		func(_game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			## 仅提供 WHEN/AFTER 钩子供 Forced 订阅；框架步进本身已在 FrameworkFlowEngine。
-			return {"ok": true}
+		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
+			return PhaseBoundaryFlow.resolve(
+				game_ctx,
+				{
+					"phase": PhaseBoundaryFlow.PHASE_INVESTIGATION,
+					"boundary": PhaseBoundaryFlow.BOUNDARY_ENDS,
+				}
+			)
 	)
 	catalog.register_run(
 		&"seq.mythos.place_doom",

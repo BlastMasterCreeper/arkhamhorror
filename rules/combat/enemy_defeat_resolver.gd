@@ -56,8 +56,6 @@ static func finalize_leave_play(
 	_clear_engagement(game_ctx, enemy_id)
 	DoomedResolver.try_on_defeat(game_ctx, enemy_id)
 	var routed := _route_after_defeat(game_ctx, enemy_id)
-	if game_ctx.triggered_abilities != null:
-		game_ctx.triggered_abilities.uninstall_by_source(enemy_id)
 	game_ctx.state.registry.unregister_enemy(enemy_id)
 	if game_ctx.log != null:
 		game_ctx.log.log(
@@ -88,8 +86,6 @@ static func discard_from_play(game_ctx: GameContext, enemy_id: StringName) -> Di
 		return {"ok": false, "discarded": false}
 	_clear_engagement(game_ctx, enemy_id)
 	_route_to_discard(game_ctx, enemy_id)
-	if game_ctx.triggered_abilities != null:
-		game_ctx.triggered_abilities.uninstall_by_source(enemy_id)
 	game_ctx.state.registry.unregister_enemy(enemy_id)
 	if game_ctx.log != null:
 		game_ctx.log.log(
@@ -151,7 +147,10 @@ static func _route_to_discard(game_ctx: GameContext, enemy_id: StringName) -> vo
 	if game_ctx.state.registry.get_investigator(card.owner_id) != null:
 		game_ctx.mutator.move_card(enemy_id, CardSlot.discard_top(card.owner_id))
 		return
-	## 无弃牌堆去向 → 从游戏中移除。
+	var from_zone := card.zone
 	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
 	if not game_ctx.state.removed_from_game.has(enemy_id):
 		game_ctx.state.removed_from_game.append(enemy_id)
+	ZoneMoveFlow.notify_zone_set(
+		game_ctx, enemy_id, from_zone, AhcEnums.Zone.REMOVED_FROM_GAME
+	)
