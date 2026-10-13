@@ -132,6 +132,9 @@ func _initialize() -> void:
 	_run_test("ADB-69 pick_multi for_each exhausts list", _test_adb_pick_multi_for_each)
 	_run_test("ADB-70 pick_multi min unsatisfied fizzles", _test_adb_pick_multi_min_fizzle)
 	_run_test("ADB-71 pick_multi compiler sugar", _test_adb_pick_multi_compiler)
+	_run_test("ADB-73 compile 12019 M1911 fight ammo", _test_adb_compile_12019)
+	_run_test("ADB-74 12019 activate fight spends ammo deals 2", _test_adb_12019_fight_ammo)
+	_run_test("SEQ-EFF-11 nest spend_token ammo", _test_seq_eff_spend_token)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
 	_run_test("ADB-03 import weakness subtype", _test_adb_weakness_in_harms_way)
@@ -2950,6 +2953,120 @@ func _test_adb_pick_multi_compiler() -> bool:
 		and each != null
 		and each.kind == AhcEnums.CompositionNodeKind.FOR_EACH
 		and each.for_each_source == &"memory_list"
+	)
+
+
+func _test_adb_compile_12019() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var uses := CardRegistry.uses_spec(&"12019")
+	var compiled := CardRegistry.compiled_abilities(&"12019")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	var types: Variant = entry.get("action_types", [])
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 4:
+		return false
+	var s0: Dictionary = (steps as Array)[0]
+	var s1: Dictionary = (steps as Array)[1]
+	var s2: Dictionary = (steps as Array)[2]
+	var s3: Dictionary = (steps as Array)[3]
+	var st7: Dictionary = s3.get("st7", {})
+	var on_ok: Dictionary = st7.get("on_success", {})
+	return (
+		int(uses.get(&"ammo", 0)) == 4
+		and entry.get("register_as", "") == "action"
+		and entry.get("template", "") == "seq"
+		and entry.get("translation", "") == "full_expand"
+		and int(entry.get("action_cost", 0)) == 1
+		and types is Array
+		and (types as Array).has("activate")
+		and (types as Array).has("fight")
+		and s0.get("template", "") == "spend_token"
+		and str(s0.get("flow_id", "")) == "seq.effect.spend_token"
+		and int(s0.get("amount", 0)) == 1
+		and s1.get("template", "") == "pick_target"
+		and s1.get("filter", "") == "enemy_fight_target"
+		and s2.get("template", "") == "register_modifier"
+		and str(s2.get("duration", "")) == "this_skill_test"
+		and s3.get("template", "") == "nest_skill_test"
+		and str(s3.get("difficulty_source", "")) == "enemy_fight"
+		and on_ok.get("template", "") == "deal_damage_enemy"
+		and int(on_ok.get("amount", 0)) == 2
+		and CardRegistry.has_triggered(&"12019")
+	)
+
+
+func _test_adb_12019_fight_ammo() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.spend_token"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.skill_combat = 3
+	inv.actions_remaining = 2
+	var gun_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12019")
+	var gun := h.ctx.state.registry.get_card(gun_id)
+	if gun == null or int(gun.tokens.uses.get(&"ammo", 0)) != 4:
+		return false
+	if h.ctx.triggered_abilities.list_action_abilities(&"inv_1").is_empty():
+		h.ctx.triggered_abilities.install_card(&"inv_1", gun_id)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_m1911", &"test_loc", 2, 2, &"inv_1")
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_m1911")
+	enemy.health = 5
+	enemy.damage = 0
+	inv.threat_area.append(&"enemy_m1911")
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	var ammo_left := int(gun.tokens.uses.get(&"ammo", 0))
+	## THIS_SKILL_TEST 修饰在 ST.8 卸掉；检定后不应残留。
+	var lingering := 0
+	if h.ctx.registrations != null:
+		for reg in h.ctx.registrations.snapshot():
+			if reg.duration == AhcEnums.DurationAnchorKind.THIS_SKILL_TEST:
+				lingering += 1
+	return (
+		bool(result.get("ok", false))
+		and ammo_left == 3
+		and enemy.damage == 2
+		and inv.actions_remaining == 1
+		and lingering == 0
+	)
+
+
+func _test_seq_eff_spend_token() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.spend_token"):
+		return false
+	CardRegistry.register_definition(&"tok_gun", {"card_type": &"asset", "uses": {"ammo": 2}})
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"tok_gun")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null or int(card.tokens.uses.get(&"ammo", 0)) != 2:
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	## 经 seq.ability.resolve 装载（禁真空）。
+	var body := CompositionNode.nest_spend_token(&"inv_1", card_id, &"ammo", 1)
+	var intent := InitiationIntent.free_ability(&"inv_1", body)
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	var after_one := int(card.tokens.uses.get(&"ammo", 0))
+	var fail := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.spend_token",
+		{"controller_id": &"inv_1", "card_id": card_id, "kind": &"ammo", "amount": 2}
+	)
+	return (
+		res.ok
+		and after_one == 1
+		and not bool(fail.get("ok", false))
+		and int(card.tokens.uses.get(&"ammo", 0)) == 1
 	)
 
 

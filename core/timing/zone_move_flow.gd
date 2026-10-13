@@ -118,10 +118,13 @@ static func zone_is_in_play(zone: AhcEnums.Zone) -> bool:
 
 static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> void:
 	## 用卡上 controller；空则回退 card_id（敌人 spawn 等）。
-	if game_ctx == null or game_ctx.triggered_abilities == null or card_id == &"":
+	if game_ctx == null or card_id == &"":
 		return
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
+		return
+	_place_uses_on_enter_play(game_ctx, card)
+	if game_ctx.triggered_abilities == null:
 		return
 	if not CardRegistry.has_triggered(card.id.definition_id):
 		return
@@ -129,6 +132,23 @@ static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> voi
 	if controller == &"":
 		controller = card_id
 	game_ctx.triggered_abilities.install_card(controller, card_id)
+
+
+## Uses (N kind) 关键词：进场 L0 放置 uses token（非卡面 Composition）。
+static func _place_uses_on_enter_play(game_ctx: GameContext, card: CardInstance) -> void:
+	if game_ctx == null or game_ctx.mutator == null or card == null:
+		return
+	var uses := CardRegistry.uses_spec(card.id.definition_id)
+	if uses.is_empty():
+		return
+	for kind in uses.keys():
+		var amount := int(uses[kind])
+		if amount <= 0:
+			continue
+		game_ctx.mutator.adjust_marker(
+			MarkerSlot.card(card.id.instance_id, AhcEnums.MarkerKind.USES, kind as StringName),
+			amount
+		)
 
 
 static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> void:

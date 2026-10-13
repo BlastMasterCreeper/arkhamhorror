@@ -17,6 +17,9 @@ static func run_revelation_test(game_ctx: GameContext, params: Dictionary) -> Di
 	test.performing_investigator = inv_id
 	test.skill = skill
 	test.difficulty = maxi(difficulty, 0)
+	var enemy_id: StringName = params.get("enemy_id", params.get("target_enemy_id", &""))
+	if enemy_id != &"":
+		test.target_enemy_id = enemy_id
 	if st7_plan is SkillTestSt7Plan:
 		SkillTestSt7Composition.register_plan(test, game_ctx, st7_plan as SkillTestSt7Plan)
 	elif st7_body is CompositionNode:

@@ -306,7 +306,8 @@ static func nest_skill_test(
 	card_id: StringName = &"",
 	st7_plan: SkillTestSt7Plan = null,
 	difficulty_source: StringName = &"",
-	skill_spec: StringName = &""
+	skill_spec: StringName = &"",
+	enemy_spec: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -318,6 +319,7 @@ static func nest_skill_test(
 	n.test_difficulty = maxi(difficulty, 0)
 	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
+	n.enemy_ref_id = enemy_spec
 	return n
 
 
@@ -918,6 +920,21 @@ static func nest_place_clue(controller_id: StringName) -> CompositionNode:
 static func nest_effect_register(template: RegistrationTemplate) -> CompositionNode:
 	var n := _nest_leaf(&"nest_effect_register", &"seq.effect.register")
 	n.register_template = template
+	return n
+
+
+## nest `seq.effect.spend_token`：花费卡上 Uses（ammo / charges / …）。
+static func nest_spend_token(
+	controller_id: StringName,
+	card_id: StringName,
+	kind: StringName = &"ammo",
+	amount: int = 1
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_spend_token", &"seq.effect.spend_token")
+	n.inv_id = controller_id
+	n.card_id = card_id
+	n.definition_id = kind
+	n.marker_delta = maxi(amount, 1)
 	return n
 
 

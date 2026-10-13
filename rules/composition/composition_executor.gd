@@ -489,6 +489,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_effect_register(node)
 		&"nest_effect_unregister":
 			return _execute_nest_effect_unregister(node)
+		&"nest_spend_token", &"spend_token":
+			return _execute_nest_spend_token(node)
 		&"nest_discard_card":
 			return _execute_nest_discard_card(node)
 		&"nest_discard_from_hand":
@@ -710,8 +712,10 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 	var inv_id := _resolve_inv(node)
 	if inv_id == &"":
 		return false
+	var controller := _ability_controller(inv_id)
 	var skill := _resolve_test_skill(node, inv_id)
 	var difficulty := _resolve_test_difficulty(node, inv_id)
+	var enemy_id := _resolve_enemy_spec(node, controller) if node.enemy_ref_id != &"" or node.test_difficulty_source == &"enemy_fight" else &""
 	var flow_id := SkillTestFlowHandlers.flow_id_for_skill(skill)
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
@@ -722,9 +726,12 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 			"difficulty": difficulty,
 			"card_id": node.card_id,
 			"st7_plan": node.st7_plan,
+			"enemy_id": enemy_id,
 		}
 	)
 	_last_skill_test_fail_by = int(result.get("fail_by", 0))
+	if enemy_id != &"":
+		_last_step_enemy_id = enemy_id
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:nest_skill_test",
@@ -735,6 +742,7 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 			"skill_spec": node.test_skill_spec,
 			"difficulty": difficulty,
 			"difficulty_source": node.test_difficulty_source,
+			"enemy": enemy_id,
 			"fail_by": _last_skill_test_fail_by,
 			"success": bool(result.get("success", false)),
 		}
@@ -771,7 +779,7 @@ func _skill_type_from_id(skill_id: StringName) -> AhcEnums.SkillType:
 			return AhcEnums.SkillType.WILLPOWER
 
 
-## 固定难度或动态源（如 hand_count = 手牌张数）。
+## 固定难度或动态源（如 hand_count = 手牌张数；enemy_fight = 目标敌人 fight）。
 func _resolve_test_difficulty(node: CompositionNode, inv_id: StringName) -> int:
 	if node.test_difficulty_source == &"hand_count":
 		if _state == null:
@@ -780,6 +788,17 @@ func _resolve_test_difficulty(node: CompositionNode, inv_id: StringName) -> int:
 		if inv == null:
 			return 0
 		return maxi(inv.hand.size(), 0)
+	if node.test_difficulty_source == &"enemy_fight":
+		if _state == null:
+			return 0
+		var controller := _ability_controller(inv_id)
+		var enemy_id := _resolve_enemy_spec(node, controller)
+		if enemy_id == &"":
+			return 0
+		var enemy := _state.registry.get_enemy(enemy_id)
+		if enemy == null:
+			return 0
+		return maxi(enemy.fight, 0)
 	return maxi(node.test_difficulty, 0)
 
 
@@ -1806,6 +1825,26 @@ func _execute_nest_place_clue(node: CompositionNode) -> bool:
 		_nest_or_direct(
 			&"seq.effect.place_clue",
 			{"controller_id": inv_id, "inv_id": inv_id}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_spend_token(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var card_id := node.card_id
+	if card_id == &"":
+		return false
+	var kind := node.definition_id if node.definition_id != &"" else &"ammo"
+	var amount := maxi(node.marker_delta, 1)
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.spend_token",
+			{
+				"controller_id": inv_id,
+				"card_id": card_id,
+				"kind": kind,
+				"amount": amount,
+			}
 		).get("ok", false)
 	)
 

@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from arkhamdb_abilities import compile_card_abilities, summarize_compile
+from arkhamdb_abilities import compile_card_abilities, parse_uses_spec, summarize_compile
 
 ROOT = Path(__file__).resolve().parents[1]
 PACK_DIR = ROOT / "data" / "arkhamdb" / "pack"
@@ -244,6 +244,9 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
         out["ability_segments"] = segments
     if compiled:
         out["compiled_abilities"] = compiled
+    uses = parse_uses_spec(text)
+    if uses:
+        out["uses"] = uses
     spawn = compile_spawn(text)
     if spawn:
         out["spawn_instruction"] = spawn

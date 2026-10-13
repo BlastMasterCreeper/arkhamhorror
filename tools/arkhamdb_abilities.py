@@ -106,6 +106,17 @@ DRAW_CARDS = re.compile(
     r"(?:\s*\(Limit once per (?:game|round|phase)\.?\))?\s*$",
     re.I,
 )
+USES_LINE = re.compile(
+    r"Uses\s*\((\d+)\s+(ammo|charges|supplies|secrets|evidence|options)\)",
+    re.I,
+)
+## 12019 / Twin .45s 行动体：Spend N ammo → Fight (skill) +X skill +Y damage。
+FIGHT_SPEND_AMMO = re.compile(
+    r"^Spend (\d+) ammo:\s*(?:<b>)?Fight(?:</b>)?\s*"
+    r"\(\[(combat|agility|willpower|intellect)\]\)\.\s*"
+    r"You get \+(\d+) \[\2\] and deal \+(\d+) damage for this attack\.?$",
+    re.I,
+)
 ATTACH_NEAREST_WITHOUT = re.compile(
     r"^Attach .+ to the nearest location without .+ attached\.?$",
     re.I,
@@ -751,6 +762,75 @@ def compile_choose_discard_asset(body: str) -> dict[str, Any] | None:
     }
 
 
+def parse_uses_spec(text: str) -> dict[str, int] | None:
+    """卡面 Uses (N kind) → {kind: N}；进场放置用。"""
+    m = USES_LINE.search(text or "")
+    if not m:
+        return None
+    return {m.group(2).lower(): int(m.group(1))}
+
+
+def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
+    """C1：Spend ammo → Fight 指定行动（激活+攻击类型）。"""
+    text = body.strip()
+    m = FIGHT_SPEND_AMMO.match(text)
+    if not m:
+        return None
+    ammo_n = int(m.group(1))
+    skill = m.group(2).lower()
+    skill_bonus = int(m.group(3))
+    damage_bonus = int(m.group(4))
+    ## 基础 Fight 成功伤 1 + 卡面 +damage；DAMAGE_AMOUNT 站未齐前写入 ST.7 amount。
+    damage_total = 1 + damage_bonus
+    steps: list[dict[str, Any]] = [
+        {
+            "template": "spend_token",
+            "flow_id": "seq.effect.spend_token",
+            "kind": "ammo",
+            "amount": ammo_n,
+            "card_id": "source",
+        },
+        {
+            "template": "pick_target",
+            "filter": "enemy_fight_target",
+            "prompt_id": "pick:fight_enemy",
+            "memory_key": "picked_enemy",
+        },
+    ]
+    if skill_bonus > 0:
+        steps.append(
+            {
+                "template": "register_modifier",
+                "flow_id": "seq.effect.register",
+                "stat": skill,
+                "amount": skill_bonus,
+                "duration": "this_skill_test",
+            }
+        )
+    steps.append(
+        {
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "skill": skill,
+            "difficulty_source": "enemy_fight",
+            "enemy": "memory:picked_enemy",
+            "st7": {
+                "on_success": {
+                    "template": "deal_damage_enemy",
+                    "enemy": "memory:picked_enemy",
+                    "amount": damage_total,
+                }
+            },
+        }
+    )
+    return {
+        "template": "seq",
+        "translation": "full_expand",
+        "action_types": ["activate", "fight"],
+        "steps": steps,
+    }
+
+
 def compile_draw_cards(body: str) -> dict[str, Any] | None:
     m = DRAW_CARDS.match(body.strip())
     if not m:
@@ -977,6 +1057,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     engage_conn = compile_engage_from_connecting(body)
     if engage_conn is not None:
         return engage_conn
+    fight_ammo = compile_fight_spend_ammo(body)
+    if fight_ammo is not None:
+        return fight_ammo
     resign = compile_resign(body)
     if resign is not None:
         return resign

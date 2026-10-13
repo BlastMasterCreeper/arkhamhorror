@@ -203,6 +203,24 @@ static func build_composition(
 				bind.card_id,
 				bool(params.get("per_investigator", false))
 			)
+		"deal_damage_enemy":
+			return CompositionNode.deal_damage_enemy(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
+				int(params.get("amount", 1)),
+				bind.card_id
+			)
+		"spend_token":
+			var spend_card := str(params.get("card_id", "source"))
+			var spend_id := bind.card_id if spend_card == "source" or spend_card == "" else StringName(spend_card)
+			return CompositionNode.nest_spend_token(
+				bind.controller_id,
+				spend_id,
+				StringName(str(params.get("kind", "ammo"))),
+				int(params.get("amount", 1))
+			)
+		"register_modifier":
+			return _build_register_modifier(params, bind)
 		"enter_threat_area":
 			return CompositionNode.enter_threat_area(bind.card_id, bind.controller_id)
 		"grant_surge":
@@ -394,6 +412,7 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
 	var difficulty := int(params.get("difficulty", 0))
 	var difficulty_source := StringName(str(params.get("difficulty_source", "")))
+	var enemy_spec := StringName(str(params.get("enemy", "")))
 	var plan := _build_st7_plan(params, bind)
 	var choices: Variant = params.get("skill_choices", [])
 	## skill_choices：PI 只选技能类型 → 单次 skill_test（体不重复）。
@@ -414,7 +433,8 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 			bind.card_id,
 			plan,
 			difficulty_source,
-			StringName("memory:%s" % str(mem_key))
+			StringName("memory:%s" % str(mem_key)),
+			enemy_spec
 		)
 		return CompositionNode.seq([pick, test])
 	var skill_raw := str(params.get("skill", "willpower"))
@@ -423,8 +443,55 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 		skill_spec = StringName(skill_raw)
 	var skill := _skill_from_compile_id(skill_raw)
 	return CompositionNode.nest_skill_test(
-		bind.controller_id, skill, difficulty, bind.card_id, plan, difficulty_source, skill_spec
+		bind.controller_id,
+		skill,
+		difficulty,
+		bind.card_id,
+		plan,
+		difficulty_source,
+		skill_spec,
+		enemy_spec
 	)
+
+
+static func _build_register_modifier(
+	params: Dictionary,
+	bind: AbilityBindContext
+) -> CompositionNode:
+	var amount := int(params.get("amount", 1))
+	if amount == 0:
+		return null
+	var stat := _stat_ref_from_compile_id(str(params.get("stat", "combat")))
+	var duration := _duration_from_compile_id(str(params.get("duration", "this_skill_test")))
+	var payload := ModifierPayload.add_skill(stat, amount)
+	var template := RegistrationTemplate.lasting_modifier(
+		bind.controller_id, duration, payload
+	)
+	return CompositionNode.nest_effect_register(template)
+
+
+static func _stat_ref_from_compile_id(stat_id: String) -> AhcEnums.StatRef:
+	match stat_id.to_lower():
+		"intellect":
+			return AhcEnums.StatRef.SKILL_INTELLECT
+		"combat":
+			return AhcEnums.StatRef.SKILL_COMBAT
+		"agility":
+			return AhcEnums.StatRef.SKILL_AGILITY
+		_:
+			return AhcEnums.StatRef.SKILL_WILLPOWER
+
+
+static func _duration_from_compile_id(duration_id: String) -> AhcEnums.DurationAnchorKind:
+	match duration_id.to_lower():
+		"this_turn":
+			return AhcEnums.DurationAnchorKind.THIS_TURN
+		"this_phase":
+			return AhcEnums.DurationAnchorKind.THIS_PHASE
+		"this_round":
+			return AhcEnums.DurationAnchorKind.THIS_ROUND
+		_:
+			return AhcEnums.DurationAnchorKind.THIS_SKILL_TEST
 
 
 static func _build_st7_plan(params: Dictionary, bind: AbilityBindContext) -> SkillTestSt7Plan:
@@ -608,6 +675,8 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"value",
 		"flow_id",
 		"mode",
+		"stat",
+		"duration",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 72,
-      "compiled_total": 23,
+      "compiled_total": 25,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -19,8 +19,8 @@
         "take_damage": 4,
         "nest_draw_investigator": 2,
         "skill_test": 1,
+        "seq": 3,
         "gain_resources": 4,
-        "seq": 1,
         "place_doom_on_source": 1,
         "take_horror": 1,
         "discard_source": 3
@@ -689,7 +689,63 @@
         "body": "After you resolve the above ability, spend 1 ammo and exhaust Isabelle's Twin .45s: Fight ([agility]). You get +1 [agility] and deal +1 damage for this attack.",
         "index": 1
       }
-    ]
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "fight"
+        ],
+        "status": "full",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "spend_token",
+            "flow_id": "seq.effect.spend_token",
+            "kind": "ammo",
+            "amount": 1,
+            "card_id": "source"
+          },
+          {
+            "template": "pick_target",
+            "filter": "enemy_fight_target",
+            "prompt_id": "pick:fight_enemy",
+            "memory_key": "picked_enemy"
+          },
+          {
+            "template": "register_modifier",
+            "flow_id": "seq.effect.register",
+            "stat": "combat",
+            "amount": 1,
+            "duration": "this_skill_test"
+          },
+          {
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "skill": "combat",
+            "difficulty_source": "enemy_fight",
+            "enemy": "memory:picked_enemy",
+            "st7": {
+              "on_success": {
+                "template": "deal_damage_enemy",
+                "enemy": "memory:picked_enemy",
+                "amount": 2
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "uses": {
+      "ammo": 6
+    }
   },
   "12015": {
     "definition_id": "12015",
@@ -908,7 +964,63 @@
         "body": "Spend 1 ammo: Fight ([combat]). You get +1 [combat] and deal +1 damage for this attack.",
         "index": 0
       }
-    ]
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "fight"
+        ],
+        "status": "full",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "spend_token",
+            "flow_id": "seq.effect.spend_token",
+            "kind": "ammo",
+            "amount": 1,
+            "card_id": "source"
+          },
+          {
+            "template": "pick_target",
+            "filter": "enemy_fight_target",
+            "prompt_id": "pick:fight_enemy",
+            "memory_key": "picked_enemy"
+          },
+          {
+            "template": "register_modifier",
+            "flow_id": "seq.effect.register",
+            "stat": "combat",
+            "amount": 1,
+            "duration": "this_skill_test"
+          },
+          {
+            "template": "nest_skill_test",
+            "flow_id": "seq.skill_test",
+            "skill": "combat",
+            "difficulty_source": "enemy_fight",
+            "enemy": "memory:picked_enemy",
+            "st7": {
+              "on_success": {
+                "template": "deal_damage_enemy",
+                "enemy": "memory:picked_enemy",
+                "amount": 2
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "uses": {
+      "ammo": 4
+    }
   },
   "12021": {
     "definition_id": "12021",
@@ -1150,7 +1262,10 @@
         "body": "Spend 1 ammo: Fight ([combat]). You get +3 [combat] for this attack. If you succeed, this attack deals +1 damage for each point you succeed by (to a maximum of +4). If you fail and would deal damage to another investigator, this attack deals 1 damage for each point you fail by (to a maximum of 5 damage).",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "ammo": 3
+    }
   },
   "12030": {
     "definition_id": "12030",
@@ -1239,7 +1354,10 @@
         "body": "Spend 1 secret: Investigate ([intellect]). Investigate a revealed connecting location. You get +1 [intellect] for this investigation. If you succeed, you may exhaust Local Map to move to that location.",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "secrets": 4
+    }
   },
   "12035": {
     "definition_id": "12035",
@@ -1378,7 +1496,10 @@
         "body": "During your turn, spend 1 or 2 secrets and exhaust Mysterious Grimoire: Search the top 3 cards (or 6 cards instead if you spent 2 secrets) of your deck for a card and draw it. If 1 or more weaknesses are among the searched cards, draw them as well. Shuffle your deck.",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "secrets": 4
+    }
   },
   "12041": {
     "definition_id": "12041",
@@ -1476,7 +1597,10 @@
         "body": "Spend 1 ammo: Fight ([agility]). If the targeted enemy is exhausted, this attack deals +1 damage.",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "ammo": 4
+    }
   },
   "12046": {
     "definition_id": "12046",
@@ -1908,7 +2032,10 @@
         "body": "Fight ([willpower]). If you succeed, you may spend 1 charge to deal +1 damage for this attack. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "charges": 3
+    }
   },
   "12060": {
     "definition_id": "12060",
@@ -2000,7 +2127,10 @@
         "body": "Spend 1 charge and exhaust Lucky Charm: Move 1 damage or 1 horror from a card at your location to a card you control (with a health or sanity value).",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "charges": 4
+    }
   },
   "12062": {
     "definition_id": "12062",
@@ -2037,7 +2167,10 @@
         "body": "Investigate ([willpower]). If you succeed, you may spend 1 charge to discover 1 additional clue at your location. If you reveal a [cultist] token during this test, remove 1 charge from Second Sight (if you cannot, take 1 horror and discard this card).",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "charges": 3
+    }
   },
   "12063": {
     "definition_id": "12063",
@@ -2178,7 +2311,10 @@
         "body": "When you would reveal a chaos token, spend 1 charge: Reveal 1 additional token. Choose 1 of those tokens to resolve and ignore the other. If you resolved a token with a symbol, take 1 horror.",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "charges": 3
+    }
   },
   "12070": {
     "definition_id": "12070",
@@ -2248,7 +2384,10 @@
         "body": "Fight ([willpower]). You get +2 [willpower] and deal +1 damage for this attack. If you succeed, you may spend 1 charge to deal 1 damage to an enemy at your location. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "charges": 4
+    }
   },
   "12072": {
     "definition_id": "12072",
@@ -2327,7 +2466,10 @@
         "body": "After you engage an enemy, spend 1 supply and exhaust Hunter's Instinct: Add a level 0 event in your discard pile to your hand.",
         "index": 0
       }
-    ]
+    ],
+    "uses": {
+      "supplies": 3
+    }
   },
   "12075": {
     "definition_id": "12075",

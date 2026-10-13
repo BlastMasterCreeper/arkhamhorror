@@ -511,6 +511,23 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			dmg_enemy.damage += maxi(node.marker_delta, 1)
 			sim.last_step_enemy_id = dmg_enemy_id
 			return true
+		&"nest_spend_token", &"spend_token":
+			if sim.state == null or node.card_id == &"":
+				return false
+			var spend_card := sim.state.registry.get_card(node.card_id)
+			if spend_card == null:
+				return false
+			var spend_kind := node.definition_id if node.definition_id != &"" else &"ammo"
+			var need := maxi(node.marker_delta, 1)
+			var have := int(spend_card.tokens.uses.get(spend_kind, 0))
+			if have < need:
+				return false
+			var next := have - need
+			if next <= 0:
+				spend_card.tokens.uses.erase(spend_kind)
+			else:
+				spend_card.tokens.uses[spend_kind] = next
+			return true
 		&"disengage_enemy":
 			var dis_enemy_id := _resolve_sim_enemy_spec(node, sim)
 			if dis_enemy_id == &"" or sim.state == null:

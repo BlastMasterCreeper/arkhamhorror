@@ -64,6 +64,18 @@ static func compiled_abilities(definition_id: StringName) -> Array:
 	return []
 
 
+## Uses (N kind) → {StringName kind: int count}；空 = 无 Uses。
+static func uses_spec(definition_id: StringName) -> Dictionary:
+	var data := definition_data(definition_id)
+	var uses: Variant = data.get("uses", {})
+	if not uses is Dictionary:
+		return {}
+	var out := {}
+	for key in (uses as Dictionary).keys():
+		out[StringName(str(key))] = int((uses as Dictionary)[key])
+	return out
+
+
 ## builder: Callable(AbilityBindContext) -> CompositionNode
 static func register_revelation(
 	definition_id: StringName,

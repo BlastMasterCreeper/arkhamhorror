@@ -106,7 +106,13 @@
 - 附着后 `install_card`；地点调查员恐惧/伤害 template
 - 指标：53 → **55**；SEQ-EFF-09 / ADB-41..43
 
-**下一批**：C1 Fight ammo；敌人 defeated 触发（12132）；asset 承伤。
+### C1 Fight ammo ✅（12019 M1911）
+- `Uses (N kind)` → import `uses`；进场 `ZoneMoveFlow` L0 放 token
+- 铸造：`seq.effect.spend_token`；`register_modifier` → `seq.effect.register`（`THIS_SKILL_TEST`，ST.8 tick）
+- 编译：Spend ammo → Fight：PI 选敌 → MODIFIER → nest `seq.skill_test`（`difficulty_source=enemy_fight`）→ ST.7 `deal_damage_enemy`
+- 指标：ADB-73/74、SEQ-EFF-11
+
+**下一批**：Investigate 宏；敌人 defeated 触发（12132）；asset 承伤。
 
 ### 12106–08 Parley ✅
 - 编译：`action_types: [activate, parley]`；成功 → `discard_card`（trait/title=Bystander @ controller_location）
