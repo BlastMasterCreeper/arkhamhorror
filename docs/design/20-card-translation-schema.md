@@ -2,7 +2,7 @@
 
 > **依赖**：[07-composition.md](07-composition.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md) §4.0.5、[16-player-interaction.md](16-player-interaction.md)、[06-registration-buff-model.md](06-registration-buff-model.md) §16、[18-arkhamdb-card-data.md](18-arkhamdb-card-data.md)  
 > **实现**：`tools/arkhamdb_abilities.py` → `data/arkhamdb/imported/*.json` → `ArkhamDbAbilityCompiler`  
-> **状态**：v0.5.1 · 2026-10-14 — IR `op:invoke`（消歧规则「嵌套序列」）；旧 `op:nest` / `template` 为过渡糖
+> **状态**：v0.5.2 · 2026-10-14 — 门槛 `gates[]`（occasion / situational / cost / limit）；Spend Uses 进费用不进 effect
 
 ---
 
@@ -66,11 +66,34 @@
 | `register_as` | `action` / `free` / `forced` / `revelation` / `reaction` / `keyword` |
 | `keyword` | 关键词 id（如 `uses`）；仅 `register_as:keyword` |
 | `hook` | `{sequence_id, slot}`；关键词 / Forced / Reaction 挂载槽 |
-| `action_types` / `action_cost` / `resource_cost` / `window` / … | 装载与 Eligibility（见 §7） |
+| **`gates`** | **发起门槛族**（见 §2.1.1）：occasion / situational / cost / limit |
+| **`deps`** | 读集（由 `gates` 推导）；自由区间脏刷新用 |
+| `action_types` / `action_cost` / `resource_cost` / `window` / … | 装载镜像；`window`/`action_cost` 宜与 `gates` 一致（见 §7） |
 | `translation` / `status` | 审计 |
-| **`effect`** | **唯一效果体根**：一个 Node（常为 `op:seq`） |
+| **`effect`** | **唯一效果体根**：一个 Node（常为 `op:seq`）；**不含**已进 `gates` 的费用 |
 
-**禁止**：效果字段扁平散落在条目根上与外壳混排（过渡期见 §2.4）。关键词 Uses、激活 Fight 等 **同一外壳**：差别只在 `register_as` / `hook` / `effect` 内容。
+**禁止**：效果字段扁平散落在条目根上与外壳混排（过渡期见 §2.4）。关键词 Uses、激活 Fight 等 **同一外壳**：差别只在 `register_as` / `hook` / `gates` / `effect` 内容。
+
+### 2.1.1 `gates[]`：发起门槛（条件族）
+
+门槛参与 Eligibility（列表用 L1–L5；发起再 L6/L7）。**场合窗口**与场面情景同属条件族，用 `kind` 区分，不另开顶层「窗口要素」。
+
+```text
+{ "kind": "occasion",     "window": "during_your_turn" }
+{ "kind": "situational",  "pred"|"condition": "<compile_id>", … }
+{ "kind": "cost",         "cost": "action"|"resource"|"spend_token", "amount", … }
+{ "kind": "limit",        … }   # once per round / …（白名单增长）
+```
+
+| `kind` | 含义 | 典型 |
+|---|---|---|
+| `occasion` | 框架/交互区间是否开着 | `during_your_turn` |
+| `situational` | 卡面场面/步间谓词 | `investigator_has_no_clues` |
+| `cost` | Initiation L6 费用 | `action`、`resource`、`spend_token`（Uses） |
+| `limit` | 次数配额 | once per round |
+
+**Spend Uses**：译为 `{ kind:cost, cost:spend_token, token, amount, card_id }`，**禁止**再作为 effect 第一步 `invoke seq.effect.spend_token`（[22 G10](22-seq-granularity.md)）。  
+`deps` 由编译器从 `gates` 导出（如 `uses.ammo@source`、`actions_remaining@controller`），不手写第二份名单。
 
 ### 2.2 `invoke`：调用命名流程
 
@@ -383,14 +406,19 @@ invoke seq.engage mode=effect          # C · 明示交战
   "action_types": ["activate", "fight"],
   "status": "full",
   "translation": "full_expand",
+  "gates": [
+    { "kind": "occasion", "window": "during_your_turn" },
+    { "kind": "cost", "cost": "action", "amount": 1 },
+    { "kind": "cost", "cost": "spend_token", "token": "ammo", "amount": 1, "card_id": "source" }
+  ],
+  "deps": [
+    "occasion:during_your_turn",
+    "actions_remaining@controller",
+    "uses.ammo@source"
+  ],
   "effect": {
     "op": "seq",
     "steps": [
-      {
-        "op": "invoke",
-        "flow_id": "seq.effect.spend_token",
-        "params": { "kind": "ammo", "amount": 1, "card_id": "source" }
-      },
       {
         "op": "pi",
         "kind": "select",
@@ -490,7 +518,9 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 字段 | 用途 |
 |---|---|
 | `action_types` | 行动类型全集（含 designator）；**借机类型层**由此判定 |
-| `action_cost` / `resource_cost` / `window` / `match_kind` / `phase` | 装载与 Eligibility |
+| **`gates` / `deps`** | 发起门槛权威 + 读集（§2.1.1） |
+| `action_cost` / `resource_cost` / `window` | **镜像**：宜由 `gates` 的 occasion / cost 回填，供现有装载 API |
+| `match_kind` / `phase` | Forced / Reaction 订阅 |
 
 **不再使用**条目级 `provokes_aoo` 覆盖。类型豁免（Fight/Evade/Parley/Resign）走 `action_types`；卡面「does not provoke」走 **B · Register SKIP_AOO**（糖 `no_provoke_aoo`）。
 
@@ -507,7 +537,8 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 卡面 steps 内联拆光 `seq.effect.resign` 体 | `invoke` `flow_id: seq.effect.resign` |
 | 为选目标 nest `seq.choose.*` | `op: pi`（A） |
 | JSON 写 `"enemy": "enemy_conn"` | `"enemy": "memory:picked_enemy"` 或寻址规格 |
-| `place_token` / `spend_token` / `nest_skill_test` 各一套顶层字段 | 统一 `{ op:invoke, flow_id, params }` |
+| `place_token` / `spend_token` / `nest_skill_test` 各一套顶层字段 | 统一 `{ op:invoke, flow_id, params }`；**费用** Spend 进 `gates` |
+| effect 第一步 `invoke spend_token` 当「Spend 1 ammo:」 | `gates`·`cost:spend_token`；effect 从 PI/检定起 |
 | 用 `op: nest` 表示调用命名流程 | `op: invoke`；**嵌套**仅指运行时 `catalog.nest` |
 | 扁平 `steps` 暗示同时结算 | `op: simultaneous` |
 | 关键词 Uses 不用能力外壳、只写 Domain `uses` 字段 | `register_as:keyword` + `hook` + `effect` invoke place_token |

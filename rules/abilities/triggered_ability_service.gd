@@ -92,6 +92,9 @@ func is_action_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
 	var inv := _ctx.state.registry.get_investigator(activator)
 	if inv == null or inv.actions_remaining < maxi(descriptor.action_cost, 1):
 		return false
+	## 第一层：Uses Spend 门槛（与 gates 同步；L7 dry-run 仍留焦点层）。
+	if not _can_pay_spend_token_costs(descriptor):
+		return false
 	return _source_playable(descriptor)
 
 
@@ -291,7 +294,27 @@ func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 		intent.action_types = action_types
 	intent.source_id = descriptor.source_id
 	intent.ability_id = descriptor.id
+	intent.spend_token_costs = descriptor.spend_token_costs.duplicate(true)
 	return intent
+
+
+func _can_pay_spend_token_costs(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or _ctx == null or _ctx.state == null:
+		return false
+	for raw in descriptor.spend_token_costs:
+		if not raw is Dictionary:
+			return false
+		var cost: Dictionary = raw
+		var card_raw := str(cost.get("card_id", "source"))
+		var card_id: StringName = (
+			descriptor.source_id if card_raw == "" or card_raw == "source" else StringName(card_raw)
+		)
+		var kind := StringName(str(cost.get("kind", cost.get("token", "ammo"))))
+		var amount := maxi(int(cost.get("amount", 1)), 1)
+		var card := _ctx.state.registry.get_card(card_id)
+		if card == null or int(card.tokens.uses.get(kind, 0)) < amount:
+			return false
+	return true
 
 
 func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:

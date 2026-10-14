@@ -747,7 +747,8 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			bool(entry.get("optional", false)),
 			StringName(str(entry.get("window", "any_player_window"))),
 			_action_types_from_entry(entry),
-			provokes
+			provokes,
+			_spend_token_costs_from_gates(entry)
 		)
 		return true
 	if register_as == "forced" or register_as == "reaction":
@@ -766,7 +767,8 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			bool(entry.get("optional", false)),
 			&"",
 			_action_types_from_entry(entry),
-			null
+			null,
+			_spend_token_costs_from_gates(entry)
 		)
 		return true
 	return false
@@ -779,6 +781,31 @@ static func _action_types_from_entry(entry: Dictionary) -> Array:
 		return out
 	for item in raw:
 		out.append(str(item).to_lower())
+	return out
+
+
+## gates[] → Initiation spend_token_costs（L6）；token 字段映射为 kind。
+static func _spend_token_costs_from_gates(entry: Dictionary) -> Array:
+	var out: Array = []
+	var gates: Variant = entry.get("gates", [])
+	if not gates is Array:
+		return out
+	for raw in gates:
+		if not raw is Dictionary:
+			continue
+		var g: Dictionary = raw
+		if str(g.get("kind", "")) != "cost":
+			continue
+		if str(g.get("cost", "")) != "spend_token":
+			continue
+		var token := str(g.get("token", g.get("kind_token", "ammo")))
+		out.append(
+			{
+				"kind": token,
+				"amount": maxi(int(g.get("amount", 1)), 1),
+				"card_id": str(g.get("card_id", "source")),
+			}
+		)
 	return out
 
 

@@ -16,6 +16,8 @@ var resource_cost: int = 0
 var action_cost: int = 0
 var modified_resource_cost: int = 0
 var modified_action_cost: int = 0
+## Initiation L6 · Spend Uses：`[{kind|token, amount, card_id}]`；付费场合，非 effect。
+var spend_token_costs: Array = []
 var provokes_aoo: bool = false
 var aoo_action_type: AhcEnums.ActionType = AhcEnums.ActionType.ACTIVATE
 ## 一次行动可具有多种行动类型（如 Activate+Parley）；借机攻击按全集判断。

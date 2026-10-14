@@ -2984,20 +2984,27 @@ func _test_adb_compile_12019() -> bool:
 	var kw_effect: Dictionary = kw_entry.get("effect", {})
 	var kw_params: Dictionary = kw_effect.get("params", {})
 	var action_effect: Dictionary = action_entry.get("effect", {})
+	var gates: Variant = action_entry.get("gates", [])
+	var deps: Variant = action_entry.get("deps", [])
 	var steps: Variant = action_effect.get("steps", [])
-	if not steps is Array or (steps as Array).size() != 4:
+	if not steps is Array or (steps as Array).size() != 3:
+		return false
+	if not gates is Array or (gates as Array).size() < 3:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
 	var s1: Dictionary = (steps as Array)[1]
 	var s2: Dictionary = (steps as Array)[2]
-	var s3: Dictionary = (steps as Array)[3]
-	var s0p: Dictionary = s0.get("params", {})
+	var s1p: Dictionary = s1.get("params", {})
 	var s2p: Dictionary = s2.get("params", {})
-	var s3p: Dictionary = s3.get("params", {})
-	var st7: Dictionary = s3p.get("st7", {})
+	var st7: Dictionary = s2p.get("st7", {})
 	var on_ok: Dictionary = st7.get("on_success", {})
 	var on_ok_p: Dictionary = on_ok.get("params", {})
-	var bind1: Dictionary = s1.get("bind", {})
+	var bind0: Dictionary = s0.get("bind", {})
+	var g_spend: Dictionary = {}
+	for raw_g in gates:
+		if raw_g is Dictionary and str((raw_g as Dictionary).get("cost", "")) == "spend_token":
+			g_spend = raw_g as Dictionary
+			break
 	return (
 		CardRegistry.has_uses(&"12019")
 		and int(uses.get(&"ammo", 0)) == 4
@@ -3015,18 +3022,19 @@ func _test_adb_compile_12019() -> bool:
 		and types is Array
 		and (types as Array).has("activate")
 		and (types as Array).has("fight")
-		and str(s0.get("op", "")) == "invoke"
-		and str(s0.get("flow_id", "")) == "seq.effect.spend_token"
-		and int(s0p.get("amount", 0)) == 1
-		and str(s1.get("op", "")) == "pi"
-		and str(s1.get("filter", "")) == "enemy_fight_target"
-		and str(bind1.get("key", "")) == "picked_enemy"
+		and str(g_spend.get("token", "")) == "ammo"
+		and int(g_spend.get("amount", 0)) == 1
+		and deps is Array
+		and (deps as Array).has("uses.ammo@source")
+		and str(s0.get("op", "")) == "pi"
+		and str(s0.get("filter", "")) == "enemy_fight_target"
+		and str(bind0.get("key", "")) == "picked_enemy"
+		and str(s1.get("op", "")) == "invoke"
+		and str(s1.get("flow_id", "")) == "seq.effect.register"
+		and str(s1p.get("duration", "")) == "this_skill_test"
 		and str(s2.get("op", "")) == "invoke"
-		and str(s2.get("flow_id", "")) == "seq.effect.register"
-		and str(s2p.get("duration", "")) == "this_skill_test"
-		and str(s3.get("op", "")) == "invoke"
-		and str(s3.get("flow_id", "")) == "seq.skill_test"
-		and str(s3p.get("difficulty_source", "")) == "enemy_fight"
+		and str(s2.get("flow_id", "")) == "seq.skill_test"
+		and str(s2p.get("difficulty_source", "")) == "enemy_fight"
 		and str(on_ok.get("op", "")) == "invoke"
 		and str(on_ok.get("flow_id", "")) == "seq.effect.damage"
 		and int(on_ok_p.get("amount", 0)) == 2
@@ -3102,20 +3110,28 @@ func _test_adb_compile_12033() -> bool:
 	var kw_effect: Dictionary = kw_entry.get("effect", {})
 	var kw_params: Dictionary = kw_effect.get("params", {})
 	var action_effect: Dictionary = action_entry.get("effect", {})
+	var gates: Variant = action_entry.get("gates", [])
+	var deps: Variant = action_entry.get("deps", [])
 	var steps: Variant = action_effect.get("steps", [])
-	if not steps is Array or (steps as Array).size() != 4:
+	if not steps is Array or (steps as Array).size() != 3:
+		return false
+	if not gates is Array or (gates as Array).size() < 3:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
-	var s1: Dictionary = (steps as Array)[1]
-	var s3: Dictionary = (steps as Array)[3]
-	var s3p: Dictionary = s3.get("params", {})
-	var st7: Dictionary = s3p.get("st7", {})
+	var s2: Dictionary = (steps as Array)[2]
+	var s2p: Dictionary = s2.get("params", {})
+	var st7: Dictionary = s2p.get("st7", {})
 	var on_ok: Dictionary = st7.get("on_success", {})
 	var on_steps: Variant = on_ok.get("steps", [])
 	if not on_steps is Array or (on_steps as Array).is_empty():
 		return false
 	var discover: Dictionary = (on_steps as Array)[0]
 	var types: Variant = action_entry.get("action_types", [])
+	var g_spend: Dictionary = {}
+	for raw_g in gates:
+		if raw_g is Dictionary and str((raw_g as Dictionary).get("cost", "")) == "spend_token":
+			g_spend = raw_g as Dictionary
+			break
 	return (
 		CardRegistry.has_uses(&"12033")
 		and int(uses.get(&"secrets", 0)) == 4
@@ -3128,11 +3144,14 @@ func _test_adb_compile_12033() -> bool:
 		and types is Array
 		and (types as Array).has("activate")
 		and (types as Array).has("investigate")
-		and str(s0.get("flow_id", "")) == "seq.effect.spend_token"
-		and str(s1.get("op", "")) == "pi"
-		and str(s1.get("filter", "")) == "location_connecting_revealed"
-		and str(s3.get("flow_id", "")) == "seq.skill_test"
-		and str(s3p.get("difficulty_source", "")) == "location_shroud"
+		and str(g_spend.get("token", "")) == "secrets"
+		and int(g_spend.get("amount", 0)) == 1
+		and deps is Array
+		and (deps as Array).has("uses.secrets@source")
+		and str(s0.get("op", "")) == "pi"
+		and str(s0.get("filter", "")) == "location_connecting_revealed"
+		and str(s2.get("flow_id", "")) == "seq.skill_test"
+		and str(s2p.get("difficulty_source", "")) == "location_shroud"
 		and str(discover.get("flow_id", "")) == "seq.effect.discover_clue"
 		and CardRegistry.has_triggered(&"12033")
 	)
