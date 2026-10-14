@@ -307,7 +307,8 @@ static func nest_skill_test(
 	st7_plan: SkillTestSt7Plan = null,
 	difficulty_source: StringName = &"",
 	skill_spec: StringName = &"",
-	enemy_spec: StringName = &""
+	enemy_spec: StringName = &"",
+	location_spec: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -320,6 +321,23 @@ static func nest_skill_test(
 	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
 	n.enemy_ref_id = enemy_spec
+	n.location_target = location_spec
+	return n
+
+
+## nest `seq.effect.discover_clue`（地点可为 memory: 指称）。
+static func nest_discover_clue(
+	controller_id: StringName,
+	location_spec: StringName,
+	amount: int = 1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_discover_clue"
+	n.inv_id = controller_id
+	n.location_target = location_spec
+	n.amount = maxi(amount, 1)
+	n.nest_flow_id = &"seq.effect.discover_clue"
 	return n
 
 

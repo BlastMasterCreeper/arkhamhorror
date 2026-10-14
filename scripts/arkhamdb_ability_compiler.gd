@@ -132,6 +132,13 @@ static func _build_invoke_flow(node: Dictionary, bind: AbilityBindContext) -> Co
 			return build_composition("nest_move_to", params, bind)
 		"seq.effect.resign":
 			return build_composition("nest_resign", params, bind)
+		"seq.effect.discover_clue":
+			return build_composition("discover_clue", params, bind)
+		"seq.effect.exhaust":
+			var exh_card := str(params.get("card_id", "source"))
+			if exh_card == "source" or exh_card == "":
+				return build_composition("exhaust_source", params, bind)
+			return CompositionNode.exhaust_card(StringName(exh_card))
 	## 未映射 flow：尝试用旧 template 糖名（若有）。
 	var legacy := str(node.get("template", ""))
 	if legacy != "":
@@ -342,6 +349,12 @@ static func build_composition(
 				StringName(str(params.get("kind", "ammo"))),
 				int(params.get("amount", 1))
 			)
+		"discover_clue":
+			return CompositionNode.nest_discover_clue(
+				bind.controller_id,
+				StringName(str(params.get("location_id", params.get("location", "")))),
+				int(params.get("amount", 1))
+			)
 		"register_modifier":
 			return _build_register_modifier(params, bind)
 		"enter_threat_area":
@@ -513,8 +526,7 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 	var body: CompositionNode = null
 	var body_entry: Variant = params.get("body", null)
 	if body_entry is Dictionary:
-		var body_dict := body_entry as Dictionary
-		body = build_composition(str(body_dict.get("template", "")), body_dict, bind)
+		body = build_node(body_entry as Dictionary, bind)
 	elif params.get("steps", null) is Array and not (params.get("steps") as Array).is_empty():
 		body = _build_seq(params, bind)
 	if body == null:
@@ -523,8 +535,7 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 		if options is Array and not (options as Array).is_empty():
 			var first: Variant = (options as Array)[0]
 			if first is Dictionary:
-				var opt := first as Dictionary
-				body = build_composition(str(opt.get("template", "")), opt, bind)
+				body = build_node(first as Dictionary, bind)
 	if body == null:
 		return null
 	var prompt_id := StringName(str(params.get("prompt_id", "composition:choice_optional")))
@@ -536,6 +547,7 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 	var difficulty := int(params.get("difficulty", 0))
 	var difficulty_source := StringName(str(params.get("difficulty_source", "")))
 	var enemy_spec := StringName(str(params.get("enemy", "")))
+	var location_spec := StringName(str(params.get("location", params.get("location_id", ""))))
 	var plan := _build_st7_plan(params, bind)
 	var choices: Variant = params.get("skill_choices", [])
 	## skill_choices：PI 只选技能类型 → 单次 skill_test（体不重复）。
@@ -557,7 +569,8 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 			plan,
 			difficulty_source,
 			StringName("memory:%s" % str(mem_key)),
-			enemy_spec
+			enemy_spec,
+			location_spec
 		)
 		return CompositionNode.seq([pick, test])
 	var skill_raw := str(params.get("skill", "willpower"))
@@ -573,7 +586,8 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 		plan,
 		difficulty_source,
 		skill_spec,
-		enemy_spec
+		enemy_spec,
+		location_spec
 	)
 
 

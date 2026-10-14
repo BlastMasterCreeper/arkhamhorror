@@ -539,6 +539,9 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			else:
 				spend_card.tokens.uses[spend_kind] = next
 			return true
+		&"nest_discover_clue", &"discover_clue":
+			## dry-run：地点可解析即视为可 CREATED（线索数由 DiscoverClueFlow 裁剪）。
+			return node.location_target != &"" or node.inv_id != &""
 		&"disengage_enemy":
 			var dis_enemy_id := _resolve_sim_enemy_spec(node, sim)
 			if dis_enemy_id == &"" or sim.state == null:

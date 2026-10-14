@@ -117,6 +117,15 @@ FIGHT_SPEND_AMMO = re.compile(
     r"You get \+(\d+) \[\2\] and deal \+(\d+) damage for this attack\.?$",
     re.I,
 )
+## 12033 Local Map：Spend N secrets → Investigate connecting +X intellect；成功 may 横置移动。
+INVESTIGATE_SPEND_SECRET = re.compile(
+    r"^Spend (\d+) secrets?:\s*(?:<b>)?Investigate(?:</b>)?\s*"
+    r"\(\[(intellect|willpower|combat|agility)\]\)\.\s*"
+    r"Investigate a revealed connecting location\.\s*"
+    r"You get \+(\d+) \[\2\] for this investigation\.\s*"
+    r"If you succeed, you may exhaust .+ to move to that location\.?$",
+    re.I,
+)
 ATTACH_NEAREST_WITHOUT = re.compile(
     r"^Attach .+ to the nearest location without .+ attached\.?$",
     re.I,
@@ -789,6 +798,98 @@ def parse_uses_spec(text: str) -> dict[str, int] | None:
     return {m.group(2).lower(): int(m.group(1))}
 
 
+def compile_investigate_spend_secret(body: str) -> dict[str, Any] | None:
+    """C2：Spend secrets → Investigate 指定行动（连结已揭示地点）。统一 IR。"""
+    text = body.strip()
+    m = INVESTIGATE_SPEND_SECRET.match(text)
+    if not m:
+        return None
+    secret_n = int(m.group(1))
+    skill = m.group(2).lower()
+    skill_bonus = int(m.group(3))
+    steps: list[dict[str, Any]] = [
+        {
+            "op": "invoke",
+            "flow_id": "seq.effect.spend_token",
+            "params": {"kind": "secrets", "amount": secret_n, "card_id": "source"},
+        },
+        {
+            "op": "pi",
+            "kind": "select",
+            "filter": "location_connecting_revealed",
+            "prompt_id": "pick:investigate_connecting",
+            "bind": {"key": "picked_location", "shape": "entity"},
+        },
+    ]
+    if skill_bonus > 0:
+        steps.append(
+            {
+                "op": "invoke",
+                "flow_id": "seq.effect.register",
+                "params": {
+                    "stat": skill,
+                    "amount": skill_bonus,
+                    "duration": "this_skill_test",
+                },
+            }
+        )
+    steps.append(
+        {
+            "op": "invoke",
+            "flow_id": "seq.skill_test",
+            "params": {
+                "skill": skill,
+                "difficulty_source": "location_shroud",
+                "location": "memory:picked_location",
+                "st7": {
+                    "on_success": {
+                        "op": "seq",
+                        "steps": [
+                            {
+                                "op": "invoke",
+                                "flow_id": "seq.effect.discover_clue",
+                                "params": {
+                                    "location_id": "memory:picked_location",
+                                    "amount": 1,
+                                },
+                            },
+                            {
+                                "op": "pi",
+                                "kind": "optional",
+                                "prompt_id": "may:exhaust_move_to_investigated",
+                                "body": {
+                                    "op": "seq",
+                                    "steps": [
+                                        {
+                                            "op": "invoke",
+                                            "flow_id": "seq.effect.exhaust",
+                                            "params": {"card_id": "source"},
+                                        },
+                                        {
+                                            "op": "invoke",
+                                            "flow_id": "seq.effect.move",
+                                            "params": {
+                                                "subject": "investigator",
+                                                "move_kind": "move_to",
+                                                "location": "memory:picked_location",
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }
+                },
+            },
+        }
+    )
+    return {
+        "translation": "full_expand",
+        "action_types": ["activate", "investigate"],
+        "effect": {"op": "seq", "steps": steps},
+    }
+
+
 def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
     """C1：Spend ammo → Fight 指定行动（激活+攻击类型）。统一 IR（20 §2 / §5.5）。"""
     text = body.strip()
@@ -1085,6 +1186,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     fight_ammo = compile_fight_spend_ammo(body)
     if fight_ammo is not None:
         return fight_ammo
+    investigate_secret = compile_investigate_spend_secret(body)
+    if investigate_secret is not None:
+        return investigate_secret
     resign = compile_resign(body)
     if resign is not None:
         return resign

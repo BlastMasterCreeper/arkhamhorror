@@ -113,7 +113,12 @@
 - **翻译 IR（[20 §2](20-card-translation-schema.md) v0.5.1）**：`op` ∈ seq/simultaneous/if/pi/**invoke**/inline；`invoke`=`flow_id`+`params`（调用命名流程）；**嵌套序列**仅指运行时 `catalog.nest`；旧 `op:nest`/`template` 糖可读；12019 见 20 §5.5
 - 指标：ADB-73/74、SEQ-EFF-11
 
-**下一批**：Investigate 宏；敌人 defeated 触发（12132）；asset 承伤。
+### C2 Investigate secrets ✅（12033 Local Map）
+- Uses secrets：`invoke seq.effect.place_token`；Spend secret → PI `location_connecting_revealed` → +1 intellect THIS_SKILL_TEST → `invoke seq.skill_test`（`difficulty_source=location_shroud`）
+- ST.7：`invoke seq.effect.discover_clue` @ 目标地点；`pi optional` 横置本卡 + `invoke` move_to 该地点
+- `action_types: [activate, investigate]`；指标：ADB-75 / ADB-76
+
+**下一批**：asset 承伤；其它 Investigate/Fight 变体（12062 等）。
 
 ### 12106–08 Parley ✅
 - 编译：`action_types: [activate, parley]`；成功 → `discard_card`（trait/title=Bystander @ controller_location）

@@ -493,6 +493,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_place_token(node)
 		&"nest_spend_token", &"spend_token":
 			return _execute_nest_spend_token(node)
+		&"nest_discover_clue", &"discover_clue":
+			return _execute_nest_discover_clue(node)
 		&"nest_discard_card":
 			return _execute_nest_discard_card(node)
 		&"nest_discard_from_hand":
@@ -801,6 +803,17 @@ func _resolve_test_difficulty(node: CompositionNode, inv_id: StringName) -> int:
 		if enemy == null:
 			return 0
 		return maxi(enemy.fight, 0)
+	if node.test_difficulty_source == &"location_shroud":
+		if _state == null:
+			return 0
+		var inv_for_loc := _state.registry.get_investigator(inv_id)
+		var location_id := _resolve_location_spec(node, inv_for_loc)
+		if location_id == &"":
+			return 0
+		var loc := _state.registry.get_location(location_id)
+		if loc == null:
+			return 0
+		return maxi(loc.shroud, 0)
 	return maxi(node.test_difficulty, 0)
 
 
@@ -1866,6 +1879,26 @@ func _execute_nest_spend_token(node: CompositionNode) -> bool:
 				"card_id": card_id,
 				"kind": kind,
 				"amount": amount,
+			}
+		).get("ok", false)
+	)
+
+
+func _execute_nest_discover_clue(node: CompositionNode) -> bool:
+	var inv_id := _ability_controller(_resolve_inv(node))
+	if inv_id == &"" or _state == null:
+		return false
+	var inv := _state.registry.get_investigator(inv_id)
+	var location_id := _resolve_location_spec(node, inv)
+	if location_id == &"":
+		return false
+	return bool(
+		_nest_or_direct(
+			&"seq.effect.discover_clue",
+			{
+				"inv_id": inv_id,
+				"location_id": location_id,
+				"amount": maxi(node.amount, 1),
 			}
 		).get("ok", false)
 	)

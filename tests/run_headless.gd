@@ -134,6 +134,8 @@ func _initialize() -> void:
 	_run_test("ADB-71 pick_multi compiler sugar", _test_adb_pick_multi_compiler)
 	_run_test("ADB-73 compile 12019 M1911 fight ammo", _test_adb_compile_12019)
 	_run_test("ADB-74 12019 activate fight spends ammo deals 2", _test_adb_12019_fight_ammo)
+	_run_test("ADB-75 compile 12033 Local Map investigate secrets", _test_adb_compile_12033)
+	_run_test("ADB-76 12033 investigate connecting discovers clue", _test_adb_12033_investigate)
 	_run_test("SEQ-EFF-11 nest spend_token ammo", _test_seq_eff_spend_token)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
@@ -3072,6 +3074,113 @@ func _test_adb_12019_fight_ammo() -> bool:
 		bool(result.get("ok", false))
 		and ammo_left == 3
 		and enemy.damage == 2
+		and inv.actions_remaining == 1
+		and lingering == 0
+	)
+
+
+func _test_adb_compile_12033() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not CardRegistry.has_keyword(&"12033", &"uses"):
+		return false
+	if not CardRegistry.has_keyword_ability(&"12033", &"uses"):
+		return false
+	var uses := CardRegistry.uses_spec(&"12033")
+	var compiled := CardRegistry.compiled_abilities(&"12033")
+	if compiled.size() < 2:
+		return false
+	var kw_entry: Dictionary = {}
+	var action_entry: Dictionary = {}
+	for raw in compiled:
+		if not raw is Dictionary:
+			continue
+		match str((raw as Dictionary).get("register_as", "")):
+			"keyword":
+				kw_entry = raw as Dictionary
+			"action":
+				action_entry = raw as Dictionary
+	var kw_effect: Dictionary = kw_entry.get("effect", {})
+	var kw_params: Dictionary = kw_effect.get("params", {})
+	var action_effect: Dictionary = action_entry.get("effect", {})
+	var steps: Variant = action_effect.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 4:
+		return false
+	var s0: Dictionary = (steps as Array)[0]
+	var s1: Dictionary = (steps as Array)[1]
+	var s3: Dictionary = (steps as Array)[3]
+	var s3p: Dictionary = s3.get("params", {})
+	var st7: Dictionary = s3p.get("st7", {})
+	var on_ok: Dictionary = st7.get("on_success", {})
+	var on_steps: Variant = on_ok.get("steps", [])
+	if not on_steps is Array or (on_steps as Array).is_empty():
+		return false
+	var discover: Dictionary = (on_steps as Array)[0]
+	var types: Variant = action_entry.get("action_types", [])
+	return (
+		CardRegistry.has_uses(&"12033")
+		and int(uses.get(&"secrets", 0)) == 4
+		and str(kw_effect.get("op", "")) == "invoke"
+		and str(kw_effect.get("flow_id", "")) == "seq.effect.place_token"
+		and str(kw_params.get("kind", "")) == "secrets"
+		and int(kw_params.get("amount", 0)) == 4
+		and str(action_effect.get("op", "")) == "seq"
+		and action_entry.get("translation", "") == "full_expand"
+		and types is Array
+		and (types as Array).has("activate")
+		and (types as Array).has("investigate")
+		and str(s0.get("flow_id", "")) == "seq.effect.spend_token"
+		and str(s1.get("op", "")) == "pi"
+		and str(s1.get("filter", "")) == "location_connecting_revealed"
+		and str(s3.get("flow_id", "")) == "seq.skill_test"
+		and str(s3p.get("difficulty_source", "")) == "location_shroud"
+		and str(discover.get("flow_id", "")) == "seq.effect.discover_clue"
+		and CardRegistry.has_triggered(&"12033")
+	)
+
+
+func _test_adb_12033_investigate() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.discover_clue"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_here", 2, 0)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_conn", 1, 2)
+	GameBootstrap.connect_locations(h.ctx, &"loc_here", &"loc_conn")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"loc_here"
+	inv.skill_intellect = 4
+	inv.actions_remaining = 2
+	inv.clues_on_card = 0
+	var map_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12033")
+	var map_card := h.ctx.state.registry.get_card(map_id)
+	if map_card == null or int(map_card.tokens.uses.get(&"secrets", 0)) != 4:
+		return false
+	if h.ctx.triggered_abilities.list_action_abilities(&"inv_1").is_empty():
+		h.ctx.triggered_abilities.install_card(&"inv_1", map_id)
+	## 默认 PI：选连接地点；optional 默认跳过（不横置、不移动）。
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	var secrets_left := int(map_card.tokens.uses.get(&"secrets", 0))
+	var conn := h.ctx.state.registry.get_location(&"loc_conn")
+	var lingering := 0
+	if h.ctx.registrations != null:
+		for reg in h.ctx.registrations.all_registrations():
+			if (reg as Registration).duration == AhcEnums.DurationAnchorKind.THIS_SKILL_TEST:
+				lingering += 1
+	return (
+		bool(result.get("ok", false))
+		and secrets_left == 3
+		and conn != null
+		and conn.clues == 1
+		and inv.clues_on_card == 1
+		and inv.location_tag == &"loc_here"
+		and not bool(map_card.exhausted)
 		and inv.actions_remaining == 1
 		and lingering == 0
 	)

@@ -1486,11 +1486,112 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "secrets",
-        "amount": 4,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "secrets",
+            "amount": 4,
+            "card_id": "source"
+          }
+        }
+      },
+      {
+        "segment_index": 1,
+        "register_as": "action",
+        "ability_id": "action:1",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "investigate"
+        ],
+        "status": "full",
+        "translation": "full_expand",
+        "effect": {
+          "op": "seq",
+          "steps": [
+            {
+              "op": "invoke",
+              "flow_id": "seq.effect.spend_token",
+              "params": {
+                "kind": "secrets",
+                "amount": 1,
+                "card_id": "source"
+              }
+            },
+            {
+              "op": "pi",
+              "kind": "select",
+              "filter": "location_connecting_revealed",
+              "prompt_id": "pick:investigate_connecting",
+              "bind": {
+                "key": "picked_location",
+                "shape": "entity"
+              }
+            },
+            {
+              "op": "invoke",
+              "flow_id": "seq.effect.register",
+              "params": {
+                "stat": "intellect",
+                "amount": 1,
+                "duration": "this_skill_test"
+              }
+            },
+            {
+              "op": "invoke",
+              "flow_id": "seq.skill_test",
+              "params": {
+                "skill": "intellect",
+                "difficulty_source": "location_shroud",
+                "location": "memory:picked_location",
+                "st7": {
+                  "on_success": {
+                    "op": "seq",
+                    "steps": [
+                      {
+                        "op": "invoke",
+                        "flow_id": "seq.effect.discover_clue",
+                        "params": {
+                          "location_id": "memory:picked_location",
+                          "amount": 1
+                        }
+                      },
+                      {
+                        "op": "pi",
+                        "kind": "optional",
+                        "prompt_id": "may:exhaust_move_to_investigated",
+                        "body": {
+                          "op": "seq",
+                          "steps": [
+                            {
+                              "op": "invoke",
+                              "flow_id": "seq.effect.exhaust",
+                              "params": {
+                                "card_id": "source"
+                              }
+                            },
+                            {
+                              "op": "invoke",
+                              "flow_id": "seq.effect.move",
+                              "params": {
+                                "subject": "investigator",
+                                "move_kind": "move_to",
+                                "location": "memory:picked_location"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
       }
     ],
     "uses": {
