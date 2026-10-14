@@ -218,20 +218,17 @@ static func _step_revelation(ctx: Dictionary) -> void:
 	if not has_card_revelation and not CardRegistry.is_hidden(def_id):
 		return
 	if (
-		game_ctx.sequence_catalog != null
-		and game_ctx.sequence_catalog.has_flow(&"seq.encounter.revelation")
+		game_ctx.sequence_catalog == null
+		or not game_ctx.sequence_catalog.has_flow(&"seq.encounter.revelation")
 	):
-		var nest_result := game_ctx.sequence_catalog.nest(
-			game_ctx,
-			&"seq.encounter.revelation",
-			{"drawer_id": drawer_id, "card_id": card_id}
-		)
-		if nest_result.get("resolved", false):
-			(outcome.get("revelations", []) as Array).append(card_id)
+		push_error("DrawEncounterFlow: seq.encounter.revelation missing; vacuum refused")
 		return
-	if game_ctx.card_abilities.resolve_revelations(
-		game_ctx, drawer_id, card_id, &"seq.draw.encounter", true
-	):
+	var nest_result := game_ctx.sequence_catalog.nest(
+		game_ctx,
+		&"seq.encounter.revelation",
+		{"drawer_id": drawer_id, "card_id": card_id}
+	)
+	if nest_result.get("resolved", false):
 		(outcome.get("revelations", []) as Array).append(card_id)
 
 

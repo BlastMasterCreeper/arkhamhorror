@@ -103,7 +103,7 @@
 | # | 项 | 说明 |
 |---|---|---|
 | I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **落在已压栈手续** 内解释（§4.0.5 为「是」才 nest 子帧） |
-| I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3 |
+| I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3；抽查纪要 [23](23-vacuum-audit.md) |
 | I3 | PlayerWindow | Framework / ST 开窗 → 窗口内走 W1–W3 |
 
 ### 3.7 测试
@@ -215,6 +215,7 @@
 | `seq.effect.exhaust` | 横置 | `ExhaustReadyFlow`；平放区卡 / 在场敌 |
 | `seq.effect.ready` | 重整 | 同上；Upkeep 4.3 batch |
 | `seq.effect.search` | 搜寻 | `SearchFlow`；区域/顶 N/过滤/取出；搜牌库须洗；≠ look/find |
+| `seq.effect.evade` | 躲避效果 | `EvadeFlow`；横置+解除交战；`mode` attempt\|automatic；卡面执行=自动躲避；≠ 行动外壳 |
 | `seq.zone.move` | 广义区划迁移（**信息**；进场/离场 = 过滤别名） | L0 `move_card` 成功后 `ZoneMoveFlow`；非 `seq.effect.move` |
 | `seq.effect.defeat` | 击败 | `DefeatFlow`；成功 nest `seq.defeat.leave_play`；Cancel 无退场 |
 | `seq.enemy.defeat` | 击败（敌人别名） | 同核；TC `enemy_defeated` |
@@ -227,6 +228,8 @@
 | `seq.effect.lose_action` | 失去行动 | 卡面 |
 | `seq.effect.place_doom` | 卡面放置毁灭（敌人 / 来源；**不是** `seq.mythos.place_doom`） | 显现 / Forced nest |
 | `seq.effect.place_clue` | 把调查员线索放到地点 | 检定 fail-by 等 |
+| `seq.effect.place_token` | 放置卡上 Uses（ammo / charges / …） | 关键词 Uses 进场；`kind` + `amount` + `card_id` |
+| `seq.effect.spend_token` | 花费卡上 Uses（ammo / charges / …） | `kind` + `amount` + `card_id`；对称 place |
 | `seq.effect.register` | **创建 Buff / Registration** | 卡面 lasting、gains surge、Cannot；参数 = template |
 | `seq.effect.unregister` | 卸 Buff | 与创建对称；不是 `on_card_leave_play` 那种管线注销场合 |
 | `seq.effect.discard_card` | 统一弃牌：指定 `card_id` / 寻址过滤，或 `from=hand` + `amount`/`mode` | 弱点自弃、弃手、成功弃附着 |

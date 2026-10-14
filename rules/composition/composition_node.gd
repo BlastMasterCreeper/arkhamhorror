@@ -82,13 +82,9 @@ static func seq(nodes: Array) -> CompositionNode:
 
 
 ## L2 宏 · 调查员抽牌指令（展开为 DrawInvestigatorFlow 原子链）。
+## 兼容旧名：展开为 nest `seq.draw.investigator`（禁糖 Atom `draw`）。
 static func draw(inv_id: StringName, amount: int = 1) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.inv_id = inv_id
-	n.atom_name = &"draw"
-	n.draw_amount = maxi(amount, 1)
-	return n
+	return nest_draw_investigator(inv_id, amount)
 
 
 ## L0 · AtomMoveCard
@@ -310,7 +306,9 @@ static func nest_skill_test(
 	card_id: StringName = &"",
 	st7_plan: SkillTestSt7Plan = null,
 	difficulty_source: StringName = &"",
-	skill_spec: StringName = &""
+	skill_spec: StringName = &"",
+	enemy_spec: StringName = &"",
+	location_spec: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -322,6 +320,24 @@ static func nest_skill_test(
 	n.test_difficulty = maxi(difficulty, 0)
 	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
+	n.enemy_ref_id = enemy_spec
+	n.location_target = location_spec
+	return n
+
+
+## nest `seq.effect.discover_clue`（地点可为 memory: 指称）。
+static func nest_discover_clue(
+	controller_id: StringName,
+	location_spec: StringName,
+	amount: int = 1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_discover_clue"
+	n.inv_id = controller_id
+	n.location_target = location_spec
+	n.amount = maxi(amount, 1)
+	n.nest_flow_id = &"seq.effect.discover_clue"
 	return n
 
 
@@ -350,6 +366,7 @@ static func nest_enemy_resolve_location(
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"nest_enemy_resolve_location"
+	n.nest_flow_id = &"seq.enemy.resolve_location"
 	n.inv_id = controller_id
 	n.location_target = location_target
 	return n
@@ -472,7 +489,38 @@ static func deal_damage_enemy(
 	return n
 
 
-## L0 · 敌人脱离交战（Evade 成功体之一；支持 memory: 指称）。
+## nest `seq.effect.evade`（引擎内用；卡面**执行**体请用 `automatically_evade`）。
+## mode：attempt（成功尝试后）| automatic（默认；卡面执行 = 自动躲避）。
+static func nest_evade(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	mode: StringName = &"automatic",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_evade"
+	n.nest_flow_id = &"seq.effect.evade"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.engage_mode = EvadeFlow.normalize_mode(mode)
+	return n
+
+
+## 卡面「automatically evade」执行体 → 同核 `mode=automatic`（无检定）。
+## 「evade」作效果措辞多用于时点描述，不另开执行 mode。
+static func automatically_evade(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := nest_evade(controller_id, enemy_spec, EvadeFlow.MODE_AUTOMATIC, source_card_id)
+	n.atom_name = &"automatically_evade"
+	return n
+
+
+## L0 · 仅解除交战（非整躲避效果；完整躲避效果用 automatically_evade / nest_evade）。
 static func disengage_enemy(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -890,6 +938,36 @@ static func nest_place_clue(controller_id: StringName) -> CompositionNode:
 static func nest_effect_register(template: RegistrationTemplate) -> CompositionNode:
 	var n := _nest_leaf(&"nest_effect_register", &"seq.effect.register")
 	n.register_template = template
+	return n
+
+
+## nest `seq.effect.place_token`：放置卡上 Uses（关键词 Uses 进场）。
+static func nest_place_token(
+	controller_id: StringName,
+	card_id: StringName,
+	kind: StringName = &"ammo",
+	amount: int = 1
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_place_token", &"seq.effect.place_token")
+	n.inv_id = controller_id
+	n.card_id = card_id
+	n.definition_id = kind
+	n.marker_delta = maxi(amount, 1)
+	return n
+
+
+## nest `seq.effect.spend_token`：花费卡上 Uses（ammo / charges / …）。
+static func nest_spend_token(
+	controller_id: StringName,
+	card_id: StringName,
+	kind: StringName = &"ammo",
+	amount: int = 1
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_spend_token", &"seq.effect.spend_token")
+	n.inv_id = controller_id
+	n.card_id = card_id
+	n.definition_id = kind
+	n.marker_delta = maxi(amount, 1)
 	return n
 
 

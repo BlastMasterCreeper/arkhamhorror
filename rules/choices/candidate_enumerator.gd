@@ -187,8 +187,12 @@ static func _enum_locations(
 ) -> void:
 	var locs := _location_universe(filter, game_ctx, controller_id, source_card_id)
 	for loc_id in locs:
-		if game_ctx.state.registry.get_location(loc_id) != null:
-			out.append(loc_id)
+		var loc := game_ctx.state.registry.get_location(loc_id)
+		if loc == null:
+			continue
+		if filter.revealed != null and bool(loc.revealed) != bool(filter.revealed):
+			continue
+		out.append(loc_id)
 
 
 static func _enum_investigators(

@@ -455,6 +455,22 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if sim.state == null or node.from_zone == &"":
 				return false
 			return true
+		&"nest_evade", &"automatically_evade":
+			## 躲避效果：敌存在即可 CREATED（横置 + 可能解除交战）。
+			var evade_id := _resolve_sim_enemy_spec(node, sim)
+			if evade_id == &"" or sim.state == null:
+				return false
+			var evade_enemy := sim.state.registry.get_enemy(evade_id)
+			if evade_enemy == null:
+				return false
+			evade_enemy.exhausted = true
+			if evade_enemy.engaged_with != &"":
+				var evade_holder := sim.state.registry.get_investigator(evade_enemy.engaged_with)
+				if evade_holder != null:
+					evade_holder.threat_area.erase(evade_id)
+				evade_enemy.engaged_with = &""
+			sim.last_step_enemy_id = evade_id
+			return true
 		&"exhaust_card", &"ready_card":
 			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
 			if exh == null:
@@ -495,6 +511,37 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			dmg_enemy.damage += maxi(node.marker_delta, 1)
 			sim.last_step_enemy_id = dmg_enemy_id
 			return true
+		&"nest_place_token", &"place_token":
+			if sim.state == null or node.card_id == &"":
+				return false
+			var place_card := sim.state.registry.get_card(node.card_id)
+			if place_card == null:
+				return false
+			var place_kind := node.definition_id if node.definition_id != &"" else &"ammo"
+			var place_n := maxi(node.marker_delta, 1)
+			var place_have := int(place_card.tokens.uses.get(place_kind, 0))
+			place_card.tokens.uses[place_kind] = place_have + place_n
+			return true
+		&"nest_spend_token", &"spend_token":
+			if sim.state == null or node.card_id == &"":
+				return false
+			var spend_card := sim.state.registry.get_card(node.card_id)
+			if spend_card == null:
+				return false
+			var spend_kind := node.definition_id if node.definition_id != &"" else &"ammo"
+			var need := maxi(node.marker_delta, 1)
+			var have := int(spend_card.tokens.uses.get(spend_kind, 0))
+			if have < need:
+				return false
+			var next := have - need
+			if next <= 0:
+				spend_card.tokens.uses.erase(spend_kind)
+			else:
+				spend_card.tokens.uses[spend_kind] = next
+			return true
+		&"nest_discover_clue", &"discover_clue":
+			## dry-run：地点可解析即视为可 CREATED（线索数由 DiscoverClueFlow 裁剪）。
+			return node.location_target != &"" or node.inv_id != &""
 		&"disengage_enemy":
 			var dis_enemy_id := _resolve_sim_enemy_spec(node, sim)
 			if dis_enemy_id == &"" or sim.state == null:
@@ -578,11 +625,8 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 					pool += ginv.clues_on_card
 			return pool >= need
 		&"nest_move_connecting":
-			var move_free_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
-			if move_free_inv == null or move_free_inv.location_tag == &"":
-				return false
-			var from_loc := sim.state.registry.get_location(move_free_inv.location_tag)
-			return from_loc != null and not from_loc.connections.is_empty()
+			## 运行时已废；dry-run 亦拒（工厂已展开为 select+nest_move_to）。
+			return false
 		&"nest_move_to":
 			var move_to_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if move_to_inv == null:

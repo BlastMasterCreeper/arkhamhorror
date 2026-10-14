@@ -5,6 +5,8 @@ static var _definitions: Dictionary = {}
 static var _revelations: Dictionary = {}
 static var _on_play: Dictionary = {}
 static var _triggered: Dictionary = {}
+## register_as:keyword · hook (sequence_id, slot) + composition builder。
+static var _keyword_abilities: Dictionary = {}
 
 
 static func register_definition(definition_id: StringName, data: Dictionary = {}) -> void:
@@ -64,6 +66,23 @@ static func compiled_abilities(definition_id: StringName) -> Array:
 	return []
 
 
+## 关键词 Uses 的参数 Spec：{StringName kind: int count}；空 = 无 Spec。
+## 拥有看 `has_keyword(..., &"uses")`；本函数只读参数。
+static func uses_spec(definition_id: StringName) -> Dictionary:
+	var data := definition_data(definition_id)
+	var uses: Variant = data.get("uses", {})
+	if not uses is Dictionary:
+		return {}
+	var out := {}
+	for key in (uses as Dictionary).keys():
+		out[StringName(str(key))] = int((uses as Dictionary)[key])
+	return out
+
+
+static func has_uses(definition_id: StringName) -> bool:
+	return has_keyword(definition_id, &"uses")
+
+
 ## builder: Callable(AbilityBindContext) -> CompositionNode
 static func register_revelation(
 	definition_id: StringName,
@@ -110,6 +129,54 @@ static func on_play_units_at(definition_id: StringName) -> Array:
 
 static func has_on_play(definition_id: StringName) -> bool:
 	return not on_play_units_at(definition_id).is_empty()
+
+
+## 关键词能力（Uses 等 Domain）：hook 订已有 seq 槽；effect = Composition。
+static func register_keyword_ability(
+	definition_id: StringName,
+	ability_id: StringName,
+	keyword: StringName,
+	hook_sequence_id: StringName,
+	hook_slot: StringName,
+	builder: Callable
+) -> void:
+	if not _keyword_abilities.has(definition_id):
+		_keyword_abilities[definition_id] = []
+	(_keyword_abilities[definition_id] as Array).append(
+		{
+			"ability_id": ability_id,
+			"keyword": keyword,
+			"hook_sequence_id": hook_sequence_id,
+			"hook_slot": hook_slot,
+			"builder": builder,
+		}
+	)
+
+
+static func keyword_abilities_at(
+	definition_id: StringName,
+	hook_slot: StringName = &""
+) -> Array:
+	var all_units := (_keyword_abilities.get(definition_id, []) as Array).duplicate()
+	if hook_slot == &"":
+		return all_units
+	var matched: Array = []
+	for unit in all_units:
+		if unit is Dictionary and (unit as Dictionary).get("hook_slot", &"") == hook_slot:
+			matched.append(unit)
+	return matched
+
+
+static func has_keyword_ability(
+	definition_id: StringName,
+	keyword: StringName = &""
+) -> bool:
+	for unit in keyword_abilities_at(definition_id):
+		if not unit is Dictionary:
+			continue
+		if keyword == &"" or (unit as Dictionary).get("keyword", &"") == keyword:
+			return true
+	return false
 
 
 static func build_on_play_composition(

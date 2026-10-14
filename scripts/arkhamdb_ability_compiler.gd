@@ -28,11 +28,132 @@ static func apply_to_registry(definition_id: StringName, src: Dictionary) -> Dic
 	return stats
 
 
+## 统一 IR（20 §2）：优先读 `op`；旧 `template` 糖仍可走。
+static func build_node(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	if node.has("op"):
+		return _build_op_node(node, bind)
+	if node.has("effect") and node["effect"] is Dictionary:
+		return build_node(node["effect"] as Dictionary, bind)
+	var template_id := str(node.get("template", ""))
+	if template_id == "":
+		return null
+	return build_composition(template_id, node, bind)
+
+
+static func _build_op_node(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	var op := str(node.get("op", ""))
+	match op:
+		"seq":
+			return _build_seq(node, bind)
+		"simultaneous":
+			return _build_simultaneous(node, bind)
+		"if":
+			return _build_if_else(node, bind)
+		"pi":
+			return _build_pi(node, bind)
+		"invoke", "nest":
+			## invoke = 翻译层「调用命名流程」；nest 仅过渡别名（≠ 规则嵌套序列）。
+			return _build_invoke_flow(node, bind)
+		"inline":
+			var atom := str(node.get("atom", ""))
+			var inline_params: Dictionary = {}
+			if node.get("params", null) is Dictionary:
+				inline_params = (node["params"] as Dictionary).duplicate()
+			else:
+				inline_params = node.duplicate()
+				inline_params.erase("op")
+				inline_params.erase("atom")
+			return build_composition(atom, inline_params, bind)
+	return null
+
+
+static func _build_pi(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	var kind := str(node.get("kind", "select")).to_lower()
+	var params := node.duplicate()
+	params.erase("op")
+	match kind:
+		"multi":
+			return build_composition("pick_multi", params, bind)
+		"option":
+			return build_composition("choice_must", params, bind)
+		"optional":
+			return build_composition("choice_optional", params, bind)
+		_:
+			return build_composition("pick_target", params, bind)
+
+
+static func _build_invoke_flow(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	var flow_id := str(node.get("flow_id", ""))
+	var params: Dictionary = {}
+	if node.get("params", null) is Dictionary:
+		params = (node["params"] as Dictionary).duplicate()
+	else:
+		## 过渡：扁平字段当 params。
+		params = node.duplicate()
+		params.erase("op")
+		params.erase("flow_id")
+		params.erase("params")
+	match flow_id:
+		"seq.effect.place_token":
+			return build_composition("place_token", params, bind)
+		"seq.effect.spend_token":
+			return build_composition("spend_token", params, bind)
+		"seq.effect.register":
+			if params.has("stat"):
+				return build_composition("register_modifier", params, bind)
+			return build_composition("register_modifier", params, bind)
+		"seq.skill_test":
+			return build_composition("nest_skill_test", params, bind)
+		"seq.effect.damage":
+			## 敌人目标 → deal_damage_enemy；其余 nest_deal_damage / take。
+			var target := str(params.get("target", params.get("enemy", "")))
+			var kind := str(params.get("kind", "damage")).to_lower()
+			if kind == "horror":
+				var horror_params := params.duplicate()
+				horror_params["target"] = target if target != "" else "controller"
+				return build_composition("take_horror", horror_params, bind)
+			if target.begins_with("memory:") or target == "memory:picked_enemy":
+				var enemy_params := params.duplicate()
+				enemy_params["enemy"] = target
+				return build_composition("deal_damage_enemy", enemy_params, bind)
+			if str(params.get("enemy", "")) != "":
+				return build_composition("deal_damage_enemy", params, bind)
+			var dmg_params := params.duplicate()
+			dmg_params["target"] = target if target != "" else "controller"
+			return build_composition("deal_damage", dmg_params, bind)
+		"seq.draw.investigator":
+			return build_composition("nest_draw_investigator", params, bind)
+		"seq.engage":
+			return build_composition("nest_engage", params, bind)
+		"seq.effect.move":
+			var subject := str(params.get("subject", "investigator"))
+			if subject == "enemy":
+				return build_composition("nest_enemy_move_to", params, bind)
+			return build_composition("nest_move_to", params, bind)
+		"seq.effect.resign":
+			return build_composition("nest_resign", params, bind)
+		"seq.effect.discover_clue":
+			return build_composition("discover_clue", params, bind)
+		"seq.effect.exhaust":
+			var exh_card := str(params.get("card_id", "source"))
+			if exh_card == "source" or exh_card == "":
+				return build_composition("exhaust_source", params, bind)
+			return CompositionNode.exhaust_card(StringName(exh_card))
+	## 未映射 flow：尝试用旧 template 糖名（若有）。
+	var legacy := str(node.get("template", ""))
+	if legacy != "":
+		return build_composition(legacy, params, bind)
+	return null
+
+
 static func build_composition(
 	template_id: String,
 	params: Dictionary,
 	bind: AbilityBindContext
 ) -> CompositionNode:
+	## 仅空 template 时走 IR；已指定 template 时忽略残留 `op`，避免 pi→build_composition 死循环。
+	if template_id == "" and params.has("op"):
+		return build_node(params, bind)
 	match template_id:
 		"take_horror":
 			return CompositionNode.nest_take_horror(
@@ -181,7 +302,8 @@ static func build_composition(
 				discard_from,
 				int(params.get("amount", 1))
 			)
-		"draw":
+		"nest_draw_investigator", "draw":
+			## draw = 旧 JSON 别名；新译用 nest_draw_investigator + flow_id。
 			return CompositionNode.nest_draw_investigator(
 				bind.controller_id,
 				int(params.get("amount", 1))
@@ -202,6 +324,39 @@ static func build_composition(
 				bind.card_id,
 				bool(params.get("per_investigator", false))
 			)
+		"deal_damage_enemy":
+			return CompositionNode.deal_damage_enemy(
+				bind.controller_id,
+				StringName(str(params.get("enemy", "memory:picked_enemy"))),
+				int(params.get("amount", 1)),
+				bind.card_id
+			)
+		"place_token":
+			var place_card := str(params.get("card_id", "source"))
+			var place_id := bind.card_id if place_card == "source" or place_card == "" else StringName(place_card)
+			return CompositionNode.nest_place_token(
+				bind.controller_id,
+				place_id,
+				StringName(str(params.get("kind", "ammo"))),
+				int(params.get("amount", 1))
+			)
+		"spend_token":
+			var spend_card := str(params.get("card_id", "source"))
+			var spend_id := bind.card_id if spend_card == "source" or spend_card == "" else StringName(spend_card)
+			return CompositionNode.nest_spend_token(
+				bind.controller_id,
+				spend_id,
+				StringName(str(params.get("kind", "ammo"))),
+				int(params.get("amount", 1))
+			)
+		"discover_clue":
+			return CompositionNode.nest_discover_clue(
+				bind.controller_id,
+				StringName(str(params.get("location_id", params.get("location", "")))),
+				int(params.get("amount", 1))
+			)
+		"register_modifier":
+			return _build_register_modifier(params, bind)
 		"enter_threat_area":
 			return CompositionNode.enter_threat_area(bind.card_id, bind.controller_id)
 		"grant_surge":
@@ -252,7 +407,8 @@ static func build_composition(
 			return _build_skill_test(params, bind)
 		"repeat_fail_by":
 			return _build_repeat_fail_by(params, bind)
-		"resolve_location":
+		"nest_enemy_resolve_location", "resolve_location":
+			## resolve_location = 旧 JSON 别名；须带 flow_id。
 			return _build_resolve_location(params, bind)
 		"nest_enemy_move":
 			return _build_nest_enemy_move(params, bind)
@@ -315,17 +471,17 @@ static func _build_seq(params: Dictionary, bind: AbilityBindContext) -> Composit
 	var nodes: Array[CompositionNode] = []
 	for step in steps:
 		if step is Dictionary:
-			var step_dict := step as Dictionary
-			var node := build_composition(
-				str(step_dict.get("template", "")),
-				step_dict,
-				bind
-			)
+			var node := build_node(step as Dictionary, bind)
 			if node != null:
 				nodes.append(node)
 	if nodes.is_empty():
 		return null
 	return CompositionNode.seq(nodes)
+
+
+static func _build_simultaneous(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+	## CompositionNodeKind 尚无 SIMULTANEOUS；翻译层已区分 op，运行时暂降为 seq。
+	return _build_seq(params, bind)
 
 
 static func _build_choice_must(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
@@ -370,8 +526,7 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 	var body: CompositionNode = null
 	var body_entry: Variant = params.get("body", null)
 	if body_entry is Dictionary:
-		var body_dict := body_entry as Dictionary
-		body = build_composition(str(body_dict.get("template", "")), body_dict, bind)
+		body = build_node(body_entry as Dictionary, bind)
 	elif params.get("steps", null) is Array and not (params.get("steps") as Array).is_empty():
 		body = _build_seq(params, bind)
 	if body == null:
@@ -380,8 +535,7 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 		if options is Array and not (options as Array).is_empty():
 			var first: Variant = (options as Array)[0]
 			if first is Dictionary:
-				var opt := first as Dictionary
-				body = build_composition(str(opt.get("template", "")), opt, bind)
+				body = build_node(first as Dictionary, bind)
 	if body == null:
 		return null
 	var prompt_id := StringName(str(params.get("prompt_id", "composition:choice_optional")))
@@ -392,6 +546,8 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
 	var difficulty := int(params.get("difficulty", 0))
 	var difficulty_source := StringName(str(params.get("difficulty_source", "")))
+	var enemy_spec := StringName(str(params.get("enemy", "")))
+	var location_spec := StringName(str(params.get("location", params.get("location_id", ""))))
 	var plan := _build_st7_plan(params, bind)
 	var choices: Variant = params.get("skill_choices", [])
 	## skill_choices：PI 只选技能类型 → 单次 skill_test（体不重复）。
@@ -412,7 +568,9 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 			bind.card_id,
 			plan,
 			difficulty_source,
-			StringName("memory:%s" % str(mem_key))
+			StringName("memory:%s" % str(mem_key)),
+			enemy_spec,
+			location_spec
 		)
 		return CompositionNode.seq([pick, test])
 	var skill_raw := str(params.get("skill", "willpower"))
@@ -421,8 +579,56 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 		skill_spec = StringName(skill_raw)
 	var skill := _skill_from_compile_id(skill_raw)
 	return CompositionNode.nest_skill_test(
-		bind.controller_id, skill, difficulty, bind.card_id, plan, difficulty_source, skill_spec
+		bind.controller_id,
+		skill,
+		difficulty,
+		bind.card_id,
+		plan,
+		difficulty_source,
+		skill_spec,
+		enemy_spec,
+		location_spec
 	)
+
+
+static func _build_register_modifier(
+	params: Dictionary,
+	bind: AbilityBindContext
+) -> CompositionNode:
+	var amount := int(params.get("amount", 1))
+	if amount == 0:
+		return null
+	var stat := _stat_ref_from_compile_id(str(params.get("stat", "combat")))
+	var duration := _duration_from_compile_id(str(params.get("duration", "this_skill_test")))
+	var payload := ModifierPayload.add_skill(stat, amount)
+	var template := RegistrationTemplate.lasting_modifier(
+		bind.controller_id, duration, payload
+	)
+	return CompositionNode.nest_effect_register(template)
+
+
+static func _stat_ref_from_compile_id(stat_id: String) -> AhcEnums.StatRef:
+	match stat_id.to_lower():
+		"intellect":
+			return AhcEnums.StatRef.SKILL_INTELLECT
+		"combat":
+			return AhcEnums.StatRef.SKILL_COMBAT
+		"agility":
+			return AhcEnums.StatRef.SKILL_AGILITY
+		_:
+			return AhcEnums.StatRef.SKILL_WILLPOWER
+
+
+static func _duration_from_compile_id(duration_id: String) -> AhcEnums.DurationAnchorKind:
+	match duration_id.to_lower():
+		"this_turn":
+			return AhcEnums.DurationAnchorKind.THIS_TURN
+		"this_phase":
+			return AhcEnums.DurationAnchorKind.THIS_PHASE
+		"this_round":
+			return AhcEnums.DurationAnchorKind.THIS_ROUND
+		_:
+			return AhcEnums.DurationAnchorKind.THIS_SKILL_TEST
 
 
 static func _build_st7_plan(params: Dictionary, bind: AbilityBindContext) -> SkillTestSt7Plan:
@@ -482,29 +688,48 @@ static func _build_if_else(params: Dictionary, bind: AbilityBindContext) -> Comp
 	var then_node: CompositionNode = null
 	var else_node: CompositionNode = null
 	if then_entry is Dictionary:
-		then_node = build_composition(
-			str((then_entry as Dictionary).get("template", "")),
-			then_entry as Dictionary,
-			bind
-		)
+		then_node = build_node(then_entry as Dictionary, bind)
 	if else_entry is Dictionary:
-		var else_tpl := str((else_entry as Dictionary).get("template", ""))
-		if else_tpl != "" and else_tpl != "uncompiled":
-			else_node = build_composition(else_tpl, else_entry as Dictionary, bind)
+		var else_dict := else_entry as Dictionary
+		var else_tpl := str(else_dict.get("template", ""))
+		if else_dict.has("op") or (else_tpl != "" and else_tpl != "uncompiled"):
+			else_node = build_node(else_dict, bind)
 	return CompositionNode.if_else(cond, then_node, else_node, bind.controller_id)
 
 
 static func _register_entry(definition_id: StringName, entry: Dictionary) -> bool:
 	var register_as := str(entry.get("register_as", ""))
 	var template_id := str(entry.get("template", ""))
-	if template_id == "":
+	var effect_entry: Variant = entry.get("effect", null)
+	var has_effect := effect_entry is Dictionary and not (effect_entry as Dictionary).is_empty()
+	if template_id == "" and not has_effect:
 		return false
 	var ability_id := StringName(str(entry.get("ability_id", "%s:0" % register_as)))
 	var params := _params_from_entry(entry)
 	var builder := func(bind: AbilityBindContext) -> CompositionNode:
+		if has_effect:
+			return build_node(effect_entry as Dictionary, bind)
 		return build_composition(template_id, params, bind)
 	if register_as == "revelation":
 		CardRegistry.register_revelation(definition_id, ability_id, builder)
+		return true
+	if register_as == "keyword":
+		var hook: Variant = entry.get("hook", {})
+		var hook_seq := &"seq.zone.move"
+		var hook_slot := &"ENTER_PLAY"
+		if hook is Dictionary:
+			if str((hook as Dictionary).get("sequence_id", "")) != "":
+				hook_seq = StringName(str((hook as Dictionary).get("sequence_id")))
+			if str((hook as Dictionary).get("slot", "")) != "":
+				hook_slot = StringName(str((hook as Dictionary).get("slot")))
+		CardRegistry.register_keyword_ability(
+			definition_id,
+			ability_id,
+			StringName(str(entry.get("keyword", ""))),
+			hook_seq,
+			hook_slot,
+			builder
+		)
 		return true
 	if register_as == "free" or register_as == "action":
 		var provokes: Variant = null
@@ -606,6 +831,10 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"value",
 		"flow_id",
 		"mode",
+		"stat",
+		"duration",
+		"hook",
+		"keyword",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

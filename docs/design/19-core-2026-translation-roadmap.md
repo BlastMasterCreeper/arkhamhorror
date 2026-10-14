@@ -58,10 +58,15 @@
 |---|---|---|
 | 12113 `engage_from_connecting` | ✅ 已展 | SKIP_AOO → PI → `suppress_auto_engage` → nest move → nest engage |
 | 12112 `resign` 糖 Atom | ✅ 已展 | nest `seq.effect.resign`（Resign 类型本身不借机，不挂 SKIP_AOO） |
-| Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve` 装载帧后再解释 |
-| `nest_move_connecting` 内嵌 PI | ✅ 已展 | 12116 / 12046：`pick_target(location_connecting)` → `nest_move_to` |
-| LISTENER / peril / act-agenda-back | ✅ 收口 | `CompositionMount`：LISTENER/act-back → `seq.ability.resolve`；peril/privacy → `seq.effect.register` |
+| Initiation / Forced 裸 `execute` | ✅ 收口 | nest `seq.ability.resolve`；Catalog 缺失报错、无回退 |
+| `nest_move_connecting` 内嵌 PI | ✅ 已展 | 工厂展开；executor 拒原始 ATOM |
+| LISTENER / peril / act-agenda-back | ✅ 收口 | `CompositionMount`；无裸回退 |
 | 编译侧「叶子一律 nest」习惯 | 文档已裁 | 新译先判三分法 |
+| `CompositionExecutor.execute` 栈守卫 | ✅ | `depth()>0` 硬门槛（I2-01/02） |
+| Mount / Register Catalog 缺失回退 | ✅ 删除 | 报错拒绝；含 Engagement / SKIP_AOO / keyword |
+| `DrawInvestigatorFlow.run_mutator_only` | ✅ 隔离 | 仅 dry-run/sim；生产禁旁路 |
+| `CompositionNode.draw` 糖 Atom | ✅ | 工厂改指向 `nest_draw_investigator` |
+| 翻译 JSON `template=draw` | ✅ | 重译为 `nest_draw_investigator` + `flow_id`（12004/12060/12119/12120） |
 
 ---
 
@@ -101,7 +106,19 @@
 - 附着后 `install_card`；地点调查员恐惧/伤害 template
 - 指标：53 → **55**；SEQ-EFF-09 / ADB-41..43
 
-**下一批**：C1 Fight ammo；敌人 defeated 触发（12132）；asset 承伤。
+### C1 Fight ammo ✅（12019 M1911）
+- **关键词 Uses（能力格式）**：`register_as:keyword` + `hook:{seq.zone.move,ENTER_PLAY}` + nest `seq.effect.place_token`；另 `keywords∋uses` + UsesSpec
+- 铸造：`seq.effect.place_token` / `seq.effect.spend_token`；`register_modifier` → `seq.effect.register`（`THIS_SKILL_TEST`，ST.8 tick）
+- 编译：Spend ammo → Fight：PI 选敌 → MODIFIER → nest `seq.skill_test`（`difficulty_source=enemy_fight`）→ ST.7 `deal_damage_enemy`
+- **翻译 IR（[20 §2](20-card-translation-schema.md) v0.5.1）**：`op` ∈ seq/simultaneous/if/pi/**invoke**/inline；`invoke`=`flow_id`+`params`（调用命名流程）；**嵌套序列**仅指运行时 `catalog.nest`；旧 `op:nest`/`template` 糖可读；12019 见 20 §5.5
+- 指标：ADB-73/74、SEQ-EFF-11
+
+### C2 Investigate secrets ✅（12033 Local Map）
+- Uses secrets：`invoke seq.effect.place_token`；Spend secret → PI `location_connecting_revealed` → +1 intellect THIS_SKILL_TEST → `invoke seq.skill_test`（`difficulty_source=location_shroud`）
+- ST.7：`invoke seq.effect.discover_clue` @ 目标地点；`pi optional` 横置本卡 + `invoke` move_to 该地点
+- `action_types: [activate, investigate]`；指标：ADB-75 / ADB-76
+
+**下一批**：asset 承伤；其它 Investigate/Fight 变体（12062 等）。
 
 ### 12106–08 Parley ✅
 - 编译：`action_types: [activate, parley]`；成功 → `discard_card`（trait/title=Bystander @ controller_location）
@@ -137,6 +154,10 @@
 |---|---|---|
 | 2026-09-30 | v0.23 | 清债：LISTENER / peril / privacy / act-agenda-back 经 `CompositionMount` 装载 |
 | 2026-09-30 | v0.22 | 清债：`nest_move_connecting` 内嵌 PI → `pick_target` + `nest_move_to`（12116/12046） |
+| 2026-10-13 | v0.25 | 补齐 nest 空 `flow_id`；`resolve_location` → `nest_enemy_resolve_location` |
+| 2026-10-13 | v0.24 | 重译：`template=draw` → `nest_draw_investigator` + flow_id（imported 再导入） |
+| 2026-10-13 | v0.23 | I2 运行时收口：execute 守卫、删回退、隔离 mutator 抽牌（23 §6） |
+| 2026-10-13 | v0.22 | [23-vacuum-audit](23-vacuum-audit.md)：I2 抽查；§3.1 补结构性回退债 |
 | 2026-09-29 | v0.21 | 21 §3.1：候选范围分层 U/S/N/R/V（数值 preds + Restriction `for_intent`） |
 | 2026-09-29 | v0.20 | [21-selection-spec](21-selection-spec.md)：通用选择 filter/基数/bind；`select`/`pick_multi` |
 | 2026-09-29 | v0.19 | 具名限制叶落地收口：`suppress` / `SKIP_AOO` / REGISTER → `seq.effect.register` |

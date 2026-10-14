@@ -263,6 +263,8 @@ enum MarkerKind {
 	CLUE,
 	RESOURCE,
 	HORROR_TAKEN,
+	## 卡上 Uses（ammo / charges / …）；须配 MarkerSlot.sub_key。
+	USES,
 	POOL_DAMAGE,
 	POOL_HORROR,
 	POOL_CLUE,

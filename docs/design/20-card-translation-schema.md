@@ -2,7 +2,7 @@
 
 > **依赖**：[07-composition.md](07-composition.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md) §4.0.5、[16-player-interaction.md](16-player-interaction.md)、[06-registration-buff-model.md](06-registration-buff-model.md) §16、[18-arkhamdb-card-data.md](18-arkhamdb-card-data.md)  
 > **实现**：`tools/arkhamdb_abilities.py` → `data/arkhamdb/imported/*.json` → `ArkhamDbAbilityCompiler`  
-> **状态**：v0.4 · 2026-09-29 — 挂接 21 SelectionSpec
+> **状态**：v0.5.1 · 2026-10-14 — IR `op:invoke`（消歧规则「嵌套序列」）；旧 `op:nest` / `template` 为过渡糖
 
 ---
 
@@ -10,65 +10,153 @@
 
 1. 卡面 `compiled_abilities` **只描述静态规格**，供框架装载与解释；运行时场面与玩家选择 **不进 JSON**。
 2. **禁止**为单卡或一时方便发明布尔开关（如 `auto_engage: false`、`provokes_aoo: false` 当机制）。
-3. 复杂限制、命名流程拼合、参数记录与消费，一律走 **四类一等构件**（下表），可增长、可审计。
+3. 命名流程（`seq.*`）已展到比原子高不了几层：翻译层 **提取共性**，用统一节点 IR 拼合，而不是为每条 flow 另起一套扁平字段。
+4. 复杂限制、命名流程拼合、参数记录与消费，一律走 **四类一等构件**（下表），可增长、可审计。
 
-| 构件 | 翻译层形态 | 运行时 |
+| 构件 | 统一 IR（`op`） | 运行时 |
 |---|---|---|
-| **A. 目标 / 确认** | `select` / `pick_*` / `choice_*` → [SelectionSpec](21-selection-spec.md) | Gate 有限期确认 → `ChoiceBind` → `RulesMemory` |
-| **B. Buff 创建** | `register` / 具名限制叶 / nest `seq.effect.register` | `RegistrationStore`；入口 **读取** 分支或拦 Intent |
-| **C. 命名流程信封** | `nest_*` + **`flow_id`** | `catalog.nest(flow_id, params)` |
-| **D. 效果参数** | 字面量 + **指称键**（`memory:` / bind） | 解释时解析 → 填入 nest `params` 或 L0 |
+| **A. 目标 / 确认** | `pi` → [SelectionSpec](21-selection-spec.md) | Gate 有限期确认 → `ChoiceBind` → `RulesMemory` |
+| **B. Buff 创建** | `invoke` `seq.effect.register`（具名限制可作编译糖） | `RegistrationStore`；入口 **读取** 分支或拦 Intent |
+| **C. 命名流程信封** | `invoke` + **`flow_id`** + **`params`** | 装载后按时点：`catalog.nest` **或** 同帧内联 |
+| **D. 效果参数** | 字面量 + **指称键**（`memory:` / bind）进 `params` | 解释时解析 → 填入调用 `params` 或 L0 |
 
-卡面树 **不** 展开信封内部 RESOLVE（那是 handler / Catalog 的事）；只需框架能识别 nest 哪条 `seq.*`。
+卡面树 **不** 展开信封内部 RESOLVE（那是 handler / Catalog 的事）；只需框架能识别调用哪条 `seq.*`、参数袋里有什么。
+
+### 1.1 用词消歧：`invoke` ≠ 嵌套序列
+
+| 用语 | 层 | 含义 |
+|---|---|---|
+| **`op: invoke`** | 翻译 IR | **调用**已铸造的命名流程（`flow_id` + `params`）；**不**断言一定压子帧 |
+| **嵌套序列 / `catalog.nest`** | 规则 · 运行时 | `ResolutionSequenceStack` **真压子帧**；子手续整段（含时点）跑完再回父帧 |
+| **`op: seq`（Then）** | 翻译 IR | 同段效果体内部先后；**不是**触发因果，也**不是**嵌套 |
+| **触发因果** | 时点 | Would/When/After：由命名流程开放槽 + 能力 `hook` 开火；**不**画成卡面树边 |
+
+是否把某次 `invoke` 落成真正的 `catalog.nest`，只按 [15 §4.0.5](15-timing-entry-catalog.md)。翻译层 **禁止**再用 `op: nest` 表示调用（旧 JSON 别名可读，见 §2.4）。
 
 ---
 
-## 2. 步节点统一外形
+## 2. 统一节点 IR（目标形态）
 
-每个 `steps[]` 元素（及 `then` / `else` / 选项体）是一个 **字典**：
+命名流程共性：都是「调用哪条 `seq.*` + 传什么 params」。控制流与玩家确认另有固定外形。  
+**每个节点**（含 `effect` 根、`steps[]`、`then`/`else`、选项体、`st7.*`）是下列之一：
 
 ```text
+{ "op": "seq",          "steps": [Node, ...] }                          # Then · 顺序
+{ "op": "simultaneous", "steps": [Node, ...] }                          # 同时 · 须显式
+{ "op": "if",           "if_kind"|"evaluate"|"condition", "then", "else"? }
+{ "op": "pi",           …SelectionSpec…, "bind"|"memory_key" }          # A · 有限期确认
+{ "op": "invoke",       "flow_id": "seq.*", "params": { … } }           # C/D · 调用命名流程
+{ "op": "inline",       "atom": "<L0|Register叶>", "params": { … } }    # 少用：§4.0.5 同帧
+```
+
+### 2.0 顺序 vs 同时（已裁决）
+
+| 写法 | 语义 |
+|---|---|
+| `op: seq` 的 `steps[]` | **Then**：严格先后；后步可读前步 CREATED / Memory |
+| `op: simultaneous` 的 `steps[]` | **同时** resolve（Composition Simultaneous）；**禁止**用扁平 `steps` 暗示同时 |
+| 能力根省略外壳 | 单节点可直接作 `effect`；多步 **必须** 包一层 `seq` 或 `simultaneous` |
+
+### 2.1 能力外壳（条目级）与 `effect` 根
+
+`compiled_abilities[]` 条目：
+
+| 字段 | 用途 |
+|---|---|
+| `register_as` | `action` / `free` / `forced` / `revelation` / `reaction` / `keyword` |
+| `keyword` | 关键词 id（如 `uses`）；仅 `register_as:keyword` |
+| `hook` | `{sequence_id, slot}`；关键词 / Forced / Reaction 挂载槽 |
+| `action_types` / `action_cost` / `resource_cost` / `window` / … | 装载与 Eligibility（见 §7） |
+| `translation` / `status` | 审计 |
+| **`effect`** | **唯一效果体根**：一个 Node（常为 `op:seq`） |
+
+**禁止**：效果字段扁平散落在条目根上与外壳混排（过渡期见 §2.4）。关键词 Uses、激活 Fight 等 **同一外壳**：差别只在 `register_as` / `hook` / `effect` 内容。
+
+### 2.2 `invoke`：调用命名流程
+
+```json
 {
-  "template": "<叶种类>",   # 必填：决定构件类 A/B/C/D/控制流
-  …规格字段…                 # 仅下列白名单；见 §3–§6
+  "op": "invoke",
+  "flow_id": "seq.effect.spend_token",
+  "params": {
+    "kind": "ammo",
+    "amount": 1,
+    "card_id": "source"
+  }
 }
 ```
 
-### 2.1 字段白名单（增长表）
+| 字段 | 规则 |
+|---|---|
+| `op` | 恒为 `invoke`（旧糖 `nest` 可读） |
+| `flow_id` | Catalog 已 `register_run` 的命名流程 id |
+| `params` | 该 flow 的 **静态参数袋**（字面量 + 指称键）；**禁止**把 flow 特有参数抬到与 `op`/`flow_id` 同级 |
 
-| 字段 | 用途 | 允许出现在 |
-|---|---|---|
-| `template` | 叶种类 | 所有步 |
-| `flow_id` | nest 目标命名流程 | **仅** nest 叶（C） |
-| `filter` / `trait` / `at` / `trait_exclude` / `traits` / `keywords` / `exhausted` | [CandidateFilter](21-selection-spec.md)（预设字符串或对象） | A |
-| `preds` / `for_intent`（可选预筛） | 候选管线 N + 可选优化；Restriction 真相在 V dry-run（[21 §3.1](21-selection-spec.md)） | A |
-| `min` / `max` / `min_picks` / `max_picks` | 选择基数 | A（`pick_multi` / `select`） |
-| `bind` | `{key, shape}` ChoiceBind；或扁平 `memory_key` | A |
-| `prompt_id` | Gate 提示键 | A |
-| `memory_key` | bind.key 糖（单实体） | A |
-| `enemy` / `investigator` / `location` / `target` / `card_id` | **指称规格**（见 §6） | B、C、D |
-| `amount` / `skill` / `difficulty` / `difficulty_source` / `kind` / `direct` / `mode` / `per_investigator` / `from` | 字面效果参数；`from=hand` 等来源区；`difficulty_source=hand_count` 等动态难度 | D、部分 C |
-| `if_kind` / `evaluate` / `condition` / `then` / `else` | 控制流 | 控制流叶 |
-| `options` / `steps` / `st7` / `on_success` / `on_fail*` | 子树 / 检定计划 | 控制流、skill_test |
-| `field` / `value` | 仅 L0 `set_flag` 等离散原子 | 内联 L0（少用；优先进信封 handler） |
+`invoke` = 翻译契约「走这条手续的效果体」。装载/解释时：§4.0.5 为「是」→ 运行时 **`catalog.nest`（嵌套序列）**；为「否」→ 同帧 `inline` 同一效果体。**不得**因 JSON 写了 `invoke` 就一律压栈，也 **不得**另发明第二套字段布局。
+
+### 2.3 `pi`：玩家确认
+
+```json
+{
+  "op": "pi",
+  "kind": "select",
+  "filter": "enemy_fight_target",
+  "prompt_id": "pick:fight_enemy",
+  "bind": { "key": "picked_enemy", "shape": "entity" }
+}
+```
+
+| `kind` | 对应 |
+|---|---|
+| `select` / `multi` | 选实体；`filter` + 基数 + bind |
+| `option` | must 效果支；`options[]` 各含 `effect` 子树 |
+| `optional` | may 做不做；bind.shape=bool |
+
+细则见 §3 与 [21](21-selection-spec.md)。**不是** `invoke`，**不是** `seq` 内联冒充。
+
+### 2.4 过渡：旧 `template` / `op:nest` 糖 → 统一 IR
+
+编译器 / imported JSON **当前仍可**发旧外形；装载层应能归一到本 IR。新翻译 **优先写 IR**（`invoke`，勿新写 `op:nest`）。
+
+旧节点：
+
+```text
+{ "template": "<叶种类>", …扁平规格字段… }
+{ "op": "nest", "flow_id": "...", "params": { … } }   # 仅过渡别名 → invoke
+```
+
+| 旧外形 | 统一 IR |
+|---|---|
+| `seq` + `steps` | `{ "op": "seq", "steps": [...] }` |
+| `if_else` / `if` | `{ "op": "if", ... }` |
+| `pick_*` / `choice_*` / `select` | `{ "op": "pi", "kind": ..., ... }` |
+| `nest_*` / `place_token` / `spend_token` / `register_modifier` / `take_horror` / … 且带 `flow_id` | `{ "op": "invoke", "flow_id", "params": {其余} }` |
+| `op: nest` | `{ "op": "invoke", … }`（装载别名） |
+| `no_provoke_aoo` / `suppress_auto_engage` | 编译糖 → `invoke` `seq.effect.register` + Restriction 模板；或过渡期保留具名叶再归一 |
+| `deal_damage_enemy` 等无独立时点的效果叶 | 目标：`invoke` `seq.effect.damage`（params 含 target/amount）；过渡可 `inline` |
+| 条目根上的 `template`+`flow_id`+扁平 params（无 `effect`） | 收入 `effect: { op:invoke, flow_id, params }` |
+
+### 2.5 `params` 与控制字段白名单
+
+**`params` 袋内**（随 `flow_id` 增长；非袋字段勿塞进 `invoke` 节点顶层）：
+
+| 键 | 用途 |
+|---|---|
+| `enemy` / `investigator` / `location` / `target` / `card_id` / `subject` | 指称规格（§6） |
+| `amount` / `skill` / `difficulty` / `difficulty_source` / `kind` / `direct` / `mode` / `per_investigator` / `from` / `stat` / `duration` / `move_kind` | 字面效果参数 |
+| `st7` / `on_success` / `on_fail` / `on_fail_by_each` | 检定计划（值为 Node 或 Node 字典） |
+| `template`（Register 载荷） | 仅 `seq.effect.register`：Buff / Restriction 模板 id |
+
+**节点顶层**（不进 `params`）：`op`、`flow_id`、`steps`、`then`/`else`、`if_kind`/`evaluate`/`condition`、`kind`（仅 `pi`）、`filter`/`bind`/`prompt_id`/`min`/`max`、以及 `pi` 的 SelectionSpec 字段。
 
 **禁止**（非白名单即非法，除非本表增行并同步编译器）：
 
 - 机制开关：`auto_engage`、`provokes_aoo`、`skip_*` 布尔覆盖
 - 运行时答案：具体 `enemy_id` 实例、本次选了谁
 - 第二套语义：`policy` / `service` / 卡号专用 atom
+- 用扁平 `steps` 表示同时（必须 `op: simultaneous`）
 
-需要新行为时：**扩 RestrictionKind / 新具名限制叶 / 新铸造 `seq.*`**，不要加布尔字段。
-
-### 2.2 `template` 命名约定
-
-| 前缀 / 形态 | 含义 |
-|---|---|
-| `pick_*` / `choice_*` | **A** 玩家确认 |
-| `no_provoke_aoo` / `suppress_auto_engage` / `grant_*` | **B** 具名 Buff（编译为 Register） |
-| `nest_*` | **C** nest 命名流程；**必须**带 `flow_id` |
-| 其余（`take_horror`、`deal_damage`…） | **D** 效果叶：编译为内联或 nest（§4.0.5）；若 nest 则同时写 `flow_id` |
-| `seq` / `if_else` / `skill_test` | 控制流 |
+需要新行为时：**扩 RestrictionKind / 新铸造 `seq.*` + 其 params 契约**，不要加布尔字段或新 `template` 前缀动物园。
 
 ---
 
@@ -78,12 +166,12 @@
 
 卡面 **choose / select / may（选目标）** → **A**，不是 nest、不是 Then。通用规格见 **[21-selection-spec](21-selection-spec.md)**。
 
-| 卡面语义 | template 例 | 必填规格 |
+| 卡面语义 | IR（旧糖） | 必填规格 |
 |---|---|---|
-| 选 1 / N 实体（区域·特性·关键词·横置…） | `select` / `pick_target` / `pick_multi` | `filter`、`min`/`max`、`prompt_id`、`bind`/`memory_key`（多选 shape=`entity_list`） |
-| 遍历已选列表 | `for_each_memory` | `memory_key`（list）+ `each_key` + `body`/`steps` |
-| must 二选一效果支 | `choice_must` | `options[]`（各含子树）、`prompt_id` |
-| Optional / may 做不做 | `choice_optional`（效果体内）；整段能力仍用装载层 `USE_ABILITY` / descriptor.optional | bind.shape=bool；默认跳过 |
+| 选 1 / N 实体（区域·特性·关键词·横置…） | `op:pi` kind=`select`/`multi`（`pick_target` / `pick_multi`） | `filter`、`min`/`max`、`prompt_id`、`bind`（多选 shape=`entity_list`） |
+| 遍历已选列表 | `for_each_memory`（控制流；可包在 `seq` 内） | `memory_key`（list）+ `each_key` + `body`/`steps` |
+| must 二选一效果支 | `op:pi` kind=`option`（`choice_must`） | `options[]`（各含 `effect` 子树）、`prompt_id` |
+| Optional / may 做不做 | `op:pi` kind=`optional`（`choice_optional`）；整段能力仍用装载层 `USE_ABILITY` | bind.shape=bool；默认跳过 |
 
 ### 3.2 确认与否
 
@@ -98,14 +186,15 @@
 ### 3.3 确认结果的记录
 
 ```text
-pick_target
+op: pi · kind: select
   filter: enemy_at_connecting
   prompt_id: pick:engage_connecting
-  memory_key: picked_enemy          # 写入 RulesMemory[controller][key]
+  bind: { key: picked_enemy, shape: entity }   # → RulesMemory[controller][key]
 ```
 
 - **只记键名与 TargetSpec**，不记本次选中的 id。
-- 后续步用 `"enemy": "memory:picked_enemy"` **消费**（§6）。
+- 后续步 `params` 用 `"enemy": "memory:picked_enemy"` **消费**（§6）。
+- 旧糖 `template: pick_target` + `memory_key` 等价于上形。
 
 ---
 
@@ -116,7 +205,7 @@ pick_target
 | 写法 | 何时 |
 |---|---|
 | 具名限制叶（`no_provoke_aoo`、`suppress_auto_engage`） | 编译糖 → `RegistrationTemplate`；**落地一律** `seq.effect.register` |
-| nest `seq.effect.register` + template 载荷 | 通用 lasting / keyword / 任意 Buff；`flow_id: seq.effect.register` |
+| invoke `seq.effect.register` + template 载荷 | 通用 lasting / keyword / 任意 Buff；`flow_id: seq.effect.register` |
 | 真空 `RegistrationStore.register` / 裸 `REGISTER` 当运行时主路径 | **禁止**（dry-run 可模拟 Store；落地：效果体 nest，Initiation 挂载用 `catalog.run`） |
 
 **落地约定**：
@@ -160,7 +249,7 @@ pick_target
 
 也 **禁止**把自动交战挪到 move/能力的 After 来省掉 suppress：子帧 After 仍先于父树下一步；且与 *immediately* 冲突（调研结论）。
 
-正确拼合：`suppress_auto_engage` → nest move（入口仍在，读限制后分支）→ nest `seq.engage` mode=effect（覆盖冷漠/横置/指定 WHO）。
+正确拼合：`suppress_auto_engage` → invoke move（入口仍在，读限制后分支）→ invoke `seq.engage` mode=effect（覆盖冷漠/横置/指定 WHO）。
 
 ### 4.3 具名限制叶的参数
 
@@ -174,59 +263,178 @@ pick_target
 
 ---
 
-## 5. C · 命名流程拼合（nest）
+## 5. C · 命名流程拼合（`invoke`）
 
-### 5.1 形态
+### 5.1 形态（统一 IR）
 
 ```json
 {
-  "template": "nest_engage",
+  "op": "invoke",
   "flow_id": "seq.engage",
-  "enemy": "memory:picked_enemy",
-  "investigator": "controller",
-  "mode": "effect"
+  "params": {
+    "enemy": "memory:picked_enemy",
+    "investigator": "controller",
+    "mode": "effect"
+  }
 }
 ```
 
-| 字段 | 规则 |
-|---|---|
-| `template` | 编译器入口（可含糖解析）；须能映射到唯一 `flow_id` |
-| `flow_id` | **权威**：Catalog 登记的命名流程 id；框架只认这个压栈 |
-| 其余 | 该 flow 的 **静态 params 规格**（字面量 + 指称键）；解释时解析成实体 id 再 `nest` |
+旧糖（过渡）：`{ "template": "nest_engage", "flow_id": "seq.engage", "enemy": "...", ... }` → 装载时收入 `params` 并归一为 `invoke`。  
+旧 IR 别名 `op: nest` → 同形，读作 `invoke`（§1.1）。
 
 卡面 **不** 展开 `seq.effect.resign` 内部留置线索等；信封体在 handler。
 
-### 5.2 何时 nest vs 内联
+### 5.2 何时真嵌套（`catalog.nest`）vs 内联
 
 只按 [15 §4.0.5](15-timing-entry-catalog.md)：上一步是否触发本步时点锚。  
-铸造了 `seq.effect.*` ≠ 必须 nest。
+铸造了 `seq.effect.*` ≠ 必须在运行时压子帧；翻译层仍写 `op:invoke` + 同一 `flow_id`/`params` 契约。  
+**嵌套序列**一词 **仅**保留给运行时真压栈；翻译 JSON 不用 `nest` 作 `op`。
 
 ### 5.3 拼合顺序（示例 · 12113）
 
 ```text
-no_provoke_aoo                         # B · SKIP_AOO（行动开始挂）
-pick_target → memory:picked_enemy      # A · 确认并记录
-suppress_auto_engage @ memory:…        # B · 抑制自动交战
-nest seq.effect.move                   # C · 移入 subject=enemy（仍进 auto-engage；B 使其分支）
-nest seq.engage mode=effect            # C · 明示交战（消费同一指称）
+invoke seq.effect.register SKIP_AOO    # B · 行动开始挂（或糖 no_provoke_aoo）
+pi select → memory:picked_enemy        # A · 确认并记录
+invoke seq.effect.register SUPPRESS_…  # B · 抑制自动交战
+invoke seq.effect.move                 # C · 移入 subject=enemy
+invoke seq.engage mode=effect          # C · 明示交战
 ```
 
-### 5.4 对照落地（imported JSON）
+### 5.4 对照落地（imported JSON · 过渡糖）
 
-**12113** `action:0`（字段 ⊆ §2.1；无机制布尔）：
+**12113** `action:0`（无机制布尔；目标归一到 §2 IR）：
 
-| 步 | 构件 | 关键规格 |
-|---|---|---|
-| `no_provoke_aoo` | B | 无参；Initiation 挂 `SKIP_AOO` |
-| `pick_target` | A | `filter` / `prompt_id` / `memory_key` |
-| `suppress_auto_engage` | B | `enemy: memory:picked_enemy` |
-| `nest_enemy_move_to` | C | `seq.effect.move` subject=enemy，`move_kind=move`（沿连接） |
-| `move_enemy_to` | C | 同核 `move_kind=move_to`（无视连接）；默认不 auto engage |
-| `nest_move_attachment_to` | C | 同核 subject=attachment，`move_kind=move_to` |
-| `nest_move_marker_to` | C | 同核 subject=marker，`move_kind=move_to` |
-| `nest_engage` | C | `flow_id: seq.engage` + `mode: effect` |
+| 旧 template | 统一 IR |
+|---|---|
+| `no_provoke_aoo` | B → `invoke` `seq.effect.register`（SKIP_AOO；Initiation 挂） |
+| `pick_target` | `op:pi` + filter / bind |
+| `suppress_auto_engage` | B → `invoke` `seq.effect.register` |
+| `nest_enemy_move_to` / `move_enemy_to` / … | `invoke` `seq.effect.move` + `params.move_kind` / `subject` |
+| `nest_engage` | `invoke` `seq.engage` + `params.mode=effect` |
 
-**12112** Resign 段：仅 `nest_resign` + `flow_id: seq.effect.resign`；借机豁免靠 `action_types: [activate, resign]`（§7），**不**挂 `no_provoke_aoo`。
+**12112** Resign 段：`invoke` `seq.effect.resign`；借机豁免靠 `action_types: [activate, resign]`（§7），**不**挂 SKIP_AOO。
+
+### 5.5 锚例 · 12019 M1911（新旧对照）
+
+卡面：`Uses (4 ammo).` / `[action] Spend 1 ammo: Fight … +1 combat … +1 damage.`
+
+**旧外形**（扁平 `template` + 参数与控制字段混排；关键词效果散在条目根）：
+
+```json
+{
+  "register_as": "keyword",
+  "keyword": "uses",
+  "hook": { "sequence_id": "seq.zone.move", "slot": "ENTER_PLAY" },
+  "template": "place_token",
+  "flow_id": "seq.effect.place_token",
+  "kind": "ammo",
+  "amount": 4,
+  "card_id": "source"
+}
+```
+
+```json
+{
+  "register_as": "action",
+  "action_types": ["activate", "fight"],
+  "action_cost": 1,
+  "template": "seq",
+  "steps": [
+    { "template": "spend_token", "flow_id": "seq.effect.spend_token", "kind": "ammo", "amount": 1, "card_id": "source" },
+    { "template": "pick_target", "filter": "enemy_fight_target", "prompt_id": "pick:fight_enemy", "memory_key": "picked_enemy" },
+    { "template": "register_modifier", "flow_id": "seq.effect.register", "stat": "combat", "amount": 1, "duration": "this_skill_test" },
+    {
+      "template": "nest_skill_test",
+      "flow_id": "seq.skill_test",
+      "skill": "combat",
+      "difficulty_source": "enemy_fight",
+      "enemy": "memory:picked_enemy",
+      "st7": {
+        "on_success": { "template": "deal_damage_enemy", "enemy": "memory:picked_enemy", "amount": 2 }
+      }
+    }
+  ]
+}
+```
+
+**统一 IR**（外壳 + `effect`；`invoke` 共性 = `flow_id` + `params`；顺序显式 `op:seq`）：
+
+```json
+{
+  "register_as": "keyword",
+  "keyword": "uses",
+  "hook": { "sequence_id": "seq.zone.move", "slot": "ENTER_PLAY" },
+  "status": "full",
+  "translation": "full_expand",
+  "effect": {
+    "op": "invoke",
+    "flow_id": "seq.effect.place_token",
+    "params": { "kind": "ammo", "amount": 4, "card_id": "source" }
+  }
+}
+```
+
+```json
+{
+  "register_as": "action",
+  "ability_id": "action:1",
+  "window": "during_your_turn",
+  "action_cost": 1,
+  "action_types": ["activate", "fight"],
+  "status": "full",
+  "translation": "full_expand",
+  "effect": {
+    "op": "seq",
+    "steps": [
+      {
+        "op": "invoke",
+        "flow_id": "seq.effect.spend_token",
+        "params": { "kind": "ammo", "amount": 1, "card_id": "source" }
+      },
+      {
+        "op": "pi",
+        "kind": "select",
+        "filter": "enemy_fight_target",
+        "prompt_id": "pick:fight_enemy",
+        "bind": { "key": "picked_enemy", "shape": "entity" }
+      },
+      {
+        "op": "invoke",
+        "flow_id": "seq.effect.register",
+        "params": { "stat": "combat", "amount": 1, "duration": "this_skill_test" }
+      },
+      {
+        "op": "invoke",
+        "flow_id": "seq.skill_test",
+        "params": {
+          "skill": "combat",
+          "difficulty_source": "enemy_fight",
+          "enemy": "memory:picked_enemy",
+          "st7": {
+            "on_success": {
+              "op": "invoke",
+              "flow_id": "seq.effect.damage",
+              "params": {
+                "target": "memory:picked_enemy",
+                "amount": 2,
+                "kind": "damage"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+| 观察 | |
+|---|---|
+| 关键词与激活 | **同一外壳**；差别只在 `register_as` / `hook` / `effect` |
+| place / spend / register / skill_test | **同一 `invoke` 形**；种类只在 `flow_id` + `params` |
+| `steps` | 仅出现在 `op:seq`（或 `simultaneous`）下 → **顺序/同时不再靠猜** |
+| 伤害 | 目标 IR 用已铸造 `seq.effect.damage`；旧 `deal_damage_enemy` 为过渡糖 |
+| 用词 | `invoke` = 调用手续；是否 `catalog.nest`（嵌套序列）另由 §4.0.5 决定 |
 
 ---
 
@@ -275,19 +483,18 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 
 ---
 
-## 7. 能力外壳字段（非 steps）
+## 7. 能力外壳字段（非 `effect`）
 
-`compiled_abilities[]` 条目级：
+条目级外壳见 §2.1。补充约定：
 
 | 字段 | 用途 |
 |---|---|
-| `register_as` | `action` / `free` / `forced` / `revelation` / `reaction` |
 | `action_types` | 行动类型全集（含 designator）；**借机类型层**由此判定 |
 | `action_cost` / `resource_cost` / `window` / `match_kind` / `phase` | 装载与 Eligibility |
-| `translation` | `full_expand` 等审计标记 |
-| `status` | `full` / `partial` |
 
-**不再使用**条目级 `provokes_aoo` 覆盖。类型豁免（Fight/Evade/Parley/Resign）走 `action_types`；卡面「does not provoke」走 **B · `no_provoke_aoo`**。
+**不再使用**条目级 `provokes_aoo` 覆盖。类型豁免（Fight/Evade/Parley/Resign）走 `action_types`；卡面「does not provoke」走 **B · Register SKIP_AOO**（糖 `no_provoke_aoo`）。
+
+效果体 **只** 出现在 `effect`（统一 IR）。过渡期若条目根仍带旧 `template`/`steps`/`flow_id`，装载层视为糖并归一到 `effect`。
 
 ---
 
@@ -295,22 +502,29 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 
 | 违和 / 禁止 | 改为 |
 |---|---|
-| `"auto_engage": false` | `suppress_auto_engage` + 正常 nest move（入口读限制） |
-| `"provokes_aoo": false` | Resign 靠 `action_types`；Engage 卡面靠 `no_provoke_aoo` |
-| 卡面 steps 内联拆光 `seq.effect.resign` 体 | nest `flow_id: seq.effect.resign` |
-| 为选目标 nest `seq.choose.*` | `pick_target`（A） |
+| `"auto_engage": false` | Register SUPPRESS + 正常 invoke move（入口读限制） |
+| `"provokes_aoo": false` | Resign 靠 `action_types`；Engage 卡面靠 SKIP_AOO Register |
+| 卡面 steps 内联拆光 `seq.effect.resign` 体 | `invoke` `flow_id: seq.effect.resign` |
+| 为选目标 nest `seq.choose.*` | `op: pi`（A） |
 | JSON 写 `"enemy": "enemy_conn"` | `"enemy": "memory:picked_enemy"` 或寻址规格 |
+| `place_token` / `spend_token` / `nest_skill_test` 各一套顶层字段 | 统一 `{ op:invoke, flow_id, params }` |
+| 用 `op: nest` 表示调用命名流程 | `op: invoke`；**嵌套**仅指运行时 `catalog.nest` |
+| 扁平 `steps` 暗示同时结算 | `op: simultaneous` |
+| 关键词 Uses 不用能力外壳、只写 Domain `uses` 字段 | `register_as:keyword` + `hook` + `effect` invoke place_token |
 
 ---
 
 ## 9. 编译器 / 解释器检查清单
 
-1. steps 字段 ⊆ §2.1 白名单。  
-2. 每个 `nest_*` 有 `flow_id` 且 Catalog 已 `register_run`。  
-3. 每个 `memory:` 消费前，同树有 produce（`pick_*` / 约定叶）。  
-4. 具名限制叶 ↔ 已登记 `RestrictionKind` + 唯一读取入口。  
-5. 无布尔机制开关；无实例 id。  
-6. 三分法：A / 内联 / nest 标注可追溯（代码注释或 `translation`）。
+1. 每个节点有合法 `op`（或可归一的旧 `template` / `op:nest` 糖）。  
+2. 每个 `op:invoke` 有 `flow_id`、Catalog 已 `register_run`；flow 特有键在 `params` 内。  
+3. 多步效果有显式 `op:seq` 或 `op:simultaneous`；不靠扁平数组猜同时。  
+4. 每个 `memory:` 消费前，同树有 produce（`op:pi` / 约定叶）。  
+5. 具名限制 ↔ 已登记 `RestrictionKind` + 唯一读取入口；落地经 `seq.effect.register`。  
+6. 无布尔机制开关；无实例 id。  
+7. 三分法：`pi` / `inline` / `invoke`（→ 时点决定真嵌套与否）可追溯。  
+8. 能力条目：外壳字段与 `effect` 分离；关键词与触发能力同一外壳形状。  
+9. 用词：翻译不用 `nest` 作 `op`；规则「嵌套序列」= `catalog.nest` 真压栈。
 
 ---
 
@@ -322,3 +536,5 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 2026-09-28 | v0.2 | §4.2.1：抑制+明示交战不可被 forced-auto / After 替代（冷漠/横置） |
 | 2026-09-29 | v0.3 | §4.1：具名限制叶落地一律 `seq.effect.register`（禁真空 Store） |
 | 2026-09-29 | v0.4 | §3：挂接 21 SelectionSpec；白名单扩 filter 对象 / bind / 基数 |
+| 2026-10-13 | v0.5 | §2 统一节点 IR（`op` + nest `params`）；§2.0 顺序/同时；§5.5 12019 新旧对照；旧 `template` 降为过渡糖 |
+| 2026-10-14 | v0.5.1 | §1.1 / §2.2：IR `op:invoke` 消歧规则「嵌套序列」/`catalog.nest`；`op:nest` 降为过渡别名 |

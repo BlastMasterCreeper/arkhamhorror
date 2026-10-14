@@ -14,6 +14,8 @@ var keyword_exclude: Array[StringName] = []
 var card_types: Array[StringName] = []
 ## null = 不限；true = 仅横置；false = 仅未横置。
 var exhausted: Variant = null
+## null = 不限；true = 仅已揭示地点；false = 仅未揭示。
+var revealed: Variant = null
 ## null = 不限；true/false = 是否与任何人交战；"controller"/"self" = 与控制者交战。
 var engaged: Variant = null
 ## 非空时覆盖 engaged：&"controller" = 与 controller 交战；其它 = 指定调查员 id。
@@ -58,6 +60,10 @@ static func from_preset(preset_id: StringName) -> CandidateFilter:
 		&"location_connecting":
 			f.entity = &"location"
 			f.at = &"connecting"
+		&"location_connecting_revealed":
+			f.entity = &"location"
+			f.at = &"connecting"
+			f.revealed = true
 		_:
 			f.entity = &"enemy"
 			f.at = preset_id
@@ -96,6 +102,8 @@ static func _merge_dict(f: CandidateFilter, d: Dictionary) -> void:
 		f.exclude_aloof_unengaged = bool(d["exclude_aloof_unengaged"])
 	if d.has("exhausted"):
 		f.exhausted = d["exhausted"]
+	if d.has("revealed"):
+		f.revealed = d["revealed"]
 	if d.has("engaged"):
 		f.engaged = d["engaged"]
 	if d.has("engaged_with"):

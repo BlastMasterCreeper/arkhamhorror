@@ -191,6 +191,9 @@ func step_end(ctx: SkillTestContext, game_ctx: GameContext = null) -> void:
 		_stack.pop_back()
 	_sync_stack(game_ctx)
 	_advance_step(AhcEnums.SkillTestStep.ST_8_END, ctx)
+	## THIS_SKILL_TEST Buff 在检定结束时卸掉（ST.8）。
+	if game_ctx != null and game_ctx.registrations != null:
+		game_ctx.registrations.tick_duration(AhcEnums.DurationAnchorKind.THIS_SKILL_TEST)
 	if _timing:
 		_timing.emit_timing(&"skill_test_ends", {"test_id": ctx.id})
 	for nested in ctx.pending_nested_tests:

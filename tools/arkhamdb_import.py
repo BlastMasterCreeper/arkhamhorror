@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from arkhamdb_abilities import compile_card_abilities, summarize_compile
+from arkhamdb_abilities import compile_card_abilities, parse_uses_spec, summarize_compile
 
 ROOT = Path(__file__).resolve().parents[1]
 PACK_DIR = ROOT / "data" / "arkhamdb" / "pack"
@@ -32,6 +32,8 @@ KEYWORD_LINE_PATTERNS = [
     ("retaliate", re.compile(r"\bRetaliate\b", re.I)),
     ("massive", re.compile(r"\bMassive\b", re.I)),
     ("hidden", re.compile(r"\bHidden\b", re.I)),
+    ## Uses 是关键词能力（Domain）；参数 X/type 另挂 UsesSpec，见 parse_uses_spec。
+    ("uses", re.compile(r"\bUses\s*\(", re.I)),
 ]
 
 ABILITY_HINT_PATTERNS = [
@@ -82,9 +84,12 @@ def extract_keywords(card: dict[str, Any], text: str) -> list[str]:
         keywords.append("hidden")
     if card.get("permanent"):
         keywords.append("permanent")
-    header = text.split("\n")[0] if text else ""
+    ## 多数关键词印在首行；Uses 可与 deck-only 等同句，或独占一行。
+    scan = text or ""
+    header = scan.split("\n")[0] if scan else ""
     for name, pat in KEYWORD_LINE_PATTERNS:
-        if pat.search(header) and name not in keywords:
+        haystack = scan if name == "uses" else header
+        if pat.search(haystack) and name not in keywords:
             keywords.append(name)
     return keywords
 
@@ -244,6 +249,13 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
         out["ability_segments"] = segments
     if compiled:
         out["compiled_abilities"] = compiled
+    ## UsesSpec：挂在关键词 uses 上的参数（count/type）；有 Spec 必有 keyword。
+    uses = parse_uses_spec(text)
+    if uses:
+        out["uses"] = uses
+        if "uses" not in keywords:
+            keywords.append("uses")
+            out["keywords"] = keywords
     spawn = compile_spawn(text)
     if spawn:
         out["spawn_instruction"] = spawn

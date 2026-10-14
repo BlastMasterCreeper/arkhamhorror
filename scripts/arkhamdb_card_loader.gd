@@ -101,6 +101,9 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 	var compiled: Variant = src.get("compiled_abilities", [])
 	if compiled is Array:
 		out["compiled_abilities"] = compiled.duplicate(true)
+	var uses: Variant = src.get("uses", {})
+	if uses is Dictionary and not (uses as Dictionary).is_empty():
+		out["uses"] = (uses as Dictionary).duplicate(true)
 	ArkhamDbInstructionCompiler.apply_instructions(out, src)
 	_AbilityCompiler.apply_to_registry(definition_id, src)
 	return out

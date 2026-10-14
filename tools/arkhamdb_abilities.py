@@ -106,6 +106,26 @@ DRAW_CARDS = re.compile(
     r"(?:\s*\(Limit once per (?:game|round|phase)\.?\))?\s*$",
     re.I,
 )
+USES_LINE = re.compile(
+    r"Uses\s*\((\d+)\s+(ammo|charges|supplies|secrets|evidence|options)\)",
+    re.I,
+)
+## 12019 / Twin .45s 行动体：Spend N ammo → Fight (skill) +X skill +Y damage。
+FIGHT_SPEND_AMMO = re.compile(
+    r"^Spend (\d+) ammo:\s*(?:<b>)?Fight(?:</b>)?\s*"
+    r"\(\[(combat|agility|willpower|intellect)\]\)\.\s*"
+    r"You get \+(\d+) \[\2\] and deal \+(\d+) damage for this attack\.?$",
+    re.I,
+)
+## 12033 Local Map：Spend N secrets → Investigate connecting +X intellect；成功 may 横置移动。
+INVESTIGATE_SPEND_SECRET = re.compile(
+    r"^Spend (\d+) secrets?:\s*(?:<b>)?Investigate(?:</b>)?\s*"
+    r"\(\[(intellect|willpower|combat|agility)\]\)\.\s*"
+    r"Investigate a revealed connecting location\.\s*"
+    r"You get \+(\d+) \[\2\] for this investigation\.\s*"
+    r"If you succeed, you may exhaust .+ to move to that location\.?$",
+    re.I,
+)
 ATTACH_NEAREST_WITHOUT = re.compile(
     r"^Attach .+ to the nearest location without .+ attached\.?$",
     re.I,
@@ -293,6 +313,22 @@ def segment_abilities(text: str) -> list[dict[str, Any]]:
     if not text:
         return []
     hits: list[tuple[int, dict[str, Any]]] = []
+    ## 关键词能力（Uses 等）：与 [action]/Revelation 同列分段，进能力格式编译。
+    for match in USES_LINE.finditer(text):
+        kind = match.group(2).lower()
+        amount = int(match.group(1))
+        hits.append(
+            (
+                match.start(),
+                {
+                    "kind": "keyword",
+                    "keyword": "uses",
+                    "body": f"Uses ({amount} {kind}).",
+                    "uses_kind": kind,
+                    "uses_amount": amount,
+                },
+            )
+        )
     for match in REVELATION.finditer(text):
         body = plain_text(match.group(1))
         hits.append(
@@ -410,9 +446,14 @@ def compile_aerial_pursuit(body: str) -> dict[str, Any] | None:
     return {
         "template": "seq",
         "steps": [
-            {"template": "resolve_location", "target": "drawer_location"},
+            {
+                "template": "nest_enemy_resolve_location",
+                "flow_id": "seq.enemy.resolve_location",
+                "target": "drawer_location",
+            },
             {
                 "template": "nest_enemy_move",
+                "flow_id": "seq.effect.move",
                 "trait_exclude": ["Elite"],
             },
             {
@@ -420,7 +461,10 @@ def compile_aerial_pursuit(body: str) -> dict[str, Any] | None:
                 "if_kind": "condition",
                 "evaluate": "after_step",
                 "condition": "previous_step_engaged_investigator",
-                "then": {"template": "nest_enemy_attack"},
+                "then": {
+                    "template": "nest_enemy_attack",
+                    "flow_id": "seq.enemy.attack",
+                },
             },
         ],
     }
@@ -460,6 +504,7 @@ def compile_lose_or_attack(body: str) -> dict[str, Any] | None:
                 "condition": "previous_step_not_created",
                 "then": {
                     "template": "nest_enemy_attack",
+                    "flow_id": "seq.enemy.attack",
                     "enemy": "source",
                     "target": "controller",
                 },
@@ -629,6 +674,7 @@ def compile_move_to_connecting_steps() -> list[dict[str, Any]]:
         },
         {
             "template": "nest_move_to",
+            "flow_id": "seq.effect.move",
             "location": "memory:picked_location",
         },
     ]
@@ -657,7 +703,7 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
             },
             {
                 "template": "nest_enemy_move_to",
-                "flow_id": "seq.enemy.move",
+                "flow_id": "seq.effect.move",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
             },
@@ -741,12 +787,184 @@ def compile_choose_discard_asset(body: str) -> dict[str, Any] | None:
     }
 
 
+def parse_uses_spec(text: str) -> dict[str, int] | None:
+    """关键词 Uses 的参数 Spec：Uses (N kind) → {kind: N}。
+
+    拥有 = keywords 含 uses；本 Spec 只带 X/type。进场 Domain 读 Spec 放 token。
+    """
+    m = USES_LINE.search(text or "")
+    if not m:
+        return None
+    return {m.group(2).lower(): int(m.group(1))}
+
+
+def compile_investigate_spend_secret(body: str) -> dict[str, Any] | None:
+    """C2：Spend secrets → Investigate 指定行动（连结已揭示地点）。统一 IR。"""
+    text = body.strip()
+    m = INVESTIGATE_SPEND_SECRET.match(text)
+    if not m:
+        return None
+    secret_n = int(m.group(1))
+    skill = m.group(2).lower()
+    skill_bonus = int(m.group(3))
+    steps: list[dict[str, Any]] = [
+        {
+            "op": "invoke",
+            "flow_id": "seq.effect.spend_token",
+            "params": {"kind": "secrets", "amount": secret_n, "card_id": "source"},
+        },
+        {
+            "op": "pi",
+            "kind": "select",
+            "filter": "location_connecting_revealed",
+            "prompt_id": "pick:investigate_connecting",
+            "bind": {"key": "picked_location", "shape": "entity"},
+        },
+    ]
+    if skill_bonus > 0:
+        steps.append(
+            {
+                "op": "invoke",
+                "flow_id": "seq.effect.register",
+                "params": {
+                    "stat": skill,
+                    "amount": skill_bonus,
+                    "duration": "this_skill_test",
+                },
+            }
+        )
+    steps.append(
+        {
+            "op": "invoke",
+            "flow_id": "seq.skill_test",
+            "params": {
+                "skill": skill,
+                "difficulty_source": "location_shroud",
+                "location": "memory:picked_location",
+                "st7": {
+                    "on_success": {
+                        "op": "seq",
+                        "steps": [
+                            {
+                                "op": "invoke",
+                                "flow_id": "seq.effect.discover_clue",
+                                "params": {
+                                    "location_id": "memory:picked_location",
+                                    "amount": 1,
+                                },
+                            },
+                            {
+                                "op": "pi",
+                                "kind": "optional",
+                                "prompt_id": "may:exhaust_move_to_investigated",
+                                "body": {
+                                    "op": "seq",
+                                    "steps": [
+                                        {
+                                            "op": "invoke",
+                                            "flow_id": "seq.effect.exhaust",
+                                            "params": {"card_id": "source"},
+                                        },
+                                        {
+                                            "op": "invoke",
+                                            "flow_id": "seq.effect.move",
+                                            "params": {
+                                                "subject": "investigator",
+                                                "move_kind": "move_to",
+                                                "location": "memory:picked_location",
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }
+                },
+            },
+        }
+    )
+    return {
+        "translation": "full_expand",
+        "action_types": ["activate", "investigate"],
+        "effect": {"op": "seq", "steps": steps},
+    }
+
+
+def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
+    """C1：Spend ammo → Fight 指定行动（激活+攻击类型）。统一 IR（20 §2 / §5.5）。"""
+    text = body.strip()
+    m = FIGHT_SPEND_AMMO.match(text)
+    if not m:
+        return None
+    ammo_n = int(m.group(1))
+    skill = m.group(2).lower()
+    skill_bonus = int(m.group(3))
+    damage_bonus = int(m.group(4))
+    ## 基础 Fight 成功伤 1 + 卡面 +damage；DAMAGE_AMOUNT 站未齐前写入 ST.7 amount。
+    damage_total = 1 + damage_bonus
+    steps: list[dict[str, Any]] = [
+        {
+            "op": "invoke",
+            "flow_id": "seq.effect.spend_token",
+            "params": {"kind": "ammo", "amount": ammo_n, "card_id": "source"},
+        },
+        {
+            "op": "pi",
+            "kind": "select",
+            "filter": "enemy_fight_target",
+            "prompt_id": "pick:fight_enemy",
+            "bind": {"key": "picked_enemy", "shape": "entity"},
+        },
+    ]
+    if skill_bonus > 0:
+        steps.append(
+            {
+                "op": "invoke",
+                "flow_id": "seq.effect.register",
+                "params": {
+                    "stat": skill,
+                    "amount": skill_bonus,
+                    "duration": "this_skill_test",
+                },
+            }
+        )
+    steps.append(
+        {
+            "op": "invoke",
+            "flow_id": "seq.skill_test",
+            "params": {
+                "skill": skill,
+                "difficulty_source": "enemy_fight",
+                "enemy": "memory:picked_enemy",
+                "st7": {
+                    "on_success": {
+                        "op": "invoke",
+                        "flow_id": "seq.effect.damage",
+                        "params": {
+                            "target": "memory:picked_enemy",
+                            "amount": damage_total,
+                            "kind": "damage",
+                        },
+                    }
+                },
+            },
+        }
+    )
+    return {
+        "translation": "full_expand",
+        "action_types": ["activate", "fight"],
+        "effect": {"op": "seq", "steps": steps},
+    }
+
+
 def compile_draw_cards(body: str) -> dict[str, Any] | None:
     m = DRAW_CARDS.match(body.strip())
     if not m:
         return None
+    ## 应展尽展：nest seq.draw.investigator（禁糖 template=draw）。
     return {
-        "template": "draw",
+        "template": "nest_draw_investigator",
+        "flow_id": "seq.draw.investigator",
         "amount": int(m.group(1)),
     }
 
@@ -965,6 +1183,12 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     engage_conn = compile_engage_from_connecting(body)
     if engage_conn is not None:
         return engage_conn
+    fight_ammo = compile_fight_spend_ammo(body)
+    if fight_ammo is not None:
+        return fight_ammo
+    investigate_secret = compile_investigate_spend_secret(body)
+    if investigate_secret is not None:
+        return investigate_secret
     resign = compile_resign(body)
     if resign is not None:
         return resign
@@ -1090,25 +1314,32 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     if compiled is None:
         return None
     # 弱点自弃常为 [action][action]；分段后 body 可能只剩 Discard …
-    action_cost = 2 if compiled.get("template") == "discard_source" else 1
+    effect_root = compiled.get("effect") if isinstance(compiled.get("effect"), dict) else None
+    root_op = str(effect_root.get("op", "")) if effect_root else ""
+    root_template = str(compiled.get("template", ""))
+    action_cost = 2 if root_template == "discard_source" else 1
     if body.lower().startswith("[action]"):
         action_cost = 2
     action_types = compiled.pop("action_types", ["activate"])
     if not isinstance(action_types, list) or not action_types:
         action_types = ["activate"]
     status = "full"
-    if compiled.get("template") in ("if_else", "seq", "choice_must", "choice_optional"):
+    if root_template in ("if_else", "seq", "choice_must", "choice_optional") or root_op in (
+        "seq",
+        "if",
+        "pi",
+    ):
         status = "partial"
-    elif compiled.get("template") == "skill_test" and "parley" not in [
+    elif root_template == "skill_test" and "parley" not in [
         str(t).lower() for t in action_types
     ]:
         status = "partial"
     elif "(limit" in body.lower():
         status = "partial"
-    # 应展尽展的 Resign / Engage-from-connecting 视为 full。
+    # 应展尽展的 Resign / Engage-from-connecting / Fight-ammo IR 视为 full。
     if compiled.get("translation") == "full_expand":
         status = "full"
-    if compiled.get("template") == "choice_optional":
+    if root_template == "choice_optional":
         body_tpl = ""
         body_entry = compiled.get("body", {})
         if isinstance(body_entry, dict):
@@ -1129,9 +1360,42 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     return entry
 
 
+def compile_uses_keyword_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
+    """关键词 Uses → 能力格式：hook ENTER_PLAY + nest place_token（统一 IR）。"""
+    kind = str(segment.get("uses_kind", "")).lower()
+    amount = int(segment.get("uses_amount", 0))
+    if not kind or amount <= 0:
+        spec = parse_uses_spec(str(segment.get("body", "")))
+        if not spec:
+            return None
+        kind, amount = next(iter(spec.items()))
+    return {
+        "segment_index": segment["index"],
+        "register_as": "keyword",
+        "ability_id": "keyword:uses",
+        "ability_kind": "keyword",
+        "keyword": "uses",
+        "status": "full",
+        "translation": "full_expand",
+        "hook": {
+            "sequence_id": "seq.zone.move",
+            "slot": "ENTER_PLAY",
+        },
+        "effect": {
+            "op": "invoke",
+            "flow_id": "seq.effect.place_token",
+            "params": {"kind": kind, "amount": amount, "card_id": "source"},
+        },
+    }
+
+
 def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     kind = segment.get("kind", "")
     body = str(segment.get("body", ""))
+    if kind == "keyword":
+        if str(segment.get("keyword", "")) == "uses":
+            return compile_uses_keyword_segment(segment)
+        return None
     if kind == "revelation":
         compiled = compile_effect_body(body)
         if compiled is None and body.lower().startswith("take "):
@@ -1312,7 +1576,7 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
         return f"Discard {n} {card_word} at random from your hand."
     if template == "discard_card":
         return "Discard …"
-    if template == "draw":
+    if template in ("draw", "nest_draw_investigator"):
         n = int(compiled.get("amount", 1))
         return f"Draw {n} card." if n == 1 else f"Draw {n} cards."
     if template == "attach_nearest_without_same":
@@ -1337,9 +1601,13 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
             return skill_or
         if steps:
             first = steps[0]
-            if first.get("template") == "resolve_location":
+            if first.get("template") in (
+                "resolve_location",
+                "nest_enemy_resolve_location",
+            ):
                 return (
-                    "The nearest non-[[Elite]] enemy moves once toward your location. "                    "If it engages an investigator, it makes an immediate attack."
+                    "The nearest non-[[Elite]] enemy moves once toward your location. "
+                    "If it engages an investigator, it makes an immediate attack."
                 )
             if first.get("template") == "lose_resources":
                 return "Lose 1 resource. If you cannot, this enemy attacks you."

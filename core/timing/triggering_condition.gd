@@ -475,6 +475,26 @@ static func search(
 	return t
 
 
+## 躲避效果（seq.effect.evade · 横置+解除交战；含自动躲避入口）。
+static func evade_effect(
+	params: Dictionary,
+	after_timing: StringName = &"after_evade_effect"
+) -> TriggeringCondition:
+	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
+	var inv_id: StringName = params.get(
+		"investigator_id", params.get("inv_id", &"")
+	) as StringName
+	var mode: StringName = params.get("mode", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("evade_effect_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"evade_effect"
+	t.controller_id = inv_id
+	t.tags = [&"evade", &"effect", mode]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 ## 横置（seq.effect.exhaust）。
 static func exhaust(
 	params: Dictionary,
@@ -796,6 +816,38 @@ static func place_clue(
 		[&"effect", &"place_clue"],
 		after_timing,
 		{}
+	)
+
+
+static func place_token(
+	controller_id: StringName,
+	card_id: StringName = &"",
+	kind: StringName = &"ammo",
+	amount: int = 1,
+	after_timing: StringName = &"after_place_token"
+) -> TriggeringCondition:
+	return _effect(
+		&"place_token",
+		controller_id,
+		[&"effect", &"place_token", kind],
+		after_timing,
+		{"card_id": card_id, "kind": kind, "amount": amount}
+	)
+
+
+static func spend_token(
+	controller_id: StringName,
+	card_id: StringName = &"",
+	kind: StringName = &"ammo",
+	amount: int = 1,
+	after_timing: StringName = &"after_spend_token"
+) -> TriggeringCondition:
+	return _effect(
+		&"spend_token",
+		controller_id,
+		[&"effect", &"spend_token", kind],
+		after_timing,
+		{"card_id": card_id, "kind": kind, "amount": amount}
 	)
 
 

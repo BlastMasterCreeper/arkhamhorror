@@ -109,6 +109,8 @@ func adjust_marker(at: MarkerSlot, delta: int, clamp_min: int = 0) -> bool:
 		return _adjust_investigator_marker(at.bearer_id, at.kind, delta, clamp_min)
 	if at.bearer_kind == AhcEnums.BearerKind.GLOBAL:
 		return _adjust_pool_marker(at.kind, delta, clamp_min)
+	if at.bearer_kind == AhcEnums.BearerKind.CARD:
+		return _adjust_card_marker(at.bearer_id, at.kind, at.sub_key, delta, clamp_min)
 	return false
 
 
@@ -306,6 +308,7 @@ func finalize_limbo_discard(card_id: StringName, controller_id: StringName) -> b
 			return move_card(card_id, CardSlot.discard_top(controller_id))
 
 
+## dry-run / 模拟器用。生产抽牌走 `DrawInvestigatorService`（seq.draw.investigator）。
 func execute_draw_instruction(inv_id: StringName, amount: int) -> Dictionary:
 	return DrawInvestigatorFlow.run_mutator_only(self, inv_id, amount)
 
@@ -429,6 +432,44 @@ func _adjust_pool_marker(kind: AhcEnums.MarkerKind, delta: int, clamp_min: int) 
 	return false
 
 
+func _adjust_card_marker(
+	card_id: StringName,
+	kind: AhcEnums.MarkerKind,
+	sub_key: StringName,
+	delta: int,
+	clamp_min: int
+) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return false
+	match kind:
+		AhcEnums.MarkerKind.USES:
+			if sub_key == &"":
+				return false
+			var current := int(card.tokens.uses.get(sub_key, 0))
+			if delta < 0 and current + delta < clamp_min:
+				return false
+			var next := maxi(current + delta, clamp_min)
+			if next <= 0:
+				card.tokens.uses.erase(sub_key)
+			else:
+				card.tokens.uses[sub_key] = next
+			return true
+		AhcEnums.MarkerKind.DAMAGE:
+			card.tokens.damage = maxi(card.tokens.damage + delta, clamp_min)
+			return true
+		AhcEnums.MarkerKind.HORROR:
+			card.tokens.horror = maxi(card.tokens.horror + delta, clamp_min)
+			return true
+		AhcEnums.MarkerKind.DOOM:
+			card.tokens.doom = maxi(card.tokens.doom + delta, clamp_min)
+			return true
+		AhcEnums.MarkerKind.CLUE:
+			card.tokens.clue = maxi(card.tokens.clue + delta, clamp_min)
+			return true
+	return false
+
+
 func _remove_from_pile(card: CardInstance, inv: InvestigatorState) -> void:
 	match card.zone:
 		AhcEnums.Zone.DECK:
@@ -483,6 +524,8 @@ func _take_marker(from: MarkerSlot, kind: AhcEnums.MarkerKind, amount: int) -> b
 		return _take_from_pool(kind, amount)
 	if from.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
 		return _take_from_investigator(from.bearer_id, kind, amount)
+	if from.bearer_kind == AhcEnums.BearerKind.CARD:
+		return _adjust_card_marker(from.bearer_id, kind, from.sub_key, -amount, 0)
 	return false
 
 
@@ -491,6 +534,8 @@ func _give_marker(to: MarkerSlot, kind: AhcEnums.MarkerKind, amount: int) -> voi
 		_give_to_pool(kind, amount)
 	elif to.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
 		_give_to_investigator(to.bearer_id, kind, amount)
+	elif to.bearer_kind == AhcEnums.BearerKind.CARD:
+		_adjust_card_marker(to.bearer_id, kind, to.sub_key, amount, 0)
 
 
 func _take_from_pool(kind: AhcEnums.MarkerKind, amount: int) -> bool:

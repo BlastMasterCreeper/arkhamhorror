@@ -20,14 +20,16 @@ alwaysApply: true
 | **state primitive** | **状态原语** | L0 **三类** GameState 写入；③ 含 **Reveal** 与 SetFlag/SetRef |
 | **effect** | **效果** | dry-run 可 CREATED：状态原语 + Register |
 | **named flow** | **命名流程** | 规则书手续；`seq.*`；Catalog + 堆栈 + 时点。**不是**卡牌正文 |
+| **invoke**（IR `op`） | **调用**（命名流程） | 翻译层：`op:invoke` + `flow_id`/`params`；**不**断言压子帧；旧糖 `op:nest` |
+| **nested sequence** / `catalog.nest` | **嵌套序列** | 运行时真压栈；子手续含时点；**仅**此义用「嵌套」 |
 | **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |
 | **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
 | **Player Interaction** | **玩家交互** | 能力选用 / Optional / 目标 / 队长排序；`PlayerInteractionGate` |
-| **timed confirmation** | **有限期确认** | PI：期内确认目标/分支；逾期用默认选择；≠ nest/内联 |
+| **timed confirmation** | **有限期确认** | PI：期内确认目标/分支；逾期用默认选择；≠ invoke/内联/嵌套序列 |
 | **Evade (action)** | **躲避** | 行动种类（基础/指定）；`seq.action.evade`；≠「闪避」「规避」；≠ 躲避尝试 / 躲避效果 |
 | **Evasion attempt** | **躲避尝试** | 躲避行动（等）衍生的技能检定，通常敏捷 vs 敌人 evade；**≠** 自动躲避 |
-| **Evade (effect)** | **躲避效果** | 基础躲避结算体：解除交战 + 横置该敌；**入口**含成功躲避尝试、自动躲避等 |
-| **Automatically evade** | **自动躲避** | 对**躲避效果**的包装：不做躲避尝试/检定，亦非「自动成功」的尝试；同样**产生**躲避效果 |
+| **Evade (effect)** | **躲避效果** | `seq.effect.evade` 核（横置+解除交战）。卡面「evade」作效果词多用于**时点**；**执行**体用自动躲避 |
+| **Automatically evade** | **自动躲避** | 卡面**执行**躲避效果的措辞；同核 `mode=automatic`（无检定）；≠ 自动成功的尝试 |
 | **Exhaust** | **横置** | 平放区卡牌/在场敌人；`seq.effect.exhaust`；`exhausted` = 已横置；≠ 费用 exhaust |
 | **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
 | **Doom** | **毁灭** | 场景/敌人上的 doom 标记；密谋推进相关 |
@@ -86,7 +88,7 @@ alwaysApply: true
 - **显现（Revelation）** ≠ **弱点（Weakness 子类型）**；路由看 cardtype + `has_revelation`。
 - 避免把 Revelation 写成「揭示」「暴露」等非规范译法（除非引用第三方非官方文本并标明）。
 - **Skill 不能打出**：`FORBID_PLAY` 仅 asset/event；skill 走 `FORBID_COMMIT_TO_TEST`。险境与卡面 cannot 均经 **RESTRICTION Register**，无独立 Policy。
-- **躲避四层勿混**：躲避行动 ≠ 躲避尝试（检定）≠ 躲避效果（拆交战+横置）≠ 自动躲避（包装并产生躲避效果、无检定）。躲避效果 **不**仅来自成功尝试；自动躲避 **≠** 自动成功的躲避尝试。
+- **躲避四层勿混**：躲避行动 ≠ 躲避尝试（检定）≠ 躲避效果（核：横置+解除交战）≠ 自动躲避（卡面**执行**入口，无检定）。卡面「evade」作效果词多用于**时点**；执行体用自动躲避。自动躲避 **≠** 自动成功的躲避尝试。
 - **躲避（Evade）** ≠ 闪避/规避；**横置（Exhaust）** ≠ 耗尽/疲劳（中文表述用「横置」）。
 - **重整（Ready）** = 将横置卡变为未横置（Framework 4.3 等）；**未横置** = `!exhausted`；≠「竖置」「就绪」。
 - **反击（Retaliate）** / **警戒（Alert）**：均在 skill test **全部 ST.7 结果 apply 完成后**（post-ST7、ST.8 前）才 `perform_attack`；均要求敌人 **未横置**；**不属于** ST.7 `on_fail` 链。见 [08 §6.4](docs/design/08-enemy-engagement.md)。
