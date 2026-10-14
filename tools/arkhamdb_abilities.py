@@ -803,7 +803,7 @@ def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
     damage_total = 1 + damage_bonus
     steps: list[dict[str, Any]] = [
         {
-            "op": "nest",
+            "op": "invoke",
             "flow_id": "seq.effect.spend_token",
             "params": {"kind": "ammo", "amount": ammo_n, "card_id": "source"},
         },
@@ -818,7 +818,7 @@ def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
     if skill_bonus > 0:
         steps.append(
             {
-                "op": "nest",
+                "op": "invoke",
                 "flow_id": "seq.effect.register",
                 "params": {
                     "stat": skill,
@@ -829,7 +829,7 @@ def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
         )
     steps.append(
         {
-            "op": "nest",
+            "op": "invoke",
             "flow_id": "seq.skill_test",
             "params": {
                 "skill": skill,
@@ -837,7 +837,7 @@ def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
                 "enemy": "memory:picked_enemy",
                 "st7": {
                     "on_success": {
-                        "op": "nest",
+                        "op": "invoke",
                         "flow_id": "seq.effect.damage",
                         "params": {
                             "target": "memory:picked_enemy",
@@ -1278,7 +1278,7 @@ def compile_uses_keyword_segment(segment: dict[str, Any]) -> dict[str, Any] | No
             "slot": "ENTER_PLAY",
         },
         "effect": {
-            "op": "nest",
+            "op": "invoke",
             "flow_id": "seq.effect.place_token",
             "params": {"kind": kind, "amount": amount, "card_id": "source"},
         },

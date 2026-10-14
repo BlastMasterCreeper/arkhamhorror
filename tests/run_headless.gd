@@ -3000,7 +3000,7 @@ func _test_adb_compile_12019() -> bool:
 		CardRegistry.has_uses(&"12019")
 		and int(uses.get(&"ammo", 0)) == 4
 		and kw_entry.get("keyword", "") == "uses"
-		and str(kw_effect.get("op", "")) == "nest"
+		and str(kw_effect.get("op", "")) == "invoke"
 		and str(kw_effect.get("flow_id", "")) == "seq.effect.place_token"
 		and int(kw_params.get("amount", 0)) == 4
 		and str(kw_params.get("kind", "")) == "ammo"
@@ -3013,19 +3013,19 @@ func _test_adb_compile_12019() -> bool:
 		and types is Array
 		and (types as Array).has("activate")
 		and (types as Array).has("fight")
-		and str(s0.get("op", "")) == "nest"
+		and str(s0.get("op", "")) == "invoke"
 		and str(s0.get("flow_id", "")) == "seq.effect.spend_token"
 		and int(s0p.get("amount", 0)) == 1
 		and str(s1.get("op", "")) == "pi"
 		and str(s1.get("filter", "")) == "enemy_fight_target"
 		and str(bind1.get("key", "")) == "picked_enemy"
-		and str(s2.get("op", "")) == "nest"
+		and str(s2.get("op", "")) == "invoke"
 		and str(s2.get("flow_id", "")) == "seq.effect.register"
 		and str(s2p.get("duration", "")) == "this_skill_test"
-		and str(s3.get("op", "")) == "nest"
+		and str(s3.get("op", "")) == "invoke"
 		and str(s3.get("flow_id", "")) == "seq.skill_test"
 		and str(s3p.get("difficulty_source", "")) == "enemy_fight"
-		and str(on_ok.get("op", "")) == "nest"
+		and str(on_ok.get("op", "")) == "invoke"
 		and str(on_ok.get("flow_id", "")) == "seq.effect.damage"
 		and int(on_ok_p.get("amount", 0)) == 2
 		and CardRegistry.has_triggered(&"12019")

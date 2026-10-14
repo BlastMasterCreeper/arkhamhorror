@@ -51,8 +51,9 @@ static func _build_op_node(node: Dictionary, bind: AbilityBindContext) -> Compos
 			return _build_if_else(node, bind)
 		"pi":
 			return _build_pi(node, bind)
-		"nest":
-			return _build_nest_flow(node, bind)
+		"invoke", "nest":
+			## invoke = 翻译层「调用命名流程」；nest 仅过渡别名（≠ 规则嵌套序列）。
+			return _build_invoke_flow(node, bind)
 		"inline":
 			var atom := str(node.get("atom", ""))
 			var inline_params: Dictionary = {}
@@ -81,7 +82,7 @@ static func _build_pi(node: Dictionary, bind: AbilityBindContext) -> Composition
 			return build_composition("pick_target", params, bind)
 
 
-static func _build_nest_flow(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
+static func _build_invoke_flow(node: Dictionary, bind: AbilityBindContext) -> CompositionNode:
 	var flow_id := str(node.get("flow_id", ""))
 	var params: Dictionary = {}
 	if node.get("params", null) is Dictionary:

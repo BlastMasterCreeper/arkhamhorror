@@ -1019,7 +1019,7 @@
           "slot": "ENTER_PLAY"
         },
         "effect": {
-          "op": "nest",
+          "op": "invoke",
           "flow_id": "seq.effect.place_token",
           "params": {
             "kind": "ammo",
@@ -1045,7 +1045,7 @@
           "op": "seq",
           "steps": [
             {
-              "op": "nest",
+              "op": "invoke",
               "flow_id": "seq.effect.spend_token",
               "params": {
                 "kind": "ammo",
@@ -1064,7 +1064,7 @@
               }
             },
             {
-              "op": "nest",
+              "op": "invoke",
               "flow_id": "seq.effect.register",
               "params": {
                 "stat": "combat",
@@ -1073,7 +1073,7 @@
               }
             },
             {
-              "op": "nest",
+              "op": "invoke",
               "flow_id": "seq.skill_test",
               "params": {
                 "skill": "combat",
@@ -1081,7 +1081,7 @@
                 "enemy": "memory:picked_enemy",
                 "st7": {
                   "on_success": {
-                    "op": "nest",
+                    "op": "invoke",
                     "flow_id": "seq.effect.damage",
                     "params": {
                       "target": "memory:picked_enemy",
