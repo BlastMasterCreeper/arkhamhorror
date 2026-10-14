@@ -205,7 +205,7 @@ op: pi · kind: select
 | 写法 | 何时 |
 |---|---|
 | 具名限制叶（`no_provoke_aoo`、`suppress_auto_engage`） | 编译糖 → `RegistrationTemplate`；**落地一律** `seq.effect.register` |
-| nest `seq.effect.register` + template 载荷 | 通用 lasting / keyword / 任意 Buff；`flow_id: seq.effect.register` |
+| invoke `seq.effect.register` + template 载荷 | 通用 lasting / keyword / 任意 Buff；`flow_id: seq.effect.register` |
 | 真空 `RegistrationStore.register` / 裸 `REGISTER` 当运行时主路径 | **禁止**（dry-run 可模拟 Store；落地：效果体 nest，Initiation 挂载用 `catalog.run`） |
 
 **落地约定**：
