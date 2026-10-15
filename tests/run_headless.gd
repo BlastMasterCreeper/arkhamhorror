@@ -136,6 +136,8 @@ func _initialize() -> void:
 	_run_test("ADB-74 12019 activate fight spends ammo deals 2", _test_adb_12019_fight_ammo)
 	_run_test("ADB-75 compile 12033 Local Map investigate secrets", _test_adb_compile_12033)
 	_run_test("ADB-76 12033 investigate connecting discovers clue", _test_adb_12033_investigate)
+	_run_test("ADB-77 compile 12062 Second Sight investigate charges", _test_adb_compile_12062)
+	_run_test("ADB-78 12062 investigate discovers clue skips optional charge", _test_adb_12062_investigate)
 	_run_test("SEQ-EFF-11 nest spend_token ammo", _test_seq_eff_spend_token)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
@@ -3218,6 +3220,110 @@ func _test_adb_12033_investigate() -> bool:
 		and not bool(map_card.exhausted)
 		and inv.actions_remaining == 1
 		and lingering == 0
+	)
+
+
+func _test_adb_compile_12062() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not CardRegistry.has_keyword(&"12062", &"uses"):
+		return false
+	if not CardRegistry.has_keyword_ability(&"12062", &"uses"):
+		return false
+	var uses := CardRegistry.uses_spec(&"12062")
+	var compiled := CardRegistry.compiled_abilities(&"12062")
+	if compiled.size() < 2:
+		return false
+	var kw_entry: Dictionary = {}
+	var action_entry: Dictionary = {}
+	for raw in compiled:
+		if not raw is Dictionary:
+			continue
+		match str((raw as Dictionary).get("register_as", "")):
+			"keyword":
+				kw_entry = raw as Dictionary
+			"action":
+				action_entry = raw as Dictionary
+	var kw_effect: Dictionary = kw_entry.get("effect", {})
+	var kw_params: Dictionary = kw_effect.get("params", {})
+	var action_effect: Dictionary = action_entry.get("effect", {})
+	var gates: Variant = action_entry.get("gates", [])
+	var deps: Variant = action_entry.get("deps", [])
+	var params: Dictionary = action_effect.get("params", {})
+	var st7: Dictionary = params.get("st7", {})
+	var on_ok: Dictionary = st7.get("on_success", {})
+	var on_steps: Variant = on_ok.get("steps", [])
+	if not on_steps is Array or (on_steps as Array).size() < 2:
+		return false
+	var discover: Dictionary = (on_steps as Array)[0]
+	var may: Dictionary = (on_steps as Array)[1]
+	var types: Variant = action_entry.get("action_types", [])
+	var g_cand: Dictionary = {}
+	for raw_g in gates:
+		if raw_g is Dictionary and str((raw_g as Dictionary).get("kind", "")) == "candidates":
+			g_cand = raw_g as Dictionary
+			break
+	return (
+		CardRegistry.has_uses(&"12062")
+		and int(uses.get(&"charges", 0)) == 3
+		and str(kw_effect.get("op", "")) == "invoke"
+		and str(kw_effect.get("flow_id", "")) == "seq.effect.place_token"
+		and str(kw_params.get("kind", "")) == "charges"
+		and int(kw_params.get("amount", 0)) == 3
+		and action_entry.get("status", "") == "partial"
+		and str(action_effect.get("op", "")) == "invoke"
+		and str(action_effect.get("flow_id", "")) == "seq.skill_test"
+		and str(params.get("skill", "")) == "willpower"
+		and str(params.get("difficulty_source", "")) == "location_shroud"
+		and str(params.get("location", "")) == "controller_location"
+		and types is Array
+		and (types as Array).has("activate")
+		and (types as Array).has("investigate")
+		and str(g_cand.get("filter", "")) == "location_investigate_target"
+		and deps is Array
+		and (deps as Array).has("candidates:location_investigate_target")
+		and str(discover.get("flow_id", "")) == "seq.effect.discover_clue"
+		and str(may.get("op", "")) == "pi"
+		and str(may.get("kind", "")) == "optional"
+		and CardRegistry.has_triggered(&"12062")
+	)
+
+
+func _test_adb_12062_investigate() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.discover_clue"):
+		return false
+	## shroud 1；willpower 4 + chaos 0 → 成功。
+	GameBootstrap.setup_test_location(h.ctx, &"loc_here", 1, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"loc_here"
+	inv.skill_willpower = 4
+	inv.actions_remaining = 2
+	inv.clues_on_card = 0
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12062")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null or int(card.tokens.uses.get(&"charges", 0)) != 3:
+		return false
+	if h.ctx.triggered_abilities.list_action_abilities(&"inv_1").is_empty():
+		h.ctx.triggered_abilities.install_card(&"inv_1", card_id)
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	## optional 默认跳过：不花 charge，只发现 1 线索。
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	var loc := h.ctx.state.registry.get_location(&"loc_here")
+	var charges_left := int(card.tokens.uses.get(&"charges", 0))
+	return (
+		bool(result.get("ok", false))
+		and charges_left == 3
+		and loc != null
+		and loc.clues == 1
+		and inv.clues_on_card == 1
+		and inv.actions_remaining == 1
 	)
 
 

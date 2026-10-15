@@ -118,7 +118,14 @@
 - ST.7：`invoke seq.effect.discover_clue` @ 目标地点；`pi optional` 横置本卡 + `invoke` move_to 该地点
 - `action_types: [activate, investigate]`；指标：ADB-75 / ADB-76
 
-**下一批**：asset 承伤；其它 Investigate/Fight 变体（12062 等）。
+### C3 Investigate charges（partial · 12062 Second Sight）
+- Uses charges：进场 `place_token`；行动 **无** Initiation Spend（charge 在成功 may 里）
+- `gates`：occasion + action + `candidates:location_investigate_target`
+- `invoke seq.skill_test` willpower @ `controller_location`；ST.7：发现 1 + `pi optional` Spend charge → 额外发现
+- **pending**：揭示 `[cultist]` @ ST.4 → 移除 charge / 否则恐+弃（卡面符号效果未接线）→ `status:partial`
+- 指标：ADB-77 / ADB-78
+
+**下一批**：asset 承伤（12016 Bodyguard · 依赖 DamagePipeline assign）；cultist ST.4 接线；其它 Fight 变体（12028 等）。
 
 ### 12106–08 Parley ✅
 - 编译：`action_types: [activate, parley]`；成功 → `discard_card`（trait/title=Bystander @ controller_location）

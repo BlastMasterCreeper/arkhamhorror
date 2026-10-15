@@ -126,6 +126,15 @@ INVESTIGATE_SPEND_SECRET = re.compile(
     r"If you succeed, you may exhaust .+ to move to that location\.?$",
     re.I,
 )
+## 12062 Second Sight：Investigate (skill)；成功 may spend charge 额外线索；cultist ST.4 后补。
+INVESTIGATE_MAY_SPEND_CHARGE = re.compile(
+    r"^(?:<b>)?Investigate(?:</b>)?\s*"
+    r"\(\[(willpower|intellect|combat|agility)\]\)\.\s*"
+    r"If you succeed, you may spend (\d+) charges? to discover (\d+) additional clues? "
+    r"at your location\."
+    r"(?:\s*If you reveal a \[cultist\] token during this test,.+)?$",
+    re.I | re.S,
+)
 ATTACH_NEAREST_WITHOUT = re.compile(
     r"^Attach .+ to the nearest location without .+ attached\.?$",
     re.I,
@@ -863,6 +872,84 @@ def deps_from_gates(gates: list[dict[str, Any]]) -> list[str]:
     return deps
 
 
+def compile_investigate_may_spend_charge(body: str) -> dict[str, Any] | None:
+    """12062：Investigate (skill) @ 所在地；成功 may Spend charge 额外发现线索。
+
+    Cultist 揭示扣 charge / 恐+弃 — ST.4 卡面符号效果，名单后补 → status partial。
+    """
+    text = body.strip()
+    m = INVESTIGATE_MAY_SPEND_CHARGE.match(text)
+    if not m:
+        return None
+    skill = m.group(1).lower()
+    charge_n = int(m.group(2))
+    extra_clues = int(m.group(3))
+    gates = [
+        gate_occasion("during_your_turn"),
+        gate_cost_action(1),
+        gate_candidates("location_investigate_target", 1),
+    ]
+    on_success: dict[str, Any] = {
+        "op": "seq",
+        "steps": [
+            {
+                "op": "invoke",
+                "flow_id": "seq.effect.discover_clue",
+                "params": {
+                    "location_id": "controller_location",
+                    "amount": 1,
+                },
+            },
+            {
+                "op": "pi",
+                "kind": "optional",
+                "prompt_id": "may:spend_charge_extra_clue",
+                "body": {
+                    "op": "seq",
+                    "steps": [
+                        {
+                            "op": "invoke",
+                            "flow_id": "seq.effect.spend_token",
+                            "params": {
+                                "kind": "charges",
+                                "amount": charge_n,
+                                "card_id": "source",
+                            },
+                        },
+                        {
+                            "op": "invoke",
+                            "flow_id": "seq.effect.discover_clue",
+                            "params": {
+                                "location_id": "controller_location",
+                                "amount": extra_clues,
+                            },
+                        },
+                    ],
+                },
+            },
+        ],
+    }
+    return {
+        "translation": "full_expand",
+        ## cultist @ ST.4 未接线 → partial；主路径 IR 已展尽。
+        "status": "partial",
+        "pending": ["st4_cultist_remove_charge_or_horror_discard"],
+        "action_types": ["activate", "investigate"],
+        "gates": gates,
+        "deps": deps_from_gates(gates),
+        "effect": {
+            "op": "invoke",
+            "flow_id": "seq.skill_test",
+            "params": {
+                "skill": skill,
+                "difficulty_source": "location_shroud",
+                "location": "controller_location",
+                "st7": {"on_success": on_success},
+            },
+        },
+    }
+
+
 def compile_investigate_spend_secret(body: str) -> dict[str, Any] | None:
     """C2：Spend secrets → Investigate 指定行动（连结已揭示地点）。统一 IR。"""
     text = body.strip()
@@ -1262,6 +1349,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     investigate_secret = compile_investigate_spend_secret(body)
     if investigate_secret is not None:
         return investigate_secret
+    investigate_charge = compile_investigate_may_spend_charge(body)
+    if investigate_charge is not None:
+        return investigate_charge
     resign = compile_resign(body)
     if resign is not None:
         return resign

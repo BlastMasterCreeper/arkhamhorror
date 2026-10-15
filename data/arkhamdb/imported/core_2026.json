@@ -2590,11 +2590,104 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "charges",
-        "amount": 3,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "charges",
+            "amount": 3,
+            "card_id": "source"
+          }
+        }
+      },
+      {
+        "segment_index": 1,
+        "register_as": "action",
+        "ability_id": "action:1",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "investigate"
+        ],
+        "status": "partial",
+        "translation": "full_expand",
+        "pending": [
+          "st4_cultist_remove_charge_or_horror_discard"
+        ],
+        "gates": [
+          {
+            "kind": "occasion",
+            "window": "during_your_turn"
+          },
+          {
+            "kind": "cost",
+            "cost": "action",
+            "amount": 1
+          },
+          {
+            "kind": "candidates",
+            "filter": "location_investigate_target",
+            "min": 1
+          }
+        ],
+        "deps": [
+          "occasion:during_your_turn",
+          "actions_remaining@controller",
+          "candidates:location_investigate_target"
+        ],
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.skill_test",
+          "params": {
+            "skill": "willpower",
+            "difficulty_source": "location_shroud",
+            "location": "controller_location",
+            "st7": {
+              "on_success": {
+                "op": "seq",
+                "steps": [
+                  {
+                    "op": "invoke",
+                    "flow_id": "seq.effect.discover_clue",
+                    "params": {
+                      "location_id": "controller_location",
+                      "amount": 1
+                    }
+                  },
+                  {
+                    "op": "pi",
+                    "kind": "optional",
+                    "prompt_id": "may:spend_charge_extra_clue",
+                    "body": {
+                      "op": "seq",
+                      "steps": [
+                        {
+                          "op": "invoke",
+                          "flow_id": "seq.effect.spend_token",
+                          "params": {
+                            "kind": "charges",
+                            "amount": 1,
+                            "card_id": "source"
+                          }
+                        },
+                        {
+                          "op": "invoke",
+                          "flow_id": "seq.effect.discover_clue",
+                          "params": {
+                            "location_id": "controller_location",
+                            "amount": 1
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
       }
     ],
     "uses": {
