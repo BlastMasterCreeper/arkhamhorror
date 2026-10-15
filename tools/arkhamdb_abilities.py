@@ -798,6 +798,71 @@ def parse_uses_spec(text: str) -> dict[str, int] | None:
     return {m.group(2).lower(): int(m.group(1))}
 
 
+def gate_occasion(window: str) -> dict[str, Any]:
+    return {"kind": "occasion", "window": window}
+
+
+def gate_cost_action(amount: int = 1) -> dict[str, Any]:
+    return {"kind": "cost", "cost": "action", "amount": amount}
+
+
+def gate_cost_spend_token(
+    token: str, amount: int, card_id: str = "source"
+) -> dict[str, Any]:
+    """Spend Uses 费用（Initiation L6）；不进 effect 树（22 G10）。"""
+    return {
+        "kind": "cost",
+        "cost": "spend_token",
+        "token": token,
+        "amount": amount,
+        "card_id": card_id,
+    }
+
+
+def gate_candidates(filter_id: str, minimum: int = 1) -> dict[str, Any]:
+    """发起门槛：合法候选集非空（基础 Fight/Investigate 等与 L7 同条件的隐式目标）。"""
+    return {
+        "kind": "candidates",
+        "filter": filter_id,
+        "min": minimum,
+    }
+
+
+def deps_from_gates(gates: list[dict[str, Any]]) -> list[str]:
+    """读集：由门槛推导，供自由区间脏刷新（非手写第二份名单）。"""
+    deps: list[str] = []
+    seen: set[str] = set()
+    for g in gates:
+        if not isinstance(g, dict):
+            continue
+        key = ""
+        gkind = str(g.get("kind", ""))
+        if gkind == "occasion":
+            key = f"occasion:{g.get('window', '')}"
+        elif gkind == "cost":
+            cost = str(g.get("cost", ""))
+            if cost == "action":
+                key = "actions_remaining@controller"
+            elif cost == "resource":
+                key = "resource_pool@controller"
+            elif cost == "spend_token":
+                token = str(g.get("token", ""))
+                card = str(g.get("card_id", "source"))
+                key = f"uses.{token}@{card}"
+        elif gkind == "candidates":
+            filt = str(g.get("filter", ""))
+            if filt:
+                key = f"candidates:{filt}"
+        elif gkind == "situational":
+            pred = str(g.get("pred") or g.get("condition") or "")
+            if pred:
+                key = f"situational:{pred}"
+        if key and key not in seen:
+            seen.add(key)
+            deps.append(key)
+    return deps
+
+
 def compile_investigate_spend_secret(body: str) -> dict[str, Any] | None:
     """C2：Spend secrets → Investigate 指定行动（连结已揭示地点）。统一 IR。"""
     text = body.strip()
@@ -807,12 +872,14 @@ def compile_investigate_spend_secret(body: str) -> dict[str, Any] | None:
     secret_n = int(m.group(1))
     skill = m.group(2).lower()
     skill_bonus = int(m.group(3))
+    gates = [
+        gate_occasion("during_your_turn"),
+        gate_cost_action(1),
+        gate_cost_spend_token("secrets", secret_n),
+        ## 能力≈指定地点调查本身：无合法连结已揭示地点 → 不可发起（21 §3.2）。
+        gate_candidates("location_connecting_revealed", 1),
+    ]
     steps: list[dict[str, Any]] = [
-        {
-            "op": "invoke",
-            "flow_id": "seq.effect.spend_token",
-            "params": {"kind": "secrets", "amount": secret_n, "card_id": "source"},
-        },
         {
             "op": "pi",
             "kind": "select",
@@ -886,6 +953,8 @@ def compile_investigate_spend_secret(body: str) -> dict[str, Any] | None:
     return {
         "translation": "full_expand",
         "action_types": ["activate", "investigate"],
+        "gates": gates,
+        "deps": deps_from_gates(gates),
         "effect": {"op": "seq", "steps": steps},
     }
 
@@ -902,12 +971,14 @@ def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
     damage_bonus = int(m.group(4))
     ## 基础 Fight 成功伤 1 + 卡面 +damage；DAMAGE_AMOUNT 站未齐前写入 ST.7 amount。
     damage_total = 1 + damage_bonus
+    gates = [
+        gate_occasion("during_your_turn"),
+        gate_cost_action(1),
+        gate_cost_spend_token("ammo", ammo_n),
+        ## 能力≈基础 Fight：无合法攻击目标 → 不可发起（21 §3.2 / §3.2.1）。
+        gate_candidates("enemy_fight_target", 1),
+    ]
     steps: list[dict[str, Any]] = [
-        {
-            "op": "invoke",
-            "flow_id": "seq.effect.spend_token",
-            "params": {"kind": "ammo", "amount": ammo_n, "card_id": "source"},
-        },
         {
             "op": "pi",
             "kind": "select",
@@ -953,6 +1024,8 @@ def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
     return {
         "translation": "full_expand",
         "action_types": ["activate", "fight"],
+        "gates": gates,
+        "deps": deps_from_gates(gates),
         "effect": {"op": "seq", "steps": steps},
     }
 
@@ -1346,12 +1419,25 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             body_tpl = str(body_entry.get("template", ""))
         if body_tpl in ("take_horror", "take_damage"):
             status = "full"
+    ## gates 为门槛权威；window / action_cost 作装载镜像（由 gates 回填）。
+    gates = compiled.get("gates")
+    window = "during_your_turn"
+    if isinstance(gates, list):
+        for g in gates:
+            if not isinstance(g, dict):
+                continue
+            if str(g.get("kind", "")) == "occasion" and g.get("window"):
+                window = str(g.get("window"))
+            if str(g.get("kind", "")) == "cost" and str(g.get("cost", "")) == "action":
+                action_cost = int(g.get("amount", action_cost))
+        if "deps" not in compiled:
+            compiled["deps"] = deps_from_gates(gates)
     entry: dict[str, Any] = {
         "segment_index": segment["index"],
         "register_as": "action",
         "ability_id": f"action:{segment['index']}",
         "ability_kind": "action",
-        "window": "during_your_turn",
+        "window": window,
         "action_cost": action_cost,
         "action_types": action_types,
         "status": status,

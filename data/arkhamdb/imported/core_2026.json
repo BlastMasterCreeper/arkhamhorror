@@ -1041,18 +1041,38 @@
         ],
         "status": "full",
         "translation": "full_expand",
+        "gates": [
+          {
+            "kind": "occasion",
+            "window": "during_your_turn"
+          },
+          {
+            "kind": "cost",
+            "cost": "action",
+            "amount": 1
+          },
+          {
+            "kind": "cost",
+            "cost": "spend_token",
+            "token": "ammo",
+            "amount": 1,
+            "card_id": "source"
+          },
+          {
+            "kind": "candidates",
+            "filter": "enemy_fight_target",
+            "min": 1
+          }
+        ],
+        "deps": [
+          "occasion:during_your_turn",
+          "actions_remaining@controller",
+          "uses.ammo@source",
+          "candidates:enemy_fight_target"
+        ],
         "effect": {
           "op": "seq",
           "steps": [
-            {
-              "op": "invoke",
-              "flow_id": "seq.effect.spend_token",
-              "params": {
-                "kind": "ammo",
-                "amount": 1,
-                "card_id": "source"
-              }
-            },
             {
               "op": "pi",
               "kind": "select",
@@ -1509,18 +1529,38 @@
         ],
         "status": "full",
         "translation": "full_expand",
+        "gates": [
+          {
+            "kind": "occasion",
+            "window": "during_your_turn"
+          },
+          {
+            "kind": "cost",
+            "cost": "action",
+            "amount": 1
+          },
+          {
+            "kind": "cost",
+            "cost": "spend_token",
+            "token": "secrets",
+            "amount": 1,
+            "card_id": "source"
+          },
+          {
+            "kind": "candidates",
+            "filter": "location_connecting_revealed",
+            "min": 1
+          }
+        ],
+        "deps": [
+          "occasion:during_your_turn",
+          "actions_remaining@controller",
+          "uses.secrets@source",
+          "candidates:location_connecting_revealed"
+        ],
         "effect": {
           "op": "seq",
           "steps": [
-            {
-              "op": "invoke",
-              "flow_id": "seq.effect.spend_token",
-              "params": {
-                "kind": "secrets",
-                "amount": 1,
-                "card_id": "source"
-              }
-            },
             {
               "op": "pi",
               "kind": "select",

@@ -23,6 +23,10 @@ var optional: bool = false
 var window: StringName = &""
 ## 行动类型全集（可多选，如 Activate+Parley）；借机攻击按全集判断。
 var action_types: Array = []
+## gates 中 spend_token 费用：`[{kind, amount, card_id}]`。
+var spend_token_costs: Array = []
+## 编译门槛全文（occasion / cost / candidates / …）；列表层可读。
+var gates: Array = []
 ## 卡面显式覆盖借机（如「不引发借机攻击」）；null = 按 action_types 判定。
 ## Engage 类型本身会借机；仅卡面写明豁免时才覆盖为 false。
 var provokes_aoo_override: Variant = null
@@ -138,9 +142,25 @@ static func from_registry_unit(
 	desc.window = unit.get("window", &"") as StringName
 	desc.ability_kind = _parse_kind(unit.get("ability_kind", &"forced"))
 	desc.action_types = _parse_action_types(unit.get("action_types", []))
+	desc.spend_token_costs = _parse_dict_array(unit.get("spend_token_costs", []))
+	desc.gates = _parse_dict_array(unit.get("gates", []))
 	if unit.has("provokes_aoo"):
 		desc.provokes_aoo_override = bool(unit.get("provokes_aoo"))
 	return desc
+
+
+static func _parse_spend_token_costs(raw: Variant) -> Array:
+	return _parse_dict_array(raw)
+
+
+static func _parse_dict_array(raw: Variant) -> Array:
+	var out: Array = []
+	if not raw is Array:
+		return out
+	for item in raw:
+		if item is Dictionary:
+			out.append((item as Dictionary).duplicate(true))
+	return out
 
 
 static func _parse_action_types(raw: Variant) -> Array:

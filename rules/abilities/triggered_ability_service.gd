@@ -92,6 +92,11 @@ func is_action_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
 	var inv := _ctx.state.registry.get_investigator(activator)
 	if inv == null or inv.actions_remaining < maxi(descriptor.action_cost, 1):
 		return false
+	## 第一层：Uses Spend + candidates 等 gates（与编译门槛同步）。
+	if not _can_pay_spend_token_costs(descriptor):
+		return false
+	if not _passes_candidate_gates(descriptor, activator):
+		return false
 	return _source_playable(descriptor)
 
 
@@ -291,7 +296,53 @@ func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 		intent.action_types = action_types
 	intent.source_id = descriptor.source_id
 	intent.ability_id = descriptor.id
+	intent.spend_token_costs = descriptor.spend_token_costs.duplicate(true)
 	return intent
+
+
+func _can_pay_spend_token_costs(descriptor: TriggeredAbilityDescriptor) -> bool:
+	if descriptor == null or _ctx == null or _ctx.state == null:
+		return false
+	for raw in descriptor.spend_token_costs:
+		if not raw is Dictionary:
+			return false
+		var cost: Dictionary = raw
+		var card_raw := str(cost.get("card_id", "source"))
+		var card_id: StringName = (
+			descriptor.source_id if card_raw == "" or card_raw == "source" else StringName(card_raw)
+		)
+		var kind := StringName(str(cost.get("kind", cost.get("token", "ammo"))))
+		var amount := maxi(int(cost.get("amount", 1)), 1)
+		var card := _ctx.state.registry.get_card(card_id)
+		if card == null or int(card.tokens.uses.get(kind, 0)) < amount:
+			return false
+	return true
+
+
+## gates.kind=candidates：合法集至少 min（基础 Fight / 指定调查等同构）。
+func _passes_candidate_gates(
+	descriptor: TriggeredAbilityDescriptor,
+	controller_id: StringName
+) -> bool:
+	if descriptor == null or _ctx == null:
+		return false
+	for raw in descriptor.gates:
+		if not raw is Dictionary:
+			continue
+		var g: Dictionary = raw
+		if str(g.get("kind", "")) != "candidates":
+			continue
+		var filter_id := StringName(str(g.get("filter", "")))
+		if filter_id == &"":
+			return false
+		var need := maxi(int(g.get("min", 1)), 1)
+		var filt := CandidateFilter.from_preset(filter_id)
+		var legal := CandidateEnumerator.enumerate(
+			filt, _ctx, controller_id, descriptor.source_id
+		)
+		if legal.size() < need:
+			return false
+	return true
 
 
 func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
