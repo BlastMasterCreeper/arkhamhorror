@@ -819,6 +819,15 @@ def gate_cost_spend_token(
     }
 
 
+def gate_candidates(filter_id: str, minimum: int = 1) -> dict[str, Any]:
+    """发起门槛：合法候选集非空（基础 Fight/Investigate 等与 L7 同条件的隐式目标）。"""
+    return {
+        "kind": "candidates",
+        "filter": filter_id,
+        "min": minimum,
+    }
+
+
 def deps_from_gates(gates: list[dict[str, Any]]) -> list[str]:
     """读集：由门槛推导，供自由区间脏刷新（非手写第二份名单）。"""
     deps: list[str] = []
@@ -840,6 +849,10 @@ def deps_from_gates(gates: list[dict[str, Any]]) -> list[str]:
                 token = str(g.get("token", ""))
                 card = str(g.get("card_id", "source"))
                 key = f"uses.{token}@{card}"
+        elif gkind == "candidates":
+            filt = str(g.get("filter", ""))
+            if filt:
+                key = f"candidates:{filt}"
         elif gkind == "situational":
             pred = str(g.get("pred") or g.get("condition") or "")
             if pred:
@@ -863,6 +876,8 @@ def compile_investigate_spend_secret(body: str) -> dict[str, Any] | None:
         gate_occasion("during_your_turn"),
         gate_cost_action(1),
         gate_cost_spend_token("secrets", secret_n),
+        ## 能力≈指定地点调查本身：无合法连结已揭示地点 → 不可发起（21 §3.2）。
+        gate_candidates("location_connecting_revealed", 1),
     ]
     steps: list[dict[str, Any]] = [
         {
@@ -960,6 +975,8 @@ def compile_fight_spend_ammo(body: str) -> dict[str, Any] | None:
         gate_occasion("during_your_turn"),
         gate_cost_action(1),
         gate_cost_spend_token("ammo", ammo_n),
+        ## 能力≈基础 Fight：无合法攻击目标 → 不可发起（21 §3.2 / §3.2.1）。
+        gate_candidates("enemy_fight_target", 1),
     ]
     steps: list[dict[str, Any]] = [
         {

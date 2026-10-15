@@ -1057,12 +1057,18 @@
             "token": "ammo",
             "amount": 1,
             "card_id": "source"
+          },
+          {
+            "kind": "candidates",
+            "filter": "enemy_fight_target",
+            "min": 1
           }
         ],
         "deps": [
           "occasion:during_your_turn",
           "actions_remaining@controller",
-          "uses.ammo@source"
+          "uses.ammo@source",
+          "candidates:enemy_fight_target"
         ],
         "effect": {
           "op": "seq",
@@ -1539,12 +1545,18 @@
             "token": "secrets",
             "amount": 1,
             "card_id": "source"
+          },
+          {
+            "kind": "candidates",
+            "filter": "location_connecting_revealed",
+            "min": 1
           }
         ],
         "deps": [
           "occasion:during_your_turn",
           "actions_remaining@controller",
-          "uses.secrets@source"
+          "uses.secrets@source",
+          "candidates:location_connecting_revealed"
         ],
         "effect": {
           "op": "seq",

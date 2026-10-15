@@ -224,7 +224,8 @@ static func register_triggered(
 	window: StringName = &"",
 	action_types: Array = [],
 	provokes_aoo: Variant = null,
-	spend_token_costs: Array = []
+	spend_token_costs: Array = [],
+	gates: Array = []
 ) -> void:
 	if not _triggered.has(definition_id):
 		_triggered[definition_id] = []
@@ -239,6 +240,7 @@ static func register_triggered(
 		"window": window,
 		"action_types": action_types.duplicate(),
 		"spend_token_costs": spend_token_costs.duplicate(true),
+		"gates": gates.duplicate(true),
 		"builder": builder,
 	}
 	if provokes_aoo != null:

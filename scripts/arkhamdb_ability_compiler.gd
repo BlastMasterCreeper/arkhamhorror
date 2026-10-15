@@ -748,7 +748,8 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			StringName(str(entry.get("window", "any_player_window"))),
 			_action_types_from_entry(entry),
 			provokes,
-			_spend_token_costs_from_gates(entry)
+			_spend_token_costs_from_gates(entry),
+			_gates_from_entry(entry)
 		)
 		return true
 	if register_as == "forced" or register_as == "reaction":
@@ -768,7 +769,8 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			&"",
 			_action_types_from_entry(entry),
 			null,
-			_spend_token_costs_from_gates(entry)
+			_spend_token_costs_from_gates(entry),
+			_gates_from_entry(entry)
 		)
 		return true
 	return false
@@ -806,6 +808,17 @@ static func _spend_token_costs_from_gates(entry: Dictionary) -> Array:
 				"card_id": str(g.get("card_id", "source")),
 			}
 		)
+	return out
+
+
+static func _gates_from_entry(entry: Dictionary) -> Array:
+	var out: Array = []
+	var gates: Variant = entry.get("gates", [])
+	if not gates is Array:
+		return out
+	for raw in gates:
+		if raw is Dictionary:
+			out.append((raw as Dictionary).duplicate(true))
 	return out
 
 

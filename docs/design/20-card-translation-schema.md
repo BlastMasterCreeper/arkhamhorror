@@ -81,6 +81,7 @@
 ```text
 { "kind": "occasion",     "window": "during_your_turn" }
 { "kind": "situational",  "pred"|"condition": "<compile_id>", … }
+{ "kind": "candidates",   "filter": "<CandidateFilter preset>", "min": 1 }
 { "kind": "cost",         "cost": "action"|"resource"|"spend_token", "amount", … }
 { "kind": "limit",        … }   # once per round / …（白名单增长）
 ```
@@ -89,8 +90,11 @@
 |---|---|---|
 | `occasion` | 框架/交互区间是否开着 | `during_your_turn` |
 | `situational` | 卡面场面/步间谓词 | `investigator_has_no_clues` |
+| `candidates` | 合法目标/候选集至少 `min` | 基础 Fight：`enemy_fight_target`；连结调查：`location_connecting_revealed`（[21 §3.2](21-selection-spec.md)） |
 | `cost` | Initiation L6 费用 | `action`、`resource`、`spend_token`（Uses） |
 | `limit` | 次数配额 | once per round |
+
+**Fight / Investigate 能力≈衍生检定本身**时：除费用外须译 `candidates`（与隐式目标 filter 一致）；无合法集 → 不可发起。多步「先移动再 Fight」则**不要**把 Attack 的空目标写成整段 `candidates` 门槛（见 21 §3.2.1）。
 
 **Spend Uses**：译为 `{ kind:cost, cost:spend_token, token, amount, card_id }`，**禁止**再作为 effect 第一步 `invoke seq.effect.spend_token`（[22 G10](22-seq-granularity.md)）。  
 `deps` 由编译器从 `gates` 导出（如 `uses.ammo@source`、`actions_remaining@controller`），不手写第二份名单。
@@ -409,12 +413,14 @@ invoke seq.engage mode=effect          # C · 明示交战
   "gates": [
     { "kind": "occasion", "window": "during_your_turn" },
     { "kind": "cost", "cost": "action", "amount": 1 },
-    { "kind": "cost", "cost": "spend_token", "token": "ammo", "amount": 1, "card_id": "source" }
+    { "kind": "cost", "cost": "spend_token", "token": "ammo", "amount": 1, "card_id": "source" },
+    { "kind": "candidates", "filter": "enemy_fight_target", "min": 1 }
   ],
   "deps": [
     "occasion:during_your_turn",
     "actions_remaining@controller",
-    "uses.ammo@source"
+    "uses.ammo@source",
+    "candidates:enemy_fight_target"
   ],
   "effect": {
     "op": "seq",

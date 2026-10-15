@@ -2989,7 +2989,7 @@ func _test_adb_compile_12019() -> bool:
 	var steps: Variant = action_effect.get("steps", [])
 	if not steps is Array or (steps as Array).size() != 3:
 		return false
-	if not gates is Array or (gates as Array).size() < 3:
+	if not gates is Array or (gates as Array).size() < 4:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
 	var s1: Dictionary = (steps as Array)[1]
@@ -3001,10 +3001,15 @@ func _test_adb_compile_12019() -> bool:
 	var on_ok_p: Dictionary = on_ok.get("params", {})
 	var bind0: Dictionary = s0.get("bind", {})
 	var g_spend: Dictionary = {}
+	var g_cand: Dictionary = {}
 	for raw_g in gates:
-		if raw_g is Dictionary and str((raw_g as Dictionary).get("cost", "")) == "spend_token":
-			g_spend = raw_g as Dictionary
-			break
+		if not raw_g is Dictionary:
+			continue
+		var gd: Dictionary = raw_g
+		if str(gd.get("cost", "")) == "spend_token":
+			g_spend = gd
+		if str(gd.get("kind", "")) == "candidates":
+			g_cand = gd
 	return (
 		CardRegistry.has_uses(&"12019")
 		and int(uses.get(&"ammo", 0)) == 4
@@ -3024,8 +3029,11 @@ func _test_adb_compile_12019() -> bool:
 		and (types as Array).has("fight")
 		and str(g_spend.get("token", "")) == "ammo"
 		and int(g_spend.get("amount", 0)) == 1
+		and str(g_cand.get("filter", "")) == "enemy_fight_target"
+		and int(g_cand.get("min", 0)) == 1
 		and deps is Array
 		and (deps as Array).has("uses.ammo@source")
+		and (deps as Array).has("candidates:enemy_fight_target")
 		and str(s0.get("op", "")) == "pi"
 		and str(s0.get("filter", "")) == "enemy_fight_target"
 		and str(bind0.get("key", "")) == "picked_enemy"
@@ -3115,7 +3123,7 @@ func _test_adb_compile_12033() -> bool:
 	var steps: Variant = action_effect.get("steps", [])
 	if not steps is Array or (steps as Array).size() != 3:
 		return false
-	if not gates is Array or (gates as Array).size() < 3:
+	if not gates is Array or (gates as Array).size() < 4:
 		return false
 	var s0: Dictionary = (steps as Array)[0]
 	var s2: Dictionary = (steps as Array)[2]
@@ -3128,10 +3136,15 @@ func _test_adb_compile_12033() -> bool:
 	var discover: Dictionary = (on_steps as Array)[0]
 	var types: Variant = action_entry.get("action_types", [])
 	var g_spend: Dictionary = {}
+	var g_cand: Dictionary = {}
 	for raw_g in gates:
-		if raw_g is Dictionary and str((raw_g as Dictionary).get("cost", "")) == "spend_token":
-			g_spend = raw_g as Dictionary
-			break
+		if not raw_g is Dictionary:
+			continue
+		var gd: Dictionary = raw_g
+		if str(gd.get("cost", "")) == "spend_token":
+			g_spend = gd
+		if str(gd.get("kind", "")) == "candidates":
+			g_cand = gd
 	return (
 		CardRegistry.has_uses(&"12033")
 		and int(uses.get(&"secrets", 0)) == 4
@@ -3146,8 +3159,11 @@ func _test_adb_compile_12033() -> bool:
 		and (types as Array).has("investigate")
 		and str(g_spend.get("token", "")) == "secrets"
 		and int(g_spend.get("amount", 0)) == 1
+		and str(g_cand.get("filter", "")) == "location_connecting_revealed"
+		and int(g_cand.get("min", 0)) == 1
 		and deps is Array
 		and (deps as Array).has("uses.secrets@source")
+		and (deps as Array).has("candidates:location_connecting_revealed")
 		and str(s0.get("op", "")) == "pi"
 		and str(s0.get("filter", "")) == "location_connecting_revealed"
 		and str(s2.get("flow_id", "")) == "seq.skill_test"
