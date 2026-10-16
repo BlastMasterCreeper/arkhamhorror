@@ -3408,7 +3408,7 @@ func _test_adb_12062_cultist_remove() -> bool:
 		bool(result.get("ok", false))
 		and int(card.tokens.uses.get(&"charges", 0)) == 2
 		and inv.horror_taken == 0
-		and card.zone == AhcEnums.Zone.PLAY
+		and card.zone == AhcEnums.Zone.PLAY_AREA
 		and inv.clues_on_card == 1
 	)
 

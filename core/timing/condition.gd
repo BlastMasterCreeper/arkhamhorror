@@ -119,10 +119,13 @@ static func from_compile_dict(
 	var condition_id := str(entry.get("condition", entry.get("kind", "")))
 	match condition_id:
 		"memory_bool_eq", "memory_bool":
+			var want := true
+			if entry.has("value"):
+				want = entry["value"] == true
 			return memory_bool_eq(
 				inv_id,
 				StringName(str(entry.get("memory_key", ""))),
-				bool(entry.get("value", true))
+				want
 			)
 		"card_uses_ge":
 			var raw_card := str(entry.get("card_id", "source"))
@@ -203,8 +206,7 @@ func matches_domain(game_ctx: GameContext, fallback_inv_id: StringName) -> bool:
 			var mem_inv := domain_inv_id if domain_inv_id != &"" else fallback_inv_id
 			if game_ctx.memory == null or domain_memory_key == &"":
 				return not domain_bool_eq
-			var raw: Variant = game_ctx.memory.get_referent(mem_inv, domain_memory_key)
-			return bool(raw) == domain_bool_eq
+			return _memory_flag(game_ctx.memory.get_referent(mem_inv, domain_memory_key)) == domain_bool_eq
 		DomainPredicate.CARD_USES_GE:
 			if domain_card_id == &"" or domain_uses_kind == &"":
 				return false
@@ -233,8 +235,7 @@ func matches_domain_sim(sim: GameSimulator, fallback_inv_id: StringName) -> bool
 			var mem_inv := domain_inv_id if domain_inv_id != &"" else fallback_inv_id
 			if domain_memory_key == &"":
 				return not domain_bool_eq
-			var raw: Variant = sim.get_referent(mem_inv, domain_memory_key)
-			return bool(raw) == domain_bool_eq
+			return _memory_flag(sim.get_referent(mem_inv, domain_memory_key)) == domain_bool_eq
 		DomainPredicate.CARD_USES_GE:
 			if domain_card_id == &"" or domain_uses_kind == &"":
 				return false
@@ -243,3 +244,8 @@ func matches_domain_sim(sim: GameSimulator, fallback_inv_id: StringName) -> bool
 				return false
 			return int(uses_card.tokens.uses.get(domain_uses_kind, 0)) >= domain_eq
 	return true
+
+
+## optional bind / RulesMemory：仅显式 true 为真；缺省与其它值均假。
+static func _memory_flag(raw: Variant) -> bool:
+	return raw is bool and (raw as bool)
