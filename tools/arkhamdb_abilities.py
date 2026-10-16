@@ -126,6 +126,15 @@ INVESTIGATE_SPEND_SECRET = re.compile(
     r"If you succeed, you may exhaust .+ to move to that location\.?$",
     re.I,
 )
+## 12062 Second Sight：Investigate (skill)；成功 may spend charge → 发现数量修正；cultist @ ST.4。
+INVESTIGATE_MAY_SPEND_CHARGE = re.compile(
+    r"^(?:<b>)?Investigate(?:</b>)?\s*"
+    r"\(\[(willpower|intellect|combat|agility)\]\)\.\s*"
+    r"If you succeed, you may spend (\d+) charges? to discover (\d+) additional clues? "
+    r"at your location\."
+    r"(?:\s*If you reveal a \[cultist\] token during this test,.+)?$",
+    re.I | re.S,
+)
 ATTACH_NEAREST_WITHOUT = re.compile(
     r"^Attach .+ to the nearest location without .+ attached\.?$",
     re.I,
@@ -863,6 +872,118 @@ def deps_from_gates(gates: list[dict[str, Any]]) -> list[str]:
     return deps
 
 
+def compile_investigate_may_spend_charge(body: str) -> dict[str, Any] | None:
+    """12062：Investigate (skill) @ 所在地；成功 may Spend charge → 单次发现数量修正。
+
+    ST.7：optional 只 spend + bind bool；随后 if memory → discover (1+extra) else discover 1。
+    ST.4：揭示 cultist → 有 charge 则 remove；否则恐 + 弃本卡。
+    """
+    text = body.strip()
+    m = INVESTIGATE_MAY_SPEND_CHARGE.match(text)
+    if not m:
+        return None
+    skill = m.group(1).lower()
+    charge_n = int(m.group(2))
+    extra_clues = int(m.group(3))
+    base_clues = 1
+    boosted_clues = base_clues + extra_clues
+    mem_key = "spent_charge_extra_clue"
+    gates = [
+        gate_occasion("during_your_turn"),
+        gate_cost_action(1),
+        gate_candidates("location_investigate_target", 1),
+    ]
+    discover = lambda amount: {
+        "op": "invoke",
+        "flow_id": "seq.effect.discover_clue",
+        "params": {
+            "location_id": "controller_location",
+            "amount": amount,
+        },
+    }
+    on_success: dict[str, Any] = {
+        "op": "seq",
+        "steps": [
+            {
+                "op": "pi",
+                "kind": "optional",
+                "prompt_id": "may:spend_charge_extra_clue",
+                "bind": {"key": mem_key, "shape": "bool"},
+                "body": {
+                    "op": "invoke",
+                    "flow_id": "seq.effect.spend_token",
+                    "params": {
+                        "kind": "charges",
+                        "amount": charge_n,
+                        "card_id": "source",
+                    },
+                },
+            },
+            {
+                "op": "if",
+                "condition": {
+                    "condition": "memory_bool_eq",
+                    "memory_key": mem_key,
+                    "value": True,
+                },
+                "then": discover(boosted_clues),
+                "else": discover(base_clues),
+            },
+        ],
+    }
+    cultist_branch: dict[str, Any] = {
+        "op": "if",
+        "condition": {
+            "condition": "card_uses_ge",
+            "card_id": "source",
+            "kind": "charges",
+            "amount": charge_n,
+        },
+        "then": {
+            "op": "invoke",
+            "flow_id": "seq.effect.spend_token",
+            "params": {
+                "kind": "charges",
+                "amount": charge_n,
+                "card_id": "source",
+            },
+        },
+        "else": {
+            "op": "seq",
+            "steps": [
+                {
+                    "op": "invoke",
+                    "flow_id": "seq.effect.damage",
+                    "params": {
+                        "kind": "horror",
+                        "amount": 1,
+                        "target": "controller",
+                    },
+                },
+                _leaf_discard_source(),
+            ],
+        },
+    }
+    return {
+        "translation": "full_expand",
+        "status": "full",
+        "action_types": ["activate", "investigate"],
+        "gates": gates,
+        "deps": deps_from_gates(gates),
+        "effect": {
+            "op": "invoke",
+            "flow_id": "seq.skill_test",
+            "params": {
+                "skill": skill,
+                "difficulty_source": "location_shroud",
+                "location": "controller_location",
+                "st7": {"on_success": on_success},
+                "st4": {"on_symbols": {"cultist": cultist_branch}},
+            },
+        },
+    }
+
+
 def compile_investigate_spend_secret(body: str) -> dict[str, Any] | None:
     """C2：Spend secrets → Investigate 指定行动（连结已揭示地点）。统一 IR。"""
     text = body.strip()
@@ -1262,6 +1383,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     investigate_secret = compile_investigate_spend_secret(body)
     if investigate_secret is not None:
         return investigate_secret
+    investigate_charge = compile_investigate_may_spend_charge(body)
+    if investigate_charge is not None:
+        return investigate_charge
     resign = compile_resign(body)
     if resign is not None:
         return resign

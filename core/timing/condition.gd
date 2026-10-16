@@ -7,6 +7,8 @@ enum DomainPredicate {
 	PREVIOUS_STEP_NOT_CREATED,
 	PREVIOUS_STEP_ENGAGED,
 	LAST_SKILL_TEST_FAILED,
+	MEMORY_BOOL_EQ,
+	CARD_USES_GE,
 }
 
 var tags_all: Array[StringName] = []
@@ -18,6 +20,9 @@ var domain_predicate: DomainPredicate = DomainPredicate.NONE
 var domain_inv_id: StringName = &""
 var domain_card_id: StringName = &""
 var domain_eq: int = 0
+var domain_memory_key: StringName = &""
+var domain_bool_eq: bool = true
+var domain_uses_kind: StringName = &""
 
 
 static func with_tags(required: Array[StringName]) -> Condition:
@@ -76,6 +81,61 @@ static func previous_step_engaged_investigator(_inv_id: StringName, _card_id: St
 	c.domain_inv_id = _inv_id
 	c.domain_card_id = _card_id
 	return c
+
+
+## L3 · RulesMemory bool 指称（optional / may bind.shape=bool）。
+static func memory_bool_eq(
+	inv_id: StringName,
+	memory_key: StringName,
+	want: bool = true
+) -> Condition:
+	var c := Condition.new()
+	c.domain_predicate = DomainPredicate.MEMORY_BOOL_EQ
+	c.domain_inv_id = inv_id
+	c.domain_memory_key = memory_key
+	c.domain_bool_eq = want
+	return c
+
+
+## L3 · 卡上 Uses token 数量 ≥ amount（如 charges）。
+static func card_uses_ge(
+	card_id: StringName,
+	kind: StringName,
+	amount: int = 1
+) -> Condition:
+	var c := Condition.new()
+	c.domain_predicate = DomainPredicate.CARD_USES_GE
+	c.domain_card_id = card_id
+	c.domain_uses_kind = kind
+	c.domain_eq = maxi(amount, 1)
+	return c
+
+
+static func from_compile_dict(
+	entry: Dictionary,
+	inv_id: StringName,
+	card_id: StringName = &""
+) -> Condition:
+	var condition_id := str(entry.get("condition", entry.get("kind", "")))
+	match condition_id:
+		"memory_bool_eq", "memory_bool":
+			var want := true
+			if entry.has("value"):
+				want = entry["value"] == true
+			return memory_bool_eq(
+				inv_id,
+				StringName(str(entry.get("memory_key", ""))),
+				want
+			)
+		"card_uses_ge":
+			var raw_card := str(entry.get("card_id", "source"))
+			var resolved := card_id if raw_card == "source" or raw_card == "" else StringName(raw_card)
+			return card_uses_ge(
+				resolved,
+				StringName(str(entry.get("kind", "charges"))),
+				int(entry.get("amount", 1))
+			)
+	return from_compile_id(condition_id, inv_id, card_id)
 
 
 static func from_compile_id(
@@ -142,6 +202,18 @@ func matches_domain(game_ctx: GameContext, fallback_inv_id: StringName) -> bool:
 			if game_ctx.composition != null:
 				return game_ctx.composition.last_skill_test_fail_by() > 0
 			return false
+		DomainPredicate.MEMORY_BOOL_EQ:
+			var mem_inv := domain_inv_id if domain_inv_id != &"" else fallback_inv_id
+			if game_ctx.memory == null or domain_memory_key == &"":
+				return not domain_bool_eq
+			return _memory_flag(game_ctx.memory.get_referent(mem_inv, domain_memory_key)) == domain_bool_eq
+		DomainPredicate.CARD_USES_GE:
+			if domain_card_id == &"" or domain_uses_kind == &"":
+				return false
+			var uses_card := game_ctx.state.registry.get_card(domain_card_id)
+			if uses_card == null:
+				return false
+			return int(uses_card.tokens.uses.get(domain_uses_kind, 0)) >= domain_eq
 	return true
 
 
@@ -159,4 +231,21 @@ func matches_domain_sim(sim: GameSimulator, fallback_inv_id: StringName) -> bool
 			return sim.last_step_engaged_investigator != &""
 		DomainPredicate.LAST_SKILL_TEST_FAILED:
 			return sim.last_skill_test_fail_by > 0
+		DomainPredicate.MEMORY_BOOL_EQ:
+			var mem_inv := domain_inv_id if domain_inv_id != &"" else fallback_inv_id
+			if domain_memory_key == &"":
+				return not domain_bool_eq
+			return _memory_flag(sim.get_referent(mem_inv, domain_memory_key)) == domain_bool_eq
+		DomainPredicate.CARD_USES_GE:
+			if domain_card_id == &"" or domain_uses_kind == &"":
+				return false
+			var uses_card := sim.state.registry.get_card(domain_card_id)
+			if uses_card == null:
+				return false
+			return int(uses_card.tokens.uses.get(domain_uses_kind, 0)) >= domain_eq
 	return true
+
+
+## optional bind / RulesMemory：仅显式 true 为真；缺省与其它值均假。
+static func _memory_flag(raw: Variant) -> bool:
+	return raw is bool and (raw as bool)

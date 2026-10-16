@@ -47,7 +47,7 @@ static func _build_op_node(node: Dictionary, bind: AbilityBindContext) -> Compos
 			return _build_seq(node, bind)
 		"simultaneous":
 			return _build_simultaneous(node, bind)
-		"if":
+		"if", "if_else":
 			return _build_if_else(node, bind)
 		"pi":
 			return _build_pi(node, bind)
@@ -134,6 +134,8 @@ static func _build_invoke_flow(node: Dictionary, bind: AbilityBindContext) -> Co
 			return build_composition("nest_resign", params, bind)
 		"seq.effect.discover_clue":
 			return build_composition("discover_clue", params, bind)
+		"seq.effect.discard_card":
+			return build_composition("discard_card", params, bind)
 		"seq.effect.exhaust":
 			var exh_card := str(params.get("card_id", "source"))
 			if exh_card == "source" or exh_card == "":
@@ -540,6 +542,8 @@ static func _build_choice_optional(params: Dictionary, bind: AbilityBindContext)
 		return null
 	var prompt_id := StringName(str(params.get("prompt_id", "composition:choice_optional")))
 	var memory_key := StringName(str(params.get("memory_key", params.get("bind_key", ""))))
+	if memory_key == &"" and params.get("bind", null) is Dictionary:
+		memory_key = StringName(str((params["bind"] as Dictionary).get("key", "")))
 	return CompositionNode.choice_optional(body, bind.controller_id, prompt_id, memory_key)
 
 
@@ -549,6 +553,7 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 	var enemy_spec := StringName(str(params.get("enemy", "")))
 	var location_spec := StringName(str(params.get("location", params.get("location_id", ""))))
 	var plan := _build_st7_plan(params, bind)
+	var st4 := _build_st4_plan(params, bind)
 	var choices: Variant = params.get("skill_choices", [])
 	## skill_choices：PI 只选技能类型 → 单次 skill_test（体不重复）。
 	if choices is Array and not (choices as Array).is_empty():
@@ -570,7 +575,8 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 			difficulty_source,
 			StringName("memory:%s" % str(mem_key)),
 			enemy_spec,
-			location_spec
+			location_spec,
+			st4
 		)
 		return CompositionNode.seq([pick, test])
 	var skill_raw := str(params.get("skill", "willpower"))
@@ -587,7 +593,8 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 		difficulty_source,
 		skill_spec,
 		enemy_spec,
-		location_spec
+		location_spec,
+		st4
 	)
 
 
@@ -652,6 +659,17 @@ static func _build_st7_plan(params: Dictionary, bind: AbilityBindContext) -> Ski
 	return null
 
 
+static func _build_st4_plan(params: Dictionary, bind: AbilityBindContext) -> SkillTestSt4Plan:
+	var st4_entry: Variant = params.get("st4", {})
+	if st4_entry is Dictionary and not (st4_entry as Dictionary).is_empty():
+		return SkillTestSt4Plan.from_compile_dict(
+			st4_entry as Dictionary,
+			bind,
+			build_composition
+		)
+	return null
+
+
 static func _build_repeat_fail_by(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
 	var body_entry: Variant = params.get("body", {})
 	if not body_entry is Dictionary:
@@ -679,8 +697,14 @@ static func _skill_from_compile_id(skill_id: String) -> AhcEnums.SkillType:
 
 
 static func _build_if_else(params: Dictionary, bind: AbilityBindContext) -> CompositionNode:
-	var condition_id := str(params.get("condition", ""))
-	var cond := Condition.from_compile_id(condition_id, bind.controller_id, bind.card_id)
+	var cond: Condition = null
+	var cond_raw: Variant = params.get("condition", "")
+	if cond_raw is Dictionary:
+		cond = Condition.from_compile_dict(
+			cond_raw as Dictionary, bind.controller_id, bind.card_id
+		)
+	else:
+		cond = Condition.from_compile_id(str(cond_raw), bind.controller_id, bind.card_id)
 	if cond == null:
 		return null
 	var then_entry: Variant = params.get("then", {})
@@ -844,7 +868,9 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"difficulty_source",
 		"st7_fail_by",
 		"st7",
+		"st4",
 		"window",
+		"bind",
 		"trait_exclude",
 		"target",
 		"enemy",

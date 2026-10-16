@@ -28,3 +28,15 @@ static func with_reveal_another(kind: AhcEnums.ChaosTokenKind, modifier: int = 0
 	t.modifier = modifier
 	t.reveal_another = true
 	return t
+
+
+static func symbol(
+	kind: AhcEnums.ChaosTokenKind,
+	modifier: int = 0,
+	instance_id: StringName = &""
+) -> ChaosToken:
+	var t := ChaosToken.new()
+	t.kind = kind
+	t.modifier = modifier
+	t.instance_id = instance_id
+	return t
