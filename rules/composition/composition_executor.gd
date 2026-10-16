@@ -730,6 +730,7 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 			"difficulty": difficulty,
 			"card_id": node.card_id,
 			"st7_plan": node.st7_plan,
+			"st4_plan": node.st4_plan,
 			"enemy_id": enemy_id,
 		}
 	)

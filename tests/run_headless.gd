@@ -138,6 +138,9 @@ func _initialize() -> void:
 	_run_test("ADB-76 12033 investigate connecting discovers clue", _test_adb_12033_investigate)
 	_run_test("ADB-77 compile 12062 Second Sight investigate charges", _test_adb_compile_12062)
 	_run_test("ADB-78 12062 investigate discovers clue skips optional charge", _test_adb_12062_investigate)
+	_run_test("ADB-79 12062 spend charge boosts discover amount", _test_adb_12062_spend_charge)
+	_run_test("ADB-80 12062 cultist removes charge at ST.4", _test_adb_12062_cultist_remove)
+	_run_test("ADB-81 12062 cultist without charge horror discard", _test_adb_12062_cultist_cannot)
 	_run_test("SEQ-EFF-11 nest spend_token ammo", _test_seq_eff_spend_token)
 	_run_test("ADB-01 import core 2026 packs", _test_adb_import_counts)
 	_run_test("ADB-02 import asset cost and skills", _test_adb_asset_local_map)
@@ -3254,8 +3257,14 @@ func _test_adb_compile_12062() -> bool:
 	var on_steps: Variant = on_ok.get("steps", [])
 	if not on_steps is Array or (on_steps as Array).size() < 2:
 		return false
-	var discover: Dictionary = (on_steps as Array)[0]
-	var may: Dictionary = (on_steps as Array)[1]
+	var may: Dictionary = (on_steps as Array)[0]
+	var branch: Dictionary = (on_steps as Array)[1]
+	var may_bind: Dictionary = may.get("bind", {})
+	var then_disc: Dictionary = branch.get("then", {})
+	var else_disc: Dictionary = branch.get("else", {})
+	var st4: Dictionary = params.get("st4", {})
+	var on_sym: Dictionary = st4.get("on_symbols", {})
+	var cultist: Dictionary = on_sym.get("cultist", {})
 	var types: Variant = action_entry.get("action_types", [])
 	var g_cand: Dictionary = {}
 	for raw_g in gates:
@@ -3269,7 +3278,8 @@ func _test_adb_compile_12062() -> bool:
 		and str(kw_effect.get("flow_id", "")) == "seq.effect.place_token"
 		and str(kw_params.get("kind", "")) == "charges"
 		and int(kw_params.get("amount", 0)) == 3
-		and action_entry.get("status", "") == "partial"
+		and action_entry.get("status", "") == "full"
+		and not action_entry.has("pending")
 		and str(action_effect.get("op", "")) == "invoke"
 		and str(action_effect.get("flow_id", "")) == "seq.skill_test"
 		and str(params.get("skill", "")) == "willpower"
@@ -3281,9 +3291,15 @@ func _test_adb_compile_12062() -> bool:
 		and str(g_cand.get("filter", "")) == "location_investigate_target"
 		and deps is Array
 		and (deps as Array).has("candidates:location_investigate_target")
-		and str(discover.get("flow_id", "")) == "seq.effect.discover_clue"
 		and str(may.get("op", "")) == "pi"
 		and str(may.get("kind", "")) == "optional"
+		and str(may_bind.get("key", "")) == "spent_charge_extra_clue"
+		and str(branch.get("op", "")) == "if"
+		and str(then_disc.get("flow_id", "")) == "seq.effect.discover_clue"
+		and int(then_disc.get("params", {}).get("amount", 0)) == 2
+		and str(else_disc.get("flow_id", "")) == "seq.effect.discover_clue"
+		and int(else_disc.get("params", {}).get("amount", 0)) == 1
+		and str(cultist.get("op", "")) == "if"
 		and CardRegistry.has_triggered(&"12062")
 	)
 
@@ -3313,7 +3329,7 @@ func _test_adb_12062_investigate() -> bool:
 	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
 	if listed.is_empty():
 		return false
-	## optional 默认跳过：不花 charge，只发现 1 线索。
+	## optional 默认跳过：不花 charge，单次发现 1 线索。
 	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
 	var loc := h.ctx.state.registry.get_location(&"loc_here")
 	var charges_left := int(card.tokens.uses.get(&"charges", 0))
@@ -3324,6 +3340,108 @@ func _test_adb_12062_investigate() -> bool:
 		and loc.clues == 1
 		and inv.clues_on_card == 1
 		and inv.actions_remaining == 1
+	)
+
+
+func _test_adb_12062_spend_charge() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_here", 1, 3)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"loc_here"
+	inv.skill_willpower = 4
+	inv.actions_remaining = 2
+	inv.clues_on_card = 0
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12062")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"may:spend_charge_extra_clue", "pick": true},
+	])
+	if h.ctx.triggered_abilities.list_action_abilities(&"inv_1").is_empty():
+		h.ctx.triggered_abilities.install_card(&"inv_1", card_id)
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	var loc := h.ctx.state.registry.get_location(&"loc_here")
+	return (
+		bool(result.get("ok", false))
+		and int(card.tokens.uses.get(&"charges", 0)) == 2
+		and loc != null
+		and loc.clues == 1
+		and inv.clues_on_card == 2
+	)
+
+
+func _test_adb_12062_cultist_remove() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase([ChaosToken.symbol(AhcEnums.ChaosTokenKind.CULTIST, 0)]):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_here", 1, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"loc_here"
+	inv.skill_willpower = 4
+	inv.actions_remaining = 2
+	inv.clues_on_card = 0
+	inv.horror_taken = 0
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12062")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null or int(card.tokens.uses.get(&"charges", 0)) != 3:
+		return false
+	if h.ctx.triggered_abilities.list_action_abilities(&"inv_1").is_empty():
+		h.ctx.triggered_abilities.install_card(&"inv_1", card_id)
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	## 默认跳过 may；cultist @ ST.4 移除 1 charge。
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	return (
+		bool(result.get("ok", false))
+		and int(card.tokens.uses.get(&"charges", 0)) == 2
+		and inv.horror_taken == 0
+		and card.zone == AhcEnums.Zone.PLAY
+		and inv.clues_on_card == 1
+	)
+
+
+func _test_adb_12062_cultist_cannot() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase([ChaosToken.symbol(AhcEnums.ChaosTokenKind.CULTIST, 0)]):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_here", 1, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"loc_here"
+	inv.skill_willpower = 4
+	inv.actions_remaining = 2
+	inv.clues_on_card = 0
+	inv.horror_taken = 0
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12062")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.tokens.uses.erase(&"charges")
+	if h.ctx.triggered_abilities.list_action_abilities(&"inv_1").is_empty():
+		h.ctx.triggered_abilities.install_card(&"inv_1", card_id)
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	return (
+		bool(result.get("ok", false))
+		and inv.horror_taken == 1
+		and card.zone == AhcEnums.Zone.DISCARD
 	)
 
 

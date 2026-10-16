@@ -6,7 +6,7 @@
     "skipped": 30,
     "ability_compile_summary": {
       "segment_total": 84,
-      "compiled_total": 37,
+      "compiled_total": 39,
       "by_kind": {
         "reaction": 18,
         "fast": 16,
@@ -20,9 +20,9 @@
         "take_damage": 4,
         "nest_draw_investigator": 2,
         "skill_test": 1,
-        "place_token": 12,
-        "seq": 3,
+        "unknown": 16,
         "gain_resources": 4,
+        "seq": 1,
         "place_doom_on_source": 1,
         "take_horror": 1,
         "discard_source": 3
@@ -715,11 +715,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "ammo",
-        "amount": 6,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "ammo",
+            "amount": 6,
+            "card_id": "source"
+          }
+        }
       },
       {
         "segment_index": 1,
@@ -733,44 +737,80 @@
           "fight"
         ],
         "status": "full",
-        "template": "seq",
         "translation": "full_expand",
-        "steps": [
+        "gates": [
           {
-            "template": "spend_token",
-            "flow_id": "seq.effect.spend_token",
-            "kind": "ammo",
+            "kind": "occasion",
+            "window": "during_your_turn"
+          },
+          {
+            "kind": "cost",
+            "cost": "action",
+            "amount": 1
+          },
+          {
+            "kind": "cost",
+            "cost": "spend_token",
+            "token": "ammo",
             "amount": 1,
             "card_id": "source"
           },
           {
-            "template": "pick_target",
+            "kind": "candidates",
             "filter": "enemy_fight_target",
-            "prompt_id": "pick:fight_enemy",
-            "memory_key": "picked_enemy"
-          },
-          {
-            "template": "register_modifier",
-            "flow_id": "seq.effect.register",
-            "stat": "combat",
-            "amount": 1,
-            "duration": "this_skill_test"
-          },
-          {
-            "template": "nest_skill_test",
-            "flow_id": "seq.skill_test",
-            "skill": "combat",
-            "difficulty_source": "enemy_fight",
-            "enemy": "memory:picked_enemy",
-            "st7": {
-              "on_success": {
-                "template": "deal_damage_enemy",
+            "min": 1
+          }
+        ],
+        "deps": [
+          "occasion:during_your_turn",
+          "actions_remaining@controller",
+          "uses.ammo@source",
+          "candidates:enemy_fight_target"
+        ],
+        "effect": {
+          "op": "seq",
+          "steps": [
+            {
+              "op": "pi",
+              "kind": "select",
+              "filter": "enemy_fight_target",
+              "prompt_id": "pick:fight_enemy",
+              "bind": {
+                "key": "picked_enemy",
+                "shape": "entity"
+              }
+            },
+            {
+              "op": "invoke",
+              "flow_id": "seq.effect.register",
+              "params": {
+                "stat": "combat",
+                "amount": 1,
+                "duration": "this_skill_test"
+              }
+            },
+            {
+              "op": "invoke",
+              "flow_id": "seq.skill_test",
+              "params": {
+                "skill": "combat",
+                "difficulty_source": "enemy_fight",
                 "enemy": "memory:picked_enemy",
-                "amount": 2
+                "st7": {
+                  "on_success": {
+                    "op": "invoke",
+                    "flow_id": "seq.effect.damage",
+                    "params": {
+                      "target": "memory:picked_enemy",
+                      "amount": 2,
+                      "kind": "damage"
+                    }
+                  }
+                }
               }
             }
-          }
-        ]
+          ]
+        }
       }
     ],
     "uses": {
@@ -1384,11 +1424,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "ammo",
-        "amount": 3,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "ammo",
+            "amount": 3,
+            "card_id": "source"
+          }
+        }
       }
     ],
     "uses": {
@@ -1799,11 +1843,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "secrets",
-        "amount": 4,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "secrets",
+            "amount": 4,
+            "card_id": "source"
+          }
+        }
       }
     ],
     "uses": {
@@ -1930,11 +1978,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "ammo",
-        "amount": 4,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "ammo",
+            "amount": 4,
+            "card_id": "source"
+          }
+        }
       }
     ],
     "uses": {
@@ -2395,11 +2447,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "charges",
-        "amount": 3,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "charges",
+            "amount": 3,
+            "card_id": "source"
+          }
+        }
       }
     ],
     "uses": {
@@ -2520,11 +2576,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "charges",
-        "amount": 4,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "charges",
+            "amount": 4,
+            "card_id": "source"
+          }
+        }
       }
     ],
     "uses": {
@@ -2611,11 +2671,8 @@
           "activate",
           "investigate"
         ],
-        "status": "partial",
+        "status": "full",
         "translation": "full_expand",
-        "pending": [
-          "st4_cultist_remove_charge_or_horror_discard"
-        ],
         "gates": [
           {
             "kind": "occasion",
@@ -2649,41 +2706,89 @@
                 "op": "seq",
                 "steps": [
                   {
-                    "op": "invoke",
-                    "flow_id": "seq.effect.discover_clue",
-                    "params": {
-                      "location_id": "controller_location",
-                      "amount": 1
-                    }
-                  },
-                  {
                     "op": "pi",
                     "kind": "optional",
                     "prompt_id": "may:spend_charge_extra_clue",
+                    "bind": {
+                      "key": "spent_charge_extra_clue",
+                      "shape": "bool"
+                    },
                     "body": {
-                      "op": "seq",
-                      "steps": [
-                        {
-                          "op": "invoke",
-                          "flow_id": "seq.effect.spend_token",
-                          "params": {
-                            "kind": "charges",
-                            "amount": 1,
-                            "card_id": "source"
-                          }
-                        },
-                        {
-                          "op": "invoke",
-                          "flow_id": "seq.effect.discover_clue",
-                          "params": {
-                            "location_id": "controller_location",
-                            "amount": 1
-                          }
-                        }
-                      ]
+                      "op": "invoke",
+                      "flow_id": "seq.effect.spend_token",
+                      "params": {
+                        "kind": "charges",
+                        "amount": 1,
+                        "card_id": "source"
+                      }
+                    }
+                  },
+                  {
+                    "op": "if",
+                    "condition": {
+                      "condition": "memory_bool_eq",
+                      "memory_key": "spent_charge_extra_clue",
+                      "value": true
+                    },
+                    "then": {
+                      "op": "invoke",
+                      "flow_id": "seq.effect.discover_clue",
+                      "params": {
+                        "location_id": "controller_location",
+                        "amount": 2
+                      }
+                    },
+                    "else": {
+                      "op": "invoke",
+                      "flow_id": "seq.effect.discover_clue",
+                      "params": {
+                        "location_id": "controller_location",
+                        "amount": 1
+                      }
                     }
                   }
                 ]
+              }
+            },
+            "st4": {
+              "on_symbols": {
+                "cultist": {
+                  "op": "if",
+                  "condition": {
+                    "condition": "card_uses_ge",
+                    "card_id": "source",
+                    "kind": "charges",
+                    "amount": 1
+                  },
+                  "then": {
+                    "op": "invoke",
+                    "flow_id": "seq.effect.spend_token",
+                    "params": {
+                      "kind": "charges",
+                      "amount": 1,
+                      "card_id": "source"
+                    }
+                  },
+                  "else": {
+                    "op": "seq",
+                    "steps": [
+                      {
+                        "op": "invoke",
+                        "flow_id": "seq.effect.damage",
+                        "params": {
+                          "kind": "horror",
+                          "amount": 1,
+                          "target": "controller"
+                        }
+                      },
+                      {
+                        "template": "discard_source",
+                        "flow_id": "seq.effect.discard_card",
+                        "card_id": "source"
+                      }
+                    ]
+                  }
+                }
               }
             }
           }
@@ -2857,11 +2962,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "charges",
-        "amount": 3,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "charges",
+            "amount": 3,
+            "card_id": "source"
+          }
+        }
       }
     ],
     "uses": {
@@ -2960,11 +3069,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "charges",
-        "amount": 4,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "charges",
+            "amount": 4,
+            "card_id": "source"
+          }
+        }
       }
     ],
     "uses": {
@@ -3071,11 +3184,15 @@
           "sequence_id": "seq.zone.move",
           "slot": "ENTER_PLAY"
         },
-        "template": "place_token",
-        "flow_id": "seq.effect.place_token",
-        "kind": "supplies",
-        "amount": 3,
-        "card_id": "source"
+        "effect": {
+          "op": "invoke",
+          "flow_id": "seq.effect.place_token",
+          "params": {
+            "kind": "supplies",
+            "amount": 3,
+            "card_id": "source"
+          }
+        }
       }
     ],
     "uses": {

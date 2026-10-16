@@ -278,6 +278,11 @@ func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:
 			ctx.chaos_modifier -= _state.current_act_number
 		_:
 			ctx.chaos_modifier += token.modifier
+	## 卡面 ST.4 on_symbols（如 12062 cultist）：在袋/场景修正之后内联执行。
+	if ctx.st4_on_symbol.has(token.kind):
+		var card_fx: Variant = ctx.st4_on_symbol[token.kind]
+		if card_fx is Callable and (card_fx as Callable).is_valid():
+			(card_fx as Callable).call(ctx)
 
 
 func _matching_icon_bonus(card: CardInstance, skill: AhcEnums.SkillType) -> int:

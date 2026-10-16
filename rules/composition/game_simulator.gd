@@ -133,6 +133,13 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		card.zone = card_src.zone
 		card.zone_index = card_src.zone_index
 		card.exhausted = card_src.exhausted
+		## Uses / 标记：optional spend_token dry-run 须见真实 charges。
+		if card_src.tokens != null:
+			card.tokens.damage = card_src.tokens.damage
+			card.tokens.horror = card_src.tokens.horror
+			card.tokens.doom = card_src.tokens.doom
+			card.tokens.clue = card_src.tokens.clue
+			card.tokens.uses = card_src.tokens.uses.duplicate()
 		copy.registry.register_card(card)
 	for loc_id in src.registry.all_location_ids():
 		var loc_src := src.registry.get_location(loc_id)

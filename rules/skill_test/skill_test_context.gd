@@ -21,6 +21,8 @@ var target_enemy_id: StringName = &""
 var on_success: Callable
 var on_fail: Callable
 var st7_fail_by_effects: Array[Callable] = []
+## ChaosTokenKind (int) → Callable：ST.4 卡面符号效果（与袋/场景修正并列）。
+var st4_on_symbol: Dictionary = {}
 var waiting_player_window: bool = false
 var pending_player_window: AhcEnums.PlayerWindow = AhcEnums.PlayerWindow.PW_SKILL_TEST_AFTER_COMMIT
 var current_step: AhcEnums.SkillTestStep = AhcEnums.SkillTestStep.ST_1_BEGIN

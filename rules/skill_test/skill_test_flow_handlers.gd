@@ -13,6 +13,7 @@ static func run_revelation_test(game_ctx: GameContext, params: Dictionary) -> Di
 	var card_id: StringName = params.get("card_id", &"")
 	var st7_body: Variant = params.get("st7_fail_by_composition")
 	var st7_plan: Variant = params.get("st7_plan")
+	var st4_plan: Variant = params.get("st4_plan")
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
 	test.skill = skill
@@ -26,6 +27,8 @@ static func run_revelation_test(game_ctx: GameContext, params: Dictionary) -> Di
 		SkillTestSt7Composition.register_fail_by_loop(
 			test, game_ctx, st7_body as CompositionNode
 		)
+	if st4_plan is SkillTestSt4Plan:
+		SkillTestSt4Composition.register_plan(test, game_ctx, st4_plan as SkillTestSt4Plan)
 	if game_ctx.memory != null:
 		EncounterPeril.sync_test_context_from_frame(test, game_ctx)
 	var result := game_ctx.skill_tests.run_full_test(test, game_ctx)
