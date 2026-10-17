@@ -43,14 +43,20 @@ class ChaosToken:
 ```gdscript
 class ChaosBag:
     var tokens: Array[ChaosToken]
-    var revealed_this_test: Array[ChaosToken]
+    var revealed_this_test: Array[ChaosToken]   # 物理工作区
+    var reveal_ledger: Array[ChaosRevealRecord] # 本 scope 账本
+    var reveal_scope_id: StringName
 
+    func begin_reveal_scope(scope_id) / end_reveal_scope()
     func shuffle() -> void
-    func draw_random() -> ChaosToken
+    func draw_random(source := &"skill_test") -> ChaosToken
+    func reveal_for_ability(amount) -> Array[ChaosToken]
+    func finalize_ability_reveal(tokens) -> void  # 回袋；账本保留
+    func cancel_reveal(token) -> void
+    func has_uncanceled_kind(kind) / count_uncanceled_kind(kind)
     func return_token(t: ChaosToken) -> void
     func return_all_revealed() -> void
     func add_token(t: ChaosToken) -> void
-    func remove_token(t: ChaosToken) -> void
 ```
 
 ### 2.3 ScenarioReferenceDefinition
@@ -86,19 +92,27 @@ class ChaosBagSystem:
 ## 4. 揭示流程（与 ST.3–ST.4 协作）
 
 ```
-ST.3: token = bag.draw_random()
-      ctx.revealed_tokens.append(token)
-ST.4: match token.kind:
-        SKULL/CULTIST/... → reference.symbol_effects[kind].execute(ctx)
-          · modifier 部分 → 写入 ctx（ST.5 重算）
-          · 「fail by X+ …」类文本 → 注册 ST.7 fail 回调（**不在 ST.4 执行**，见 OQ-05-03）
-        ELDER_SIGN → investigator.elder_sign_ability.execute(ctx)
-        AUTO_FAIL → ctx.auto_fail = true
-        NUMERIC → 仅 modifier
-        CAMPAIGN_CUSTOM → ScenarioScript.resolve_chaos_symbol(id, ctx)
-      若文本 "Reveal another token" → 递归 ST.3→ST.4（不回 ST.2；递归中无 Player Window；见 04 §3.4 OQ-04-01）
-      整链结束后 → PW_SKILL_TEST_AFTER_REVEAL → ST.5
+ST.1 begin → bag.begin_reveal_scope(test_id)
+ST.3: token = bag.draw_random(source=skill_test)
+      ctx.revealed_tokens.append(token)   # 物理工作区 + 账本
+ST.4: match token.kind: …（符号效果；reveal another → 再 ST.3）
+整链结束 → PW_SKILL_TEST_AFTER_REVEAL（窗内能力揭示写入同一账本）
+         → ST.4 后门槛 resolve_post_st4_if_revealed_gate（只读账本）
+         → ST.5 …
+ST.8 → return_all_revealed + end_reveal_scope
 ```
+
+### 4.1 检定揭示账本（已裁决 · 引擎标准）
+
+| 概念 | 含义 |
+|---|---|
+| **物理工作区** `revealed_this_test` | 尚未归袋；ST.8 清空 |
+| **揭示账本** `reveal_ledger` | 本 scope 每次揭示一行；可已归袋；整枚 Cancel → `canceled` |
+| **ST.4 后门槛** | *If … is revealed* 延时不在每个 ST.3 开火；PW_AFTER_REVEAL 关闭后查账本（binary / for-each） |
+
+**能力揭示 disposition**：`reveal_for_ability` → 帧末 `finalize_ability_reveal` 必须回袋（账本保留）。禁止悬置。
+
+**Cancel**：整枚 Cancel → 门槛不算揭示过。Ignore 是否剔除账本见 OQ-05-05。
 
 ---
 
@@ -106,13 +120,14 @@ ST.4: match token.kind:
 
 | 类型 | 时点 | 示例 |
 |---|---|---|
-| **Modifier** | ST.4 注册 → ST.5 重算 | Skull `–X` |
-| **Fail by 条件后果** | **ST.7**（作为失败效果的一部分） | Spreading Flames Skull「fail by 2+ draw Fire!」 |
+| **modifier** | ST.4 注册 → ST.5 重算 | Skull `-X` |
+| **Fail by 条件后果** | **ST.7** | Spreading Flames Skull |
 | Reveal another token | ST.4 内递归 ST.3 | — |
+| ***If … is revealed* 延时** | **ST.4 后门槛**（查账本） | 混乱之眼 0 binary；4 级 for-each |
 
-- ST.6 仅判定 success/fail 并计算 `fail_by = difficulty - modified`
-- ST.7 读取 `fail_by`，执行已注册的 fail by 条件效果
-- Ignore chaos token：token 算已 draw 但 modifier/effect 不应用（Grimoire Ignore）
+- ST.6 仅判定 success/fail 并计算 `fail_by`
+- ST.7 执行已注册 fail by 后果
+- Ignore：modifier/effect 不施加；是否仍入未取消账本待 OQ-05-05
 
 ---
 
@@ -168,7 +183,7 @@ class ChaosBagSnapshot:
 |---|---|
 | Seal token | `bag.seal(token)` |
 | Bless/Curse | 额外 token kind |
-| Pull from bag without test | `bag.draw_random()` + manual return |
+| Pull from bag without test / 能力揭示 | `reveal_for_ability` + **强制** `finalize_ability_reveal` |
 | Empty bag | 不应发生；若 token 被 remove 至 0 → 错误日志 |
 
 ---
@@ -183,6 +198,10 @@ class ChaosBagSnapshot:
 | C-04 | Elder Sign Joe | +1; succeed 分支 |
 | C-05 | ST.8 return token | bag count 恢复 |
 | C-06 | 战役 scenario 2 继承 bag | snapshot restore |
+| BAG-LEDGER-01 | 检定揭示入账本；ST.8 清空 scope | 物理堆空；ledger 空 |
+| BAG-LEDGER-02 | 能力揭示 curse → finalize 归袋 → ST.4 后 binary | 门槛一次；袋守恒 |
+| BAG-LEDGER-03 | Cancel 后门槛看不到 | `has_uncanceled_kind` false |
+| BAG-LEDGER-04 | mode=each × N curse | 回调 N 次 |
 
 ---
 
@@ -201,6 +220,7 @@ class ChaosBagSnapshot:
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（作为失败效果的一部分）。ST.6 仅判定 fail 并计算 `fail_by` 数值。见 §5。 | 2026-05-25 |
+| OQ-05-07 | **检定揭示账本 + ST.4 后门槛**：*If … is revealed* 延时查阅 `reveal_ledger`（未 Cancel）；能力揭示帧末必须归袋。见 §4.1。 | 2026-10-17 |
 
 ---
 
@@ -210,3 +230,4 @@ class ChaosBagSnapshot:
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-05-03 裁决：fail by 效果在 ST.7 结算 |
+| 2026-10-17 | v0.3 | §4.1 揭示账本；ST.4 后 *If revealed* 门槛；能力揭示强制归袋（OQ-05-07） |

@@ -27,3 +27,8 @@ var current_step: AhcEnums.SkillTestStep = AhcEnums.SkillTestStep.ST_1_BEGIN
 var ally_committed: bool = false
 var success_applied: bool = false
 var fail_applied: bool = false
+## ST.4 后 *If … is revealed* 门槛：查混乱袋揭示账本后回调。
+## 项：{ "kind": ChaosTokenKind(int), "mode": &"any"|"each", "on_match": Callable }
+var post_st4_if_revealed: Array[Dictionary] = []
+## 最近一次 ST.4 后门槛快照（测试 / 延时读取）。
+var post_st4_reveal_snapshot: Dictionary = {}

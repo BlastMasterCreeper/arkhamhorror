@@ -38,6 +38,7 @@ func begin_test(ctx: SkillTestContext, game_ctx: GameContext = null) -> SkillTes
 		ctx.id = StringName("skill_test_%d" % _next_id)
 	_stack.append(ctx)
 	_sync_stack(game_ctx)
+	_state.chaos_bag.begin_reveal_scope(ctx.id)
 	ctx.current_step = AhcEnums.SkillTestStep.ST_1_BEGIN
 	_advance_step(AhcEnums.SkillTestStep.ST_1_BEGIN, ctx)
 	if _timing:
@@ -105,9 +106,49 @@ func resolve_reveal_chain(ctx: SkillTestContext) -> void:
 		var reveal_again := step_apply_symbol_effects(ctx)
 		if not reveal_again:
 			break
+	## ST.4 链结束 → PW_AFTER_REVEAL（窗内能力揭示写入账本）→ 窗关后门槛 → ST.5。
 	_open_player_window(ctx, AhcEnums.PlayerWindow.PW_SKILL_TEST_AFTER_REVEAL)
+
+
+func continue_after_reveal_window(ctx: SkillTestContext) -> void:
+	resolve_post_st4_if_revealed_gate(ctx)
 	step_calculate_modified_value(ctx)
 	step_determine_success(ctx)
+
+
+## ST.4 揭示+符号链结束后的统一门槛：只读 `ChaosBag` 揭示账本（未 Cancel）。
+func resolve_post_st4_if_revealed_gate(ctx: SkillTestContext) -> Dictionary:
+	var bag := _state.chaos_bag
+	var snap := {
+		"scope_id": bag.reveal_scope_id,
+		"uncanceled": bag.uncanceled_records().duplicate(),
+	}
+	ctx.post_st4_reveal_snapshot = snap
+	for entry in ctx.post_st4_if_revealed:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var kind: int = int(entry.get("kind", -1))
+		if kind < 0:
+			continue
+		var mode: StringName = entry.get("mode", &"any")
+		var cb: Variant = entry.get("on_match")
+		if typeof(cb) != TYPE_CALLABLE or not (cb as Callable).is_valid():
+			continue
+		var count := bag.count_uncanceled_kind(kind as AhcEnums.ChaosTokenKind)
+		if count <= 0:
+			continue
+		if mode == &"each":
+			for _i in range(count):
+				(cb as Callable).call(ctx, kind, 1)
+		else:
+			## any / binary：整次门槛至多一次
+			(cb as Callable).call(ctx, kind, count)
+	if _timing:
+		_timing.emit_timing(
+			&"skill_test_post_st4_if_revealed",
+			{"test_id": ctx.id, "uncanceled_count": bag.uncanceled_records().size()}
+		)
+	return snap
 
 
 func step_reveal_token(ctx: SkillTestContext) -> ChaosToken:
@@ -187,6 +228,7 @@ func step_end(ctx: SkillTestContext, game_ctx: GameContext = null) -> void:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_8_END
 	_discard_committed(ctx)
 	_state.chaos_bag.return_all_revealed()
+	_state.chaos_bag.end_reveal_scope()
 	if _stack.size() > 0 and _stack[_stack.size() - 1] == ctx:
 		_stack.pop_back()
 	_sync_stack(game_ctx)
@@ -204,6 +246,7 @@ func run_full_test(ctx: SkillTestContext, game_ctx: GameContext = null, commits:
 	close_player_window(ctx)
 	resolve_reveal_chain(ctx)
 	close_player_window(ctx)
+	continue_after_reveal_window(ctx)
 	step_apply_results(ctx)
 	if game_ctx != null:
 		RetaliateAlertResolver.resolve_post_st7(game_ctx, ctx)
