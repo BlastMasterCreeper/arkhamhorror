@@ -233,6 +233,10 @@ func _initialize() -> void:
 	_run_test("PERIL-07 peril registers via seq.effect.register", _test_peril_register_no_vacuum)
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
+	_run_test("BAG-LEDGER-01 skill reveal ledger clears at ST.8", _test_bag_ledger_skill_reveal)
+	_run_test("BAG-LEDGER-02 ability curse gate binary after ST.4", _test_bag_ledger_ability_curse_gate)
+	_run_test("BAG-LEDGER-03 cancel excludes from gate", _test_bag_ledger_cancel_excludes)
+	_run_test("BAG-LEDGER-04 for-each mode fires per curse", _test_bag_ledger_each_mode)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
 	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
 	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
@@ -5272,7 +5276,120 @@ func _test_st_end_cleanup() -> bool:
 		and card.zone == AhcEnums.Zone.DISCARD
 		and h.ctx.state.chaos_bag.tokens.size() == 1
 		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
+		and h.ctx.state.chaos_bag.reveal_ledger.is_empty()
+		and h.ctx.state.chaos_bag.reveal_scope_id == &""
 	)
+
+
+func _test_bag_ledger_skill_reveal() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0, &"n0")])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	st.run(test)
+	return (
+		h.ctx.state.chaos_bag.tokens.size() == 1
+		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
+		and h.ctx.state.chaos_bag.reveal_ledger.is_empty()
+	)
+
+
+func _test_bag_ledger_ability_curse_gate() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"curse_1")
+	## 先只放 curse，保证能力揭示确定性；ST.3 前再补 numeric。
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.post_st4_if_revealed = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	## Rod 式：检定窗内能力揭示 curse 后归袋，账本保留。
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n0"))
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		flags.fires == 1
+		and pulled.size() == 1
+		and pulled[0].kind == AhcEnums.ChaosTokenKind.CURSE
+		and h.ctx.state.chaos_bag.tokens.size() == 2
+		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
+		and h.ctx.state.chaos_bag.reveal_ledger.is_empty()
+	)
+
+
+func _test_bag_ledger_cancel_excludes() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"curse_x")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.post_st4_if_revealed = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.cancel_reveal(pulled[0])
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	## 撤出袋外，避免 ST.3 再次抽到同一枚形成「新揭示」账本行。
+	h.ctx.state.chaos_bag.tokens.clear()
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(1, &"n1"))
+	var saw_curse_before_gate := h.ctx.state.chaos_bag.has_uncanceled_kind(
+		AhcEnums.ChaosTokenKind.CURSE
+	)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		not saw_curse_before_gate
+		and flags.fires == 0
+		and h.ctx.state.chaos_bag.tokens.size() == 1
+	)
+
+
+func _test_bag_ledger_each_mode() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c1 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c1")
+	var c2 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c2")
+	GameBootstrap.setup_chaos_bag(h.ctx, [c1, c2])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.post_st4_if_revealed = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"each", "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(2)
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n0"))
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return flags.fires == 2 and pulled.size() == 2 and h.ctx.state.chaos_bag.tokens.size() == 3
 
 
 func _test_act_investigate_success() -> bool:
