@@ -5994,6 +5994,12 @@ func _test_bag_ledger_ability_curse_gate() -> bool:
 	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
 	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
 	var fires_after_rod: int = int(flags.fires)
+	## 能力揭示 curse 须回袋（非 pool）；ST.3 改用 numeric，避免检定再揭 curse 走符号能力。
+	var bag_after_rod: bool = (
+		h.ctx.state.chaos_bag.tokens.has(curse)
+		and h.ctx.state.chaos_bag.chaos_token_pool.is_empty()
+	)
+	h.ctx.state.chaos_bag.tokens.clear()
 	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n0"))
 	h.ctx.skill_tests.resolve_reveal_chain(test)
 	h.ctx.skill_tests.close_player_window(test)
@@ -6003,9 +6009,10 @@ func _test_bag_ledger_ability_curse_gate() -> bool:
 	return (
 		fires_after_rod == 1
 		and flags.fires == 1
+		and bag_after_rod
 		and pulled.size() == 1
 		and pulled[0].kind == AhcEnums.ChaosTokenKind.CURSE
-		and h.ctx.state.chaos_bag.tokens.size() == 2
+		and h.ctx.state.chaos_bag.tokens.size() == 1
 		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
 		and h.ctx.state.chaos_bag.reveal_ledger.is_empty()
 	)
