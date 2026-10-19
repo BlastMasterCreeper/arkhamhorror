@@ -49,6 +49,21 @@ class SkillTestContext:
 
 ## 3. ST.1 – ST.8 逐步 API
 
+### 3.0 发动后必须尽量走完（已裁决 · OQ-04-04）
+
+**发动（initiate）之后不存在「取消整次技能检定」。** FAQ：once initiated, resolve as completely as possible（括号里的 *unless another effect cancels or interrupts it* 无具名「整次检定 Cancel」先例）。
+
+| 易混对象 | 实际语义 | 检定是否继续 |
+|---|---|---|
+| Cancel **chaos token**（Wendy 等） | 该揭示视为未发生；可再揭 | **是**（无 token 修饰也照常比难度） |
+| Cancel **失败效果**（Neither Rain nor Snow 等） | 取消失败衍生后果（ST.6/7 等） | **是**（仍失败过） |
+| Cancel **投入牌效果/图标**（剧本参考卡等） | 仅 committed skill 文本/图标 | **是** |
+| **自动成功/失败**（ST.3 前已知） | 跳过 ST.3–ST.4；难度/技能值按规则改写 | **是**（检定仍发生） |
+| **从不发动**（如自动躲避） | 无技能检定 | —（无 ST 栈） |
+
+引擎 **不**提供 `cancel_test()`；Cancel 只落在 token / 符号能力 / 卡面效果后果上（见 §3.3 回溯锚点）。
+
+
 ```gdscript
 class SkillTestEngine:
     func begin_test(ctx: SkillTestContext) -> SkillTestHandle
@@ -388,8 +403,8 @@ class SkillTestAPI:
     func is_successful() -> bool
     func add_modifier(delta: int, source: EffectSource) -> void
     func commit_card(from_inv: StringName, card: EntityId) -> Result
-    func cancel_test() -> Result                    # 仅当有 cancel 效果
     func set_auto_fail() -> void
+    # 无 cancel_test：发动后不取消整次检定（OQ-04-04）
 ```
 
 ---
@@ -424,7 +439,6 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-04-04 | P1 | Cancel 整个 skill test vs Cancel 单个 chaos token：状态回滚深度？ |
 | OQ-04-05 | P2 | ~~同时 reveal 多 token：ST.3 扩展协议？~~ → **已裁决** 见 05 §4.2 |
 | OQ-04-06 | P1 | Committed 的 skill 在 ST.7 前被 discard 的 edge case（Limbo 保护）？ |
 
@@ -433,6 +447,7 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-04-01 | Player Window 在 **ST.2 前后**（commit 后一次）及 **ST.3–ST.4 整链结束后**（`PW_SKILL_TEST_AFTER_REVEAL`，进入 ST.5 前一次）。「Reveal another token」**仅递归 ST.3→ST.4**，不回 ST.2，递归中 **无 Player Window**。 | 2026-05-25 |
+| OQ-04-04 | **无「取消整次技能检定」。** 发动后尽量走完 ST.1–ST.8。Cancel token / 失败效果 / 投入图标 ≠ 取消检定；自动成功跳过 ST.3–4 仍是检定。见 §3.0。 | 2026-10-19 |
 | OQ-04-05 | 多能力同时替换揭示：**一次 ST.3** + 意图规划（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](05-chaos-bag.md)。 | 2026-10-19 |
 | OQ-04-07 | **隐式符号能力**融合 ST.3/ST.4：揭示产出 token → 发起符号能力（modifier+效果）；回溯/空白/Ignore 均以该能力为锚。见 §3.3–3.4。 | 2026-10-19 |
 | OQ-04-02 | **Peril = 遭遇帧内持续 Cannot**（§4）；嵌套检定 ST.8 后入队仍不可协助。见 §4、§6。 | 2026-05-25 |
@@ -458,3 +473,4 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | 2026-10-19 | v0.7 | §3.3–3.4：多能力揭示意图（OQ-04-05）；ST.4 扫本批 resolved |
 | 2026-10-19 | v0.8 | §3.3–3.4：隐式符号能力融合 ST.3/ST.4（OQ-04-07）；回溯锚点 |
 | 2026-10-19 | v0.9 | 符号能力挂参考卡；ST.4 经卡上 `symbol_abilities`；空白可卸 |
+| 2026-10-19 | v0.10 | §3.0 / OQ-04-04：发动后无取消整次检定；删 API `cancel_test` 设想 |

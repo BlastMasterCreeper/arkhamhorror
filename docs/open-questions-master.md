@@ -83,7 +83,7 @@
 | OQ-08-01 | [08-enemy](design/08-enemy-engagement.md) | Hunter 等距 + Prey？ | **等距子集 → Prey 过滤 → Lead 选**；Prey 不可选非等距。见 08 §4。 |
 | OQ-03-06 | [03-action](design/03-action-system.md) | Play asset 时 slot 弃置：玩家选顺序还是引擎默认最旧 asset？ | |
 | OQ-04-03 | [04-skill-test](design/04-skill-test-engine.md) | Symbol 效果在 ST.4 发起 fight 嵌套检定，父检定 ST.5 是否等待子检定完成？ | **否。** 子检定入队；父 ST.5→ST.8 不等待；父 ST.8 后执行。 |
-| OQ-04-04 | [04-skill-test](design/04-skill-test-engine.md) | Cancel 整个 skill test vs Cancel 单个 chaos token：状态回滚深度？ | |
+| OQ-04-04 | [04-skill-test](design/04-skill-test-engine.md) | ~~Cancel 整个 skill test vs Cancel 单个 chaos token？~~ | **无整次检定 Cancel。** 发动后尽量走完；Cancel token / 失败效果 / 投入图标 ≠ 取消检定。见 [04 §3.0](design/04-skill-test-engine.md)。 |
 | OQ-04-06 | [04-skill-test](design/04-skill-test-engine.md) | Committed 的 skill 在 ST.7 前被 discard 的 edge case（Limbo 保护）？ | |
 | OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | ~~冒险参考卡 JSON vs ScenarioScript？~~ → **JSON-first**（SF 竖切） | 2026-10-19 |
 | OQ-05-02 | [05-chaos-bag](design/05-chaos-bag.md) | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ | |
