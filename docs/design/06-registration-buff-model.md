@@ -455,7 +455,7 @@ on_card_leave_play(card)
 |---|---|---|---|---|
 | 资产 / 敌人 Constant、Forced、`[reaction]`、`[action]`、`[free]` | **ENTER_PLAY** | **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | 地点 Constant / `[free]` | 地点揭示进场 | 地点离场 / 被替换 | `WHILE_IN_PLAY` | PLAY |
-| 密谋 / 场景 Forced、Constant | 成为当前卡（`seq.setup` 或推进后进场） | **翻面离场**（a 面卸 `WHILE_IN_PLAY`；效果造的 `DURATION`/`UNTIL_FIRED` **保留**） | `WHILE_IN_PLAY` | PLAY |
+| 密谋（Agenda）/ 场景（Act）Forced、Constant | 成为当前卡（`seq.setup` 或推进后进场） | **翻面离场**（a 面卸 `WHILE_IN_PLAY`；效果造的 `DURATION`/`UNTIL_FIRED` **保留**） | `WHILE_IN_PLAY` | PLAY |
 | 调查员卡能力 | `seq.setup`（调查员开局即在场） | 淘汰 **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | **显现** Revelation | **不**长期 Register；抽到时 nest `seq.encounter.revelation` / `seq.enter_hand` | 子流程 pop | 无 | LIMBO / 入手瞬间 |
 | 隐私牌上的 Constant / Forced / `[reaction]` | **ENTER_HAND**（与 Hidden 同时） | **LEAVE_HAND** | `WHILE_HIDDEN_IN_HAND` | **HAND** |
@@ -731,7 +731,7 @@ class ListenerPayload:
 | 来源 | Register 场合 | 典型 Lifetime | 注销 |
 |---|---|---|---|
 | 资产 / 敌人印刷 Forced、`[reaction]`、`[free]` | `ENTER_PLAY` | `WHILE_IN_PLAY` | `LEAVE_PLAY` |
-| 密谋 / 场景印刷 Forced | 成为当前卡 | `WHILE_IN_PLAY` | 翻面离场（效果造的延时 **保留**） |
+| 密谋（Agenda）/ 场景（Act）印刷 Forced | 成为当前卡 | `WHILE_IN_PLAY` | 翻面离场（效果造的延时 **保留**） |
 | 隐私牌 Constant / Forced | `ENTER_HAND` | `WHILE_HIDDEN_IN_HAND` | `LEAVE_HAND` |
 | 显现 | **不**长期 Register；抽到 nest | — | 子流程 pop |
 | 关键词涌动 | `seq.draw.encounter` WHEN / 效果 GRANT 砖 | `UNTIL_FIRED` | 同流程 AFTER 开火后 |

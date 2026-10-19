@@ -31,7 +31,7 @@
 
 | 前缀 | 对应 | 例 |
 |---|---|---|
-| `seq.framework.*` / `seq.mythos.*` / `seq.agenda.*` / `seq.act.*` | Framework / 议程法令 | `seq.mythos.place_doom` |
+| `seq.framework.*` / `seq.mythos.*` / `seq.agenda.*` / `seq.act.*` | Framework / 密谋·场景 | `seq.mythos.place_doom` |
 | `seq.draw.*` | Drawing Cards（调查员 / 遭遇） | `seq.draw.investigator` |
 | `seq.encounter.*` | 遭遇卡结算 nest 体 | `seq.encounter.revelation` |
 | `seq.enter_hand` | 入手显现入口（跨来源） | NEST_BATCH |
