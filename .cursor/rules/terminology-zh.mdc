@@ -35,7 +35,7 @@ alwaysApply: true
 | **Scenario Reference Card** | **冒险参考卡** | 本场符号效果表（Skull/Cultist…）；`ScenarioReferenceDefinition` |
 | **Act** | **场景** | Act 牌库 / 当前场景卡；推进对调查员有利；≠ **冒险（Scenario）** |
 | **Agenda** | **密谋** | Agenda 牌库 / 当前密谋卡；doom 阈值推进；≠ 场景 |
-| **Campaign** | **剧本** | 多场冒险组成的战役线；`CampaignState` / `CampaignLog`；≠ 单场 **冒险（Scenario）**；勿译「战役」 |
+| **Campaign** | **剧本** | 多场冒险组成的长线；`CampaignState` / `CampaignLog`；≠ 单场 **冒险（Scenario）**；勿译「战役」 |
 | **Fight** | **攻击** | 调查员行动（Fight action）；`seq.action.fight`；≠ 敌人 perform attack |
 | **Investigate** | **调查** | 调查员行动；`seq.action.investigate` |
 | **Engage** | **接战** | 调查员行动；主动与敌人交战；`seq.action.engage` / `seq.engage` |

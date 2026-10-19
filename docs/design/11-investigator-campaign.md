@@ -172,7 +172,7 @@ Weakness 是子类型；**结算键是卡面能力体系**（类型给出默认�
   ├── ASSET              → INVESTIGATOR 包 → hand → play asset
   ├── EVENT              → INVESTIGATOR 包 → hand → play event
   └── SKILL              → INVESTIGATOR 包 → hand → commit skill
-Weakness 子类型只调 owner / bearer / 战役残留，不另开管线
+Weakness 子类型只调 owner / bearer / 剧本残留，不另开管线
 可抽遭遇类型 = 诡计 / 敌人 / 地点（前两者为遭遇库大宗）
 ```
 
