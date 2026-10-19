@@ -5403,6 +5403,7 @@ func _test_bag_intent_no_replace() -> bool:
 		ChaosToken.numeric(0, &"n0"),
 		ChaosToken.numeric(1, &"n1"),
 	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_none")
 	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
 		h.ctx.state.chaos_bag, 1, [], h.ctx.interaction, h.ctx, &"inv_1"
 	)
@@ -5422,6 +5423,7 @@ func _test_bag_intent_olive_alone() -> bool:
 		ChaosToken.numeric(2, &"c"),
 		ChaosToken.numeric(3, &"d"),
 	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_olive")
 	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
 	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
 		h.ctx.state.chaos_bag, 1, [olive], h.ctx.interaction, h.ctx, &"inv_1"
@@ -5446,6 +5448,7 @@ func _test_bag_intent_olive_then_statue() -> bool:
 		ChaosToken.numeric(3, &"t3"),
 		ChaosToken.numeric(4, &"t4"),
 	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_olive_statue")
 	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
 	var statue := ChaosRevealReplaceAbility.create(&"statue", &"inv_1", 2, 1)
 	## Olive 先 → 3 叶；Statue 作用 Olive 的第一叶（默认 id 序列展开后的首叶）→ 总叶 4。
@@ -5480,6 +5483,7 @@ func _test_bag_intent_statue_then_olive() -> bool:
 		ChaosToken.numeric(3, &"s3"),
 		ChaosToken.numeric(4, &"s4"),
 	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_statue_olive")
 	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
 	var statue := ChaosRevealReplaceAbility.create(&"statue", &"inv_1", 2, 1)
 	## Statue 先：1→2；Olive 作用 Statue 的一叶（默认取头叶 id）→ 该叶再变 3 → 总叶 4。
