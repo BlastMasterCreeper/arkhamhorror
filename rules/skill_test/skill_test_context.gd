@@ -32,3 +32,9 @@ var fail_applied: bool = false
 var post_st4_if_revealed: Array[Dictionary] = []
 ## 最近一次 ST.4 后门槛快照（测试 / 延时读取）。
 var post_st4_reveal_snapshot: Dictionary = {}
+## ST.3「将要揭示」替换体（Olive / Grotesque Statue 等）；进入 ST.3 时消费。
+var pending_reveal_replace: Array = []
+## 本轮 ST.3 批在 `revealed_tokens` 中的起始下标（供 ST.4 扫本批）。
+var reveal_batch_start: int = 0
+## 最近一次 `ChaosRevealIntentPlanner.plan_and_reveal` 结果（测试 / 审计）。
+var last_reveal_intent: Dictionary = {}

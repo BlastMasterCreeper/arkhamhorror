@@ -67,36 +67,86 @@ func return_all_revealed() -> void:
 		_return_physical(revealed_this_test[0])
 
 
-## 整枚 Cancel：账本视为未揭示（门槛查不到）。
+## 整枚 Cancel：视为从未抽到（Grimoire）；一切「曾揭示」查询排除。
 func cancel_reveal(token: ChaosToken) -> void:
 	var rec := _find_record(token)
 	if rec != null:
 		rec.canceled = true
+		rec.ignored = false
 
 
+## 整枚 Ignore：仍算抽到/揭示，但不 resolve（无修饰/符号；Recall/Eye 门槛不算）。
+func ignore_reveal(token: ChaosToken) -> void:
+	var rec := _find_record(token)
+	if rec == null or rec.canceled:
+		return
+	rec.ignored = true
+
+
+## 未 Cancel（含 Ignore）—「曾揭示 / 曾抽到」。
 func has_uncanceled_kind(kind: AhcEnums.ChaosTokenKind) -> bool:
+	return has_revealed_kind(kind)
+
+
+func count_uncanceled_kind(kind: AhcEnums.ChaosTokenKind) -> int:
+	return count_revealed_kind(kind)
+
+
+func uncanceled_records() -> Array[ChaosRevealRecord]:
+	return revealed_records()
+
+
+func has_revealed_kind(kind: AhcEnums.ChaosTokenKind) -> bool:
 	for rec in reveal_ledger:
-		if rec.canceled:
+		if not rec.was_revealed():
 			continue
 		if rec.kind == kind:
 			return true
 	return false
 
 
-func count_uncanceled_kind(kind: AhcEnums.ChaosTokenKind) -> int:
+func count_revealed_kind(kind: AhcEnums.ChaosTokenKind) -> int:
 	var n := 0
 	for rec in reveal_ledger:
-		if rec.canceled:
+		if not rec.was_revealed():
 			continue
 		if rec.kind == kind:
 			n += 1
 	return n
 
 
-func uncanceled_records() -> Array[ChaosRevealRecord]:
+func revealed_records() -> Array[ChaosRevealRecord]:
 	var out: Array[ChaosRevealRecord] = []
 	for rec in reveal_ledger:
-		if not rec.canceled:
+		if rec.was_revealed():
+			out.append(rec)
+	return out
+
+
+## 未 Cancel 且未 Ignore — ST.4/5 与 FAQ 2.5「resolved」门槛。
+func has_resolved_kind(kind: AhcEnums.ChaosTokenKind) -> bool:
+	for rec in reveal_ledger:
+		if not rec.was_resolved():
+			continue
+		if rec.kind == kind:
+			return true
+	return false
+
+
+func count_resolved_kind(kind: AhcEnums.ChaosTokenKind) -> int:
+	var n := 0
+	for rec in reveal_ledger:
+		if not rec.was_resolved():
+			continue
+		if rec.kind == kind:
+			n += 1
+	return n
+
+
+func resolved_records() -> Array[ChaosRevealRecord]:
+	var out: Array[ChaosRevealRecord] = []
+	for rec in reveal_ledger:
+		if rec.was_resolved():
 			out.append(rec)
 	return out
 

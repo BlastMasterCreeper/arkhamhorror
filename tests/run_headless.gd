@@ -237,6 +237,14 @@ func _initialize() -> void:
 	_run_test("BAG-LEDGER-02 ability curse gate binary after ST.4", _test_bag_ledger_ability_curse_gate)
 	_run_test("BAG-LEDGER-03 cancel excludes from gate", _test_bag_ledger_cancel_excludes)
 	_run_test("BAG-LEDGER-04 for-each mode fires per curse", _test_bag_ledger_each_mode)
+	_run_test("BAG-INTENT-01 no replace equals single draw", _test_bag_intent_no_replace)
+	_run_test("BAG-INTENT-02 Olive reveal3 resolve2", _test_bag_intent_olive_alone)
+	_run_test("BAG-INTENT-03 Olive then Statue order+slot", _test_bag_intent_olive_then_statue)
+	_run_test("BAG-INTENT-04 Statue then Olive order", _test_bag_intent_statue_then_olive)
+	_run_test("BAG-INTENT-05 ST.3 multi resolved modifiers", _test_bag_intent_st3_multi_modifiers)
+	_run_test("BAG-IGNORE-01 olive ignore still revealed not resolved", _test_bag_ignore_olive_revealed)
+	_run_test("BAG-IGNORE-02 cancel excludes revealed and resolved", _test_bag_ignore_cancel_excludes_both)
+	_run_test("BAG-IGNORE-03 gate uses resolved not ignored", _test_bag_ignore_gate_skips_ignored)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
 	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
 	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
@@ -5390,6 +5398,221 @@ func _test_bag_ledger_each_mode() -> bool:
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return flags.fires == 2 and pulled.size() == 2 and h.ctx.state.chaos_bag.tokens.size() == 3
+
+
+func _test_bag_intent_no_replace() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"n0"),
+		ChaosToken.numeric(1, &"n1"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_none")
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	return (
+		int(plan.get("leaf_count", 0)) == 1
+		and (plan.get("resolved") as Array).size() == 1
+		and (plan.get("ignored") as Array).is_empty()
+		and (plan.get("tokens") as Array).size() == 1
+	)
+
+
+func _test_bag_intent_olive_alone() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"a"),
+		ChaosToken.numeric(1, &"b"),
+		ChaosToken.numeric(2, &"c"),
+		ChaosToken.numeric(3, &"d"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_olive")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	return (
+		int(plan.get("leaf_count", 0)) == 3
+		and (plan.get("tokens") as Array).size() == 3
+		and (plan.get("resolved") as Array).size() == 2
+		and (plan.get("ignored") as Array).size() == 1
+		and h.ctx.state.chaos_bag.revealed_this_test.size() == 3
+		and h.ctx.state.chaos_bag.count_revealed_kind(AhcEnums.ChaosTokenKind.NUMERIC) == 3
+		and h.ctx.state.chaos_bag.count_resolved_kind(AhcEnums.ChaosTokenKind.NUMERIC) == 2
+	)
+
+
+func _test_bag_intent_olive_then_statue() -> bool:
+	var h := RuleTestHarness.new(7)
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"t0"),
+		ChaosToken.numeric(1, &"t1"),
+		ChaosToken.numeric(2, &"t2"),
+		ChaosToken.numeric(3, &"t3"),
+		ChaosToken.numeric(4, &"t4"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_olive_statue")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var statue := ChaosRevealReplaceAbility.create(&"statue", &"inv_1", 2, 1)
+	## Olive 先 → 3 叶；Statue 作用 Olive 的第一叶（默认 id 序列展开后的首叶）→ 总叶 4。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"chaos:reveal_replace_order", "pick": [&"olive", &"statue"]},
+		{"prompt_id": &"chaos:reveal_replace_target:statue", "pick": 1},
+	])
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive, statue], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var order: Array = plan.get("order", [])
+	var slots: Dictionary = plan.get("slot_targets", {})
+	return (
+		order.size() == 2
+		and order[0] == &"olive"
+		and order[1] == &"statue"
+		and int(slots.get(&"statue", -1)) == 1
+		and int(plan.get("leaf_count", 0)) == 4
+		and (plan.get("tokens") as Array).size() == 4
+		and (plan.get("resolved") as Array).size() == 3
+		and (plan.get("ignored") as Array).size() == 1
+	)
+
+
+func _test_bag_intent_statue_then_olive() -> bool:
+	var h := RuleTestHarness.new(11)
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"s0"),
+		ChaosToken.numeric(1, &"s1"),
+		ChaosToken.numeric(2, &"s2"),
+		ChaosToken.numeric(3, &"s3"),
+		ChaosToken.numeric(4, &"s4"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_statue_olive")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var statue := ChaosRevealReplaceAbility.create(&"statue", &"inv_1", 2, 1)
+	## Statue 先：1→2；Olive 作用 Statue 的一叶（默认取头叶 id）→ 该叶再变 3 → 总叶 4。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"chaos:reveal_replace_order", "pick": [&"statue", &"olive"]},
+	])
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive, statue], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var order: Array = plan.get("order", [])
+	return (
+		order.size() == 2
+		and order[0] == &"statue"
+		and order[1] == &"olive"
+		and int(plan.get("leaf_count", 0)) == 4
+		and (plan.get("tokens") as Array).size() == 4
+	)
+
+
+func _test_bag_intent_st3_multi_modifiers() -> bool:
+	var h := RuleTestHarness.new(42)
+	## 固定两枚 +1，Olive 揭 2 解 2 → chaos_modifier 累加为 2。
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(1, &"m1"),
+		ChaosToken.numeric(1, &"m2"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	test.pending_reveal_replace = [
+		ChaosRevealReplaceAbility.create(&"double", &"inv_1", 2, 2)
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var ok := (
+		test.revealed_tokens.size() == 2
+		and test.chaos_modifier == 2
+		and int(intent.get("leaf_count", 0)) == 2
+		and (intent.get("resolved") as Array).size() == 2
+		and test.pending_reveal_replace.is_empty()
+	)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bag_ignore_olive_revealed() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_ig")
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		curse,
+		ChaosToken.numeric(0, &"n0"),
+		ChaosToken.numeric(1, &"n1"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"ignore_olive")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var ignored: Array = plan.get("ignored", [])
+	if ignored.is_empty():
+		return false
+	var ig: ChaosToken = ignored[0] as ChaosToken
+	var rec := h.ctx.state.chaos_bag.revealed_records()
+	var has_ig_revealed := false
+	for r in rec:
+		if r.token == ig and r.ignored and r.was_revealed() and not r.was_resolved():
+			has_ig_revealed = true
+			break
+	return (
+		has_ig_revealed
+		and h.ctx.state.chaos_bag.count_revealed_kind(ig.kind) >= 1
+		and h.ctx.state.chaos_bag.count_resolved_kind(ig.kind) == 0
+		and not h.ctx.state.chaos_bag.has_resolved_kind(ig.kind)
+	)
+
+
+func _test_bag_ignore_cancel_excludes_both() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_cancel")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"cancel_scope")
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.cancel_reveal(pulled[0])
+	return (
+		not h.ctx.state.chaos_bag.has_revealed_kind(AhcEnums.ChaosTokenKind.CURSE)
+		and not h.ctx.state.chaos_bag.has_resolved_kind(AhcEnums.ChaosTokenKind.CURSE)
+		and h.ctx.state.chaos_bag.revealed_records().is_empty()
+		and h.ctx.state.chaos_bag.resolved_records().is_empty()
+	)
+
+
+func _test_bag_ignore_gate_skips_ignored() -> bool:
+	## 能力揭示 curse 后 Ignore → ST.4 后门槛（resolved）不应开火；revealed 仍可见。
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_gate")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.post_st4_if_revealed = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.ignore_reveal(pulled[0])
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	h.ctx.state.chaos_bag.tokens.clear()
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n_gate"))
+	var saw_revealed := h.ctx.state.chaos_bag.has_revealed_kind(AhcEnums.ChaosTokenKind.CURSE)
+	var saw_resolved := h.ctx.state.chaos_bag.has_resolved_kind(AhcEnums.ChaosTokenKind.CURSE)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return saw_revealed and not saw_resolved and flags.fires == 0
 
 
 func _test_act_investigate_success() -> bool:

@@ -45,7 +45,7 @@ static func compute_default(request: ChoiceRequest) -> Variant:
 			return request.options.duplicate()
 		AhcEnums.ChoiceKind.CONFIRM_STEP:
 			return true
-		AhcEnums.ChoiceKind.PICK_MULTI:
+		AhcEnums.ChoiceKind.PICK_MULTI, AhcEnums.ChoiceKind.CHAOS_PICK:
 			return _pick_multi(request, policy)
 		_:
 			return _pick_single(request)

@@ -164,6 +164,38 @@ func ask_pick_target(
 	return pick
 
 
+## 混沌标记多选（Olive 选 resolve 子集；seal 选哪枚等）。
+func ask_chaos_pick(
+	candidates: Array,
+	min_picks: int,
+	max_picks: int,
+	controller_id: StringName,
+	prompt_id: StringName,
+	ctx: GameContext
+) -> Variant:
+	if candidates.is_empty():
+		return [] if min_picks <= 0 else null
+	var req: ChoiceRequest = ChoiceRequest.new()
+	req.kind = AhcEnums.ChoiceKind.CHAOS_PICK
+	req.decider_id = controller_id
+	req.prompt_id = prompt_id
+	req.options = candidates.duplicate()
+	req.min_picks = mini(min_picks, candidates.size())
+	req.max_picks = clampi(max_picks, req.min_picks, candidates.size())
+	req.default_index = 0
+	req.default_policy = &"first_option"
+	req.deadline_ms = -1
+	var pick: Variant = ask(req, ctx)
+	if pick == null:
+		pick = DefaultChoiceResolver.compute_default(req)
+		last_used_default = true
+	if pick is Array:
+		return pick
+	if pick != null:
+		return [pick]
+	return []
+
+
 ## 通用选择：按 SelectionSpec 建 ChoiceRequest，确认后由调用方 ChoiceBind。
 func ask_selection(
 	spec: SelectionSpec,
