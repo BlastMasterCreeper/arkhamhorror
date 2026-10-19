@@ -1948,6 +1948,56 @@
     "uses": {
       "count": 3,
       "type": "charges"
+    },
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "status": "partial",
+        "translation": "if_revealed_skull",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "fight"
+        ],
+        "template": "skill_test",
+        "skill": "willpower",
+        "difficulty": 0,
+        "if_revealed": {
+          "kind": "skull",
+          "mode": "any",
+          "then": {
+            "template": "if_else",
+            "condition": "source_has_use",
+            "then": {
+              "template": "spend_use",
+              "use_type": "charges",
+              "amount": 1,
+              "card_id": "source"
+            },
+            "else": {
+              "template": "seq",
+              "steps": [
+                {
+                  "template": "take_damage",
+                  "amount": 1
+                },
+                {
+                  "template": "discard_source"
+                }
+              ]
+            }
+          }
+        },
+        "notes": "partial: succeed may-spend +damage / +willpower not yet; if_revealed skull path full"
+      }
+    ],
+    "ability_compile_summary": {
+      "status": "partial",
+      "compiled": 1,
+      "focus": "if_revealed_skull"
     }
   },
   "12060": {
@@ -2347,6 +2397,56 @@
     "uses": {
       "count": 4,
       "type": "charges"
+    },
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "status": "partial",
+        "translation": "if_revealed_skull",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "fight"
+        ],
+        "template": "skill_test",
+        "skill": "willpower",
+        "difficulty": 0,
+        "if_revealed": {
+          "kind": "skull",
+          "mode": "any",
+          "then": {
+            "template": "if_else",
+            "condition": "source_has_use",
+            "then": {
+              "template": "spend_use",
+              "use_type": "charges",
+              "amount": 1,
+              "card_id": "source"
+            },
+            "else": {
+              "template": "seq",
+              "steps": [
+                {
+                  "template": "take_damage",
+                  "amount": 1
+                },
+                {
+                  "template": "discard_source"
+                }
+              ]
+            }
+          }
+        },
+        "notes": "partial: succeed may-spend +damage / +willpower not yet; if_revealed skull path full"
+      }
+    ],
+    "ability_compile_summary": {
+      "status": "partial",
+      "compiled": 1,
+      "focus": "if_revealed_skull"
     }
   },
   "12072": {
