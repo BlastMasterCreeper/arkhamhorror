@@ -124,7 +124,7 @@
 | OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），经 `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 |
 | OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | **一次 ST.3 + 意图规划**（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](design/05-chaos-bag.md)。 |
 | OQ-04-07 | [04-skill-test](design/04-skill-test-engine.md) | ST.3/ST.4 与参考卡符号文本如何统一？ | **隐式符号能力**融合：揭示→发起（modifier+效果）；回溯以该能力为锚。见 04 §3.3–3.4。 |
-| OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ | |
+| OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | ~~Bless/Curse 仅预留？~~ → **实现**检定内 +2/−2·再揭·归 pool；见 05 §8.1 | 2026-10-19 |
 | OQ-05-06 | [05-chaos-bag](design/05-chaos-bag.md) | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ | |
 | OQ-06-05 | [06-ability](design/06-ability-initiation.md) | Constant ability 在 out-of-play 被引用（少数卡）— 如何标记 `references_out_of_play`？ | |
 | OQ-07-04 | [07-effect](design/07-effect-resolution.md) | Simultaneous discard 多张：owner 选顺序是否影响后续 search？ | |

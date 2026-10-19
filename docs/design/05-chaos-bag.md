@@ -24,8 +24,8 @@ enum ChaosTokenKind {
     ELDER_THING,
     ELDER_SIGN,
     AUTO_FAIL,
-    BLESS,             # 扩展预留
-    CURSE,
+    BLESS,             # TIC：检定内 +2 · reveal another · 归 pool
+    CURSE,             # TIC：检定内 −2 · reveal another · 归 pool
     FROST,
     CAMPAIGN_CUSTOM,
 }
@@ -34,7 +34,9 @@ class ChaosToken:
     var kind: ChaosTokenKind
     var modifier: int                 # numeric 部分；符号可能 + 文本 modifier
     var campaign_symbol_id: StringName
-    var sealed: bool                  # 扩展：封印不揭示
+    var sealed: bool                  # 封印中：不在袋内
+    var sealed_on: StringName         # host 卡 instance id
+    var return_to_pool: bool          # ST.4 祝福/诅咒：ST.8 归 chaos_token_pool
     var instance_id: StringName
 ```
 
@@ -44,6 +46,8 @@ class ChaosToken:
 class ChaosBag:
     var tokens: Array[ChaosToken]
     var revealed_this_test: Array[ChaosToken]   # 物理工作区
+    var sealed_tokens: Array[ChaosToken]        # 封印中（不 draw）
+    var chaos_token_pool: Array[ChaosToken]     # 祝福/诅咒归还池（≠ Damage TokenPool）
     var reveal_ledger: Array[ChaosRevealRecord] # 本 scope 账本
     var reveal_scope_id: StringName
 
@@ -54,13 +58,22 @@ class ChaosBag:
     func finalize_ability_reveal(tokens) -> void  # 回袋；账本保留
     func cancel_reveal(token) -> void   # 从未抽到
     func ignore_reveal(token) -> void   # 仍揭示，不 resolve
+    func seal(token, host) / seal_random(host) / seal_kind(kind, host)
+    func release(token) / release_all_on(host) / sealed_on(host)
+    func reveal_one_sealed(host, source)  # 作刚揭示：移入工作区+账本
     func has_revealed_kind / count_revealed_kind / revealed_records   # 未 Cancel（含 Ignore）
     func has_resolved_kind / count_resolved_kind / resolved_records   # 未 Cancel 且未 Ignore
     func has_uncanceled_kind / count_uncanceled_kind                 # = revealed_*（兼容别名）
-    func return_token(t: ChaosToken) -> void
-    func return_all_revealed() -> void
+    func return_token(t: ChaosToken) -> void      # 尊 return_to_pool
+    func return_all_revealed() -> void            # ST.8；尊 return_to_pool
     func add_token(t: ChaosToken) -> void
+    func count_kind_in_play(kind) / can_add_bless_or_curse(kind)  # 上限 10
+    func add_from_pool(kind) -> ChaosToken        # pool → 袋（达上限则 null）
 ```
+
+**封印（Seal）· Domain**：`seq.effect.seal` / `seq.effect.release_seal`（`SealFlow`）。挂 `TokenBag.sealed`；离场 `ZoneMoveFlow` 立即释放回袋。Premonition 式「作刚揭示」= `ChaosRevealReplaceAbility.sealed_host_card_id` + `queue_sealed_reveal_instead`。
+
+**关键词 Seal = 打出额外费用**：`SealSpec`（`CardRegistry.seal_spec`）→ Initiation L6 `can_pay` 查袋；进场 `ZoneMoveFlow` → `SealFlow.pay_keyword_on_enter` nest `seq.effect.seal`。袋无指定标记 → 不能打出。
 
 ### 2.3 ScenarioReferenceDefinition
 
@@ -177,7 +190,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
-**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、Premonition / seal。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
+**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）；**Seal Domain**；**Elder Sign**（调查员印刷旧印 · Joe 12004 竖切）；**Bless/Curse**（规则自带符号能力 · `BlessCurseRules`）。仍范围外：OQ-05-02 战役符号脚本、Premonition **实卡编译**（12064 未译；框架已竖切）。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
 
 ---
 
@@ -236,12 +249,31 @@ class ChaosBagSnapshot:
 
 ---
 
-## 8. Elder Sign
+## 8. Elder Sign（已落地）
 
-- 揭示 [elder_sign] token 时触发 performing investigator 卡上 printed **Elder Sign** 能力
-- 通常含 modifier + conditional effect（如 Joe Diamond：+1, succeed → draw + resource）
+- 揭示 `[elder_sign]` → ST.4 发起 **performing investigator** 印刷旧印能力（非参考卡）
+- 载荷：`modifier`（ST.4）· 可选 `immediate`（ST.4）· `on_success` / `on_fail*`（ST.7）
+- 绑定：`ElderSignBinder` → `InvestigatorState.symbol_abilities`；`CardRegistry.elder_sign_effect`（JSON `elder_sign` 或正文解析）
+- 空白：`text_box_blank` 跳过印刷旧印
+- 竖切：Joe Diamond（12004）+1；成功 → 抽 1 + 得 1 资源
 
-绑定：`InvestigatorDefinition.elder_sign_ability_id`
+---
+
+## 8.1 Bless / Curse（已落地 · OQ-05-04）
+
+规则来源：RR *Bless and Curse Tokens*（TIC）。
+
+| 时机 | 效果 |
+|---|---|
+| **检定内** ST.4 发起框架符号能力 | Bless **+2** / Curse **−2**；`reveal_another`；标记 `return_to_pool` |
+| **ST.8** | `return_all_revealed`：带 `return_to_pool` → `chaos_token_pool`；否则回袋 |
+| **检定外**（能力揭示等） | **无**内建修饰/再揭/归 pool；`finalize_ability_reveal` 仍回袋 |
+| **Ignore** | 不发起 ST.4 → 不设 `return_to_pool` → ST.8 回袋 |
+| 上限 | 袋内 + 封印 ≤ 10（`can_add_bless_or_curse` / `add_from_pool`） |
+
+实现：`BlessCurseRules`（规则自带；**不是**冒险参考卡、**不是**调查员印刷）。ST.4 由 `SkillTestEngine` 先于 `ScenarioReferenceApplier` 路由。
+
+竖切：BC-01..05。
 
 ---
 
@@ -249,8 +281,8 @@ class ChaosBagSnapshot:
 
 | 机制 | 接口 |
 |---|---|
-| Seal token | `bag.seal(token)` |
-| Bless/Curse | 额外 token kind |
+| Seal token | `bag.seal` / `SealFlow` / `seq.effect.seal` · `release_seal`（已落地） |
+| Bless/Curse | 符号能力 + pool 归还已落地；卡面「加入袋」效果另译 |
 | Pull from bag without test / 能力揭示 | `reveal_for_ability` + **强制** `finalize_ability_reveal` |
 | Empty bag | 不应发生；若 token 被 remove 至 0 → 错误日志 |
 
@@ -263,7 +295,12 @@ class ChaosBagSnapshot:
 | C-01 | Standard difficulty Spreading Flames bag | 与 guide 一致 |
 | C-02 | Skull –X, act 2 | X=2 |
 | C-03 | Auto-fail | test fail |
-| C-04 | Elder Sign Joe | +1; succeed 分支 |
+| C-04 / ES-01..05 | Elder Sign Joe | +1；成功抽+资源；空白跳过；失败无 on_success |
+| BC-01 | Bless ST.4 | +2 · reveal_another · return_to_pool |
+| BC-02 | Curse ST.4 | −2 · reveal_another · return_to_pool |
+| BC-03 | Bless 链 + ST.8 | 修饰累加；bless → pool；numeric → 袋 |
+| BC-04 | 能力揭示 curse | finalize 回袋；pool 空 |
+| BC-05 | Ignore bless | 无修饰；ST.8 回袋 |
 | C-05 | ST.8 return token | bag count 恢复 |
 | C-06 | 战役 scenario 2 继承 bag | snapshot restore |
 | BAG-LEDGER-01 | 检定揭示入账本；ST.8 清空 scope | 物理堆空；ledger 空 |
@@ -284,6 +321,15 @@ class ChaosBagSnapshot:
 | BAG-WIRE-02 | 12068 竖切 · 数字 | Uses 进场 3；揭 2 解 1；扣 charge；无 horror |
 | BAG-WIRE-03 | 12068 竖切 · 符号 | resolved 符号 → take 1 horror |
 | BAG-USES-01 | Uses Domain | 进场放 charges；离场清空 |
+| BAG-SEAL-01 | seal_random | 离袋；卡 sealed；不可再抽 |
+| BAG-SEAL-02 | seal_kind 缺失 | 失败；袋不变 |
+| BAG-SEAL-03 | 离场释放 | leave play → 回袋 |
+| BAG-SEAL-04 | seq.effect.seal nest | Catalog nest ok |
+| BAG-SEAL-05 | 作刚揭示 instead | sealed 进账本；未抽袋 |
+| BAG-SEAL-06 | 关键词费用门槛 | 无 skull → cannot_pay；仍在手 |
+| BAG-SEAL-07 | 关键词打出进场 | Seal (Elder Sign) → 封印 |
+| BAG-SEAL-08 | 关键词 choice | cultist/tablet 封一枚 |
+| BAG-SEAL-09 | put into play | ZoneMove 进场亦封印 |
 | REF-01 | SF 加载 reference JSON | easy/hard skull expr |
 | REF-02 | SF skull –act | act=2 → modifier -2 |
 | REF-03 | SF tablet | -1 + reveal_another；fail → +1 damage |
@@ -305,7 +351,7 @@ class ChaosBagSnapshot:
 | OQ-05-01 | P1 | ~~冒险参考卡全部 JSON vs ScenarioScript？~~ → **JSON-first**（SF 竖切）；脚本预留。见 §7。 |
 | OQ-04-07 | P1 | ~~ST.3/ST.4 与符号文本如何统一？~~ → **隐式符号能力**融合；见 §4.0 / [04 §3.3–3.4](04-skill-test-engine.md)。 |
 | OQ-05-02 | P1 | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ |
-| OQ-05-04 | P2 | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ |
+| OQ-05-04 | P2 | ~~Bless/Curse 仅预留 enum？~~ → **实现框架符号能力**；见 §8.1。 |
 | OQ-05-05 | P1 | ~~Ignore vs Cancel chaos token 是否仍算「revealed this test」？~~ → **已裁决** 见 §4.1.1 |
 | OQ-05-06 | P2 | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ |
 
@@ -313,6 +359,7 @@ class ChaosBagSnapshot:
 
 | ID | 裁决 | 日期 |
 |---|---|---|
+| OQ-05-04 | **实现** Bless/Curse 检定内符号能力（+2/−2 · reveal another · ST.8 归 pool）；检定外无内建效果；上限 10。见 §8.1。 | 2026-10-19 |
 | OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（作为失败效果的一部分）。ST.6 仅判定 fail 并计算 `fail_by` 数值。见 §5。 | 2026-05-25 |
 | OQ-05-07 | **检定揭示账本 + 紧贴揭示**：*If … is revealed* 在 resolved 定案时触发；`any` 自肃一次、`each` 不自肃；**不再**固定时点扫账本。能力揭示帧末必须归袋并 notify。见 §4.1 / §4.1.2。 | 2026-10-19 |
 | OQ-04-05 | **多 token 同时揭示 = 一次 ST.3 + 意图规划**（次序 / 预期槽 / CHAOS_PICK）。见 §4.2。 | 2026-10-19 |
@@ -338,3 +385,8 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.11 | §4.1.2：*If revealed* 改紧贴 resolved 结算；废止 ST.4 后扫账本门槛 |
 | 2026-10-19 | v0.12 | §4.1.2：`any` 自肃一次；`each` for-each 不自肃 |
 | 2026-10-19 | v0.13 | §4.2 尾：去掉「整次检定 Cancel」伪缺口（OQ-04-04） |
+| 2026-10-19 | v0.14 | §2/§9：Seal Domain（seal / release_seal / 作刚揭示）；BAG-SEAL 竖切 |
+| 2026-10-19 | v0.15 | Seal 关键词：L6 门槛 + 进场 `pay_keyword_on_enter`；BAG-SEAL-06..09 |
+| 2026-10-19 | v0.16 | §8 Elder Sign：调查员符号能力 + Joe 12004 竖切（ES-01..05） |
+| 2026-10-19 | v0.17 | §8.1 Bless/Curse 符号能力 + chaos_token_pool；裁决 OQ-05-04；BC-01..05 |
+| 2026-10-19 | v0.18 | Bless/Curse 拆出 `BlessCurseRules`（规则自带；非参考卡） |

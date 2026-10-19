@@ -678,6 +678,52 @@ static func spend_use(
 	return n
 
 
+## nest `seq.effect.seal`（mode=random|kind|choice；kind 经 definition_id 字面或 amount 枚举）。
+static func nest_seal(
+	host_card_id: StringName,
+	mode: StringName = &"random",
+	controller_id: StringName = &"",
+	kind: int = -1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_seal"
+	n.nest_flow_id = &"seq.effect.seal"
+	n.card_id = host_card_id
+	n.engage_mode = mode
+	n.inv_id = controller_id
+	n.amount = kind
+	return n
+
+
+## nest `seq.effect.release_seal`（释放 host 上全部封印，或单枚见 executor token 指称）。
+static func nest_release_seal(host_card_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_release_seal"
+	n.nest_flow_id = &"seq.effect.release_seal"
+	n.card_id = host_card_id
+	return n
+
+
+## Premonition 式：将要揭示时改为结算封印在此的标记（挂 pending_reveal_replace）。
+static func queue_sealed_reveal_instead(
+	controller_id: StringName,
+	ability_id: StringName,
+	host_card_id: StringName,
+	sealed_count: int = 1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"queue_sealed_reveal_instead"
+	n.inv_id = controller_id
+	n.source_ability_id = ability_id
+	n.card_id = host_card_id
+	n.draw_amount = maxi(sealed_count, 1)
+	n.amount = -1
+	return n
+
+
 ## 本批揭示 resolve 后：若任一 resolved 为符号标记，执行 then（Mask 式 horror）。
 static func after_reveal_if_resolved_symbol(
 	then_node: CompositionNode,

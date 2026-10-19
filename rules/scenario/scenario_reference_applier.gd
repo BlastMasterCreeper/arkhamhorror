@@ -23,8 +23,14 @@ static func apply_token(
 		AhcEnums.ChaosTokenKind.AUTO_SUCCESS:
 			ctx.auto_success = true
 			return
-		AhcEnums.ChaosTokenKind.BLESS, AhcEnums.ChaosTokenKind.CURSE, AhcEnums.ChaosTokenKind.FROST:
+		AhcEnums.ChaosTokenKind.BLESS, AhcEnums.ChaosTokenKind.CURSE:
+			## 规则自带能力：由 BlessCurseRules 处理，不查参考卡。
+			return
+		AhcEnums.ChaosTokenKind.FROST:
 			ctx.chaos_modifier += token.modifier
+			return
+		AhcEnums.ChaosTokenKind.ELDER_SIGN:
+			_apply_elder_sign(game_ctx, ctx, token, state)
 			return
 		_:
 			pass
@@ -42,11 +48,39 @@ static func apply_token(
 		else:
 			ctx.chaos_modifier += token.modifier
 		return
+	_apply_symbol_ability(game_ctx, ctx, token, ability, store)
+
+
+static func _apply_elder_sign(
+	game_ctx: GameContext,
+	ctx: SkillTestContext,
+	token: ChaosToken,
+	state: GameStateStore
+) -> void:
+	var store := state
+	if store == null and game_ctx != null:
+		store = game_ctx.state
+	var ability := _lookup_elder_sign(game_ctx, store, ctx)
+	if ability == null:
+		## 无印刷 Elder Sign：旧印默认 +0（无额外效果）。
+		ctx.chaos_modifier += token.modifier if token != null else 0
+		return
+	_apply_symbol_ability(game_ctx, ctx, token, ability, store)
+
+
+static func _apply_symbol_ability(
+	game_ctx: GameContext,
+	ctx: SkillTestContext,
+	token: ChaosToken,
+	ability: ChaosSymbolAbility,
+	store: GameStateStore
+) -> void:
 	var effect := ability.to_effect_dict()
 	ctx.chaos_modifier += _resolve_modifier(effect.get("modifier", 0), store)
-	if bool(effect.get("reveal_another", false)):
+	if bool(effect.get("reveal_another", false)) and token != null:
 		token.reveal_another = true
-	_register_st7(game_ctx, ctx, effect)
+	_execute_immediate(game_ctx, ctx, effect, ability)
+	_register_st7(game_ctx, ctx, effect, ability)
 
 
 static func _lookup_ability(
@@ -69,6 +103,44 @@ static func _lookup_ability(
 	if effect.is_empty():
 		return null
 	return ChaosSymbolAbility.from_effect_dict(kind, effect, &"", &"transient")
+
+
+static func _lookup_elder_sign(
+	game_ctx: GameContext,
+	store: GameStateStore,
+	ctx: SkillTestContext
+) -> ChaosSymbolAbility:
+	if store == null or ctx == null:
+		return null
+	var inv := store.registry.get_investigator(ctx.performing_investigator)
+	if inv == null:
+		return null
+	var ab := inv.active_symbol_ability(AhcEnums.ChaosTokenKind.ELDER_SIGN)
+	if ab != null:
+		return ab
+	## 空白：有印刷但不发起。
+	if inv.text_box_blank and _inv_had_printed_elder_sign(inv):
+		return null
+	## 懒装载定义。
+	if game_ctx != null:
+		ElderSignBinder.bind_investigator(game_ctx, inv.id)
+		return inv.active_symbol_ability(AhcEnums.ChaosTokenKind.ELDER_SIGN)
+	return null
+
+
+static func _inv_had_printed_elder_sign(inv: InvestigatorState) -> bool:
+	if inv == null:
+		return false
+	for raw in inv.symbol_abilities:
+		var ab: ChaosSymbolAbility = raw as ChaosSymbolAbility
+		if (
+			ab != null
+			and ab.printed
+			and ab.symbol_kind == AhcEnums.ChaosTokenKind.ELDER_SIGN
+		):
+			return true
+	## 空白前可能已卸；以定义为准。
+	return not CardRegistry.elder_sign_effect(inv.definition_id).is_empty()
 
 
 static func _had_printed_but_blank(
@@ -135,16 +207,43 @@ static func _resolve_modifier(raw: Variant, store: GameStateStore) -> int:
 			return int(d.get("value", 0))
 
 
-static func _register_st7(
+static func _execute_immediate(
 	game_ctx: GameContext,
 	ctx: SkillTestContext,
-	effect: Dictionary
+	effect: Dictionary,
+	ability: ChaosSymbolAbility = null
 ) -> void:
 	if game_ctx == null or game_ctx.composition == null:
 		return
+	var imm_raw: Variant = effect.get("immediate", {})
+	if not (imm_raw is Dictionary) or (imm_raw as Dictionary).is_empty():
+		return
+	var node := _build_body(imm_raw as Dictionary, game_ctx, ctx, ability)
+	if node != null:
+		game_ctx.composition.execute(node)
+
+
+static func _register_st7(
+	game_ctx: GameContext,
+	ctx: SkillTestContext,
+	effect: Dictionary,
+	ability: ChaosSymbolAbility = null
+) -> void:
+	if game_ctx == null or game_ctx.composition == null:
+		return
+	var on_ok_raw: Variant = effect.get("on_success", {})
+	if on_ok_raw is Dictionary and not (on_ok_raw as Dictionary).is_empty():
+		var ok_node := _build_body(on_ok_raw as Dictionary, game_ctx, ctx, ability)
+		if ok_node != null:
+			var prior_ok := ctx.on_success
+			var body_ok := ok_node
+			ctx.on_success = func(st: SkillTestContext) -> void:
+				if prior_ok.is_valid():
+					prior_ok.call(st)
+				game_ctx.composition.execute(body_ok)
 	var on_fail_raw: Variant = effect.get("on_fail", {})
 	if on_fail_raw is Dictionary and not (on_fail_raw as Dictionary).is_empty():
-		var fail_node := _build_body(on_fail_raw as Dictionary, game_ctx, ctx)
+		var fail_node := _build_body(on_fail_raw as Dictionary, game_ctx, ctx, ability)
 		if fail_node != null:
 			var prior := ctx.on_fail
 			var body := fail_node
@@ -158,7 +257,7 @@ static func _register_st7(
 		var threshold := maxi(int(fb.get("threshold", 1)), 1)
 		var body_raw: Variant = fb.get("body", {})
 		if body_raw is Dictionary:
-			var by_node := _build_body(body_raw as Dictionary, game_ctx, ctx)
+			var by_node := _build_body(body_raw as Dictionary, game_ctx, ctx, ability)
 			if by_node != null:
 				var thr := threshold
 				var body2 := by_node
@@ -173,7 +272,8 @@ static func _register_st7(
 static func _build_body(
 	params: Dictionary,
 	game_ctx: GameContext,
-	ctx: SkillTestContext
+	ctx: SkillTestContext,
+	ability: ChaosSymbolAbility = null
 ) -> CompositionNode:
 	var template := str(params.get("template", ""))
 	if template.is_empty():
@@ -181,6 +281,8 @@ static func _build_body(
 	var bind := AbilityBindContext.new()
 	bind.controller_id = ctx.performing_investigator if ctx != null else &""
 	bind.card_id = &""
-	if game_ctx != null and game_ctx.state != null:
+	if ability != null and ability.source_card_id != &"":
+		bind.card_id = ability.source_card_id
+	elif game_ctx != null and game_ctx.state != null:
 		bind.card_id = game_ctx.state.scenario_reference_card_id
 	return ArkhamDbAbilityCompiler.build_composition(template, params, bind)

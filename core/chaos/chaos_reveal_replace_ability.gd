@@ -10,6 +10,8 @@ var controller_id: StringName = &""
 var reveal_count: int = 1
 ## 展开后保留/resolve 几枚；-1 = 全部 resolve；其余 ignore（整枚）。
 var resolve_count: int = -1
+## 非空：叶从该卡封印供给（Premonition「作刚揭示」），不抽袋。
+var sealed_host_card_id: StringName = &""
 
 
 static func create(
@@ -23,4 +25,16 @@ static func create(
 	a.controller_id = controller_id
 	a.reveal_count = maxi(reveal_count, 1)
 	a.resolve_count = resolve_count
+	return a
+
+
+## Premonition 式：将要揭示时改为结算封印在此的标记。
+static func create_sealed_instead(
+	ability_id: StringName,
+	controller_id: StringName,
+	host_card_id: StringName,
+	sealed_count: int = 1
+) -> ChaosRevealReplaceAbility:
+	var a := create(ability_id, controller_id, maxi(sealed_count, 1), -1)
+	a.sealed_host_card_id = host_card_id
 	return a

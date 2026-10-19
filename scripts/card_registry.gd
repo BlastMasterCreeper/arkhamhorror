@@ -80,6 +80,94 @@ static func uses_spec(definition_id: StringName) -> Dictionary:
 	return parse_uses_from_text(str(data.get("text", "")))
 
 
+## Seal 关键词规格；null = 无 Seal 打出额外费用。
+## 来源：定义 `seal` 字段 · keywords 含 seal + 正文 `Seal (…)` · 或正文印刷 `Seal (…)`。
+## 「seal a random…」效果句（无括号种类）不匹配，不走打出费用。
+static func seal_spec(definition_id: StringName) -> SealSpec:
+	var data := definition_data(definition_id)
+	if data.has("seal"):
+		var raw: Variant = data.get("seal")
+		if raw is SealSpec:
+			return raw as SealSpec
+		if raw is Dictionary:
+			return SealSpec.from_dictionary(raw as Dictionary)
+		if raw is String or raw is StringName:
+			var from_str := SealSpec.from_dictionary({"kind": str(raw)})
+			if from_str != null:
+				return from_str
+	var from_text := SealSpec.parse_from_text(str(data.get("text", "")))
+	if from_text != null:
+		return from_text
+	if has_keyword(definition_id, &"seal"):
+		## 仅标 seal、无括号：视为随机封印（极少）。
+		return SealSpec.random_any()
+	return null
+
+
+static func has_seal_play_cost(definition_id: StringName) -> bool:
+	var spec := seal_spec(definition_id)
+	return spec != null and spec.as_play_cost
+
+
+## 调查员 `[elder_sign] effect` 规格字典；空 = 无印刷旧印能力。
+static func elder_sign_effect(definition_id: StringName) -> Dictionary:
+	var data := definition_data(definition_id)
+	var raw: Variant = data.get("elder_sign", {})
+	if raw is Dictionary and not (raw as Dictionary).is_empty():
+		return (raw as Dictionary).duplicate(true)
+	return parse_elder_sign_from_text(str(data.get("text", "")))
+
+
+## 从正文解析常见 Core 旧印句（竖切够用；复杂句靠 JSON `elder_sign`）。
+static func parse_elder_sign_from_text(text: String) -> Dictionary:
+	if text.is_empty():
+		return {}
+	var re := RegEx.new()
+	if re.compile("(?i)\\[elder_sign\\]\\s*effect:\\s*([^\\n]+)") != OK:
+		return {}
+	var m := re.search(text)
+	if m == null:
+		return {}
+	var line := m.get_string(1).strip_edges()
+	var out := {}
+	var mod_re := RegEx.new()
+	if mod_re.compile("^([+-]?\\d+)") == OK:
+		var mm := mod_re.search(line)
+		if mm != null:
+			out["modifier"] = int(mm.get_string(1))
+	## If you succeed, draw N card and gain M resource
+	var succ_re := RegEx.new()
+	if (
+		succ_re.compile(
+			"(?i)If you succeed,?\\s*draw\\s+(\\d+)\\s+cards?(?:\\s+and\\s+gain\\s+(\\d+)\\s+resources?)?"
+		)
+		== OK
+	):
+		var sm := succ_re.search(line)
+		if sm != null:
+			var steps: Array = [
+				{"template": "draw", "amount": int(sm.get_string(1))}
+			]
+			if sm.get_string(2) != "":
+				steps.append(
+					{"template": "gain_resources", "amount": int(sm.get_string(2))}
+				)
+			out["on_success"] = {"template": "seq", "steps": steps}
+			return out
+	## If you succeed, heal N horror
+	var heal_re := RegEx.new()
+	if heal_re.compile("(?i)If you succeed,?\\s*heal\\s+(\\d+)\\s+horror") == OK:
+		var hm := heal_re.search(line)
+		if hm != null:
+			out["on_success"] = {
+				"template": "heal",
+				"kind": "horror",
+				"amount": int(hm.get_string(1)),
+			}
+			return out
+	return out
+
+
 static func parse_uses_from_text(text: String) -> Dictionary:
 	if text.is_empty():
 		return {}

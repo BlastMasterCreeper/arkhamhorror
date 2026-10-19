@@ -117,13 +117,14 @@ static func zone_is_in_play(zone: AhcEnums.Zone) -> bool:
 
 
 static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> void:
-	## Domain：Uses 进场放 typed token；再装触发能力。
+	## Domain：Uses 进场放 typed token；Seal 关键词进场封印；再装触发能力。
 	if game_ctx == null or card_id == &"":
 		return
 	var card := game_ctx.state.registry.get_card(card_id) if game_ctx.state != null else null
 	if card == null:
 		return
 	_apply_uses_on_enter(game_ctx, card)
+	_apply_seal_on_enter(game_ctx, card_id)
 	if game_ctx.triggered_abilities == null:
 		return
 	if not CardRegistry.has_triggered(card.id.definition_id):
@@ -132,6 +133,15 @@ static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> voi
 	if controller == &"":
 		controller = card_id
 	game_ctx.triggered_abilities.install_card(controller, card_id)
+
+
+static func _apply_seal_on_enter(game_ctx: GameContext, card_id: StringName) -> void:
+	if game_ctx == null or game_ctx.state == null or card_id == &"":
+		return
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card == null or not CardRegistry.has_seal_play_cost(card.id.definition_id):
+		return
+	SealFlow.pay_keyword_on_enter(game_ctx, card_id)
 
 
 static func _apply_uses_on_enter(game_ctx: GameContext, card: CardInstance) -> void:
@@ -158,8 +168,11 @@ static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> voi
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
 		game_ctx.registrations.on_card_leave_play(card_id)
+	## Seal：离场立即释放封印标记回袋（Grimoire）。
+	SealFlow.release_on_leave_play(game_ctx, card_id)
 	## Uses 随离场清 token（06 DOMAIN）。
 	if game_ctx.state != null:
 		var card := game_ctx.state.registry.get_card(card_id)
 		if card != null:
 			card.tokens.uses.clear()
+			card.tokens.sealed.clear()

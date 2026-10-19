@@ -4,12 +4,19 @@ extends RefCounted
 var tokens: Array[ChaosToken] = []
 ## 本检定仍留置工作区、待 ST.8 归袋的标记（物理堆）。
 var revealed_this_test: Array[ChaosToken] = []
+## 封印中的标记：不在袋内，不可 `draw_random`。
+var sealed_tokens: Array[ChaosToken] = []
+## 祝福/诅咒等：检定能力结算后归还的混沌标记池（非袋；≠ Damage/Horror TokenPool）。
+var chaos_token_pool: Array[ChaosToken] = []
 ## 本作用域揭示账本：含已归袋的能力揭示；审计 / Cancel·Ignore 查询。
 var reveal_ledger: Array[ChaosRevealRecord] = []
 var reveal_scope_id: StringName = &""
 ## disposition 定案且 was_resolved 时回调 `(token: ChaosToken, rec: ChaosRevealRecord)`。
 ## 由 SkillTestEngine 在 begin_test 挂上，驱动 if_revealed_watchers。
 var on_resolved_reveal: Callable
+
+## 袋内 + 封印中同 kind 数量（祝福/诅咒上限 10 计此；不含 pool）。
+const BLESS_CURSE_CAP := 10
 
 
 func shuffle() -> void:
@@ -79,12 +86,47 @@ func notify_resolved_tokens(resolved: Array) -> void:
 func return_token(token: ChaosToken) -> void:
 	if token == null:
 		return
-	_return_physical(token)
+	_settle_from_revealed(token)
 
 
 func return_all_revealed() -> void:
 	while not revealed_this_test.is_empty():
-		_return_physical(revealed_this_test[0])
+		_settle_from_revealed(revealed_this_test[0])
+
+
+## 袋内或封印中同 kind 计数（Bless/Curse 上限）。
+func count_kind_in_play(kind: AhcEnums.ChaosTokenKind) -> int:
+	var n := 0
+	for t in tokens:
+		var tok: ChaosToken = t as ChaosToken
+		if tok != null and tok.kind == kind:
+			n += 1
+	for t in sealed_tokens:
+		var tok2: ChaosToken = t as ChaosToken
+		if tok2 != null and tok2.kind == kind:
+			n += 1
+	return n
+
+
+func can_add_bless_or_curse(kind: AhcEnums.ChaosTokenKind) -> bool:
+	if kind != AhcEnums.ChaosTokenKind.BLESS and kind != AhcEnums.ChaosTokenKind.CURSE:
+		return true
+	return count_kind_in_play(kind) < BLESS_CURSE_CAP
+
+
+## 从 pool 取一枚放入袋；无可用或达上限则 null。
+func add_from_pool(kind: AhcEnums.ChaosTokenKind) -> ChaosToken:
+	if not can_add_bless_or_curse(kind):
+		return null
+	for i in range(chaos_token_pool.size()):
+		var tok: ChaosToken = chaos_token_pool[i] as ChaosToken
+		if tok != null and tok.kind == kind:
+			chaos_token_pool.remove_at(i)
+			tok.return_to_pool = false
+			tok.reveal_another = false
+			tokens.append(tok)
+			return tok
+	return null
 
 
 ## 整枚 Cancel：视为从未抽到（Grimoire）；一切「曾揭示」查询排除。
@@ -175,9 +217,96 @@ func add_token(token: ChaosToken) -> void:
 	tokens.append(token)
 
 
+## 从袋封印到 host 卡；成功则标记离袋。
+func seal(token: ChaosToken, host_card_id: StringName) -> bool:
+	if token == null or host_card_id == &"":
+		return false
+	if token.sealed:
+		return token.sealed_on == host_card_id
+	if not tokens.has(token):
+		return false
+	tokens.erase(token)
+	token.sealed = true
+	token.sealed_on = host_card_id
+	if not sealed_tokens.has(token):
+		sealed_tokens.append(token)
+	return true
+
+
+func seal_random(host_card_id: StringName) -> ChaosToken:
+	if tokens.is_empty() or host_card_id == &"":
+		return null
+	var idx := randi() % tokens.size()
+	var token: ChaosToken = tokens[idx]
+	if seal(token, host_card_id):
+		return token
+	return null
+
+
+func seal_kind(kind: AhcEnums.ChaosTokenKind, host_card_id: StringName) -> ChaosToken:
+	if host_card_id == &"":
+		return null
+	for t in tokens:
+		var tok: ChaosToken = t as ChaosToken
+		if tok != null and tok.kind == kind and not tok.sealed:
+			if seal(tok, host_card_id):
+				return tok
+	return null
+
+
+func sealed_on(host_card_id: StringName) -> Array[ChaosToken]:
+	var out: Array[ChaosToken] = []
+	if host_card_id == &"":
+		return out
+	for t in sealed_tokens:
+		var tok: ChaosToken = t as ChaosToken
+		if tok != null and tok.sealed and tok.sealed_on == host_card_id:
+			out.append(tok)
+	return out
+
+
+## 释放回袋；若仍在揭示工作区则保留在工作区（ST.8 再归袋）。
+func release(token: ChaosToken) -> bool:
+	if token == null:
+		return false
+	var was_sealed := token.sealed or sealed_tokens.has(token)
+	if not was_sealed:
+		return false
+	token.sealed = false
+	token.sealed_on = &""
+	sealed_tokens.erase(token)
+	if not revealed_this_test.has(token) and not tokens.has(token):
+		tokens.append(token)
+	return true
+
+
+func release_all_on(host_card_id: StringName) -> Array[ChaosToken]:
+	var out: Array[ChaosToken] = sealed_on(host_card_id)
+	for tok in out.duplicate():
+		release(tok)
+	return out
+
+
+## 作刚揭示：从封印移入揭示工作区并记账；不再挂卡、不回袋。
+func reveal_one_sealed(host_card_id: StringName, source: StringName = &"skill_test") -> ChaosToken:
+	var candidates := sealed_on(host_card_id)
+	if candidates.is_empty():
+		return null
+	var token: ChaosToken = candidates[0]
+	token.sealed = false
+	token.sealed_on = &""
+	sealed_tokens.erase(token)
+	if not revealed_this_test.has(token):
+		revealed_this_test.append(token)
+	_record_reveal(token, source)
+	return token
+
+
 func clear() -> void:
 	tokens.clear()
 	revealed_this_test.clear()
+	sealed_tokens.clear()
+	chaos_token_pool.clear()
 	reveal_ledger.clear()
 	reveal_scope_id = &""
 
@@ -189,6 +318,23 @@ func _record_reveal(token: ChaosToken, source: StringName) -> void:
 	if reveal_scope_id == &"":
 		return
 	reveal_ledger.append(ChaosRevealRecord.from_token(token, source, reveal_scope_id))
+
+
+## ST.8 / return：祝福/诅咒若已发起符号能力 → pool；否则回袋。
+func _settle_from_revealed(token: ChaosToken) -> void:
+	if token != null and token.return_to_pool:
+		_return_to_pool(token)
+	else:
+		_return_physical(token)
+
+
+func _return_to_pool(token: ChaosToken) -> void:
+	revealed_this_test.erase(token)
+	tokens.erase(token)
+	token.return_to_pool = false
+	token.reveal_another = false
+	if not chaos_token_pool.has(token):
+		chaos_token_pool.append(token)
 
 
 func _return_physical(token: ChaosToken) -> void:
