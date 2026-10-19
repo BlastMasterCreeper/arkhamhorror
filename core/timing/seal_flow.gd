@@ -61,6 +61,7 @@ static func seal(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		MODE_CHOICE:
 			sealed_tok = _seal_choice(game_ctx, bag, host, params)
 		_:
+			## SealSpec.MODE_NUMERIC 经 _params_from_spec 已映射为 CHOICE。
 			return {"ok": false, "error": "bad_mode"}
 	if sealed_tok == null:
 		return {"ok": false, "error": "seal_failed", "host": host, "mode": mode}
@@ -165,21 +166,117 @@ static func can_seal_kind(bag: ChaosBag, kind: AhcEnums.ChaosTokenKind) -> bool:
 	return false
 
 
+## 关键词 Seal 打出门槛：袋内须有可封印候选。
+static func can_satisfy(bag: ChaosBag, spec: SealSpec) -> bool:
+	return not collect_candidates(bag, spec).is_empty()
+
+
+static func collect_candidates(bag: ChaosBag, spec: SealSpec) -> Array[ChaosToken]:
+	var out: Array[ChaosToken] = []
+	if bag == null or spec == null:
+		return out
+	for t in bag.tokens:
+		var tok: ChaosToken = t as ChaosToken
+		if tok == null or tok.sealed:
+			continue
+		if _token_matches_spec(tok, spec):
+			out.append(tok)
+	return out
+
+
+static func _token_matches_spec(tok: ChaosToken, spec: SealSpec) -> bool:
+	if tok == null or spec == null:
+		return false
+	match spec.mode:
+		SealSpec.MODE_NUMERIC:
+			return (
+				tok.kind == AhcEnums.ChaosTokenKind.NUMERIC
+				and spec.has_numeric_value
+				and tok.modifier == spec.numeric_value
+			)
+		SealSpec.MODE_RANDOM:
+			return true
+		SealSpec.MODE_KIND, SealSpec.MODE_CHOICE:
+			if spec.kinds.is_empty():
+				return true
+			return spec.kinds.has(int(tok.kind))
+		_:
+			return false
+
+
+## 进场后支付关键词 Seal：搜袋封印；失败则 ok=false（打出路径应已 can_satisfy）。
+static func pay_keyword_on_enter(game_ctx: GameContext, card_id: StringName) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null or card_id == &"":
+		return {"ok": false, "error": "no_context"}
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card == null:
+		return {"ok": false, "error": "host_missing"}
+	var spec: SealSpec = CardRegistry.seal_spec(card.id.definition_id)
+	if spec == null or not spec.as_play_cost:
+		return {"ok": true, "skipped": true}
+	var bag: ChaosBag = game_ctx.state.chaos_bag
+	if not can_satisfy(bag, spec):
+		return {"ok": false, "error": "seal_unsatisfied", "host": card_id}
+	var params := _params_from_spec(spec, card_id, card.controller_id)
+	## 效果序列：经命名流程 nest（已压栈场合用 nest；离场清理仍直调）。
+	var result: Dictionary
+	if (
+		game_ctx.sequence_catalog != null
+		and game_ctx.sequence_catalog.has_flow(&"seq.effect.seal")
+	):
+		result = game_ctx.sequence_catalog.nest(game_ctx, &"seq.effect.seal", params)
+	else:
+		result = seal(game_ctx, params)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.CARD,
+			"seal:keyword_enter",
+			{
+				"host": card_id,
+				"ok": bool(result.get("ok", false)),
+				"mode": spec.mode,
+			}
+		)
+	return result
+
+
+static func _params_from_spec(
+	spec: SealSpec,
+	host: StringName,
+	controller_id: StringName
+) -> Dictionary:
+	var params := {
+		"host_card_id": host,
+		"card_id": host,
+		"controller_id": controller_id,
+		"as_keyword_cost": true,
+	}
+	match spec.mode:
+		SealSpec.MODE_RANDOM:
+			params["mode"] = MODE_RANDOM
+		SealSpec.MODE_NUMERIC:
+			params["mode"] = MODE_CHOICE
+			params["numeric_value"] = spec.numeric_value
+			params["has_numeric_value"] = true
+		SealSpec.MODE_KIND:
+			params["mode"] = MODE_KIND
+			if not spec.kinds.is_empty():
+				params["kind"] = int(spec.kinds[0])
+		SealSpec.MODE_CHOICE:
+			params["mode"] = MODE_CHOICE
+			params["kinds"] = spec.kinds.duplicate()
+		_:
+			params["mode"] = MODE_RANDOM
+	return params
+
+
 static func _seal_choice(
 	game_ctx: GameContext,
 	bag: ChaosBag,
 	host: StringName,
 	params: Dictionary
 ) -> ChaosToken:
-	var candidates: Array[ChaosToken] = []
-	var filter_kind: int = int(params.get("kind", -1))
-	for t in bag.tokens:
-		var tok: ChaosToken = t as ChaosToken
-		if tok == null or tok.sealed:
-			continue
-		if filter_kind >= 0 and int(tok.kind) != filter_kind:
-			continue
-		candidates.append(tok)
+	var candidates: Array[ChaosToken] = _choice_candidates(bag, params)
 	if candidates.is_empty():
 		return null
 	var controller: StringName = params.get(
@@ -207,6 +304,33 @@ static func _seal_choice(
 	if bag.seal(pick, host):
 		return pick
 	return null
+
+
+static func _choice_candidates(bag: ChaosBag, params: Dictionary) -> Array[ChaosToken]:
+	var out: Array[ChaosToken] = []
+	if bag == null:
+		return out
+	var filter_kind: int = int(params.get("kind", -1))
+	var kinds: Array = params.get("kinds", []) as Array
+	var has_numeric := bool(params.get("has_numeric_value", false))
+	var numeric_value := int(params.get("numeric_value", 0))
+	for t in bag.tokens:
+		var tok: ChaosToken = t as ChaosToken
+		if tok == null or tok.sealed:
+			continue
+		if has_numeric:
+			if (
+				tok.kind == AhcEnums.ChaosTokenKind.NUMERIC
+				and tok.modifier == numeric_value
+			):
+				out.append(tok)
+			continue
+		if filter_kind >= 0 and int(tok.kind) != filter_kind:
+			continue
+		if not kinds.is_empty() and not kinds.has(int(tok.kind)):
+			continue
+		out.append(tok)
+	return out
 
 
 static func _sync_card_sealed(card: CardInstance, bag: ChaosBag, host: StringName) -> void:

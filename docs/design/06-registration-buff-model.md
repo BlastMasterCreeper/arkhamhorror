@@ -283,7 +283,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | Uses `(X type)` 的 X 与 type | **关键词** Uses | `UsesSpec {count, type}` | 进场 L0 放 token；能力 cost 扣同 type | 禁止把 ammo 当成 charges | Domain `uses` 有；Spec 未模块化 |
 | Victory **X** | **关键词** Victory | 标量 `victory: int` | 击败 / 场景结束改去向 | 不是 Buff | ✅ |
 | Swarming **X** | **关键词** Swarming | 标量 count | 延时 LISTENER payload | 垫 X 张 facedown swarm | Core 无 |
-| Seal 选哪个 token | **关键词** Seal | `SealSpec` / mode=choice | 打出成本 / 进场 L0 / `seq.effect.seal` | `CHAOS_PICK` | Domain ✅；关键词进场成本待接线 |
+| Seal 选哪个 token | **关键词** Seal | `SealSpec` / mode=choice | 打出成本 L6 + 进场 `pay_keyword_on_enter` | `CHAOS_PICK` | ✅ |
 
 **禁止**：为括号单独 nest、单独 Register；把 Prey 括号当 Forced。
 
@@ -341,7 +341,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Uses (X)** | L0 进场放 typed token | 读 **B** 的 `UsesSpec`；扣 uses 走能力 cost | Domain 有 |
 | **Victory X** | Domain 去向 | 击败敌人 / 场景结束已揭示无线索地点 → 胜利展示区 | ✅ |
 | **Vengeance X** | 同去向，计分语义相反 | 与 Victory 共用展示区 | Core 无 |
-| **Seal** | L0 封印混乱标记 | `seq.effect.seal` / 离场 `release_seal`；作刚揭示替换 | Domain ✅（Premonition 实卡未译） |
+| **Seal** | L0 封印混乱标记 | 打出额外费用（L6 门槛）+ 进场 nest `seq.effect.seal`；离场释放；作刚揭示替换 | Domain ✅ |
 | **Permanent** 永久（牌组规模） | 构筑 | 不计 deck size；开场进场见 C1 | △ |
 | **Exceptional / Myriad（多重） / Reward / Researched / Bonded（绑定） / Customizable** | 构筑 | [11](11-investigator-campaign.md) | Collector 有 Reward |
 

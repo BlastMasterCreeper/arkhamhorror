@@ -69,6 +69,8 @@ class ChaosBag:
 
 **封印（Seal）· Domain**：`seq.effect.seal` / `seq.effect.release_seal`（`SealFlow`）。挂 `TokenBag.sealed`；离场 `ZoneMoveFlow` 立即释放回袋。Premonition 式「作刚揭示」= `ChaosRevealReplaceAbility.sealed_host_card_id` + `queue_sealed_reveal_instead`。
 
+**关键词 Seal = 打出额外费用**：`SealSpec`（`CardRegistry.seal_spec`）→ Initiation L6 `can_pay` 查袋；进场 `ZoneMoveFlow` → `SealFlow.pay_keyword_on_enter` nest `seq.effect.seal`。袋无指定标记 → 不能打出。
+
 ### 2.3 ScenarioReferenceDefinition
 
 ```gdscript
@@ -296,6 +298,10 @@ class ChaosBagSnapshot:
 | BAG-SEAL-03 | 离场释放 | leave play → 回袋 |
 | BAG-SEAL-04 | seq.effect.seal nest | Catalog nest ok |
 | BAG-SEAL-05 | 作刚揭示 instead | sealed 进账本；未抽袋 |
+| BAG-SEAL-06 | 关键词费用门槛 | 无 skull → cannot_pay；仍在手 |
+| BAG-SEAL-07 | 关键词打出进场 | Seal (Elder Sign) → 封印 |
+| BAG-SEAL-08 | 关键词 choice | cultist/tablet 封一枚 |
+| BAG-SEAL-09 | put into play | ZoneMove 进场亦封印 |
 | REF-01 | SF 加载 reference JSON | easy/hard skull expr |
 | REF-02 | SF skull –act | act=2 → modifier -2 |
 | REF-03 | SF tablet | -1 + reveal_another；fail → +1 damage |
@@ -351,3 +357,4 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.12 | §4.1.2：`any` 自肃一次；`each` for-each 不自肃 |
 | 2026-10-19 | v0.13 | §4.2 尾：去掉「整次检定 Cancel」伪缺口（OQ-04-04） |
 | 2026-10-19 | v0.14 | §2/§9：Seal Domain（seal / release_seal / 作刚揭示）；BAG-SEAL 竖切 |
+| 2026-10-19 | v0.15 | Seal 关键词：L6 门槛 + 进场 `pay_keyword_on_enter`；BAG-SEAL-06..09 |
