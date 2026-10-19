@@ -292,6 +292,9 @@ class ChaosBagSnapshot:
 | SHRIV-01 | 编译 skill_test.if_revealed 皱缩术 kinds | specs×1 · kinds=5 |
 | SHRIV-02 | skull → take horror @ ST.3 早于 ST.4 | horror 先；modifier 后 |
 | SHRIV-03 | 两枚 skull + any 自肃 | horror 只 +2 一次 |
+| CF-01 | 12059 编译 if_revealed skull | action fight + if_else source_has_use |
+| CF-02 | 12059 揭 skull 扣 charge | 3→2 |
+| CF-03 | 12059 无 charge 揭 skull | +1 damage + discard |
 
 ---
 

@@ -33,6 +33,9 @@ func _initialize() -> void:
 	_run_test("SHRIV-01 compile if_revealed on skill_test", _test_shriv01_compile_if_revealed)
 	_run_test("SHRIV-02 skull take horror at ST.3 before ST.4", _test_shriv02_horror_before_symbol)
 	_run_test("SHRIV-03 self-limit one horror despite two skulls", _test_shriv03_self_limit)
+	_run_test("CF-01 compile 12059 if_revealed skull", _test_cf01_compile_12059)
+	_run_test("CF-02 12059 skull removes charge", _test_cf02_skull_removes_charge)
+	_run_test("CF-03 12059 skull no charge damage discard", _test_cf03_skull_no_charge_discard)
 	_run_test("SC-11 investigate after sf setup", _test_sc11_investigate_after_sf_setup)
 	_run_test("SC-12 setup game begins timing", _test_sc12_setup_game_begins_timing)
 	_run_test("SC-13 act1 flip spawns layout", _test_sc13_act1_flip_spawns_layout)
@@ -925,6 +928,91 @@ func _test_shriv03_self_limit() -> bool:
 	return (
 		pulled.size() == 2
 		and inv.horror_taken == horror_before + 2
+	)
+
+
+func _test_cf01_compile_12059() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var compiled := CardRegistry.compiled_abilities(&"12059")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	var if_rev: Variant = entry.get("if_revealed", {})
+	if not if_rev is Dictionary:
+		return false
+	var types: Variant = entry.get("action_types", [])
+	var then_body: Dictionary = (if_rev as Dictionary).get("then", {})
+	return (
+		CardRegistry.has_triggered(&"12059")
+		and str(entry.get("register_as", "")) == "action"
+		and str(entry.get("template", "")) == "skill_test"
+		and str(entry.get("skill", "")) == "willpower"
+		and str((if_rev as Dictionary).get("kind", "")) == "skull"
+		and str(then_body.get("template", "")) == "if_else"
+		and str(then_body.get("condition", "")) == "source_has_use"
+		and types is Array
+		and (types as Array).has("activate")
+		and (types as Array).has("fight")
+		and CardRegistry.compiled_abilities(&"12071").size() == 1
+	)
+
+
+func _test_cf02_skull_removes_charge() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"cf_sk"),
+	])
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12059")
+	ScenarioDeckSetup.install_triggered_abilities(h.ctx, card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var charges_enter := int(card.tokens.uses.get(&"charges", -1))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.actions_remaining = 1
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	var charges_left := int(card.tokens.uses.get(&"charges", -1))
+	return (
+		charges_enter == 3
+		and bool(result.get("ok", false))
+		and charges_left == 2
+		and card.zone == AhcEnums.Zone.PLAY_AREA
+		and inv.damage_taken == 0
+	)
+
+
+func _test_cf03_skull_no_charge_discard() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"cf_sk0"),
+	])
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12059")
+	ScenarioDeckSetup.install_triggered_abilities(h.ctx, card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.uses[&"charges"] = 0
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var dmg_before := inv.damage_taken
+	inv.actions_remaining = 1
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	return (
+		bool(result.get("ok", false))
+		and inv.damage_taken == dmg_before + 1
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(card_id)
 	)
 
 
