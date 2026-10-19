@@ -190,7 +190,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
-**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）；**Seal Domain**；**Elder Sign**（调查员印刷旧印 · Joe 12004 竖切）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、Premonition **实卡编译**（12064 未译；框架已竖切）。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
+**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）；**Seal Domain**；**Elder Sign**（调查员印刷旧印 · Joe 12004 竖切）；**Bless/Curse**（规则自带符号能力 · `BlessCurseRules`）。仍范围外：OQ-05-02 战役符号脚本、Premonition **实卡编译**（12064 未译；框架已竖切）。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
 
 ---
 
@@ -271,7 +271,7 @@ class ChaosBagSnapshot:
 | **Ignore** | 不发起 ST.4 → 不设 `return_to_pool` → ST.8 回袋 |
 | 上限 | 袋内 + 封印 ≤ 10（`can_add_bless_or_curse` / `add_from_pool`） |
 
-实现：`ScenarioReferenceApplier._apply_bless_curse`；非参考卡 JSON、非调查员印刷。
+实现：`BlessCurseRules`（规则自带；**不是**冒险参考卡、**不是**调查员印刷）。ST.4 由 `SkillTestEngine` 先于 `ScenarioReferenceApplier` 路由。
 
 竖切：BC-01..05。
 
@@ -389,3 +389,4 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.15 | Seal 关键词：L6 门槛 + 进场 `pay_keyword_on_enter`；BAG-SEAL-06..09 |
 | 2026-10-19 | v0.16 | §8 Elder Sign：调查员符号能力 + Joe 12004 竖切（ES-01..05） |
 | 2026-10-19 | v0.17 | §8.1 Bless/Curse 符号能力 + chaos_token_pool；裁决 OQ-05-04；BC-01..05 |
+| 2026-10-19 | v0.18 | Bless/Curse 拆出 `BlessCurseRules`（规则自带；非参考卡） |
