@@ -117,11 +117,14 @@ static func zone_is_in_play(zone: AhcEnums.Zone) -> bool:
 
 
 static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> void:
-	## 用卡上 controller；空则回退 card_id（敌人 spawn 等）。
-	if game_ctx == null or game_ctx.triggered_abilities == null or card_id == &"":
+	## Domain：Uses 进场放 typed token；再装触发能力。
+	if game_ctx == null or card_id == &"":
 		return
-	var card := game_ctx.state.registry.get_card(card_id)
+	var card := game_ctx.state.registry.get_card(card_id) if game_ctx.state != null else null
 	if card == null:
+		return
+	_apply_uses_on_enter(game_ctx, card)
+	if game_ctx.triggered_abilities == null:
 		return
 	if not CardRegistry.has_triggered(card.id.definition_id):
 		return
@@ -131,8 +134,32 @@ static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> voi
 	game_ctx.triggered_abilities.install_card(controller, card_id)
 
 
+static func _apply_uses_on_enter(game_ctx: GameContext, card: CardInstance) -> void:
+	if card == null:
+		return
+	var uses: Dictionary = CardRegistry.uses_spec(card.id.definition_id)
+	if uses.is_empty():
+		return
+	var use_type: StringName = uses.get("type", &"charges") as StringName
+	var count := maxi(int(uses.get("count", 0)), 0)
+	if use_type == &"" or count <= 0:
+		return
+	card.tokens.uses[use_type] = count
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.CARD,
+			"keyword:uses_enter",
+			{"card": card.id.instance_id, "type": use_type, "count": count}
+		)
+
+
 static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> void:
 	if game_ctx.triggered_abilities != null:
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
 		game_ctx.registrations.on_card_leave_play(card_id)
+	## Uses 随离场清 token（06 DOMAIN）。
+	if game_ctx.state != null:
+		var card := game_ctx.state.registry.get_card(card_id)
+		if card != null:
+			card.tokens.uses.clear()

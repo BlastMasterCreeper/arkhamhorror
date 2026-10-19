@@ -959,15 +959,54 @@ def compile_reveal_additional_resolve(body: str) -> dict[str, Any] | None:
         }
     )
     rest = plain_text(m.group("rest") or "")
-    status = "full"
-    ## 「若 resolve 了符号则…」延后接 ST.4 后钩；本竖切只接线揭示替换。
-    if rest and re.search(r"resolved a token with a symbol", rest, re.I):
-        status = "partial"
+    ## 「If you resolved a token with a symbol, take N horror.」
+    horror_m = re.search(
+        r"If you resolved a token with a symbol,\s*take\s+(\d+)\s+horror\.?",
+        rest,
+        re.I,
+    )
+    if horror_m:
+        steps.append(
+            {
+                "template": "after_reveal_if_resolved_symbol",
+                "body": {
+                    "template": "take_horror",
+                    "amount": int(horror_m.group(1)),
+                },
+            }
+        )
+        rest = (rest[: horror_m.start()] + rest[horror_m.end() :]).strip()
+    ## 去掉句末残余标点，避免「…horror.」拆分后只剩「.」判 partial。
+    rest = rest.strip(" .;,").strip()
+    status = "full" if not rest else "partial"
     return {
         "template": "seq",
         "steps": steps,
         "translation": "full_expand",
         "status": status,
+    }
+
+
+## Olive 式：reveal N instead of 1, choose M … ignore the other.
+REVEAL_INSTEAD_RESOLVE = re.compile(
+    r"^[Rr]eveal\s+(?P<reveal>\d+)\s+chaos tokens?\s+instead of\s+1,?\s*"
+    r"choose\s+(?P<resolve>\d+)\s+of those tokens?\s+to resolve"
+    r"(?:,?\s*and ignore the other)?\.?\s*(?P<rest>.*)$",
+    re.I | re.S,
+)
+
+
+def compile_reveal_instead_resolve(body: str) -> dict[str, Any] | None:
+    m = REVEAL_INSTEAD_RESOLVE.match(body.strip())
+    if m is None:
+        return None
+    return {
+        "template": "chaos_reveal_replace",
+        "reveal_count": int(m.group("reveal")),
+        "resolve_count": int(m.group("resolve")),
+        "ability_id": "source",
+        "translation": "full_expand",
+        "status": "full" if not plain_text(m.group("rest") or "") else "partial",
     }
 
 
@@ -977,6 +1016,9 @@ def compile_effect_body(body: str) -> dict[str, Any] | None:
     reveal_extra = compile_reveal_additional_resolve(body)
     if reveal_extra is not None:
         return reveal_extra
+    reveal_instead = compile_reveal_instead_resolve(body)
+    if reveal_instead is not None:
+        return reveal_instead
     you_may = compile_you_may_take(body)
     if you_may is not None:
         return you_may

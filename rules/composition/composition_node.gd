@@ -674,6 +674,21 @@ static func spend_use(
 	return n
 
 
+## 本批揭示 resolve 后：若任一 resolved 为符号标记，执行 then（Mask 式 horror）。
+static func after_reveal_if_resolved_symbol(
+	then_node: CompositionNode,
+	controller_id: StringName = &"",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"after_reveal_if_resolved_symbol"
+	n.then_branch = then_node
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	return n
+
+
 ## L2 · 统一 Instead 节点（07 §7.0：nest seq.replace.instead 或本节点）。
 static func replace_instead(
 	target: ReplacementTarget,

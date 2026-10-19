@@ -247,6 +247,8 @@ func _initialize() -> void:
 	_run_test("BAG-IGNORE-03 gate uses resolved not ignored", _test_bag_ignore_gate_skips_ignored)
 	_run_test("BAG-WIRE-01 compile 12068 mask silenus", _test_bag_wire_compile_12068)
 	_run_test("BAG-WIRE-02 12068 would-reveal queues replace", _test_bag_wire_12068_vertical)
+	_run_test("BAG-WIRE-03 12068 resolved symbol takes horror", _test_bag_wire_12068_symbol_horror)
+	_run_test("BAG-USES-01 enter play places Uses charges", _test_bag_uses_enter_play)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
 	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
 	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
@@ -5629,17 +5631,24 @@ func _test_bag_wire_compile_12068() -> bool:
 		return false
 	if str(entry.get("template", "")) != "seq":
 		return false
+	if str(entry.get("status", "")) != "full":
+		return false
 	var steps: Array = entry.get("steps", [])
-	if steps.size() < 2:
+	if steps.size() != 3:
 		return false
 	var spend: Dictionary = steps[0]
 	var replace: Dictionary = steps[1]
+	var symbol_hook: Dictionary = steps[2]
+	var uses := CardRegistry.uses_spec(&"12068")
 	return (
 		CardRegistry.has_triggered(&"12068")
 		and str(spend.get("template", "")) == "spend_use"
 		and str(replace.get("template", "")) == "chaos_reveal_replace"
 		and int(replace.get("reveal_count", 0)) == 2
 		and int(replace.get("resolve_count", 0)) == 1
+		and str(symbol_hook.get("template", "")) == "after_reveal_if_resolved_symbol"
+		and int(uses.get("count", 0)) == 3
+		and String(uses.get("type", &"")) == "charges"
 		and h.ctx.sequence_catalog.has_flow(&"seq.chaos.reveal")
 	)
 
@@ -5656,12 +5665,13 @@ func _test_bag_wire_12068_vertical() -> bool:
 	])
 	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
 	var card := h.ctx.state.registry.get_card(card_id)
-	card.tokens.uses[&"charges"] = 3
-	## install_card(controller, card)；此处控制器为调查员。
-	h.ctx.triggered_abilities.install_card(&"inv_1", card_id)
+	## Uses Domain：进场即 3 charges；勿手写。
+	var charges_enter := int(card.tokens.uses.get(&"charges", -1))
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
 		{"prompt_id": &"reaction:use", "pick": true},
 	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_before := inv.horror_taken
 	var st := SkillTestHelper.new(h.ctx)
 	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
 	h.ctx.skill_tests.begin_test(test, h.ctx)
@@ -5677,16 +5687,69 @@ func _test_bag_wire_12068_vertical() -> bool:
 	if resolved_arr.size() == 1 and resolved_arr[0] is ChaosToken:
 		expected_mod = (resolved_arr[0] as ChaosToken).modifier
 	var ok := (
-		int(intent.get("leaf_count", 0)) == 2
+		charges_enter == 3
+		and int(intent.get("leaf_count", 0)) == 2
 		and resolved_arr.size() == 1
 		and (intent.get("ignored") as Array).size() == 1
 		and test.revealed_tokens.size() == 1
 		and test.chaos_modifier == expected_mod
 		and charges_left == 2
+		and inv.horror_taken == horror_before
 	)
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return ok
+
+
+func _test_bag_wire_12068_symbol_horror() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	## 两枚符号：揭 2 解 1 → 必有 resolved 符号 → take 1 horror。
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, -1, &"sk0"),
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.CULTIST, -1, &"cu0"),
+	])
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var card := h.ctx.state.registry.get_card(card_id)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"reaction:use", "pick": true},
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_before := inv.horror_taken
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var resolved_arr: Array = intent.get("resolved", [])
+	var resolved_is_symbol := false
+	if resolved_arr.size() == 1 and resolved_arr[0] is ChaosToken:
+		resolved_is_symbol = (resolved_arr[0] as ChaosToken).is_symbol_token()
+	var ok := (
+		int(card.tokens.uses.get(&"charges", -1)) == 2
+		and resolved_arr.size() == 1
+		and resolved_is_symbol
+		and inv.horror_taken == horror_before + 1
+	)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bag_uses_enter_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null or int(card.tokens.uses.get(&"charges", -1)) != 3:
+		return false
+	## 离场清 Uses token。
+	h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	return card.tokens.uses.is_empty()
 
 
 func _test_act_investigate_success() -> bool:

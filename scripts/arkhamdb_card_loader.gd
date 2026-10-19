@@ -101,6 +101,17 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 	var compiled: Variant = src.get("compiled_abilities", [])
 	if compiled is Array:
 		out["compiled_abilities"] = compiled.duplicate(true)
+	## Uses (X type)：显式字段或从正文解析；进场 Domain 放 token。
+	var uses_raw: Variant = src.get("uses", {})
+	if uses_raw is Dictionary and not (uses_raw as Dictionary).is_empty():
+		out["uses"] = (uses_raw as Dictionary).duplicate()
+	else:
+		var parsed_uses := CardRegistry.parse_uses_from_text(str(src.get("text", "")))
+		if not parsed_uses.is_empty():
+			out["uses"] = parsed_uses
+			if not kw_out.has(&"uses"):
+				kw_out.append(&"uses")
+				out["keywords"] = kw_out
 	ArkhamDbInstructionCompiler.apply_instructions(out, src)
 	_AbilityCompiler.apply_to_registry(definition_id, src)
 	return out

@@ -40,3 +40,8 @@ static func symbol(
 	t.modifier = modifier
 	t.instance_id = instance_id
 	return t
+
+
+## 卡面「token with a symbol」= 非数字标记（含 auto-fail / elder sign / curse…）。
+func is_symbol_token() -> bool:
+	return kind != AhcEnums.ChaosTokenKind.NUMERIC

@@ -64,6 +64,46 @@ static func compiled_abilities(definition_id: StringName) -> Array:
 	return []
 
 
+## Uses (X type) · Domain 进场规格；空 = 无 Uses。
+static func uses_spec(definition_id: StringName) -> Dictionary:
+	var data := definition_data(definition_id)
+	var raw: Variant = data.get("uses", {})
+	if raw is Dictionary and not (raw as Dictionary).is_empty():
+		var d: Dictionary = (raw as Dictionary).duplicate()
+		if not d.has("type"):
+			d["type"] = &"charges"
+		if not d.has("count"):
+			d["count"] = 0
+		d["type"] = StringName(str(d.get("type", "charges")))
+		d["count"] = int(d.get("count", 0))
+		return d
+	return parse_uses_from_text(str(data.get("text", "")))
+
+
+static func parse_uses_from_text(text: String) -> Dictionary:
+	if text.is_empty():
+		return {}
+	var re := RegEx.new()
+	## Uses (3 charges) / Uses (4 ammo) …
+	if re.compile("(?i)Uses\\s*\\((\\d+)\\s+([A-Za-z]+)\\)") != OK:
+		return {}
+	var m := re.search(text)
+	if m == null:
+		return {}
+	var count := int(m.get_string(1))
+	var raw_type := m.get_string(2).to_lower()
+	var use_type := raw_type
+	if raw_type.begins_with("charge"):
+		use_type = "charges"
+	elif raw_type.begins_with("ammo"):
+		use_type = "ammo"
+	elif raw_type.begins_with("secret"):
+		use_type = "secrets"
+	elif raw_type.begins_with("suppl"):
+		use_type = "supplies"
+	return {"count": count, "type": StringName(use_type)}
+
+
 ## builder: Callable(AbilityBindContext) -> CompositionNode
 static func register_revelation(
 	definition_id: StringName,

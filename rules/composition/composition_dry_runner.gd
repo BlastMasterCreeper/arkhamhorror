@@ -383,6 +383,8 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 		&"queue_chaos_reveal_replace":
 			## 仅挂意图；不依赖袋内张数。
 			return node.draw_amount >= 1
+		&"after_reveal_if_resolved_symbol":
+			return node.then_branch != null
 		&"resolve_pending":
 			return node.pending_id != &""
 		&"place_doom_nearest_enemy_without_doom", &"nest_place_doom":

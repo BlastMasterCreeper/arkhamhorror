@@ -388,6 +388,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_spend_use(node)
 		&"queue_chaos_reveal_replace":
 			return _execute_queue_chaos_reveal_replace(node)
+		&"after_reveal_if_resolved_symbol":
+			return _execute_after_reveal_if_resolved_symbol(node)
 		&"resolve_pending":
 			if _game_ctx != null and _game_ctx.effects != null:
 				_game_ctx.effects.resolve_pending(node.pending_id)
@@ -1694,6 +1696,26 @@ func _execute_queue_chaos_reveal_replace(node: CompositionNode) -> bool:
 			"reveal_count": ab.reveal_count,
 			"resolve_count": ab.resolve_count,
 		}
+	)
+	return true
+
+
+func _execute_after_reveal_if_resolved_symbol(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.skill_tests == null:
+		return false
+	var ctx := _game_ctx.skill_tests.current_context()
+	if ctx == null or node.then_branch == null:
+		return false
+	ctx.after_reveal_hooks.append(
+		{
+			"require_symbol": true,
+			"composition": node.then_branch,
+		}
+	)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:after_reveal_if_resolved_symbol",
+		{"card": node.card_id}
 	)
 	return true
 

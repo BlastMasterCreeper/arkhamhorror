@@ -29,6 +29,7 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	for item in resolved:
 		if item is ChaosToken:
 			ctx.revealed_tokens.append(item as ChaosToken)
+	_fire_after_reveal_hooks(game_ctx, ctx, resolved)
 	return {
 		"ok": not (plan.get("tokens", []) as Array).is_empty() or abilities.is_empty(),
 		"leaf_count": int(plan.get("leaf_count", 0)),
@@ -36,3 +37,31 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		"ignored_count": (plan.get("ignored", []) as Array).size(),
 		"order": plan.get("order", []),
 	}
+
+
+static func _fire_after_reveal_hooks(
+	game_ctx: GameContext,
+	ctx: SkillTestContext,
+	resolved: Array
+) -> void:
+	if ctx == null or ctx.after_reveal_hooks.is_empty():
+		return
+	var any_symbol := false
+	for item in resolved:
+		var tok: ChaosToken = item as ChaosToken
+		if tok != null and tok.is_symbol_token():
+			any_symbol = true
+			break
+	var hooks: Array = ctx.after_reveal_hooks.duplicate()
+	ctx.after_reveal_hooks.clear()
+	for raw in hooks:
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var hook: Dictionary = raw
+		if bool(hook.get("require_symbol", true)) and not any_symbol:
+			continue
+		var node: CompositionNode = hook.get("composition") as CompositionNode
+		if node == null:
+			continue
+		if game_ctx != null and game_ctx.composition != null:
+			game_ctx.composition.execute(node)

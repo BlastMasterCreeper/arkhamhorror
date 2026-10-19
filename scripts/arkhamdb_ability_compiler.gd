@@ -307,6 +307,21 @@ static func build_composition(
 				int(params.get("resolve_count", -1)),
 				bind.card_id
 			)
+		"after_reveal_if_resolved_symbol":
+			var body_raw: Variant = params.get("body", params.get("then", {}))
+			var then_node: CompositionNode = null
+			if body_raw is Dictionary:
+				var body_dict: Dictionary = body_raw
+				then_node = build_composition(
+					str(body_dict.get("template", "")),
+					body_dict,
+					bind
+				)
+			if then_node == null:
+				return null
+			return CompositionNode.after_reveal_if_resolved_symbol(
+				then_node, bind.controller_id, bind.card_id
+			)
 	return null
 
 
@@ -632,6 +647,7 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"resolve_count",
 		"use_type",
 		"ability_id",
+		"body",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

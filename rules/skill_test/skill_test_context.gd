@@ -38,3 +38,5 @@ var pending_reveal_replace: Array = []
 var reveal_batch_start: int = 0
 ## 最近一次 `ChaosRevealIntentPlanner.plan_and_reveal` 结果（测试 / 审计）。
 var last_reveal_intent: Dictionary = {}
+## ST.3 批 resolve 后一次性钩：{ "require_symbol": bool, "composition": CompositionNode }
+var after_reveal_hooks: Array = []
