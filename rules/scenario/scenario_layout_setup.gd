@@ -132,15 +132,15 @@ static func _register_location(
 	var loc := LocationState.new()
 	loc.id = definition_id
 	loc.shroud = CardRegistry.location_shroud(definition_id)
-	loc.revealed = in_play and reveal
-	if reveal:
-		loc.clues = PerInvestigatorScale.place_location_clues(
-			game_ctx.state,
-			CardRegistry.location_printed_clues(definition_id)
-		)
-	else:
-		loc.clues = 0
+	loc.printed_clues = CardRegistry.location_printed_clues(definition_id)
+	loc.revealed = false
+	loc.clues = 0
 	game_ctx.state.registry.register_location(loc)
+	## 开局已揭示的地点（如 starting）：立刻翻开并放线索。
+	if in_play and reveal:
+		LocationEnterRules.reveal_and_place_clues(
+			game_ctx, {"location_id": definition_id}
+		)
 	if in_play:
 		var card_id := materialize_card(
 			game_ctx,

@@ -42,22 +42,22 @@ class LocationState:
 
 ---
 
-## 3. Reveal 流程
+## 3. Reveal 流程（规则自带 · 已落地）
 
-触发：
+触发（**不是**关键词、**不是**卡面 Forced）：
 
-- Investigator **enters** unrevealed location（含 Move、Spawn 到该地点、Setup 放置）
-- 卡牌能力 instruct reveal
+- 调查员 **进入** 未揭示地点（`seq.effect.move` / 行动移动 → `LocationEnterRules.on_investigator_enter`）
+- Setup / 进场已揭示布局（starting location、`put_location_into_play`、遭遇抽到地点）→ 直接 `reveal_and_place_clues`
+- 卡牌能力 instruct reveal → nest `seq.effect.reveal_location`
 
 ```
-1. Flip to revealed side
-2. clues = clue_value × per_investigator_multiplier（[per_investigator]）
-3. Place clues from token pool onto location
-4. 应用连接变化（若 revealed 面修改 connections）
-5. Trigger Forced/enter play effects
+1. Flip to revealed side（LocationState.revealed）
+2. clues = printed_clues × per_investigator_count（dash / -1 → 0）
+3. Place onto location（`loc.clues`）
+4. （后续）连接变化 / Forced — 未竖切
 ```
 
-Setup 时 investigator  placed at location → **算 enter** → reveal + clues（Grimoire Clues）。
+实现：`LocationEnterRules` + Catalog `seq.effect.reveal_location`。已揭示再进入 **不**再放线索。
 
 ---
 
@@ -121,8 +121,10 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 
 | ID | 场景 | 预期 |
 |---|---|---|
-| L-01 | 4 player, clue [per_investigator]2 | 8 clues placed |
+| L-01 | 2 investigator, printed 2 | 4 clues placed |
 | L-02 | Move to unrevealed | reveal + clues |
+| L-02b | Re-enter revealed | 不再放线索 |
+| L-02c | Enemy move to unrevealed | **不**翻开 |
 | L-03 | Setup start at unrevealed | reveal at setup |
 | L-04 | Resign 后 [per_investigator] 不变 | act threshold 仍 ×4 |
 | L-05 | Haunted fail investigate | Haunted resolves |
@@ -134,7 +136,7 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-09-01 | P1 | Setup 放置 vs Move enter：是否统一 `enter_location()` 单入口？ |
+| OQ-09-01 | P1 | ~~Setup vs Move enter 单入口？~~ → **统一** `LocationEnterRules` / `seq.effect.reveal_location`；Move 走 `on_investigator_enter`；setup 已揭示直跑 `reveal_and_place_clues`。 |
 | OQ-09-02 | P2 | 同 title 多 copy location（罕见）— 仍算 different locations — 如何 instance 化？ |
 | OQ-09-03 | P1 | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ |
 | OQ-09-04 | P2 | Farthest location 计算：blocked path 是否参与？ |
@@ -148,3 +150,4 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
+| 2026-10-19 | v0.2 | §3 落地：进入未揭示翻开 + 首次放线索；`LocationEnterRules`；L-02/L-01 竖切；裁决 OQ-09-01 |

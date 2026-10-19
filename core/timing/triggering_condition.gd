@@ -847,6 +847,20 @@ static func place_clue(
 	)
 
 
+static func reveal_location(
+	params: Dictionary,
+	after_timing: StringName = &"after_reveal_location"
+) -> TriggeringCondition:
+	var location_id: StringName = params.get("location_id", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("reveal_location_%s_%d" % [location_id, Time.get_ticks_msec()])
+	t.kind = &"reveal_location"
+	t.tags = [&"effect", &"location", &"reveal"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 static func effect_register(
 	controller_id: StringName,
 	card_id: StringName = &"",

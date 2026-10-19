@@ -159,6 +159,14 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 	var move_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return MoveFlow.run(game_ctx, params)
 	catalog.register_run(&"seq.effect.move", move_build, move_resolve)
+	## 规则自带：揭示地点 + 首次放线索（调查员进入未揭示时 nest）。
+	catalog.register_run(
+		&"seq.effect.reveal_location",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.reveal_location(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return LocationEnterRules.reveal_and_place_clues(game_ctx, params)
+	)
 	## 旧 id 别名（敌人卡面 nest）；resolve 强制 subject=enemy。
 	catalog.register_run(
 		&"seq.enemy.move",

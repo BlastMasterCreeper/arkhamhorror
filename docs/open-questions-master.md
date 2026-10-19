@@ -94,7 +94,7 @@
 | OQ-07-03 | [07-effect](design/07-effect-resolution.md) | Assign 阶段 prevent 部分 damage：剩余是否 re-assign 还是 fizzle？ | |
 | OQ-07-05 | [07-effect](design/07-effect-resolution.md) | 「As much as possible resolve」— partial target invalid 时 DAG 如何剪枝？ | |
 | OQ-08-05 | [08-enemy](design/08-enemy-engagement.md) | Engage 抢怪：同时 disengage 原调查员是否触发「leaves engagement」类能力？ | |
-| OQ-09-01 | [09-location](design/09-location-graph.md) | Setup 放置 vs Move enter：是否统一 `enter_location()` 单入口？ | |
+| OQ-09-01 | [09-location](design/09-location-graph.md) | ~~Setup vs Move enter 单入口？~~ → **`LocationEnterRules` / `seq.effect.reveal_location`** | 2026-10-19 |
 | OQ-09-03 | [09-location](design/09-location-graph.md) | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ | |
 | OQ-09-05 | [09-location](design/09-location-graph.md) | Your Friend's Room `[action]` Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） | |
 | OQ-10-02 | [10-scenario](design/10-scenario-encounter.md) | Objective must advance 无 window — 自动 advance 还是暂停提示？ | |
