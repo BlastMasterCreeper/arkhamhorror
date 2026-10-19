@@ -37,6 +37,8 @@ var test_difficulty: int = 0
 ## 动态难度：空=用 test_difficulty；`hand_count` = 调查员手牌张数（12127）。
 var test_difficulty_source: StringName = &""
 var st7_plan: SkillTestSt7Plan = null
+## nest skill_test：*If … is revealed* 规格（见 SkillTestIfRevealed）。
+var if_revealed_specs: Array = []
 var repeat_count_source: StringName = &""
 var repeat_count_fixed: int = 0
 var may_advance_agenda: bool = false
@@ -312,7 +314,8 @@ static func nest_skill_test(
 	card_id: StringName = &"",
 	st7_plan: SkillTestSt7Plan = null,
 	difficulty_source: StringName = &"",
-	skill_spec: StringName = &""
+	skill_spec: StringName = &"",
+	if_revealed_specs: Array = []
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -324,6 +327,7 @@ static func nest_skill_test(
 	n.test_difficulty = maxi(difficulty, 0)
 	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
+	n.if_revealed_specs = if_revealed_specs
 	return n
 
 

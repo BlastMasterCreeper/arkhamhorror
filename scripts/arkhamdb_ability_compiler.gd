@@ -430,6 +430,9 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 	var difficulty := int(params.get("difficulty", 0))
 	var difficulty_source := StringName(str(params.get("difficulty_source", "")))
 	var plan := _build_st7_plan(params, bind)
+	var if_specs := SkillTestIfRevealed.specs_from_compile(
+		params, bind, Callable(ArkhamDbAbilityCompiler, "build_composition")
+	)
 	var choices: Variant = params.get("skill_choices", [])
 	## skill_choices：PI 只选技能类型 → 单次 skill_test（体不重复）。
 	if choices is Array and not (choices as Array).is_empty():
@@ -449,7 +452,8 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 			bind.card_id,
 			plan,
 			difficulty_source,
-			StringName("memory:%s" % str(mem_key))
+			StringName("memory:%s" % str(mem_key)),
+			if_specs
 		)
 		return CompositionNode.seq([pick, test])
 	var skill_raw := str(params.get("skill", "willpower"))
@@ -458,7 +462,14 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 		skill_spec = StringName(skill_raw)
 	var skill := _skill_from_compile_id(skill_raw)
 	return CompositionNode.nest_skill_test(
-		bind.controller_id, skill, difficulty, bind.card_id, plan, difficulty_source, skill_spec
+		bind.controller_id,
+		skill,
+		difficulty,
+		bind.card_id,
+		plan,
+		difficulty_source,
+		skill_spec,
+		if_specs
 	)
 
 
@@ -616,6 +627,8 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"difficulty_source",
 		"st7_fail_by",
 		"st7",
+		"if_revealed",
+		"kinds",
 		"window",
 		"trait_exclude",
 		"target",

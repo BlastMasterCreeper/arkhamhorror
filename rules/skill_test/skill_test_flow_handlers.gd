@@ -23,6 +23,9 @@ static func run_revelation_test(game_ctx: GameContext, params: Dictionary) -> Di
 		SkillTestSt7Composition.register_fail_by_loop(
 			test, game_ctx, st7_body as CompositionNode
 		)
+	var if_specs: Variant = params.get("if_revealed_specs", [])
+	if if_specs is Array and not (if_specs as Array).is_empty():
+		SkillTestIfRevealed.register_specs(test, game_ctx, if_specs as Array)
 	if game_ctx.memory != null:
 		EncounterPeril.sync_test_context_from_frame(test, game_ctx)
 	var result := game_ctx.skill_tests.run_full_test(test, game_ctx)
