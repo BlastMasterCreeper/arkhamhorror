@@ -19,7 +19,7 @@ func was_revealed() -> bool:
 
 
 func was_resolved() -> bool:
-	## 计入 ST.4/ST.5 与 FAQ 2.5「resolved」门槛。
+	## 计入 ST.4/ST.5 与 if_revealed（FAQ 2.5 resolved）。
 	return not canceled and not ignored
 
 

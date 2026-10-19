@@ -39,6 +39,8 @@ func begin_test(ctx: SkillTestContext, game_ctx: GameContext = null) -> SkillTes
 	_stack.append(ctx)
 	_sync_stack(game_ctx)
 	_state.chaos_bag.begin_reveal_scope(ctx.id)
+	## 紧贴 resolved 揭示：袋在 disposition 定案时回调。
+	_state.chaos_bag.on_resolved_reveal = _on_bag_resolved_reveal
 	ctx.current_step = AhcEnums.SkillTestStep.ST_1_BEGIN
 	_advance_step(AhcEnums.SkillTestStep.ST_1_BEGIN, ctx)
 	if _timing:
@@ -106,57 +108,76 @@ func resolve_reveal_chain(ctx: SkillTestContext) -> void:
 		var reveal_again := step_apply_symbol_effects(ctx)
 		if not reveal_again:
 			break
-	## ST.4 链结束 → PW_AFTER_REVEAL（窗内能力揭示写入账本）→ 窗关后门槛 → ST.5。
+	## ST.4 链结束 → PW_AFTER_REVEAL（窗内能力揭示仍走 on_resolved_reveal）→ ST.5。
+	## *If revealed* 已在各次 resolved 结算时 eager 触发，不再固定时点读账本。
 	_open_player_window(ctx, AhcEnums.PlayerWindow.PW_SKILL_TEST_AFTER_REVEAL)
 
 
 func continue_after_reveal_window(ctx: SkillTestContext) -> void:
-	resolve_post_st4_if_revealed_gate(ctx)
+	_snapshot_if_revealed(ctx)
 	step_calculate_modified_value(ctx)
 	step_determine_success(ctx)
 
 
-## ST.4 揭示+符号链结束后的统一门槛：只读账本 **resolved** 行（FAQ 2.5；未 Cancel 且未 Ignore）。
-func resolve_post_st4_if_revealed_gate(ctx: SkillTestContext) -> Dictionary:
-	var bag := _state.chaos_bag
-	var snap := {
-		"scope_id": bag.reveal_scope_id,
-		"resolved": bag.resolved_records().duplicate(),
-		"revealed": bag.revealed_records().duplicate(),
-		## 兼容旧测试键：uncanceled = 曾揭示（含 Ignore）。
-		"uncanceled": bag.revealed_records().duplicate(),
-	}
-	ctx.post_st4_reveal_snapshot = snap
-	for entry in ctx.post_st4_if_revealed:
+## 一枚 token 已定案为 resolved：驱动 if_revealed_watchers（紧贴揭示）。
+func notify_resolved_reveal(ctx: SkillTestContext, token: ChaosToken) -> void:
+	if ctx == null or token == null:
+		return
+	_dispatch_if_revealed(ctx, token.kind)
+
+
+func _on_bag_resolved_reveal(token: ChaosToken, _rec: ChaosRevealRecord) -> void:
+	var ctx := current_context()
+	if ctx == null:
+		return
+	notify_resolved_reveal(ctx, token)
+
+
+func _dispatch_if_revealed(ctx: SkillTestContext, kind: AhcEnums.ChaosTokenKind) -> void:
+	var kind_i := int(kind)
+	for entry in ctx.if_revealed_watchers:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
-		var kind: int = int(entry.get("kind", -1))
-		if kind < 0:
+		if not _watcher_matches_kind(entry, kind_i):
 			continue
-		var mode: StringName = entry.get("mode", &"any")
 		var cb: Variant = entry.get("on_match")
 		if typeof(cb) != TYPE_CALLABLE or not (cb as Callable).is_valid():
 			continue
-		## Recall / Eye 等「若揭示」延时：按 **resolved**（FAQ 2.5）。
-		var count := bag.count_resolved_kind(kind as AhcEnums.ChaosTokenKind)
-		if count <= 0:
-			continue
+		var mode: StringName = entry.get("mode", &"any")
 		if mode == &"each":
-			for _i in range(count):
-				(cb as Callable).call(ctx, kind, 1)
-		else:
-			## any / binary：整次门槛至多一次
-			(cb as Callable).call(ctx, kind, count)
+			## for-each：每枚 resolved 一次，不自肃。
+			(cb as Callable).call(ctx, kind_i, 1)
+			continue
+		## any / binary：自肃 — 本检定至多一次。
+		if bool(entry.get("fired", false)):
+			continue
+		entry["fired"] = true
+		(cb as Callable).call(ctx, kind_i, 1)
 	if _timing:
 		_timing.emit_timing(
-			&"skill_test_post_st4_if_revealed",
-			{
-				"test_id": ctx.id,
-				"resolved_count": bag.resolved_records().size(),
-				"revealed_count": bag.revealed_records().size(),
-			}
+			&"skill_test_if_revealed",
+			{"test_id": ctx.id, "kind": kind_i}
 		)
-	return snap
+
+
+func _watcher_matches_kind(entry: Dictionary, kind_i: int) -> bool:
+	var kinds_raw: Variant = entry.get("kinds", null)
+	if kinds_raw is Array:
+		for k in kinds_raw as Array:
+			if int(k) == kind_i:
+				return true
+		return false
+	return int(entry.get("kind", -1)) == kind_i
+
+
+func _snapshot_if_revealed(ctx: SkillTestContext) -> void:
+	var bag := _state.chaos_bag
+	ctx.if_revealed_snapshot = {
+		"scope_id": bag.reveal_scope_id,
+		"resolved": bag.resolved_records().duplicate(),
+		"revealed": bag.revealed_records().duplicate(),
+		"uncanceled": bag.revealed_records().duplicate(),
+	}
 
 
 func step_reveal_token(ctx: SkillTestContext) -> ChaosToken:
@@ -187,9 +208,11 @@ func step_reveal_token(ctx: SkillTestContext) -> ChaosToken:
 			&"skill_test"
 		)
 		ctx.last_reveal_intent = plan
-		for item in plan.get("resolved", []):
+		var resolved_fb: Array = plan.get("resolved", [])
+		for item in resolved_fb:
 			if item is ChaosToken:
 				ctx.revealed_tokens.append(item as ChaosToken)
+		_state.chaos_bag.notify_resolved_tokens(resolved_fb)
 	_advance_step(AhcEnums.SkillTestStep.ST_3_REVEAL, ctx)
 	if ctx.revealed_tokens.is_empty():
 		return null
@@ -273,6 +296,9 @@ func step_end(ctx: SkillTestContext, game_ctx: GameContext = null) -> void:
 	_state.chaos_bag.end_reveal_scope()
 	if _stack.size() > 0 and _stack[_stack.size() - 1] == ctx:
 		_stack.pop_back()
+	## 嵌套检定可能仍在栈上；仅栈空时卸回调。
+	if _stack.is_empty():
+		_state.chaos_bag.on_resolved_reveal = Callable()
 	_sync_stack(game_ctx)
 	_advance_step(AhcEnums.SkillTestStep.ST_8_END, ctx)
 	if _timing:
