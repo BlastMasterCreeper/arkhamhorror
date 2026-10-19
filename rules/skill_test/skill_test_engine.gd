@@ -116,12 +116,15 @@ func continue_after_reveal_window(ctx: SkillTestContext) -> void:
 	step_determine_success(ctx)
 
 
-## ST.4 揭示+符号链结束后的统一门槛：只读 `ChaosBag` 揭示账本（未 Cancel）。
+## ST.4 揭示+符号链结束后的统一门槛：只读账本 **resolved** 行（FAQ 2.5；未 Cancel 且未 Ignore）。
 func resolve_post_st4_if_revealed_gate(ctx: SkillTestContext) -> Dictionary:
 	var bag := _state.chaos_bag
 	var snap := {
 		"scope_id": bag.reveal_scope_id,
-		"uncanceled": bag.uncanceled_records().duplicate(),
+		"resolved": bag.resolved_records().duplicate(),
+		"revealed": bag.revealed_records().duplicate(),
+		## 兼容旧测试键：uncanceled = 曾揭示（含 Ignore）。
+		"uncanceled": bag.revealed_records().duplicate(),
 	}
 	ctx.post_st4_reveal_snapshot = snap
 	for entry in ctx.post_st4_if_revealed:
@@ -134,7 +137,8 @@ func resolve_post_st4_if_revealed_gate(ctx: SkillTestContext) -> Dictionary:
 		var cb: Variant = entry.get("on_match")
 		if typeof(cb) != TYPE_CALLABLE or not (cb as Callable).is_valid():
 			continue
-		var count := bag.count_uncanceled_kind(kind as AhcEnums.ChaosTokenKind)
+		## Recall / Eye 等「若揭示」延时：按 **resolved**（FAQ 2.5）。
+		var count := bag.count_resolved_kind(kind as AhcEnums.ChaosTokenKind)
 		if count <= 0:
 			continue
 		if mode == &"each":
@@ -146,7 +150,11 @@ func resolve_post_st4_if_revealed_gate(ctx: SkillTestContext) -> Dictionary:
 	if _timing:
 		_timing.emit_timing(
 			&"skill_test_post_st4_if_revealed",
-			{"test_id": ctx.id, "uncanceled_count": bag.uncanceled_records().size()}
+			{
+				"test_id": ctx.id,
+				"resolved_count": bag.resolved_records().size(),
+				"revealed_count": bag.revealed_records().size(),
+			}
 		)
 	return snap
 

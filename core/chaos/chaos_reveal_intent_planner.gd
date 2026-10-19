@@ -10,7 +10,7 @@ extends RefCounted
 ## {
 ##   "tokens": Array[ChaosToken],          # 本批全部物理揭示（同时）
 ##   "resolved": Array[ChaosToken],        # 计入 resolve / 未整枚 ignore
-##   "ignored": Array[ChaosToken],         # 整枚 ignore（cancel_reveal）
+##   "ignored": Array[ChaosToken],         # 整枚 ignore（ignore_reveal；仍算揭示）
 ##   "order": Array[StringName],            # 能力生效序
 ##   "slot_targets": Dictionary,           # ability_id → 作用槽 id
 ##   "leaf_count": int,
@@ -236,7 +236,7 @@ static func _apply_resolve_picks(
 			else:
 				ignored.append(t2)
 				if bag != null:
-					bag.cancel_reveal(t2)
+					bag.ignore_reveal(t2)
 	## 未被任何「选 resolve」能力认领的叶：默认全部 resolve。
 	for leaf2 in leaves:
 		var t3: ChaosToken = leaf2.get("token")

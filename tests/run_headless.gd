@@ -242,6 +242,9 @@ func _initialize() -> void:
 	_run_test("BAG-INTENT-03 Olive then Statue order+slot", _test_bag_intent_olive_then_statue)
 	_run_test("BAG-INTENT-04 Statue then Olive order", _test_bag_intent_statue_then_olive)
 	_run_test("BAG-INTENT-05 ST.3 multi resolved modifiers", _test_bag_intent_st3_multi_modifiers)
+	_run_test("BAG-IGNORE-01 olive ignore still revealed not resolved", _test_bag_ignore_olive_revealed)
+	_run_test("BAG-IGNORE-02 cancel excludes revealed and resolved", _test_bag_ignore_cancel_excludes_both)
+	_run_test("BAG-IGNORE-03 gate uses resolved not ignored", _test_bag_ignore_gate_skips_ignored)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
 	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
 	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
@@ -5434,7 +5437,8 @@ func _test_bag_intent_olive_alone() -> bool:
 		and (plan.get("resolved") as Array).size() == 2
 		and (plan.get("ignored") as Array).size() == 1
 		and h.ctx.state.chaos_bag.revealed_this_test.size() == 3
-		and h.ctx.state.chaos_bag.count_uncanceled_kind(AhcEnums.ChaosTokenKind.NUMERIC) == 2
+		and h.ctx.state.chaos_bag.count_revealed_kind(AhcEnums.ChaosTokenKind.NUMERIC) == 3
+		and h.ctx.state.chaos_bag.count_resolved_kind(AhcEnums.ChaosTokenKind.NUMERIC) == 2
 	)
 
 
@@ -5532,6 +5536,83 @@ func _test_bag_intent_st3_multi_modifiers() -> bool:
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return ok
+
+
+func _test_bag_ignore_olive_revealed() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_ig")
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		curse,
+		ChaosToken.numeric(0, &"n0"),
+		ChaosToken.numeric(1, &"n1"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"ignore_olive")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var ignored: Array = plan.get("ignored", [])
+	if ignored.is_empty():
+		return false
+	var ig: ChaosToken = ignored[0] as ChaosToken
+	var rec := h.ctx.state.chaos_bag.revealed_records()
+	var has_ig_revealed := false
+	for r in rec:
+		if r.token == ig and r.ignored and r.was_revealed() and not r.was_resolved():
+			has_ig_revealed = true
+			break
+	return (
+		has_ig_revealed
+		and h.ctx.state.chaos_bag.count_revealed_kind(ig.kind) >= 1
+		and h.ctx.state.chaos_bag.count_resolved_kind(ig.kind) == 0
+		and not h.ctx.state.chaos_bag.has_resolved_kind(ig.kind)
+	)
+
+
+func _test_bag_ignore_cancel_excludes_both() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_cancel")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"cancel_scope")
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.cancel_reveal(pulled[0])
+	return (
+		not h.ctx.state.chaos_bag.has_revealed_kind(AhcEnums.ChaosTokenKind.CURSE)
+		and not h.ctx.state.chaos_bag.has_resolved_kind(AhcEnums.ChaosTokenKind.CURSE)
+		and h.ctx.state.chaos_bag.revealed_records().is_empty()
+		and h.ctx.state.chaos_bag.resolved_records().is_empty()
+	)
+
+
+func _test_bag_ignore_gate_skips_ignored() -> bool:
+	## 能力揭示 curse 后 Ignore → ST.4 后门槛（resolved）不应开火；revealed 仍可见。
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_gate")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.post_st4_if_revealed = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.ignore_reveal(pulled[0])
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	h.ctx.state.chaos_bag.tokens.clear()
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n_gate"))
+	var saw_revealed := h.ctx.state.chaos_bag.has_revealed_kind(AhcEnums.ChaosTokenKind.CURSE)
+	var saw_resolved := h.ctx.state.chaos_bag.has_resolved_kind(AhcEnums.ChaosTokenKind.CURSE)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return saw_revealed and not saw_resolved and flags.fires == 0
 
 
 func _test_act_investigate_success() -> bool:

@@ -52,8 +52,11 @@ class ChaosBag:
     func draw_random(source := &"skill_test") -> ChaosToken
     func reveal_for_ability(amount) -> Array[ChaosToken]
     func finalize_ability_reveal(tokens) -> void  # 回袋；账本保留
-    func cancel_reveal(token) -> void
-    func has_uncanceled_kind(kind) / count_uncanceled_kind(kind)
+    func cancel_reveal(token) -> void   # 从未抽到
+    func ignore_reveal(token) -> void   # 仍揭示，不 resolve
+    func has_revealed_kind / count_revealed_kind / revealed_records   # 未 Cancel（含 Ignore）
+    func has_resolved_kind / count_resolved_kind / resolved_records   # 未 Cancel 且未 Ignore
+    func has_uncanceled_kind / count_uncanceled_kind                 # = revealed_*（兼容别名）
     func return_token(t: ChaosToken) -> void
     func return_all_revealed() -> void
     func add_token(t: ChaosToken) -> void
@@ -94,10 +97,10 @@ class ChaosBagSystem:
 ```
 ST.1 begin → bag.begin_reveal_scope(test_id)
 ST.3: ChaosRevealIntentPlanner.plan_and_reveal（见 §4.2）
-      → 同时离袋；resolved 入 ctx.revealed_tokens；ignored → cancel_reveal（暂）
+      → 同时离袋；resolved 入 ctx.revealed_tokens；其余 → ignore_reveal
 ST.4: 对本批每枚 resolved 施加符号效果；任一 reveal another → 再 ST.3
 整链结束 → PW_SKILL_TEST_AFTER_REVEAL（窗内能力揭示写入同一账本）
-         → ST.4 后门槛 resolve_post_st4_if_revealed_gate（只读账本）
+         → ST.4 后门槛 resolve_post_st4_if_revealed_gate（查 **resolved**）
          → ST.5 …
 ST.8 → return_all_revealed + end_reveal_scope
 ```
@@ -107,12 +110,23 @@ ST.8 → return_all_revealed + end_reveal_scope
 | 概念 | 含义 |
 |---|---|
 | **物理工作区** `revealed_this_test` | 尚未归袋；ST.8 清空 |
-| **揭示账本** `reveal_ledger` | 本 scope 每次揭示一行；可已归袋；整枚 Cancel → `canceled` |
-| **ST.4 后门槛** | *If … is revealed* 延时不在每个 ST.3 开火；PW_AFTER_REVEAL 关闭后查账本（binary / for-each） |
+| **揭示账本** `reveal_ledger` | 本 scope 每次揭示一行；可已归袋 |
+| **ST.4 后门槛** | *If … is revealed* 延时（Recall / Eye 等）查 **resolved** 行（FAQ 2.5）；PW_AFTER_REVEAL 关闭后（binary / for-each） |
 
 **能力揭示 disposition**：`reveal_for_ability` → 帧末 `finalize_ability_reveal` 必须回袋（账本保留）。禁止悬置。
 
-**Cancel**：整枚 Cancel → 门槛不算揭示过。Ignore 是否剔除账本见 OQ-05-05。
+### 4.1.1 Cancel vs Ignore（已裁决 · OQ-05-05）
+
+Grimoire *Ignore*：*cancelled* chaos token = never drawn；*ignored* = still drawn，但 modifier/effects 不 resolve。
+
+| | Cancel（`canceled`） | Ignore（`ignored`） |
+|---|---|---|
+| 曾抽到 / 账本「曾揭示」 | **否** | **是** |
+| ST.4 符号 / ST.5 修饰 | 否 | 否 |
+| FAQ 2.5 / ST.4 后门槛（Recall、Eye…） | 否 | **否**（按 **resolved**） |
+| 「每枚揭示」反应计数（Candles 式听揭示） | 否 | **是**（`revealed_*`） |
+
+API：`ignore_reveal` ≠ `cancel_reveal`。Olive「ignore the other」走 Ignore。
 
 ### 4.2 多能力「将要揭示」替换（已裁决 · OQ-04-05）
 
@@ -143,7 +157,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 - ST.6 仅判定 success/fail 并计算 `fail_by`
 - ST.7 执行已注册 fail by 后果
-- Ignore：modifier/effect 不施加；是否仍入未取消账本待 OQ-05-05
+- Ignore：modifier/effect 不施加；账本仍「曾揭示」、不入 resolved（OQ-05-05）
 
 ---
 
@@ -223,6 +237,8 @@ class ChaosBagSnapshot:
 | BAG-INTENT-03 | Olive→Statue 次序 + 槽 | 先 ORDER 再 target；leaf=4 |
 | BAG-INTENT-04 | Statue→Olive 次序 | Olive 的 3 叶挂在 Statue 未忽略槽上 |
 | BAG-INTENT-05 | ST.3 多 resolved 修饰累加 | ST.4 扫本批全部 resolved |
+| BAG-IGNORE-01 | Olive ignore ≠ cancel | revealed=3；resolved=2；门槛只见 resolved |
+| BAG-IGNORE-02 | Cancel 排除 revealed 与 resolved | 两者皆无 |
 
 ---
 
@@ -233,7 +249,7 @@ class ChaosBagSnapshot:
 | OQ-05-01 | P1 | 2026 Core 各场景 reference **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ |
 | OQ-05-02 | P1 | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ |
 | OQ-05-04 | P2 | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ |
-| OQ-05-05 | P1 | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ |
+| OQ-05-05 | P1 | ~~Ignore vs Cancel chaos token 是否仍算「revealed this test」？~~ → **已裁决** 见 §4.1.1 |
 | OQ-05-06 | P2 | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ |
 
 ### 已裁决
@@ -241,8 +257,9 @@ class ChaosBagSnapshot:
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（作为失败效果的一部分）。ST.6 仅判定 fail 并计算 `fail_by` 数值。见 §5。 | 2026-05-25 |
-| OQ-05-07 | **检定揭示账本 + ST.4 后门槛**：*If … is revealed* 延时查阅 `reveal_ledger`（未 Cancel）；能力揭示帧末必须归袋。见 §4.1。 | 2026-10-17 |
+| OQ-05-07 | **检定揭示账本 + ST.4 后门槛**：*If … is revealed* 延时查阅 `reveal_ledger` 的 **resolved** 行；能力揭示帧末必须归袋。见 §4.1。 | 2026-10-17 |
 | OQ-04-05 | **多 token 同时揭示 = 一次 ST.3 + 意图规划**（次序 / 预期槽 / CHAOS_PICK）。见 §4.2。 | 2026-10-19 |
+| OQ-05-05 | **Cancel ≠ Ignore**：Cancel=从未抽到；Ignore=仍揭示但不 resolve；延时门槛与 ST.4/5 用 resolved。见 §4.1.1。 | 2026-10-19 |
 
 ---
 
@@ -254,3 +271,4 @@ class ChaosBagSnapshot:
 | 2026-05-25 | v0.2 | OQ-05-03 裁决：fail by 效果在 ST.7 结算 |
 | 2026-10-17 | v0.3 | §4.1 揭示账本；ST.4 后 *If revealed* 门槛；能力揭示强制归袋（OQ-05-07） |
 | 2026-10-19 | v0.4 | §4.2 多能力揭示意图（ORDER + 预期槽 + CHAOS_PICK）；裁决 OQ-04-05 |
+| 2026-10-19 | v0.5 | §4.1.1 Cancel vs Ignore（OQ-05-05）；门槛改查 resolved |
