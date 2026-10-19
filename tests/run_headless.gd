@@ -35,6 +35,11 @@ func _initialize() -> void:
 	_run_test("ES-03 Joe succeed draws and gains resource", _test_es03_joe_succeed)
 	_run_test("ES-04 blank skips elder_sign", _test_es04_blank_skips)
 	_run_test("ES-05 Joe fail skips on_success", _test_es05_joe_fail_no_success)
+	_run_test("BC-01 bless +2 reveal_another return_to_pool", _test_bc01_bless_st4)
+	_run_test("BC-02 curse -2 reveal_another return_to_pool", _test_bc02_curse_st4)
+	_run_test("BC-03 bless chain then ST.8 to pool", _test_bc03_bless_chain_pool)
+	_run_test("BC-04 ability curse finalize returns to bag", _test_bc04_ability_curse_bag)
+	_run_test("BC-05 ignored bless returns to bag", _test_bc05_ignored_bless_bag)
 	_run_test("SHRIV-01 compile if_revealed on skill_test", _test_shriv01_compile_if_revealed)
 	_run_test("SHRIV-02 skull take horror at ST.3 before ST.4", _test_shriv02_horror_before_symbol)
 	_run_test("SHRIV-03 self-limit one horror despite two skulls", _test_shriv03_self_limit)
@@ -951,6 +956,142 @@ func _test_es05_joe_fail_no_success() -> bool:
 	)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return ok
+
+
+func _test_bc01_bless_st4() -> bool:
+	var h := RuleTestHarness.new(42)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var bless := ChaosToken.symbol(AhcEnums.ChaosTokenKind.BLESS, 0, &"bc_bless")
+	test.revealed_tokens.append(bless)
+	test.reveal_batch_start = 0
+	var again := h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var ok := (
+		again
+		and test.chaos_modifier == 2
+		and bless.reveal_another
+		and bless.return_to_pool
+		and bless.modifier == 2
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bc02_curse_st4() -> bool:
+	var h := RuleTestHarness.new(42)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, 0, &"bc_curse")
+	test.revealed_tokens.append(curse)
+	test.reveal_batch_start = 0
+	var again := h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var ok := (
+		again
+		and test.chaos_modifier == -2
+		and curse.reveal_another
+		and curse.return_to_pool
+		and curse.modifier == -2
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bc03_bless_chain_pool() -> bool:
+	## bless → reveal another（numeric +1）→ ST.8：bless 进 pool，numeric 回袋。
+	var h := RuleTestHarness.new(42)
+	var bless := ChaosToken.symbol(AhcEnums.ChaosTokenKind.BLESS, 0, &"bc_chain_b")
+	var num := ChaosToken.numeric(1, &"bc_chain_n")
+	GameBootstrap.setup_chaos_bag(h.ctx, [bless, num])
+	var bag := h.ctx.state.chaos_bag
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	## 注入 bless 为已揭示；再跑 ST.4 → 触发再揭 → 袋中只剩 numeric。
+	bag.tokens.erase(bless)
+	if not bag.revealed_this_test.has(bless):
+		bag.revealed_this_test.append(bless)
+	test.revealed_tokens.append(bless)
+	test.reveal_batch_start = 0
+	var again := h.ctx.skill_tests.step_apply_symbol_effects(test)
+	if not again:
+		h.ctx.skill_tests.step_end(test, h.ctx)
+		return false
+	## 模拟 reveal_another 链：再揭 numeric 并 apply。
+	h.ctx.skill_tests.step_reveal_token(test)
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_determine_success(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var pool_has_bless := false
+	for t in bag.chaos_token_pool:
+		var tok: ChaosToken = t as ChaosToken
+		if tok != null and tok.kind == AhcEnums.ChaosTokenKind.BLESS:
+			pool_has_bless = true
+			break
+	var bag_has_bless := false
+	var bag_has_num := false
+	for t2 in bag.tokens:
+		var tok2: ChaosToken = t2 as ChaosToken
+		if tok2 == null:
+			continue
+		if tok2.kind == AhcEnums.ChaosTokenKind.BLESS:
+			bag_has_bless = true
+		if tok2.kind == AhcEnums.ChaosTokenKind.NUMERIC and tok2.modifier == 1:
+			bag_has_num = true
+	return (
+		test.chaos_modifier == 3
+		and pool_has_bless
+		and not bag_has_bless
+		and bag_has_num
+		and bag.revealed_this_test.is_empty()
+	)
+
+
+func _test_bc04_ability_curse_bag() -> bool:
+	## 能力揭示 curse：finalize 回袋，不进 pool（无 ST.4 符号能力）。
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"bc_abil_c")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var bag := h.ctx.state.chaos_bag
+	bag.begin_reveal_scope(&"bc_abil")
+	var pulled := bag.reveal_for_ability(1)
+	bag.finalize_ability_reveal(pulled)
+	bag.end_reveal_scope()
+	return (
+		pulled.size() == 1
+		and bag.tokens.has(curse)
+		and bag.chaos_token_pool.is_empty()
+		and not curse.return_to_pool
+		and bag.revealed_this_test.is_empty()
+	)
+
+
+func _test_bc05_ignored_bless_bag() -> bool:
+	## Ignore 后不发起 ST.4 → 无 return_to_pool → ST.8 回袋。
+	var h := RuleTestHarness.new(42)
+	var bless := ChaosToken.symbol(AhcEnums.ChaosTokenKind.BLESS, 0, &"bc_ign_b")
+	GameBootstrap.setup_chaos_bag(h.ctx, [bless])
+	var bag := h.ctx.state.chaos_bag
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var drawn := bag.draw_random(&"skill_test")
+	bag.ignore_reveal(drawn)
+	## 被 Ignore：不入 resolved / 不跑 ST.4。
+	h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_determine_success(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		drawn == bless
+		and test.chaos_modifier == 0
+		and not bless.return_to_pool
+		and bag.tokens.has(bless)
+		and bag.chaos_token_pool.is_empty()
+	)
 
 
 func _test_shriv01_compile_if_revealed() -> bool:

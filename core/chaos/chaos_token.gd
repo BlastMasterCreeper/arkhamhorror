@@ -4,6 +4,8 @@ extends RefCounted
 var kind: AhcEnums.ChaosTokenKind = AhcEnums.ChaosTokenKind.NUMERIC
 var modifier: int = 0
 var reveal_another: bool = false
+## ST.4 祝福/诅咒能力：ST.8 归 **token pool** 而非混沌袋。
+var return_to_pool: bool = false
 var instance_id: StringName = &""
 ## 封印（Seal）：不在袋内，不可从袋揭示；挂在 host 卡上。
 var sealed: bool = false

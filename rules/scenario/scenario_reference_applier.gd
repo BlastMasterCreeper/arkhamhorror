@@ -23,7 +23,13 @@ static func apply_token(
 		AhcEnums.ChaosTokenKind.AUTO_SUCCESS:
 			ctx.auto_success = true
 			return
-		AhcEnums.ChaosTokenKind.BLESS, AhcEnums.ChaosTokenKind.CURSE, AhcEnums.ChaosTokenKind.FROST:
+		AhcEnums.ChaosTokenKind.BLESS:
+			_apply_bless_curse(ctx, token, 2)
+			return
+		AhcEnums.ChaosTokenKind.CURSE:
+			_apply_bless_curse(ctx, token, -2)
+			return
+		AhcEnums.ChaosTokenKind.FROST:
 			ctx.chaos_modifier += token.modifier
 			return
 		AhcEnums.ChaosTokenKind.ELDER_SIGN:
@@ -46,6 +52,24 @@ static func apply_token(
 			ctx.chaos_modifier += token.modifier
 		return
 	_apply_symbol_ability(game_ctx, ctx, token, ability, store)
+
+
+## TIC：祝福 +2 / 诅咒 −2；Reveal another；ST.8 归 token pool（非袋）。
+## 检定外揭示无效果（本函数仅 ST.4 调用）。能力揭示 curse 不走此路径 → 仍回袋。
+static func _apply_bless_curse(
+	ctx: SkillTestContext,
+	token: ChaosToken,
+	modifier: int
+) -> void:
+	if ctx == null:
+		return
+	ctx.chaos_modifier += modifier
+	if token == null:
+		return
+	token.reveal_another = true
+	token.return_to_pool = true
+	## 与印刷修饰对齐，便于审计；ST.4 以硬编码 modifier 为准。
+	token.modifier = modifier
 
 
 static func _apply_elder_sign(
