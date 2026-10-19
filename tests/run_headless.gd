@@ -23,6 +23,11 @@ func _initialize() -> void:
 	_run_test("SC-08 setup wires act agenda decks", _test_sc08_setup_wires_act_agenda_decks)
 	_run_test("SC-09 setup scenario layout", _test_sc09_setup_scenario_layout)
 	_run_test("SC-10 setup scenario reference", _test_sc10_setup_scenario_reference)
+	_run_test("REF-01 SF loads reference JSON", _test_ref01_sf_loads_reference_json)
+	_run_test("REF-02 SF skull modifier neg act", _test_ref02_sf_skull_neg_act)
+	_run_test("REF-03 SF tablet reveal another + fail damage", _test_ref03_sf_tablet_fail_damage)
+	_run_test("REF-04 SF elder_thing fail-by draws Fire", _test_ref04_sf_elder_thing_fail_by_fire)
+	_run_test("REF-05 SF hard skull neg act+1", _test_ref05_sf_hard_skull)
 	_run_test("SC-11 investigate after sf setup", _test_sc11_investigate_after_sf_setup)
 	_run_test("SC-12 setup game begins timing", _test_sc12_setup_game_begins_timing)
 	_run_test("SC-13 act1 flip spawns layout", _test_sc13_act1_flip_spawns_layout)
@@ -611,7 +616,132 @@ func _test_sc10_setup_scenario_reference() -> bool:
 		ref != null
 		and ref.id.definition_id == &"12105"
 		and ref.zone == AhcEnums.Zone.PLAY_AREA
+		and h.ctx.state.scenario_reference != null
 	)
+
+
+func _test_ref01_sf_loads_reference_json() -> bool:
+	ScenarioReferenceCatalog.clear_cache()
+	var def := ScenarioReferenceCatalog.load_for_scenario(&"spreading_flames")
+	if def == null or def.reference_card != &"12105":
+		return false
+	var easy_skull := def.effect_for(&"easy_standard", AhcEnums.ChaosTokenKind.SKULL)
+	var hard_skull := def.effect_for(&"hard_expert", AhcEnums.ChaosTokenKind.SKULL)
+	var tablet := def.effect_for(&"easy_standard", AhcEnums.ChaosTokenKind.TABLET)
+	return (
+		not easy_skull.is_empty()
+		and not hard_skull.is_empty()
+		and bool(tablet.get("reveal_another", false))
+		and str((easy_skull.get("modifier", {}) as Dictionary).get("expr", "")) == "neg_act"
+		and str((hard_skull.get("modifier", {}) as Dictionary).get("expr", "")) == "neg_act_plus_1"
+	)
+
+
+func _test_ref02_sf_skull_neg_act() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	h.ctx.state.current_act_number = 2
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_ref"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var ok := test.chaos_modifier == -2
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_ref03_sf_tablet_fail_damage() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var dmg_before := inv.damage_taken
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 9)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	## 直接注入 tablet，避免 draw_random 次序抖动。
+	var tab := ChaosToken.symbol(AhcEnums.ChaosTokenKind.TABLET, 0, &"tab_ref")
+	test.revealed_tokens.append(tab)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	test.success = false
+	test.fail_by = 5
+	h.ctx.skill_tests.step_apply_results(test)
+	var ok := (
+		test.chaos_modifier == -1
+		and tab.reveal_another
+		and inv.damage_taken == dmg_before + 1
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_ref04_sf_elder_thing_fail_by_fire() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	## 从 set-aside 挪一张 Fire! 进遭遇弃牌堆供参考卡抽取。
+	var fire_id := &""
+	for cid in h.ctx.state.set_aside:
+		var c := h.ctx.state.registry.get_card(cid)
+		if c != null and c.id.definition_id == &"12129":
+			fire_id = cid
+			break
+	if fire_id == &"":
+		return false
+	h.ctx.state.set_aside.erase(fire_id)
+	h.ctx.state.encounter_discard.append(fire_id)
+	var fire_card := h.ctx.state.registry.get_card(fire_id)
+	fire_card.zone = AhcEnums.Zone.DISCARD
+	var discard_before := _encounter_discard_count(h, &"12129")
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 9)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var et := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_THING, 0, &"et_ref")
+	test.revealed_tokens.append(et)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	test.success = false
+	test.fail_by = 3
+	h.ctx.skill_tests.step_apply_results(test)
+	var discard_after := _encounter_discard_count(h, &"12129")
+	var ok := (
+		test.chaos_modifier == -3
+		and discard_before >= 1
+		and discard_after == discard_before - 1
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_ref05_sf_hard_skull() -> bool:
+	var cfg := GameBootstrap.config_spreading_flames()
+	cfg.chaos_difficulty = &"hard_expert"
+	var h := RuleTestHarness.new(42, cfg)
+	h.run_setup()
+	h.ctx.state.current_act_number = 2
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_hard"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	## Hard：-(act+1) = -3。
+	var ok := test.chaos_modifier == -3
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
 
 
 func _test_sc11_investigate_after_sf_setup() -> bool:

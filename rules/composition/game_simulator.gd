@@ -87,6 +87,7 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 	copy.per_investigator_count = src.per_investigator_count
 	copy.set_aside = src.set_aside.duplicate()
 	copy.scenario_reference_card_id = src.scenario_reference_card_id
+	copy.scenario_reference = src.scenario_reference
 	copy.scenario_layout_installed = src.scenario_layout_installed
 	copy.setup_game_begins_resolved = src.setup_game_begins_resolved
 	copy.deferred_setup_revelations = src.deferred_setup_revelations.duplicate()

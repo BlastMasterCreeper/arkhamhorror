@@ -49,11 +49,20 @@ static func install_reference_card(game_ctx: GameContext, definition_id: StringN
 		game_ctx, definition_id, AhcEnums.Zone.PLAY_AREA, &"scenario_ref"
 	)
 	game_ctx.state.scenario_reference_card_id = card_id
+	## 同步装载符号效果表（JSON）；ST.4 经 ScenarioReferenceApplier 读取。
+	if game_ctx.config != null and game_ctx.config.setup_scenario_id != &"":
+		game_ctx.state.scenario_reference = ScenarioReferenceCatalog.load_for_scenario(
+			game_ctx.config.setup_scenario_id
+		)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
 			"setup:scenario_reference",
-			{"definition_id": definition_id, "card_id": card_id}
+			{
+				"definition_id": definition_id,
+				"card_id": card_id,
+				"has_effects": game_ctx.state.scenario_reference != null,
+			}
 		)
 	return {"ok": true, "card_id": card_id, "definition_id": definition_id}
 

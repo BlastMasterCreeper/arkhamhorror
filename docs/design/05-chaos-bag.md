@@ -157,7 +157,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
-**本线范围外**（开新线）：场景 reference JSON（OQ-05-01/02）、Bless/Curse 实装（OQ-05-04）、整次检定 Cancel、Premonition / seal。
+**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、整次检定 Cancel、Premonition / seal。
 
 ---
 
@@ -195,20 +195,23 @@ class ChaosBagSnapshot:
 
 ---
 
-## 7. Scenario Reference 数据化 vs 脚本
+## 7. 冒险参考卡（Scenario Reference）数据化 vs 脚本
 
-**推荐混合**：
+**已落地（混合 · JSON-first）**：
 
 | 内容 | 方式 |
 |---|---|
-| Core 2026 各场景 Skull/Cultist/... 标准效果 | `ScenarioReferenceDefinition` JSON |
-| Spreading Flames「draw Fire! from discard」 | `ScenarioScript.on_chaos_symbol` override |
-| Act 数动态 X | Expression：`X = current_act_number` |
+| Core 2026 各冒险 Skull/Cultist/... 标准效果 | `data/scenarios/<id>/reference.json` → `ScenarioReferenceDefinition` |
+| Spreading Flames「draw Fire! from discard」 | JSON `on_fail` / `on_fail_by` → Composition 模板 |
+| Act 数动态 X | modifier expr：`neg_act` / `neg_act_plus_1` |
+| 战役自定义符号 | 预留 `ScenarioScript` / `CampaignScript`（OQ-05-02） |
 
-```gdscript
-# data/packs/core_2026/scenarios/spreading_flames_reference.tres
-# symbol_effects[SKULL] = "-X. X is the current act number."
-# symbol_effects[SKULL].on_fail_by = { threshold: 2, effect: draw_fire_from_discard }  # ST.7 执行
+竖切：Spreading Flames（12105）；ST.4 → `ScenarioReferenceApplier`；失败后果挂 ST.7。
+
+```json
+# data/scenarios/spreading_flames/reference.json
+# "skull": { "modifier": { "expr": "neg_act" } }
+# "elder_thing": { "modifier": -3, "on_fail_by": { "threshold": 2, "body": { "template": "lead_draw_..." } } }
 ```
 
 ---
@@ -258,6 +261,11 @@ class ChaosBagSnapshot:
 | BAG-WIRE-02 | 12068 竖切 · 数字 | Uses 进场 3；揭 2 解 1；扣 charge；无 horror |
 | BAG-WIRE-03 | 12068 竖切 · 符号 | resolved 符号 → take 1 horror |
 | BAG-USES-01 | Uses Domain | 进场放 charges；离场清空 |
+| REF-01 | SF 加载 reference JSON | easy/hard skull expr |
+| REF-02 | SF skull –act | act=2 → modifier -2 |
+| REF-03 | SF tablet | -1 + reveal_another；fail → +1 damage |
+| REF-04 | SF elder_thing fail-by | fail_by≥2 → 抽 Fire! |
+| REF-05 | SF hard skull | -(act+1) |
 
 ---
 
@@ -265,7 +273,7 @@ class ChaosBagSnapshot:
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-05-01 | P1 | 2026 Core 各场景 reference **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ |
+| OQ-05-01 | P1 | ~~冒险参考卡全部 JSON vs ScenarioScript？~~ → **JSON-first**（SF 竖切）；脚本预留。见 §7。 |
 | OQ-05-02 | P1 | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ |
 | OQ-05-04 | P2 | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ |
 | OQ-05-05 | P1 | ~~Ignore vs Cancel chaos token 是否仍算「revealed this test」？~~ → **已裁决** 见 §4.1.1 |

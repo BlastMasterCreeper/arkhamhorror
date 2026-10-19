@@ -349,17 +349,8 @@ func _discard_committed(ctx: SkillTestContext) -> void:
 
 
 func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:
-	match token.kind:
-		AhcEnums.ChaosTokenKind.NUMERIC:
-			ctx.chaos_modifier += token.modifier
-		AhcEnums.ChaosTokenKind.AUTO_FAIL:
-			ctx.auto_fail = true
-		AhcEnums.ChaosTokenKind.AUTO_SUCCESS:
-			ctx.auto_success = true
-		AhcEnums.ChaosTokenKind.SKULL:
-			ctx.chaos_modifier -= _state.current_act_number
-		_:
-			ctx.chaos_modifier += token.modifier
+	## 冒险参考卡 JSON（ST.4）；无定义时回退兼容。
+	ScenarioReferenceApplier.apply_token(_game_ctx, ctx, token, _state)
 
 
 func _matching_icon_bonus(card: CardInstance, skill: AhcEnums.SkillType) -> int:
