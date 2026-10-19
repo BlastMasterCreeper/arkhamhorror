@@ -186,7 +186,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
-**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）；**Seal Domain**（`seq.effect.seal` / `release_seal` + 作刚揭示替换）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、Premonition **实卡编译**（12064 未译；框架已竖切）。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
+**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）；**Seal Domain**；**Elder Sign**（调查员印刷旧印 · Joe 12004 竖切）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、Premonition **实卡编译**（12064 未译；框架已竖切）。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
 
 ---
 
@@ -245,12 +245,13 @@ class ChaosBagSnapshot:
 
 ---
 
-## 8. Elder Sign
+## 8. Elder Sign（已落地）
 
-- 揭示 [elder_sign] token 时触发 performing investigator 卡上 printed **Elder Sign** 能力
-- 通常含 modifier + conditional effect（如 Joe Diamond：+1, succeed → draw + resource）
-
-绑定：`InvestigatorDefinition.elder_sign_ability_id`
+- 揭示 `[elder_sign]` → ST.4 发起 **performing investigator** 印刷旧印能力（非参考卡）
+- 载荷：`modifier`（ST.4）· 可选 `immediate`（ST.4）· `on_success` / `on_fail*`（ST.7）
+- 绑定：`ElderSignBinder` → `InvestigatorState.symbol_abilities`；`CardRegistry.elder_sign_effect`（JSON `elder_sign` 或正文解析）
+- 空白：`text_box_blank` 跳过印刷旧印
+- 竖切：Joe Diamond（12004）+1；成功 → 抽 1 + 得 1 资源
 
 ---
 
@@ -272,7 +273,7 @@ class ChaosBagSnapshot:
 | C-01 | Standard difficulty Spreading Flames bag | 与 guide 一致 |
 | C-02 | Skull –X, act 2 | X=2 |
 | C-03 | Auto-fail | test fail |
-| C-04 | Elder Sign Joe | +1; succeed 分支 |
+| C-04 / ES-01..05 | Elder Sign Joe | +1；成功抽+资源；空白跳过；失败无 on_success |
 | C-05 | ST.8 return token | bag count 恢复 |
 | C-06 | 战役 scenario 2 继承 bag | snapshot restore |
 | BAG-LEDGER-01 | 检定揭示入账本；ST.8 清空 scope | 物理堆空；ledger 空 |
@@ -358,3 +359,4 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.13 | §4.2 尾：去掉「整次检定 Cancel」伪缺口（OQ-04-04） |
 | 2026-10-19 | v0.14 | §2/§9：Seal Domain（seal / release_seal / 作刚揭示）；BAG-SEAL 竖切 |
 | 2026-10-19 | v0.15 | Seal 关键词：L6 门槛 + 进场 `pay_keyword_on_enter`；BAG-SEAL-06..09 |
+| 2026-10-19 | v0.16 | §8 Elder Sign：调查员符号能力 + Joe 12004 竖切（ES-01..05） |

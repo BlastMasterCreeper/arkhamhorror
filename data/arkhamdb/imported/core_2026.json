@@ -239,7 +239,23 @@
         "template": "draw",
         "amount": 1
       }
-    ]
+    ],
+    "elder_sign": {
+      "modifier": 1,
+      "on_success": {
+        "template": "seq",
+        "steps": [
+          {
+            "template": "draw",
+            "amount": 1
+          },
+          {
+            "template": "gain_resources",
+            "amount": 1
+          }
+        ]
+      }
+    }
   },
   "12005": {
     "definition_id": "12005",
