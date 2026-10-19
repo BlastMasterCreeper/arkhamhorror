@@ -6368,7 +6368,7 @@ func _test_bag_seal_reveal_instead() -> bool:
 	h.ctx.skill_tests.resolve_reveal_chain(test)
 	var intent: Dictionary = test.last_reveal_intent
 	var resolved: Array = intent.get("resolved", [])
-	var ok := (
+	var ok: bool = (
 		resolved.size() == 1
 		and resolved[0] == sealed_num
 		and test.chaos_modifier == -3
