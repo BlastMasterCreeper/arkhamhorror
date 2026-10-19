@@ -619,7 +619,7 @@ func _test_sc10_setup_scenario_reference() -> bool:
 		and ref.id.definition_id == &"12105"
 		and ref.zone == AhcEnums.Zone.PLAY_AREA
 		and h.ctx.state.scenario_reference != null
-		and ref.symbol_abilities.size() >= 4
+		and ref.symbol_abilities.size() == 3
 		and not ref.text_box_blank
 	)
 
