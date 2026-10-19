@@ -241,9 +241,10 @@ func _initialize() -> void:
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("BAG-LEDGER-01 skill reveal ledger clears at ST.8", _test_bag_ledger_skill_reveal)
-	_run_test("BAG-LEDGER-02 ability curse gate binary after ST.4", _test_bag_ledger_ability_curse_gate)
-	_run_test("BAG-LEDGER-03 cancel excludes from gate", _test_bag_ledger_cancel_excludes)
+	_run_test("BAG-LEDGER-02 ability curse if-revealed binary eager", _test_bag_ledger_ability_curse_gate)
+	_run_test("BAG-LEDGER-03 cancel excludes from if-revealed", _test_bag_ledger_cancel_excludes)
 	_run_test("BAG-LEDGER-04 for-each mode fires per curse", _test_bag_ledger_each_mode)
+	_run_test("BAG-LEDGER-05 ST.3 eager before ST.4 no double", _test_bag_ledger_st3_eager_before_st4)
 	_run_test("BAG-INTENT-01 no replace equals single draw", _test_bag_intent_no_replace)
 	_run_test("BAG-INTENT-02 Olive reveal3 resolve2", _test_bag_intent_olive_alone)
 	_run_test("BAG-INTENT-03 Olive then Statue order+slot", _test_bag_intent_olive_then_statue)
@@ -251,7 +252,7 @@ func _initialize() -> void:
 	_run_test("BAG-INTENT-05 ST.3 multi resolved modifiers", _test_bag_intent_st3_multi_modifiers)
 	_run_test("BAG-IGNORE-01 olive ignore still revealed not resolved", _test_bag_ignore_olive_revealed)
 	_run_test("BAG-IGNORE-02 cancel excludes revealed and resolved", _test_bag_ignore_cancel_excludes_both)
-	_run_test("BAG-IGNORE-03 gate uses resolved not ignored", _test_bag_ignore_gate_skips_ignored)
+	_run_test("BAG-IGNORE-03 if-revealed uses resolved not ignored", _test_bag_ignore_gate_skips_ignored)
 	_run_test("BAG-WIRE-01 compile 12068 mask silenus", _test_bag_wire_compile_12068)
 	_run_test("BAG-WIRE-02 12068 would-reveal queues replace", _test_bag_wire_12068_vertical)
 	_run_test("BAG-WIRE-03 12068 resolved symbol takes horror", _test_bag_wire_12068_symbol_horror)
@@ -5522,15 +5523,16 @@ func _test_bag_ledger_ability_curse_gate() -> bool:
 	var flags := {"fires": 0}
 	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
 		flags.fires += 1
-	test.post_st4_if_revealed = [
+	test.if_revealed_watchers = [
 		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	h.ctx.skill_tests.step_commit(test, [])
 	h.ctx.skill_tests.close_player_window(test)
-	## Rod 式：检定窗内能力揭示 curse 后归袋，账本保留。
+	## Rod 式：finalize 定案即 eager 触发（不必等 ST.4 后门槛）。
 	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
 	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	var fires_after_rod: int = int(flags.fires)
 	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n0"))
 	h.ctx.skill_tests.resolve_reveal_chain(test)
 	h.ctx.skill_tests.close_player_window(test)
@@ -5538,7 +5540,8 @@ func _test_bag_ledger_ability_curse_gate() -> bool:
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return (
-		flags.fires == 1
+		fires_after_rod == 1
+		and flags.fires == 1
 		and pulled.size() == 1
 		and pulled[0].kind == AhcEnums.ChaosTokenKind.CURSE
 		and h.ctx.state.chaos_bag.tokens.size() == 2
@@ -5556,7 +5559,7 @@ func _test_bag_ledger_cancel_excludes() -> bool:
 	var flags := {"fires": 0}
 	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
 		flags.fires += 1
-	test.post_st4_if_revealed = [
+	test.if_revealed_watchers = [
 		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)
@@ -5593,7 +5596,7 @@ func _test_bag_ledger_each_mode() -> bool:
 	var flags := {"fires": 0}
 	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
 		flags.fires += 1
-	test.post_st4_if_revealed = [
+	test.if_revealed_watchers = [
 		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"each", "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)
@@ -5601,13 +5604,51 @@ func _test_bag_ledger_each_mode() -> bool:
 	h.ctx.skill_tests.close_player_window(test)
 	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(2)
 	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	var fires_after_rod: int = int(flags.fires)
 	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n0"))
 	h.ctx.skill_tests.resolve_reveal_chain(test)
 	h.ctx.skill_tests.close_player_window(test)
 	h.ctx.skill_tests.continue_after_reveal_window(test)
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
-	return flags.fires == 2 and pulled.size() == 2 and h.ctx.state.chaos_bag.tokens.size() == 3
+	return (
+		fires_after_rod == 2
+		and flags.fires == 2
+		and pulled.size() == 2
+		and h.ctx.state.chaos_bag.tokens.size() == 3
+	)
+
+
+func _test_bag_ledger_st3_eager_before_st4() -> bool:
+	## ST.3 resolved curse → if_revealed 在符号能力前触发；窗后不再连发。
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_st3")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	var flags := {"fires": 0, "at_step": -1}
+	var on_match := func(ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+		flags.at_step = int(ctx.current_step)
+	test.if_revealed_watchers = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	var fires_after_chain: int = int(flags.fires)
+	var step_at_fire: int = int(flags.at_step)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		fires_after_chain == 1
+		and flags.fires == 1
+		and step_at_fire == int(AhcEnums.SkillTestStep.ST_3_REVEAL)
+		and test.chaos_modifier == -2
+	)
 
 
 func _test_bag_intent_no_replace() -> bool:
@@ -5794,7 +5835,7 @@ func _test_bag_ignore_cancel_excludes_both() -> bool:
 
 
 func _test_bag_ignore_gate_skips_ignored() -> bool:
-	## 能力揭示 curse 后 Ignore → ST.4 后门槛（resolved）不应开火；revealed 仍可见。
+	## 能力揭示 curse 后 Ignore → finalize 时非 resolved，if_revealed 不开火；revealed 仍可见。
 	var h := RuleTestHarness.new(42)
 	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_gate")
 	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
@@ -5803,7 +5844,7 @@ func _test_bag_ignore_gate_skips_ignored() -> bool:
 	var flags := {"fires": 0}
 	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
 		flags.fires += 1
-	test.post_st4_if_revealed = [
+	test.if_revealed_watchers = [
 		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)

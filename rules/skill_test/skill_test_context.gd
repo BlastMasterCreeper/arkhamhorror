@@ -27,11 +27,12 @@ var current_step: AhcEnums.SkillTestStep = AhcEnums.SkillTestStep.ST_1_BEGIN
 var ally_committed: bool = false
 var success_applied: bool = false
 var fail_applied: bool = false
-## ST.4 后 *If … is revealed* 门槛：查混乱袋揭示账本后回调。
-## 项：{ "kind": ChaosTokenKind(int), "mode": &"any"|"each", "on_match": Callable }
-var post_st4_if_revealed: Array[Dictionary] = []
-## 最近一次 ST.4 后门槛快照（测试 / 延时读取）。
-var post_st4_reveal_snapshot: Dictionary = {}
+## *If … is revealed*：紧贴 resolved 揭示触发（非固定时点读账本）。
+## 项：{ "kind": ChaosTokenKind(int), "mode": &"any"|"each", "on_match": Callable, "fired": bool }
+## any = binary latch（至多一次）；each = 每枚 resolved 一次。
+var if_revealed_watchers: Array[Dictionary] = []
+## 最近一次揭示结算快照（测试 / 审计）。
+var if_revealed_snapshot: Dictionary = {}
 ## ST.3「将要揭示」替换体（Olive / Grotesque Statue 等）；进入 ST.3 时消费。
 var pending_reveal_replace: Array = []
 ## 本轮 ST.3 批在 `revealed_tokens` 中的起始下标（供 ST.4 扫本批）。

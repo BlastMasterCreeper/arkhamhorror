@@ -4,9 +4,12 @@ extends RefCounted
 var tokens: Array[ChaosToken] = []
 ## 本检定仍留置工作区、待 ST.8 归袋的标记（物理堆）。
 var revealed_this_test: Array[ChaosToken] = []
-## 本作用域揭示账本：含已归袋的能力揭示；供 ST.4 后 *If … is revealed* 门槛查阅。
+## 本作用域揭示账本：含已归袋的能力揭示；审计 / Cancel·Ignore 查询。
 var reveal_ledger: Array[ChaosRevealRecord] = []
 var reveal_scope_id: StringName = &""
+## disposition 定案且 was_resolved 时回调 `(token: ChaosToken, rec: ChaosRevealRecord)`。
+## 由 SkillTestEngine 在 begin_test 挂上，驱动 if_revealed_watchers。
+var on_resolved_reveal: Callable
 
 
 func shuffle() -> void:
@@ -46,14 +49,31 @@ func reveal_for_ability(amount: int = 1) -> Array[ChaosToken]:
 
 
 ## 能力帧末 disposition：物理回袋，账本行保留（除非已 Cancel）。
+## 仍 resolved 的枚在此刻通知 `on_resolved_reveal`（紧贴揭示结算）。
 func finalize_ability_reveal(revealed: Array[ChaosToken]) -> void:
 	for token in revealed:
 		if token == null:
 			continue
-		_return_physical(token)
 		var rec := _find_record(token)
+		if rec != null and rec.was_resolved():
+			_emit_resolved_reveal(token, rec)
+		_return_physical(token)
 		if rec != null:
 			rec.physically_returned = true
+
+
+## ST.3 批：意图规划忽略已应用后，对每枚 resolved 通知观察者。
+func notify_resolved_tokens(resolved: Array) -> void:
+	for item in resolved:
+		var token: ChaosToken = item as ChaosToken
+		if token == null:
+			continue
+		var rec := _find_record(token)
+		if rec != null and rec.was_resolved():
+			_emit_resolved_reveal(token, rec)
+		elif rec == null and on_resolved_reveal.is_valid():
+			## 无账本行时仍通知（无 scope 旁路）。
+			on_resolved_reveal.call(token, null)
 
 
 func return_token(token: ChaosToken) -> void:
@@ -75,7 +95,7 @@ func cancel_reveal(token: ChaosToken) -> void:
 		rec.ignored = false
 
 
-## 整枚 Ignore：仍算抽到/揭示，但不 resolve（无修饰/符号；Recall/Eye 门槛不算）。
+## 整枚 Ignore：仍算抽到/揭示，但不 resolve（无修饰/符号；if_revealed 不触发）。
 func ignore_reveal(token: ChaosToken) -> void:
 	var rec := _find_record(token)
 	if rec == null or rec.canceled:
@@ -183,3 +203,8 @@ func _find_record(token: ChaosToken) -> ChaosRevealRecord:
 		if rec.token == token:
 			return rec
 	return null
+
+
+func _emit_resolved_reveal(token: ChaosToken, rec: ChaosRevealRecord) -> void:
+	if on_resolved_reveal.is_valid():
+		on_resolved_reveal.call(token, rec)

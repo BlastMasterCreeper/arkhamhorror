@@ -29,6 +29,8 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	for item in resolved:
 		if item is ChaosToken:
 			ctx.revealed_tokens.append(item as ChaosToken)
+	## disposition 已定：紧贴揭示通知 if_revealed（早于 ST.4 符号能力）。
+	game_ctx.state.chaos_bag.notify_resolved_tokens(resolved)
 	_fire_after_reveal_hooks(game_ctx, ctx, resolved)
 	return {
 		"ok": not (plan.get("tokens", []) as Array).is_empty() or abilities.is_empty(),
