@@ -93,9 +93,9 @@ class ChaosBagSystem:
 
 ```
 ST.1 begin → bag.begin_reveal_scope(test_id)
-ST.3: token = bag.draw_random(source=skill_test)
-      ctx.revealed_tokens.append(token)   # 物理工作区 + 账本
-ST.4: match token.kind: …（符号效果；reveal another → 再 ST.3）
+ST.3: ChaosRevealIntentPlanner.plan_and_reveal（见 §4.2）
+      → 同时离袋；resolved 入 ctx.revealed_tokens；ignored → cancel_reveal（暂）
+ST.4: 对本批每枚 resolved 施加符号效果；任一 reveal another → 再 ST.3
 整链结束 → PW_SKILL_TEST_AFTER_REVEAL（窗内能力揭示写入同一账本）
          → ST.4 后门槛 resolve_post_st4_if_revealed_gate（只读账本）
          → ST.5 …
@@ -113,6 +113,22 @@ ST.8 → return_all_revealed + end_reveal_scope
 **能力揭示 disposition**：`reveal_for_ability` → 帧末 `finalize_ability_reveal` 必须回袋（账本保留）。禁止悬置。
 
 **Cancel**：整枚 Cancel → 门槛不算揭示过。Ignore 是否剔除账本见 OQ-05-05。
+
+### 4.2 多能力「将要揭示」替换（已裁决 · OQ-04-05）
+
+FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声明意图再抽**；全部物理标记 **同时** 离袋 = **一次** ST.3 手续（载荷可多枚），不是 N 次 ST.3。
+
+| 步 | PI / 运算 | 入口 |
+|---|---|---|
+| 1 能力次序 | 队长 `ORDER_SIMULTANEOUS` | `chaos:reveal_replace_order` |
+| 2 作用槽 | 控制者对**当前预期叶** `PICK_OPTION` | `chaos:reveal_replace_target:<ability_id>` |
+| 3 展开 | 1 叶 → `reveal_count` 叶（`ChaosRevealReplaceAbility`） | 意图树，尚未离袋 |
+| 4 同时揭示 | 每叶 `draw_random` | 账本多行；手续仍一次 |
+| 5 结算子集 | 控制者 `CHAOS_PICK`（`resolve_count`） | `chaos:resolve_pick:<ability_id>` |
+
+挂载：`SkillTestContext.pending_reveal_replace` → ST.3 消费。无挂载时 `base_expected=1` 等价单抽。
+
+**不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
 ---
 
@@ -202,6 +218,11 @@ class ChaosBagSnapshot:
 | BAG-LEDGER-02 | 能力揭示 curse → finalize 归袋 → ST.4 后 binary | 门槛一次；袋守恒 |
 | BAG-LEDGER-03 | Cancel 后门槛看不到 | `has_uncanceled_kind` false |
 | BAG-LEDGER-04 | mode=each × N curse | 回调 N 次 |
+| BAG-INTENT-01 | 无替换体 | 单叶；等同单抽 |
+| BAG-INTENT-02 | Olive 揭 3 解 2 | leaf=3；resolved=2；ignored=1 |
+| BAG-INTENT-03 | Olive→Statue 次序 + 槽 | 先 ORDER 再 target；leaf=4 |
+| BAG-INTENT-04 | Statue→Olive 次序 | Olive 的 3 叶挂在 Statue 未忽略槽上 |
+| BAG-INTENT-05 | ST.3 多 resolved 修饰累加 | ST.4 扫本批全部 resolved |
 
 ---
 
@@ -221,6 +242,7 @@ class ChaosBagSnapshot:
 |---|---|---|
 | OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（作为失败效果的一部分）。ST.6 仅判定 fail 并计算 `fail_by` 数值。见 §5。 | 2026-05-25 |
 | OQ-05-07 | **检定揭示账本 + ST.4 后门槛**：*If … is revealed* 延时查阅 `reveal_ledger`（未 Cancel）；能力揭示帧末必须归袋。见 §4.1。 | 2026-10-17 |
+| OQ-04-05 | **多 token 同时揭示 = 一次 ST.3 + 意图规划**（次序 / 预期槽 / CHAOS_PICK）。见 §4.2。 | 2026-10-19 |
 
 ---
 
@@ -231,3 +253,4 @@ class ChaosBagSnapshot:
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-05-03 裁决：fail by 效果在 ST.7 结算 |
 | 2026-10-17 | v0.3 | §4.1 揭示账本；ST.4 后 *If revealed* 门槛；能力揭示强制归袋（OQ-05-07） |
+| 2026-10-19 | v0.4 | §4.2 多能力揭示意图（ORDER + 预期槽 + CHAOS_PICK）；裁决 OQ-04-05 |

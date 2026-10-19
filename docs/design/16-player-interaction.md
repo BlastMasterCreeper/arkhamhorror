@@ -183,9 +183,11 @@ Headless：`DefaultChoiceResolver` / `ScriptingChoiceResolver` 在无脚本应�
 | ST.2 **commit 哪些牌** | `COMMIT_TO_TEST` | performing inv | 任意张 eligible |
 | 同地点 **协助 commit 1 张** | `COMMIT_TO_TEST` | 协助调查员 | 险境时 RESTRICTION 挡；非 PI |
 | `PW_SKILL_TEST_AFTER_COMMIT` 窗口能力 | `USE_ABILITY` | 控制者 | fast/reaction |
-| ST.3–4 揭示链 | *无* | 引擎 | 无 PlayerWindow（OQ-04-01） |
+| ST.3–4 揭示链 | *无 PW* | 引擎 | 无 Framework PlayerWindow（OQ-04-01） |
+| 多替换体 **生效次序** | `ORDER_SIMULTANEOUS` | **队长** | `chaos:reveal_replace_order`；抽前 |
+| 替换体 **作用于哪枚预期槽** | `PICK_OPTION` | 控制者 | `chaos:reveal_replace_target:<id>`；抽前 |
+| Olive / **选 resolve 哪些 token** | `CHAOS_PICK` | 控制者 | `chaos:resolve_pick:<id>`；同时揭示后 |
 | `PW_SKILL_TEST_AFTER_REVEAL` 窗口能力 | `USE_ABILITY` | 控制者 | 进 ST.5 前 |
-| Olive / **选 reveal 哪些 token** | `CHAOS_PICK` | 控制者 | 选 subset 结算 |
 | **Seal** 哪个 token | `CHAOS_PICK` | 控制者 | 「choice of which token to seal」 |
 
 ### 5.4 效果 · 目标 · Search（[07-effect-resolution](07-effect-resolution.md)、Composition）

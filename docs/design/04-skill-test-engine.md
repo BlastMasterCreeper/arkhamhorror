@@ -80,8 +80,9 @@ class SkillTestEngine:
 
 ### 3.3 ST.3 Reveal
 
-- 从 chaos bag 随机取 1 token
-- **无 Player Window**（见 [00-framework-step-index.md](00-framework-step-index.md)）
+- 默认从 chaos bag 随机取 **1** token（`base_expected=1`）
+- 多条「将要揭示」替换体（Olive / Grotesque Statue 等）挂在 `pending_reveal_replace`：经 `ChaosRevealIntentPlanner` **先 PI 再同时离袋**（次序 → 预期槽 → 抽 → CHAOS_PICK）。整批 = **一次** ST.3；详见 [05 §4.2](05-chaos-bag.md)
+- **无 Framework Player Window**（见 [00-framework-step-index.md](00-framework-step-index.md)）；意图 PI 走 Gate，不是 PW
 
 ### 3.4 ST.4 Symbol effects
 
@@ -89,14 +90,14 @@ class SkillTestEngine:
 - Elder Sign → investigator 卡 printed **Elder Sign** 能力（揭示 [elder_sign] token 时）
 - Campaign symbol → campaign guide
 - Auto-fail → `auto_fail = true`
-- 「Reveal another token」→ **仅递归 ST.3 → ST.4**；**不**回到 ST.2，**不**开启任何 Player Window（已裁决 OQ-04-01）
+- 本批 **每枚 resolved** 均施加；任一「Reveal another token」→ **仅递归 ST.3 → ST.4**；**不**回到 ST.2，**不**开启任何 Player Window（已裁决 OQ-04-01）
 - 全部 token 揭示且 symbol 效果结算完毕后 → **Player Window**：`PW_SKILL_TEST_AFTER_REVEAL`（进入 ST.5 之前，**仅一次**）
 
 ```gdscript
 func resolve_reveal_chain(handle: SkillTestHandle) -> void:
     while true:
-        step_reveal_token(handle)           # ST.3 — 无 Window
-        var again := step_apply_symbol_effects(handle)  # ST.4
+        step_reveal_token(handle)           # ST.3 — 无 Window；可多枚载荷
+        var again := step_apply_symbol_effects(handle)  # ST.4 扫本批
         if not again:                       # 无 "Reveal another token"
             break
     open_player_window(PW_SKILL_TEST_AFTER_REVEAL)  # 整链结束后一次
@@ -404,7 +405,7 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | ID | 优先级 | 问题 |
 |---|---|---|
 | OQ-04-04 | P1 | Cancel 整个 skill test vs Cancel 单个 chaos token：状态回滚深度？ |
-| OQ-04-05 | P2 | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ |
+| OQ-04-05 | P2 | ~~同时 reveal 多 token：ST.3 扩展协议？~~ → **已裁决** 见 05 §4.2 |
 | OQ-04-06 | P1 | Committed 的 skill 在 ST.7 前被 discard 的 edge case（Limbo 保护）？ |
 
 ### 已裁决
@@ -412,6 +413,7 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-04-01 | Player Window 在 **ST.2 前后**（commit 后一次）及 **ST.3–ST.4 整链结束后**（`PW_SKILL_TEST_AFTER_REVEAL`，进入 ST.5 前一次）。「Reveal another token」**仅递归 ST.3→ST.4**，不回 ST.2，递归中 **无 Player Window**。 | 2026-05-25 |
+| OQ-04-05 | 多能力同时替换揭示：**一次 ST.3** + 意图规划（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](05-chaos-bag.md)。 | 2026-10-19 |
 | OQ-04-02 | **Peril = 遭遇帧内持续 Cannot**（§4）；嵌套检定 ST.8 后入队仍不可协助。见 §4、§6。 | 2026-05-25 |
 | OQ-04-03 | **否。** 子检定入队，父检定继续 ST.5→ST.8；子检定于父 **ST.8 后**执行。 | 2026-05-25 |
 | OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（ST.6 仅算 `fail_by`）。 | 2026-05-25 |
@@ -432,3 +434,4 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | 2026-06-18 | v0.5.1 | **§4.9–11** 帧栈 / AppContext / E3 catalog；`EncounterResolutionFrame`；PERIL-01/04/05 测试 |
 | 2026-09-20 | v0.6.1 | §4.4 E4 显现独立类（非 Forced nest） |
 | 2026-09-20 | v0.6.3 | §4.3：75 档 = 抽取后（整段结算完毕） |
+| 2026-10-19 | v0.7 | §3.3–3.4：多能力揭示意图（OQ-04-05）；ST.4 扫本批 resolved |

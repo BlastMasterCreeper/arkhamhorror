@@ -122,7 +122,7 @@
 | OQ-01-06 | [01-state](design/01-game-state-zones.md) | Attachment 链（A attach B attach C）leave play 时 discard 顺序是否由 owner 选？ | |
 | OQ-02-05 | [02-framework](design/02-framework-flow.md) | Framework 与嵌套 Skill Test 的 EventRecord 层级如何缩进展示？ | |
 | OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），经 `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 |
-| OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | |
+| OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | **一次 ST.3 + 意图规划**（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](design/05-chaos-bag.md)。 |
 | OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ | |
 | OQ-05-06 | [05-chaos-bag](design/05-chaos-bag.md) | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ | |
 | OQ-06-05 | [06-ability](design/06-ability-initiation.md) | Constant ability 在 out-of-play 被引用（少数卡）— 如何标记 `references_out_of_play`？ | |

@@ -237,6 +237,11 @@ func _initialize() -> void:
 	_run_test("BAG-LEDGER-02 ability curse gate binary after ST.4", _test_bag_ledger_ability_curse_gate)
 	_run_test("BAG-LEDGER-03 cancel excludes from gate", _test_bag_ledger_cancel_excludes)
 	_run_test("BAG-LEDGER-04 for-each mode fires per curse", _test_bag_ledger_each_mode)
+	_run_test("BAG-INTENT-01 no replace equals single draw", _test_bag_intent_no_replace)
+	_run_test("BAG-INTENT-02 Olive reveal3 resolve2", _test_bag_intent_olive_alone)
+	_run_test("BAG-INTENT-03 Olive then Statue order+slot", _test_bag_intent_olive_then_statue)
+	_run_test("BAG-INTENT-04 Statue then Olive order", _test_bag_intent_statue_then_olive)
+	_run_test("BAG-INTENT-05 ST.3 multi resolved modifiers", _test_bag_intent_st3_multi_modifiers)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
 	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
 	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
@@ -5390,6 +5395,139 @@ func _test_bag_ledger_each_mode() -> bool:
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return flags.fires == 2 and pulled.size() == 2 and h.ctx.state.chaos_bag.tokens.size() == 3
+
+
+func _test_bag_intent_no_replace() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"n0"),
+		ChaosToken.numeric(1, &"n1"),
+	])
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	return (
+		int(plan.get("leaf_count", 0)) == 1
+		and (plan.get("resolved") as Array).size() == 1
+		and (plan.get("ignored") as Array).is_empty()
+		and (plan.get("tokens") as Array).size() == 1
+	)
+
+
+func _test_bag_intent_olive_alone() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"a"),
+		ChaosToken.numeric(1, &"b"),
+		ChaosToken.numeric(2, &"c"),
+		ChaosToken.numeric(3, &"d"),
+	])
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	return (
+		int(plan.get("leaf_count", 0)) == 3
+		and (plan.get("tokens") as Array).size() == 3
+		and (plan.get("resolved") as Array).size() == 2
+		and (plan.get("ignored") as Array).size() == 1
+		and h.ctx.state.chaos_bag.revealed_this_test.size() == 3
+		and h.ctx.state.chaos_bag.count_uncanceled_kind(AhcEnums.ChaosTokenKind.NUMERIC) == 2
+	)
+
+
+func _test_bag_intent_olive_then_statue() -> bool:
+	var h := RuleTestHarness.new(7)
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"t0"),
+		ChaosToken.numeric(1, &"t1"),
+		ChaosToken.numeric(2, &"t2"),
+		ChaosToken.numeric(3, &"t3"),
+		ChaosToken.numeric(4, &"t4"),
+	])
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var statue := ChaosRevealReplaceAbility.create(&"statue", &"inv_1", 2, 1)
+	## Olive 先 → 3 叶；Statue 作用 Olive 的第一叶（默认 id 序列展开后的首叶）→ 总叶 4。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"chaos:reveal_replace_order", "pick": [&"olive", &"statue"]},
+		{"prompt_id": &"chaos:reveal_replace_target:statue", "pick": 1},
+	])
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive, statue], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var order: Array = plan.get("order", [])
+	var slots: Dictionary = plan.get("slot_targets", {})
+	return (
+		order.size() == 2
+		and order[0] == &"olive"
+		and order[1] == &"statue"
+		and int(slots.get(&"statue", -1)) == 1
+		and int(plan.get("leaf_count", 0)) == 4
+		and (plan.get("tokens") as Array).size() == 4
+		and (plan.get("resolved") as Array).size() == 3
+		and (plan.get("ignored") as Array).size() == 1
+	)
+
+
+func _test_bag_intent_statue_then_olive() -> bool:
+	var h := RuleTestHarness.new(11)
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"s0"),
+		ChaosToken.numeric(1, &"s1"),
+		ChaosToken.numeric(2, &"s2"),
+		ChaosToken.numeric(3, &"s3"),
+		ChaosToken.numeric(4, &"s4"),
+	])
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var statue := ChaosRevealReplaceAbility.create(&"statue", &"inv_1", 2, 1)
+	## Statue 先：1→2；Olive 作用 Statue 的一叶（默认取头叶 id）→ 该叶再变 3 → 总叶 4。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"chaos:reveal_replace_order", "pick": [&"statue", &"olive"]},
+	])
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive, statue], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var order: Array = plan.get("order", [])
+	return (
+		order.size() == 2
+		and order[0] == &"statue"
+		and order[1] == &"olive"
+		and int(plan.get("leaf_count", 0)) == 4
+		and (plan.get("tokens") as Array).size() == 4
+	)
+
+
+func _test_bag_intent_st3_multi_modifiers() -> bool:
+	var h := RuleTestHarness.new(42)
+	## 固定两枚 +1，Olive 揭 2 解 2 → chaos_modifier 累加为 2。
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(1, &"m1"),
+		ChaosToken.numeric(1, &"m2"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	test.pending_reveal_replace = [
+		ChaosRevealReplaceAbility.create(&"double", &"inv_1", 2, 2)
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var ok := (
+		test.revealed_tokens.size() == 2
+		and test.chaos_modifier == 2
+		and int(intent.get("leaf_count", 0)) == 2
+		and (intent.get("resolved") as Array).size() == 2
+		and test.pending_reveal_replace.is_empty()
+	)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
 
 
 func _test_act_investigate_success() -> bool:

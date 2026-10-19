@@ -153,20 +153,43 @@ func resolve_post_st4_if_revealed_gate(ctx: SkillTestContext) -> Dictionary:
 
 func step_reveal_token(ctx: SkillTestContext) -> ChaosToken:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_3_REVEAL
-	var token := _state.chaos_bag.draw_random()
-	if token:
-		ctx.revealed_tokens.append(token)
+	ctx.reveal_batch_start = ctx.revealed_tokens.size()
+	var abilities: Array = ctx.pending_reveal_replace.duplicate()
+	ctx.pending_reveal_replace.clear()
+	var gate: PlayerInteractionGate = _game_ctx.interaction if _game_ctx != null else null
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		_state.chaos_bag,
+		1,
+		abilities,
+		gate,
+		_game_ctx,
+		ctx.performing_investigator,
+		&"skill_test"
+	)
+	ctx.last_reveal_intent = plan
+	var resolved: Array = plan.get("resolved", [])
+	for item in resolved:
+		if item is ChaosToken:
+			ctx.revealed_tokens.append(item as ChaosToken)
 	_advance_step(AhcEnums.SkillTestStep.ST_3_REVEAL, ctx)
-	return token
+	if ctx.revealed_tokens.is_empty():
+		return null
+	return ctx.revealed_tokens[ctx.revealed_tokens.size() - 1]
 
 
 func step_apply_symbol_effects(ctx: SkillTestContext) -> bool:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_4_SYMBOL
-	var token := ctx.revealed_tokens[ctx.revealed_tokens.size() - 1] if not ctx.revealed_tokens.is_empty() else null
-	if token:
+	var again := false
+	var start := clampi(ctx.reveal_batch_start, 0, ctx.revealed_tokens.size())
+	for i in range(start, ctx.revealed_tokens.size()):
+		var token: ChaosToken = ctx.revealed_tokens[i]
+		if token == null:
+			continue
 		_apply_token_effect(ctx, token)
+		if token.reveal_another:
+			again = true
 	_advance_step(AhcEnums.SkillTestStep.ST_4_SYMBOL, ctx)
-	return token != null and token.reveal_another
+	return again
 
 
 func step_calculate_modified_value(ctx: SkillTestContext) -> int:
