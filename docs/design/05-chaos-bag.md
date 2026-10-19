@@ -301,3 +301,4 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.5 | §4.1.1 Cancel vs Ignore（OQ-05-05）；门槛改查 resolved |
 | 2026-10-19 | v0.6 | §4.2 卡面接线：`seq.chaos.reveal` + Mask of Silenus（12068） |
 | 2026-10-19 | v0.7 | §4.2 收口：Uses Domain + `after_reveal_if_resolved_symbol`；12068 full；Olive instead-of-1 编译 |
+| 2026-10-19 | v0.8 | §7 冒险参考卡 JSON-first；Spreading Flames 竖切；裁决 OQ-05-01 |
