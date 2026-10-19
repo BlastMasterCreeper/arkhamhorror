@@ -141,12 +141,9 @@ API：`ignore_reveal` ≠ `cancel_reveal`。Olive「ignore the other」走 Ignor
 | ST.3 检定揭示 | `plan_and_reveal` 后 `notify_resolved_tokens` | **早于**本批 ST.4（皱缩术 FAQ） |
 | Rod / `reveal_for_ability` | `finalize_ability_reveal`（仍 resolved 时） | 无该枚的 ST.4；在 finalize 当下 |
 
-| mode | 语义 |
-|---|---|
-| `any`（binary） | latch：整次检定匹配 kind **至多一次**（不因次数连发） |
-| `each` | 每枚 resolved 匹配一次（for-each） |
+**自肃（硬规则）**：每条观察者在**本检定期间至多触发一次**（`fired` latch）。不因多枚同 kind、Rod+ST.3 叠揭、reveal another 而连发。匹配可用单 `kind` 或 `kinds[]`（如皱缩术符号表）共享同一 latch。
 
-正向「是否」可在首枚匹配时确定；证伪不必单独门槛。账本仍保留供审计与 Ignore/Cancel 查询。
+正向「是否」在首枚匹配 resolved 时确定并开火；之后静默。按枚数 for-each（混乱之眼 4 级等）**不是**本类，另议。账本仍保留供审计与 Ignore/Cancel 查询。
 
 ### 4.2 多能力「将要揭示」替换（已裁决 · OQ-04-05）
 
@@ -188,7 +185,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 | **modifier** | ST.4 注册 → ST.5 重算 | Skull `-X` |
 | **Fail by 条件后果** | **ST.7** | Spreading Flames Skull |
 | Reveal another token | ST.4 内递归 ST.3 | — |
-| ***If … is revealed*** | **紧贴 resolved 结算**（§4.1.2） | 混乱之眼 binary；4 级 for-each；皱缩术 |
+| ***If … is revealed*** | **紧贴 resolved + 自肃一次**（§4.1.2） | 混乱之眼 binary；皱缩术；Recall |
 
 - ST.6 仅判定 success/fail 并计算 `fail_by`
 - ST.7 执行已注册 fail by 后果
@@ -269,7 +266,7 @@ class ChaosBagSnapshot:
 | BAG-LEDGER-01 | 检定揭示入账本；ST.8 清空 scope | 物理堆空；ledger 空 |
 | BAG-LEDGER-02 | 能力揭示 curse → finalize 即 binary | finalize 时一次；链后不连发；袋守恒 |
 | BAG-LEDGER-03 | Cancel 后 if_revealed 不开火 | `has_uncanceled_kind` false |
-| BAG-LEDGER-04 | mode=each × N curse | finalize 时回调 N 次 |
+| BAG-LEDGER-04 | 自肃：Rod×2 curse + ST.3 再 curse | fires=1 |
 | BAG-LEDGER-05 | ST.3 curse → eager 在 ST_3；窗后不连发 | `at_step==ST_3`；fires=1 |
 | BAG-INTENT-01 | 无替换体 | 单叶；等同单抽 |
 | BAG-INTENT-02 | Olive 揭 3 解 2 | leaf=3；resolved=2；ignored=1 |
@@ -307,7 +304,7 @@ class ChaosBagSnapshot:
 | ID | 裁决 | 日期 |
 |---|---|---|
 | OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（作为失败效果的一部分）。ST.6 仅判定 fail 并计算 `fail_by` 数值。见 §5。 | 2026-05-25 |
-| OQ-05-07 | **检定揭示账本 + 紧贴揭示**：*If … is revealed* 在 resolved 定案时触发（binary latch / each）；**不再**固定时点扫账本。能力揭示帧末必须归袋并 notify。见 §4.1 / §4.1.2。 | 2026-10-19 |
+| OQ-05-07 | **检定揭示账本 + 紧贴揭示 + 自肃**：*If … is revealed* 在 resolved 定案时触发；本检定每条观察者至多一次；**不再**固定时点扫账本。能力揭示帧末必须归袋并 notify。见 §4.1 / §4.1.2。 | 2026-10-19 |
 | OQ-04-05 | **多 token 同时揭示 = 一次 ST.3 + 意图规划**（次序 / 预期槽 / CHAOS_PICK）。见 §4.2。 | 2026-10-19 |
 | OQ-05-05 | **Cancel ≠ Ignore**：Cancel=从未抽到；Ignore=仍揭示但不 resolve；if_revealed 与 ST.4/5 用 resolved。见 §4.1.1。 | 2026-10-19 |
 | OQ-04-07 | **隐式符号能力**融合 ST.3/ST.4；回溯以该能力为锚。见 §4.0。 | 2026-10-19 |
@@ -329,3 +326,4 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.9 | §4.0 隐式符号能力融合 ST.3/ST.4（OQ-04-07） |
 | 2026-10-19 | v0.10 | §7：符号能力绑参考卡实例；空白跳过印刷条 |
 | 2026-10-19 | v0.11 | §4.1.2：*If revealed* 改紧贴 resolved 结算；废止 ST.4 后扫账本门槛 |
+| 2026-10-19 | v0.12 | §4.1.2 自肃：本检定每条观察者至多一次；去掉 each 连发 |

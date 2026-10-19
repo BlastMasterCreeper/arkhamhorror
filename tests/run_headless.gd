@@ -243,7 +243,7 @@ func _initialize() -> void:
 	_run_test("BAG-LEDGER-01 skill reveal ledger clears at ST.8", _test_bag_ledger_skill_reveal)
 	_run_test("BAG-LEDGER-02 ability curse if-revealed binary eager", _test_bag_ledger_ability_curse_gate)
 	_run_test("BAG-LEDGER-03 cancel excludes from if-revealed", _test_bag_ledger_cancel_excludes)
-	_run_test("BAG-LEDGER-04 for-each mode fires per curse", _test_bag_ledger_each_mode)
+	_run_test("BAG-LEDGER-04 if-revealed self-limits once per test", _test_bag_ledger_each_mode)
 	_run_test("BAG-LEDGER-05 ST.3 eager before ST.4 no double", _test_bag_ledger_st3_eager_before_st4)
 	_run_test("BAG-INTENT-01 no replace equals single draw", _test_bag_intent_no_replace)
 	_run_test("BAG-INTENT-02 Olive reveal3 resolve2", _test_bag_intent_olive_alone)
@@ -5524,7 +5524,7 @@ func _test_bag_ledger_ability_curse_gate() -> bool:
 	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
 		flags.fires += 1
 	test.if_revealed_watchers = [
-		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	h.ctx.skill_tests.step_commit(test, [])
@@ -5560,7 +5560,7 @@ func _test_bag_ledger_cancel_excludes() -> bool:
 	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
 		flags.fires += 1
 	test.if_revealed_watchers = [
-		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	h.ctx.skill_tests.step_commit(test, [])
@@ -5587,9 +5587,11 @@ func _test_bag_ledger_cancel_excludes() -> bool:
 
 
 func _test_bag_ledger_each_mode() -> bool:
+	## 自肃：Rod 揭 2 枚 curse → 只触发一次；后续 ST.3 再揭同 kind 也不再发。
 	var h := RuleTestHarness.new(42)
 	var c1 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c1")
 	var c2 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c2")
+	var c3 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c3")
 	GameBootstrap.setup_chaos_bag(h.ctx, [c1, c2])
 	var st := SkillTestHelper.new(h.ctx)
 	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 0)
@@ -5597,7 +5599,7 @@ func _test_bag_ledger_each_mode() -> bool:
 	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
 		flags.fires += 1
 	test.if_revealed_watchers = [
-		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"each", "on_match": on_match}
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	h.ctx.skill_tests.step_commit(test, [])
@@ -5605,17 +5607,17 @@ func _test_bag_ledger_each_mode() -> bool:
 	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(2)
 	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
 	var fires_after_rod: int = int(flags.fires)
-	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n0"))
+	h.ctx.state.chaos_bag.add_token(c3)
 	h.ctx.skill_tests.resolve_reveal_chain(test)
 	h.ctx.skill_tests.close_player_window(test)
 	h.ctx.skill_tests.continue_after_reveal_window(test)
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return (
-		fires_after_rod == 2
-		and flags.fires == 2
+		fires_after_rod == 1
+		and flags.fires == 1
 		and pulled.size() == 2
-		and h.ctx.state.chaos_bag.tokens.size() == 3
+		and bool(test.if_revealed_watchers[0].get("fired", false))
 	)
 
 
@@ -5631,7 +5633,7 @@ func _test_bag_ledger_st3_eager_before_st4() -> bool:
 		flags.fires += 1
 		flags.at_step = int(ctx.current_step)
 	test.if_revealed_watchers = [
-		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	h.ctx.skill_tests.step_commit(test, [])
@@ -5845,7 +5847,7 @@ func _test_bag_ignore_gate_skips_ignored() -> bool:
 	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
 		flags.fires += 1
 	test.if_revealed_watchers = [
-		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
 	]
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	h.ctx.skill_tests.step_commit(test, [])

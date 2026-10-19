@@ -138,17 +138,13 @@ func _dispatch_if_revealed(ctx: SkillTestContext, kind: AhcEnums.ChaosTokenKind)
 	for entry in ctx.if_revealed_watchers:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
-		if int(entry.get("kind", -1)) != kind_i:
+		## 自肃：本检定该观察者已触发则永不再发（不因枚数/Rod+ST.3 连发）。
+		if bool(entry.get("fired", false)):
 			continue
-		var mode: StringName = entry.get("mode", &"any")
+		if not _watcher_matches_kind(entry, kind_i):
+			continue
 		var cb: Variant = entry.get("on_match")
 		if typeof(cb) != TYPE_CALLABLE or not (cb as Callable).is_valid():
-			continue
-		if mode == &"each":
-			(cb as Callable).call(ctx, kind_i, 1)
-			continue
-		## any / binary：latch，整次检定至多一次。
-		if bool(entry.get("fired", false)):
 			continue
 		entry["fired"] = true
 		(cb as Callable).call(ctx, kind_i, 1)
@@ -157,6 +153,16 @@ func _dispatch_if_revealed(ctx: SkillTestContext, kind: AhcEnums.ChaosTokenKind)
 			&"skill_test_if_revealed",
 			{"test_id": ctx.id, "kind": kind_i}
 		)
+
+
+func _watcher_matches_kind(entry: Dictionary, kind_i: int) -> bool:
+	var kinds_raw: Variant = entry.get("kinds", null)
+	if kinds_raw is Array:
+		for k in kinds_raw as Array:
+			if int(k) == kind_i:
+				return true
+		return false
+	return int(entry.get("kind", -1)) == kind_i
 
 
 func _snapshot_if_revealed(ctx: SkillTestContext) -> void:
