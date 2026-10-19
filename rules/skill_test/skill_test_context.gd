@@ -27,9 +27,9 @@ var current_step: AhcEnums.SkillTestStep = AhcEnums.SkillTestStep.ST_1_BEGIN
 var ally_committed: bool = false
 var success_applied: bool = false
 var fail_applied: bool = false
-## *If … is revealed*：紧贴 resolved 揭示触发；**自肃** = 本检定每条至多一次。
-## 项：{ "kind"| "kinds": ChaosTokenKind, "on_match": Callable, "fired": bool }
-## （for-each 按枚数另议，不走本观察者。）
+## *If … is revealed*：紧贴 resolved 揭示触发。
+## 项：{ "kind"|"kinds", "mode": &"any"|"each", "on_match": Callable, "fired": bool }
+## any（默认）= 自肃本检定至多一次；each = for-each，每枚一次、不自肃。
 var if_revealed_watchers: Array[Dictionary] = []
 ## 最近一次揭示结算快照（测试 / 审计）。
 var if_revealed_snapshot: Dictionary = {}

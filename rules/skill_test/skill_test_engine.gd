@@ -138,13 +138,18 @@ func _dispatch_if_revealed(ctx: SkillTestContext, kind: AhcEnums.ChaosTokenKind)
 	for entry in ctx.if_revealed_watchers:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
-		## 自肃：本检定该观察者已触发则永不再发（不因枚数/Rod+ST.3 连发）。
-		if bool(entry.get("fired", false)):
-			continue
 		if not _watcher_matches_kind(entry, kind_i):
 			continue
 		var cb: Variant = entry.get("on_match")
 		if typeof(cb) != TYPE_CALLABLE or not (cb as Callable).is_valid():
+			continue
+		var mode: StringName = entry.get("mode", &"any")
+		if mode == &"each":
+			## for-each：每枚 resolved 一次，不自肃。
+			(cb as Callable).call(ctx, kind_i, 1)
+			continue
+		## any / binary：自肃 — 本检定至多一次。
+		if bool(entry.get("fired", false)):
 			continue
 		entry["fired"] = true
 		(cb as Callable).call(ctx, kind_i, 1)
