@@ -177,7 +177,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
-**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、整次检定 Cancel、Premonition / seal。
+**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、Premonition / seal。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
 
 ---
 
@@ -337,3 +337,4 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.10 | §7：符号能力绑参考卡实例；空白跳过印刷条 |
 | 2026-10-19 | v0.11 | §4.1.2：*If revealed* 改紧贴 resolved 结算；废止 ST.4 后扫账本门槛 |
 | 2026-10-19 | v0.12 | §4.1.2：`any` 自肃一次；`each` for-each 不自肃 |
+| 2026-10-19 | v0.13 | §4.2 尾：去掉「整次检定 Cancel」伪缺口（OQ-04-04） |
