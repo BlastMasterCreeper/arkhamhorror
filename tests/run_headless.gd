@@ -30,6 +30,9 @@ func _initialize() -> void:
 	_run_test("REF-05 SF hard skull neg act+1", _test_ref05_sf_hard_skull)
 	_run_test("REF-06 blank skips printed symbol ability", _test_ref06_blank_skips_printed_symbol)
 	_run_test("REF-07 blank skips tablet ST.7", _test_ref07_blank_skips_tablet_st7)
+	_run_test("SHRIV-01 compile if_revealed on skill_test", _test_shriv01_compile_if_revealed)
+	_run_test("SHRIV-02 skull take horror at ST.3 before ST.4", _test_shriv02_horror_before_symbol)
+	_run_test("SHRIV-03 self-limit one horror despite two skulls", _test_shriv03_self_limit)
 	_run_test("SC-11 investigate after sf setup", _test_sc11_investigate_after_sf_setup)
 	_run_test("SC-12 setup game begins timing", _test_sc12_setup_game_begins_timing)
 	_run_test("SC-13 act1 flip spawns layout", _test_sc13_act1_flip_spawns_layout)
@@ -820,6 +823,109 @@ func _test_ref07_blank_skips_tablet_st7() -> bool:
 	)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return ok
+
+
+func _test_shriv01_compile_if_revealed() -> bool:
+	## 皱缩术式：skill_test.if_revealed kinds + take_horror。
+	var bind := AbilityBindContext.new()
+	bind.controller_id = &"inv_1"
+	bind.card_id = &"shriv_test"
+	var node := ArkhamDbAbilityCompiler.build_composition(
+		"skill_test",
+		{
+			"skill": "willpower",
+			"difficulty": 0,
+			"if_revealed": {
+				"kinds": ["skull", "cultist", "tablet", "elder_thing", "auto_fail"],
+				"mode": "any",
+				"then": {"template": "take_horror", "amount": 2},
+			},
+		},
+		bind
+	)
+	return (
+		node != null
+		and node.atom_name == &"nest_skill_test"
+		and node.if_revealed_specs.size() == 1
+		and (node.if_revealed_specs[0] as Dictionary).get("kinds", []).size() == 5
+		and (node.if_revealed_specs[0] as Dictionary).get("mode", &"") == &"any"
+		and (node.if_revealed_specs[0] as Dictionary).get("body") is CompositionNode
+	)
+
+
+func _test_shriv02_horror_before_symbol() -> bool:
+	## FAQ：揭示 skull 当下 take horror（ST.3），早于参考卡符号能力（ST.4）。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	h.ctx.state.current_act_number = 2
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_shriv"),
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_before := inv.horror_taken
+	var body := CompositionNode.take_horror(&"inv_1", 2)
+	var specs: Array = [{
+		"kinds": SkillTestIfRevealed.shrivelling_kinds(),
+		"mode": &"any",
+		"body": body,
+	}]
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	SkillTestIfRevealed.register_specs(test, h.ctx, specs)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.step_reveal_token(test)
+	var horror_after_reveal := inv.horror_taken
+	var mod_before_symbol := test.chaos_modifier
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var mod_after_symbol := test.chaos_modifier
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		horror_after_reveal == horror_before + 2
+		and mod_before_symbol == 0
+		and mod_after_symbol == -2
+		and inv.horror_taken == horror_before + 2
+	)
+
+
+func _test_shriv03_self_limit() -> bool:
+	## 自肃：同检定两枚 skull resolved → take horror 仍只一次。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_a"),
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_b"),
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_before := inv.horror_taken
+	var body := CompositionNode.take_horror(&"inv_1", 2)
+	var specs: Array = [{
+		"kinds": SkillTestIfRevealed.shrivelling_kinds(),
+		"mode": &"any",
+		"body": body,
+	}]
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 9)
+	SkillTestIfRevealed.register_specs(test, h.ctx, specs)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	## 能力揭示两枚 skull（均 resolved）→ 自肃只伤一次。
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(2)
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n_shriv"))
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		pulled.size() == 2
+		and inv.horror_taken == horror_before + 2
+	)
 
 
 func _test_sc11_investigate_after_sf_setup() -> bool:

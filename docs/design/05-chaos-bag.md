@@ -289,6 +289,9 @@ class ChaosBagSnapshot:
 | REF-03 | SF tablet | -1 + reveal_another；fail → +1 damage |
 | REF-04 | SF elder_thing fail-by | fail_by≥2 → 抽 Fire! |
 | REF-05 | SF hard skull | -(act+1) |
+| SHRIV-01 | 编译 skill_test.if_revealed 皱缩术 kinds | specs×1 · kinds=5 |
+| SHRIV-02 | skull → take horror @ ST.3 早于 ST.4 | horror 先；modifier 后 |
+| SHRIV-03 | 两枚 skull + any 自肃 | horror 只 +2 一次 |
 
 ---
 

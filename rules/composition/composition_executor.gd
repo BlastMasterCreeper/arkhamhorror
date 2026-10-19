@@ -710,6 +710,7 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 			"difficulty": difficulty,
 			"card_id": node.card_id,
 			"st7_plan": node.st7_plan,
+			"if_revealed_specs": node.if_revealed_specs,
 		}
 	)
 	_last_skill_test_fail_by = int(result.get("fail_by", 0))
