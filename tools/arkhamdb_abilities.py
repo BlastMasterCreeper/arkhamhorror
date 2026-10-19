@@ -55,7 +55,25 @@ TRIGGER_PHRASE_MAP: list[tuple[re.Pattern[str], str, str]] = [
         "enemy_attack",
         "AFTER",
     ),
+    (
+        re.compile(
+            r"^When you would reveal a chaos token(?:[, ]+spend \d+ charges?)?\.?$",
+            re.I,
+        ),
+        "reveal_chaos_token",
+        "WHEN",
+    ),
 ]
+
+## Mask of Silenus / Statue 式：揭额外 + 选 resolve；费用可在冒号前。
+REVEAL_ADDITIONAL_RESOLVE = re.compile(
+    r"^(?:When you would reveal a chaos token,\s*)?"
+    r"(?:spend (?P<spend>\d+) (?P<use_type>charges?)\s*:\s*)?"
+    r"Reveal (?P<extra>\d+) additional tokens?\.\s*"
+    r"Choose (?P<resolve>\d+) of those tokens? to resolve(?: and ignore the other)?\.?"
+    r"(?P<rest>.*)$",
+    re.I | re.S,
+)
 
 LEAD_DRAW_FIRE = re.compile(
     r"^The lead investigator draws the topmost copy of Fire! "
@@ -911,9 +929,54 @@ def compile_you_may_take(body: str) -> dict[str, Any] | None:
     }
 
 
+def compile_reveal_additional_resolve(body: str) -> dict[str, Any] | None:
+    """将要揭示：揭 N+1、选 M resolve（Mask of Silenus / Grotesque Statue）。"""
+    m = REVEAL_ADDITIONAL_RESOLVE.match(body.strip())
+    if m is None:
+        return None
+    extra = int(m.group("extra"))
+    resolve_n = int(m.group("resolve"))
+    reveal_count = extra + 1
+    steps: list[dict[str, Any]] = []
+    spend = m.group("spend")
+    if spend:
+        use_raw = str(m.group("use_type") or "charge").lower()
+        use_type = "charges" if use_raw.startswith("charge") else use_raw
+        steps.append(
+            {
+                "template": "spend_use",
+                "use_type": use_type,
+                "amount": int(spend),
+                "card_id": "source",
+            }
+        )
+    steps.append(
+        {
+            "template": "chaos_reveal_replace",
+            "reveal_count": reveal_count,
+            "resolve_count": resolve_n,
+            "ability_id": "source",
+        }
+    )
+    rest = plain_text(m.group("rest") or "")
+    status = "full"
+    ## 「若 resolve 了符号则…」延后接 ST.4 后钩；本竖切只接线揭示替换。
+    if rest and re.search(r"resolved a token with a symbol", rest, re.I):
+        status = "partial"
+    return {
+        "template": "seq",
+        "steps": steps,
+        "translation": "full_expand",
+        "status": status,
+    }
+
+
 def compile_effect_body(body: str) -> dict[str, Any] | None:
     if not body:
         return None
+    reveal_extra = compile_reveal_additional_resolve(body)
+    if reveal_extra is not None:
+        return reveal_extra
     you_may = compile_you_may_take(body)
     if you_may is not None:
         return you_may
@@ -1198,8 +1261,19 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
 def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     """Compile [reaction] as Reaction triggered ability（反应触发能力）."""
     body = str(segment.get("body", "")).strip()
-    trigger, effect = split_forced_body(body)
-    compiled = compile_effect_body(effect if effect else body)
+    ## 费用在冒号前时（spend N charge: …）整段匹配，避免 split 丢费用。
+    compiled = compile_reveal_additional_resolve(body)
+    trigger = ""
+    if compiled is None:
+        trigger, effect = split_forced_body(body)
+        compiled = compile_effect_body(effect if effect else body)
+    else:
+        trig_m = re.match(
+            r"^(When you would reveal a chaos token)",
+            body,
+            re.I,
+        )
+        trigger = trig_m.group(1) if trig_m else "When you would reveal a chaos token"
     if compiled is None:
         return None
     entry: dict[str, Any] = {
@@ -1212,9 +1286,13 @@ def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         **compiled,
     }
     timing = match_trigger_phrase(trigger)
+    if timing is None and compiled.get("template") == "seq":
+        ## 费用夹在 trigger 与冒号之间时，用规范短语再匹配一次。
+        timing = match_trigger_phrase("When you would reveal a chaos token")
     if timing is not None:
         entry.update(timing)
-        entry["status"] = "full"
+        if entry.get("status") != "partial":
+            entry["status"] = "full"
     if "(limit" in body.lower():
         entry["status"] = "partial"
     if segment.get("if_kind"):

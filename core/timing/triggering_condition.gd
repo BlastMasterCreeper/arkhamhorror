@@ -153,6 +153,22 @@ static func skill_test_revelation(
 	return t
 
 
+## ST.3「将要揭示混沌标记」：WHEN 窗挂 Olive / Mask of Silenus 等替换体。
+static func reveal_chaos_token(
+	inv_id: StringName,
+	test_id: StringName = &"",
+	after_timing: StringName = &"after_reveal_chaos_token"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	t.id = StringName("reveal_chaos_%s_%d" % [inv_id, Time.get_ticks_msec()])
+	t.kind = &"reveal_chaos_token"
+	t.controller_id = inv_id
+	t.tags = [&"chaos", &"reveal", &"skill_test"]
+	t.after_timing = after_timing
+	t.payload = {"inv_id": inv_id, "test_id": test_id}
+	return t
+
+
 static func encounter_spawn(
 	drawer_id: StringName,
 	card_id: StringName,

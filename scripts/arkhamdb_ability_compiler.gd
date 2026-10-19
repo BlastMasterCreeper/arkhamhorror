@@ -285,6 +285,28 @@ static func build_composition(
 			return CompositionNode.nest_gain_resource(
 				bind.controller_id, int(params.get("amount", 1))
 			)
+		"spend_use":
+			var spend_card := bind.card_id
+			var spend_raw := str(params.get("card_id", "source"))
+			if spend_raw != "" and spend_raw != "source":
+				spend_card = StringName(spend_raw)
+			return CompositionNode.spend_use(
+				spend_card,
+				StringName(str(params.get("use_type", "charges"))),
+				int(params.get("amount", 1)),
+				bind.controller_id
+			)
+		"chaos_reveal_replace", "queue_chaos_reveal_replace":
+			var replace_aid := str(params.get("ability_id", ""))
+			if replace_aid == "" or replace_aid == "source":
+				replace_aid = str(bind.card_id)
+			return CompositionNode.queue_chaos_reveal_replace(
+				bind.controller_id,
+				StringName(replace_aid),
+				int(params.get("reveal_count", 2)),
+				int(params.get("resolve_count", -1)),
+				bind.card_id
+			)
 	return null
 
 
@@ -606,6 +628,10 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"value",
 		"flow_id",
 		"mode",
+		"reveal_count",
+		"resolve_count",
+		"use_type",
+		"ability_id",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

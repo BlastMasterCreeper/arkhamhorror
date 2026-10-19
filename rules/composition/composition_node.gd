@@ -69,6 +69,8 @@ var auto_engage: bool = true
 var from_zone: StringName = &""
 ## 数量载荷（标记移动等）。
 var amount: int = 1
+## Uses 种类（charges / ammo / secrets…）；`spend_use`。
+var use_type: StringName = &""
 ## 地点标记种类（nest_move_marker_to）。
 var marker_kind: AhcEnums.MarkerKind = AhcEnums.MarkerKind.CLUE
 
@@ -633,6 +635,43 @@ static func cancel_pending(pending_id: StringName) -> CompositionNode:
 ## 竖切占位：等价 interrupt_ignore(InterruptTarget.pending_impact(...))。
 static func ignore_pending(pending_id: StringName) -> CompositionNode:
 	return interrupt_ignore(InterruptTarget.pending_impact(pending_id))
+
+
+## 将要揭示替换：挂入当前检定 `pending_reveal_replace`（ST.3 / seq.chaos.reveal 消费）。
+## draw_amount = 展开叶数；amount = resolve 数（-1 = 全 resolve）。
+static func queue_chaos_reveal_replace(
+	controller_id: StringName,
+	ability_id: StringName,
+	reveal_count: int,
+	resolve_count: int = -1,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"queue_chaos_reveal_replace"
+	n.inv_id = controller_id
+	n.source_ability_id = ability_id
+	n.card_id = source_card_id
+	n.draw_amount = maxi(reveal_count, 1)
+	n.amount = resolve_count
+	return n
+
+
+## 扣 Uses（charges 等）；不足则失败。
+static func spend_use(
+	card_id: StringName,
+	use_type: StringName,
+	amount: int = 1,
+	controller_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"spend_use"
+	n.card_id = card_id
+	n.use_type = use_type
+	n.amount = maxi(amount, 1)
+	n.inv_id = controller_id
+	return n
 
 
 ## L2 · 统一 Instead 节点（07 §7.0：nest seq.replace.instead 或本节点）。

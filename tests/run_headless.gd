@@ -245,6 +245,8 @@ func _initialize() -> void:
 	_run_test("BAG-IGNORE-01 olive ignore still revealed not resolved", _test_bag_ignore_olive_revealed)
 	_run_test("BAG-IGNORE-02 cancel excludes revealed and resolved", _test_bag_ignore_cancel_excludes_both)
 	_run_test("BAG-IGNORE-03 gate uses resolved not ignored", _test_bag_ignore_gate_skips_ignored)
+	_run_test("BAG-WIRE-01 compile 12068 mask silenus", _test_bag_wire_compile_12068)
+	_run_test("BAG-WIRE-02 12068 would-reveal queues replace", _test_bag_wire_12068_vertical)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
 	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
 	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
@@ -5540,11 +5542,11 @@ func _test_bag_intent_st3_multi_modifiers() -> bool:
 
 func _test_bag_ignore_olive_revealed() -> bool:
 	var h := RuleTestHarness.new(42)
-	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_ig")
 	GameBootstrap.setup_chaos_bag(h.ctx, [
-		curse,
 		ChaosToken.numeric(0, &"n0"),
 		ChaosToken.numeric(1, &"n1"),
+		ChaosToken.numeric(2, &"n2"),
+		ChaosToken.numeric(3, &"n3"),
 	])
 	h.ctx.state.chaos_bag.begin_reveal_scope(&"ignore_olive")
 	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
@@ -5555,17 +5557,16 @@ func _test_bag_ignore_olive_revealed() -> bool:
 	if ignored.is_empty():
 		return false
 	var ig: ChaosToken = ignored[0] as ChaosToken
-	var rec := h.ctx.state.chaos_bag.revealed_records()
-	var has_ig_revealed := false
-	for r in rec:
-		if r.token == ig and r.ignored and r.was_revealed() and not r.was_resolved():
-			has_ig_revealed = true
-			break
+	var ig_row_ok := false
+	for r in h.ctx.state.chaos_bag.reveal_ledger:
+		if r.token != ig:
+			continue
+		ig_row_ok = r.ignored and r.was_revealed() and not r.was_resolved()
+		break
 	return (
-		has_ig_revealed
-		and h.ctx.state.chaos_bag.count_revealed_kind(ig.kind) >= 1
-		and h.ctx.state.chaos_bag.count_resolved_kind(ig.kind) == 0
-		and not h.ctx.state.chaos_bag.has_resolved_kind(ig.kind)
+		ig_row_ok
+		and h.ctx.state.chaos_bag.revealed_records().size() == 3
+		and h.ctx.state.chaos_bag.resolved_records().size() == 2
 	)
 
 
@@ -5613,6 +5614,79 @@ func _test_bag_ignore_gate_skips_ignored() -> bool:
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return saw_revealed and not saw_resolved and flags.fires == 0
+
+
+func _test_bag_wire_compile_12068() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var compiled := CardRegistry.compiled_abilities(&"12068")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	if str(entry.get("match_kind", "")) != "reveal_chaos_token":
+		return false
+	if str(entry.get("phase", "")).to_upper() != "WHEN":
+		return false
+	if str(entry.get("template", "")) != "seq":
+		return false
+	var steps: Array = entry.get("steps", [])
+	if steps.size() < 2:
+		return false
+	var spend: Dictionary = steps[0]
+	var replace: Dictionary = steps[1]
+	return (
+		CardRegistry.has_triggered(&"12068")
+		and str(spend.get("template", "")) == "spend_use"
+		and str(replace.get("template", "")) == "chaos_reveal_replace"
+		and int(replace.get("reveal_count", 0)) == 2
+		and int(replace.get("resolve_count", 0)) == 1
+		and h.ctx.sequence_catalog.has_flow(&"seq.chaos.reveal")
+	)
+
+
+func _test_bag_wire_12068_vertical() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.ctx.sequence_catalog.has_flow(&"seq.chaos.reveal"):
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(1, &"w0"),
+		ChaosToken.numeric(1, &"w1"),
+		ChaosToken.numeric(0, &"w2"),
+	])
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.uses[&"charges"] = 3
+	## install_card(controller, card)；此处控制器为调查员。
+	h.ctx.triggered_abilities.install_card(&"inv_1", card_id)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"reaction:use", "pick": true},
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var charges_left := int(card.tokens.uses.get(&"charges", -1))
+	var resolved_arr: Array = intent.get("resolved", [])
+	var expected_mod := 0
+	if resolved_arr.size() == 1 and resolved_arr[0] is ChaosToken:
+		expected_mod = (resolved_arr[0] as ChaosToken).modifier
+	var ok := (
+		int(intent.get("leaf_count", 0)) == 2
+		and resolved_arr.size() == 1
+		and (intent.get("ignored") as Array).size() == 1
+		and test.revealed_tokens.size() == 1
+		and test.chaos_modifier == expected_mod
+		and charges_left == 2
+	)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
 
 
 func _test_act_investigate_success() -> bool:

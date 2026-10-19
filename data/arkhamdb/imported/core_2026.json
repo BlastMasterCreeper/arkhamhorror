@@ -2175,6 +2175,35 @@
         "body": "When you would reveal a chaos token, spend 1 charge: Reveal 1 additional token. Choose 1 of those tokens to resolve and ignore the other. If you resolved a token with a symbol, take 1 horror.",
         "index": 0
       }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "reaction",
+        "ability_id": "reaction:0",
+        "ability_kind": "reaction",
+        "status": "partial",
+        "trigger": "When you would reveal a chaos token",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "spend_use",
+            "use_type": "charges",
+            "amount": 1,
+            "card_id": "source"
+          },
+          {
+            "template": "chaos_reveal_replace",
+            "reveal_count": 2,
+            "resolve_count": 1,
+            "ability_id": "source"
+          }
+        ],
+        "translation": "full_expand",
+        "match_kind": "reveal_chaos_token",
+        "phase": "WHEN",
+        "timing": "when_reveal_chaos_token"
+      }
     ]
   },
   "12070": {

@@ -142,6 +142,8 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 挂载：`SkillTestContext.pending_reveal_replace` → ST.3 消费。无挂载时 `base_expected=1` 等价单抽。
 
+**卡面接线**：`seq.chaos.reveal`（ST.3）WHEN 窗触发 `match_kind=reveal_chaos_token` 反应；效果体 `spend_use` + `chaos_reveal_replace` 写入 pending。竖切：**Mask of Silenus（12068）**。
+
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
 ---

@@ -162,23 +162,34 @@ func resolve_post_st4_if_revealed_gate(ctx: SkillTestContext) -> Dictionary:
 func step_reveal_token(ctx: SkillTestContext) -> ChaosToken:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_3_REVEAL
 	ctx.reveal_batch_start = ctx.revealed_tokens.size()
-	var abilities: Array = ctx.pending_reveal_replace.duplicate()
-	ctx.pending_reveal_replace.clear()
-	var gate: PlayerInteractionGate = _game_ctx.interaction if _game_ctx != null else null
-	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
-		_state.chaos_bag,
-		1,
-		abilities,
-		gate,
-		_game_ctx,
-		ctx.performing_investigator,
-		&"skill_test"
-	)
-	ctx.last_reveal_intent = plan
-	var resolved: Array = plan.get("resolved", [])
-	for item in resolved:
-		if item is ChaosToken:
-			ctx.revealed_tokens.append(item as ChaosToken)
+	if _game_ctx != null and _game_ctx.sequence_catalog != null:
+		## WHEN：将要揭示反应挂 pending；RESOLVE：意图规划并离袋。
+		_game_ctx.sequence_catalog.run(
+			_game_ctx,
+			&"seq.chaos.reveal",
+			{
+				"inv_id": ctx.performing_investigator,
+				"test_id": ctx.id,
+				"skill_test_ctx": ctx,
+			}
+		)
+	else:
+		var abilities: Array = ctx.pending_reveal_replace.duplicate()
+		ctx.pending_reveal_replace.clear()
+		var gate: PlayerInteractionGate = _game_ctx.interaction if _game_ctx != null else null
+		var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+			_state.chaos_bag,
+			1,
+			abilities,
+			gate,
+			_game_ctx,
+			ctx.performing_investigator,
+			&"skill_test"
+		)
+		ctx.last_reveal_intent = plan
+		for item in plan.get("resolved", []):
+			if item is ChaosToken:
+				ctx.revealed_tokens.append(item as ChaosToken)
 	_advance_step(AhcEnums.SkillTestStep.ST_3_REVEAL, ctx)
 	if ctx.revealed_tokens.is_empty():
 		return null
