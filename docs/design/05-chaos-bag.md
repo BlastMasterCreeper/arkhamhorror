@@ -142,7 +142,22 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 挂载：`SkillTestContext.pending_reveal_replace` → ST.3 消费。无挂载时 `base_expected=1` 等价单抽。
 
+**卡面接线**（本线已收口）：
+
+| 构件 | 落点 |
+|---|---|
+| 入口 | `seq.chaos.reveal`（ST.3）：WHEN 窗 → 反应挂 pending；RESOLVE → 意图规划并离袋 |
+| 反应匹配 | `match_kind=reveal_chaos_token` |
+| 效果体 | `spend_use` → `chaos_reveal_replace` →（可选）`after_reveal_if_resolved_symbol` |
+| Uses Domain | 进场 `ZoneMoveFlow` 按 `uses` / 正文 `Uses (N type)` 放 typed token；离场清空 |
+| 符号后果 | 反应体在 WHEN 排队；批 resolve 后若任一 resolved 为符号 → 解释钩子（Mask：take horror） |
+| Olive 式 | 编译 `Reveal N … instead of 1, choose M` → 同核 `chaos_reveal_replace`（Core 无 Olive 卡，pattern 已备） |
+
+竖切：**Mask of Silenus（12068）** — 编译 `status=full`（三步）。
+
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
+
+**本线范围外**（开新线）：场景 reference JSON（OQ-05-01/02）、Bless/Curse 实装（OQ-05-04）、整次检定 Cancel、Premonition / seal。
 
 ---
 
@@ -239,6 +254,10 @@ class ChaosBagSnapshot:
 | BAG-INTENT-05 | ST.3 多 resolved 修饰累加 | ST.4 扫本批全部 resolved |
 | BAG-IGNORE-01 | Olive ignore ≠ cancel | revealed=3；resolved=2；门槛只见 resolved |
 | BAG-IGNORE-02 | Cancel 排除 revealed 与 resolved | 两者皆无 |
+| BAG-WIRE-01 | 编译 12068 | WHEN + full 三步（spend / replace / symbol horror）+ Uses |
+| BAG-WIRE-02 | 12068 竖切 · 数字 | Uses 进场 3；揭 2 解 1；扣 charge；无 horror |
+| BAG-WIRE-03 | 12068 竖切 · 符号 | resolved 符号 → take 1 horror |
+| BAG-USES-01 | Uses Domain | 进场放 charges；离场清空 |
 
 ---
 
@@ -272,3 +291,5 @@ class ChaosBagSnapshot:
 | 2026-10-17 | v0.3 | §4.1 揭示账本；ST.4 后 *If revealed* 门槛；能力揭示强制归袋（OQ-05-07） |
 | 2026-10-19 | v0.4 | §4.2 多能力揭示意图（ORDER + 预期槽 + CHAOS_PICK）；裁决 OQ-04-05 |
 | 2026-10-19 | v0.5 | §4.1.1 Cancel vs Ignore（OQ-05-05）；门槛改查 resolved |
+| 2026-10-19 | v0.6 | §4.2 卡面接线：`seq.chaos.reveal` + Mask of Silenus（12068） |
+| 2026-10-19 | v0.7 | §4.2 收口：Uses Domain + `after_reveal_if_resolved_symbol`；12068 full；Olive instead-of-1 编译 |

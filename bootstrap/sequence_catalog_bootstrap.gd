@@ -99,6 +99,7 @@ static func _register_flows(
 	_register_replace_flows(catalog)
 	_register_action_flows(catalog)
 	_register_skill_test_flows(catalog)
+	_register_chaos_flows(catalog)
 	_register_mythos_flows(catalog)
 	_register_act_agenda_back_flows(catalog)
 	_register_enemy_flows(catalog)
@@ -470,6 +471,19 @@ static func _register_skill_test_flows(catalog: SequenceCatalog) -> void:
 			return TriggeringCondition.skill_test_revelation(inv_id, skill, difficulty, card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return SkillTestFlowHandlers.run_revelation_test(game_ctx, params)
+	)
+
+
+static func _register_chaos_flows(catalog: SequenceCatalog) -> void:
+	## ST.3：WHEN = 将要揭示（反应挂 pending）；RESOLVE = 意图规划并离袋。
+	catalog.register_run(
+		&"seq.chaos.reveal",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", params.get("controller_id", &""))
+			var test_id: StringName = params.get("test_id", &"")
+			return TriggeringCondition.reveal_chaos_token(inv_id, test_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ChaosRevealFlow.run(game_ctx, params)
 	)
 
 

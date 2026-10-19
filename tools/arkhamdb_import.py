@@ -43,6 +43,9 @@ ABILITY_HINT_PATTERNS = [
     ("forced", re.compile(r"<b>Forced</b>", re.I)),
 ]
 
+## Uses (3 charges) / Uses (4 ammo) … → Domain 进场规格。
+USES_LINE = re.compile(r"(?i)Uses\s*\((\d+)\s+([A-Za-z]+)\)")
+
 SKILL_FIELDS = [
     ("skill_willpower", "willpower"),
     ("skill_intellect", "intellect"),
@@ -95,6 +98,24 @@ def extract_ability_hints(text: str) -> list[str]:
         if pat.search(text):
             hints.append(name)
     return hints
+
+
+def parse_uses(text: str) -> dict[str, Any] | None:
+    m = USES_LINE.search(text or "")
+    if m is None:
+        return None
+    raw_type = m.group(2).lower()
+    if raw_type.startswith("charge"):
+        use_type = "charges"
+    elif raw_type.startswith("ammo"):
+        use_type = "ammo"
+    elif raw_type.startswith("secret"):
+        use_type = "secrets"
+    elif raw_type.startswith("suppl"):
+        use_type = "supplies"
+    else:
+        use_type = raw_type
+    return {"count": int(m.group(1)), "type": use_type}
 
 
 def skills_icons(card: dict[str, Any]) -> dict[str, int]:
@@ -244,6 +265,12 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
         out["ability_segments"] = segments
     if compiled:
         out["compiled_abilities"] = compiled
+    uses = parse_uses(front_text)
+    if uses:
+        out["uses"] = uses
+        if "uses" not in keywords:
+            keywords.append("uses")
+            out["keywords"] = keywords
     spawn = compile_spawn(text)
     if spawn:
         out["spawn_instruction"] = spawn
