@@ -42,8 +42,10 @@
 | **Exhaust** | **横置** | 改平放区卡牌/在场敌人 `exhausted`；`seq.effect.exhaust`；≠ 费用中的 exhaust |
 | **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
 | **Doom** | **毁灭** | doom 标记；密谋推进 |
-| **Scenario** | **冒险** | 一场冒险；≠ Act；≠ 「测试场景」 |
+| **Scenario** | **冒险** | 一场冒险；≠ **场景（Act）**；≠ 「测试场景」 |
 | **Scenario Reference Card** | **冒险参考卡** | 本场符号效果表；`ScenarioReferenceDefinition` |
+| **Act** | **场景** | Act 牌库 / 当前场景卡；≠ 冒险 |
+| **Agenda** | **密谋** | Agenda 牌库 / 当前密谋卡；≠ 场景 |
 | **Story asset** | **剧情支援** | 有遭遇组；正面仍是玩家 cardtype；背面可为遭遇卡背 |
 | **Scenario card**（引擎） | **冒险卡牌** | 有遭遇组的卡；≠「遭遇 cardtype」；≠ **Scenario**（冒险）本身 |
 | **Encounter cardtype** | **遭遇卡牌类型** | enemy / treachery / location |
@@ -89,7 +91,7 @@
 | Fight action vs enemy attack | 调查员 **攻击**行动 ≠ 敌人 **perform attack**（借机攻击 / 反击 / 警戒 / 阶段攻击） |
 | Retaliate vs Alert | **反击** / **警戒** 均在 **ST.7 apply 完成后**（post-ST7）；均须敌人 **未横置**；≠ ST.7 `on_fail` 内的失败转嫁 |
 | Doom | **毁灭**；≠ 厄运 |
-| Scenario | **冒险**；**冒险参考卡** = Scenario Reference Card。≠ **冒险卡牌**（Scenario card）；≠ 「测试场景」；勿与 Act 混称「场景」 |
+| Scenario / Act / Agenda | **冒险** / **场景** / **密谋**（三分）。**冒险参考卡** = Scenario Reference Card。≠ **冒险卡牌**（Scenario card）；≠ 「测试场景」 |
 | Encounter vs Scenario card | FAQ 常混用；三轴：正面 **cardtype** / **卡背类型** / **遭遇组**。剧情支援 = 有遭遇组 + 玩家正面类型（卡背常为遭遇卡背） |
 | 卡背类型 | **仅**无文本背面；勿与正面类型或翻面（CardFace）混用；**无**双面皆卡背 |
 | 剧情支援 Activate | 同地点遭遇卡可触发 ≠ 剧情支援自动可触发；后者常靠卡面「该地点调查员可…」 |

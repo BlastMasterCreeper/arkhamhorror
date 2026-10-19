@@ -21,7 +21,7 @@
 13. [design/07-effect-primitives.md](design/07-effect-primitives.md) — **§0.1 三档译法**（Spawn/Prey 参数；Prey 仅 engage 内核）；§5.3 Reveal + 离散
 14. [design/08-enemy-engagement.md](design/08-enemy-engagement.md) — 敌人与交战
 15. [design/09-location-graph.md](design/09-location-graph.md) — 地点与线索
-16. [design/10-scenario-encounter.md](design/10-scenario-encounter.md) — 遭遇与 Act/Agenda
+16. [design/10-scenario-encounter.md](design/10-scenario-encounter.md) — 遭遇与场景/密谋（Act/Agenda）
 17. [design/11-investigator-campaign.md](design/11-investigator-campaign.md) — 调查员与战役
 18. [design/12-card-script-api.md](design/12-card-script-api.md) — 卡牌脚本 API
 19. [design/14-nested-sequences.md](design/14-nested-sequences.md) — **嵌套序列 ResolutionSequenceStack**
