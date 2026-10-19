@@ -31,6 +31,22 @@ var resigned: bool = false
 var physical_trauma: int = 0
 var mental_trauma: int = 0
 var is_active_turn: bool = false
+## 印刷文本框视为空白（Grimoire Blank）；印刷 Elder Sign 等不发起。
+var text_box_blank: bool = false
+## 隐式符号能力（主要是 Elder Sign）；ST.4 由 ScenarioReferenceApplier 发起。
+var symbol_abilities: Array = []
+
+
+## 当前可发起的符号能力（空白时跳过 printed）。
+func active_symbol_ability(kind: AhcEnums.ChaosTokenKind) -> ChaosSymbolAbility:
+	for raw in symbol_abilities:
+		var ab: ChaosSymbolAbility = raw as ChaosSymbolAbility
+		if ab == null or ab.symbol_kind != kind:
+			continue
+		if ab.printed and text_box_blank:
+			continue
+		return ab
+	return null
 
 
 func get_skill(skill: AhcEnums.SkillType) -> int:

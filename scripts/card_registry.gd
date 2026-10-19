@@ -109,6 +109,65 @@ static func has_seal_play_cost(definition_id: StringName) -> bool:
 	return spec != null and spec.as_play_cost
 
 
+## 调查员 `[elder_sign] effect` 规格字典；空 = 无印刷旧印能力。
+static func elder_sign_effect(definition_id: StringName) -> Dictionary:
+	var data := definition_data(definition_id)
+	var raw: Variant = data.get("elder_sign", {})
+	if raw is Dictionary and not (raw as Dictionary).is_empty():
+		return (raw as Dictionary).duplicate(true)
+	return parse_elder_sign_from_text(str(data.get("text", "")))
+
+
+## 从正文解析常见 Core 旧印句（竖切够用；复杂句靠 JSON `elder_sign`）。
+static func parse_elder_sign_from_text(text: String) -> Dictionary:
+	if text.is_empty():
+		return {}
+	var re := RegEx.new()
+	if re.compile("(?i)\\[elder_sign\\]\\s*effect:\\s*([^\\n]+)") != OK:
+		return {}
+	var m := re.search(text)
+	if m == null:
+		return {}
+	var line := m.get_string(1).strip_edges()
+	var out := {}
+	var mod_re := RegEx.new()
+	if mod_re.compile("^([+-]?\\d+)") == OK:
+		var mm := mod_re.search(line)
+		if mm != null:
+			out["modifier"] = int(mm.get_string(1))
+	## If you succeed, draw N card and gain M resource
+	var succ_re := RegEx.new()
+	if (
+		succ_re.compile(
+			"(?i)If you succeed,?\\s*draw\\s+(\\d+)\\s+cards?(?:\\s+and\\s+gain\\s+(\\d+)\\s+resources?)?"
+		)
+		== OK
+	):
+		var sm := succ_re.search(line)
+		if sm != null:
+			var steps: Array = [
+				{"template": "draw", "amount": int(sm.get_string(1))}
+			]
+			if sm.get_string(2) != "":
+				steps.append(
+					{"template": "gain_resources", "amount": int(sm.get_string(2))}
+				)
+			out["on_success"] = {"template": "seq", "steps": steps}
+			return out
+	## If you succeed, heal N horror
+	var heal_re := RegEx.new()
+	if heal_re.compile("(?i)If you succeed,?\\s*heal\\s+(\\d+)\\s+horror") == OK:
+		var hm := heal_re.search(line)
+		if hm != null:
+			out["on_success"] = {
+				"template": "heal",
+				"kind": "horror",
+				"amount": int(hm.get_string(1)),
+			}
+			return out
+	return out
+
+
 static func parse_uses_from_text(text: String) -> Dictionary:
 	if text.is_empty():
 		return {}

@@ -205,6 +205,8 @@ static func setup_investigator_at_location(
 	var inv := InvestigatorState.new()
 	inv.id = inv_id
 	inv.definition_id = StringName("def_%s" % inv_id)
+	if skills.has("definition_id"):
+		inv.definition_id = skills.get("definition_id") as StringName
 	inv.location_tag = location_tag
 	inv.skill_willpower = int(skills.get("willpower", 3))
 	inv.skill_intellect = int(skills.get("intellect", 3))
@@ -213,7 +215,12 @@ static func setup_investigator_at_location(
 	## 可选；未传则 0 = 伤恐不自动击败（测试按需设）。
 	inv.health = int(skills.get("health", 0))
 	inv.sanity = int(skills.get("sanity", 0))
+	if skills.has("display_name"):
+		inv.display_name = str(skills.get("display_name", ""))
 	ctx.state.registry.register_investigator(inv)
+	## 有定义则装载印刷 Elder Sign。
+	if inv.definition_id != &"" and not str(inv.definition_id).begins_with("def_"):
+		ElderSignBinder.bind_investigator(ctx, inv_id)
 
 
 static func setup_minimal_investigator(ctx: GameContext, inv_id: StringName) -> void:

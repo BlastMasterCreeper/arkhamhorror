@@ -30,6 +30,11 @@ func _initialize() -> void:
 	_run_test("REF-05 SF hard skull neg act+1", _test_ref05_sf_hard_skull)
 	_run_test("REF-06 blank skips printed symbol ability", _test_ref06_blank_skips_printed_symbol)
 	_run_test("REF-07 blank skips tablet ST.7", _test_ref07_blank_skips_tablet_st7)
+	_run_test("ES-01 Joe elder_sign spec loads", _test_es01_joe_elder_sign_spec)
+	_run_test("ES-02 elder_sign +1 modifier at ST.4", _test_es02_modifier)
+	_run_test("ES-03 Joe succeed draws and gains resource", _test_es03_joe_succeed)
+	_run_test("ES-04 blank skips elder_sign", _test_es04_blank_skips)
+	_run_test("ES-05 Joe fail skips on_success", _test_es05_joe_fail_no_success)
 	_run_test("SHRIV-01 compile if_revealed on skill_test", _test_shriv01_compile_if_revealed)
 	_run_test("SHRIV-02 skull take horror at ST.3 before ST.4", _test_shriv02_horror_before_symbol)
 	_run_test("SHRIV-03 self-limit one horror despite two skulls", _test_shriv03_self_limit)
@@ -832,6 +837,117 @@ func _test_ref07_blank_skips_tablet_st7() -> bool:
 		test.chaos_modifier == 0
 		and not tab.reveal_another
 		and inv.damage_taken == dmg_before
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _es_bind_joe(h: RuleTestHarness) -> InvestigatorState:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.definition_id = &"12004"
+	inv.display_name = "Joe Diamond"
+	ElderSignBinder.bind_investigator(h.ctx, &"inv_1")
+	return inv
+
+
+func _test_es01_joe_elder_sign_spec() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var effect: Dictionary = CardRegistry.elder_sign_effect(&"12004")
+	var on_ok: Dictionary = effect.get("on_success", {})
+	var steps: Array = on_ok.get("steps", [])
+	return (
+		int(effect.get("modifier", -99)) == 1
+		and str(on_ok.get("template", "")) == "seq"
+		and steps.size() == 2
+		and str((steps[0] as Dictionary).get("template", "")) == "draw"
+		and str((steps[1] as Dictionary).get("template", "")) == "gain_resources"
+	)
+
+
+func _test_es02_modifier() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := _es_bind_joe(h)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var es := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es_mod")
+	test.revealed_tokens.append(es)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var ok := test.chaos_modifier == 1 and inv.active_symbol_ability(
+		AhcEnums.ChaosTokenKind.ELDER_SIGN
+	) != null
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_es03_joe_succeed() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := _es_bind_joe(h)
+	## 抽牌需要牌库有牌。
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"es_deck_card")
+	var hand_before := inv.hand.size()
+	var res_before := inv.resource_pool
+	var st := SkillTestHelper.new(h.ctx)
+	## 难度 0 + elder_sign +1 → 成功。
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var es := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es_ok")
+	test.revealed_tokens.append(es)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_determine_success(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	var ok := (
+		test.success
+		and test.chaos_modifier == 1
+		and inv.hand.size() == hand_before + 1
+		and inv.resource_pool == res_before + 1
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_es04_blank_skips() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := _es_bind_joe(h)
+	inv.text_box_blank = true
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var es := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es_blank")
+	test.revealed_tokens.append(es)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var ok := test.chaos_modifier == 0
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_es05_joe_fail_no_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := _es_bind_joe(h)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"es_deck_fail")
+	var hand_before := inv.hand.size()
+	var res_before := inv.resource_pool
+	var st := SkillTestHelper.new(h.ctx)
+	## 难度很高 → 失败；on_success 不应开火。
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 99)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var es := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es_fail")
+	test.revealed_tokens.append(es)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_determine_success(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	var ok := (
+		not test.success
+		and test.chaos_modifier == 1
+		and inv.hand.size() == hand_before
+		and inv.resource_pool == res_before
 	)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return ok
