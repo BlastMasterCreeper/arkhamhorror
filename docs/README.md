@@ -12,7 +12,7 @@
 4. [design/02-framework-flow.md](design/02-framework-flow.md) — 框架流程引擎
 5. [design/03-action-system.md](design/03-action-system.md) — 行动与借机攻击
 6. [design/04-skill-test-engine.md](design/04-skill-test-engine.md) — 技能检定 ST.1–ST.8
-7. [design/05-chaos-bag.md](design/05-chaos-bag.md) — 混沌袋与场景参考
+7. [design/05-chaos-bag.md](design/05-chaos-bag.md) — 混沌袋与冒险参考
 8. [design/06-ability-initiation.md](design/06-ability-initiation.md) — 能力、Initiation、**Eligibility L0–L7**、ResponseWindow
 9. [design/06-registration-buff-model.md](design/06-registration-buff-model.md) — **Registration / Buff 统一模型**（**§16 Buff 应用场合清单**）
 10. [design/06c-stat-projections.md](design/06c-stat-projections.md) — **StatProjection**（L3 历史谓词 · Register 对齐 · demand 升温）

@@ -281,7 +281,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | Prey `(lowest [agility])` 等 | **指令** Prey – | `PreyInstructionSpec` 比较/过滤 | `PreyResolver.best_match` | 等距或同地点子集内比较；并列 Lead | ✅ |
 | Patrol `(地点 / 目标)` | **关键词** 巡逻 | `PatrolTargetSpec` | 3.2 LISTENER handler 内 `PatrolTargetResolver` | **不是** 第三条指令；括号不 Register | △ 测试合成 |
 | Uses `(X type)` 的 X 与 type | **关键词** Uses | `UsesSpec {count, type}` | 进场 L0 放 token；能力 cost 扣同 type | 禁止把 ammo 当成 charges | Domain `uses` 有；Spec 未模块化 |
-| Victory **X** | **关键词** Victory | 标量 `victory: int` | 击败 / 场景结束改去向 | 不是 Buff | ✅ |
+| Victory **X** | **关键词** Victory | 标量 `victory: int` | 击败 / 冒险结束改去向 | 不是 Buff | ✅ |
 | Swarming **X** | **关键词** Swarming | 标量 count | 延时 LISTENER payload | 垫 X 张 facedown swarm | Core 无 |
 | Seal 选哪个 token | **关键词** Seal | `SealSpec` | 打出成本 / 进场 L0 | `CHAOS_PICK` | Choice 已列；无卡 |
 
@@ -339,7 +339,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | 关键词 | 落地 | 实现路径 | 现状 |
 |---|---|---|---|
 | **Uses (X)** | L0 进场放 typed token | 读 **B** 的 `UsesSpec`；扣 uses 走能力 cost | Domain 有 |
-| **Victory X** | Domain 去向 | 击败敌人 / 场景结束已揭示无线索地点 → 胜利展示区 | ✅ |
+| **Victory X** | Domain 去向 | 击败敌人 / 冒险结束已揭示无线索地点 → 胜利展示区 | ✅ |
 | **Vengeance X** | 同去向，计分语义相反 | 与 Victory 共用展示区 | Core 无 |
 | **Seal** | L0 封印混乱标记 | 打出成本或进场；离场释放 | Choice 已列 |
 | **Permanent** 永久（牌组规模） | 构筑 | 不计 deck size；开场进场见 C1 | △ |

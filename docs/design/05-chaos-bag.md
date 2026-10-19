@@ -1,4 +1,4 @@
-# 05 — 混沌袋与场景参考 (ChaosBagSystem)
+# 05 — 混沌袋与冒险参考 (ChaosBagSystem)
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md), [04-skill-test-engine.md](04-skill-test-engine.md)  
 > **规则来源**：Grimoire Chaos Tokens (p.7), Scenario Reference Card
@@ -7,7 +7,7 @@
 
 ## 1. 目标
 
-管理 **Chaos Bag** 组成、揭示/归还、符号效果解析，并与 **Scenario Reference Card** 及 Investigator Elder Sign 绑定。
+管理 **Chaos Bag** 组成、揭示/归还、符号效果解析，并与 **冒险参考卡（Scenario Reference Card）** 及 Investigator Elder Sign 绑定。
 
 ---
 
@@ -121,7 +121,7 @@ ST.4: match token.kind:
 Grimoire Setup 6：
 
 - 战役第一场按 guide 组装 bag
-- 后续场景使用**上一场结束时**的 bag 组成
+- 后续冒险使用**上一场结束时**的 bag 组成
 - Epic/新 campaign transfer 时 reset bag
 
 ```gdscript
@@ -131,17 +131,17 @@ class ChaosBagSnapshot:
     var sealed_tokens: Array[ChaosToken]
 ```
 
-存入 `CampaignState`，非 `GameStateStore`（跨 scenario）。
+存入 `CampaignState`，非 `GameStateStore`（跨冒险）。
 
 ---
 
-## 7. Scenario Reference 数据化 vs 脚本
+## 7. 冒险参考卡（Scenario Reference）数据化 vs 脚本
 
 **推荐混合**：
 
 | 内容 | 方式 |
 |---|---|
-| Core 2026 各场景 Skull/Cultist/... 标准效果 | `ScenarioReferenceDefinition` JSON |
+| Core 2026 各冒险 Skull/Cultist/... 标准效果 | `ScenarioReferenceDefinition` JSON |
 | Spreading Flames「draw Fire! from discard」 | `ScenarioScript.on_chaos_symbol` override |
 | Act 数动态 X | Expression：`X = current_act_number` |
 
@@ -182,7 +182,7 @@ class ChaosBagSnapshot:
 | C-03 | Auto-fail | test fail |
 | C-04 | Elder Sign Joe | +1; succeed 分支 |
 | C-05 | ST.8 return token | bag count 恢复 |
-| C-06 | 战役 scenario 2 继承 bag | snapshot restore |
+| C-06 | 战役第 2 场冒险继承 bag | snapshot restore |
 
 ---
 
@@ -190,7 +190,7 @@ class ChaosBagSnapshot:
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-05-01 | P1 | 2026 Core 各场景 reference **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ |
+| OQ-05-01 | P1 | 2026 Core 各冒险参考卡 **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ |
 | OQ-05-02 | P1 | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ |
 | OQ-05-04 | P2 | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ |
 | OQ-05-05 | P1 | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ |

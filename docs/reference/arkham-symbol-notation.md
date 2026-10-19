@@ -42,7 +42,7 @@
 
 | 记法 | 含义 |
 |---|---|
-| `[skull]` `[cultist]` `[tablet]` `[elder_thing]` | 场景 reference 上定义的符号效果 |
+| `[skull]` `[cultist]` `[tablet]` `[elder_thing]` | 冒险参考卡上定义的符号效果 |
 | `[auto_fail]` | 自动失败 |
 | `[elder_sign]` | 旧印；触发 performing investigator 卡上的 **Elder Sign** 能力 |
 
