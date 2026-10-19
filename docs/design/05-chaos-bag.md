@@ -73,7 +73,7 @@ class ChaosBagSystem:
     var reference: ScenarioReferenceDefinition
 
     func build_from_difficulty(scenario_id, difficulty) -> void
-    func apply_campaign_modifiers(log: CampaignLog) -> void   # 战役间 bag 变化
+    func apply_campaign_modifiers(log: CampaignLog) -> void   # 剧本间 bag 变化
     func reveal_for_skill_test(ctx: SkillTestContext) -> ChaosToken
     func resolve_symbol_effect(token: ChaosToken, ctx: SkillTestContext) -> void
     func get_elder_sign_effect(investigator_id: StringName) -> AbilityDefinition
@@ -116,13 +116,13 @@ ST.4: match token.kind:
 
 ---
 
-## 6. 战役持久化
+## 6. 剧本持久化
 
 Grimoire Setup 6：
 
-- 战役第一场按 guide 组装 bag
+- 剧本第一场按 guide 组装 bag
 - 后续冒险使用**上一场结束时**的 bag 组成
-- Epic/新 campaign transfer 时 reset bag
+- Epic/新剧本 transfer 时 reset bag
 
 ```gdscript
 class ChaosBagSnapshot:
@@ -182,7 +182,7 @@ class ChaosBagSnapshot:
 | C-03 | Auto-fail | test fail |
 | C-04 | Elder Sign Joe | +1; succeed 分支 |
 | C-05 | ST.8 return token | bag count 恢复 |
-| C-06 | 战役第 2 场冒险继承 bag | snapshot restore |
+| C-06 | 剧本第 2 场冒险继承 bag | snapshot restore |
 
 ---
 

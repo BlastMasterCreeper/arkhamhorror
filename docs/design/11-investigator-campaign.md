@@ -1,4 +1,4 @@
-# 11 — 调查员、牌组与战役 (InvestigatorCampaignSystem)
+# 11 — 调查员、牌组与剧本 (InvestigatorCampaignSystem)
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md), [07-effect-resolution.md](07-effect-resolution.md)  
 > **规则来源**：Grimoire Deckbuilding, Campaign Play, Trauma, Experience, Weakness, Slots
@@ -7,7 +7,7 @@
 
 ## 1. 目标
 
-管理 **Investigator 运行时状态**、槽位、牌组操作、淘汰/辞职、战役 Trauma/XP/Deckbuilding、Standalone/Epic 模式。
+管理 **Investigator 运行时状态**、槽位、牌组操作、淘汰/辞职、**剧本（Campaign）** Trauma/XP/Deckbuilding、Standalone/Epic 模式。
 
 ---
 
@@ -77,7 +77,7 @@ Grimoire Elimination：removed from game 其 owner 控制物；clues → locatio
 
 ---
 
-## 6. 战役状态 CampaignState
+## 6. 剧本状态（CampaignState）
 
 ```gdscript
 class CampaignState:

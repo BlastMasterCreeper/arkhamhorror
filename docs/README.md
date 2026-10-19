@@ -22,7 +22,7 @@
 14. [design/08-enemy-engagement.md](design/08-enemy-engagement.md) — 敌人与交战
 15. [design/09-location-graph.md](design/09-location-graph.md) — 地点与线索
 16. [design/10-scenario-encounter.md](design/10-scenario-encounter.md) — 遭遇与场景/密谋（Act/Agenda）
-17. [design/11-investigator-campaign.md](design/11-investigator-campaign.md) — 调查员与战役
+17. [design/11-investigator-campaign.md](design/11-investigator-campaign.md) — 调查员与剧本（Campaign）
 18. [design/12-card-script-api.md](design/12-card-script-api.md) — 卡牌脚本 API
 19. [design/14-nested-sequences.md](design/14-nested-sequences.md) — **嵌套序列 ResolutionSequenceStack**
 20. [design/15-timing-entry-catalog.md](design/15-timing-entry-catalog.md) — **规范时点入口**（含 **§16 调查员抽牌 D0–D5**）
