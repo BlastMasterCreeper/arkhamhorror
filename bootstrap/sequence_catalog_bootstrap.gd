@@ -138,6 +138,21 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return ExhaustReadyFlow.ready(game_ctx, params)
 	)
+	## 封印 / 释放混乱标记（Domain；Premonition 等）。
+	catalog.register_run(
+		&"seq.effect.seal",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.seal(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SealFlow.seal(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.release_seal",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.release_seal(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SealFlow.release(game_ctx, params)
+	)
 	## 狭义移动核：调查员 / 敌人 / 地点附属 / 地点标记；行动与卡面 nest 共用。
 	var move_build := func(params: Dictionary) -> TriggeringCondition:
 		return TriggeringCondition.move(params)

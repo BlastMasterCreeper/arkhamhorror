@@ -4,6 +4,8 @@ extends RefCounted
 var tokens: Array[ChaosToken] = []
 ## 本检定仍留置工作区、待 ST.8 归袋的标记（物理堆）。
 var revealed_this_test: Array[ChaosToken] = []
+## 封印中的标记：不在袋内，不可 `draw_random`。
+var sealed_tokens: Array[ChaosToken] = []
 ## 本作用域揭示账本：含已归袋的能力揭示；审计 / Cancel·Ignore 查询。
 var reveal_ledger: Array[ChaosRevealRecord] = []
 var reveal_scope_id: StringName = &""
@@ -175,9 +177,95 @@ func add_token(token: ChaosToken) -> void:
 	tokens.append(token)
 
 
+## 从袋封印到 host 卡；成功则标记离袋。
+func seal(token: ChaosToken, host_card_id: StringName) -> bool:
+	if token == null or host_card_id == &"":
+		return false
+	if token.sealed:
+		return token.sealed_on == host_card_id
+	if not tokens.has(token):
+		return false
+	tokens.erase(token)
+	token.sealed = true
+	token.sealed_on = host_card_id
+	if not sealed_tokens.has(token):
+		sealed_tokens.append(token)
+	return true
+
+
+func seal_random(host_card_id: StringName) -> ChaosToken:
+	if tokens.is_empty() or host_card_id == &"":
+		return null
+	var idx := randi() % tokens.size()
+	var token: ChaosToken = tokens[idx]
+	if seal(token, host_card_id):
+		return token
+	return null
+
+
+func seal_kind(kind: AhcEnums.ChaosTokenKind, host_card_id: StringName) -> ChaosToken:
+	if host_card_id == &"":
+		return null
+	for t in tokens:
+		var tok: ChaosToken = t as ChaosToken
+		if tok != null and tok.kind == kind and not tok.sealed:
+			if seal(tok, host_card_id):
+				return tok
+	return null
+
+
+func sealed_on(host_card_id: StringName) -> Array[ChaosToken]:
+	var out: Array[ChaosToken] = []
+	if host_card_id == &"":
+		return out
+	for t in sealed_tokens:
+		var tok: ChaosToken = t as ChaosToken
+		if tok != null and tok.sealed and tok.sealed_on == host_card_id:
+			out.append(tok)
+	return out
+
+
+## 释放回袋；若仍在揭示工作区则保留在工作区（ST.8 再归袋）。
+func release(token: ChaosToken) -> bool:
+	if token == null:
+		return false
+	var was_sealed := token.sealed or sealed_tokens.has(token)
+	if not was_sealed:
+		return false
+	token.sealed = false
+	token.sealed_on = &""
+	sealed_tokens.erase(token)
+	if not revealed_this_test.has(token) and not tokens.has(token):
+		tokens.append(token)
+	return true
+
+
+func release_all_on(host_card_id: StringName) -> Array[ChaosToken]:
+	var out: Array[ChaosToken] = sealed_on(host_card_id)
+	for tok in out.duplicate():
+		release(tok)
+	return out
+
+
+## 作刚揭示：从封印移入揭示工作区并记账；不再挂卡、不回袋。
+func reveal_one_sealed(host_card_id: StringName, source: StringName = &"skill_test") -> ChaosToken:
+	var candidates := sealed_on(host_card_id)
+	if candidates.is_empty():
+		return null
+	var token: ChaosToken = candidates[0]
+	token.sealed = false
+	token.sealed_on = &""
+	sealed_tokens.erase(token)
+	if not revealed_this_test.has(token):
+		revealed_this_test.append(token)
+	_record_reveal(token, source)
+	return token
+
+
 func clear() -> void:
 	tokens.clear()
 	revealed_this_test.clear()
+	sealed_tokens.clear()
 	reveal_ledger.clear()
 	reveal_scope_id = &""
 

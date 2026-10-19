@@ -264,6 +264,11 @@ func _initialize() -> void:
 	_run_test("BAG-WIRE-02 12068 would-reveal queues replace", _test_bag_wire_12068_vertical)
 	_run_test("BAG-WIRE-03 12068 resolved symbol takes horror", _test_bag_wire_12068_symbol_horror)
 	_run_test("BAG-USES-01 enter play places Uses charges", _test_bag_uses_enter_play)
+	_run_test("BAG-SEAL-01 seal_random leaves bag", _test_bag_seal_random)
+	_run_test("BAG-SEAL-02 seal_kind missing fails", _test_bag_seal_kind_missing)
+	_run_test("BAG-SEAL-03 leave play releases", _test_bag_seal_leave_play_release)
+	_run_test("BAG-SEAL-04 seq.effect.seal nest", _test_bag_seal_catalog_nest)
+	_run_test("BAG-SEAL-05 sealed reveal instead", _test_bag_seal_reveal_instead)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
 	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
 	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
@@ -6222,6 +6227,164 @@ func _test_bag_uses_enter_play() -> bool:
 	## 离场清 Uses token。
 	h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
 	return card.tokens.uses.is_empty()
+
+
+func _test_bag_seal_random() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var skull := ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, -1, &"sk1")
+	var plus := ChaosToken.numeric(1, &"n1")
+	GameBootstrap.setup_chaos_bag(h.ctx, [skull, plus])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var bag_before := h.ctx.state.chaos_bag.tokens.size()
+	var res: Dictionary = SealFlow.seal(
+		h.ctx, {"host_card_id": host, "mode": SealFlow.MODE_RANDOM}
+	)
+	if not bool(res.get("ok", false)):
+		return false
+	var card := h.ctx.state.registry.get_card(host)
+	var sealed_tok: ChaosToken = res.get("token") as ChaosToken
+	return (
+		h.ctx.state.chaos_bag.tokens.size() == bag_before - 1
+		and h.ctx.state.chaos_bag.sealed_tokens.size() == 1
+		and sealed_tok != null
+		and sealed_tok.sealed
+		and sealed_tok.sealed_on == host
+		and card != null
+		and card.tokens.sealed.size() == 1
+		and not h.ctx.state.chaos_bag.tokens.has(sealed_tok)
+	)
+
+
+func _test_bag_seal_kind_missing() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0, &"n0")])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var bag_n := h.ctx.state.chaos_bag.tokens.size()
+	var res: Dictionary = SealFlow.seal(
+		h.ctx,
+		{
+			"host_card_id": host,
+			"mode": SealFlow.MODE_KIND,
+			"kind": AhcEnums.ChaosTokenKind.SKULL,
+		}
+	)
+	return (
+		not bool(res.get("ok", false))
+		and h.ctx.state.chaos_bag.tokens.size() == bag_n
+		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+	)
+
+
+func _test_bag_seal_leave_play_release() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var skull := ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, -2, &"sk_leave")
+	GameBootstrap.setup_chaos_bag(h.ctx, [skull, ChaosToken.numeric(1, &"n_leave")])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var seal_res: Dictionary = SealFlow.seal(
+		h.ctx,
+		{
+			"host_card_id": host,
+			"mode": SealFlow.MODE_KIND,
+			"kind": AhcEnums.ChaosTokenKind.SKULL,
+		}
+	)
+	if not bool(seal_res.get("ok", false)):
+		return false
+	var bag_mid := h.ctx.state.chaos_bag.tokens.size()
+	h.ctx.mutator.move_card(host, CardSlot.discard_top(&"inv_1"))
+	var card := h.ctx.state.registry.get_card(host)
+	return (
+		h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+		and h.ctx.state.chaos_bag.tokens.size() == bag_mid + 1
+		and h.ctx.state.chaos_bag.tokens.has(skull)
+		and not skull.sealed
+		and skull.sealed_on == &""
+		and (card == null or card.tokens.sealed.is_empty())
+	)
+
+
+func _test_bag_seal_catalog_nest() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.seal"):
+		return false
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.release_seal"):
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.CULTIST, -1, &"cu1"),
+		ChaosToken.numeric(0, &"n_nest"),
+	])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var seal_res: Dictionary = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.seal",
+		{
+			"host_card_id": host,
+			"mode": SealFlow.MODE_KIND,
+			"kind": AhcEnums.ChaosTokenKind.CULTIST,
+		}
+	)
+	if not bool(seal_res.get("ok", false)):
+		return false
+	var rel: Dictionary = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.release_seal",
+		{"host_card_id": host}
+	)
+	return (
+		bool(rel.get("ok", false))
+		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+		and h.ctx.state.chaos_bag.tokens.size() == 2
+	)
+
+
+func _test_bag_seal_reveal_instead() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var sealed_num := ChaosToken.numeric(-3, &"sealed_m3")
+	var bag_only := ChaosToken.numeric(9, &"bag_9")
+	GameBootstrap.setup_chaos_bag(h.ctx, [sealed_num, bag_only])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var seal_res: Dictionary = SealFlow.seal(
+		h.ctx,
+		{"host_card_id": host, "mode": SealFlow.MODE_TOKEN, "token": sealed_num}
+	)
+	if not bool(seal_res.get("ok", false)):
+		return false
+	var bag_n := h.ctx.state.chaos_bag.tokens.size()
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	test.pending_reveal_replace = [
+		ChaosRevealReplaceAbility.create_sealed_instead(
+			&"premonition", &"inv_1", host, 1
+		)
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var resolved: Array = intent.get("resolved", [])
+	var ok := (
+		resolved.size() == 1
+		and resolved[0] == sealed_num
+		and test.chaos_modifier == -3
+		and h.ctx.state.chaos_bag.tokens.size() == bag_n
+		and h.ctx.state.chaos_bag.tokens.has(bag_only)
+		and not h.ctx.state.chaos_bag.tokens.has(sealed_num)
+		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+		and h.ctx.state.chaos_bag.revealed_this_test.has(sealed_num)
+	)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	## ST.8 归袋后 sealed 标记应回袋（曾作揭示）。
+	ok = ok and h.ctx.state.chaos_bag.tokens.has(sealed_num)
+	return ok
 
 
 func _test_act_investigate_success() -> bool:

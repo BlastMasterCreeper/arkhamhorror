@@ -158,8 +158,11 @@ static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> voi
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
 		game_ctx.registrations.on_card_leave_play(card_id)
+	## Seal：离场立即释放封印标记回袋（Grimoire）。
+	SealFlow.release_on_leave_play(game_ctx, card_id)
 	## Uses 随离场清 token（06 DOMAIN）。
 	if game_ctx.state != null:
 		var card := game_ctx.state.registry.get_card(card_id)
 		if card != null:
 			card.tokens.uses.clear()
+			card.tokens.sealed.clear()
