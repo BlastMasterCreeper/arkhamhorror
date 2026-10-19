@@ -292,6 +292,7 @@ class ChaosBagSnapshot:
 | OQ-05-07 | **检定揭示账本 + ST.4 后门槛**：*If … is revealed* 延时查阅 `reveal_ledger` 的 **resolved** 行；能力揭示帧末必须归袋。见 §4.1。 | 2026-10-17 |
 | OQ-04-05 | **多 token 同时揭示 = 一次 ST.3 + 意图规划**（次序 / 预期槽 / CHAOS_PICK）。见 §4.2。 | 2026-10-19 |
 | OQ-05-05 | **Cancel ≠ Ignore**：Cancel=从未抽到；Ignore=仍揭示但不 resolve；延时门槛与 ST.4/5 用 resolved。见 §4.1.1。 | 2026-10-19 |
+| OQ-04-07 | **隐式符号能力**融合 ST.3/ST.4；回溯以该能力为锚。见 §4.0。 | 2026-10-19 |
 
 ---
 
