@@ -111,7 +111,7 @@ seq.chaos.reveal
 - 多能力「将要揭示」替换：整批仍 **一次** ST.3，再对 resolved 逐枚发符号能力（[05 §4.2](05-chaos-bag.md)）
 - 「Reveal another」→ **仅**再嵌 ST.3→符号能力；不回 ST.2；递归无 PW（OQ-04-01）
 - 整链结束 → `PW_SKILL_TEST_AFTER_REVEAL`（进 ST.5 前一次）
-- 实现过渡：`ScenarioReferenceApplier`；目标 = 能力挂参考卡实例（空白可卸）
+- 实现：`ScenarioReferenceBinder` 把 JSON 符号条装成参考卡 `symbol_abilities`；`ScenarioReferenceApplier` 于 ST.4 发起（`text_box_blank` 跳过印刷条）
 
 ```gdscript
 func resolve_reveal_chain(handle: SkillTestHandle) -> void:
@@ -457,3 +457,4 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | 2026-09-20 | v0.6.3 | §4.3：75 档 = 抽取后（整段结算完毕） |
 | 2026-10-19 | v0.7 | §3.3–3.4：多能力揭示意图（OQ-04-05）；ST.4 扫本批 resolved |
 | 2026-10-19 | v0.8 | §3.3–3.4：隐式符号能力融合 ST.3/ST.4（OQ-04-07）；回溯锚点 |
+| 2026-10-19 | v0.9 | 符号能力挂参考卡；ST.4 经卡上 `symbol_abilities`；空白可卸 |

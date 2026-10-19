@@ -28,6 +28,8 @@ func _initialize() -> void:
 	_run_test("REF-03 SF tablet reveal another + fail damage", _test_ref03_sf_tablet_fail_damage)
 	_run_test("REF-04 SF elder_thing fail-by draws Fire", _test_ref04_sf_elder_thing_fail_by_fire)
 	_run_test("REF-05 SF hard skull neg act+1", _test_ref05_sf_hard_skull)
+	_run_test("REF-06 blank skips printed symbol ability", _test_ref06_blank_skips_printed_symbol)
+	_run_test("REF-07 blank skips tablet ST.7", _test_ref07_blank_skips_tablet_st7)
 	_run_test("SC-11 investigate after sf setup", _test_sc11_investigate_after_sf_setup)
 	_run_test("SC-12 setup game begins timing", _test_sc12_setup_game_begins_timing)
 	_run_test("SC-13 act1 flip spawns layout", _test_sc13_act1_flip_spawns_layout)
@@ -617,6 +619,8 @@ func _test_sc10_setup_scenario_reference() -> bool:
 		and ref.id.definition_id == &"12105"
 		and ref.zone == AhcEnums.Zone.PLAY_AREA
 		and h.ctx.state.scenario_reference != null
+		and ref.symbol_abilities.size() >= 4
+		and not ref.text_box_blank
 	)
 
 
@@ -740,6 +744,78 @@ func _test_ref05_sf_hard_skull() -> bool:
 	## Hard：-(act+1) = -3。
 	var ok := test.chaos_modifier == -3
 	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_ref06_blank_skips_printed_symbol() -> bool:
+	## 文本框空白：印刷符号能力不发起；不清零回退 –act。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	h.ctx.state.current_act_number = 2
+	var ref_id := h.ctx.state.scenario_reference_card_id
+	var ref := h.ctx.state.registry.get_card(ref_id)
+	if ref == null or ref.symbol_abilities.is_empty():
+		return false
+	TextBoxBlank.set_blank_by_id(h.ctx, ref_id, true)
+	if ref.active_symbol_ability(AhcEnums.ChaosTokenKind.SKULL) != null:
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_blank"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var ok_blank := test.chaos_modifier == 0
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	## 解除空白后应恢复印刷能力。
+	TextBoxBlank.set_blank_by_id(h.ctx, ref_id, false)
+	if ref.active_symbol_ability(AhcEnums.ChaosTokenKind.SKULL) == null:
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_unblank"),
+	])
+	var test2 := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test2, h.ctx)
+	h.ctx.skill_tests.step_commit(test2, [])
+	h.ctx.skill_tests.close_player_window(test2)
+	h.ctx.skill_tests.resolve_reveal_chain(test2)
+	h.ctx.skill_tests.close_player_window(test2)
+	h.ctx.skill_tests.continue_after_reveal_window(test2)
+	var ok_restore := test2.chaos_modifier == -2
+	h.ctx.skill_tests.step_apply_results(test2)
+	h.ctx.skill_tests.step_end(test2, h.ctx)
+	return ok_blank and ok_restore
+
+
+func _test_ref07_blank_skips_tablet_st7() -> bool:
+	## 空白时 tablet 不施加 reveal_another / on_fail 伤害。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var dmg_before := inv.damage_taken
+	TextBoxBlank.set_blank_by_id(h.ctx, h.ctx.state.scenario_reference_card_id, true)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 9)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var tab := ChaosToken.symbol(AhcEnums.ChaosTokenKind.TABLET, 0, &"tab_blank")
+	test.revealed_tokens.append(tab)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	test.success = false
+	test.fail_by = 5
+	h.ctx.skill_tests.step_apply_results(test)
+	var ok := (
+		test.chaos_modifier == 0
+		and not tab.reveal_another
+		and inv.damage_taken == dmg_before
+	)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return ok
 

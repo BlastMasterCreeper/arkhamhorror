@@ -210,7 +210,7 @@ class ChaosBagSnapshot:
 | Act 数动态 X | modifier expr：`neg_act` / `neg_act_plus_1` |
 | 战役自定义符号 | 预留 `ScenarioScript` / `CampaignScript`（OQ-05-02） |
 
-竖切：Spreading Flames（12105）；过渡实现 `ScenarioReferenceApplier`；目标 = 符号条装成参考卡上的隐式符号能力（OQ-04-07），空白可卸。
+竖切：Spreading Flames（12105）；`ScenarioReferenceBinder` → 卡上 `symbol_abilities`；ST.4 `ScenarioReferenceApplier` 发起；`text_box_blank` 跳过印刷条（OQ-04-07）。
 
 ```json
 # data/scenarios/spreading_flames/reference.json
@@ -309,3 +309,4 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.7 | §4.2 收口：Uses Domain + `after_reveal_if_resolved_symbol`；12068 full；Olive instead-of-1 编译 |
 | 2026-10-19 | v0.8 | §7 冒险参考卡 JSON-first；Spreading Flames 竖切；裁决 OQ-05-01 |
 | 2026-10-19 | v0.9 | §4.0 隐式符号能力融合 ST.3/ST.4（OQ-04-07） |
+| 2026-10-19 | v0.10 | §7：符号能力绑参考卡实例；空白跳过印刷条 |

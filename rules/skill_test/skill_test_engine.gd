@@ -349,7 +349,7 @@ func _discard_committed(ctx: SkillTestContext) -> void:
 
 
 func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:
-	## 冒险参考卡 JSON（ST.4）；无定义时回退兼容。
+	## ST.4：发起参考卡上的隐式符号能力（空白则跳过印刷条）。
 	ScenarioReferenceApplier.apply_token(_game_ctx, ctx, token, _state)
 
 
