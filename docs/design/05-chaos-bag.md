@@ -34,7 +34,8 @@ class ChaosToken:
     var kind: ChaosTokenKind
     var modifier: int                 # numeric 部分；符号可能 + 文本 modifier
     var campaign_symbol_id: StringName
-    var sealed: bool                  # 扩展：封印不揭示
+    var sealed: bool                  # 封印中：不在袋内
+    var sealed_on: StringName         # host 卡 instance id
     var instance_id: StringName
 ```
 
@@ -44,6 +45,7 @@ class ChaosToken:
 class ChaosBag:
     var tokens: Array[ChaosToken]
     var revealed_this_test: Array[ChaosToken]   # 物理工作区
+    var sealed_tokens: Array[ChaosToken]        # 封印中（不 draw）
     var reveal_ledger: Array[ChaosRevealRecord] # 本 scope 账本
     var reveal_scope_id: StringName
 
@@ -54,6 +56,9 @@ class ChaosBag:
     func finalize_ability_reveal(tokens) -> void  # 回袋；账本保留
     func cancel_reveal(token) -> void   # 从未抽到
     func ignore_reveal(token) -> void   # 仍揭示，不 resolve
+    func seal(token, host) / seal_random(host) / seal_kind(kind, host)
+    func release(token) / release_all_on(host) / sealed_on(host)
+    func reveal_one_sealed(host, source)  # 作刚揭示：移入工作区+账本
     func has_revealed_kind / count_revealed_kind / revealed_records   # 未 Cancel（含 Ignore）
     func has_resolved_kind / count_resolved_kind / resolved_records   # 未 Cancel 且未 Ignore
     func has_uncanceled_kind / count_uncanceled_kind                 # = revealed_*（兼容别名）
@@ -61,6 +66,10 @@ class ChaosBag:
     func return_all_revealed() -> void
     func add_token(t: ChaosToken) -> void
 ```
+
+**封印（Seal）· Domain**：`seq.effect.seal` / `seq.effect.release_seal`（`SealFlow`）。挂 `TokenBag.sealed`；离场 `ZoneMoveFlow` 立即释放回袋。Premonition 式「作刚揭示」= `ChaosRevealReplaceAbility.sealed_host_card_id` + `queue_sealed_reveal_instead`。
+
+**关键词 Seal = 打出额外费用**：`SealSpec`（`CardRegistry.seal_spec`）→ Initiation L6 `can_pay` 查袋；进场 `ZoneMoveFlow` → `SealFlow.pay_keyword_on_enter` nest `seq.effect.seal`。袋无指定标记 → 不能打出。
 
 ### 2.3 ScenarioReferenceDefinition
 
@@ -177,7 +186,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
-**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、Premonition / seal。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
+**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）；**Seal Domain**（`seq.effect.seal` / `release_seal` + 作刚揭示替换）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、Premonition **实卡编译**（12064 未译；框架已竖切）。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
 
 ---
 
@@ -249,7 +258,7 @@ class ChaosBagSnapshot:
 
 | 机制 | 接口 |
 |---|---|
-| Seal token | `bag.seal(token)` |
+| Seal token | `bag.seal` / `SealFlow` / `seq.effect.seal` · `release_seal`（已落地） |
 | Bless/Curse | 额外 token kind |
 | Pull from bag without test / 能力揭示 | `reveal_for_ability` + **强制** `finalize_ability_reveal` |
 | Empty bag | 不应发生；若 token 被 remove 至 0 → 错误日志 |
@@ -284,6 +293,15 @@ class ChaosBagSnapshot:
 | BAG-WIRE-02 | 12068 竖切 · 数字 | Uses 进场 3；揭 2 解 1；扣 charge；无 horror |
 | BAG-WIRE-03 | 12068 竖切 · 符号 | resolved 符号 → take 1 horror |
 | BAG-USES-01 | Uses Domain | 进场放 charges；离场清空 |
+| BAG-SEAL-01 | seal_random | 离袋；卡 sealed；不可再抽 |
+| BAG-SEAL-02 | seal_kind 缺失 | 失败；袋不变 |
+| BAG-SEAL-03 | 离场释放 | leave play → 回袋 |
+| BAG-SEAL-04 | seq.effect.seal nest | Catalog nest ok |
+| BAG-SEAL-05 | 作刚揭示 instead | sealed 进账本；未抽袋 |
+| BAG-SEAL-06 | 关键词费用门槛 | 无 skull → cannot_pay；仍在手 |
+| BAG-SEAL-07 | 关键词打出进场 | Seal (Elder Sign) → 封印 |
+| BAG-SEAL-08 | 关键词 choice | cultist/tablet 封一枚 |
+| BAG-SEAL-09 | put into play | ZoneMove 进场亦封印 |
 | REF-01 | SF 加载 reference JSON | easy/hard skull expr |
 | REF-02 | SF skull –act | act=2 → modifier -2 |
 | REF-03 | SF tablet | -1 + reveal_another；fail → +1 damage |
@@ -338,3 +356,5 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.11 | §4.1.2：*If revealed* 改紧贴 resolved 结算；废止 ST.4 后扫账本门槛 |
 | 2026-10-19 | v0.12 | §4.1.2：`any` 自肃一次；`each` for-each 不自肃 |
 | 2026-10-19 | v0.13 | §4.2 尾：去掉「整次检定 Cancel」伪缺口（OQ-04-04） |
+| 2026-10-19 | v0.14 | §2/§9：Seal Domain（seal / release_seal / 作刚揭示）；BAG-SEAL 竖切 |
+| 2026-10-19 | v0.15 | Seal 关键词：L6 门槛 + 进场 `pay_keyword_on_enter`；BAG-SEAL-06..09 |

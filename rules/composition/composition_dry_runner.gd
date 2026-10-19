@@ -380,9 +380,15 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			var have := int(spend_card.tokens.uses.get(node.use_type, 0))
 			return have >= maxi(node.amount, 1)
+		&"nest_seal":
+			return node.card_id != &"" and sim.state != null and sim.state.chaos_bag != null
+		&"nest_release_seal":
+			return node.card_id != &""
 		&"queue_chaos_reveal_replace":
 			## 仅挂意图；不依赖袋内张数。
 			return node.draw_amount >= 1
+		&"queue_sealed_reveal_instead":
+			return node.card_id != &"" and node.draw_amount >= 1
 		&"after_reveal_if_resolved_symbol":
 			return node.then_branch != null
 		&"resolve_pending":

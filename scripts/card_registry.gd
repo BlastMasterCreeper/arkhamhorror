@@ -80,6 +80,35 @@ static func uses_spec(definition_id: StringName) -> Dictionary:
 	return parse_uses_from_text(str(data.get("text", "")))
 
 
+## Seal 关键词规格；null = 无 Seal 打出额外费用。
+## 来源：定义 `seal` 字段 · keywords 含 seal + 正文 `Seal (…)` · 或正文印刷 `Seal (…)`。
+## 「seal a random…」效果句（无括号种类）不匹配，不走打出费用。
+static func seal_spec(definition_id: StringName) -> SealSpec:
+	var data := definition_data(definition_id)
+	if data.has("seal"):
+		var raw: Variant = data.get("seal")
+		if raw is SealSpec:
+			return raw as SealSpec
+		if raw is Dictionary:
+			return SealSpec.from_dictionary(raw as Dictionary)
+		if raw is String or raw is StringName:
+			var from_str := SealSpec.from_dictionary({"kind": str(raw)})
+			if from_str != null:
+				return from_str
+	var from_text := SealSpec.parse_from_text(str(data.get("text", "")))
+	if from_text != null:
+		return from_text
+	if has_keyword(definition_id, &"seal"):
+		## 仅标 seal、无括号：视为随机封印（极少）。
+		return SealSpec.random_any()
+	return null
+
+
+static func has_seal_play_cost(definition_id: StringName) -> bool:
+	var spec := seal_spec(definition_id)
+	return spec != null and spec.as_play_cost
+
+
 static func parse_uses_from_text(text: String) -> Dictionary:
 	if text.is_empty():
 		return {}

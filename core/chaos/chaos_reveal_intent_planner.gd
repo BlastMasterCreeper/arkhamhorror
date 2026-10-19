@@ -55,7 +55,13 @@ static func plan_and_reveal(
 			next_id = _expand_slot(leaves, target_id, ab, next_id)
 	var tokens: Array[ChaosToken] = []
 	for leaf in leaves:
-		var tok := bag.draw_random(source)
+		var tok: ChaosToken = null
+		var by_ability: StringName = leaf.get("by_ability", &"") as StringName
+		var sealed_host := _sealed_host_for(by_ability, ordered)
+		if sealed_host != &"":
+			tok = SealFlow.reveal_one_sealed(game_ctx, sealed_host, source)
+		else:
+			tok = bag.draw_random(source)
 		if tok == null:
 			break
 		leaf["token"] = tok
@@ -85,6 +91,16 @@ static func _new_leaf(id: int, by_ability: StringName, from_slot: int) -> Dictio
 		"from_slot": from_slot,
 		"token": null,
 	}
+
+
+static func _sealed_host_for(ability_id: StringName, ordered: Array) -> StringName:
+	if ability_id == &"":
+		return &""
+	for raw in ordered:
+		var ab: ChaosRevealReplaceAbility = raw as ChaosRevealReplaceAbility
+		if ab != null and ab.ability_id == ability_id:
+			return ab.sealed_host_card_id
+	return &""
 
 
 static func _order_abilities(

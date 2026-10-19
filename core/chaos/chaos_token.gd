@@ -5,6 +5,9 @@ var kind: AhcEnums.ChaosTokenKind = AhcEnums.ChaosTokenKind.NUMERIC
 var modifier: int = 0
 var reveal_another: bool = false
 var instance_id: StringName = &""
+## 封印（Seal）：不在袋内，不可从袋揭示；挂在 host 卡上。
+var sealed: bool = false
+var sealed_on: StringName = &""
 
 
 static func numeric(value: int, instance_id: StringName = &"") -> ChaosToken:

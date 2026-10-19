@@ -527,6 +527,38 @@ static func ready(
 	return t
 
 
+static func seal(
+	params: Dictionary,
+	after_timing: StringName = &"after_seal"
+) -> TriggeringCondition:
+	var host: StringName = params.get(
+		"host_card_id", params.get("card_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("seal_%s_%d" % [host, Time.get_ticks_msec()])
+	t.kind = &"seal"
+	t.tags = [&"seal", &"chaos", &"effect"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
+static func release_seal(
+	params: Dictionary,
+	after_timing: StringName = &"after_release_seal"
+) -> TriggeringCondition:
+	var host: StringName = params.get(
+		"host_card_id", params.get("card_id", &"")
+	) as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("release_seal_%s_%d" % [host, Time.get_ticks_msec()])
+	t.kind = &"release_seal"
+	t.tags = [&"seal", &"release", &"chaos", &"effect"]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 ## 狭义移动（seq.effect.move）：调查员 / 敌人 / 附属 / 标记。
 ## 订阅用 tags（subject）二次过滤；勿再按主体拆 flow_id。
 static func move(
