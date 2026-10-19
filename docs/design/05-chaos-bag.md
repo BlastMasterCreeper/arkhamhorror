@@ -94,11 +94,15 @@ class ChaosBagSystem:
 
 ## 4. 揭示流程（与 ST.3–ST.4 协作）
 
+### 4.0 隐式符号能力（已裁决 · OQ-04-07）
+
+ST.3/ST.4 **融合**为一条链：揭示产出 token → **发起隐式符号能力**（modifier + 效果）。能力源 = 冒险参考卡 / 调查员 Elder Sign / 规则 Auto-fail / 剧本自定义。Cancel·Ignore·Instead·空白 的回溯对象即「这一次揭示」或「这一次符号能力」。详见 [04 §3.3–3.4](04-skill-test-engine.md)。
+
 ```
 ST.1 begin → bag.begin_reveal_scope(test_id)
 ST.3: ChaosRevealIntentPlanner.plan_and_reveal（见 §4.2）
       → 同时离袋；resolved 入 ctx.revealed_tokens；其余 → ignore_reveal
-ST.4: 对本批每枚 resolved 施加符号效果；任一 reveal another → 再 ST.3
+ST.4: 对每枚 resolved **发起隐式符号能力**；任一 reveal another → 再 nest ST.3→能力
 整链结束 → PW_SKILL_TEST_AFTER_REVEAL（窗内能力揭示写入同一账本）
          → ST.4 后门槛 resolve_post_st4_if_revealed_gate（查 **resolved**）
          → ST.5 …
@@ -206,7 +210,7 @@ class ChaosBagSnapshot:
 | Act 数动态 X | modifier expr：`neg_act` / `neg_act_plus_1` |
 | 战役自定义符号 | 预留 `ScenarioScript` / `CampaignScript`（OQ-05-02） |
 
-竖切：Spreading Flames（12105）；ST.4 → `ScenarioReferenceApplier`；失败后果挂 ST.7。
+竖切：Spreading Flames（12105）；过渡实现 `ScenarioReferenceApplier`；目标 = 符号条装成参考卡上的隐式符号能力（OQ-04-07），空白可卸。
 
 ```json
 # data/scenarios/spreading_flames/reference.json
@@ -274,6 +278,7 @@ class ChaosBagSnapshot:
 | ID | 优先级 | 问题 |
 |---|---|---|
 | OQ-05-01 | P1 | ~~冒险参考卡全部 JSON vs ScenarioScript？~~ → **JSON-first**（SF 竖切）；脚本预留。见 §7。 |
+| OQ-04-07 | P1 | ~~ST.3/ST.4 与符号文本如何统一？~~ → **隐式符号能力**融合；见 §4.0 / [04 §3.3–3.4](04-skill-test-engine.md)。 |
 | OQ-05-02 | P1 | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ |
 | OQ-05-04 | P2 | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ |
 | OQ-05-05 | P1 | ~~Ignore vs Cancel chaos token 是否仍算「revealed this test」？~~ → **已裁决** 见 §4.1.1 |
@@ -302,3 +307,4 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.6 | §4.2 卡面接线：`seq.chaos.reveal` + Mask of Silenus（12068） |
 | 2026-10-19 | v0.7 | §4.2 收口：Uses Domain + `after_reveal_if_resolved_symbol`；12068 full；Olive instead-of-1 编译 |
 | 2026-10-19 | v0.8 | §7 冒险参考卡 JSON-first；Spreading Flames 竖切；裁决 OQ-05-01 |
+| 2026-10-19 | v0.9 | §4.0 隐式符号能力融合 ST.3/ST.4（OQ-04-07） |
