@@ -94,11 +94,15 @@ class ChaosBagSystem:
 
 ## 4. 揭示流程（与 ST.3–ST.4 协作）
 
+### 4.0 隐式符号能力（已裁决 · OQ-04-07）
+
+ST.3/ST.4 **融合**为一条链：揭示产出 token → **发起隐式符号能力**（modifier + 效果）。能力源 = 冒险参考卡 / 调查员 Elder Sign / 规则 Auto-fail / 剧本自定义。Cancel·Ignore·Instead·空白 的回溯对象即「这一次揭示」或「这一次符号能力」。详见 [04 §3.3–3.4](04-skill-test-engine.md)。
+
 ```
 ST.1 begin → bag.begin_reveal_scope(test_id)
 ST.3: ChaosRevealIntentPlanner.plan_and_reveal（见 §4.2）
       → 同时离袋；resolved 入 ctx.revealed_tokens；其余 → ignore_reveal
-ST.4: 对本批每枚 resolved 施加符号效果；任一 reveal another → 再 ST.3
+ST.4: 对每枚 resolved **发起隐式符号能力**；任一 reveal another → 再 nest ST.3→能力
 整链结束 → PW_SKILL_TEST_AFTER_REVEAL（窗内能力揭示写入同一账本）
          → ST.4 后门槛 resolve_post_st4_if_revealed_gate（查 **resolved**）
          → ST.5 …
@@ -157,7 +161,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
-**本线范围外**（开新线）：场景 reference JSON（OQ-05-01/02）、Bless/Curse 实装（OQ-05-04）、整次检定 Cancel、Premonition / seal。
+**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）。仍范围外：OQ-05-02 战役符号脚本、Bless/Curse、整次检定 Cancel、Premonition / seal。
 
 ---
 
@@ -195,20 +199,23 @@ class ChaosBagSnapshot:
 
 ---
 
-## 7. Scenario Reference 数据化 vs 脚本
+## 7. 冒险参考卡（Scenario Reference）数据化 vs 脚本
 
-**推荐混合**：
+**已落地（混合 · JSON-first）**：
 
 | 内容 | 方式 |
 |---|---|
-| Core 2026 各场景 Skull/Cultist/... 标准效果 | `ScenarioReferenceDefinition` JSON |
-| Spreading Flames「draw Fire! from discard」 | `ScenarioScript.on_chaos_symbol` override |
-| Act 数动态 X | Expression：`X = current_act_number` |
+| Core 2026 各冒险 Skull/Cultist/... 标准效果 | `data/scenarios/<id>/reference.json` → `ScenarioReferenceDefinition` |
+| Spreading Flames「draw Fire! from discard」 | JSON `on_fail` / `on_fail_by` → Composition 模板 |
+| Act 数动态 X | modifier expr：`neg_act` / `neg_act_plus_1` |
+| 战役自定义符号 | 预留 `ScenarioScript` / `CampaignScript`（OQ-05-02） |
 
-```gdscript
-# data/packs/core_2026/scenarios/spreading_flames_reference.tres
-# symbol_effects[SKULL] = "-X. X is the current act number."
-# symbol_effects[SKULL].on_fail_by = { threshold: 2, effect: draw_fire_from_discard }  # ST.7 执行
+竖切：Spreading Flames（12105）；`ScenarioReferenceBinder` → 卡上 `symbol_abilities`；ST.4 `ScenarioReferenceApplier` 发起；`text_box_blank` 跳过印刷条（OQ-04-07）。
+
+```json
+# data/scenarios/spreading_flames/reference.json
+# "skull": { "modifier": { "expr": "neg_act" } }
+# "elder_thing": { "modifier": -3, "on_fail_by": { "threshold": 2, "body": { "template": "lead_draw_..." } } }
 ```
 
 ---
@@ -258,6 +265,11 @@ class ChaosBagSnapshot:
 | BAG-WIRE-02 | 12068 竖切 · 数字 | Uses 进场 3；揭 2 解 1；扣 charge；无 horror |
 | BAG-WIRE-03 | 12068 竖切 · 符号 | resolved 符号 → take 1 horror |
 | BAG-USES-01 | Uses Domain | 进场放 charges；离场清空 |
+| REF-01 | SF 加载 reference JSON | easy/hard skull expr |
+| REF-02 | SF skull –act | act=2 → modifier -2 |
+| REF-03 | SF tablet | -1 + reveal_another；fail → +1 damage |
+| REF-04 | SF elder_thing fail-by | fail_by≥2 → 抽 Fire! |
+| REF-05 | SF hard skull | -(act+1) |
 
 ---
 
@@ -265,7 +277,8 @@ class ChaosBagSnapshot:
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-05-01 | P1 | 2026 Core 各场景 reference **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ |
+| OQ-05-01 | P1 | ~~冒险参考卡全部 JSON vs ScenarioScript？~~ → **JSON-first**（SF 竖切）；脚本预留。见 §7。 |
+| OQ-04-07 | P1 | ~~ST.3/ST.4 与符号文本如何统一？~~ → **隐式符号能力**融合；见 §4.0 / [04 §3.3–3.4](04-skill-test-engine.md)。 |
 | OQ-05-02 | P1 | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ |
 | OQ-05-04 | P2 | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ |
 | OQ-05-05 | P1 | ~~Ignore vs Cancel chaos token 是否仍算「revealed this test」？~~ → **已裁决** 见 §4.1.1 |
@@ -279,6 +292,7 @@ class ChaosBagSnapshot:
 | OQ-05-07 | **检定揭示账本 + ST.4 后门槛**：*If … is revealed* 延时查阅 `reveal_ledger` 的 **resolved** 行；能力揭示帧末必须归袋。见 §4.1。 | 2026-10-17 |
 | OQ-04-05 | **多 token 同时揭示 = 一次 ST.3 + 意图规划**（次序 / 预期槽 / CHAOS_PICK）。见 §4.2。 | 2026-10-19 |
 | OQ-05-05 | **Cancel ≠ Ignore**：Cancel=从未抽到；Ignore=仍揭示但不 resolve；延时门槛与 ST.4/5 用 resolved。见 §4.1.1。 | 2026-10-19 |
+| OQ-04-07 | **隐式符号能力**融合 ST.3/ST.4；回溯以该能力为锚。见 §4.0。 | 2026-10-19 |
 
 ---
 
@@ -293,3 +307,6 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.5 | §4.1.1 Cancel vs Ignore（OQ-05-05）；门槛改查 resolved |
 | 2026-10-19 | v0.6 | §4.2 卡面接线：`seq.chaos.reveal` + Mask of Silenus（12068） |
 | 2026-10-19 | v0.7 | §4.2 收口：Uses Domain + `after_reveal_if_resolved_symbol`；12068 full；Olive instead-of-1 编译 |
+| 2026-10-19 | v0.8 | §7 冒险参考卡 JSON-first；Spreading Flames 竖切；裁决 OQ-05-01 |
+| 2026-10-19 | v0.9 | §4.0 隐式符号能力融合 ST.3/ST.4（OQ-04-07） |
+| 2026-10-19 | v0.10 | §7：符号能力绑参考卡实例；空白跳过印刷条 |

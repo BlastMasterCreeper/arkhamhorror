@@ -78,30 +78,50 @@ class SkillTestEngine:
 - 不付 resource cost
 - **Player Window**：`PW_SKILL_TEST_AFTER_COMMIT`（ST.2 完成后、进入 ST.3 之前）
 
-### 3.3 ST.3 Reveal
+### 3.3–3.4 融合：隐式符号能力（已裁决 · OQ-04-07）
 
-- 默认从 chaos bag 随机取 **1** token（`base_expected=1`）
-- 多条「将要揭示」替换体（Olive / Grotesque Statue 等）挂在 `pending_reveal_replace`：经 `ChaosRevealIntentPlanner` **先 PI 再同时离袋**（次序 → 预期槽 → 抽 → CHAOS_PICK）。整批 = **一次** ST.3；详见 [05 §4.2](05-chaos-bag.md)
-- **无 Framework Player Window**（见 [00-framework-step-index.md](00-framework-step-index.md)）；意图 PI 走 Gate，不是 PW
+**语义单元** = **隐式符号能力（symbol ability）**：由本步揭示/resolve 的 token 触发，提供 **modifier + 效果体**。规则书 ST.4「ability must initiate」即此。
 
-### 3.4 ST.4 Symbol effects
+| | |
+|---|---|
+| **ST.3** | 离袋 / 入账本（可一批多枚；意图规划见 [05 §4.2](05-chaos-bag.md)） |
+| **ST.4** | 对每枚 **resolved** 发起对应隐式符号能力 |
+| **能力源** | 冒险参考卡印刷条 · 调查员 Elder Sign · Auto-fail 规则 · 剧本自定义 |
+| **载荷** | modifier（→ ST.5）· 效果（再揭示、失败句→ST.7…） |
 
-- Skull/Cultist/Tablet/Elder Thing → ScenarioReference 能力
-- Elder Sign → investigator 卡 printed **Elder Sign** 能力（揭示 [elder_sign] token 时）
-- Campaign symbol → campaign guide
-- Auto-fail → `auto_fail = true`
-- 本批 **每枚 resolved** 均施加；任一「Reveal another token」→ **仅递归 ST.3 → ST.4**；**不**回到 ST.2，**不**开启任何 Player Window（已裁决 OQ-04-01）
-- 全部 token 揭示且 symbol 效果结算完毕后 → **Player Window**：`PW_SKILL_TEST_AFTER_REVEAL`（进入 ST.5 之前，**仅一次**）
+```text
+seq.chaos.reveal
+  └─ 每枚 resolved token
+        ST.3 揭示
+        └─ nest / 发起 隐式符号能力   ← ST.4
+              · modifier → ctx
+              · 「Reveal another」→ 再 nest ST.3→符号能力
+              · fail / fail-by → 注册 ST.7（OQ-05-03）
+```
+
+**回溯锚点**（故步骤回退说得通）：
+
+| 干预 | 对象 |
+|---|---|
+| Cancel 揭示 | 无 token → 无能力可发 |
+| Ignore | 仍揭示；不施加该符号能力的 modifier/效果 |
+| Cancel / Instead 符号能力 | 以该次能力发起为锚 |
+| 空白参考卡文本框 | 无对应印刷能力 → ST.4 无效果 |
+
+- 多能力「将要揭示」替换：整批仍 **一次** ST.3，再对 resolved 逐枚发符号能力（[05 §4.2](05-chaos-bag.md)）
+- 「Reveal another」→ **仅**再嵌 ST.3→符号能力；不回 ST.2；递归无 PW（OQ-04-01）
+- 整链结束 → `PW_SKILL_TEST_AFTER_REVEAL`（进 ST.5 前一次）
+- 实现：`ScenarioReferenceBinder` 把 JSON 符号条装成参考卡 `symbol_abilities`；`ScenarioReferenceApplier` 于 ST.4 发起（`text_box_blank` 跳过印刷条）
 
 ```gdscript
 func resolve_reveal_chain(handle: SkillTestHandle) -> void:
     while true:
-        step_reveal_token(handle)           # ST.3 — 无 Window；可多枚载荷
-        var again := step_apply_symbol_effects(handle)  # ST.4 扫本批
-        if not again:                       # 无 "Reveal another token"
+        step_reveal_token(handle)                      # ST.3
+        var again := step_initiate_symbol_ability(handle)  # ST.4
+        if not again:
             break
-    open_player_window(PW_SKILL_TEST_AFTER_REVEAL)  # 整链结束后一次
-    step_calculate_modified_value(handle)   # ST.5
+    open_player_window(PW_SKILL_TEST_AFTER_REVEAL)
+    step_calculate_modified_value(handle)              # ST.5
 ```
 
 ### 3.5 ST.5 Modified skill value
@@ -414,6 +434,7 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 |---|---|---|
 | OQ-04-01 | Player Window 在 **ST.2 前后**（commit 后一次）及 **ST.3–ST.4 整链结束后**（`PW_SKILL_TEST_AFTER_REVEAL`，进入 ST.5 前一次）。「Reveal another token」**仅递归 ST.3→ST.4**，不回 ST.2，递归中 **无 Player Window**。 | 2026-05-25 |
 | OQ-04-05 | 多能力同时替换揭示：**一次 ST.3** + 意图规划（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](05-chaos-bag.md)。 | 2026-10-19 |
+| OQ-04-07 | **隐式符号能力**融合 ST.3/ST.4：揭示产出 token → 发起符号能力（modifier+效果）；回溯/空白/Ignore 均以该能力为锚。见 §3.3–3.4。 | 2026-10-19 |
 | OQ-04-02 | **Peril = 遭遇帧内持续 Cannot**（§4）；嵌套检定 ST.8 后入队仍不可协助。见 §4、§6。 | 2026-05-25 |
 | OQ-04-03 | **否。** 子检定入队，父检定继续 ST.5→ST.8；子检定于父 **ST.8 后**执行。 | 2026-05-25 |
 | OQ-05-03 | **Fail by 条件效果在 ST.7 结算**（ST.6 仅算 `fail_by`）。 | 2026-05-25 |
@@ -435,3 +456,5 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 | 2026-09-20 | v0.6.1 | §4.4 E4 显现独立类（非 Forced nest） |
 | 2026-09-20 | v0.6.3 | §4.3：75 档 = 抽取后（整段结算完毕） |
 | 2026-10-19 | v0.7 | §3.3–3.4：多能力揭示意图（OQ-04-05）；ST.4 扫本批 resolved |
+| 2026-10-19 | v0.8 | §3.3–3.4：隐式符号能力融合 ST.3/ST.4（OQ-04-07）；回溯锚点 |
+| 2026-10-19 | v0.9 | 符号能力挂参考卡；ST.4 经卡上 `symbol_abilities`；空白可卸 |

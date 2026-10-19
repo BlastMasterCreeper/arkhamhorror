@@ -85,7 +85,7 @@
 | OQ-04-03 | [04-skill-test](design/04-skill-test-engine.md) | Symbol 效果在 ST.4 发起 fight 嵌套检定，父检定 ST.5 是否等待子检定完成？ | **否。** 子检定入队；父 ST.5→ST.8 不等待；父 ST.8 后执行。 |
 | OQ-04-04 | [04-skill-test](design/04-skill-test-engine.md) | Cancel 整个 skill test vs Cancel 单个 chaos token：状态回滚深度？ | |
 | OQ-04-06 | [04-skill-test](design/04-skill-test-engine.md) | Committed 的 skill 在 ST.7 前被 discard 的 edge case（Limbo 保护）？ | |
-| OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | 2026 Core 各场景 reference **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ | |
+| OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | ~~冒险参考卡 JSON vs ScenarioScript？~~ → **JSON-first**（SF 竖切） | 2026-10-19 |
 | OQ-05-02 | [05-chaos-bag](design/05-chaos-bag.md) | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ | |
 | OQ-05-05 | [05-chaos-bag](design/05-chaos-bag.md) | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ | **Cancel=从未抽到；Ignore=仍揭示但不 resolve。** 延时门槛 / ST.4–5 查 **resolved**；Candles 式听揭示用 `revealed_*`。见 [05 §4.1.1](design/05-chaos-bag.md)。 |
 | OQ-06-04 | [06-ability](design/06-ability-initiation.md) | Forced [reaction] 是否存在？（通常无，但 scenario 卡） | |
@@ -123,6 +123,7 @@
 | OQ-02-05 | [02-framework](design/02-framework-flow.md) | Framework 与嵌套 Skill Test 的 EventRecord 层级如何缩进展示？ | |
 | OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），经 `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 |
 | OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | **一次 ST.3 + 意图规划**（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](design/05-chaos-bag.md)。 |
+| OQ-04-07 | [04-skill-test](design/04-skill-test-engine.md) | ST.3/ST.4 与参考卡符号文本如何统一？ | **隐式符号能力**融合：揭示→发起（modifier+效果）；回溯以该能力为锚。见 04 §3.3–3.4。 |
 | OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ | |
 | OQ-05-06 | [05-chaos-bag](design/05-chaos-bag.md) | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ | |
 | OQ-06-05 | [06-ability](design/06-ability-initiation.md) | Constant ability 在 out-of-play 被引用（少数卡）— 如何标记 `references_out_of_play`？ | |
