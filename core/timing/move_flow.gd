@@ -131,18 +131,24 @@ static func _move_investigator(game_ctx: GameContext, params: Dictionary) -> Dic
 			"move_kind": move_kind,
 		})
 	inv.location_tag = dest_id
-	if bool(params.get("reveal_on_enter", true)) and not dest.revealed:
-		dest.revealed = true
-		dest.clues = maxi(dest.clues, 1)
+	var enter := {}
+	if bool(params.get("reveal_on_enter", true)):
+		## 规则自带：进未揭示 → 翻开 + 首次放线索。
+		enter = LocationEnterRules.on_investigator_enter(game_ctx, dest_id)
 	if _auto_engage(params, true):
 		EngageFlow.nest_after_area_change(game_ctx, dest_id)
 	_log_move(game_ctx, SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id, {
 		"move_kind": move_kind,
 	})
-	return _ok_moved(SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id, {
+	var out := _ok_moved(SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id, {
 		"investigator_id": inv_id,
 		"move_kind": move_kind,
 	})
+	if not enter.is_empty():
+		out["location_enter"] = enter
+		out["location_revealed"] = bool(enter.get("revealed", false))
+		out["clues_placed"] = int(enter.get("clues_placed", 0))
+	return out
 
 
 static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary:

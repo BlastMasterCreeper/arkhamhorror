@@ -64,7 +64,7 @@ func engage(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Di
 	return {"ok": true, "enemy_id": enemy_id}
 
 
-func move(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
+func move(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null:
 		return {"ok": false, "error": "unknown_investigator"}
@@ -78,10 +78,14 @@ func move(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	if not _is_connected(current, dest_id):
 		return {"ok": false, "error": "not_connected"}
 	inv.location_tag = dest_id
-	if not dest.revealed:
-		dest.revealed = true
-		dest.clues = maxi(dest.clues, 1)
-	return {"ok": true, "destination_id": dest_id}
+	## 无 Catalog 旁路：仍走规则自带进入揭示。
+	var enter := LocationEnterRules.on_investigator_enter(game_ctx, dest_id)
+	var out := {"ok": true, "destination_id": dest_id}
+	if not enter.is_empty():
+		out["location_enter"] = enter
+		out["location_revealed"] = bool(enter.get("revealed", false))
+		out["clues_placed"] = int(enter.get("clues_placed", 0))
+	return out
 
 
 func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:

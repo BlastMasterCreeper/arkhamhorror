@@ -318,6 +318,10 @@ func _initialize() -> void:
 	_run_test("G1-06 elusive flee nests move", _test_g1_elusive_flee_nests_move)
 	_run_test("G1-07 move rejects disconnected", _test_g1_move_rejects_disconnected)
 	_run_test("G1-08 move_to ignores connections", _test_g1_move_to_ignores_connections)
+	_run_test("L-01 per_investigator clues on reveal", _test_l01_per_investigator_clues)
+	_run_test("L-02 move to unrevealed reveals and places clues", _test_l02_move_unrevealed)
+	_run_test("L-02b re-enter revealed does not place clues again", _test_l02b_reenter_no_reclues)
+	_run_test("L-02c enemy move does not reveal location", _test_l02c_enemy_move_no_reveal)
 	_run_test("G2-01 seq.effect.exhaust enemy", _test_g2_exhaust_enemy)
 	_run_test("G2-02 seq.effect.ready enemy engages", _test_g2_ready_enemy_engages)
 	_run_test("G2-03 seq.effect.exhaust card in play", _test_g2_exhaust_card_in_play)
@@ -7367,6 +7371,135 @@ func _test_g1_move_to_ignores_connections() -> bool:
 		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE_TO
 		and inv.location_tag == &"loc_far"
 	)
+
+
+func _test_l01_per_investigator_clues() -> bool:
+	## 印刷 2 × 开局调查员数 2 → 放 4 线索。
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.per_investigator_count = 2
+	GameBootstrap.setup_test_location(
+		h.ctx, &"loc_pi", 3, 2, false, 2
+	)
+	var reveal := LocationEnterRules.reveal_and_place_clues(
+		h.ctx, {"location_id": &"loc_pi"}
+	)
+	var loc := h.ctx.state.registry.get_location(&"loc_pi")
+	return (
+		bool(reveal.get("ok", false))
+		and bool(reveal.get("revealed", false))
+		and int(reveal.get("clues_placed", 0)) == 4
+		and loc.revealed
+		and loc.clues == 4
+	)
+
+
+func _test_l02_move_unrevealed() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.per_investigator_count = 1
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 0)
+	GameBootstrap.setup_test_location(
+		h.ctx, &"loc_dark", 4, 3, false, 3
+	)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_dark")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_dark",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var loc := h.ctx.state.registry.get_location(&"loc_dark")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and inv.location_tag == &"loc_dark"
+		and loc.revealed
+		and loc.clues == 3
+		and bool(res.get("location_revealed", false))
+		and int(res.get("clues_placed", 0)) == 3
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.reveal_location")
+	)
+
+
+func _test_l02b_reenter_no_reclues() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 0)
+	GameBootstrap.setup_test_location(
+		h.ctx, &"loc_once", 2, 2, false, 2
+	)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_once")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_once",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var loc := h.ctx.state.registry.get_location(&"loc_once")
+	loc.clues = 1
+	## 走回再进：已揭示，线索保持 1。
+	h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"test_loc",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var res2 := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_once",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	return (
+		loc.revealed
+		and loc.clues == 1
+		and not bool(res2.get("location_revealed", false))
+		and int(res2.get("clues_placed", 0)) == 0
+	)
+
+
+func _test_l02c_enemy_move_no_reveal() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 0)
+	GameBootstrap.setup_test_location(
+		h.ctx, &"loc_enemy", 2, 2, false, 2
+	)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_enemy")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": &"enemy_1",
+			"destination_id": &"loc_enemy",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"steps": 1,
+			"auto_engage": false,
+		}
+	)
+	var loc := h.ctx.state.registry.get_location(&"loc_enemy")
+	return not loc.revealed and loc.clues == 0
 
 
 func _test_g2_exhaust_enemy() -> bool:

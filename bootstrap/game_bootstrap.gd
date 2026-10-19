@@ -364,12 +364,21 @@ static func setup_test_location(
 	ctx: GameContext,
 	location_id: StringName,
 	shroud: int = 2,
-	clues: int = 1
+	clues: int = 1,
+	revealed: bool = true,
+	printed_clues: int = -1
 ) -> void:
 	var loc := LocationState.new()
 	loc.id = location_id
 	loc.shroud = shroud
-	loc.clues = clues
+	loc.revealed = revealed
+	## 未揭示：线索待首次进入放置；印刷值优先 printed_clues，否则用 clues 作印刷基数。
+	if revealed:
+		loc.clues = clues
+		loc.printed_clues = printed_clues if printed_clues >= 0 else clues
+	else:
+		loc.clues = 0
+		loc.printed_clues = printed_clues if printed_clues >= 0 else clues
 	ctx.state.registry.register_location(loc)
 
 
