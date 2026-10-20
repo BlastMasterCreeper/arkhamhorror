@@ -99,7 +99,7 @@ func spawn_engaged(game_ctx: GameContext, card_id: StringName, drawer_id: String
 	if loc == &"":
 		return discard_spawn_failed(game_ctx, card_id)
 	var def_id := _definition_id(card_id)
-	var materialize := _materialize_enemy(card_id, def_id, loc)
+	var materialize := _materialize_enemy(game_ctx, card_id, def_id, loc)
 	if not materialize.get("ok", false):
 		return materialize
 	var enemy := _state.registry.get_enemy(card_id)
@@ -130,7 +130,7 @@ func spawn_at_location(
 		def_id = _definition_id(card_id)
 	if location_tag == &"" or _state.registry.get_location(location_tag) == null:
 		return {"ok": false, "error": "invalid_location"}
-	var materialize := _materialize_enemy(card_id, def_id, location_tag)
+	var materialize := _materialize_enemy(game_ctx, card_id, def_id, location_tag)
 	if not materialize.get("ok", false):
 		return materialize
 	_mark_card_in_play(game_ctx, card_id)
@@ -207,6 +207,7 @@ func resolve_phase_attacks_for(investigator_id: StringName) -> void:
 
 
 func _materialize_enemy(
+	game_ctx: GameContext,
 	card_id: StringName,
 	def_id: StringName,
 	location_tag: StringName
@@ -233,6 +234,9 @@ func _materialize_enemy(
 	enemy.aloof = CardRegistry.is_aloof(def_id)
 	enemy.massive = CardRegistry.has_keyword(def_id, &"massive") or bool(stats.get("massive", false))
 	_state.registry.register_enemy(enemy)
+	## 冷漠：Domain 拥有 + FORBID_ATTACK Register（Fight 入口读）。
+	if enemy.aloof:
+		AloofStatus.ensure_forbid_attack(game_ctx, card_id)
 	return {"ok": true}
 
 

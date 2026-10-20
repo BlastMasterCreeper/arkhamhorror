@@ -407,6 +407,8 @@ static func setup_test_enemy(
 	enemy.aloof = aloof
 	enemy.massive = massive
 	ctx.state.registry.register_enemy(enemy)
+	if aloof:
+		AloofStatus.ensure_forbid_attack(ctx, enemy_id)
 
 
 static func config_spreading_flames() -> RulesConfig:

@@ -1000,7 +1000,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
 | `MOVE` | 移动行动 / 效果移动调查员 | `FORBID_MOVE` | 「不能离开地点」 | REST-E-ACTION / REST-E-EFFECT | 待 enum + 接线 |
 | `ENGAGE` | engage 行动 | `FORBID_ENGAGE` | aloof 等（常配合 Condition） | REST-E-ACTION | 待 |
-| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION | 待 |
+| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION：`BasicActionResolver` / implicit | **已实现** · `AloofStatus.ensure_forbid_attack` @ 进场 |
 | `INVESTIGATE` | investigate 行动 | `FORBID_INVESTIGATE` | 地点规则 | REST-E-ACTION | 待 |
 | `EVADE` | evade 行动 | `FORBID_EVADE` | — | REST-E-ACTION | 待 |
 | `ACTIVATE` | 启动 asset 能力 | `FORBID_ACTIVATE` | 「不能启动」 | REST-E-ACTIVATE | 待 |
@@ -1040,6 +1040,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 | Composition draw atom / `seq.draw.investigator` 等价点 | REST-E-DRAW | `FORBID_DRAW` | 拦 Intent | **已实现** |
 | `SkillTestEngine.commit_card`（检定 ST 投入；非独立 `seq.commit`） | REST-E-COMMIT | `FORBID_COMMIT_TO_TEST` | 拦 Intent | **已实现** |
 | `StateMutator.move_card`（离手；隐私等） | REST-E-MOVE | `FORBID_LEAVE_HAND` | 拦 Intent | **已实现** |
+| `seq.action.fight` / `BasicActionResolver.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行 | **已实现** |
 | Initiation INIT_2B · `AttackOfOpportunityResolver` | REST-E-AOO | `SKIP_AOO` | 原流程读取分支 | **已实现** |
 | `EnemySystem.auto_engage_at_location`（常由 `seq.engage` mode=auto / 区域变更后触发） | REST-E-AUTO-ENGAGE | `SUPPRESS_AUTO_ENGAGE` | 原流程读取分支 | **已实现** |
 | `AbilityInitiationPipeline` / Action play·trigger 前 | REST-E-PLAY / REST-E-TRIGGER | `FORBID_PLAY` / `FORBID_TRIGGER` | 拦 Intent | Kind 有；接线见 §16.4.2 |
@@ -1154,6 +1155,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-20 | v0.4.23 | 冷漠 `FORBID_ATTACK`：进场 Register；Fight 入口读 Evaluator；§16.4.2/§16.4.4 标已实现；竖切 50026 Narôgath |
 | 2026-10-20 | v0.4.22 | **§16.4.4** 兴趣类型报表：seq/入口 → 须读的 RestrictionKind（≠ LISTENER 订阅）；澄清「兴趣」= RESOLVE 检测 |
 | 2026-10-10 | v0.4.21 | §3.2.7：庞大 REPLACE 锚改到 `seq.enemy.attack`；`phase_attacks` 仅为固定 nest 手续 |
 | 2026-10-10 | v0.4.20 | §3.2.7：庞大 = REPLACE → `seq.keyword.massive`；删平行 massive 流程 |

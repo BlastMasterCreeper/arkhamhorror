@@ -2,16 +2,16 @@
   "_meta": {
     "source": "data/arkhamdb/pack/core/core_classic_slice.json",
     "pack": "core_classic_slice",
-    "count": 2,
+    "count": 4,
     "skipped": 0,
     "ability_compile_summary": {
-      "segment_total": 1,
-      "compiled_total": 1,
+      "segment_total": 2,
+      "compiled_total": 2,
       "by_kind": {
-        "action": 1
+        "action": 2
       },
       "by_template": {
-        "seq": 1
+        "seq": 2
       }
     }
   },
@@ -144,5 +144,125 @@
       "compare": "highest"
     },
     "forbid_clues_while_engaged": true
+  },
+  "50026a": {
+    "definition_id": "50026a",
+    "title": "Predator or Prey?",
+    "card_type": "agenda",
+    "pack_code": "rtnotz",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 2,
+    "keywords": [
+      "hunter"
+    ],
+    "traits": [],
+    "faction_code": "mythos",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {
+      "health": 4,
+      "fight": 3,
+      "evade": 3,
+      "damage": 1,
+      "horror": 2,
+      "health_bonus_per_investigator": 3
+    },
+    "location": {},
+    "encounter_code": "return_to_the_midnight_masks",
+    "ability_hints": [
+      "action"
+    ],
+    "text": "[action]: <b>Resign.</b> You don't want to risk taking too long, so you head to safety with the information you've gathered.",
+    "doom": 6,
+    "ability_segments": [
+      {
+        "kind": "action",
+        "body": "Resign. You don't want to risk taking too long, so you head to safety with the information you've gathered.",
+        "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "action",
+        "ability_id": "action:0",
+        "ability_kind": "action",
+        "window": "during_your_turn",
+        "action_cost": 1,
+        "action_types": [
+          "activate",
+          "resign"
+        ],
+        "status": "full",
+        "template": "seq",
+        "steps": [
+          {
+            "template": "nest_resign",
+            "flow_id": "seq.effect.resign"
+          }
+        ],
+        "translation": "full_expand"
+      }
+    ],
+    "back_card_type": "enemy",
+    "back_definition_id": "50026b",
+    "back_name": "Narôgath",
+    "back_text": "Spawn - Engaged with Prey.\nPrey - Nearest to another [[Cultist]] enemy.\nHunter.\nNarôgath gets +3 health per investigator.\nWhile Narôgath is ready, each investigator at its location or a connecting location cannot Parley with [[Cultist]] enemies.",
+    "back_traits": [
+      "Humanoid",
+      "Monster",
+      "Cultist",
+      "Elite"
+    ],
+    "spawn_instruction": {
+      "selector": "engaged_with_prey"
+    }
+  },
+  "50026b": {
+    "definition_id": "50026b",
+    "title": "Narôgath",
+    "card_type": "enemy",
+    "pack_code": "rtnotz",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "dash",
+    "is_weakness": false,
+    "subtype_code": "",
+    "hidden": false,
+    "aloof": false,
+    "permanent": false,
+    "victory": 2,
+    "keywords": [
+      "hunter"
+    ],
+    "traits": [
+      "Humanoid",
+      "Monster",
+      "Cultist",
+      "Elite"
+    ],
+    "faction_code": "mythos",
+    "slot": "",
+    "skills_icons": {},
+    "enemy": {
+      "health": 4,
+      "fight": 3,
+      "evade": 3,
+      "damage": 1,
+      "horror": 2,
+      "health_bonus_per_investigator": 3
+    },
+    "location": {},
+    "encounter_code": "return_to_the_midnight_masks",
+    "ability_hints": [],
+    "text": "<b>Spawn</b> - Engaged with Prey.\n<b>Prey</b> - Nearest to another [[Cultist]] enemy.\nHunter.\nNarôgath gets +3 health per investigator.\nWhile Narôgath is ready, each investigator at its location or a connecting location cannot <b>Parley</b> with [[Cultist]] enemies.",
+    "spawn_instruction": {
+      "selector": "engaged_with_prey"
+    }
   }
 }

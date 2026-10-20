@@ -59,6 +59,8 @@ func _initialize() -> void:
 	_run_test("SC-29 Masked Hunter blocks discover while engaged", _test_sc29_masked_hunter_forbid_discover)
 	_run_test("SC-30 Masked Hunter blocks spend while engaged", _test_sc30_masked_hunter_forbid_spend)
 	_run_test("SC-31 Masked Hunter clue forbid clears on disengage", _test_sc31_masked_hunter_forbid_clears)
+	_run_test("SC-32 50026a flip → Narôgath not drawn", _test_sc32_50026_narogath_flip)
+	_run_test("SC-33 aloof FORBID_ATTACK blocks fight until engaged", _test_sc33_aloof_forbid_attack)
 	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
@@ -1328,6 +1330,90 @@ func _test_sc30_masked_hunter_forbid_spend() -> bool:
 		and inv1.clues_on_card == 0
 		and inv2.clues_on_card == inv2_before
 	)
+
+
+func _test_sc32_50026_narogath_flip() -> bool:
+	## 50026a Predator or Prey? → 50026b Narôgath（Return to Midnight Masks）。
+	## Spawn Engaged with Prey · Hunter · +3 health/investigator · 非 when-drawn。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	if not CardRegistry.has_encounter_cardtype_back(&"50026a"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv2.location_tag = &"test_loc"
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	h.ctx.lead_investigator_id = &"inv_1"
+	CardRegistry.register_definition(
+		&"agenda_after_50026",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	var setup := h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"50026a", &"agenda_after_50026"]
+	)
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	var drawn_when := {"n": 0}
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"encounter_card_drawn"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: drawn_when["n"] = int(drawn_when["n"]) + 1
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.state.doom_on_agenda = 6
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var enemy := h.ctx.state.registry.get_enemy(first_id)
+	var spawn := CardRegistry.spawn_spec(&"50026a")
+	return (
+		advance.get("advanced", false)
+		and bool(advance.get("flip", {}).get("encounter_back", false))
+		and int(drawn_when["n"]) == 0
+		and not h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and CardRegistry.card_type_of(flipped) == &"enemy"
+		and CardRegistry.is_hunter(&"50026a")
+		and spawn.selector_kind == SpawnInstructionSpec.SelectorKind.ENGAGED_WITH_PREY
+		and enemy != null
+		and enemy.health == 10
+		and enemy.fight == 3
+		and EngagementStatus.is_engaged(h.ctx, first_id)
+		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _test_sc33_aloof_forbid_attack() -> bool:
+	## 冷漠：进场挂 FORBID_ATTACK；未交战 Fight 被拦；交战后可 Fight。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"", true)
+	if not h.ctx.registrations.has_forbid_attack(&"enemy_1"):
+		return false
+	if not RestrictionEvaluator.blocks_fight(&"inv_1", &"enemy_1", h.ctx.registrations):
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
+	var blocked := h.fight_action({"enemy_id": &"enemy_1"})
+	if blocked.ok or blocked.error != "aloof" or inv.actions_remaining != before:
+		return false
+	if not h.engage_action({"enemy_id": &"enemy_1"}).ok:
+		return false
+	if RestrictionEvaluator.blocks_fight(&"inv_1", &"enemy_1", h.ctx.registrations):
+		return false
+	inv.actions_remaining = 1
+	var ok := h.fight_action({"enemy_id": &"enemy_1"})
+	return ok.ok and ok.success
 
 
 func _test_sc31_masked_hunter_forbid_clears() -> bool:

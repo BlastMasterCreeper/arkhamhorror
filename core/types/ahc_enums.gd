@@ -296,6 +296,9 @@ enum RestrictionKind {
 	FORBID_DISCOVER_CLUE,
 	## 交战期间不能花费线索（同上）。
 	FORBID_SPEND_CLUE,
+	## 冷漠（Aloof）：未交战时不能被 Fight。挂 WHILE_IN_PLAY；已交战则 Evaluator 放行。
+	## 禁自动交战仍由 spawn / auto-engage 读拥有（Domain/keyword），不经本 Kind。
+	FORBID_ATTACK,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }

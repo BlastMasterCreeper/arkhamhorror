@@ -9,6 +9,7 @@ enum Intent {
 	LEAVE_HAND,
 	DISCOVER_CLUE,
 	SPEND_CLUE,
+	FIGHT,
 }
 
 
@@ -36,12 +37,21 @@ static func blocks_spend_clue(investigator_id: StringName, store: RegistrationSt
 	return block_reason(Intent.SPEND_CLUE, investigator_id, store) != &""
 
 
+static func blocks_fight(
+	investigator_id: StringName,
+	enemy_id: StringName,
+	store: RegistrationStore
+) -> bool:
+	return block_reason(Intent.FIGHT, investigator_id, store, null, &"", enemy_id) != &""
+
+
 static func block_reason(
 	intent: Intent,
 	actor_id: StringName,
 	store: RegistrationStore,
 	skill_test: SkillTestContext = null,
-	leave_hand_card_id: StringName = &""
+	leave_hand_card_id: StringName = &"",
+	target_enemy_id: StringName = &""
 ) -> StringName:
 	if store == null:
 		return &""
@@ -50,7 +60,14 @@ static func block_reason(
 			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
 				continue
 			var reason := _matches(
-				buff.restriction, reg, intent, actor_id, skill_test, leave_hand_card_id
+				buff.restriction,
+				reg,
+				intent,
+				actor_id,
+				skill_test,
+				leave_hand_card_id,
+				target_enemy_id,
+				store
 			)
 			if reason != &"":
 				return reason
@@ -64,6 +81,9 @@ static func commit_block_error(reason: StringName) -> String:
 static func api_error(reason: StringName) -> String:
 	if reason == &"restriction_forbid_commit_to_test":
 		return "peril_no_assist"
+	## 冷漠 Fight 拦截：对外仍报 aloof（与既有 ACT-06 等对齐）。
+	if reason == &"restriction_forbid_attack":
+		return "aloof"
 	if reason != &"":
 		return String(reason)
 	return ""
@@ -75,7 +95,9 @@ static func _matches(
 	intent: Intent,
 	actor_id: StringName,
 	skill_test: SkillTestContext,
-	leave_hand_card_id: StringName = &""
+	leave_hand_card_id: StringName = &"",
+	target_enemy_id: StringName = &"",
+	store: RegistrationStore = null
 ) -> StringName:
 	match payload.kind:
 		AhcEnums.RestrictionKind.FORBID_DRAW:
@@ -124,4 +146,18 @@ static func _matches(
 			if payload.drawer_id != &"" and payload.drawer_id != actor_id:
 				return &""
 			return &"restriction_forbid_spend_clue"
+		AhcEnums.RestrictionKind.FORBID_ATTACK:
+			if intent != Intent.FIGHT:
+				return &""
+			var enemy_id: StringName = payload.subject_id
+			if enemy_id == &"":
+				enemy_id = reg.drawn_card_id
+			if enemy_id == &"":
+				return &""
+			if target_enemy_id != &"" and enemy_id != target_enemy_id:
+				return &""
+			## 已与任何人交战 → 可 Fight（冷漠仅拦未交战）。
+			if store != null and store.engagement_partner(enemy_id) != &"":
+				return &""
+			return &"restriction_forbid_attack"
 	return &""

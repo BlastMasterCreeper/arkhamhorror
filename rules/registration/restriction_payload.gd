@@ -95,3 +95,11 @@ static func forbid_spend_clue(
 	p.drawer_id = investigator_id
 	p.subject_id = enemy_id
 	return p
+
+
+## 冷漠：对该敌人的 Fight 在未交战时禁止（已交战则 Evaluator 放行）。
+static func forbid_attack_aloof(enemy_id: StringName) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.FORBID_ATTACK
+	p.subject_id = enemy_id
+	return p
