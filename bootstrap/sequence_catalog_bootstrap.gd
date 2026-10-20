@@ -138,6 +138,14 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return ExhaustReadyFlow.ready(game_ctx, params)
 	)
+	## 躲避效果核：横置 + 解除交战；行动成功 / 自动躲避共用。
+	catalog.register_run(
+		&"seq.effect.evade",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.evade(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EvadeFlow.resolve(game_ctx, params)
+	)
 	## 封印 / 释放混乱标记（Domain；Premonition 等）。
 	catalog.register_run(
 		&"seq.effect.seal",

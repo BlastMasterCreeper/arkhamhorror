@@ -323,6 +323,9 @@ func _initialize() -> void:
 	_run_test("L-02b re-enter revealed does not place clues again", _test_l02b_reenter_no_reclues)
 	_run_test("L-02c enemy move does not reveal location", _test_l02c_enemy_move_no_reveal)
 	_run_test("G2-01 seq.effect.exhaust enemy", _test_g2_exhaust_enemy)
+	_run_test("EVADE-01 seq.effect.evade attempt success", _test_evade_effect_attempt)
+	_run_test("EVADE-02 automatically evade unengaged", _test_evade_automatic_unengaged)
+	_run_test("EVADE-03 composition automatically_evade", _test_evade_composition_auto)
 	_run_test("G2-02 seq.effect.ready enemy engages", _test_g2_ready_enemy_engages)
 	_run_test("G2-03 seq.effect.exhaust card in play", _test_g2_exhaust_card_in_play)
 	_run_test("G2-04 exhaust rejects hand card", _test_g2_exhaust_rejects_hand)
@@ -7524,6 +7527,55 @@ func _test_g2_exhaust_enemy() -> bool:
 	)
 
 
+func _test_evade_effect_attempt() -> bool:
+	## 躲避效果核：交战敌 → 横置 + 脱离（mode=attempt）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1"
+	)
+	var res := EvadeFlow.after_attempt_success(h.ctx, &"enemy_1", &"inv_1")
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("created", false))
+		and bool(res.get("exhaust_changed", false))
+		and bool(res.get("disengaged", false))
+		and enemy.exhausted
+		and enemy.engaged_with == &""
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.evade")
+	)
+
+
+func _test_evade_automatic_unengaged() -> bool:
+	## 自动躲避未交战敌：只横置，不算 attempt。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.engaged_with = &""
+	var res := EvadeFlow.automatically_evade(h.ctx, &"enemy_1", &"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and bool(res.get("created", false))
+		and bool(res.get("exhaust_changed", false))
+		and not bool(res.get("disengaged", false))
+		and res.get("mode", &"") == EvadeFlow.MODE_AUTOMATIC
+		and enemy.exhausted
+		and enemy.engaged_with == &""
+	)
+
+
+func _test_evade_composition_auto() -> bool:
+	## Composition automatically_evade → nest 同核。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1"
+	)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.automatically_evade(&"inv_1", &"enemy_1"))
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	return enemy.exhausted and enemy.engaged_with == &""
+
+
 func _test_g2_ready_enemy_engages() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
@@ -8148,6 +8200,7 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.action.engage",
 		&"seq.engage",
 		&"seq.action.evade",
+		&"seq.effect.evade",
 		&"seq.effect.discover_clue",
 	]
 	for flow_id in flows:

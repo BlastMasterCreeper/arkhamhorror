@@ -527,6 +527,25 @@ static func ready(
 	return t
 
 
+## 躲避效果（seq.effect.evade）：横置 + 解除交战；≠ 躲避行动 / 躲避尝试。
+static func evade(
+	params: Dictionary,
+	after_timing: StringName = &"after_evade"
+) -> TriggeringCondition:
+	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
+	var mode := EvadeFlow.normalize_mode(
+		params.get("mode", params.get("cause", EvadeFlow.MODE_AUTOMATIC)) as StringName
+	)
+	var t := TriggeringCondition.new()
+	t.id = StringName("evade_%s_%s_%d" % [enemy_id, mode, Time.get_ticks_msec()])
+	t.kind = &"evade"
+	t.tags = [&"evade", &"effect", mode]
+	t.controller_id = params.get("investigator_id", &"") as StringName
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 static func seal(
 	params: Dictionary,
 	after_timing: StringName = &"after_seal"
