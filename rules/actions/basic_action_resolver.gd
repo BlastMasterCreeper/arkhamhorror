@@ -138,8 +138,10 @@ func evade(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	test.skill = AhcEnums.SkillType.AGILITY
 	test.difficulty = enemy.evade
 	var enemy_id_copy := enemy_id
+	var inv_copy := inv_id
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		game_ctx.enemy.disengage(game_ctx, enemy_id_copy, true)
+		## ST.7 成功 → nest 躲避效果核（非真空 disengage+exhaust）。
+		EvadeFlow.after_attempt_success(game_ctx, enemy_id_copy, inv_copy)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,

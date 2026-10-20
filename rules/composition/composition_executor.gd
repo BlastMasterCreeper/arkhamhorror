@@ -431,6 +431,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_deal_damage_enemy(node)
 		&"disengage_enemy":
 			return _execute_disengage_enemy(node)
+		&"nest_evade", &"automatically_evade":
+			return _execute_nest_evade(node)
 		&"no_provoke_aoo":
 			## 行动开始已挂限制类 SKIP_AOO；INIT_2B 已由原流程读取分支。resolve 体不再重复挂载。
 			_log.log(AhcEnums.LogCategory.CARD, "composition:no_provoke_aoo", {
@@ -1014,6 +1016,38 @@ func _execute_disengage_enemy(node: CompositionNode) -> bool:
 			AhcEnums.LogCategory.CARD,
 			"composition:disengage_enemy",
 			{"enemy": enemy_id, "inv": inv_id}
+		)
+	return ok
+
+
+## nest `seq.effect.evade`（躲避效果；自动躲避同核）。
+func _execute_nest_evade(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var cause := node.evade_cause
+	if cause == &"":
+		cause = EvadeFlow.CAUSE_AUTOMATIC
+	if node.atom_name == &"automatically_evade":
+		cause = EvadeFlow.CAUSE_AUTOMATIC
+	var result := EvadeFlow.nest_or_run(
+		_game_ctx,
+		{
+			"enemy_id": enemy_id,
+			"investigator_id": inv_id,
+			"cause": cause,
+		}
+	)
+	var ok := bool(result.get("ok", false)) and bool(result.get("created", false))
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:nest_evade",
+			{"enemy": enemy_id, "inv": inv_id, "cause": cause, "flow": EvadeFlow.FLOW}
 		)
 	return ok
 

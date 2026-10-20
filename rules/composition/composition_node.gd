@@ -67,6 +67,8 @@ var engage_mode: StringName = &"effect"
 ## seq.engage placement：`enter_threat`（默认，常移入威胁区）或 `grant`（仅交战 Buff，可不要求同地点）。
 var engage_placement: StringName = &"enter_threat"
 var auto_engage: bool = true
+## nest_evade / automatically_evade 的 cause（`automatic` / `attempt_success`）。
+var evade_cause: StringName = &"automatic"
 ## 弃牌来源区：空=指定/寻址单张；`hand` = 从手牌按 amount/mode。
 var from_zone: StringName = &""
 ## 数量载荷（标记移动等）。
@@ -478,7 +480,7 @@ static func deal_damage_enemy(
 	return n
 
 
-## L0 · 敌人脱离交战（Evade 成功体之一；支持 memory: 指称）。
+## L0 · 敌人脱离交战（单独脱离；躲避效果请用 nest_evade）。
 static func disengage_enemy(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -491,6 +493,35 @@ static func disengage_enemy(
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec
 	return n
+
+
+## nest `seq.effect.evade`（躲避效果核：横置 + 解除交战）。
+static func nest_evade(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	cause: StringName = &"automatic",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_evade"
+	n.nest_flow_id = &"seq.effect.evade"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	n.evade_cause = cause if cause != &"" else &"automatic"
+	return n
+
+
+## 自动躲避：包装 nest_evade（cause=automatic；无检定）。
+static func automatically_evade(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	return nest_evade(
+		controller_id, enemy_spec, EvadeFlow.CAUSE_AUTOMATIC, source_card_id
+	)
 
 
 ## L1 · **移动**（遵守连接）到指定地点（nest `seq.effect.move` move_kind=move）。
