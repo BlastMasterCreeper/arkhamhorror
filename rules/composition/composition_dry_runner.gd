@@ -525,6 +525,27 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			dis_enemy.engaged_with = &""
 			sim.last_step_enemy_id = dis_enemy_id
 			return true
+		&"nest_evade", &"automatically_evade":
+			## 镜像 `seq.effect.evade`：横置或脱离任一 CREATED（V 层与 ST.7 同核）。
+			var evade_enemy_id := _resolve_sim_enemy_spec(node, sim)
+			if evade_enemy_id == &"" or sim.state == null:
+				return false
+			var evade_enemy := sim.state.registry.get_enemy(evade_enemy_id)
+			if evade_enemy == null or evade_enemy.location_tag == &"":
+				return false
+			var exhaust_changed := not evade_enemy.exhausted
+			var disengaged := evade_enemy.engaged_with != &""
+			if not exhaust_changed and not disengaged:
+				return false
+			if exhaust_changed:
+				evade_enemy.exhausted = true
+			if disengaged:
+				var evade_holder := sim.state.registry.get_investigator(evade_enemy.engaged_with)
+				if evade_holder != null:
+					evade_holder.threat_area.erase(evade_enemy_id)
+				evade_enemy.engaged_with = &""
+			sim.last_step_enemy_id = evade_enemy_id
+			return true
 		&"no_provoke_aoo":
 			## 镜像 `seq.effect.register` CREATED（dry-run 不压栈；行动开始挂载等价）。
 			var skip_ctrl := _resolve_sim_inv(node, sim)
