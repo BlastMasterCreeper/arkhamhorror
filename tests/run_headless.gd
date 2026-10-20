@@ -342,6 +342,8 @@ func _initialize() -> void:
 	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
 	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
 	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
+	_run_test("ZM-04 leave play returns tokens to pool", _test_zm_leave_play_tokens_to_pool)
+	_run_test("ZM-05 leave play discards attachments", _test_zm_leave_play_discards_attachments)
 	_run_test("G6-01 phase boundary catalog", _test_g6_phase_boundary_catalog)
 	_run_test("G6-02 framework emits phase boundary seq", _test_g6_framework_emits)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
@@ -7884,6 +7886,74 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 		bool(res.get("ok", false))
 		and store.count() == 0
 		and h.ctx.state.registry.get_enemy(card_id) == null
+	)
+
+
+func _test_zm_leave_play_tokens_to_pool() -> bool:
+	## 01 §5.2 / Grimoire Leaves Play：离场卡上标记归还 token pool。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_zm_tokens", {"health": 3, "sanity": 3}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.tokens.damage = 2
+	card.tokens.horror = 1
+	card.tokens.clue = 3
+	card.tokens.doom = 1
+	card.tokens.uses[&"ammo"] = 4
+	var pool := h.ctx.state.token_pool
+	var d0 := pool.damage_available
+	var h0 := pool.horror_available
+	var c0 := pool.clue_available
+	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	return (
+		moved
+		and card.tokens.damage == 0
+		and card.tokens.horror == 0
+		and card.tokens.clue == 0
+		and card.tokens.doom == 0
+		and card.tokens.uses.is_empty()
+		and pool.damage_available == d0 + 2
+		and pool.horror_available == h0 + 1
+		and pool.clue_available == c0 + 3
+	)
+
+
+func _test_zm_leave_play_discards_attachments() -> bool:
+	## 宿主离场 → 附属同时弃置（遭遇附属进遭遇弃牌堆）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 1)
+	var host_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"asset_zm_host", {"health": 1}
+	)
+	var host := h.ctx.state.registry.get_card(host_id)
+	if host == null:
+		return false
+	var fire_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_zm_attach_fire", [])
+	## 直接挂到支援上（跳过 limbo→地点路径）。
+	var fire := h.ctx.state.registry.get_card(fire_id)
+	if fire == null:
+		return false
+	h.ctx.state.encounter_deck.erase(fire_id)
+	fire.zone = AhcEnums.Zone.ATTACHED
+	fire.attached_to = host.id
+	host.attachments.append(fire.id)
+	## 附属上亦有标记，弃置时应归池。
+	fire.tokens.damage = 1
+	var pool_d0 := h.ctx.state.token_pool.damage_available
+	var moved := h.ctx.mutator.move_card(host_id, CardSlot.discard_top(&"inv_1"))
+	var fire_after := h.ctx.state.registry.get_card(fire_id)
+	return (
+		moved
+		and host.attachments.is_empty()
+		and fire_after != null
+		and fire_after.attached_to == null
+		and fire_after.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.encounter_discard.has(fire_id)
+		and fire_after.tokens.damage == 0
+		and h.ctx.state.token_pool.damage_available == pool_d0 + 1
 	)
 
 

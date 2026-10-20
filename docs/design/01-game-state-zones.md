@@ -268,11 +268,11 @@ class GameStateStore:
 
 ### 5.2 Leaves Play（Grimoire p.14）
 
-**同时**发生：
+**同时**发生（`ZoneMoveFlow._apply_leave_play` · 广义移动 `LEAVE_PLAY` 别名的**内联**后果，**不** nest `seq.effect.*`）：
 
-1. 卡上所有 token 归还 `global_token_pool`
-2. 所有 attachments 弃置（进各自 owner discard）
-3. 影响该卡的 lasting / delayed effects 对该卡过期
+1. 卡上所有 token 归还 `global_token_pool`（damage/horror/clue；doom/uses 清零；Seal 经 `SealFlow` 回袋）
+2. 所有 attachments 弃置（进各自 owner discard；`ATTACHED` 亦 in-play，级联清嵌套附属与其上标记）
+3. 影响该卡的 lasting / delayed effects 对该卡过期（`WHILE_IN_PLAY` → `on_card_leave_play`）
 
 然后卡迁入目标 Out-of-Play 区域。
 
@@ -393,3 +393,4 @@ class LocationState:
 | 2026-05-25 | v0.2 | OQ-01-02 裁决：SimultaneousEffectGroup 同时效果语义 |
 | 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |
 | 2026-09-20 | v0.4.1 | 抽牌 When 时调查员 HAND、遭遇 LIMBO；Would 时仍 DECK（15 §3.1） |
+| 2026-10-20 | v0.4.2 | §5.2 落地：`ZoneMoveFlow` 离场 token→pool + 弃置附属；`ATTACHED` 计入 in-play（ZM-04/05） |

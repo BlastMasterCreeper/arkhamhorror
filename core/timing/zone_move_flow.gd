@@ -113,7 +113,12 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 
 
 static func zone_is_in_play(zone: AhcEnums.Zone) -> bool:
-	return zone == AhcEnums.Zone.PLAY_AREA or zone == AhcEnums.Zone.THREAT_AREA
+	## ATTACHED 亦 in-play（Grimoire Attachment）；离场时须走 leave 捆绑以便级联清附属。
+	return (
+		zone == AhcEnums.Zone.PLAY_AREA
+		or zone == AhcEnums.Zone.THREAT_AREA
+		or zone == AhcEnums.Zone.ATTACHED
+	)
 
 
 static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> void:
@@ -164,15 +169,108 @@ static func _apply_uses_on_enter(game_ctx: GameContext, card: CardInstance) -> v
 
 
 static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> void:
+	## Grimoire Leaves Play：与离场**同时** — token→pool、attachments discard、lasting 过期。
+	## 内联于广义移动别名（非 nest seq.effect.*）；见 01 §5.2 / 07-primitives §5.1。
 	if game_ctx.triggered_abilities != null:
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
 		game_ctx.registrations.on_card_leave_play(card_id)
 	## Seal：离场立即释放封印标记回袋（Grimoire）。
 	SealFlow.release_on_leave_play(game_ctx, card_id)
-	## Uses 随离场清 token（06 DOMAIN）。
-	if game_ctx.state != null:
-		var card := game_ctx.state.registry.get_card(card_id)
-		if card != null:
-			card.tokens.uses.clear()
-			card.tokens.sealed.clear()
+	if game_ctx.state == null:
+		return
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card == null:
+		return
+	_return_tokens_to_pool(game_ctx, card)
+	_discard_attachments_on_leave(game_ctx, card)
+
+
+## 卡上 damage/horror/clue → global TokenPool；doom/uses 清零（池无 doom/uses 槽）。
+static func _return_tokens_to_pool(game_ctx: GameContext, card: CardInstance) -> void:
+	if card == null:
+		return
+	var pool: TokenPool = game_ctx.state.token_pool if game_ctx != null and game_ctx.state != null else null
+	var damage := maxi(card.tokens.damage, 0)
+	var horror := maxi(card.tokens.horror, 0)
+	var clue := maxi(card.tokens.clue, 0)
+	if pool != null:
+		pool.damage_available += damage
+		pool.horror_available += horror
+		pool.clue_available += clue
+	card.tokens.damage = 0
+	card.tokens.horror = 0
+	card.tokens.clue = 0
+	card.tokens.doom = 0
+	card.tokens.uses.clear()
+	card.tokens.sealed.clear()
+	if game_ctx != null and game_ctx.log != null and (damage + horror + clue) > 0:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.CARD,
+			"leave_play:tokens_to_pool",
+			{
+				"card": card.id.instance_id if card.id != null else &"",
+				"damage": damage,
+				"horror": horror,
+				"clue": clue,
+			}
+		)
+
+
+## 宿主离场 → 弃置全部附属（各进 owner discard）；嵌套附属由 ATTACHED leave 级联。
+static func _discard_attachments_on_leave(game_ctx: GameContext, host: CardInstance) -> void:
+	if game_ctx == null or host == null or host.attachments.is_empty():
+		return
+	var pending: Array = host.attachments.duplicate()
+	host.attachments.clear()
+	var discarded: Array[StringName] = []
+	for raw in pending:
+		var eid: EntityId = raw as EntityId
+		if eid == null:
+			continue
+		var att_id := eid.instance_id
+		var att := game_ctx.state.registry.get_card(att_id) if game_ctx.state != null else null
+		if att == null:
+			continue
+		att.attached_to = null
+		if _discard_attachment_instance(game_ctx, att):
+			discarded.append(att_id)
+	if game_ctx.log != null and not discarded.is_empty():
+		game_ctx.log.log(
+			AhcEnums.LogCategory.CARD,
+			"leave_play:attachments_discarded",
+			{
+				"host": host.id.instance_id if host.id != null else &"",
+				"attachments": discarded,
+			}
+		)
+
+
+static func _discard_attachment_instance(game_ctx: GameContext, card: CardInstance) -> bool:
+	## L0 弃置去向（非 nest seq.effect.discard_card）：与 EffectFlowHandlers 统一路由。
+	if card == null or game_ctx == null:
+		return false
+	var card_id := card.id.instance_id if card.id != null else &""
+	if card_id == &"":
+		return false
+	var inv_id := card.controller_id
+	if inv_id == &"":
+		inv_id = card.owner_id
+	if game_ctx.state != null and game_ctx.state.registry.get_enemy(card_id) != null:
+		var routed := EnemyDefeatResolver.discard_from_play(game_ctx, card_id)
+		return bool(routed.get("ok", false))
+	if card.owner_id == &"encounter":
+		return EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
+			game_ctx, card_id, inv_id
+		)
+	if game_ctx.state != null and game_ctx.state.registry.get_investigator(card.owner_id) != null:
+		if game_ctx.mutator == null:
+			return false
+		return game_ctx.mutator.move_card(card_id, CardSlot.discard_top(card.owner_id))
+	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
+	if game_ctx.state != null and not game_ctx.state.removed_from_game.has(card_id):
+		game_ctx.state.removed_from_game.append(card_id)
+	ZoneMoveFlow.notify_zone_set(
+		game_ctx, card_id, AhcEnums.Zone.ATTACHED, AhcEnums.Zone.REMOVED_FROM_GAME
+	)
+	return true
