@@ -30,7 +30,12 @@ alwaysApply: true
 | **Automatically evade** | **自动躲避** | 卡面**执行**躲避效果的措辞；同核 `mode=automatic`（无检定）；≠ 自动成功的尝试 |
 | **Exhaust** | **横置** | 平放区卡牌/在场敌人；`seq.effect.exhaust`；`exhausted` = 已横置；≠ 费用 exhaust |
 | **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
-| **Doom** | **毁灭** | 场景/敌人上的 doom 标记；密谋推进相关 |
+| **Doom** | **毁灭** | 场景/密谋/敌人等上的 doom 标记；密谋推进相关 |
+| **Scenario** | **冒险** | 一场冒险；≠ **场景（Act）**；≠ 文档「测试场景」 |
+| **Scenario Reference Card** | **冒险参考卡** | 本场符号效果表（Skull/Cultist…）；`ScenarioReferenceDefinition` |
+| **Act** | **场景** | Act 牌库 / 当前场景卡；推进对调查员有利；≠ **冒险（Scenario）** |
+| **Agenda** | **密谋** | Agenda 牌库 / 当前密谋卡；doom 阈值推进；≠ 场景 |
+| **Campaign** | **剧本** | 多场冒险组成的长线；`CampaignState` / `CampaignLog`；≠ 单场 **冒险（Scenario）**；勿译「战役」 |
 | **Fight** | **攻击** | 调查员行动（Fight action）；`seq.action.fight`；≠ 敌人 perform attack |
 | **Investigate** | **调查** | 调查员行动；`seq.action.investigate` |
 | **Engage** | **接战** | 调查员行动；主动与敌人交战；`seq.action.engage` / `seq.engage` |
@@ -56,7 +61,7 @@ alwaysApply: true
 | **Reaction triggered ability** | **反应触发能力** | `[reaction]`；when/after 时点选用 |
 | **Action triggered ability** | **激活触发能力** | `[action]`；经 Activate 启动；勿笼统称「行动能力」 |
 | **Story asset** | **剧情支援** | 有遭遇组的冒险卡；**正面 cardtype 仍是玩家类型**（常 asset）；背面可为遭遇卡背。≠ 遭遇 cardtype |
-| **Scenario card**（引擎用法） | **冒险卡牌** | **有遭遇组**（encounter set）的卡；可含地点/敌人/诡计/剧情支援等；部分战役中可进玩家构筑 |
+| **Scenario card**（引擎用法） | **冒险卡牌** | **有遭遇组**（encounter set）的卡；可含地点/敌人/诡计/剧情支援等；部分剧本中可进玩家构筑。≠ **Scenario**（冒险）本身 |
 | **Encounter cardtype** | **遭遇卡牌类型** | 正面印刷类型 ∈ enemy / treachery / location（可抽遭遇包） |
 | **Player card back** | **玩家卡背** | `CardBackKind.PLAYER` / `card_back=player`；无文本背面；牌库外观 |
 | **Encounter card back** | **遭遇卡背** | `CardBackKind.ENCOUNTER` / `card_back=encounter`；无文本背面；牌库外观 |
@@ -93,6 +98,7 @@ alwaysApply: true
 - **失败转嫁**（Fight fail redirect）在 **ST.7 `on_fail`** 内结算，先于 post-ST7 的反击/警戒。
 - **攻击（Fight action）** ≠ 敌人 **perform attack**（含借机攻击 / 反击 / 警戒 / 阶段攻击）。
 - **毁灭（Doom）** = doom 标记；≠「厄运」等非规范译法（对话/文档）。
+- **剧本（Campaign）** / **冒险（Scenario）** / **场景（Act）** / **密谋（Agenda）**：多场冒险的 **剧本** ≠ 一场 **冒险** ≠ 当前 **场景**卡 ≠ 当前 **密谋**卡。**冒险参考卡** = Scenario Reference Card（符号效果表）。≠ **冒险卡牌**（Scenario card，有遭遇组）。≠ 文档「测试场景」（test case）。Campaign **勿**译「战役」。
 - **Reveal 是效果**：`reveal_to_*` = L0 揭示状态原语，参与 dry-run CREATED。见 07-primitives §5.3、07-composition §4.1、01 §3.6。
 - **进场（Enter play）不是效果**：广义移动（场外→场上）的结果信息。要听进场 → 听**广义移动**再过滤；`AT_ENTER_PLAY` / `ENTER_PLAY` 是过滤别名，不是第二套钩。不铸 `seq.effect.enter_play`。
 - **击败（Defeat）是效果**：Cancel 则无退场后续。伤/恐达生命/神智上限 = **常态检测**（同交战），Cancel 后条件仍在会再触；卡面击败被 Cancel 不自动重触。退场 = nest 广义移动（场上→场外），**不**内联进击败叶。

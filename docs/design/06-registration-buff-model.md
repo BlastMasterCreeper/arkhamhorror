@@ -281,7 +281,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | Prey `(lowest [agility])` 等 | **指令** Prey – | `PreyInstructionSpec` 比较/过滤 | `PreyResolver.best_match` | 等距或同地点子集内比较；并列 Lead | ✅ |
 | Patrol `(地点 / 目标)` | **关键词** 巡逻 | `PatrolTargetSpec` | 3.2 LISTENER handler 内 `PatrolTargetResolver` | **不是** 第三条指令；括号不 Register | △ 测试合成 |
 | Uses `(X type)` 的 X 与 type | **关键词** Uses | `UsesSpec {count, type}` | 进场 L0 放 token；能力 cost 扣同 type | 禁止把 ammo 当成 charges | Domain `uses` 有；Spec 未模块化 |
-| Victory **X** | **关键词** Victory | 标量 `victory: int` | 击败 / 场景结束改去向 | 不是 Buff | ✅ |
+| Victory **X** | **关键词** Victory | 标量 `victory: int` | 击败 / 冒险结束改去向 | 不是 Buff | ✅ |
 | Swarming **X** | **关键词** Swarming | 标量 count | 延时 LISTENER payload | 垫 X 张 facedown swarm | Core 无 |
 | Seal 选哪个 token | **关键词** Seal | `SealSpec` | 打出成本 / 进场 L0 | `CHAOS_PICK` | Choice 已列；无卡 |
 
@@ -339,7 +339,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | 关键词 | 落地 | 实现路径 | 现状 |
 |---|---|---|---|
 | **Uses (X)** | L0 进场放 typed token | 读 **B** 的 `UsesSpec`；扣 uses 走能力 cost | Domain 有 |
-| **Victory X** | Domain 去向 | 击败敌人 / 场景结束已揭示无线索地点 → 胜利展示区 | ✅ |
+| **Victory X** | Domain 去向 | 击败敌人 / 冒险结束已揭示无线索地点 → 胜利展示区 | ✅ |
 | **Vengeance X** | 同去向，计分语义相反 | 与 Victory 共用展示区 | Core 无 |
 | **Seal** | L0 封印混乱标记 | 打出成本或进场；离场释放 | Choice 已列 |
 | **Permanent** 永久（牌组规模） | 构筑 | 不计 deck size；开场进场见 C1 | △ |
@@ -455,7 +455,7 @@ on_card_leave_play(card)
 |---|---|---|---|---|
 | 资产 / 敌人 Constant、Forced、`[reaction]`、`[action]`、`[free]` | **ENTER_PLAY** | **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | 地点 Constant / `[free]` | 地点揭示进场 | 地点离场 / 被替换 | `WHILE_IN_PLAY` | PLAY |
-| 密谋 / 场景 Forced、Constant | 成为当前卡（`seq.setup` 或推进后进场） | **翻面离场**（a 面卸 `WHILE_IN_PLAY`；效果造的 `DURATION`/`UNTIL_FIRED` **保留**） | `WHILE_IN_PLAY` | PLAY |
+| 密谋（Agenda）/ 场景（Act）Forced、Constant | 成为当前卡（`seq.setup` 或推进后进场） | **翻面离场**（a 面卸 `WHILE_IN_PLAY`；效果造的 `DURATION`/`UNTIL_FIRED` **保留**） | `WHILE_IN_PLAY` | PLAY |
 | 调查员卡能力 | `seq.setup`（调查员开局即在场） | 淘汰 **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | **显现** Revelation | **不**长期 Register；抽到时 nest `seq.encounter.revelation` / `seq.enter_hand` | 子流程 pop | 无 | LIMBO / 入手瞬间 |
 | 隐私牌上的 Constant / Forced / `[reaction]` | **ENTER_HAND**（与 Hidden 同时） | **LEAVE_HAND** | `WHILE_HIDDEN_IN_HAND` | **HAND** |
@@ -731,7 +731,7 @@ class ListenerPayload:
 | 来源 | Register 场合 | 典型 Lifetime | 注销 |
 |---|---|---|---|
 | 资产 / 敌人印刷 Forced、`[reaction]`、`[free]` | `ENTER_PLAY` | `WHILE_IN_PLAY` | `LEAVE_PLAY` |
-| 密谋 / 场景印刷 Forced | 成为当前卡 | `WHILE_IN_PLAY` | 翻面离场（效果造的延时 **保留**） |
+| 密谋（Agenda）/ 场景（Act）印刷 Forced | 成为当前卡 | `WHILE_IN_PLAY` | 翻面离场（效果造的延时 **保留**） |
 | 隐私牌 Constant / Forced | `ENTER_HAND` | `WHILE_HIDDEN_IN_HAND` | `LEAVE_HAND` |
 | 显现 | **不**长期 Register；抽到 nest | — | 子流程 pop |
 | 关键词涌动 | `seq.draw.encounter` WHEN / 效果 GRANT 砖 | `UNTIL_FIRED` | 同流程 AFTER 开火后 |

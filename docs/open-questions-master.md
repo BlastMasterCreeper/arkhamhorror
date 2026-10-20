@@ -85,7 +85,7 @@
 | OQ-04-03 | [04-skill-test](design/04-skill-test-engine.md) | Symbol 效果在 ST.4 发起 fight 嵌套检定，父检定 ST.5 是否等待子检定完成？ | **否。** 子检定入队；父 ST.5→ST.8 不等待；父 ST.8 后执行。 |
 | OQ-04-04 | [04-skill-test](design/04-skill-test-engine.md) | Cancel 整个 skill test vs Cancel 单个 chaos token：状态回滚深度？ | |
 | OQ-04-06 | [04-skill-test](design/04-skill-test-engine.md) | Committed 的 skill 在 ST.7 前被 discard 的 edge case（Limbo 保护）？ | |
-| OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | 2026 Core 各场景 reference **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ | |
+| OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | 2026 Core 各冒险参考卡 **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ | |
 | OQ-05-02 | [05-chaos-bag](design/05-chaos-bag.md) | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ | |
 | OQ-05-05 | [05-chaos-bag](design/05-chaos-bag.md) | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ | |
 | OQ-06-04 | [06-ability](design/06-ability-initiation.md) | Forced [reaction] 是否存在？（通常无，但 scenario 卡） | |

@@ -12,7 +12,7 @@
 4. [design/02-framework-flow.md](design/02-framework-flow.md) — 框架流程引擎
 5. [design/03-action-system.md](design/03-action-system.md) — 行动与借机攻击
 6. [design/04-skill-test-engine.md](design/04-skill-test-engine.md) — 技能检定 ST.1–ST.8
-7. [design/05-chaos-bag.md](design/05-chaos-bag.md) — 混沌袋与场景参考
+7. [design/05-chaos-bag.md](design/05-chaos-bag.md) — 混沌袋与冒险参考
 8. [design/06-ability-initiation.md](design/06-ability-initiation.md) — 能力、Initiation、**Eligibility L0–L7**、ResponseWindow
 9. [design/06-registration-buff-model.md](design/06-registration-buff-model.md) — **Registration / Buff 统一模型**（**§16 Buff 应用场合清单**）
 10. [design/06c-stat-projections.md](design/06c-stat-projections.md) — **StatProjection**（L3 历史谓词 · Register 对齐 · demand 升温）
@@ -21,8 +21,8 @@
 13. [design/07-effect-primitives.md](design/07-effect-primitives.md) — **§0.1 三档译法**（Spawn/Prey 参数；Prey 仅 engage 内核）；§5.3 Reveal + 离散
 14. [design/08-enemy-engagement.md](design/08-enemy-engagement.md) — 敌人与交战
 15. [design/09-location-graph.md](design/09-location-graph.md) — 地点与线索
-16. [design/10-scenario-encounter.md](design/10-scenario-encounter.md) — 遭遇与 Act/Agenda
-17. [design/11-investigator-campaign.md](design/11-investigator-campaign.md) — 调查员与战役
+16. [design/10-scenario-encounter.md](design/10-scenario-encounter.md) — 遭遇与场景/密谋（Act/Agenda）
+17. [design/11-investigator-campaign.md](design/11-investigator-campaign.md) — 调查员与剧本（Campaign）
 18. [design/12-card-script-api.md](design/12-card-script-api.md) — 卡牌脚本 API
 19. [design/14-nested-sequences.md](design/14-nested-sequences.md) — **嵌套序列 ResolutionSequenceStack**
 20. [design/15-timing-entry-catalog.md](design/15-timing-entry-catalog.md) — **规范时点入口**（含 **§16 调查员抽牌 D0–D5**）
