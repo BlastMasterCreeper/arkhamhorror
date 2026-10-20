@@ -182,7 +182,7 @@
 |---|---|---|
 | 调查员 | 淘汰（退场 / elimination） | 信封内走 `InvestigatorElimination` |
 | 玩家支援 | **所有者弃牌堆** | ≠ `seq.effect.discard_card` |
-| 无主剧情支援 | **置一边**（set-aside） | 非 REMOVED |
+| 无主剧情支援 | **从游戏中移除**（REMOVED） | FAQ · Lita Chantler（01117）：临时控制、非牌组成员时离场 → remove from the game；≠ 置一边 |
 | 弱点敌人 | **所有者弃牌堆** | owner = bearer |
 | 遭遇敌人 | **遭遇弃牌堆** | |
 | 任一有 Victory/复仇 | **胜利区** | 指示优先 |

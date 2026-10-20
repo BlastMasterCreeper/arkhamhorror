@@ -339,7 +339,7 @@ func _initialize() -> void:
 	_run_test("G5-07 asset damage cap leave to discard not discard effect", _test_g5_asset_damage_cap)
 	_run_test("G5-08 asset effect defeat to discard", _test_g5_asset_effect_defeat)
 	_run_test("G5-09 asset defeat cancel skips leave", _test_g5_asset_cancel_no_leave)
-	_run_test("G5-10 unowned story asset defeat to set-aside", _test_g5_unowned_story_asset_set_aside)
+	_run_test("G5-10 unowned story asset defeat to REMOVED", _test_g5_unowned_story_asset_removed)
 	_run_test("G5-11 weakness enemy defeat to owner discard", _test_g5_weakness_enemy_owner_discard)
 	_run_test("G5-12 vengeance enemy defeat to victory display", _test_g5_vengeance_to_victory_display)
 	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
@@ -7847,8 +7847,8 @@ func _test_g5_asset_cancel_no_leave() -> bool:
 	)
 
 
-func _test_g5_unowned_story_asset_set_aside() -> bool:
-	## 无玩家所有者的剧情支援击败 → 置一边（非 REMOVED）。
+func _test_g5_unowned_story_asset_removed() -> bool:
+	## 无玩家所有者的剧情支援击败 → 从游戏中移除（FAQ · Lita Chantler 01117）。
 	var h := RuleTestHarness.new(42)
 	CardRegistry.register_definition(
 		&"story_asset_g5",
@@ -7865,10 +7865,10 @@ func _test_g5_unowned_story_asset_set_aside() -> bool:
 	var res := DefeatFlow.defeat_asset_effect(h.ctx, card_id)
 	return (
 		bool(res.get("defeated", false))
-		and res.get("dest", &"") == &"set_aside"
-		and card.zone == AhcEnums.Zone.SET_ASIDE
-		and h.ctx.state.set_aside.has(card_id)
-		and not h.ctx.state.removed_from_game.has(card_id)
+		and res.get("dest", &"") == &"removed_from_game"
+		and card.zone == AhcEnums.Zone.REMOVED_FROM_GAME
+		and h.ctx.state.removed_from_game.has(card_id)
+		and not h.ctx.state.set_aside.has(card_id)
 	)
 
 

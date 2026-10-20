@@ -387,12 +387,38 @@ func _insert_victory_display(card: CardInstance) -> bool:
 	return true
 
 
-## L0：击败等 → 置一边（无玩家所有者的剧情支援等）。
+## L0：击败等 → 置一边（少数无默认弃牌堆去向的遭遇体）。
 func move_to_set_aside(card_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
 	var from_zone := card.zone
+	_clear_card_from_piles(card)
+	_state.set_aside.erase(card_id)
+	_state.set_aside.append(card_id)
+	card.zone = AhcEnums.Zone.SET_ASIDE
+	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.SET_ASIDE)
+	return true
+
+
+## L0：无玩家所有者的剧情支援离场 → 从游戏中移除（FAQ · Lita Chantler 01117）。
+func move_to_removed_from_game(card_id: StringName) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return false
+	var from_zone := card.zone
+	_clear_card_from_piles(card)
+	_state.removed_from_game.erase(card_id)
+	_state.removed_from_game.append(card_id)
+	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
+	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.REMOVED_FROM_GAME)
+	return true
+
+
+func _clear_card_from_piles(card: CardInstance) -> void:
+	var card_id := card.id.instance_id if card.id != null else &""
+	if card_id == &"":
+		return
 	var owner_inv := _state.registry.get_investigator(card.owner_id)
 	if owner_inv != null:
 		_remove_from_pile(card, owner_inv)
@@ -404,12 +430,8 @@ func move_to_set_aside(card_id: StringName) -> bool:
 	_state.encounter_deck.erase(card_id)
 	_state.encounter_discard.erase(card_id)
 	_state.victory_display.erase(card_id)
-	_state.removed_from_game.erase(card_id)
 	_state.set_aside.erase(card_id)
-	_state.set_aside.append(card_id)
-	card.zone = AhcEnums.Zone.SET_ASIDE
-	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.SET_ASIDE)
-	return true
+	_state.removed_from_game.erase(card_id)
 
 
 func _adjust_investigator_marker(

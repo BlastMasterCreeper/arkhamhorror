@@ -344,7 +344,8 @@ static func _leave_investigator(game_ctx: GameContext, params: Dictionary) -> Di
 
 
 ## 支援退场（≠ discard 效果包装）：
-## Victory/复仇 → 胜利区；有玩家所有者 → 其弃牌堆；否则（无主剧情支援）→ 置一边。
+## Victory/复仇 → 胜利区；有玩家所有者 → 其弃牌堆；否则（无主剧情支援）→ REMOVED。
+## 依据：FAQ · Lita Chantler（01117）— 临时控制、非牌组成员时离场 → remove from the game。
 static func _leave_asset(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var card_id: StringName = params.get("card_id", &"") as StringName
 	if game_ctx == null or game_ctx.state == null or card_id == &"":
@@ -363,9 +364,9 @@ static func _leave_asset(game_ctx: GameContext, params: Dictionary) -> Dictionar
 		moved = game_ctx.mutator.move_card(card_id, CardSlot.discard_top(owner_id))
 		dest = &"owner_discard"
 	else:
-		## 未被玩家拥有的剧情支援 → 置一边（非 REMOVED）。
-		moved = game_ctx.mutator.move_to_set_aside(card_id)
-		dest = &"set_aside"
+		## 无玩家所有者（临时控制的剧情支援等）→ 从游戏中移除。
+		moved = game_ctx.mutator.move_to_removed_from_game(card_id)
+		dest = &"removed_from_game"
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
