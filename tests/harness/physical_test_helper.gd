@@ -172,12 +172,13 @@ static func test_bridge_resource_adjust_mirrors() -> bool:
 	var ctx := h.ctx
 	if ctx.state.registry.get_investigator(&"inv_1") == null:
 		GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
+	var locus := MarkerLocus.region(StringName("resource_inv_1"))
+	var before := ctx.state.physical_ops.get_count(locus, MarkerKeys.RESOURCE)
 	if not ctx.mutator.adjust_marker(
 		MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 3
 	):
 		return false
-	var locus := MarkerLocus.region(StringName("resource_inv_1"))
-	return ctx.state.physical_ops.get_count(locus, MarkerKeys.RESOURCE) == 3
+	return ctx.state.physical_ops.get_count(locus, MarkerKeys.RESOURCE) == before + 3
 
 
 static func test_bridge_reveal_mirrors_flip() -> bool:
@@ -235,3 +236,81 @@ static func test_bridge_exhaust_mirrors() -> bool:
 		return false
 	phys = ctx.state.physical.get_card(&"bridge_ex")
 	return phys != null and not phys.exhausted
+
+
+static func test_bridge_chaos_augury() -> bool:
+	var h := RuleTestHarness.new(95)
+	var ctx := h.ctx
+	var tok := ChaosToken.numeric(-1, &"br_chaos")
+	GameBootstrap.setup_chaos_bag(ctx, [tok])
+	var key := MarkerKeys.chaos_numeric(-1)
+	if ctx.state.physical_ops.get_count(MarkerLocus.region(PhysicalBinding.CHAOS_BAG), key) != 1:
+		return false
+	var drawn := ctx.state.chaos_bag.draw_random()
+	if drawn != tok:
+		return false
+	if ctx.state.physical_ops.get_count(MarkerLocus.region(PhysicalBinding.AUGURY), key) != 1:
+		return false
+	if ctx.state.physical_ops.get_count(MarkerLocus.region(PhysicalBinding.CHAOS_BAG), key) != 0:
+		return false
+	ctx.state.chaos_bag.return_token(tok)
+	return (
+		ctx.state.physical_ops.get_count(MarkerLocus.region(PhysicalBinding.CHAOS_BAG), key) == 1
+		and ctx.state.physical_ops.get_count(MarkerLocus.region(PhysicalBinding.AUGURY), key) == 0
+	)
+
+
+static func test_bridge_card_tokens() -> bool:
+	var h := RuleTestHarness.new(96)
+	var ctx := h.ctx
+	if ctx.state.registry.get_investigator(&"inv_1") == null:
+		GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, &"bridge_tok", &"asset_tok")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	ctx.state.registry.register_card(card)
+	ctx.state.registry.get_investigator(&"inv_1").play_area.append(&"bridge_tok")
+	var dealt := DefeatFlow.deal_damage_to_asset(ctx, &"bridge_tok", 2)
+	if not bool(dealt.get("ok", false)):
+		return false
+	var phys := ctx.state.physical.get_card(&"bridge_tok")
+	return phys != null and int(phys.markers.get(MarkerKeys.DAMAGE, 0)) == 2
+
+
+static func test_bridge_agenda_doom() -> bool:
+	var h := RuleTestHarness.new(97)
+	var ctx := h.ctx
+	ScenarioDeckSetup.patch_spreading_flames_definitions()
+	ctx.scenario.setup_act_agenda_decks([], [&"12106", &"12107"])
+	var before := ctx.state.doom_on_agenda
+	MythosFlow.place_doom(ctx)
+	if ctx.state.doom_on_agenda != before + 1:
+		return false
+	var locus := ctx.state.physical_binding.agenda_doom_locus(ctx.state)
+	return ctx.state.physical_ops.get_count(locus, MarkerKeys.DOOM) == before + 1
+
+
+static func test_bridge_shuffle_rebuild() -> bool:
+	var h := RuleTestHarness.new(98)
+	var ctx := h.ctx
+	if ctx.state.registry.get_investigator(&"inv_1") == null:
+		GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
+	var inv := ctx.state.registry.get_investigator(&"inv_1")
+	for i in 3:
+		var id := StringName("sh_%d" % i)
+		var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, id, id)
+		var card := CardInstance.new()
+		card.id = eid
+		card.owner_id = &"inv_1"
+		card.zone = AhcEnums.Zone.DISCARD
+		ctx.state.registry.register_card(card)
+		inv.discard.append(id)
+		ctx.state.physical_binding.ensure_physical_card(card)
+	ctx.mutator.shuffle_discard_into_deck(&"inv_1")
+	var deck_region := ctx.state.physical.get_card_region(StringName("deck_inv_1"))
+	if deck_region == null or deck_region.size() != 3:
+		return false
+	return inv.deck.size() == 3 and inv.discard.is_empty()

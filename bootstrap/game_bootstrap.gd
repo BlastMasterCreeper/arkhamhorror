@@ -227,6 +227,12 @@ static func setup_minimal_investigator(ctx: GameContext, inv_id: StringName) -> 
 	ctx.active_investigator_id = inv_id
 	ctx.state.lead_investigator_id = inv_id
 	ctx.state.active_investigator_id = inv_id
+	if ctx.state.physical_binding != null:
+		ctx.state.physical_binding.ensure_player(inv_id)
+		ctx.state.physical_binding.mirror_adjust_marker(
+			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.RESOURCE),
+			5
+		)
 
 
 static func _skill_icon_key(skill: AhcEnums.SkillType) -> StringName:
@@ -257,6 +263,8 @@ static func add_encounter_card_to_deck(
 	card.zone = AhcEnums.Zone.DECK
 	ctx.state.registry.register_card(card)
 	ctx.state.encounter_deck.append(instance_id)
+	if ctx.state.physical_binding != null:
+		ctx.state.physical_binding.ensure_physical_card(card)
 	var def_data: Dictionary = {
 		"card_type": &"treachery",
 		"limbo_discard_pile": &"encounter_discard",

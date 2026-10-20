@@ -42,6 +42,7 @@ func _init() -> void:
 	physical_ops = PhysicalOps.new(physical)
 	physical_binding = PhysicalBinding.new(physical_ops)
 	physical_binding.install_table()
+	chaos_bag.bind_physical(physical_binding)
 
 
 func doom_in_play() -> int:

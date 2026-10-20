@@ -175,6 +175,7 @@ func encounter_discard_is_empty() -> bool:
 
 
 ## Domain pile op · 遭遇弃牌堆洗回遭遇牌库（无 horror）。
+## 物理：各卡 move 进遭遇库 + shuffle（此处用重建序对齐洗后结果）。
 func shuffle_encounter_discard_into_deck() -> void:
 	for card_id in _state.encounter_discard:
 		var card := _state.registry.get_card(card_id)
@@ -183,6 +184,7 @@ func shuffle_encounter_discard_into_deck() -> void:
 	_state.encounter_deck = _state.encounter_discard.duplicate()
 	_state.encounter_deck.shuffle()
 	_state.encounter_discard.clear()
+	_mirror_rebuild_encounter_deck()
 
 
 func peek_deck_top(inv_id: StringName) -> StringName:
@@ -356,6 +358,7 @@ func perform_draw_action(inv_id: StringName) -> Dictionary:
 
 
 ## Domain pile op（非 L0 效果原子；design 07a §6）。
+## 物理：弃牌 move 进库 + 洗后序重建。
 func shuffle_discard_into_deck(inv_id: StringName) -> void:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null:
@@ -367,6 +370,7 @@ func shuffle_discard_into_deck(inv_id: StringName) -> void:
 	inv.deck = inv.discard.duplicate()
 	inv.deck.shuffle()
 	inv.discard.clear()
+	_mirror_rebuild_player_deck(inv_id)
 
 
 func add_resources(inv_id: StringName, amount: int) -> void:
@@ -600,3 +604,50 @@ func _mirror_flip(card_id: StringName, face: AhcEnums.CardFace) -> void:
 	if card != null:
 		_binding.ensure_physical_card(card)
 	_binding.mirror_flip(card_id, face)
+
+
+func _mirror_rebuild_player_deck(inv_id: StringName) -> void:
+	if _binding == null:
+		return
+	_binding.ensure_player(inv_id)
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null:
+		return
+	for card_id in inv.deck:
+		var card := _state.registry.get_card(card_id)
+		if card != null:
+			_binding.ensure_physical_card(card)
+	_binding.mirror_rebuild_card_region_order(
+		StringName("deck_%s" % String(inv_id)),
+		inv.deck,
+		AhcEnums.Zone.DECK,
+		inv_id
+	)
+	## 弃牌区清空
+	_binding.mirror_rebuild_card_region_order(
+		StringName("discard_%s" % String(inv_id)),
+		[],
+		AhcEnums.Zone.DISCARD,
+		inv_id
+	)
+
+
+func _mirror_rebuild_encounter_deck() -> void:
+	if _binding == null:
+		return
+	for card_id in _state.encounter_deck:
+		var card := _state.registry.get_card(card_id)
+		if card != null:
+			_binding.ensure_physical_card(card)
+	_binding.mirror_rebuild_card_region_order(
+		PhysicalBinding.ENCOUNTER_DECK,
+		_state.encounter_deck,
+		AhcEnums.Zone.DECK,
+		&"encounter"
+	)
+	_binding.mirror_rebuild_card_region_order(
+		PhysicalBinding.ENCOUNTER_DISCARD,
+		[],
+		AhcEnums.Zone.DISCARD,
+		&"encounter"
+	)

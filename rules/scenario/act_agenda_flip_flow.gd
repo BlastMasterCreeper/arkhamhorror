@@ -32,11 +32,13 @@ static func _flip(game_ctx: GameContext, is_agenda: bool) -> Dictionary:
 		return {"ok": false, "flipped": false, "reason": &"missing_card"}
 	var def_id := card.id.definition_id
 	_clear_tokens(card)
+	_mirror_tokens(game_ctx, card)
 	if game_ctx.triggered_abilities != null:
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
 		game_ctx.registrations.on_card_leave_play(card_id)
 	card.face = AhcEnums.CardFace.B
+	_mirror_flip(game_ctx, card, AhcEnums.CardFace.B)
 	var back := CardRegistry.back_text(def_id)
 	var back_result := ActAgendaBackResolver.resolve(game_ctx, def_id, back, card_id, is_agenda)
 	var resolution: int = int(back_result.get("resolution", -1))
@@ -88,6 +90,7 @@ static func _remove_from_game(game_ctx: GameContext, card_id: StringName, is_age
 		game_ctx.state.current_act_card_id = &""
 	if not game_ctx.state.removed_from_game.has(card_id):
 		game_ctx.state.removed_from_game.append(card_id)
+	_mirror_move_zone(game_ctx, card, AhcEnums.Zone.REMOVED_FROM_GAME, &"")
 
 
 static func _promote_next(game_ctx: GameContext, is_agenda: bool) -> Dictionary:
@@ -110,9 +113,41 @@ static func _promote_next(game_ctx: GameContext, is_agenda: bool) -> Dictionary:
 		card.zone = AhcEnums.Zone.CURRENT_AGENDA
 		game_ctx.state.current_agenda_card_id = next_id
 		ScenarioDeckSetup.sync_agenda_threshold(game_ctx.state, next_id)
+		_mirror_flip(game_ctx, card, AhcEnums.CardFace.A)
+		_mirror_move_zone(game_ctx, card, AhcEnums.Zone.CURRENT_AGENDA, &"")
 	else:
 		card.zone = AhcEnums.Zone.CURRENT_ACT
 		game_ctx.state.current_act_card_id = next_id
 		ScenarioDeckSetup.sync_act_clue_threshold(game_ctx.state, next_id)
+		_mirror_flip(game_ctx, card, AhcEnums.CardFace.A)
+		_mirror_move_zone(game_ctx, card, AhcEnums.Zone.CURRENT_ACT, &"")
 	ScenarioDeckSetup.install_triggered_abilities(game_ctx, next_id)
 	return {"ok": true, "promoted": true, "card_id": next_id}
+
+
+static func _mirror_flip(
+	game_ctx: GameContext,
+	card: CardInstance,
+	face: AhcEnums.CardFace
+) -> void:
+	if game_ctx.state == null or game_ctx.state.physical_binding == null:
+		return
+	game_ctx.state.physical_binding.ensure_physical_card(card)
+	game_ctx.state.physical_binding.mirror_flip(card.id.instance_id, face)
+
+
+static func _mirror_tokens(game_ctx: GameContext, card: CardInstance) -> void:
+	if game_ctx.state == null or game_ctx.state.physical_binding == null:
+		return
+	game_ctx.state.physical_binding.sync_card_markers(card)
+
+
+static func _mirror_move_zone(
+	game_ctx: GameContext,
+	card: CardInstance,
+	zone: AhcEnums.Zone,
+	owner_id: StringName
+) -> void:
+	if game_ctx.state == null or game_ctx.state.physical_binding == null:
+		return
+	game_ctx.state.physical_binding.mirror_move_to_zone(card, zone, owner_id)

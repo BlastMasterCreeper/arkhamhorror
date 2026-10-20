@@ -228,6 +228,142 @@ func mirror_exhausted(card_id: StringName, exhausted: bool) -> bool:
 	return ops.set_exhausted(card_id, exhausted)
 
 
+## 卡上 TokenBag → 物理 markers（全量同步）。
+func sync_card_markers(card: CardInstance) -> void:
+	if card == null:
+		return
+	var eid := ensure_physical_card(card)
+	if eid == &"":
+		return
+	var phys := ops.store.get_card(eid)
+	if phys == null:
+		return
+	phys.markers.clear()
+	var bag: TokenBag = card.tokens
+	if bag.damage > 0:
+		phys.markers[MarkerKeys.DAMAGE] = bag.damage
+	if bag.horror > 0:
+		phys.markers[MarkerKeys.HORROR] = bag.horror
+	if bag.doom > 0:
+		phys.markers[MarkerKeys.DOOM] = bag.doom
+	if bag.clue > 0:
+		phys.markers[MarkerKeys.CLUE] = bag.clue
+	for use_name in bag.uses.keys():
+		var n := int(bag.uses[use_name])
+		if n > 0:
+			phys.markers[MarkerKeys.use_key(use_name as StringName)] = n
+
+
+const AGENDA_DOOM_FALLBACK := &"agenda_doom"
+
+func agenda_doom_locus(state: GameStateStore) -> MarkerLocus:
+	if state != null and state.current_agenda_card_id != &"":
+		var card := state.registry.get_card(state.current_agenda_card_id)
+		if card != null:
+			ensure_physical_card(card)
+			return MarkerLocus.card(state.current_agenda_card_id)
+	## 无当前密谋卡时暂记独立标记区
+	_ensure_marker_region(AGENDA_DOOM_FALLBACK)
+	return MarkerLocus.region(AGENDA_DOOM_FALLBACK)
+
+
+func mirror_agenda_doom_set(state: GameStateStore, amount: int) -> void:
+	var locus := agenda_doom_locus(state)
+	var have := ops.get_count(locus, MarkerKeys.DOOM)
+	var delta := amount - have
+	if delta > 0:
+		ops.add_markers(locus, MarkerKeys.DOOM, delta)
+	elif delta < 0:
+		ops.remove_markers(locus, MarkerKeys.DOOM, -delta)
+
+
+func mirror_agenda_doom_delta(state: GameStateStore, delta: int) -> void:
+	if delta == 0:
+		return
+	var locus := agenda_doom_locus(state)
+	if delta > 0:
+		ops.add_markers(locus, MarkerKeys.DOOM, delta)
+	else:
+		ops.remove_markers(locus, MarkerKeys.DOOM, -delta)
+
+
+func mirror_chaos_draw(token: ChaosToken) -> void:
+	var key := MarkerKeys.from_chaos_token(token)
+	if key == &"":
+		return
+	_ensure_marker_region(CHAOS_BAG)
+	_ensure_marker_region(AUGURY)
+	## 袋侧可能尚未同步：先保证袋有至少 1，再 transfer
+	if ops.get_count(MarkerLocus.region(CHAOS_BAG), key) < 1:
+		ops.add_markers(MarkerLocus.region(CHAOS_BAG), key, 1)
+	ops.transfer(key, 1, MarkerLocus.region(CHAOS_BAG), MarkerLocus.region(AUGURY))
+
+
+func mirror_chaos_return(token: ChaosToken) -> void:
+	var key := MarkerKeys.from_chaos_token(token)
+	if key == &"":
+		return
+	_ensure_marker_region(CHAOS_BAG)
+	_ensure_marker_region(AUGURY)
+	if ops.get_count(MarkerLocus.region(AUGURY), key) < 1:
+		ops.add_markers(MarkerLocus.region(AUGURY), key, 1)
+	ops.transfer(key, 1, MarkerLocus.region(AUGURY), MarkerLocus.region(CHAOS_BAG))
+
+
+func mirror_chaos_add_to_bag(token: ChaosToken) -> void:
+	var key := MarkerKeys.from_chaos_token(token)
+	if key == &"":
+		return
+	_ensure_marker_region(CHAOS_BAG)
+	ops.add_markers(MarkerLocus.region(CHAOS_BAG), key, 1)
+
+
+func resync_chaos_bag_from_tokens(tokens: Array) -> void:
+	_ensure_marker_region(CHAOS_BAG)
+	_ensure_marker_region(AUGURY)
+	var bag := ops.store.get_marker_region(CHAOS_BAG)
+	var aug := ops.store.get_marker_region(AUGURY)
+	if bag != null:
+		bag.counts.clear()
+	if aug != null:
+		aug.counts.clear()
+	for raw in tokens:
+		var tok := raw as ChaosToken
+		if tok == null:
+			continue
+		mirror_chaos_add_to_bag(tok)
+
+
+func mirror_rebuild_card_region_order(
+	region_id: StringName,
+	ordered_ids: Array,
+	zone_hint: AhcEnums.Zone,
+	owner_id: StringName
+) -> void:
+	var shape := CardRegion.Shape.DECK
+	if zone_hint != AhcEnums.Zone.DECK:
+		shape = CardRegion.Shape.FLAT
+	_ensure_card_region(region_id, shape, owner_id if owner_id != &"encounter" else &"")
+	var region := ops.store.get_card_region(region_id)
+	if region == null:
+		return
+	region.card_ids.clear()
+	for raw in ordered_ids:
+		var cid := raw as StringName
+		if cid == &"":
+			continue
+		## 仅调序：卡须已存在或由调用方 ensure
+		var phys := ops.store.get_card(cid)
+		if phys == null:
+			continue
+		if phys.region_id != &"" and phys.region_id != region_id:
+			var old := ops.store.get_card_region(phys.region_id)
+			if old != null:
+				old.card_ids.erase(cid)
+		phys.region_id = region_id
+		region.card_ids.append(cid)
+
+
 func _deck(player_id: StringName) -> StringName:
 	return StringName("deck_%s" % String(player_id))
 

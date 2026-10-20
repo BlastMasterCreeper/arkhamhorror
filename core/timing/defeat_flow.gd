@@ -127,6 +127,7 @@ static func deal_damage_to_asset(
 	if card == null or not _asset_in_play(card):
 		return {"ok": false, "defeated": false}
 	card.tokens.damage += amount
+	_mirror_card_tokens(game_ctx, card)
 	var check := check_asset_caps(game_ctx, card_id)
 	check["ok"] = true
 	check["damage"] = card.tokens.damage
@@ -145,6 +146,7 @@ static func deal_horror_to_asset(
 	if card == null or not _asset_in_play(card):
 		return {"ok": false, "defeated": false}
 	card.tokens.horror += amount
+	_mirror_card_tokens(game_ctx, card)
 	var check := check_asset_caps(game_ctx, card_id)
 	check["ok"] = true
 	check["horror"] = card.tokens.horror
@@ -423,3 +425,9 @@ static func _enemy_definition_id(game_ctx: GameContext, enemy_id: StringName) ->
 	if card != null:
 		return card.id.definition_id
 	return enemy_id
+
+
+static func _mirror_card_tokens(game_ctx: GameContext, card: CardInstance) -> void:
+	if game_ctx == null or game_ctx.state == null or game_ctx.state.physical_binding == null:
+		return
+	game_ctx.state.physical_binding.sync_card_markers(card)

@@ -222,9 +222,15 @@ static func remove_location_from_game(
 	card.tokens.doom = 0
 	card.tokens.clue = 0
 	card.tokens.uses.clear()
+	if game_ctx.state.physical_binding != null:
+		game_ctx.state.physical_binding.sync_card_markers(card)
 	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
 	if not game_ctx.state.removed_from_game.has(location_id):
 		game_ctx.state.removed_from_game.append(location_id)
+	if game_ctx.state.physical_binding != null:
+		game_ctx.state.physical_binding.mirror_move_to_zone(
+			card, AhcEnums.Zone.REMOVED_FROM_GAME, &""
+		)
 	return true
 
 
