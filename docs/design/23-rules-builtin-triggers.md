@@ -33,7 +33,7 @@
 | 10 | Agenda doom ≥ 阈值 → 推进 | — | — | **流程条件**（非触发） | Framework 1.3 |
 | 11 | 抽到敌人 → **生成**（默认交战生成；有 Spawn **指示**则按指示） | `ENCOUNTER_CARD_DRAWN` · G4 | enemy；Spawn 是**指示**（非能力）——有则改落点/是否 auto-engage，无则默认规则 | **nest** `seq.encounter.spawn`；指示只改手续内分支 | `spawn` / `spawn_engaged` |
 | 12 | 抽到诡计 / 有显现 → 显现 | 入手 / 遭遇显现锚 | `has_revelation` | **nest** | `seq.encounter.revelation` / `seq.enter_hand` |
-| 13 | Victory 敌击败 → 胜利区 | 击败成功后的退场去向 | 带 Victory | 退场/击败手续内 **去向分支**（非独立触发） | defeat leave 路由 |
+| 13 | 击败成功后 **区划转移**（默认→对应弃牌堆；**Victory / 复仇 Vengeance** 指示→胜利区） | 击败成功（再 nest 退场/区划转移） | 去向指示（与 Spawn 同类信息，非能力）：有 Victory/Vengeance → 胜利区，无则默认弃牌堆 | **nest** 区划转移；指示只改去向分支 | `seq.defeat.leave_play` / leave 路由 |
 | 14 | Lead 淘汰且仍有人 → 重选队长 | 淘汰同时组内 | 仍有调查员 | 淘汰 **同时组** 内步骤 | elimination |
 | 15 | 无人剩余 → 场景结束 | 淘汰后 | 无剩余调查员 | 战役/场景结算（框架后） | guide |
 | — | **token→pool、弃附属**（及 lasting 对该卡过期） | **广义移动**：卡从**场上区域 → 场外区域**（`seq.zone.move`） | **离场**（`LEAVE_PLAY` 过滤：was in-play ∧ now out） | 与该次移动列为 **同时组**（全部完才 After）；≠ 内联；≠「离场是时点」 | `ZoneMoveFlow` 在 `LEAVE_PLAY` 别名下捆绑 |
@@ -47,9 +47,10 @@
 | 进地点翻开+线索 | nest vs move 内联 | **nest**：时点=进入地点；条件=未揭示；结算=`reveal_location` |
 | 借机 | 「手续砖」vs 触发 | **nest**：时点=付完引发借机的 cost 后；条件=交战就绪敌等；结算=攻击 |
 | 空库洗+1 恐 / 遭遇洗回 | 内联？ | **内联 then**（抽牌 collect 条件分支）；双空 defeated 才 **nest** |
-| Victory / Lead 重选 | 触发？ | **非独立触发**：退场去向 / 淘汰同时组内步骤 |
+| Lead 重选 | 触发？ | 淘汰 **同时组** 内步骤 |
 | 离场清理 | 曾误标「内联」；后又误把「离场」当时期 | **时点**=场上→场外区划移动；**条件**=离场（`LEAVE_PLAY`）；后果与该移动 **同时**；When/After「leaves play」同锚：听广义移动再过滤 |
 | Spawn | — | **指示**（非能力）；有指示改生成分支，无则默认规则。#11 成立 |
+| Victory / 复仇 | 曾当「触发进胜利区」 | 与 Spawn 同类 **去向指示**；击败成功后 **nest** 区划转移，默认弃牌堆，有指示→胜利区 |
 
 ---
 
@@ -59,3 +60,4 @@
 |---|---|
 | 2026-10-20 | 初稿：按时点→条件→nest 重分原「规则自带触发」清单；同时/流程条件/内联正交 |
 | 2026-10-20 | 纠正：清理标记/附属的时点=场上→场外移动，离场是条件；Spawn=指示 |
+| 2026-10-20 | #13：Victory/复仇=去向指示（同 Spawn）；击败后 nest 区划转移，默认弃牌堆 |
