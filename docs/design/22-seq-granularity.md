@@ -354,6 +354,7 @@
 | 2026-10-12 | G3 纠正：洗牌条件是「搜了牌库」，不是「仅整库」 |
 | 2026-10-12 | G4：进场 = 场外→场上区划信息，非效果；不铸 `seq.effect.enter_play` |
 | 2026-10-12 | G4 补：听进场 = 听广义移动 + 场外→场上过滤；`ENTER_PLAY` 是别名非第二通道 |
+| 2026-10-20 | G5 表述：击败=大信封；退场是效果体（nest），非信封外后续 |
 | 2026-10-12 | G5：击败是效果；退场 nest 不内联；伤/恐上限常态检测（Cancel 可再触） |
 | 2026-10-12 | G5 落地：`DefeatFlow`；`seq.effect.defeat` / `seq.enemy.defeat`；nest `seq.defeat.leave_play` |
 | 2026-10-12 | G5：支援资产 `subject=asset`；退场 L0 进弃牌堆，不走 discard 效果包装 |
