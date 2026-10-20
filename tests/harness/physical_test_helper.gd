@@ -12,13 +12,14 @@ static func test_set_aside_to_deck_shuffle() -> bool:
 	var ops := make_ops()
 	var set_aside := ops.create_card_region(CardRegion.Shape.FLAT, &"", &"set_aside")
 	var deck := ops.create_card_region(CardRegion.Shape.DECK, &"", &"encounter_deck")
+	var ids: Array[StringName] = []
 	for i in 3:
-		var cid := StringName("scen_%d" % i)
-		if not ops.materialize_card(cid, cid, set_aside):
+		var eid := ops.materialize_card(StringName("def_%d" % i), set_aside)
+		if eid == &"":
 			return false
-	for i in 3:
-		var cid := StringName("scen_%d" % i)
-		if not ops.move_card(cid, deck, AhcEnums.InsertMode.BOTTOM):
+		ids.append(eid)
+	for eid in ids:
+		if not ops.move_card(eid, deck, AhcEnums.InsertMode.BOTTOM):
 			return false
 	var aside := ops.store.get_card_region(set_aside)
 	var d := ops.store.get_card_region(deck)
@@ -30,27 +31,29 @@ static func test_set_aside_to_deck_shuffle() -> bool:
 	rng.seed = 42
 	if not ops.shuffle(deck, rng):
 		return false
-	return d.size() == 3 and ops.store.get_card(&"scen_0").region_id == deck
+	var first: StringName = ids[0]
+	return d.size() == 3 and ops.store.get_card(first).region_id == deck
 
 
 static func test_marker_transfer_pool_to_card() -> bool:
 	var ops := make_ops()
 	var supply := ops.create_marker_region(&"supply")
 	var set_aside := ops.create_card_region(CardRegion.Shape.FLAT, &"", &"set_aside")
-	if not ops.materialize_card(&"enemy_1", &"e1", set_aside):
+	var enemy_id := ops.materialize_card(&"e1", set_aside)
+	if enemy_id == &"":
 		return false
 	ops.add_markers(MarkerLocus.region(supply), MarkerKeys.DAMAGE, 5)
 	var ok := ops.transfer(
 		MarkerKeys.DAMAGE,
 		2,
 		MarkerLocus.region(supply),
-		MarkerLocus.card(&"enemy_1")
+		MarkerLocus.card(enemy_id)
 	)
 	if not ok:
 		return false
 	return (
 		ops.get_count(MarkerLocus.region(supply), MarkerKeys.DAMAGE) == 3
-		and ops.get_count(MarkerLocus.card(&"enemy_1"), MarkerKeys.DAMAGE) == 2
+		and ops.get_count(MarkerLocus.card(enemy_id), MarkerKeys.DAMAGE) == 2
 	)
 
 
@@ -79,31 +82,35 @@ static func test_augury_reveal_and_return() -> bool:
 static func test_card_face_exhaust() -> bool:
 	var ops := make_ops()
 	var flat := ops.create_card_region(CardRegion.Shape.FLAT)
-	if not ops.materialize_card(&"c1", &"def", flat):
+	var cid := ops.materialize_card(&"def", flat)
+	if cid == &"":
 		return false
-	if not ops.set_face(&"c1", AhcEnums.CardFace.B):
+	if not ops.set_face(cid, AhcEnums.CardFace.B):
 		return false
-	if not ops.set_exhausted(&"c1", true):
+	if not ops.set_exhausted(cid, true):
 		return false
-	var card := ops.store.get_card(&"c1")
+	var card := ops.store.get_card(cid)
 	return card != null and card.face == AhcEnums.CardFace.B and card.exhausted
 
 
 static func test_destroy_requires_empty() -> bool:
 	var ops := make_ops()
 	var region := ops.create_card_region(CardRegion.Shape.FLAT, &"", &"box")
-	ops.materialize_card(&"c1", &"d", region)
+	var cid := ops.materialize_card(&"d", region)
 	if ops.destroy_card_region(region):
 		return false
-	ops.move_card(&"c1", ops.create_card_region(CardRegion.Shape.FLAT, &"", &"other"))
+	var other := ops.create_card_region(CardRegion.Shape.FLAT, &"", &"other")
+	ops.move_card(cid, other)
 	return ops.destroy_card_region(region)
 
 
 static func test_player_resource_pool() -> bool:
 	var ops := make_ops()
-	ops.add_player(&"p1", 0)
+	var player := ops.add_player()
+	if player == null:
+		return false
 	var supply := ops.create_marker_region(&"supply")
-	var pool := ops.create_marker_region(&"resource_p1")
+	var pool := ops.create_marker_region(StringName("resource_%s" % String(player.id)))
 	ops.add_markers(MarkerLocus.region(supply), MarkerKeys.RESOURCE, 30)
 	if not ops.transfer(
 		MarkerKeys.RESOURCE,
@@ -113,3 +120,22 @@ static func test_player_resource_pool() -> bool:
 	):
 		return false
 	return ops.get_count(MarkerLocus.region(pool), MarkerKeys.RESOURCE) == 5
+
+
+static func test_entity_id_alloc_not_definition() -> bool:
+	var ops := make_ops()
+	var a := ops.materialize_card(&"12106")
+	var b := ops.materialize_card(&"12106")
+	if a == &"" or b == &"" or a == b:
+		return false
+	var ca := ops.store.get_card(a)
+	var cb := ops.store.get_card(b)
+	if ca == null or cb == null:
+		return false
+	if ca.definition_id != &"12106" or cb.definition_id != &"12106":
+		return false
+	if not ops.dematerialize_card(a):
+		return false
+	var c := ops.materialize_card(&"12107")
+	## 不复用已回收的 a
+	return c != &"" and c != a and ops.store.get_card(a) == null

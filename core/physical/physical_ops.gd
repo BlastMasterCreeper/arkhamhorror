@@ -12,11 +12,17 @@ func _init(physical_store: PhysicalStore) -> void:
 
 # --- 玩家 ---
 
-func add_player(player_id: StringName, seat_index: int = 0) -> PhysicalPlayer:
+## player_id 为空则 store 分配实体 id（如 player_1）。
+func add_player(player_id: StringName = &"", seat_index: int = 0) -> PhysicalPlayer:
+	var id := player_id
+	if id == &"":
+		id = store.alloc_entity_id(&"player")
+	elif store.get_player(id) != null:
+		return null
 	var p := PhysicalPlayer.new()
-	p.id = player_id
+	p.id = id
 	p.seat_index = seat_index
-	store.players[player_id] = p
+	store.players[id] = p
 	return p
 
 
@@ -68,19 +74,40 @@ func destroy_marker_region(region_id: StringName) -> bool:
 
 # --- 卡牌实体 ---
 
+## 物化一张卡。card_id 为空则分配实体 id；definition_id 为牌面/目录编号。
+## 返回实体 id；失败返回 &""。
 func materialize_card(
-	card_id: StringName,
-	definition_id: StringName = &"",
-	into_region_id: StringName = &""
-) -> bool:
-	if store.get_card(card_id) != null:
-		return false
+	definition_id: StringName,
+	into_region_id: StringName = &"",
+	card_id: StringName = &""
+) -> StringName:
+	var id := card_id
+	if id == &"":
+		id = store.alloc_entity_id(&"card")
+	elif store.get_card(id) != null:
+		return &""
 	var card := PhysicalCard.new()
-	card.id = card_id
-	card.definition_id = definition_id if definition_id != &"" else card_id
-	store.cards[card_id] = card
+	card.id = id
+	card.definition_id = definition_id
+	store.cards[id] = card
 	if into_region_id != &"":
-		return move_card(card_id, into_region_id)
+		if not move_card(id, into_region_id):
+			store.cards.erase(id)
+			return &""
+	return id
+
+
+## 从物理层移除卡实体（须先不在任何区，或一并从当前区摘掉）。
+func dematerialize_card(card_id: StringName) -> bool:
+	var card := store.get_card(card_id)
+	if card == null:
+		return false
+	if card.region_id != &"":
+		var region := store.get_card_region(card.region_id)
+		if region != null:
+			region.card_ids.erase(card_id)
+		card.region_id = &""
+	store.cards.erase(card_id)
 	return true
 
 

@@ -2,6 +2,7 @@ class_name PhysicalCard
 extends RefCounted
 
 ## 物理层卡牌：所属卡区 + 外观态 + 卡上标记 counts。
+## id = 运行时实体 id（PhysicalStore 分配）；definition_id = 牌面/目录编号。
 
 var id: StringName = &""
 var definition_id: StringName = &""
