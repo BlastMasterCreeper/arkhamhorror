@@ -214,13 +214,18 @@ func mirror_adjust_marker(at: MarkerSlot, delta: int) -> bool:
 	return true
 
 
-## L0 揭示（Reveal）的物理对应 = 翻面（CardFace），不是 FaceAudience。
-## FaceAudience（谁可见）留在信息层 InformationExecutor。
+## L0 揭示（Reveal）的物理对应 = 翻面（CardFace）。
+## 可见性（FaceAudience）只在信息层；物理层不管。
 func mirror_flip(card_id: StringName, face: AhcEnums.CardFace) -> bool:
-	var card := ops.store.get_card(card_id)
-	if card == null:
+	if ops.store.get_card(card_id) == null:
 		return true
 	return ops.set_face(card_id, face)
+
+
+func mirror_exhausted(card_id: StringName, exhausted: bool) -> bool:
+	if ops.store.get_card(card_id) == null:
+		return true
+	return ops.set_exhausted(card_id, exhausted)
 
 
 func _deck(player_id: StringName) -> StringName:

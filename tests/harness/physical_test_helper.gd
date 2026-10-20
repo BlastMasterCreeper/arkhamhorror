@@ -205,3 +205,33 @@ static func test_bridge_reveal_mirrors_flip() -> bool:
 		and phys.face == AhcEnums.CardFace.A
 		and card.face_visibility.audience == AhcEnums.FaceAudience.CONTROLLER
 	)
+
+
+static func test_bridge_exhaust_mirrors() -> bool:
+	var h := RuleTestHarness.new(94)
+	var ctx := h.ctx
+	if ctx.state.registry.get_investigator(&"inv_1") == null:
+		GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, &"bridge_ex", &"bridge_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	ctx.state.registry.register_card(card)
+	ctx.state.registry.get_investigator(&"inv_1").play_area.append(&"bridge_ex")
+	var res := ExhaustReadyFlow.exhaust(
+		ctx, {"target_kind": ExhaustReadyFlow.TARGET_CARD, "card_id": &"bridge_ex"}
+	)
+	if not bool(res.get("ok", false)):
+		return false
+	var phys := ctx.state.physical.get_card(&"bridge_ex")
+	if phys == null or not phys.exhausted:
+		return false
+	var ready := ExhaustReadyFlow.ready(
+		ctx, {"target_kind": ExhaustReadyFlow.TARGET_CARD, "card_id": &"bridge_ex"}
+	)
+	if not bool(ready.get("ok", false)):
+		return false
+	phys = ctx.state.physical.get_card(&"bridge_ex")
+	return phys != null and not phys.exhausted

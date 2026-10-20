@@ -174,14 +174,6 @@ func set_display_order(card_id: StringName, order: int) -> bool:
 	return true
 
 
-func set_reveal_audience(card_id: StringName, audience: AhcEnums.FaceAudience) -> bool:
-	var card := store.get_card(card_id)
-	if card == null:
-		return false
-	card.reveal_audience = audience
-	return true
-
-
 # --- 标记 ---
 
 func transfer(
