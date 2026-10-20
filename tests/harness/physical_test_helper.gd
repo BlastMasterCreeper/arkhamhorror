@@ -139,3 +139,61 @@ static func test_entity_id_alloc_not_definition() -> bool:
 	var c := ops.materialize_card(&"12107")
 	## 不复用已回收的 a
 	return c != &"" and c != a and ops.store.get_card(a) == null
+
+
+static func test_bridge_move_mirrors() -> bool:
+	var h := RuleTestHarness.new(91)
+	var ctx := h.ctx
+	var inv := ctx.state.registry.get_investigator(&"inv_1")
+	if inv == null or inv.deck.is_empty():
+		GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
+		inv = ctx.state.registry.get_investigator(&"inv_1")
+	if inv == null or inv.deck.is_empty():
+		## 造一张库顶卡
+		var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, &"bridge_c1", &"bridge_def")
+		var card := CardInstance.new()
+		card.id = eid
+		card.owner_id = &"inv_1"
+		card.controller_id = &"inv_1"
+		card.zone = AhcEnums.Zone.DECK
+		ctx.state.registry.register_card(card)
+		inv.deck.append(&"bridge_c1")
+	var card_id: StringName = inv.deck[0]
+	if not ctx.mutator.move_card(card_id, CardSlot.hand_bottom(&"inv_1")):
+		return false
+	var phys := ctx.state.physical.get_card(card_id)
+	if phys == null:
+		return false
+	return phys.region_id == StringName("hand_inv_1")
+
+
+static func test_bridge_resource_adjust_mirrors() -> bool:
+	var h := RuleTestHarness.new(92)
+	var ctx := h.ctx
+	if ctx.state.registry.get_investigator(&"inv_1") == null:
+		GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
+	if not ctx.mutator.adjust_marker(
+		MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 3
+	):
+		return false
+	var locus := MarkerLocus.region(StringName("resource_inv_1"))
+	return ctx.state.physical_ops.get_count(locus, MarkerKeys.RESOURCE) == 3
+
+
+static func test_bridge_reveal_mirrors() -> bool:
+	var h := RuleTestHarness.new(93)
+	var ctx := h.ctx
+	if ctx.state.registry.get_investigator(&"inv_1") == null:
+		GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, &"bridge_rev", &"bridge_def")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	ctx.state.registry.register_card(card)
+	ctx.state.registry.get_investigator(&"inv_1").hand.append(&"bridge_rev")
+	if not ctx.mutator.reveal_to_controller(&"bridge_rev", &"inv_1"):
+		return false
+	var phys := ctx.state.physical.get_card(&"bridge_rev")
+	return phys != null and phys.reveal_audience == AhcEnums.FaceAudience.CONTROLLER

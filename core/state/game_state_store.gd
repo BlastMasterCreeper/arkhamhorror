@@ -31,9 +31,17 @@ var scenario_layout_installed: bool = false
 var setup_game_begins_resolved: bool = false
 var deferred_setup_revelations: Array[StringName] = []
 
+## 物理层桌面；信息层 L0 经 StateMutator 镜像写入。
+var physical: PhysicalStore = PhysicalStore.new()
+var physical_ops: PhysicalOps = null
+var physical_binding: PhysicalBinding = null
+
 
 func _init() -> void:
 	zones = ZoneManager.new(registry)
+	physical_ops = PhysicalOps.new(physical)
+	physical_binding = PhysicalBinding.new(physical_ops)
+	physical_binding.install_table()
 
 
 func doom_in_play() -> int:

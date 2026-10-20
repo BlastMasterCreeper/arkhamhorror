@@ -5,11 +5,16 @@ var _state: GameStateStore
 var _information: InformationExecutor
 var _registrations: RegistrationStore = null
 var _after_zone_move: Callable = Callable()
+var _physical: PhysicalOps = null
+var _binding: PhysicalBinding = null
 
 
 func _init(state: GameStateStore) -> void:
 	_state = state
 	_information = InformationExecutor.new(state)
+	if state != null:
+		_physical = state.physical_ops
+		_binding = state.physical_binding
 
 
 func bind_registration_store(store: RegistrationStore) -> void:
@@ -26,6 +31,14 @@ func state() -> GameStateStore:
 
 func information() -> InformationExecutor:
 	return _information
+
+
+func physical() -> PhysicalOps:
+	return _physical
+
+
+func physical_binding() -> PhysicalBinding:
+	return _binding
 
 
 ## L0 · AtomMoveCard
@@ -61,11 +74,13 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	if to.owner_id == &"encounter":
 		if not _insert_encounter_discard(card):
 			return false
+		_mirror_move_card(card, to)
 		_emit_zone_move(card_id, from_zone, card.zone)
 		return true
 	if to.owner_id == &"victory_display":
 		if not _insert_victory_display(card):
 			return false
+		_mirror_move_card(card, to)
 		_emit_zone_move(card_id, from_zone, card.zone)
 		return true
 	var target_inv := _state.registry.get_investigator(to.owner_id)
@@ -76,6 +91,7 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	card.zone = _zone_for_pile(to.pile)
 	if to.pile == AhcEnums.PileKind.INV_HAND:
 		card.controller_id = to.owner_id
+	_mirror_move_card(card, to)
 	_emit_zone_move(card_id, from_zone, card.zone)
 	return true
 
@@ -98,6 +114,7 @@ func transfer_marker(kind: AhcEnums.MarkerKind, amount: int, from: MarkerSlot, t
 	if not _take_marker(from, kind, amount):
 		return false
 	_give_marker(to, kind, amount)
+	_mirror_transfer_marker(kind, amount, from, to)
 	return true
 
 
@@ -105,11 +122,14 @@ func transfer_marker(kind: AhcEnums.MarkerKind, amount: int, from: MarkerSlot, t
 func adjust_marker(at: MarkerSlot, delta: int, clamp_min: int = 0) -> bool:
 	if delta == 0:
 		return true
+	var ok := false
 	if at.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
-		return _adjust_investigator_marker(at.bearer_id, at.kind, delta, clamp_min)
-	if at.bearer_kind == AhcEnums.BearerKind.GLOBAL:
-		return _adjust_pool_marker(at.kind, delta, clamp_min)
-	return false
+		ok = _adjust_investigator_marker(at.bearer_id, at.kind, delta, clamp_min)
+	elif at.bearer_kind == AhcEnums.BearerKind.GLOBAL:
+		ok = _adjust_pool_marker(at.kind, delta, clamp_min)
+	if ok:
+		_mirror_adjust_marker(at, delta)
+	return ok
 
 
 ## L0 · AtomSetFlag
@@ -198,15 +218,24 @@ func pop_deck_top(inv_id: StringName) -> StringName:
 
 ## L0 · AtomRevealCard（Grimoire Reveal；D2 等）
 func reveal_to_controller(card_id: StringName, controller_id: StringName) -> bool:
-	return _information.reveal_to_controller(card_id, controller_id)
+	if not _information.reveal_to_controller(card_id, controller_id):
+		return false
+	_mirror_reveal(card_id, AhcEnums.FaceAudience.CONTROLLER)
+	return true
 
 
 func reveal_to_all(card_id: StringName) -> bool:
-	return _information.reveal_to_all(card_id)
+	if not _information.reveal_to_all(card_id):
+		return false
+	_mirror_reveal(card_id, AhcEnums.FaceAudience.ALL)
+	return true
 
 
 func hide_from_all(card_id: StringName) -> bool:
-	return _information.hide_from_all(card_id)
+	if not _information.hide_from_all(card_id):
+		return false
+	_mirror_reveal(card_id, AhcEnums.FaceAudience.HIDDEN_ALL)
+	return true
 
 
 ## 隐私（Hidden）遭遇 · E4 秘密入手显现（drawer CONTROLLER + is_hidden）。
@@ -290,6 +319,7 @@ func commit_enter_threat_area(card_id: StringName, inv_id: StringName) -> bool:
 		inv.threat_area.append(card_id)
 	card.controller_id = inv_id
 	card.zone = AhcEnums.Zone.PLAY_AREA
+	_mirror_move_to_zone(card, AhcEnums.Zone.THREAT_AREA, inv_id)
 	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
 	return true
 
@@ -369,6 +399,7 @@ func _enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
 	_state.encounter_discard.erase(card.id.instance_id)
 	card.zone = AhcEnums.Zone.LIMBO
 	card.controller_id = controller_id
+	_mirror_move_to_zone(card, AhcEnums.Zone.LIMBO, controller_id)
 	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.LIMBO)
 	return true
 
@@ -533,3 +564,41 @@ func _blocks_leave_hand(card_id: StringName) -> bool:
 	if _registrations == null:
 		return false
 	return RestrictionEvaluator.blocks_leave_hand(card_id, _registrations)
+
+
+func _mirror_move_card(card: CardInstance, to: CardSlot) -> void:
+	if _binding == null:
+		return
+	_binding.mirror_move_card(card, to)
+
+
+func _mirror_move_to_zone(card: CardInstance, zone: AhcEnums.Zone, owner_id: StringName) -> void:
+	if _binding == null:
+		return
+	_binding.mirror_move_to_zone(card, zone, owner_id)
+
+
+func _mirror_transfer_marker(
+	kind: AhcEnums.MarkerKind,
+	amount: int,
+	from: MarkerSlot,
+	to: MarkerSlot
+) -> void:
+	if _binding == null:
+		return
+	_binding.mirror_transfer_marker(kind, amount, from, to)
+
+
+func _mirror_adjust_marker(at: MarkerSlot, delta: int) -> void:
+	if _binding == null:
+		return
+	_binding.mirror_adjust_marker(at, delta)
+
+
+func _mirror_reveal(card_id: StringName, audience: AhcEnums.FaceAudience) -> void:
+	if _binding == null:
+		return
+	var card := _state.registry.get_card(card_id)
+	if card != null:
+		_binding.ensure_physical_card(card)
+	_binding.mirror_reveal(card_id, audience)
