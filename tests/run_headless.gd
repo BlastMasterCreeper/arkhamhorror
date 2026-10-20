@@ -10,6 +10,12 @@ var _failed := 0
 
 func _initialize() -> void:
 	print("=== AHC LCG headless tests ===")
+	_run_test("PHYS-01 set-aside to deck shuffle", PhysicalTestHelper.test_set_aside_to_deck_shuffle)
+	_run_test("PHYS-02 marker transfer pool to card", PhysicalTestHelper.test_marker_transfer_pool_to_card)
+	_run_test("PHYS-03 augury reveal and return", PhysicalTestHelper.test_augury_reveal_and_return)
+	_run_test("PHYS-04 card face exhaust", PhysicalTestHelper.test_card_face_exhaust)
+	_run_test("PHYS-05 destroy requires empty", PhysicalTestHelper.test_destroy_requires_empty)
+	_run_test("PHYS-06 player resource pool", PhysicalTestHelper.test_player_resource_pool)
 	_run_test("A-01 setup reaches investigation phase", _test_setup_to_inv_phase)
 	_run_test("A-02 resource action", _test_resource_action)
 	_run_test("A-03 event records written", _test_event_records)
