@@ -268,15 +268,20 @@ class GameStateStore:
 
 ### 5.2 Leaves Play（Grimoire p.14）
 
-下列后果与卡离场列为 **同时**（`ZoneMoveFlow._apply_leave_play`）：
+**时点 / 条件（勿混）**：
+
+| | 是什么 |
+|---|---|
+| **时点** | 卡牌 **从场上区域移动到场外区域**（广义移动 · `seq.zone.move`） |
+| **条件** | 该移动满足 **离场**（`LEAVE_PLAY`：was in-play ∧ now out）——「leaves play」是过滤名，不是第二套时点 |
+
+下列后果与**该次区划移动**列为 **同时**（`ZoneMoveFlow._apply_leave_play`）：
 
 1. 卡上所有 token 归还 `global_token_pool`（damage/horror/clue；doom/uses 清零；Seal 经 `SealFlow` 回袋）
-2. 所有 attachments 弃置（进各自 owner discard；`ATTACHED` 亦 in-play → 每张附属自身再走离场边界）
+2. 所有 attachments 弃置（进各自 owner discard；`ATTACHED` 亦 in-play → 每张附属自身再走场上→场外移动）
 3. 影响该卡的 lasting / delayed effects 对该卡过期（`WHILE_IN_PLAY` → `on_card_leave_play`）
 
-然后卡迁入目标 Out-of-Play 区域。
-
-**「同时」**：上列效果在**同一时间**发生；**全部发生完毕**后，才轮到 **After**（见 §5.3）。不是「内联」的同义词，也不代替 [15 §4.0.5](15-timing-entry-catalog.md) 的时点→条件→nest。
+**「同时」**：上列效果与该移动在**同一时间**发生；**全部发生完毕**后，才轮到 **After**（见 §5.3）。不是「内联」的同义词；When/After「leaves play」= 听上述移动时点再套离场条件（[15 §4.0.5](15-timing-entry-catalog.md)）。
 
 ### 5.3 同时效果（已裁决 OQ-01-02）
 
@@ -397,4 +402,5 @@ class LocationState:
 | 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |
 | 2026-09-20 | v0.4.1 | 抽牌 When 时调查员 HAND、遭遇 LIMBO；Would 时仍 DECK（15 §3.1） |
 | 2026-10-20 | v0.4.2 | §5.2 落地：`ZoneMoveFlow` 离场 token→pool + 弃置附属；`ATTACHED` 计入 in-play（ZM-04/05） |
-| 2026-10-20 | v0.4.3 | §5.2/§5.3：「同时」= 该列效果组内不可被 After nest；勿与内联混用 |
+| 2026-10-20 | v0.4.3 | §5.2/§5.3：「同时」= 同一时间发生，全部完才 After；勿与内联混用 |
+| 2026-10-20 | v0.4.4 | §5.2：时点=场上→场外移动；离场=`LEAVE_PLAY` 条件；清理为同时组 |
