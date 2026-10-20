@@ -268,7 +268,7 @@ class GameStateStore:
 
 ### 5.2 Leaves Play（Grimoire p.14）
 
-与卡离场 **同时** 的 **Domain 边界不变量**（`ZoneMoveFlow._apply_leave_play` · L0 广义移动跨出 in-play 时强制捆绑；**不是** Composition 内联 then，也 **不是** nest `seq.effect.*`）：
+下列后果与卡离场列为 **同时**（`ZoneMoveFlow._apply_leave_play`）：
 
 1. 卡上所有 token 归还 `global_token_pool`（damage/horror/clue；doom/uses 清零；Seal 经 `SealFlow` 回袋）
 2. 所有 attachments 弃置（进各自 owner discard；`ATTACHED` 亦 in-play → 每张附属自身再走离场边界）
@@ -276,17 +276,17 @@ class GameStateStore:
 
 然后卡迁入目标 Out-of-Play 区域。
 
-**时点 vs 条件 vs nest（对照 [15 §4.0.5](15-timing-entry-catalog.md)）**：离场 **打开** leave-play 相关时点后，**When/After 离场** 的能力在 **条件满足** 时才 **nest** 其结算；token/附属清理是边界捆绑，不参与「内联 / nest」二分。
+**「同时」在此只表示**：上列效果组执行期间 **不得** 被 **After** 时点 nest 插入；组全部做完后，After 才可形成（见 §5.3）。**不是**「内联」的同义词，也不代替 [15 §4.0.5](15-timing-entry-catalog.md) 的时点→条件→nest。
 
 ### 5.3 同时效果（已裁决 OQ-01-02）
 
-Grimoire 中「simultaneously / 同时」的电子化语义（资深玩家裁定）：
+Grimoire「simultaneously / 同时」的电子化语义（资深玩家裁定）：
 
-1. **目的**：保证被「同时」统领的状态变更不会在场上共存（如 Unique 冲突：遭遇版与玩家版同名卡不能同时在场）。
-2. **时点**：「同时」= 这些效果在**同一 timing point** 触发或**开始结算**；不是简单的「按代码顺序一行行执行」。
-3. **与 after 的关系**：所有 `after` 类触发必须等该**同时效果组全部结算完毕**后才可形成；组内不得插入 `after` 响应。
-4. **泛化**：同样适用于「效果 A and 效果 B」—— A 与 B 视为同一同时组内的并列效果。
-5. **频率**：Unique 遭遇/玩家同名冲突等情形**极少**，但机制应通用，不做 Unique 专用 hardcode。
+1. **核心（仅此）**：被「同时」统领的那一列效果 = **同一同时效果组**；组内执行 **无法被 After 时点 nest**；全部结算完毕后才释放 After。
+2. **目的**：保证组内状态变更不会在场上与 After 响应交错共存（如 Unique 冲突：遭遇版与玩家版同名不能同时在场）。
+3. **时点**：组内效果在**同一 timing point** 触发或**开始结算**；不是「按代码一行行」的同义词，也不是 Composition 内联 then。
+4. **泛化**：「效果 A and 效果 B」同此—— A 与 B 同一同时组。
+5. **频率**：Unique 等情形极少，机制应通用，不做专用 hardcode。
 
 ```gdscript
 class SimultaneousEffectGroup:
@@ -396,4 +396,5 @@ class LocationState:
 | 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |
 | 2026-09-20 | v0.4.1 | 抽牌 When 时调查员 HAND、遭遇 LIMBO；Would 时仍 DECK（15 §3.1） |
 | 2026-10-20 | v0.4.2 | §5.2 落地：`ZoneMoveFlow` 离场 token→pool + 弃置附属；`ATTACHED` 计入 in-play（ZM-04/05） |
-| 2026-10-20 | v0.4.3 | §5.2 纠正：离场清理 = Domain 边界捆绑，勿标成「内联」；与 15 §4.0.5 时点→条件→nest 对齐 |
+| 2026-10-20 | v0.4.3 | §5.2/§5.3：「同时」= 组内不可被 After nest；勿与内联混用 |
+| 2026-10-20 | v0.4.2b | §5.2 落地后表述曾过重（Domain 捆绑）；已收束为同时组语义 |

@@ -251,8 +251,9 @@ Grimoire 规范流程
 |---|---|---|
 | **时点** | Would / When / After / 子时点锚；「何时可听」 | 条件谓词；不是「顺便 then」 |
 | **条件** | 该时点上 *是否* 开火（谁合法、是否 Forced、if 真假） | 时点本身；满足条件 ≠ 新开时点 |
-| **nest** | 时点已到 **且** 条件满足 → 压独立结算帧 | 「有 Catalog 条目就 nest」；把 Domain 边界捆绑当 nest |
-| **内联** | **无因果时点** 的顺序 then（同一 RESOLVE 连续砖） | 「同时发生」的别名；Domain leave/enter 捆绑 |
+| **nest** | 时点已到 **且** 条件满足 → 压独立结算帧 | 「有 Catalog 条目就 nest」 |
+| **内联** | **无因果时点** 的顺序 then（同一 RESOLVE 连续砖） | 「同时」的别名 |
+| **同时** | 一列效果组执行期间 **After 不得 nest 插入**；组完才释放 After（[01 §5.3](01-game-state-zones.md)） | 内联；时点→条件→nest 的判据 |
 
 划分内联 / nest 的 **操作判据**：
 
@@ -260,7 +261,7 @@ Grimoire 规范流程
 > **是**（时点已到）→ 再看 **条件**；满足 → **nest**（新 TC / 新 `(sequence_id, slot)`；独立结算入栈）  
 > **否** — 只是同一帧内的 **连续 then**（无独立子时点、无因果触发）→ **内联**
 
-**禁止**：把 **条件** 写成时点；把 **同时 / Domain 边界不变量**（如离场 token→pool）误标成「内联 Composition」——那是 L0 事务捆绑，既不是 nest 也不是 §4.0.5 的 then-内联。
+**禁止**：把 **条件** 写成时点；把 **同时**（After 不得插组）误写成 **内联**（无因果 then）。二者正交。
 
 **第三形态（已裁决 2026-09-28）**：玩家选择（choose / 选目标 / may）**既不是内联也不是 nest**，而是 **`PlayerInteractionGate` 有限期目标确认**（未确认 → 默认选择）。见 [16 §3.1](16-player-interaction.md)、[effect-translation DoD](../../.cursor/rules/effect-translation.mdc)。**禁止**用 nest 包一层「选目标 seq」、也禁止把确认伪装成 Composition Then。
 
@@ -1772,7 +1773,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-20 | v0.6.20 | §4.0.5：时点→条件→nest 三分；内联=无因果 then；Domain 边界捆绑勿标「内联」 |
+| 2026-10-20 | v0.6.20 | §4.0.5：时点→条件→nest；内联=无因果 then；同时=After 不得插组（正交） |
 | 2026-09-21 | v0.6.19 | §4.0.1：卡牌正文译 Composition；禁止 `seq.card…` |
 | 2026-05-25 | v0.1 | 初稿：RuleSequence、三槽、Anchor Policy、Brick、merge、PreImpact |
 | 2026-05-25 | v0.2 | **§16 调查员抽牌**：D0–D5；D2 牌面 CONTROLLER；WHEN=D2–D3；Revelation=D3 入手 |

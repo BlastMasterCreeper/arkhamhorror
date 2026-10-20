@@ -169,9 +169,8 @@ static func _apply_uses_on_enter(game_ctx: GameContext, card: CardInstance) -> v
 
 
 static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> void:
-	## Grimoire Leaves Play：与离场**同时**的 Domain 边界捆绑（token→pool、attachments discard、lasting 过期）。
-	## 不是 Composition 内联 then，也不是 nest seq.effect.*；见 01 §5.2 / 15 §4.0.5。
-	## When/After 离场能力：时点到 + 条件满足 → 另 nest；本函数不代替那条因果链。
+	## Grimoire Leaves Play 同时组：token→pool、attachments discard、lasting 过期。
+	## 「同时」= 本组执行期间 After 不得 nest 插入（01 §5.3）；≠ 内联 then。
 	if game_ctx.triggered_abilities != null:
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
