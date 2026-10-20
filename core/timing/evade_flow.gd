@@ -2,7 +2,8 @@ class_name EvadeFlow
 extends RefCounted
 
 ## 躲避效果核 · `seq.effect.evade`。
-## 体：nest 横置 + 若交战则解除交战（内联 L0）。
+## 效果体同时组：**横置** 与 **解除交战**（若交战）同一时刻；组完才 After。
+## ≠ nest 横置后再内联脱离（那会让 after_exhaust 插在脱离前）。
 ## 入口：成功躲避尝试（ST.7）或自动躲避（卡面 nest；无检定）。
 ## 不是：躲避行动外壳、躲避尝试本身、自动成功的检定。
 ##
@@ -94,8 +95,10 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "not_in_play", "enemy_id": enemy_id}
 	var mode: StringName = p.get("mode", MODE_AUTOMATIC) as StringName
 	var was_engaged := enemy.engaged_with != &""
-	## 1) nest 横置（可听）；先于脱离，避免同地点 auto-engage 在未横置时重接。
-	var exhaust_res := ExhaustReadyFlow.nest_or_run_exhaust(
+	var location_tag := enemy.location_tag
+	## 同时组（01 §5.3）：横置 + 解除交战同一时刻；组内不 nest、不放 After。
+	## 横置走 ExhaustReadyFlow.exhaust（直写；禁 nest seq.effect.exhaust，否则 After 插入组中）。
+	var exhaust_res := ExhaustReadyFlow.exhaust(
 		game_ctx,
 		{
 			"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
@@ -105,12 +108,17 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	)
 	var exhaust_ok := bool(exhaust_res.get("ok", false))
 	var exhaust_changed := bool(exhaust_res.get("changed", false))
-	## 2) 若交战：内联解除（无独立 seq.disengage）；禁止再带 exhaust 糖。
 	var disengage_res := {"ok": true, "skipped": true}
 	var disengaged := false
 	if was_engaged and game_ctx.enemy != null:
-		disengage_res = game_ctx.enemy.disengage(game_ctx, enemy_id, false, true)
+		## 组内脱离：不触发区域变更 After（组后再 nest auto-engage）。
+		disengage_res = game_ctx.enemy.disengage(game_ctx, enemy_id, false, false)
 		disengaged = bool(disengage_res.get("ok", false))
+	## 组 commit 后：脱离带来的同地点 auto-engage（敌已横置 → 不会重接自己）。
+	if was_engaged and disengaged and location_tag != &"":
+		EngageFlow.nest_after_area_change(
+			game_ctx, location_tag, enemy_id, &"engagement"
+		)
 	var created := exhaust_changed or disengaged
 	var ok := exhaust_ok and (not was_engaged or disengaged)
 	if game_ctx.log != null:
@@ -122,6 +130,7 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 				"mode": mode,
 				"exhaust_changed": exhaust_changed,
 				"disengaged": disengaged,
+				"simultaneous": true,
 				"ok": ok,
 			}
 		)
@@ -135,6 +144,7 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		"disengage": disengage_res,
 		"disengaged": disengaged,
 		"created": created,
+		"simultaneous": true,
 	}
 
 
