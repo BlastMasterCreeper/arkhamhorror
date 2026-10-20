@@ -23,7 +23,7 @@
 |---|---|---|---|---|---|
 | 1 | **自动交战** | 同地点局面成立（生成 / 移入 / 重整后等） | 就绪、未交战；冷漠等为入口读限制 | **nest** | `seq.engage` mode=auto |
 | 2 | **借机攻击** | Initiation **付完会引发借机的 cost 后**、主体效果前（INIT_2B） | 与就绪敌交战；行动类型会引发；无 `SKIP_AOO` | **nest** | 对该敌 `perform_attack` / 攻击体 |
-| 3 | **击败**（伤/恐达上限） | 伤/恐写入后常态检测 | damage≥health / horror≥sanity | **nest** | `seq.effect.defeat` → 成功再 nest 退场 |
+| 3 | **击败**（伤/恐达上限） | 伤/恐写入后常态检测 | damage≥health / horror≥sanity | **nest** 击败大信封；退场是信封内效果体（再 nest 区划转移） | `seq.effect.defeat` → nest `seq.defeat.leave_play` |
 | 4 | **淘汰清理** | 调查员击败/撤退成功 | 主体为调查员 | **nest** 淘汰手续；清理项多为淘汰/离场的 **同时组** | elimination 路径 |
 | 5 | **进未揭示地点 → 翻开+放线索** | 调查员 **进入** 该地点 | 地点未揭示 | **nest** | `seq.effect.reveal_location`（已落地） |
 | 6 | 玩家库空还要抽 → 洗弃牌 + **1 恐** | 抽牌 collect（将抽） | 牌库空且弃牌非空 | **内联 then**（抽牌手续内条件分支；未另开子时点） | `seq.draw.investigator` collect |
@@ -33,7 +33,7 @@
 | 10 | Agenda doom ≥ 阈值 → 推进 | — | — | **流程条件**（非触发） | Framework 1.3 |
 | 11 | 抽到敌人 → **生成**（默认交战生成；有 Spawn **指示**则按指示） | `ENCOUNTER_CARD_DRAWN` · G4 | enemy；Spawn 是**指示**（非能力）——有则改落点/是否 auto-engage，无则默认规则 | **nest** `seq.encounter.spawn`；指示只改手续内分支 | `spawn` / `spawn_engaged` |
 | 12 | 抽到诡计 / 有显现 → 显现 | 入手 / 遭遇显现锚 | `has_revelation` | **nest** | `seq.encounter.revelation` / `seq.enter_hand` |
-| 13 | 击败成功后 **区划转移**（默认→对应弃牌堆；**Victory / 复仇 Vengeance** 指示→胜利区） | 击败成功（再 nest 退场/区划转移） | 去向指示（与 Spawn 同类信息，非能力）：有 Victory/Vengeance → 胜利区，无则默认弃牌堆 | **nest** 区划转移；指示只改去向分支 | `seq.defeat.leave_play` / leave 路由 |
+| 13 | （击败信封内）**区划转移**去向 | 场上→场外移动（在击败 nest 退场内） | Victory/复仇=**去向指示**（同 Spawn）；无则默认对应弃牌堆 | 击败效果体分支，非独立触发 | `seq.defeat.leave_play` |
 | 14 | Lead 淘汰且仍有人 → 重选队长 | 淘汰同时组内 | 仍有调查员 | 淘汰 **同时组** 内步骤 | elimination |
 | 15 | 无人剩余 → 场景结束 | 淘汰后 | 无剩余调查员 | 战役/场景结算（框架后） | guide |
 | — | **token→pool、弃附属**（及 lasting 对该卡过期） | **广义移动**：卡从**场上区域 → 场外区域**（`seq.zone.move`） | **离场**（`LEAVE_PLAY` 过滤：was in-play ∧ now out） | 与该次移动列为 **同时组**（全部完才 After）；≠ 内联；≠「离场是时点」 | `ZoneMoveFlow` 在 `LEAVE_PLAY` 别名下捆绑 |

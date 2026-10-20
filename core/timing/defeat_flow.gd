@@ -2,9 +2,9 @@ class_name DefeatFlow
 extends RefCounted
 
 ## 击败内核 · `seq.effect.defeat`（敌人别名 `seq.enemy.defeat`）。
-## 成功后 nest `seq.defeat.leave_play`（退场）；Cancel → 无退场。
-## 伤/恐达上限 = 常态检测（cause=damage_cap|horror_cap）；卡面击败 = cause=effect。
-## 支援资产：退场经 L0 `move_card` 进拥有者弃牌堆；**不**走 `seq.effect.discard_card`。
+## 大信封：退场（nest `seq.defeat.leave_play`）是击败效果体的一部分，不是信封外另起后续。
+## Cancel 整封击败 → 退场不跑。伤/恐达上限 = 常态检测；卡面击败 = cause=effect。
+## 支援：退场经 L0 `move_card` → 拥有者弃牌堆；**不**走 `seq.effect.discard_card`。
 
 const SUBJECT_ENEMY := &"enemy"
 const SUBJECT_INVESTIGATOR := &"investigator"
