@@ -402,6 +402,17 @@ static func victory_points(definition_id: StringName) -> int:
 	return int(data.get("victory", 0))
 
 
+## 复仇点数（Vengeance X · 去向指示同 Victory → 胜利区）。
+static func vengeance_points(definition_id: StringName) -> int:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return int(data.get("vengeance", 0))
+
+
+## 击败退场是否进胜利区（Victory / 复仇指示）。
+static func routes_to_victory_display(definition_id: StringName) -> bool:
+	return victory_points(definition_id) > 0 or vengeance_points(definition_id) > 0
+
+
 ## 印刷生命（支援等）；0 = 无生命 / 不因伤害自动击败。
 static func printed_health(definition_id: StringName) -> int:
 	return int(definition_data(definition_id).get("health", 0))

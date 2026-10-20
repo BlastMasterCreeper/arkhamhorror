@@ -115,12 +115,12 @@ static func _clear_engagement(game_ctx: GameContext, enemy_id: StringName) -> vo
 
 
 static func _route_after_defeat(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
+	## 去向：Victory/复仇指示 → 胜利区；否则按所有者（遭遇弃牌 / 玩家弃牌 / 无主→置一边）。
 	var def_id := _definition_id(game_ctx, enemy_id)
-	if CardRegistry.victory_points(def_id) > 0:
+	if CardRegistry.routes_to_victory_display(def_id):
 		var moved := _route_to_victory_display(game_ctx, enemy_id)
-		return {"victory_display": moved}
-	_route_to_discard(game_ctx, enemy_id)
-	return {"victory_display": false}
+		return {"victory_display": moved, "dest": &"victory_display"}
+	return _route_to_discard(game_ctx, enemy_id)
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
@@ -137,20 +137,18 @@ static func _route_to_victory_display(game_ctx: GameContext, enemy_id: StringNam
 	return game_ctx.mutator.move_card(enemy_id, CardSlot.victory_display())
 
 
-static func _route_to_discard(game_ctx: GameContext, enemy_id: StringName) -> void:
+static func _route_to_discard(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
 	var card := game_ctx.state.registry.get_card(enemy_id)
 	if card == null or game_ctx.mutator == null:
-		return
-	if card.owner_id == &"encounter":
-		game_ctx.mutator.move_card(enemy_id, CardSlot.encounter_discard_top())
-		return
+		return {"victory_display": false, "dest": &""}
+	## 弱点敌人 → 所有者弃牌堆。
 	if game_ctx.state.registry.get_investigator(card.owner_id) != null:
 		game_ctx.mutator.move_card(enemy_id, CardSlot.discard_top(card.owner_id))
-		return
-	var from_zone := card.zone
-	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
-	if not game_ctx.state.removed_from_game.has(enemy_id):
-		game_ctx.state.removed_from_game.append(enemy_id)
-	ZoneMoveFlow.notify_zone_set(
-		game_ctx, enemy_id, from_zone, AhcEnums.Zone.REMOVED_FROM_GAME
-	)
+		return {"victory_display": false, "dest": &"owner_discard"}
+	## 遭遇敌人 → 遭遇弃牌堆。
+	if card.owner_id == &"encounter":
+		game_ctx.mutator.move_card(enemy_id, CardSlot.encounter_discard_top())
+		return {"victory_display": false, "dest": &"encounter_discard"}
+	## 无玩家/遭遇所有者 → 置一边（少见；剧情体主要走支援路径）。
+	game_ctx.mutator.move_to_set_aside(enemy_id)
+	return {"victory_display": false, "dest": &"set_aside"}

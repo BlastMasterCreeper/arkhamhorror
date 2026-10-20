@@ -339,9 +339,14 @@ func _initialize() -> void:
 	_run_test("G5-07 asset damage cap leave to discard not discard effect", _test_g5_asset_damage_cap)
 	_run_test("G5-08 asset effect defeat to discard", _test_g5_asset_effect_defeat)
 	_run_test("G5-09 asset defeat cancel skips leave", _test_g5_asset_cancel_no_leave)
+	_run_test("G5-10 unowned story asset defeat to REMOVED", _test_g5_unowned_story_asset_removed)
+	_run_test("G5-11 weakness enemy defeat to owner discard", _test_g5_weakness_enemy_owner_discard)
+	_run_test("G5-12 vengeance enemy defeat to victory display", _test_g5_vengeance_to_victory_display)
 	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
 	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
 	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
+	_run_test("ZM-04 leave play returns tokens to pool", _test_zm_leave_play_tokens_to_pool)
+	_run_test("ZM-05 leave play discards attachments", _test_zm_leave_play_discards_attachments)
 	_run_test("G6-01 phase boundary catalog", _test_g6_phase_boundary_catalog)
 	_run_test("G6-02 framework emits phase boundary seq", _test_g6_framework_emits)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
@@ -7842,6 +7847,77 @@ func _test_g5_asset_cancel_no_leave() -> bool:
 	)
 
 
+func _test_g5_unowned_story_asset_removed() -> bool:
+	## 无玩家所有者的剧情支援击败 → 从游戏中移除（FAQ · Lita Chantler 01117）。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"story_asset_g5",
+		{"card_type": &"asset", "health": 1, "encounter_code": &"story"}
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"story_asset_g5")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &""
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(card)
+	var res := DefeatFlow.defeat_asset_effect(h.ctx, card_id)
+	return (
+		bool(res.get("defeated", false))
+		and res.get("dest", &"") == &"removed_from_game"
+		and card.zone == AhcEnums.Zone.REMOVED_FROM_GAME
+		and h.ctx.state.removed_from_game.has(card_id)
+		and not h.ctx.state.set_aside.has(card_id)
+	)
+
+
+func _test_g5_weakness_enemy_owner_discard() -> bool:
+	## 弱点敌人击败 → 所有者弃牌堆（非遭遇弃牌）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx, &"weak_enemy_g5", {"health": 1}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.owner_id = &"inv_1"
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var res := DefeatFlow.defeat_enemy_effect(h.ctx, card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("defeated", false))
+		and not bool(res.get("victory_display", false))
+		and inv.discard.has(card_id)
+		and not h.ctx.state.encounter_discard.has(card_id)
+	)
+
+
+func _test_g5_vengeance_to_victory_display() -> bool:
+	## 复仇指示 → 胜利区（同 Victory）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"en_vengeance_g5",
+		{"health": 1, "vengeance": 2}
+	)
+	CardRegistry.patch_definition(&"en_vengeance_g5", {"vengeance": 2, "health": 1})
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var res := DefeatFlow.defeat_enemy_effect(h.ctx, card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		bool(res.get("defeated", false))
+		and bool(res.get("victory_display", false))
+		and h.ctx.state.victory_display.has(card_id)
+		and card != null
+		and card.zone == AhcEnums.Zone.VICTORY_DISPLAY
+	)
+
+
 func _test_zm_catalog() -> bool:
 	var h := RuleTestHarness.new(42)
 	return h.ctx.sequence_catalog.has_flow(&"seq.zone.move")
@@ -7884,6 +7960,74 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 		bool(res.get("ok", false))
 		and store.count() == 0
 		and h.ctx.state.registry.get_enemy(card_id) == null
+	)
+
+
+func _test_zm_leave_play_tokens_to_pool() -> bool:
+	## 01 §5.2 / Grimoire Leaves Play：离场卡上标记归还 token pool。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_zm_tokens", {"health": 3, "sanity": 3}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.tokens.damage = 2
+	card.tokens.horror = 1
+	card.tokens.clue = 3
+	card.tokens.doom = 1
+	card.tokens.uses[&"ammo"] = 4
+	var pool := h.ctx.state.token_pool
+	var d0 := pool.damage_available
+	var h0 := pool.horror_available
+	var c0 := pool.clue_available
+	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	return (
+		moved
+		and card.tokens.damage == 0
+		and card.tokens.horror == 0
+		and card.tokens.clue == 0
+		and card.tokens.doom == 0
+		and card.tokens.uses.is_empty()
+		and pool.damage_available == d0 + 2
+		and pool.horror_available == h0 + 1
+		and pool.clue_available == c0 + 3
+	)
+
+
+func _test_zm_leave_play_discards_attachments() -> bool:
+	## 宿主离场 → 附属同时弃置（遭遇附属进遭遇弃牌堆）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 1)
+	var host_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"asset_zm_host", {"health": 1}
+	)
+	var host := h.ctx.state.registry.get_card(host_id)
+	if host == null:
+		return false
+	var fire_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_zm_attach_fire", [])
+	## 直接挂到支援上（跳过 limbo→地点路径）。
+	var fire := h.ctx.state.registry.get_card(fire_id)
+	if fire == null:
+		return false
+	h.ctx.state.encounter_deck.erase(fire_id)
+	fire.zone = AhcEnums.Zone.ATTACHED
+	fire.attached_to = host.id
+	host.attachments.append(fire.id)
+	## 附属上亦有标记，弃置时应归池。
+	fire.tokens.damage = 1
+	var pool_d0 := h.ctx.state.token_pool.damage_available
+	var moved := h.ctx.mutator.move_card(host_id, CardSlot.discard_top(&"inv_1"))
+	var fire_after := h.ctx.state.registry.get_card(fire_id)
+	return (
+		moved
+		and host.attachments.is_empty()
+		and fire_after != null
+		and fire_after.attached_to == null
+		and fire_after.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.encounter_discard.has(fire_id)
+		and fire_after.tokens.damage == 0
+		and h.ctx.state.token_pool.damage_available == pool_d0 + 1
 	)
 
 

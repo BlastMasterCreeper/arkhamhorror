@@ -333,6 +333,13 @@ static func add_encounter_enemy_to_deck(
 		extra["traits"] = opts.get("traits")
 	if opts.has("victory"):
 		extra["victory"] = int(opts.get("victory", 0))
+	if opts.has("vengeance"):
+		extra["vengeance"] = int(opts.get("vengeance", 0))
+	if opts.has("health"):
+		var enemy_block: Dictionary = extra.get("enemy", {}) as Dictionary
+		enemy_block = enemy_block.duplicate()
+		enemy_block["health"] = int(opts.get("health", 1))
+		extra["enemy"] = enemy_block
 	return add_encounter_card_to_deck(ctx, definition_id, keywords, extra)
 
 
