@@ -401,8 +401,8 @@ func move_to_set_aside(card_id: StringName) -> bool:
 	return true
 
 
-## L0：无玩家所有者的剧情支援离场 → 从游戏中移除（FAQ · Lita Chantler 01117）。
-func move_to_removed_from_game(card_id: StringName) -> bool:
+## L0：从游戏中移除（落点 = REMOVED 区划）。FAQ · Lita Chantler 01117：无主剧情支援离场。
+func remove_from_game(card_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false

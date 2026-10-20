@@ -365,7 +365,7 @@ static func _leave_asset(game_ctx: GameContext, params: Dictionary) -> Dictionar
 		dest = &"owner_discard"
 	else:
 		## 无玩家所有者（临时控制的剧情支援等）→ 从游戏中移除。
-		moved = game_ctx.mutator.move_to_removed_from_game(card_id)
+		moved = game_ctx.mutator.remove_from_game(card_id)
 		dest = &"removed_from_game"
 	if game_ctx.log != null:
 		game_ctx.log.log(
