@@ -5,12 +5,16 @@ extends RefCounted
 ## 体：nest 横置 + 若交战则解除交战（内联 L0）。
 ## 入口：成功躲避尝试（ST.7）或自动躲避（卡面 nest；无检定）。
 ## 不是：躲避行动外壳、躲避尝试本身、自动成功的检定。
+##
+## 卡面措辞：
+## - 「automatically evade」= **执行**本核（mode=automatic）
+## - 「evade」作效果词多用于**时点**（听本 seq）；执行体仍用自动躲避
 
 const FLOW := &"seq.effect.evade"
 
-## cause：可听标签（非第二套结算）。automatic = 自动躲避；attempt_success = 尝试成功。
-const CAUSE_AUTOMATIC := &"automatic"
-const CAUSE_ATTEMPT_SUCCESS := &"attempt_success"
+## mode：入口标签（非第二套结算）。automatic = 自动躲避；attempt = 尝试成功。
+const MODE_AUTOMATIC := &"automatic"
+const MODE_ATTEMPT := &"attempt"
 
 
 static func nest_or_run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -39,7 +43,7 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	return resolve(game_ctx, p)
 
 
-## 自动躲避入口（cause=automatic）。
+## 自动躲避入口（mode=automatic）。
 static func automatically_evade(
 	game_ctx: GameContext,
 	enemy_id: StringName,
@@ -50,12 +54,12 @@ static func automatically_evade(
 		{
 			"enemy_id": enemy_id,
 			"investigator_id": investigator_id,
-			"cause": CAUSE_AUTOMATIC,
+			"mode": MODE_AUTOMATIC,
 		}
 	)
 
 
-## 成功躲避尝试入口（cause=attempt_success）。
+## 成功躲避尝试入口（mode=attempt）。
 static func after_attempt_success(
 	game_ctx: GameContext,
 	enemy_id: StringName,
@@ -66,9 +70,16 @@ static func after_attempt_success(
 		{
 			"enemy_id": enemy_id,
 			"investigator_id": investigator_id,
-			"cause": CAUSE_ATTEMPT_SUCCESS,
+			"mode": MODE_ATTEMPT,
 		}
 	)
+
+
+static func normalize_mode(mode: StringName) -> StringName:
+	if mode == MODE_ATTEMPT or mode == &"attempt_success":
+		return MODE_ATTEMPT
+	## automatic，以及历史 effect / cause 别名 / 空 → 自动躲避。
+	return MODE_AUTOMATIC
 
 
 static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -81,7 +92,7 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "unknown_enemy", "enemy_id": enemy_id}
 	if enemy.location_tag == &"":
 		return {"ok": false, "error": "not_in_play", "enemy_id": enemy_id}
-	var cause: StringName = p.get("cause", CAUSE_AUTOMATIC) as StringName
+	var mode: StringName = p.get("mode", MODE_AUTOMATIC) as StringName
 	var was_engaged := enemy.engaged_with != &""
 	## 1) nest 横置（可听）；先于脱离，避免同地点 auto-engage 在未横置时重接。
 	var exhaust_res := ExhaustReadyFlow.nest_or_run_exhaust(
@@ -108,7 +119,7 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			"effect:evade",
 			{
 				"enemy_id": enemy_id,
-				"cause": cause,
+				"mode": mode,
 				"exhaust_changed": exhaust_changed,
 				"disengaged": disengaged,
 				"ok": ok,
@@ -117,7 +128,7 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	return {
 		"ok": ok,
 		"enemy_id": enemy_id,
-		"cause": cause,
+		"mode": mode,
 		"investigator_id": p.get("investigator_id", &""),
 		"exhaust": exhaust_res,
 		"exhaust_changed": exhaust_changed,
@@ -141,8 +152,10 @@ static func _normalize_params(params: Dictionary) -> Dictionary:
 		"investigator_id", out.get("inv_id", &"")
 	) as StringName
 	out["investigator_id"] = inv_id
-	var cause: StringName = out.get("cause", CAUSE_AUTOMATIC) as StringName
-	if cause == &"":
-		cause = CAUSE_AUTOMATIC
-	out["cause"] = cause
+	## 兼容历史 `cause` 键。
+	var raw_mode: StringName = out.get(
+		"mode", out.get("cause", MODE_AUTOMATIC)
+	) as StringName
+	out["mode"] = normalize_mode(raw_mode)
+	out.erase("cause")
 	return out

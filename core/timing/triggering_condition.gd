@@ -533,11 +533,13 @@ static func evade(
 	after_timing: StringName = &"after_evade"
 ) -> TriggeringCondition:
 	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
-	var cause: StringName = params.get("cause", EvadeFlow.CAUSE_AUTOMATIC) as StringName
+	var mode := EvadeFlow.normalize_mode(
+		params.get("mode", params.get("cause", EvadeFlow.MODE_AUTOMATIC)) as StringName
+	)
 	var t := TriggeringCondition.new()
-	t.id = StringName("evade_%s_%s_%d" % [enemy_id, cause, Time.get_ticks_msec()])
+	t.id = StringName("evade_%s_%s_%d" % [enemy_id, mode, Time.get_ticks_msec()])
 	t.kind = &"evade"
-	t.tags = [&"evade", &"effect", cause]
+	t.tags = [&"evade", &"effect", mode]
 	t.controller_id = params.get("investigator_id", &"") as StringName
 	t.after_timing = after_timing
 	t.payload = params.duplicate()

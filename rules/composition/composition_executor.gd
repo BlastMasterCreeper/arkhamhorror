@@ -1028,17 +1028,16 @@ func _execute_nest_evade(node: CompositionNode) -> bool:
 	var enemy_id := _resolve_enemy_spec(node, inv_id)
 	if enemy_id == &"":
 		return false
-	var cause := node.evade_cause
-	if cause == &"":
-		cause = EvadeFlow.CAUSE_AUTOMATIC
+	var mode := node.evade_mode
 	if node.atom_name == &"automatically_evade":
-		cause = EvadeFlow.CAUSE_AUTOMATIC
+		mode = EvadeFlow.MODE_AUTOMATIC
+	mode = EvadeFlow.normalize_mode(mode)
 	var result := EvadeFlow.nest_or_run(
 		_game_ctx,
 		{
 			"enemy_id": enemy_id,
 			"investigator_id": inv_id,
-			"cause": cause,
+			"mode": mode,
 		}
 	)
 	var ok := bool(result.get("ok", false)) and bool(result.get("created", false))
@@ -1047,7 +1046,7 @@ func _execute_nest_evade(node: CompositionNode) -> bool:
 		_log.log(
 			AhcEnums.LogCategory.CARD,
 			"composition:nest_evade",
-			{"enemy": enemy_id, "inv": inv_id, "cause": cause, "flow": EvadeFlow.FLOW}
+			{"enemy": enemy_id, "inv": inv_id, "mode": mode, "flow": EvadeFlow.FLOW}
 		)
 	return ok
 

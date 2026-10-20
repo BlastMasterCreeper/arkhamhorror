@@ -202,11 +202,11 @@ AOO 的攻击效果计为 **enemy attack**（可触发「After enemy attacks you
 | 1 | Evade action | **躲避** | 行动种类（基础 / 指定）；外壳 `seq.action.evade` |
 | 2 | Evasion attempt | **躲避尝试** | 该行动（等）衍生的技能检定，通常敏捷 vs 敌人 evade |
 | 3 | Evade effect | **躲避效果** | 基础结算体：`seq.effect.evade`（**nest 横置** + **内联解除交战**）；**多入口**可产生 |
-| 4 | Automatically evade | **自动躲避** | 对层 3 的**包装**：不做层 2、亦非「自动成功」的尝试；同样 nest 层 3（`cause=automatic`） |
+| 4 | Automatically evade | **自动躲避** | 对层 3 的**包装**：不做层 2、亦非「自动成功」的尝试；同样 nest 层 3（`mode=automatic`） |
 
 - 仅 engaged with self 的 enemy（基础行动）
-- 路径 A：层 1 → 层 2（检定）→ 成功 → nest `seq.effect.evade`（`cause=attempt_success`）
-- 路径 B：层 4 → nest 同核（`cause=automatic`；无检定）
+- 路径 A：层 1 → 层 2（检定）→ 成功 → nest `seq.effect.evade`（`mode=attempt`）
+- 路径 B：层 4 → nest 同核（`mode=automatic`；无检定）
 - **隐式目标**：默认伴随躲避尝试，敌人目标与明示 Target 同构（[21 §3.2](21-selection-spec.md)）；V 尾 = 单叶 nest evade
 - **基础躲避行动**：无合法敌人 → 整行动不能发起；**多步躲避能力**见 21 §3.2.1
 - **自动躲避**：无检定 / 不算成功躲避尝试；仍产生躲避效果；Composition：`automatically_evade` / `nest_evade`

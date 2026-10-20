@@ -7528,7 +7528,7 @@ func _test_g2_exhaust_enemy() -> bool:
 
 
 func _test_evade_effect_attempt() -> bool:
-	## 躲避效果核：交战敌 → 横置 + 脱离（cause=attempt_success）。
+	## 躲避效果核：交战敌 → 横置 + 脱离（mode=attempt）。
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_enemy(
 		h.ctx, &"enemy_1", &"test_loc", 2, 2, &"inv_1"
@@ -7558,7 +7558,7 @@ func _test_evade_automatic_unengaged() -> bool:
 		and bool(res.get("created", false))
 		and bool(res.get("exhaust_changed", false))
 		and not bool(res.get("disengaged", false))
-		and res.get("cause", &"") == EvadeFlow.CAUSE_AUTOMATIC
+		and res.get("mode", &"") == EvadeFlow.MODE_AUTOMATIC
 		and enemy.exhausted
 		and enemy.engaged_with == &""
 	)
