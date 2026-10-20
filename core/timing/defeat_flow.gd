@@ -343,40 +343,41 @@ static func _leave_investigator(game_ctx: GameContext, params: Dictionary) -> Di
 	}
 
 
-## 支援退场：L0 区划进拥有者弃牌堆（≠ discard 效果包装）。
+## 支援退场（≠ discard 效果包装）：
+## Victory/复仇 → 胜利区；有玩家所有者 → 其弃牌堆；否则（无主剧情支援）→ 置一边。
 static func _leave_asset(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var card_id: StringName = params.get("card_id", &"") as StringName
 	if game_ctx == null or game_ctx.state == null or card_id == &"":
 		return {"ok": false, "defeated": false}
 	var card := game_ctx.state.registry.get_card(card_id)
-	if card == null:
+	if card == null or game_ctx.mutator == null:
 		return {"ok": false, "defeated": false}
 	var owner_id: StringName = card.owner_id
+	var dest := &""
 	var moved := false
-	if game_ctx.mutator != null and game_ctx.state.registry.get_investigator(owner_id) != null:
+	var def_id := card.id.definition_id if card.id != null else &""
+	if CardRegistry.routes_to_victory_display(def_id):
+		moved = game_ctx.mutator.move_card(card_id, CardSlot.victory_display())
+		dest = &"victory_display"
+	elif game_ctx.state.registry.get_investigator(owner_id) != null:
 		moved = game_ctx.mutator.move_card(card_id, CardSlot.discard_top(owner_id))
-	elif game_ctx.mutator != null and owner_id == &"encounter":
-		moved = game_ctx.mutator.move_card(card_id, CardSlot.encounter_discard_top())
+		dest = &"owner_discard"
 	else:
-		var from_zone := card.zone
-		card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
-		if not game_ctx.state.removed_from_game.has(card_id):
-			game_ctx.state.removed_from_game.append(card_id)
-		ZoneMoveFlow.notify_zone_set(
-			game_ctx, card_id, from_zone, AhcEnums.Zone.REMOVED_FROM_GAME
-		)
-		moved = true
+		## 未被玩家拥有的剧情支援 → 置一边（非 REMOVED）。
+		moved = game_ctx.mutator.move_to_set_aside(card_id)
+		dest = &"set_aside"
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
 			"asset:defeated",
-			{"card_id": card_id, "owner": owner_id, "to_discard": moved}
+			{"card_id": card_id, "owner": owner_id, "dest": dest, "ok": moved}
 		)
 	return {
 		"ok": moved,
 		"defeated": moved,
 		"card_id": card_id,
 		"subject": SUBJECT_ASSET,
+		"dest": dest,
 		"via_discard_effect": false,
 	}
 

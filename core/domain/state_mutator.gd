@@ -387,6 +387,31 @@ func _insert_victory_display(card: CardInstance) -> bool:
 	return true
 
 
+## L0：击败等 → 置一边（无玩家所有者的剧情支援等）。
+func move_to_set_aside(card_id: StringName) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return false
+	var from_zone := card.zone
+	var owner_inv := _state.registry.get_investigator(card.owner_id)
+	if owner_inv != null:
+		_remove_from_pile(card, owner_inv)
+	for inv_id in _state.registry.all_investigator_ids():
+		var inv := _state.registry.get_investigator(inv_id)
+		if inv != null:
+			inv.play_area.erase(card_id)
+			inv.threat_area.erase(card_id)
+	_state.encounter_deck.erase(card_id)
+	_state.encounter_discard.erase(card_id)
+	_state.victory_display.erase(card_id)
+	_state.removed_from_game.erase(card_id)
+	_state.set_aside.erase(card_id)
+	_state.set_aside.append(card_id)
+	card.zone = AhcEnums.Zone.SET_ASIDE
+	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.SET_ASIDE)
+	return true
+
+
 func _adjust_investigator_marker(
 	inv_id: StringName,
 	kind: AhcEnums.MarkerKind,

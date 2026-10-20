@@ -339,6 +339,9 @@ func _initialize() -> void:
 	_run_test("G5-07 asset damage cap leave to discard not discard effect", _test_g5_asset_damage_cap)
 	_run_test("G5-08 asset effect defeat to discard", _test_g5_asset_effect_defeat)
 	_run_test("G5-09 asset defeat cancel skips leave", _test_g5_asset_cancel_no_leave)
+	_run_test("G5-10 unowned story asset defeat to set-aside", _test_g5_unowned_story_asset_set_aside)
+	_run_test("G5-11 weakness enemy defeat to owner discard", _test_g5_weakness_enemy_owner_discard)
+	_run_test("G5-12 vengeance enemy defeat to victory display", _test_g5_vengeance_to_victory_display)
 	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
 	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
 	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
@@ -7841,6 +7844,77 @@ func _test_g5_asset_cancel_no_leave() -> bool:
 		bool(res.get("cancelled", false))
 		and not bool(res.get("defeated", false))
 		and card.zone == AhcEnums.Zone.PLAY_AREA
+	)
+
+
+func _test_g5_unowned_story_asset_set_aside() -> bool:
+	## 无玩家所有者的剧情支援击败 → 置一边（非 REMOVED）。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"story_asset_g5",
+		{"card_type": &"asset", "health": 1, "encounter_code": &"story"}
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"story_asset_g5")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &""
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(card)
+	var res := DefeatFlow.defeat_asset_effect(h.ctx, card_id)
+	return (
+		bool(res.get("defeated", false))
+		and res.get("dest", &"") == &"set_aside"
+		and card.zone == AhcEnums.Zone.SET_ASIDE
+		and h.ctx.state.set_aside.has(card_id)
+		and not h.ctx.state.removed_from_game.has(card_id)
+	)
+
+
+func _test_g5_weakness_enemy_owner_discard() -> bool:
+	## 弱点敌人击败 → 所有者弃牌堆（非遭遇弃牌）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx, &"weak_enemy_g5", {"health": 1}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.owner_id = &"inv_1"
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var res := DefeatFlow.defeat_enemy_effect(h.ctx, card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("defeated", false))
+		and not bool(res.get("victory_display", false))
+		and inv.discard.has(card_id)
+		and not h.ctx.state.encounter_discard.has(card_id)
+	)
+
+
+func _test_g5_vengeance_to_victory_display() -> bool:
+	## 复仇指示 → 胜利区（同 Victory）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"en_vengeance_g5",
+		{"health": 1, "vengeance": 2}
+	)
+	CardRegistry.patch_definition(&"en_vengeance_g5", {"vengeance": 2, "health": 1})
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var res := DefeatFlow.defeat_enemy_effect(h.ctx, card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		bool(res.get("defeated", false))
+		and bool(res.get("victory_display", false))
+		and h.ctx.state.victory_display.has(card_id)
+		and card != null
+		and card.zone == AhcEnums.Zone.VICTORY_DISPLAY
 	)
 
 

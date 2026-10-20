@@ -33,7 +33,7 @@
 | 10 | Agenda doom ≥ 阈值 → 推进 | — | — | **流程条件**（非触发） | Framework 1.3 |
 | 11 | 抽到敌人 → **生成**（默认交战生成；有 Spawn **指示**则按指示） | `ENCOUNTER_CARD_DRAWN` · G4 | enemy；Spawn 是**指示**（非能力）——有则改落点/是否 auto-engage，无则默认规则 | **nest** `seq.encounter.spawn`；指示只改手续内分支 | `spawn` / `spawn_engaged` |
 | 12 | 抽到诡计 / 有显现 → 显现 | 入手 / 遭遇显现锚 | `has_revelation` | **nest** | `seq.encounter.revelation` / `seq.enter_hand` |
-| 13 | （击败信封内）**区划转移**去向 | 场上→场外移动（在击败 nest 退场内） | Victory/复仇=**去向指示**（同 Spawn）；无则默认对应弃牌堆 | 击败效果体分支，非独立触发 | `seq.defeat.leave_play` |
+| 13 | （击败信封内）**区划转移**去向 | 场上→场外移动（击败 nest 退场内） | Victory/复仇=**去向指示**；否则：玩家支援/弱点敌→所有者弃牌；无主剧情支援→置一边；遭遇敌→遭遇弃牌 | 击败效果体分支 | `seq.defeat.leave_play` |
 | 14 | Lead 淘汰且仍有人 → 重选队长 | 淘汰同时组内 | 仍有调查员 | 淘汰 **同时组** 内步骤 | elimination |
 | 15 | 无人剩余 → 场景结束 | 淘汰后 | 无剩余调查员 | 战役/场景结算（框架后） | guide |
 | — | **token→pool、弃附属**（及 lasting 对该卡过期） | **广义移动**：卡从**场上区域 → 场外区域**（`seq.zone.move`） | **离场**（`LEAVE_PLAY` 过滤：was in-play ∧ now out） | 与该次移动列为 **同时组**（全部完才 After）；≠ 内联；≠「离场是时点」 | `ZoneMoveFlow` 在 `LEAVE_PLAY` 别名下捆绑 |
