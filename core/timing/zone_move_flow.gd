@@ -170,7 +170,7 @@ static func _apply_uses_on_enter(game_ctx: GameContext, card: CardInstance) -> v
 
 static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> void:
 	## Grimoire Leaves Play 同时组：token→pool、attachments discard、lasting 过期。
-	## 「同时」= 本组执行期间 After 不得 nest 插入（01 §5.3）；≠ 内联 then。
+	## 「同时」= 同一时间发生；全部完毕才轮到 After（01 §5.3）；≠ 内联 then。
 	if game_ctx.triggered_abilities != null:
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:

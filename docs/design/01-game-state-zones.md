@@ -276,17 +276,18 @@ class GameStateStore:
 
 然后卡迁入目标 Out-of-Play 区域。
 
-**「同时」在此只表示**：上列效果组执行期间 **不得** 被 **After** 时点 nest 插入；组全部做完后，After 才可形成（见 §5.3）。**不是**「内联」的同义词，也不代替 [15 §4.0.5](15-timing-entry-catalog.md) 的时点→条件→nest。
+**「同时」**：上列效果在**同一时间**发生；**全部发生完毕**后，才轮到 **After**（见 §5.3）。不是「内联」的同义词，也不代替 [15 §4.0.5](15-timing-entry-catalog.md) 的时点→条件→nest。
 
 ### 5.3 同时效果（已裁决 OQ-01-02）
 
-Grimoire「simultaneously / 同时」的电子化语义（资深玩家裁定）：
+Grimoire「simultaneously / 同时」：
 
-1. **核心（仅此）**：被「同时」统领的那一列效果 = **同一同时效果组**；组内执行 **无法被 After 时点 nest**；全部结算完毕后才释放 After。
-2. **目的**：保证组内状态变更不会在场上与 After 响应交错共存（如 Unique 冲突：遭遇版与玩家版同名不能同时在场）。
-3. **时点**：组内效果在**同一 timing point** 触发或**开始结算**；不是「按代码一行行」的同义词，也不是 Composition 内联 then。
-4. **泛化**：「效果 A and 效果 B」同此—— A 与 B 同一同时组。
-5. **频率**：Unique 等情形极少，机制应通用，不做专用 hardcode。
+1. **感性**：被「同时」统领的那一列效果 = **同一时刻发生**；这一列**全部发生完毕**，才轮到 After。
+2. **实现推论**：组内执行期间 After **不得 nest 插入**；`SimultaneousEffectGroup.commit()` 后才释放 After。
+3. **目的**：组内状态变更不与 After 响应在场上交错（如 Unique：遭遇版进场与玩家版弃置）。
+4. **泛化**：「效果 A and 效果 B」同此。
+5. **频率**：Unique 等极少，机制通用，不做专用 hardcode。
+6. **不是**：Composition 内联 then；也不是「按代码一行行」的借口去插入 After。
 
 ```gdscript
 class SimultaneousEffectGroup:
