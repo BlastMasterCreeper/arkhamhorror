@@ -180,7 +180,7 @@ static func test_bridge_resource_adjust_mirrors() -> bool:
 	return ctx.state.physical_ops.get_count(locus, MarkerKeys.RESOURCE) == 3
 
 
-static func test_bridge_reveal_mirrors() -> bool:
+static func test_bridge_reveal_mirrors_flip() -> bool:
 	var h := RuleTestHarness.new(93)
 	var ctx := h.ctx
 	if ctx.state.registry.get_investigator(&"inv_1") == null:
@@ -191,9 +191,17 @@ static func test_bridge_reveal_mirrors() -> bool:
 	card.owner_id = &"inv_1"
 	card.controller_id = &"inv_1"
 	card.zone = AhcEnums.Zone.HAND
+	card.face = AhcEnums.CardFace.B
 	ctx.state.registry.register_card(card)
 	ctx.state.registry.get_investigator(&"inv_1").hand.append(&"bridge_rev")
+	## 物理先落 B，揭示应翻到 A
+	ctx.state.physical_binding.ensure_physical_card(card)
+	ctx.state.physical_ops.set_face(&"bridge_rev", AhcEnums.CardFace.B)
 	if not ctx.mutator.reveal_to_controller(&"bridge_rev", &"inv_1"):
 		return false
 	var phys := ctx.state.physical.get_card(&"bridge_rev")
-	return phys != null and phys.reveal_audience == AhcEnums.FaceAudience.CONTROLLER
+	return (
+		phys != null
+		and phys.face == AhcEnums.CardFace.A
+		and card.face_visibility.audience == AhcEnums.FaceAudience.CONTROLLER
+	)

@@ -216,26 +216,24 @@ func pop_deck_top(inv_id: StringName) -> StringName:
 	return card_id
 
 
-## L0 · AtomRevealCard（Grimoire Reveal；D2 等）
+## L0 · AtomRevealCard：信息层仍写 FaceAudience；物理层镜像为翻面（CardFace）。
 func reveal_to_controller(card_id: StringName, controller_id: StringName) -> bool:
 	if not _information.reveal_to_controller(card_id, controller_id):
 		return false
-	_mirror_reveal(card_id, AhcEnums.FaceAudience.CONTROLLER)
+	_mirror_flip(card_id, AhcEnums.CardFace.A)
 	return true
 
 
 func reveal_to_all(card_id: StringName) -> bool:
 	if not _information.reveal_to_all(card_id):
 		return false
-	_mirror_reveal(card_id, AhcEnums.FaceAudience.ALL)
+	_mirror_flip(card_id, AhcEnums.CardFace.A)
 	return true
 
 
 func hide_from_all(card_id: StringName) -> bool:
-	if not _information.hide_from_all(card_id):
-		return false
-	_mirror_reveal(card_id, AhcEnums.FaceAudience.HIDDEN_ALL)
-	return true
+	## 仅信息层可见性；不翻面。
+	return _information.hide_from_all(card_id)
 
 
 ## 隐私（Hidden）遭遇 · E4 秘密入手显现（drawer CONTROLLER + is_hidden）。
@@ -595,10 +593,10 @@ func _mirror_adjust_marker(at: MarkerSlot, delta: int) -> void:
 	_binding.mirror_adjust_marker(at, delta)
 
 
-func _mirror_reveal(card_id: StringName, audience: AhcEnums.FaceAudience) -> void:
+func _mirror_flip(card_id: StringName, face: AhcEnums.CardFace) -> void:
 	if _binding == null:
 		return
 	var card := _state.registry.get_card(card_id)
 	if card != null:
 		_binding.ensure_physical_card(card)
-	_binding.mirror_reveal(card_id, audience)
+	_binding.mirror_flip(card_id, face)
