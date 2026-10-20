@@ -16,6 +16,8 @@ func reveal_to_controller(card_id: StringName, controller_id: StringName) -> boo
 	if card == null or controller_id == &"":
 		return false
 	card.controller_id = controller_id
+	## 揭示 = 翻到正面；可见性另记。
+	card.face = AhcEnums.CardFace.A
 	card.face_visibility.audience = AhcEnums.FaceAudience.CONTROLLER
 	return true
 
@@ -24,6 +26,7 @@ func reveal_to_all(card_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
+	card.face = AhcEnums.CardFace.A
 	card.face_visibility.audience = AhcEnums.FaceAudience.ALL
 	return true
 
@@ -32,5 +35,6 @@ func hide_from_all(card_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
+	## 仅收可见性；不翻面。
 	card.face_visibility.audience = AhcEnums.FaceAudience.HIDDEN_ALL
 	return true
