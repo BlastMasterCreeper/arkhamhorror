@@ -526,7 +526,7 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			sim.last_step_enemy_id = dis_enemy_id
 			return true
 		&"nest_evade", &"automatically_evade":
-			## 镜像 `seq.effect.evade`：横置或脱离任一 CREATED（V 层与 ST.7 同核）。
+			## 镜像 `seq.effect.evade` 同时组：横置或脱离任一 CREATED。
 			var evade_enemy_id := _resolve_sim_enemy_spec(node, sim)
 			if evade_enemy_id == &"" or sim.state == null:
 				return false
