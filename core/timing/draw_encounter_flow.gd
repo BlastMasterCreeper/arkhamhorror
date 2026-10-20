@@ -113,11 +113,12 @@ static func _resolve_one_card(
 	as_drawn: bool = true
 ) -> Dictionary:
 	var def_id := _definition_id(game_ctx, card_id)
-	_reveal_encounter_drawn(game_ctx, card_id, drawer_id, def_id)
 	var outcome := {"revelations": [], "spawn_failed_discards": []}
 	if not as_drawn:
 		## FAQ：密谋/场景翻到遭遇类型背面 — 进场+显现，不触发 when-drawn。
+		## 已翻到 Face B（遭遇印刷面）；禁止 reveal_to_all（会把 face 打回 A）。
 		return _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
+	_reveal_encounter_drawn(game_ctx, card_id, drawer_id, def_id)
 	_emit_encounter_card_drawn(game_ctx, drawer_id, card_id)
 	if game_ctx.sequences != null:
 		var trigger := TriggeringCondition.encounter_card_drawn(drawer_id, card_id)
