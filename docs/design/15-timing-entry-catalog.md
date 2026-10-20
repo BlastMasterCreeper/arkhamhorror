@@ -1772,6 +1772,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-20 | v0.6.20 | §4.0.5：时点→条件→nest 三分；内联=无因果 then；Domain 边界捆绑勿标「内联」 |
 | 2026-09-21 | v0.6.19 | §4.0.1：卡牌正文译 Composition；禁止 `seq.card…` |
 | 2026-05-25 | v0.1 | 初稿：RuleSequence、三槽、Anchor Policy、Brick、merge、PreImpact |
 | 2026-05-25 | v0.2 | **§16 调查员抽牌**：D0–D5；D2 牌面 CONTROLLER；WHEN=D2–D3；Revelation=D3 入手 |
