@@ -74,7 +74,12 @@ static func suppress_auto_engage_until_fired(enemy_id: StringName) -> Registrati
 
 
 ## 交战状态：WHILE_IN_PLAY（敌人离场卸）；真实交战与视为交战共用。
-static func engagement_pair(enemy_id: StringName, investigator_id: StringName) -> RegistrationTemplate:
+## `forbid_clues_while_engaged`：同 Register 挂发现/花费线索禁止（01121b）；脱离时一并卸。
+static func engagement_pair(
+	enemy_id: StringName,
+	investigator_id: StringName,
+	forbid_clues_while_engaged: bool = false
+) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = investigator_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
@@ -82,6 +87,17 @@ static func engagement_pair(enemy_id: StringName, investigator_id: StringName) -
 	t.buffs.append(
 		BuffSpec.restriction_buff(RestrictionPayload.engagement(enemy_id, investigator_id))
 	)
+	if forbid_clues_while_engaged:
+		t.buffs.append(
+			BuffSpec.restriction_buff(
+				RestrictionPayload.forbid_discover_clue(investigator_id, enemy_id)
+			)
+		)
+		t.buffs.append(
+			BuffSpec.restriction_buff(
+				RestrictionPayload.forbid_spend_clue(investigator_id, enemy_id)
+			)
+		)
 	return t
 
 

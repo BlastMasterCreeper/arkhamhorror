@@ -292,6 +292,10 @@ enum RestrictionKind {
 	## 交战状态（成对）：与威胁区场面脱钩。真实交战与「视为交战」均 Register 本 Buff。
 	## 查询入口读本 Kind；**不是** Intent 拦截，也不是 LISTENER。
 	ENGAGEMENT,
+	## 交战期间不能发现线索（01121b Masked Hunter）。挂在 ENGAGEMENT 同 Register，脱离时卸。
+	FORBID_DISCOVER_CLUE,
+	## 交战期间不能花费线索（同上）。
+	FORBID_SPEND_CLUE,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }

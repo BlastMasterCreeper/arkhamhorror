@@ -56,6 +56,9 @@ func _initialize() -> void:
 	_run_test("SC-26 agenda enemy-back settles as spawn not drawn", _test_sc26_agenda_enemy_back_not_drawn)
 	_run_test("SC-27 agenda treachery-back revelation not drawn", _test_sc27_agenda_treachery_back_not_drawn)
 	_run_test("SC-28 01121a flip → Masked Hunter not drawn", _test_sc28_01121_masked_hunter_flip)
+	_run_test("SC-29 Masked Hunter blocks discover while engaged", _test_sc29_masked_hunter_forbid_discover)
+	_run_test("SC-30 Masked Hunter blocks spend while engaged", _test_sc30_masked_hunter_forbid_spend)
+	_run_test("SC-31 Masked Hunter clue forbid clears on disengage", _test_sc31_masked_hunter_forbid_clears)
 	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
@@ -1212,7 +1215,163 @@ func _test_sc28_01121_masked_hunter_flip() -> bool:
 		and inv2.threat_area.has(first_id)
 		and not inv1.threat_area.has(first_id)
 		and EngagementStatus.is_engaged_with(h.ctx, first_id, &"inv_2")
+		and CardRegistry.forbids_clues_while_engaged(&"01121a")
+		and RestrictionEvaluator.blocks_discover_clue(&"inv_2", h.ctx.registrations)
+		and RestrictionEvaluator.blocks_spend_clue(&"inv_2", h.ctx.registrations)
+		and not RestrictionEvaluator.blocks_discover_clue(&"inv_1", h.ctx.registrations)
 		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _test_sc29_masked_hunter_forbid_discover() -> bool:
+	## 与 Masked Hunter 交战的调查员不能发现线索；非交战者可以。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 3)
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv2.location_tag = &"test_loc"
+	inv1.clues_on_card = 0
+	inv2.clues_on_card = 5
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	CardRegistry.register_definition(
+		&"agenda_after_01121b",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	h.ctx.scenario.setup_act_agenda_decks([], [&"01121a", &"agenda_after_01121b"])
+	h.ctx.state.doom_on_agenda = 6
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var hunter_id := &""
+	for eid in h.ctx.state.registry.all_card_ids():
+		var c := h.ctx.state.registry.get_card(eid)
+		if c != null and c.id.definition_id == &"01121a" and c.face == AhcEnums.CardFace.B:
+			hunter_id = eid
+			break
+	if hunter_id == &"" or not EngagementStatus.is_engaged_with(h.ctx, hunter_id, &"inv_2"):
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	var clues_before := loc.clues
+	var blocked := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.discover_clue",
+		{"inv_id": &"inv_2", "location_id": &"test_loc", "amount": 1}
+	)
+	var ok_other := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.discover_clue",
+		{"inv_id": &"inv_1", "location_id": &"test_loc", "amount": 1}
+	)
+	return (
+		not blocked.get("ok", false)
+		and str(blocked.get("error", "")) == "restriction_forbid_discover_clue"
+		and inv2.clues_on_card == 5
+		and ok_other.get("ok", false)
+		and inv1.clues_on_card == 1
+		and loc.clues == clues_before - 1
+	)
+
+
+func _test_sc30_masked_hunter_forbid_spend() -> bool:
+	## 交战者线索不能用于推进场景；只靠非交战者的线索仍可凑够。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv2.location_tag = &"test_loc"
+	## Prey most clues → inv_2；仅 inv_2 有线索时推进应失败。
+	inv1.clues_on_card = 0
+	inv2.clues_on_card = 4
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	CardRegistry.register_definition(
+		&"agenda_pad_01121",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	CardRegistry.register_definition(
+		&"act_need_2",
+		{"card_type": &"act", "location": {"clues": 2}, "back_text": "(→R1)"}
+	)
+	CardRegistry.register_definition(
+		&"act_need_2b",
+		{"card_type": &"act", "location": {"clues": 99}, "back_text": "Nothing happens."}
+	)
+	h.ctx.scenario.setup_act_agenda_decks(
+		[&"act_need_2", &"act_need_2b"], [&"01121a", &"agenda_pad_01121"]
+	)
+	h.ctx.state.doom_on_agenda = 6
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	if not RestrictionEvaluator.blocks_spend_clue(&"inv_2", h.ctx.registrations):
+		return false
+	var fail := h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	## 再给 inv_1 线索 → 可推进；inv_2 线索不动。
+	inv1.clues_on_card = 2
+	var inv2_before := inv2.clues_on_card
+	var ok := h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	return (
+		not fail.get("advanced", false)
+		and str(fail.get("reason", "")) == "insufficient_clues"
+		and ok.get("advanced", false)
+		and inv1.clues_on_card == 0
+		and inv2.clues_on_card == inv2_before
+	)
+
+
+func _test_sc31_masked_hunter_forbid_clears() -> bool:
+	## 脱离后发现/花费限制卸除。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.clues_on_card = 0
+	h.ctx.state.per_investigator_count = 1
+	CardRegistry.register_definition(
+		&"agenda_pad_clear",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	h.ctx.scenario.setup_act_agenda_decks([], [&"01121a", &"agenda_pad_clear"])
+	h.ctx.state.doom_on_agenda = 6
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var hunter_id := h.ctx.state.registry.all_card_ids()[0]
+	for eid in h.ctx.state.registry.all_card_ids():
+		var c := h.ctx.state.registry.get_card(eid)
+		if c != null and c.id.definition_id == &"01121a" and c.face == AhcEnums.CardFace.B:
+			hunter_id = eid
+			break
+	if not EngagementStatus.is_engaged_with(h.ctx, hunter_id, &"inv_1"):
+		return false
+	if not RestrictionEvaluator.blocks_discover_clue(&"inv_1", h.ctx.registrations):
+		return false
+	## 横置脱离：避免同地点 auto-engage 立刻再挂上限制。
+	h.ctx.enemy.disengage(h.ctx, hunter_id, true, false)
+	var after := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.discover_clue",
+		{"inv_id": &"inv_1", "location_id": &"test_loc", "amount": 1}
+	)
+	return (
+		not EngagementStatus.is_engaged(h.ctx, hunter_id)
+		and not RestrictionEvaluator.blocks_discover_clue(&"inv_1", h.ctx.registrations)
+		and after.get("ok", false)
+		and inv.clues_on_card == 1
 	)
 
 

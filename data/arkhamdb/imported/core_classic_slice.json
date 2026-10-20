@@ -89,6 +89,7 @@
       "Cultist",
       "Elite"
     ],
+    "forbid_clues_while_engaged": true,
     "spawn_instruction": {
       "selector": "engaged_with_prey"
     },
@@ -141,6 +142,7 @@
       "kind": "clues",
       "metric": "clues",
       "compare": "highest"
-    }
+    },
+    "forbid_clues_while_engaged": true
   }
 }

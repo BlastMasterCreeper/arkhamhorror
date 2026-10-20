@@ -477,6 +477,12 @@ static func is_aloof(definition_id: StringName) -> bool:
 	return has_keyword(definition_id, &"aloof")
 
 
+## 交战期间禁止发现/花费线索（01121b Masked Hunter 等）。
+static func forbids_clues_while_engaged(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return bool(data.get("forbid_clues_while_engaged", false))
+
+
 static func is_hidden(definition_id: StringName) -> bool:
 	## 卡牌是否带 **隐私（Hidden）** 关键词。见 docs/design/15-timing-entry-catalog.md §17.4.3。
 	var data: Dictionary = _definitions.get(definition_id, {})

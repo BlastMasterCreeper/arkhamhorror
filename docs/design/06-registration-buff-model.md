@@ -991,6 +991,8 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | —（原流程分支） | 借机不跑 | `SKIP_AOO` | 「This action does not provoke…」 | REST-E-AOO：`read_skip_aoo` | **已实现** · 翻译叶见 [20 §4](20-card-translation-schema.md) |
 | —（原流程分支） | 自动交战不跑 | `SUPPRESS_AUTO_ENGAGE` | 「移入后 engages you」（明示交战，非 Prey/Lead；冷漠/横置仍靠 mode=effect） | REST-E-AUTO-ENGAGE：`read_suppress_auto_engage` | **已实现** · 理由见 [20 §4.2.1](20-card-translation-schema.md) |
 | —（状态查询） | 成对交战状态 | `ENGAGEMENT` | 真实交战 / 视为交战（威胁区是区划检测，不是本 Buff） | `EngagementStatus` / `has_engagement` | **已实现** · [08 §3.1.1](08-enemy-engagement.md) |
+| `DISCOVER_CLUE` | 发现线索 | `FORBID_DISCOVER_CLUE` | 「While engaged… cannot discover…」（01121b） | REST-E-EFFECT：`DiscoverClueFlow` | **已实现** · 与 ENGAGEMENT 同 Register，脱离卸 |
+| `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
 | `MOVE` | 移动行动 / 效果移动调查员 | `FORBID_MOVE` | 「不能离开地点」 | REST-E-ACTION / REST-E-EFFECT | 待 enum + 接线 |
 | `ENGAGE` | engage 行动 | `FORBID_ENGAGE` | aloof 等（常配合 Condition） | REST-E-ACTION | 待 |
 | `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION | 待 |

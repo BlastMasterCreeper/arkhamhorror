@@ -32,8 +32,14 @@ static func _spend_clues_as_group(game_ctx: GameContext, amount: int) -> bool:
 	var total := 0
 	for inv_id in game_ctx.state.registry.all_investigator_ids():
 		var inv := game_ctx.state.registry.get_investigator(inv_id)
-		if inv != null and not inv.eliminated:
-			total += inv.clues_on_card
+		if inv == null or inv.eliminated:
+			continue
+		if (
+			game_ctx.registrations != null
+			and RestrictionEvaluator.blocks_spend_clue(inv_id, game_ctx.registrations)
+		):
+			continue
+		total += inv.clues_on_card
 	if total < amount:
 		return false
 	var remaining := amount
@@ -42,6 +48,12 @@ static func _spend_clues_as_group(game_ctx: GameContext, amount: int) -> bool:
 			break
 		var inv := game_ctx.state.registry.get_investigator(inv_id)
 		if inv == null or inv.eliminated or inv.clues_on_card <= 0:
+			continue
+		## 交战 FORBID_SPEND_CLUE：该调查员不能贡献线索。
+		if (
+			game_ctx.registrations != null
+			and RestrictionEvaluator.blocks_spend_clue(inv_id, game_ctx.registrations)
+		):
 			continue
 		var spend := mini(inv.clues_on_card, remaining)
 		inv.clues_on_card -= spend

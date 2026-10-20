@@ -127,6 +127,17 @@ def _health_bonus_per_investigator(text: str) -> int:
     return int(match.group(1)) if match else 0
 
 
+def _forbids_clues_while_engaged(text: str) -> bool:
+    """交战期间不能发现/花费线索（01121b Masked Hunter）。"""
+    return bool(
+        re.search(
+            r"while you are engaged with .+?,\s*you cannot discover or spend clues",
+            text or "",
+            re.I | re.S,
+        )
+    )
+
+
 def enemy_block(card: dict[str, Any], text: str = "") -> dict[str, Any]:
     keys = [
         "health",
@@ -267,6 +278,8 @@ def _merge_encounter_back(out: dict[str, Any], linked: dict[str, Any]) -> None:
         traits = parse_traits(linked.get("traits") or linked.get("real_traits"))
         if traits:
             out["back_traits"] = traits
+        if _forbids_clues_while_engaged(linked_text):
+            out["forbid_clues_while_engaged"] = True
     linked_kw = extract_keywords(linked, linked_text)
     for kw in linked_kw:
         if kw not in out["keywords"]:
@@ -334,6 +347,8 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
     prey = compile_prey(text)
     if prey:
         out["prey_instruction"] = prey
+    if type_code == "enemy" and _forbids_clues_while_engaged(text):
+        out["forbid_clues_while_engaged"] = True
     linked = card.get("linked_card")
     if isinstance(linked, dict) and type_code in ("act", "agenda"):
         _merge_encounter_back(out, linked)
