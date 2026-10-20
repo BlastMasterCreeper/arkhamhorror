@@ -954,6 +954,11 @@ Grimoire 条文 / 卡面效果
 **模式**：Register RESTRICTION（`RestrictionKind` + payload）→ 在 **入口** 调 `RestrictionEvaluator.block_reason(intent, actor, store, ctx)`。  
 **`Intent`** 对齐 **可被禁止的动作/效果类**（与 `ActionType` / Initiation / 关键 `EffectOp` 同族），**不对齐** `seq.*` 砖块编号。
 
+**术语 · 兴趣类型（≠ LISTENER 订阅）**：某条命名流程（或等价结算入口）在 **RESOLVE 时必须检测** 的 `RestrictionKind` / Intent 集合。  
+- **是**：handler / Flow 在规范时刻 **读** Store（拦 Intent 或原流程分支）。  
+- **不是**：`(sequence_id, WOULD|WHEN|AFTER)` 订阅键；限制类 **不** 订时点、**不** 经 TimingBus emit。  
+正向索引 = §16.4.2；**按 seq 反查** = [§16.4.4 兴趣类型报表](#1644-兴趣类型报表seq--须读的-restrictionkind)。
+
 #### 16.4.1 入口站点（稳定层）
 
 | 入口 ID | 子系统 | 检查时机 | 典型 Intent |
@@ -1022,6 +1027,28 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `ENGAGE` / `DISENGAGE` | `ENGAGE` / `DISENGAGE`（待） | |
 
 Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`（source tags）+ REST-E-EFFECT，**不是**新 BuffType。
+
+#### 16.4.4 兴趣类型报表（seq → 须读的 RestrictionKind）
+
+结算一条命名流程时，只查本行「兴趣类型」；**未列出的 Kind 本帧不必扫**。扩 cannot：先改 §16.4.2，再在本表给 **唯一** 消费方加一行（或并入已有行）；禁止在未登记流程里散落 `blocks_*`。
+
+| 命名流程 / 结算入口 | 入口 ID | 兴趣类型（RestrictionKind） | 用法 | 状态 |
+|---|---|---|---|---|
+| `seq.effect.discover_clue`（`DiscoverClueFlow`） | REST-E-EFFECT | `FORBID_DISCOVER_CLUE` | 拦 Intent | **已实现** |
+| `seq.act.advance`（`ActAdvanceFlow` 花线索） | REST-E-EFFECT | `FORBID_SPEND_CLUE` | 拦 Intent（该调查员不计入/不贡献） | **已实现** |
+| Composition `spend_clues_group`（无独立 seq；与推进花线索同 Intent） | REST-E-EFFECT | `FORBID_SPEND_CLUE` | 拦 Intent | **已实现** |
+| Composition draw atom / `seq.draw.investigator` 等价点 | REST-E-DRAW | `FORBID_DRAW` | 拦 Intent | **已实现** |
+| `SkillTestEngine.commit_card`（检定 ST 投入；非独立 `seq.commit`） | REST-E-COMMIT | `FORBID_COMMIT_TO_TEST` | 拦 Intent | **已实现** |
+| `StateMutator.move_card`（离手；隐私等） | REST-E-MOVE | `FORBID_LEAVE_HAND` | 拦 Intent | **已实现** |
+| Initiation INIT_2B · `AttackOfOpportunityResolver` | REST-E-AOO | `SKIP_AOO` | 原流程读取分支 | **已实现** |
+| `EnemySystem.auto_engage_at_location`（常由 `seq.engage` mode=auto / 区域变更后触发） | REST-E-AUTO-ENGAGE | `SUPPRESS_AUTO_ENGAGE` | 原流程读取分支 | **已实现** |
+| `AbilityInitiationPipeline` / Action play·trigger 前 | REST-E-PLAY / REST-E-TRIGGER | `FORBID_PLAY` / `FORBID_TRIGGER` | 拦 Intent | Kind 有；接线见 §16.4.2 |
+| `EffectResolutionGraph` step 4（`EffectRestrictionGate`） | REST-E-EFFECT | 按 `EffectOp`→Intent（§16.4.3） | 拦 Intent | 部分（如 DRAW） |
+| （状态查询，非某 seq 结算兴趣） | — | `ENGAGEMENT` | `EngagementStatus` 成对查询 | **已实现** · 不进本表消费列 |
+
+**与 LISTENER 对照**：LISTENER 的「兴趣」是 TimingBus 订阅键；本表的「兴趣」是 RESOLVE 读限制。二者不要写进同一列。
+
+**规程**：新 `seq.*` 若可能被 cannot 挡住 → 在本表登记兴趣类型 + 在 handler 唯一入口调用 Evaluator；新 Kind 无消费方 → 不得标 ✅。
 
 ### 16.5 LISTENER · Timing 订阅清单
 
@@ -1127,6 +1154,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-20 | v0.4.22 | **§16.4.4** 兴趣类型报表：seq/入口 → 须读的 RestrictionKind（≠ LISTENER 订阅）；澄清「兴趣」= RESOLVE 检测 |
 | 2026-10-10 | v0.4.21 | §3.2.7：庞大 REPLACE 锚改到 `seq.enemy.attack`；`phase_attacks` 仅为固定 nest 手续 |
 | 2026-10-10 | v0.4.20 | §3.2.7：庞大 = REPLACE → `seq.keyword.massive`；删平行 massive 流程 |
 | 2026-10-10 | v0.4.19 | **§3.2.7** 关键词挂载时点 × 开火锚 × 跨类/同锚优先级；`fire_priority`（Hunter 10 先于 Patrol 20） |
