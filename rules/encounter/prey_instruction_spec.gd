@@ -2,7 +2,7 @@ class_name PreyInstructionSpec
 extends RefCounted
 
 enum CompareMode { HIGHEST, LOWEST }
-enum ValueKind { SKILL, RESOURCES }
+enum ValueKind { SKILL, RESOURCES, CLUES }
 
 var compare_mode: CompareMode = CompareMode.HIGHEST
 var value_kind: ValueKind = ValueKind.SKILL
@@ -35,6 +35,20 @@ static func fewest_resources() -> PreyInstructionSpec:
 	var spec := PreyInstructionSpec.new()
 	spec.compare_mode = CompareMode.LOWEST
 	spec.value_kind = ValueKind.RESOURCES
+	return spec
+
+
+static func most_clues() -> PreyInstructionSpec:
+	var spec := PreyInstructionSpec.new()
+	spec.compare_mode = CompareMode.HIGHEST
+	spec.value_kind = ValueKind.CLUES
+	return spec
+
+
+static func fewest_clues() -> PreyInstructionSpec:
+	var spec := PreyInstructionSpec.new()
+	spec.compare_mode = CompareMode.LOWEST
+	spec.value_kind = ValueKind.CLUES
 	return spec
 
 

@@ -58,10 +58,10 @@ python tools/analyze_arkhamdb_cards.py
 | `enemy_*` | 战斗/猎杀数值 | `enemy_stats()` |
 | `shroud` / `clues` | 地点 | investigate |
 | `doom` | 场景 | act/agenda |
-| `hidden` | 布尔 | 隐私 E4 |
+| `hidden` | 布尔 | **隐私（Hidden）关键词**（引擎）；≠ ArkhamDB API 的 `hidden`（常=linked/b 面不进遭遇库列表，如 01121b / 12179b） |
+| `back_card_type` | enemy / treachery / location（可选） | Act/Agenda **`linked_card`** 遭遇类型背面；翻面按抽取流程（`as_drawn=false`） |
 | `encounter_code` | 遭遇套 | **有值 ⇒ 冒险卡牌**（Scenario card）；与正面 type 正交 |
 | `card_back` | `player` \| `encounter` | **卡背类型**（无文本背面 / 牌库外观）；≠ `card_type`；≠ `CardFace` |
-| `back_card_type` | enemy / treachery / location（可选） | Act/Agenda 等 **b 面印刷遭遇类型**；翻面按抽取流程进场/显现（`as_drawn=false`）；≠ `card_back` |
 | `tags` | hh/hd/pa/se/fa | 构筑规则（非运行时） |
 
 ### 3.1 卡牌身份三轴（已登记 · 勿被 FAQ 混称带偏）

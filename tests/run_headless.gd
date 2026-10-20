@@ -55,6 +55,7 @@ func _initialize() -> void:
 	_run_test("SC-25 fire revelation no target discards", _test_sc25_fire_revelation_no_target_discards)
 	_run_test("SC-26 agenda enemy-back settles as spawn not drawn", _test_sc26_agenda_enemy_back_not_drawn)
 	_run_test("SC-27 agenda treachery-back revelation not drawn", _test_sc27_agenda_treachery_back_not_drawn)
+	_run_test("SC-28 01121a flip → Masked Hunter not drawn", _test_sc28_01121_masked_hunter_flip)
 	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
@@ -1142,6 +1143,75 @@ func _test_sc27_agenda_treachery_back_not_drawn() -> bool:
 		and flipped.zone == AhcEnums.Zone.DISCARD
 		and h.ctx.state.encounter_discard.has(first_id)
 		and inv.horror_taken == 2
+		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _test_sc28_01121_masked_hunter_flip() -> bool:
+	## 01121a Predator or Prey? → 01121b The Masked Hunter（遭遇类型背面）。
+	## Spawn Engaged with Prey · Prey Most clues · +2 health/investigator · 非 when-drawn。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	if not CardRegistry.has_encounter_cardtype_back(&"01121a"):
+		return false
+	if CardRegistry.is_hidden(&"01121b"):
+		return false  ## ArkhamDB JSON hidden ≠ 隐私
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv2.location_tag = &"test_loc"
+	inv1.clues_on_card = 0
+	inv2.clues_on_card = 3
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	h.ctx.lead_investigator_id = &"inv_1"
+	CardRegistry.register_definition(
+		&"agenda_after_01121",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	var setup := h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"01121a", &"agenda_after_01121"]
+	)
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	var drawn_when := {"n": 0}
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"encounter_card_drawn"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: drawn_when["n"] = int(drawn_when["n"]) + 1
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.state.doom_on_agenda = 6
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var enemy := h.ctx.state.registry.get_enemy(first_id)
+	var spawn := CardRegistry.spawn_spec(&"01121a")
+	var prey := CardRegistry.prey_spec(&"01121a")
+	return (
+		advance.get("advanced", false)
+		and bool(advance.get("flip", {}).get("encounter_back", false))
+		and int(drawn_when["n"]) == 0
+		and not h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and CardRegistry.card_type_of(flipped) == &"enemy"
+		and CardRegistry.is_hunter(&"01121a")
+		and spawn.selector_kind == SpawnInstructionSpec.SelectorKind.ENGAGED_WITH_PREY
+		and prey != null
+		and prey.value_kind == PreyInstructionSpec.ValueKind.CLUES
+		and enemy != null
+		and enemy.health == 8
+		and enemy.fight == 4
+		and inv2.threat_area.has(first_id)
+		and not inv1.threat_area.has(first_id)
+		and EngagementStatus.is_engaged_with(h.ctx, first_id, &"inv_2")
 		and h.ctx.state.current_agenda_number == 2
 	)
 
@@ -3504,11 +3574,13 @@ func _test_adb_treachery_surge() -> bool:
 
 
 func _test_adb_hidden_elokoss() -> bool:
+	## 12179b：ArkhamDB JSON `hidden` 仅表示 b 面不进遭遇库列表，≠ 隐私（Hidden）关键词。
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	var def_id := &"12179b"
 	var enemy := CardRegistry.enemy_stats(def_id)
 	return (
-		CardRegistry.is_hidden(def_id)
+		not CardRegistry.is_hidden(def_id)
+		and not CardRegistry.has_keyword(def_id, &"hidden")
 		and CardRegistry.has_keyword(def_id, &"hunter")
 		and CardRegistry.has_keyword(def_id, &"massive")
 		and CardRegistry.has_keyword(def_id, &"retaliate")

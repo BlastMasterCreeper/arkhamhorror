@@ -74,4 +74,6 @@ static func _filter_by_investigator_title(
 static func _candidate_value(inv: InvestigatorState, spec: PreyInstructionSpec) -> int:
 	if spec.value_kind == PreyInstructionSpec.ValueKind.RESOURCES:
 		return inv.resource_pool
+	if spec.value_kind == PreyInstructionSpec.ValueKind.CLUES:
+		return inv.clues_on_card
 	return inv.get_skill(spec.skill)

@@ -28,6 +28,9 @@ func spawn_from_encounter_draw(
 	var aloof := CardRegistry.is_aloof(def_id)
 	if spec.mode == SpawnInstructionSpec.Mode.FRAMEWORK_DEFAULT:
 		return spawn_default_from_draw(game_ctx, card_id, drawer_id, aloof, def_id)
+	## Spawn – Engaged with Prey：全体调查员中按 Prey 选 WHO，再 spawn_engaged。
+	if spec.selector_kind == SpawnInstructionSpec.SelectorKind.ENGAGED_WITH_PREY:
+		return _spawn_engaged_with_prey(game_ctx, card_id, drawer_id, def_id)
 	var location_tag := SpawnLocationResolver.resolve(spec, drawer_id, game_ctx)
 	if location_tag == &"":
 		return discard_spawn_failed(game_ctx, card_id)
@@ -40,6 +43,28 @@ func spawn_from_encounter_draw(
 		else:
 			EngageFlow.nest_after_area_change(game_ctx, location_tag, card_id)
 	return {"ok": true, "enemy_id": card_id, "location_tag": location_tag}
+
+
+func _spawn_engaged_with_prey(
+	game_ctx: GameContext,
+	card_id: StringName,
+	drawer_id: StringName,
+	def_id: StringName
+) -> Dictionary:
+	var candidates: Array[StringName] = []
+	for inv_id in _state.registry.all_investigator_ids():
+		var inv := _state.registry.get_investigator(inv_id)
+		if inv != null and not inv.eliminated:
+			candidates.append(inv_id)
+	var prey := CardRegistry.prey_spec(def_id)
+	var target := PreyResolver.best_match(prey, game_ctx, candidates)
+	if target == &"":
+		target = drawer_id
+	if target == &"":
+		target = game_ctx.lead_investigator_id if game_ctx != null else &""
+	if target == &"":
+		return discard_spawn_failed(game_ctx, card_id)
+	return spawn_engaged(game_ctx, card_id, target)
 
 
 func spawn_default_from_draw(
@@ -194,7 +219,15 @@ func _materialize_enemy(
 	enemy.location_tag = location_tag
 	enemy.fight = int(stats.get("fight", 2))
 	enemy.evade = int(stats.get("evade", 2))
-	enemy.health = int(stats.get("health", 1))
+	var base_health := int(stats.get("health", 1))
+	if bool(stats.get("health_per_investigator", false)):
+		enemy.health = PerInvestigatorScale.scale(_state, base_health)
+	else:
+		var bonus_per := int(stats.get("health_bonus_per_investigator", 0))
+		if bonus_per > 0:
+			enemy.health = base_health + bonus_per * PerInvestigatorScale.count(_state)
+		else:
+			enemy.health = base_health
 	enemy.attack_damage = int(stats.get("damage", stats.get("attack_damage", 1)))
 	enemy.attack_horror = int(stats.get("horror", stats.get("attack_horror", 0)))
 	enemy.aloof = CardRegistry.is_aloof(def_id)
