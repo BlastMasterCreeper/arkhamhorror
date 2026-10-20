@@ -23,7 +23,7 @@ alwaysApply: true
 | **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |
 | **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
 | **LIMBO**（卡） | **悬置** | 卡牌独立区；手续中抽象所在 |
-| **Augury** | **占兆** | 混乱标记独立区；检定中已揭示的征兆所在；id `augury`；≠ 卡牌 LIMBO，≠ 卡牌揭示 |
+| **Omen Tray** | **兆盘** | 混乱标记独立区；检定中已揭示标记摊放的所在；id `omen_tray`；≠ 卡牌 LIMBO，≠ 卡牌揭示 |
 | **Player Interaction** | **玩家交互** | 能力选用 / Optional / 目标 / 队长排序；`PlayerInteractionGate` |
 | **timed confirmation** | **有限期确认** | PI：期内确认目标/分支；逾期用默认选择；≠ nest/内联 |
 | **Evade (action)** | **躲避** | 行动种类（基础/指定）；`seq.action.evade`；≠「闪避」「规避」；≠ 躲避尝试 / 躲避效果 |
