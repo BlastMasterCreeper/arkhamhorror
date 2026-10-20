@@ -396,5 +396,4 @@ class LocationState:
 | 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |
 | 2026-09-20 | v0.4.1 | 抽牌 When 时调查员 HAND、遭遇 LIMBO；Would 时仍 DECK（15 §3.1） |
 | 2026-10-20 | v0.4.2 | §5.2 落地：`ZoneMoveFlow` 离场 token→pool + 弃置附属；`ATTACHED` 计入 in-play（ZM-04/05） |
-| 2026-10-20 | v0.4.3 | §5.2/§5.3：「同时」= 组内不可被 After nest；勿与内联混用 |
-| 2026-10-20 | v0.4.2b | §5.2 落地后表述曾过重（Domain 捆绑）；已收束为同时组语义 |
+| 2026-10-20 | v0.4.3 | §5.2/§5.3：「同时」= 该列效果组内不可被 After nest；勿与内联混用 |
