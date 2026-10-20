@@ -60,10 +60,12 @@ static func run(game_ctx: GameContext, drawer_id: StringName) -> Dictionary:
 
 ## 已持有 card_id：进入 limbo 后走遭遇侧能力体系（与抽遭遇库后的卡面结算同体）。
 ## 入口含：调查员库抽出的 enemy/treachery、setup、弃牌再结算等——按能力包，非来源重定向。
+## `as_drawn=false`：Act/Agenda b 面遭遇类型等——进场/显现同抽取规则，但**不**视为已抽取（FAQ）。
 static func resolve_card(
 	game_ctx: GameContext,
 	drawer_id: StringName,
-	card_id: StringName
+	card_id: StringName,
+	as_drawn: bool = true
 ) -> Dictionary:
 	if game_ctx == null or game_ctx.mutator == null or card_id == &"":
 		return _fail("invalid_card")
@@ -75,7 +77,7 @@ static func resolve_card(
 		pushed_frame = true
 	frame.current_card_id = card_id
 	game_ctx.mutator.enter_limbo(card_id, drawer_id)
-	var body := _resolve_one_card(game_ctx, frame, drawer_id, card_id)
+	var body := _resolve_one_card(game_ctx, frame, drawer_id, card_id, as_drawn)
 	if pushed_frame:
 		game_ctx.memory.pop_encounter_frame()
 	var revelations: Array[StringName] = []
@@ -84,16 +86,20 @@ static func resolve_card(
 		revelations.append(rev_id as StringName)
 	for failed_id in body.get("spawn_failed_discards", []):
 		spawn_failed_discards.append(failed_id as StringName)
-	var kw := KeywordConsumer.consume_after_drawn_card(game_ctx, drawer_id, card_id)
-	for rev_id in kw.get("revelations", []):
-		revelations.append(rev_id as StringName)
-	for failed_id in kw.get("spawn_failed_discards", []):
-		spawn_failed_discards.append(failed_id as StringName)
+	var surged := false
+	if as_drawn:
+		var kw := KeywordConsumer.consume_after_drawn_card(game_ctx, drawer_id, card_id)
+		for rev_id in kw.get("revelations", []):
+			revelations.append(rev_id as StringName)
+		for failed_id in kw.get("spawn_failed_discards", []):
+			spawn_failed_discards.append(failed_id as StringName)
+		surged = bool(kw.get("surged", false))
 	return {
 		"ok": true,
 		"drawer_id": drawer_id,
 		"card_id": card_id,
-		"should_surge": bool(kw.get("surged", false)),
+		"as_drawn": as_drawn,
+		"should_surge": surged,
 		"revelations": revelations,
 		"spawn_failed_discards": spawn_failed_discards,
 	}
@@ -103,12 +109,16 @@ static func _resolve_one_card(
 	game_ctx: GameContext,
 	frame: EncounterResolutionFrame,
 	drawer_id: StringName,
-	card_id: StringName
+	card_id: StringName,
+	as_drawn: bool = true
 ) -> Dictionary:
 	var def_id := _definition_id(game_ctx, card_id)
 	_reveal_encounter_drawn(game_ctx, card_id, drawer_id, def_id)
-	_emit_encounter_card_drawn(game_ctx, drawer_id, card_id)
 	var outcome := {"revelations": [], "spawn_failed_discards": []}
+	if not as_drawn:
+		## FAQ：密谋/场景翻到遭遇类型背面 — 进场+显现，不触发 when-drawn。
+		return _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
+	_emit_encounter_card_drawn(game_ctx, drawer_id, card_id)
 	if game_ctx.sequences != null:
 		var trigger := TriggeringCondition.encounter_card_drawn(drawer_id, card_id)
 		game_ctx.sequences.nest(
@@ -274,7 +284,10 @@ static func _step_g4_resolve(ctx: Dictionary) -> void:
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return
-	var ctype := CardRegistry.card_type(def_id)
+	## Face B + back_card_type：按背面遭遇类型路由（act/agenda 翻面）。
+	var ctype := CardRegistry.card_type_of(card)
+	if ctype == &"":
+		ctype = CardRegistry.card_type(def_id)
 	if ctype == &"enemy":
 		if _hidden_enemy_skips_spawn(card, def_id):
 			return

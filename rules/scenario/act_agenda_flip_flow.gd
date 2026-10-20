@@ -39,10 +39,16 @@ static func _flip(game_ctx: GameContext, is_agenda: bool) -> Dictionary:
 		game_ctx.registrations.on_card_leave_play(card_id)
 	card.face = AhcEnums.CardFace.B
 	_mirror_flip(game_ctx, card, AhcEnums.CardFace.B)
+	var encounter_back := CardRegistry.has_encounter_cardtype_back(def_id)
 	var back := CardRegistry.back_text(def_id)
 	var back_result := ActAgendaBackResolver.resolve(game_ctx, def_id, back, card_id, is_agenda)
 	var resolution: int = int(back_result.get("resolution", -1))
-	_remove_from_game(game_ctx, card_id, is_agenda)
+	## 遭遇类型背面：按抽取规则进场/显现/弃置，**不** RFG（仍晋升下一张）。
+	## 普通指令背面：结算后 advancing 卡 removed from game。
+	if encounter_back or bool(back_result.get("encounter_back", false)):
+		_clear_current_pointer(game_ctx, card_id, is_agenda)
+	else:
+		_remove_from_game(game_ctx, card_id, is_agenda)
 	var promoted := _promote_next(game_ctx, is_agenda)
 	if is_agenda:
 		game_ctx.state.current_agenda_number += 1
@@ -68,6 +74,8 @@ static func _flip(game_ctx: GameContext, is_agenda: bool) -> Dictionary:
 		"definition_id": def_id,
 		"promoted": promoted,
 		"resolution": resolution,
+		"encounter_back": encounter_back,
+		"back": back_result,
 	}
 
 
@@ -84,13 +92,24 @@ static func _remove_from_game(game_ctx: GameContext, card_id: StringName, is_age
 	if card == null:
 		return
 	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
-	if is_agenda:
-		game_ctx.state.current_agenda_card_id = &""
-	else:
-		game_ctx.state.current_act_card_id = &""
+	_clear_current_pointer(game_ctx, card_id, is_agenda)
 	if not game_ctx.state.removed_from_game.has(card_id):
 		game_ctx.state.removed_from_game.append(card_id)
 	_mirror_move_zone(game_ctx, card, AhcEnums.Zone.REMOVED_FROM_GAME, &"")
+
+
+## 遭遇类型背面结算后：卸下 current 指针；卡本身已由 spawn/discard/进场安置。
+static func _clear_current_pointer(
+	game_ctx: GameContext,
+	card_id: StringName,
+	is_agenda: bool
+) -> void:
+	if is_agenda:
+		if game_ctx.state.current_agenda_card_id == card_id:
+			game_ctx.state.current_agenda_card_id = &""
+	else:
+		if game_ctx.state.current_act_card_id == card_id:
+			game_ctx.state.current_act_card_id = &""
 
 
 static func _promote_next(game_ctx: GameContext, is_agenda: bool) -> Dictionary:

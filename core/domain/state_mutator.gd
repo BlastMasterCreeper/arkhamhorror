@@ -329,7 +329,7 @@ func finalize_limbo_discard(card_id: StringName, controller_id: StringName) -> b
 	var card := _state.registry.get_card(card_id)
 	if card == null or card.zone != AhcEnums.Zone.LIMBO:
 		return false
-	match CardRegistry.limbo_discard_pile(card.id.definition_id):
+	match CardRegistry.limbo_discard_pile(card.id.definition_id, card.face):
 		&"encounter_discard":
 			return move_card(card_id, CardSlot.encounter_discard_top())
 		_:

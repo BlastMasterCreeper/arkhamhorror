@@ -1,7 +1,9 @@
 class_name ActAgendaBackFlow
 extends RefCounted
 
-## Act/Agenda b 面 · 编译 `back_effects` → Composition 并在翻面时结算。
+## Act/Agenda b 面结算。
+## - 普通指令面：`back_effects` / back_text → Composition
+## - 背面为遭遇 cardtype：按抽取流程进场/显现（`seq.encounter.resolve_card` · as_drawn=false）
 
 
 static func resolve_back(
@@ -46,10 +48,12 @@ static func run_resolve_back(game_ctx: GameContext, params: Dictionary) -> Dicti
 static func _resolve_back_direct(
 	game_ctx: GameContext,
 	definition_id: StringName,
-	_flipped_card_id: StringName,
+	flipped_card_id: StringName,
 	_is_agenda: bool,
 	back_text: String
 ) -> Dictionary:
+	if CardRegistry.has_encounter_cardtype_back(definition_id):
+		return _resolve_encounter_back(game_ctx, definition_id, flipped_card_id)
 	var tree := ActAgendaBackCompiler.compile(definition_id, back_text)
 	var resolution_before := (
 		game_ctx.state.scenario_resolution if game_ctx.state != null else -1
@@ -80,8 +84,69 @@ static func _resolve_back_direct(
 		"ok": true,
 		"resolution": resolution,
 		"executed": executed,
+		"encounter_back": false,
 		"triggered_resolution": resolution > 0 and resolution != resolution_before,
 	}
+
+
+## FAQ：翻到遭遇类型背面 → 按该类型抽取规则进场/显现；**不**视为已抽取。
+static func _resolve_encounter_back(
+	game_ctx: GameContext,
+	definition_id: StringName,
+	flipped_card_id: StringName
+) -> Dictionary:
+	var drawer_id := _drawer_for_flip(game_ctx)
+	var settle: Dictionary = {}
+	if (
+		game_ctx.sequence_catalog != null
+		and game_ctx.sequence_catalog.has_flow(&"seq.encounter.resolve_card")
+	):
+		settle = game_ctx.sequence_catalog.nest(
+			game_ctx,
+			&"seq.encounter.resolve_card",
+			{
+				"drawer_id": drawer_id,
+				"card_id": flipped_card_id,
+				"as_drawn": false,
+			}
+		)
+	else:
+		settle = DrawEncounterFlow.resolve_card(
+			game_ctx, drawer_id, flipped_card_id, false
+		)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"act_agenda:encounter_back",
+			{
+				"definition_id": definition_id,
+				"card_id": flipped_card_id,
+				"back_card_type": CardRegistry.back_card_type(definition_id),
+				"drawer_id": drawer_id,
+				"as_drawn": false,
+			}
+		)
+	return {
+		"ok": bool(settle.get("ok", false)),
+		"resolution": -1,
+		"executed": bool(settle.get("ok", false)),
+		"encounter_back": true,
+		"as_drawn": false,
+		"settle": settle,
+		"triggered_resolution": false,
+	}
+
+
+static func _drawer_for_flip(game_ctx: GameContext) -> StringName:
+	## FAQ：无明确抽取人；显现「you」取 lead（与 setup/弃牌再结算同惯例）。
+	if game_ctx == null or game_ctx.state == null:
+		return &""
+	if game_ctx.state.lead_investigator_id != &"":
+		return game_ctx.state.lead_investigator_id
+	var ids: Array = game_ctx.state.registry.all_investigator_ids()
+	if not ids.is_empty():
+		return ids[0] as StringName
+	return &""
 
 
 static func _seq_is_empty(node: CompositionNode) -> bool:

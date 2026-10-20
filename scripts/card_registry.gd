@@ -192,13 +192,16 @@ static func enter_hand_zone(definition_id: StringName) -> AhcEnums.Zone:
 
 
 ## 显现后仍在 limbo 时弃入的牌堆：`owner_discard` | `encounter_discard`。
-static func limbo_discard_pile(definition_id: StringName) -> StringName:
+static func limbo_discard_pile(
+	definition_id: StringName,
+	face: AhcEnums.CardFace = AhcEnums.CardFace.A
+) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	if data.has("limbo_discard_pile"):
 		return data.get("limbo_discard_pile") as StringName
-	## 遭遇 treachery / enemy 默认进遭遇弃牌堆。
-	var card_type: StringName = data.get("card_type", &"") as StringName
-	if card_type == &"treachery" or card_type == &"enemy":
+	## 遭遇 treachery / enemy 默认进遭遇弃牌堆（含 act/agenda 翻到遭遇类型背面）。
+	var ctype := effective_card_type(definition_id, face)
+	if ctype == &"treachery" or ctype == &"enemy":
 		return &"encounter_discard"
 	return &"owner_discard"
 
@@ -380,6 +383,40 @@ static func is_permanent(definition_id: StringName) -> bool:
 static func card_type(definition_id: StringName) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	return data.get("card_type", &"treachery") as StringName
+
+
+## Act/Agenda 等双面定义上，印刷「b」面的遭遇 cardtype（enemy / treachery / location）。
+## 空 = 背面仍是同类型指令面（走 back_text Composition），不是遭遇类型背面。
+static func back_card_type(definition_id: StringName) -> StringName:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return data.get("back_card_type", &"") as StringName
+
+
+static func is_encounter_cardtype(ctype: StringName) -> bool:
+	return ctype == &"enemy" or ctype == &"treachery" or ctype == &"location"
+
+
+## 当前朝上面对应的 cardtype：Face B 且声明了 `back_card_type` 时用背面类型。
+static func effective_card_type(
+	definition_id: StringName,
+	face: AhcEnums.CardFace = AhcEnums.CardFace.A
+) -> StringName:
+	if face == AhcEnums.CardFace.B:
+		var back := back_card_type(definition_id)
+		if back != &"":
+			return back
+	return card_type(definition_id)
+
+
+static func card_type_of(card: CardInstance) -> StringName:
+	if card == null:
+		return &""
+	return effective_card_type(card.id.definition_id, card.face)
+
+
+## 翻面后 b 面为遭遇 cardtype → 按抽取流程结算进场/显现（FAQ；非「已抽取」）。
+static func has_encounter_cardtype_back(definition_id: StringName) -> bool:
+	return is_encounter_cardtype(back_card_type(definition_id))
 
 
 ## 卡背类型：`player` | `encounter`。只描述无文本背面；与正面 cardtype / CardFace 正交。

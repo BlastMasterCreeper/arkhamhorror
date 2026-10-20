@@ -53,6 +53,8 @@ func _initialize() -> void:
 	_run_test("SC-23 agenda3 forced draws fire", _test_sc23_agenda3_forced_draws_fire)
 	_run_test("SC-24 fire revelation attaches", _test_sc24_fire_revelation_attaches)
 	_run_test("SC-25 fire revelation no target discards", _test_sc25_fire_revelation_no_target_discards)
+	_run_test("SC-26 agenda enemy-back settles as spawn not drawn", _test_sc26_agenda_enemy_back_not_drawn)
+	_run_test("SC-27 agenda treachery-back revelation not drawn", _test_sc27_agenda_treachery_back_not_drawn)
 	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
@@ -1027,6 +1029,120 @@ func _test_sc25_fire_revelation_no_target_discards() -> bool:
 		and h.ctx.state.encounter_discard.has(second)
 		and card != null
 		and card.zone == AhcEnums.Zone.DISCARD
+	)
+
+
+func _test_sc26_agenda_enemy_back_not_drawn() -> bool:
+	## FAQ：密谋 b 面为 enemy → 按抽取规则 spawn；不 RFG；不触发 when-drawn。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	CardRegistry.register_definition(
+		&"agenda_enemy_back",
+		{
+			"card_type": &"agenda",
+			"doom": 1,
+			"back_card_type": &"enemy",
+			"enemy": {"fight": 2, "evade": 2, "health": 3, "damage": 1, "horror": 0},
+		}
+	)
+	CardRegistry.register_definition(
+		&"agenda_next_plain",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	var setup := h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"agenda_enemy_back", &"agenda_next_plain"]
+	)
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	var drawn_when := {"n": 0}
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"encounter_card_drawn"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: drawn_when["n"] = int(drawn_when["n"]) + 1
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.state.doom_on_agenda = 1
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var enemy := h.ctx.state.registry.get_enemy(first_id)
+	var settle_n := _sequence_kind_count(h, &"encounter_resolve_card")
+	return (
+		advance.get("advanced", false)
+		and bool(advance.get("flip", {}).get("encounter_back", false))
+		and settle_n >= 1
+		and int(drawn_when["n"]) == 0
+		and not h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and CardRegistry.card_type_of(flipped) == &"enemy"
+		and flipped.zone == AhcEnums.Zone.PLAY_AREA
+		and enemy != null
+		and inv.threat_area.has(first_id)
+		and h.ctx.state.current_agenda_card_id != first_id
+		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _test_sc27_agenda_treachery_back_not_drawn() -> bool:
+	## FAQ：密谋 b 面为 treachery → 显现 + G4 弃置；不触发 when-drawn。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"agenda_treach_back",
+		{
+			"card_type": &"agenda",
+			"doom": 1,
+			"back_card_type": &"treachery",
+			"limbo_discard_pile": &"encounter_discard",
+		}
+	)
+	CardRegistry.register_revelation(
+		&"agenda_treach_back",
+		&"rev",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.adjust_marker(
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
+				2
+			)
+	)
+	CardRegistry.register_definition(
+		&"agenda_after_treach",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	var setup := h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"agenda_treach_back", &"agenda_after_treach"]
+	)
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	var drawn_when := {"n": 0}
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"encounter_card_drawn"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: drawn_when["n"] = int(drawn_when["n"]) + 1
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.state.doom_on_agenda = 1
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		advance.get("advanced", false)
+		and bool(advance.get("flip", {}).get("encounter_back", false))
+		and int(drawn_when["n"]) == 0
+		and not h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and flipped.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.encounter_discard.has(first_id)
+		and inv.horror_taken == 2
+		and h.ctx.state.current_agenda_number == 2
 	)
 
 

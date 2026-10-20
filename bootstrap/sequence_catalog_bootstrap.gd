@@ -39,6 +39,7 @@ static func _register_flows(
 			return DrawEncounterFlow.run(game_ctx, drawer_id)
 	)
 	## 已持有实例 → 遭遇侧能力体系（与抽库后卡面结算同体；非来源重定向）。
+	## `as_drawn=false`：Act/Agenda 遭遇类型背面等 — 进场/显现，不触发 when-drawn。
 	catalog.register_run(
 		&"seq.encounter.resolve_card",
 		func(params: Dictionary) -> TriggeringCondition:
@@ -48,7 +49,8 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			var card_id: StringName = params.get("card_id", &"")
-			return DrawEncounterFlow.resolve_card(game_ctx, drawer_id, card_id)
+			var as_drawn: bool = bool(params.get("as_drawn", true))
+			return DrawEncounterFlow.resolve_card(game_ctx, drawer_id, card_id, as_drawn)
 	)
 	catalog.register_run(
 		&"seq.encounter.revelation",
