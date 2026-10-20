@@ -369,7 +369,7 @@
 | 2026-10-12 | G4：进场 = 场外→场上区划信息，非效果；不铸 `seq.effect.enter_play` |
 | 2026-10-12 | G4 补：听进场 = 听广义移动 + 场外→场上过滤；`ENTER_PLAY` 是别名非第二通道 |
 | 2026-10-20 | G5 表述：击败=大信封；退场是效果体（nest），非信封外后续 |
-| 2026-10-20 | G5 去向表：玩家弃牌 / 无主剧情→置一边 / 遭遇弃牌；Victory·复仇指示；敌人-地点后议 |
+| 2026-10-20 | G5 去向表：玩家弃牌 / 无主剧情→REMOVED（FAQ · Lita 01117）/ 遭遇弃牌；Victory·复仇指示；敌人-地点后议 |
 | 2026-10-12 | G5：击败是效果；退场 nest 不内联；伤/恐上限常态检测（Cancel 可再触） |
 | 2026-10-12 | G5 落地：`DefeatFlow`；`seq.effect.defeat` / `seq.enemy.defeat`；nest `seq.defeat.leave_play` |
 | 2026-10-12 | G5：支援资产 `subject=asset`；退场 L0 进弃牌堆，不走 discard 效果包装 |
