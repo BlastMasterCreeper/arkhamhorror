@@ -71,3 +71,35 @@ static func engagement(enemy_id: StringName, investigator_id: StringName) -> Res
 	p.subject_id = enemy_id
 	p.drawer_id = investigator_id
 	return p
+
+
+## 与指定敌人交战时：禁止该调查员发现线索。
+static func forbid_discover_clue(
+	investigator_id: StringName,
+	enemy_id: StringName
+) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.FORBID_DISCOVER_CLUE
+	p.drawer_id = investigator_id
+	p.subject_id = enemy_id
+	return p
+
+
+## 与指定敌人交战时：禁止该调查员花费线索。
+static func forbid_spend_clue(
+	investigator_id: StringName,
+	enemy_id: StringName
+) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.FORBID_SPEND_CLUE
+	p.drawer_id = investigator_id
+	p.subject_id = enemy_id
+	return p
+
+
+## 冷漠：对该敌人的 Fight 在未交战时禁止（已交战则 Evaluator 放行）。
+static func forbid_attack_aloof(enemy_id: StringName) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.FORBID_ATTACK
+	p.subject_id = enemy_id
+	return p

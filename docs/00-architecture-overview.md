@@ -291,6 +291,20 @@ var grim_rule_mode: GrimRuleMode = GrimRuleMode.DISABLED
 
 **Invariant（目标）**：任意合法游戏状态转移，引擎 **不依赖** Grim Rule 即可推进。Grimoire 的 Grim 条文保留为 **对照说明**，解释实体桌为何存在该兜底，**不**作为电子版冲突解析的主算法。
 
+### 6.4 `RulesConfig.auto_choice_mode`
+
+同级玩家选择（选目标 / 选序 / 并列）的电子版策略；**不是** Grim Rule。详见 [16 §3.2](design/16-player-interaction.md)。
+
+| 模式 | 用途 |
+|---|---|
+| **`ASK`**（默认） | UI 询问；headless 仍走 `default_index` 不挂死 |
+| `REGISTRATION_ORDER` | 按 COLLECT / 注册序自动选 |
+| `RANDOM` | 合法选项中随机（seed 可复现） |
+
+```gdscript
+var auto_choice_mode: AutoChoiceMode = AutoChoiceMode.ASK
+```
+
 ---
 
 ## 7. 日志与可重放

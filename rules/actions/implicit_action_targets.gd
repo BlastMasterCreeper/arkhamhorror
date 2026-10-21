@@ -144,7 +144,12 @@ static func _diagnose_fight(
 		return "unknown_enemy"
 	if not enemy.is_at_location(inv.location_tag):
 		return "wrong_location"
-	if enemy.aloof and enemy.engaged_with == &"":
+	if (
+		game_ctx.registrations != null
+		and RestrictionEvaluator.blocks_fight(investigator_id, enemy_id, game_ctx.registrations)
+	):
+		return "aloof"
+	if enemy.aloof and not EngagementStatus.is_engaged(game_ctx, enemy_id):
 		return "aloof"
 	return "no_legal_target"
 

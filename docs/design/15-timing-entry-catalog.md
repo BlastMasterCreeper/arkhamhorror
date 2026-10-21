@@ -1429,7 +1429,7 @@ seq.draw.investigator RESOLVE (D1 collect_one_step):
 | Mythos 1.4（每位调查员） | `ScenarioSystem.resolve_encounter_draw(inv)` → `catalog.run(seq.draw.encounter, {drawer_id, amount: 1})` |
 | 卡牌效果「draw N encounter cards」 | 同上，`amount = N` |
 | Setup 14 game begins | 仅结算 **deferred** 显现；Setup 1–13 **不**进入本管线（OQ-10-01） |
-| Act/Agenda b 面 encounter | 按 encounter cardtype 规则；可 nest 同一 `seq.encounter.*` 子 flow |
+| Act/Agenda b 面 encounter | nest `seq.encounter.resolve_card`（`as_drawn=false`）：进场+显现同抽取规则；**不** emit/nest `encounter_card_drawn`；无 surge when-drawn 槽 |
 
 `ScenarioSystem` **不** proliferate 逐步逻辑；只做 framework 步进与 `catalog.run` 委托（对齐 [10 §2](10-scenario-encounter.md)）。
 

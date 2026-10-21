@@ -177,6 +177,7 @@ func _add_action(grid: GridContainer, text: String, cb: Callable) -> void:
 
 func _load_lab(index: int) -> void:
 	_ctx = SandboxLabs.create_context(index)
+	_choice_resolver.configure_from_context(_ctx)
 	_ctx.interaction.resolver = _choice_resolver
 	_choice_resolver.bind_modal(_choice_modal)
 	_status_label.text = "Lab：%s" % SandboxLabs.lab_names()[index]
