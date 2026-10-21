@@ -288,10 +288,8 @@ func _pick_engage_target(
 	var pick := PreyResolver.best_match(prey, game_ctx, candidates, source_enemy_id)
 	if pick != &"":
 		return pick
-	var lead := game_ctx.lead_investigator_id
-	if lead != &"" and candidates.has(lead):
-		return lead
-	return candidates[0]
+	## 无 Prey / 过滤空集：并列仍开 Lead 选择窗（不静默把 Lead 当目标）。
+	return PreyResolver.lead_pick(game_ctx, candidates, &"pick:engage_tie")
 
 
 func apply_engage(

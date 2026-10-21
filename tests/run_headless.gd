@@ -63,6 +63,7 @@ func _initialize() -> void:
 	_run_test("SC-33 aloof FORBID_ATTACK blocks fight until engaged", _test_sc33_aloof_forbid_attack)
 	_run_test("SC-34 Narôgath Prey nearest Cultist engages closer inv", _test_sc34_narogath_prey_nearest_cultist)
 	_run_test("PREY-01 nearest_to_enemy_trait distance filter", _test_prey_nearest_to_enemy_trait)
+	_run_test("PREY-02 prey tie opens Lead pick window", _test_prey_tie_opens_lead_pick)
 	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
@@ -1449,6 +1450,44 @@ func _test_prey_nearest_to_enemy_trait() -> bool:
 		spec, h.ctx, [&"inv_1", &"inv_2"], &"hunter_self"
 	)
 	return pick == &"inv_1"
+
+
+func _test_prey_tie_opens_lead_pick() -> bool:
+	## 两调查员同地、同距 Cultist → 过滤并列；Lead 开窗显式选 inv_2（非静默 Lead=inv_1）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"loc_a"
+	h.ctx.state.registry.get_investigator(&"inv_2").location_tag = &"loc_a"
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	h.ctx.lead_investigator_id = &"inv_1"
+	var cult_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"cult_tie",
+		{"traits": [&"Cultist"]}
+	)
+	if not h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_tie").get("ok", false):
+		return false
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pick:prey_tie", "pick": &"inv_2"},
+	])
+	var before_events := h.ctx.events.records.size() if h.ctx.events != null else 0
+	var spec := PreyInstructionSpec.nearest_to_enemy_trait(&"Cultist")
+	var pick := PreyResolver.best_match(spec, h.ctx, [&"inv_1", &"inv_2"], &"src")
+	var saw_pi := false
+	if h.ctx.events != null:
+		for i in range(before_events, h.ctx.events.records.size()):
+			var rec: EventRecord = h.ctx.events.records[i]
+			if rec.kind != AhcEnums.EventRecordKind.INTERACTION_CHOICE:
+				continue
+			if str(rec.payload.get("prompt_id", "")) == "pick:prey_tie":
+				saw_pi = true
+				break
+	return (
+		pick == &"inv_2"
+		and saw_pi
+		and not h.ctx.interaction.last_used_default
+	)
 
 
 func _test_sc34_narogath_prey_nearest_cultist() -> bool:

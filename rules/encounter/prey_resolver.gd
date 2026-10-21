@@ -40,6 +40,7 @@ static func filter_candidates(
 	return out
 
 
+## Prey 过滤后取 WHO：唯一则直返；并列 → Lead 开 PICK_TARGET 窗（有限期确认 / 默认 first）。
 static func best_match(
 	spec: PreyInstructionSpec,
 	game_ctx: GameContext,
@@ -51,10 +52,38 @@ static func best_match(
 		return &""
 	if filtered.size() == 1:
 		return filtered[0]
-	var lead := game_ctx.lead_investigator_id if game_ctx != null else &""
-	if lead != &"" and filtered.has(lead):
-		return lead
-	return filtered[0]
+	return lead_pick(game_ctx, filtered, &"pick:prey_tie")
+
+
+## 无 Prey / Prey 未命中后的并列：Lead 开选择窗；单候选直返。
+static func lead_pick(
+	game_ctx: GameContext,
+	candidates: Array[StringName],
+	prompt_id: StringName = &"pick:engage_tie"
+) -> StringName:
+	if candidates.is_empty():
+		return &""
+	if candidates.size() == 1:
+		return candidates[0]
+	var lead := &""
+	if game_ctx != null:
+		lead = game_ctx.lead_investigator_id
+		if lead == &"" and game_ctx.state != null:
+			lead = game_ctx.state.lead_investigator_id
+	var decider := lead if lead != &"" else candidates[0]
+	if game_ctx == null or game_ctx.interaction == null:
+		## 无 Gate：稳定回退 first（不静默改成 Lead 本尊为目标）。
+		return candidates[0]
+	var chosen: Variant = game_ctx.interaction.ask_pick_target(
+		candidates, decider, prompt_id, game_ctx
+	)
+	if chosen is StringName and chosen != &"":
+		return chosen as StringName
+	if chosen != null:
+		var as_name := StringName(str(chosen))
+		if as_name != &"" and candidates.has(as_name):
+			return as_name
+	return candidates[0]
 
 
 static func _filter_by_investigator_title(
@@ -83,7 +112,7 @@ static func _candidate_value(inv: InvestigatorState, spec: PreyInstructionSpec) 
 	return inv.get_skill(spec.skill)
 
 
-## 候选调查员中保留「到另一带 trait 敌人」路径距离最小者；无锚点则不筛（交给 Lead）。
+## 候选调查员中保留「到另一带 trait 敌人」路径距离最小者；无锚点则不筛（交给 Lead 窗）。
 static func _filter_nearest_to_enemy_trait(
 	spec: PreyInstructionSpec,
 	game_ctx: GameContext,

@@ -38,21 +38,8 @@ static func pick_nearest_investigator(
 	var pick := PreyResolver.best_match(prey, game_ctx, best, enemy_id)
 	if pick != &"":
 		return pick
-	var lead := game_ctx.lead_investigator_id
-	if lead != &"" and best.has(lead):
-		return lead
-	if game_ctx.interaction != null:
-		var chosen: Variant = game_ctx.interaction.ask_pick_target(
-			best,
-			lead if lead != &"" else best[0],
-			&"pick:hunter_target_tie",
-			game_ctx
-		)
-		if chosen is StringName:
-			return chosen as StringName
-		if chosen != null:
-			return StringName(str(chosen))
-	return best[0]
+	## 无 Prey / 过滤空：等距并列 → Lead PICK_TARGET。
+	return PreyResolver.lead_pick(game_ctx, best, &"pick:hunter_target_tie")
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
