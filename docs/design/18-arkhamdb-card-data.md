@@ -157,8 +157,8 @@ python tools/analyze_arkhamdb_cards.py
 - [x] 回填 `CardRegistry` 布尔/关键词字段：`is_hunter` / `is_retaliate` / `is_massive` / `has_surge` / `has_peril` / `is_permanent`；loader 同步 `hunter`/`retaliate`/`massive`
 - [x] Spawn/Prey 文本 → JSON spec → `ArkhamDbInstructionCompiler` → `SpawnInstructionSpec` / `PreyInstructionSpec`
 - [x] Core 2026 四张指令卡：12099 Farthest empty · 12114 lowest agility · 12164 most resources · 12009 Trish only
-- [x] `SpawnLocationResolver`：`nearest_empty` / `farthest_empty`；`PreyResolver`：`resources` / `investigator_only`
-- [x] 单元测试 ADB-07～13
+- [x] `SpawnLocationResolver`：`nearest_empty` / `farthest_empty`；`PreyResolver`：`resources` / `investigator_only` / **`nearest_to_enemy_trait`**（路径距离 + `CardRegistry.card_has_trait`）
+- [x] 单元测试 ADB-07～13；ADB-10b / PREY-01 / SC-34（50026 Nearest to Cultist）
 
 **运行**：`python tools/arkhamdb_import.py` → Godot `ArkhamDbCardLoader.load_core_2026()`
 

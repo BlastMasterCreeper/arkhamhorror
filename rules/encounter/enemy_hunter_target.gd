@@ -35,7 +35,7 @@ static func pick_nearest_investigator(
 	if best.size() == 1:
 		return best[0]
 	var prey := CardRegistry.prey_spec(def_id)
-	var pick := PreyResolver.best_match(prey, game_ctx, best)
+	var pick := PreyResolver.best_match(prey, game_ctx, best, enemy_id)
 	if pick != &"":
 		return pick
 	var lead := game_ctx.lead_investigator_id

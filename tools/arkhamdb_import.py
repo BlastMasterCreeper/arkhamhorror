@@ -238,6 +238,28 @@ def compile_prey(text: str) -> dict[str, Any] | None:
             "kind": "investigator_only",
             "investigator_title": inner[: -len(" only")].strip(),
         }
+    ## Nearest to another [[Cultist]] enemy（50026b Narôgath 等）。
+    nearest = re.search(
+        r"nearest to another\s*(?:\[\[([^\]]+)\]\]|(\w+))\s*enem(?:y|ies)",
+        inner_l,
+        re.I,
+    )
+    if nearest:
+        trait = (nearest.group(1) or nearest.group(2) or "").strip()
+        ## 保留卡面大小写：从原文再取一次。
+        raw = re.search(
+            r"nearest to another\s*(?:\[\[([^\]]+)\]\]|(\w+))\s*enem(?:y|ies)",
+            inner,
+            re.I,
+        )
+        if raw:
+            trait = (raw.group(1) or raw.group(2) or trait).strip()
+        if trait:
+            return {
+                "kind": "nearest_to_enemy_trait",
+                "enemy_trait": trait,
+                "exclude_self": True,
+            }
     if "most clues" in inner_l:
         return {"kind": "clues", "metric": "clues", "compare": "highest"}
     if "fewest clues" in inner_l:

@@ -5,7 +5,8 @@ extends RefCounted
 static func filter_candidates(
 	spec: PreyInstructionSpec,
 	game_ctx: GameContext,
-	candidates: Array[StringName]
+	candidates: Array[StringName],
+	source_enemy_id: StringName = &""
 ) -> Array[StringName]:
 	if spec == null or game_ctx == null or candidates.is_empty():
 		return []
@@ -14,6 +15,8 @@ static func filter_candidates(
 		return []
 	if spec.investigator_title_only != "":
 		return scoped
+	if spec.is_nearest_to_enemy_trait():
+		return _filter_nearest_to_enemy_trait(spec, game_ctx, scoped, source_enemy_id)
 	var best_value: int = -1
 	var pick_high := spec.compare_mode == PreyInstructionSpec.CompareMode.HIGHEST
 	if not pick_high:
@@ -40,9 +43,10 @@ static func filter_candidates(
 static func best_match(
 	spec: PreyInstructionSpec,
 	game_ctx: GameContext,
-	candidates: Array[StringName]
+	candidates: Array[StringName],
+	source_enemy_id: StringName = &""
 ) -> StringName:
-	var filtered := filter_candidates(spec, game_ctx, candidates)
+	var filtered := filter_candidates(spec, game_ctx, candidates, source_enemy_id)
 	if filtered.is_empty():
 		return &""
 	if filtered.size() == 1:
@@ -77,3 +81,78 @@ static func _candidate_value(inv: InvestigatorState, spec: PreyInstructionSpec) 
 	if spec.value_kind == PreyInstructionSpec.ValueKind.CLUES:
 		return inv.clues_on_card
 	return inv.get_skill(spec.skill)
+
+
+## 候选调查员中保留「到另一带 trait 敌人」路径距离最小者；无锚点则不筛（交给 Lead）。
+static func _filter_nearest_to_enemy_trait(
+	spec: PreyInstructionSpec,
+	game_ctx: GameContext,
+	candidates: Array[StringName],
+	source_enemy_id: StringName
+) -> Array[StringName]:
+	var anchors := _enemy_locations_with_trait(
+		game_ctx, spec.nearest_enemy_trait, source_enemy_id if spec.exclude_self else &""
+	)
+	if anchors.is_empty():
+		return candidates.duplicate()
+	var best_dist := 999999
+	var scored: Array[Dictionary] = []
+	for inv_id in candidates:
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv == null or inv.location_tag == &"":
+			continue
+		var dist := _min_distance_to_locations(inv.location_tag, anchors, game_ctx)
+		if dist < 0:
+			continue
+		scored.append({"id": inv_id, "dist": dist})
+		if dist < best_dist:
+			best_dist = dist
+	if scored.is_empty():
+		return candidates.duplicate()
+	var out: Array[StringName] = []
+	for row in scored:
+		if int(row["dist"]) == best_dist:
+			out.append(row["id"] as StringName)
+	return out
+
+
+static func _enemy_locations_with_trait(
+	game_ctx: GameContext,
+	trait_name: StringName,
+	exclude_enemy_id: StringName
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if game_ctx == null or game_ctx.state == null or trait_name == &"":
+		return out
+	var seen_loc: Dictionary = {}
+	for enemy_id in game_ctx.state.registry.all_enemy_ids():
+		if exclude_enemy_id != &"" and enemy_id == exclude_enemy_id:
+			continue
+		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+		if enemy == null or enemy.location_tag == &"":
+			continue
+		var card := game_ctx.state.registry.get_card(enemy_id)
+		if card == null:
+			continue
+		if not CardRegistry.card_has_trait(card, trait_name):
+			continue
+		if seen_loc.has(enemy.location_tag):
+			continue
+		seen_loc[enemy.location_tag] = true
+		out.append(enemy.location_tag)
+	return out
+
+
+static func _min_distance_to_locations(
+	from_tag: StringName,
+	location_tags: Array[StringName],
+	game_ctx: GameContext
+) -> int:
+	var best := -1
+	for loc in location_tags:
+		var dist := EnemyPathfinding.shortest_path_distance(from_tag, loc, game_ctx)
+		if dist < 0:
+			continue
+		if best < 0 or dist < best:
+			best = dist
+	return best

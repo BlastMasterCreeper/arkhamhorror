@@ -121,6 +121,8 @@ func choose_hunter_target(enemy: EntityId) -> EntityId:
 
 Prey 示例：`Prey (lowest [agility])` — 在 **等距** 或 **同地点** 候选子集内比较；**never** 跨距离选非等距调查员。
 
+`Prey – Nearest to another [[Cultist]] enemy`（50026b）：在**当前候选子集**内，按调查员地点到「另一带该特性的在场敌人」的 **`EnemyPathfinding` 最短路径**取最小；并列 → Lead。`exclude_self` 排除源敌人实例。无锚点 / 皆不可达 → 不筛（交给 Lead）。**不** nest。
+
 **禁止**：`PreyPolicy`；Prey 独立 timing / nest；把 Prey 编译为 LISTENER（Hunter **移动** 才编译 LISTENER，Prey 只是 handler 内 Resolver 调用）。
 
 ---

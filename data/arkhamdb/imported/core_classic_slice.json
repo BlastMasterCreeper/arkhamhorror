@@ -222,6 +222,11 @@
     ],
     "spawn_instruction": {
       "selector": "engaged_with_prey"
+    },
+    "prey_instruction": {
+      "kind": "nearest_to_enemy_trait",
+      "enemy_trait": "Cultist",
+      "exclude_self": true
     }
   },
   "50026b": {
@@ -263,6 +268,11 @@
     "text": "<b>Spawn</b> - Engaged with Prey.\n<b>Prey</b> - Nearest to another [[Cultist]] enemy.\nHunter.\nNarôgath gets +3 health per investigator.\nWhile Narôgath is ready, each investigator at its location or a connecting location cannot <b>Parley</b> with [[Cultist]] enemies.",
     "spawn_instruction": {
       "selector": "engaged_with_prey"
+    },
+    "prey_instruction": {
+      "kind": "nearest_to_enemy_trait",
+      "enemy_trait": "Cultist",
+      "exclude_self": true
     }
   }
 }

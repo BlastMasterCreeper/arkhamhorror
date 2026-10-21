@@ -46,6 +46,13 @@ static func prey_from_dict(data: Dictionary) -> PreyInstructionSpec:
 		if title == "":
 			return null
 		return PreyInstructionSpec.investigator_only(title)
+	if kind == "nearest_to_enemy_trait":
+		var trait_name := StringName(str(data.get("enemy_trait", "")))
+		if trait_name == &"":
+			return null
+		return PreyInstructionSpec.nearest_to_enemy_trait(
+			trait_name, bool(data.get("exclude_self", true))
+		)
 	var compare := str(data.get("compare", "highest"))
 	var metric := str(data.get("metric", "skill"))
 	if metric == "resources" or kind == "resources":

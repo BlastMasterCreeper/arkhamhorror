@@ -61,6 +61,8 @@ func _initialize() -> void:
 	_run_test("SC-31 Masked Hunter clue forbid clears on disengage", _test_sc31_masked_hunter_forbid_clears)
 	_run_test("SC-32 50026a flip → Narôgath not drawn", _test_sc32_50026_narogath_flip)
 	_run_test("SC-33 aloof FORBID_ATTACK blocks fight until engaged", _test_sc33_aloof_forbid_attack)
+	_run_test("SC-34 Narôgath Prey nearest Cultist engages closer inv", _test_sc34_narogath_prey_nearest_cultist)
+	_run_test("PREY-01 nearest_to_enemy_trait distance filter", _test_prey_nearest_to_enemy_trait)
 	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
@@ -165,6 +167,7 @@ func _initialize() -> void:
 	_run_test("ADB-08 compile prey lowest agility", _test_adb_prey_lowest_agility)
 	_run_test("ADB-09 compile prey most resources", _test_adb_prey_most_resources)
 	_run_test("ADB-10 compile prey investigator only", _test_adb_prey_investigator_only)
+	_run_test("ADB-10b compile prey nearest Cultist enemy", _test_adb_prey_nearest_cultist)
 	_run_test("ADB-11 compile spawn farthest empty", _test_adb_spawn_farthest_empty)
 	_run_test("ADB-12 spawn farthest empty resolves", _test_adb_spawn_farthest_empty_play)
 	_run_test("ADB-13 prey lowest agility engages", _test_adb_prey_lowest_agility_play)
@@ -1374,6 +1377,7 @@ func _test_sc32_50026_narogath_flip() -> bool:
 	var flipped := h.ctx.state.registry.get_card(first_id)
 	var enemy := h.ctx.state.registry.get_enemy(first_id)
 	var spawn := CardRegistry.spawn_spec(&"50026a")
+	var prey := CardRegistry.prey_spec(&"50026a")
 	return (
 		advance.get("advanced", false)
 		and bool(advance.get("flip", {}).get("encounter_back", false))
@@ -1384,6 +1388,9 @@ func _test_sc32_50026_narogath_flip() -> bool:
 		and CardRegistry.card_type_of(flipped) == &"enemy"
 		and CardRegistry.is_hunter(&"50026a")
 		and spawn.selector_kind == SpawnInstructionSpec.SelectorKind.ENGAGED_WITH_PREY
+		and prey != null
+		and prey.is_nearest_to_enemy_trait()
+		and prey.nearest_enemy_trait == &"Cultist"
 		and enemy != null
 		and enemy.health == 10
 		and enemy.fight == 3
@@ -1414,6 +1421,77 @@ func _test_sc33_aloof_forbid_attack() -> bool:
 	inv.actions_remaining = 1
 	var ok := h.fight_action({"enemy_id": &"enemy_1"})
 	return ok.ok and ok.success
+
+
+func _test_prey_nearest_to_enemy_trait() -> bool:
+	## loc_a—loc_b：Cultist @ a；inv1@a 距 0，inv2@b 距 1 → 选 inv1。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a")
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"loc_a", &"loc_b")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"loc_a"
+	h.ctx.state.registry.get_investigator(&"inv_2").location_tag = &"loc_b"
+	h.ctx.state.lead_investigator_id = &"inv_2"
+	h.ctx.lead_investigator_id = &"inv_2"
+	var cult_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"cult_anchor",
+		{"traits": [&"Humanoid", &"Cultist"]}
+	)
+	var spawned := h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_anchor")
+	if not spawned.get("ok", false):
+		return false
+	if not CardRegistry.card_has_trait(h.ctx.state.registry.get_card(cult_id), &"Cultist"):
+		return false
+	var spec := PreyInstructionSpec.nearest_to_enemy_trait(&"Cultist")
+	var pick := PreyResolver.best_match(
+		spec, h.ctx, [&"inv_1", &"inv_2"], &"hunter_self"
+	)
+	return pick == &"inv_1"
+
+
+func _test_sc34_narogath_prey_nearest_cultist() -> bool:
+	## 场上已有 Cultist @ loc_a；inv1@a、inv2@b → 50026 翻面交战 inv1（非 Lead inv2）。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a")
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"loc_a", &"loc_b")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"loc_a"
+	h.ctx.state.registry.get_investigator(&"inv_2").location_tag = &"loc_b"
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_2"
+	h.ctx.lead_investigator_id = &"inv_2"
+	var cult_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"cult_for_narogath",
+		{"traits": [&"Humanoid", &"Cultist"]}
+	)
+	if not h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_for_narogath").get(
+		"ok", false
+	):
+		return false
+	CardRegistry.register_definition(
+		&"agenda_after_50026_prey",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"50026a", &"agenda_after_50026_prey"]
+	)
+	var first_id := h.ctx.state.current_agenda_card_id
+	h.ctx.state.doom_on_agenda = 6
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	return (
+		EngagementStatus.is_engaged_with(h.ctx, first_id, &"inv_1")
+		and not EngagementStatus.is_engaged_with(h.ctx, first_id, &"inv_2")
+		and h.ctx.state.registry.get_investigator(&"inv_1").threat_area.has(first_id)
+	)
 
 
 func _test_sc31_masked_hunter_forbid_clears() -> bool:
@@ -3910,6 +3988,19 @@ func _test_adb_prey_investigator_only() -> bool:
 	return (
 		prey != null
 		and prey.investigator_title_only == "Trish Scarborough"
+	)
+
+
+func _test_adb_prey_nearest_cultist() -> bool:
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	var prey := CardRegistry.prey_spec(&"50026b")
+	return (
+		prey != null
+		and prey.is_nearest_to_enemy_trait()
+		and prey.nearest_enemy_trait == &"Cultist"
+		and prey.exclude_self
 	)
 
 

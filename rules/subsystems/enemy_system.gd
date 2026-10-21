@@ -57,7 +57,8 @@ func _spawn_engaged_with_prey(
 		if inv != null and not inv.eliminated:
 			candidates.append(inv_id)
 	var prey := CardRegistry.prey_spec(def_id)
-	var target := PreyResolver.best_match(prey, game_ctx, candidates)
+	## source = 即将进场的实例 id（此时可能尚未 materialize；排除自引用）。
+	var target := PreyResolver.best_match(prey, game_ctx, candidates, card_id)
 	if target == &"":
 		target = drawer_id
 	if target == &"":
@@ -171,7 +172,7 @@ func auto_engage_at_location(
 	var candidates := _investigators_at_location(location_tag)
 	if candidates.is_empty():
 		return {"ok": true, "skipped": true}
-	var target := _pick_engage_target(game_ctx, candidates, def_id)
+	var target := _pick_engage_target(game_ctx, candidates, def_id, enemy_id)
 	_apply_engage(game_ctx, enemy_id, target, true)
 	return {"ok": true, "enemy_id": enemy_id, "investigator_id": target}
 
@@ -278,12 +279,13 @@ func _investigators_at_location(location_tag: StringName) -> Array[StringName]:
 func _pick_engage_target(
 	game_ctx: GameContext,
 	candidates: Array[StringName],
-	def_id: StringName
+	def_id: StringName,
+	source_enemy_id: StringName = &""
 ) -> StringName:
 	if candidates.size() == 1:
 		return candidates[0]
 	var prey := CardRegistry.prey_spec(def_id)
-	var pick := PreyResolver.best_match(prey, game_ctx, candidates)
+	var pick := PreyResolver.best_match(prey, game_ctx, candidates, source_enemy_id)
 	if pick != &"":
 		return pick
 	var lead := game_ctx.lead_investigator_id

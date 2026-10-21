@@ -44,8 +44,53 @@ static func traits(definition_id: StringName) -> Array:
 	var data := definition_data(definition_id)
 	var tr: Variant = data.get("traits", [])
 	if tr is Array:
-		return tr.duplicate()
+		return (tr as Array).duplicate()
 	return []
+
+
+## 卡牌实例有效特性：B 面优先 back_traits（agenda/act 遭遇背）；否则正面 traits。
+static func traits_of_card(card: CardInstance) -> Array:
+	if card == null:
+		return []
+	var data := definition_data(card.id.definition_id)
+	if card.face == AhcEnums.CardFace.B:
+		var back: Variant = data.get("back_traits", [])
+		if back is Array and not (back as Array).is_empty():
+			return (back as Array).duplicate()
+	var front: Variant = data.get("traits", [])
+	if front is Array and not (front as Array).is_empty():
+		return (front as Array).duplicate()
+	## 遭遇背合并在正面 definition、实例已是敌人但 face 未翻时的回退。
+	var back_fallback: Variant = data.get("back_traits", [])
+	if back_fallback is Array:
+		return (back_fallback as Array).duplicate()
+	return []
+
+
+static func has_trait(definition_id: StringName, trait_name: StringName) -> bool:
+	if definition_id == &"" or trait_name == &"":
+		return false
+	var want := String(trait_name).to_lower()
+	for t in traits(definition_id):
+		if str(t).to_lower() == want:
+			return true
+	var data := definition_data(definition_id)
+	var back: Variant = data.get("back_traits", [])
+	if back is Array:
+		for t in back as Array:
+			if str(t).to_lower() == want:
+				return true
+	return false
+
+
+static func card_has_trait(card: CardInstance, trait_name: StringName) -> bool:
+	if card == null or trait_name == &"":
+		return false
+	var want := String(trait_name).to_lower()
+	for t in traits_of_card(card):
+		if str(t).to_lower() == want:
+			return true
+	return false
 
 
 static func ability_segments(definition_id: StringName) -> Array:
