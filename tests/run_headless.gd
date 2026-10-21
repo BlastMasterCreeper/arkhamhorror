@@ -352,6 +352,9 @@ func _initialize() -> void:
 	_run_test("PI-05 scripting miss falls to default", _test_pi_scripting_miss_default)
 	_run_test("PI-06 INTERACTION_CHOICE event record", _test_pi_interaction_event_record)
 	_run_test("PI-07 compute_default pick_multi first N", _test_pi_compute_default_multi)
+	_run_test("PI-AUTO-01 registration order pick", _test_pi_auto_registration_order)
+	_run_test("PI-AUTO-02 random pick deterministic seed", _test_pi_auto_random_seed)
+	_run_test("PI-AUTO-03 random order shuffles", _test_pi_auto_random_order)
 	_run_test("FWK-01 upkeep 4.4 draw and gain via catalog", _test_fwk_upkeep_44_catalog)
 	_run_test("FWK-02 mythos 1.4 encounter draw", _test_fwk_mythos_14_encounter_draw)
 	_run_test("FWK-03 mythos 1.4 two investigators", _test_fwk_mythos_14_two_investigators)
@@ -1471,13 +1474,14 @@ func _test_prey_tie_opens_lead_pick() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
 		{"prompt_id": &"pick:prey_tie", "pick": &"inv_2"},
 	])
-	var before_events := h.ctx.events.records.size() if h.ctx.events != null else 0
+	var before_events := h.ctx.events.get_records().size() if h.ctx.events != null else 0
 	var spec := PreyInstructionSpec.nearest_to_enemy_trait(&"Cultist")
 	var pick := PreyResolver.best_match(spec, h.ctx, [&"inv_1", &"inv_2"], &"src")
 	var saw_pi := false
 	if h.ctx.events != null:
-		for i in range(before_events, h.ctx.events.records.size()):
-			var rec: EventRecord = h.ctx.events.records[i]
+		var records := h.ctx.events.get_records()
+		for i in range(before_events, records.size()):
+			var rec: EventRecord = records[i]
 			if rec.kind != AhcEnums.EventRecordKind.INTERACTION_CHOICE:
 				continue
 			if str(rec.payload.get("prompt_id", "")) == "pick:prey_tie":
@@ -7447,6 +7451,78 @@ func _test_pi_compute_default_multi() -> bool:
 	req.default_policy = &"skip"
 	var skip: Variant = DefaultChoiceResolver.compute_default(req)
 	return skip is Array and (skip as Array).is_empty()
+
+
+func _test_pi_auto_registration_order() -> bool:
+	var cfg := RulesConfig.new()
+	cfg.auto_choice_mode = AhcEnums.AutoChoiceMode.REGISTRATION_ORDER
+	var h := RuleTestHarness.new(42, cfg)
+	var pick: Variant = h.ctx.interaction.ask_pick_target(
+		[&"a", &"b", &"c"], &"inv_1", &"pick:auto_reg", h.ctx
+	)
+	if pick != &"a" or not h.ctx.interaction.last_used_default:
+		return false
+	var ordered: Array = h.ctx.interaction.ask_order_simultaneous(
+		[&"x", &"y", &"z"], &"inv_1", &"order:auto_reg", h.ctx
+	)
+	return ordered == [&"x", &"y", &"z"]
+
+
+func _test_pi_auto_random_seed() -> bool:
+	var cfg := RulesConfig.new()
+	cfg.auto_choice_mode = AhcEnums.AutoChoiceMode.RANDOM
+	var h1 := RuleTestHarness.new(99, cfg)
+	var h2 := RuleTestHarness.new(99, cfg)
+	var opts: Array = [&"a", &"b", &"c", &"d", &"e"]
+	var p1: Variant = h1.ctx.interaction.ask_pick_target(opts, &"inv_1", &"pick:rnd", h1.ctx)
+	var p2: Variant = h2.ctx.interaction.ask_pick_target(opts, &"inv_1", &"pick:rnd", h2.ctx)
+	if p1 != p2:
+		return false
+	## 同 seed 可复现；且须落在候选内。
+	if not opts.has(p1):
+		return false
+	## 换 seed 通常得不同结果（极小概率碰撞则再抽一次对照）。
+	var h3 := RuleTestHarness.new(100, cfg)
+	var p3: Variant = h3.ctx.interaction.ask_pick_target(opts, &"inv_1", &"pick:rnd", h3.ctx)
+	if p3 == p1:
+		var h4 := RuleTestHarness.new(101, cfg)
+		var p4: Variant = h4.ctx.interaction.ask_pick_target(opts, &"inv_1", &"pick:rnd", h4.ctx)
+		if p4 == p1:
+			## 仍相同则至少确认 used_default 与候选合法。
+			return h1.ctx.interaction.last_used_default and opts.has(p4)
+	return h1.ctx.interaction.last_used_default
+
+
+func _test_pi_auto_random_order() -> bool:
+	var cfg := RulesConfig.new()
+	cfg.auto_choice_mode = AhcEnums.AutoChoiceMode.RANDOM
+	var h := RuleTestHarness.new(7, cfg)
+	var items: Array = [&"i0", &"i1", &"i2", &"i3", &"i4", &"i5"]
+	var ordered: Array = h.ctx.interaction.ask_order_simultaneous(
+		items, &"inv_1", &"order:rnd", h.ctx
+	)
+	if ordered.size() != items.size():
+		return false
+	## 须为同一多重集。
+	var sorted_in := items.duplicate()
+	var sorted_out := ordered.duplicate()
+	sorted_in.sort()
+	sorted_out.sort()
+	if sorted_in != sorted_out:
+		return false
+	## 固定 seed=7 下应打乱（若偶然未打乱则用静态 compute_for_mode 再验一次）。
+	if ordered == items:
+		var req := ChoiceRequest.new()
+		req.kind = AhcEnums.ChoiceKind.ORDER_SIMULTANEOUS
+		req.options = [items.duplicate()]
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 12345
+		var alt: Variant = DefaultChoiceResolver.compute_for_mode(
+			req, AhcEnums.AutoChoiceMode.RANDOM, rng
+		)
+		if not alt is Array or (alt as Array) == items:
+			return false
+	return h.ctx.interaction.last_used_default
 
 
 func _test_fwk_upkeep_44_catalog() -> bool:

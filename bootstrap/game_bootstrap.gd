@@ -13,7 +13,13 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.memory = RulesMemory.new()
 	ctx.timing = TimingBus.new(ctx.log)
 	ctx.sequences = ResolutionSequenceStack.new(ctx.log, ctx.events, ctx.memory)
-	ctx.choices = DefaultChoiceResolver.new()
+	var defaults := DefaultChoiceResolver.new()
+	defaults.mode = ctx.config.auto_choice_mode
+	if p_seed != 0:
+		defaults.rng.seed = p_seed
+	else:
+		defaults.rng.randomize()
+	ctx.choices = defaults
 	ctx.interaction = PlayerInteractionGate.new()
 	ctx.interaction.resolver = ctx.choices
 	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)

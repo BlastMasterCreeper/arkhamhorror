@@ -222,6 +222,13 @@ enum FaceAudience { HIDDEN_ALL, CONTROLLER, ALL }
 
 enum GrimRuleMode { AUTO_WORST, PAUSE_FOR_RULING, DISABLED }
 
+## 电子版同级选择自动决策（16 §3.2）。FAVOR/DISFAVOR 价值评估后补。
+enum AutoChoiceMode {
+	ASK,
+	REGISTRATION_ORDER,
+	RANDOM,
+}
+
 enum EventRecordKind {
 	FRAMEWORK_STEP,
 	INITIATION_STEP,

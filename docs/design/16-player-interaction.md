@@ -108,6 +108,26 @@ class PlayerInteractionGate:
 
 Headless：`DefaultChoiceResolver` / `ScriptingChoiceResolver` 在无脚本应答时走同一默认路径，保证自动化不挂死。
 
+### 3.2 电子版自动选择（`AutoChoiceMode`）
+
+桌面规则常把同级并列交给玩家选序 / 选目标；电子版可配置 **自行决策**，免去每次弹窗。价值评估（利于 / 不利于玩家）较复杂，**后补**；当前仅中立策略：
+
+| `RulesConfig.auto_choice_mode` | 行为 |
+|---|---|
+| **`ASK`**（默认） | UI 弹出 `ChoiceModal`；headless `DefaultChoiceResolver` 仍走 §3.1 `default_index` / 原序，不挂死 |
+| **`REGISTRATION_ORDER`** | 不询问：候选按 COLLECT / 注册序取 `default_index`（多为 0）；`ORDER_*` 保持原序 |
+| **`RANDOM`** | 不询问：在合法选项中随机（`DefaultChoiceResolver.rng`；`GameBootstrap` 用 `p_seed` 可复现） |
+
+```gdscript
+# rules/config/rules_config.gd
+var auto_choice_mode: AhcEnums.AutoChoiceMode = AhcEnums.AutoChoiceMode.ASK
+```
+
+- **接线**：`GameBootstrap` → `DefaultChoiceResolver.mode` / `.rng`；沙盒 `UiChoiceResolver.configure_from_context` 读同一配置，非 `ASK` 时跳过模态。
+- **测试覆盖**：`ScriptingChoiceResolver` 仍优先；未命中回落 `compute_default`（注册序）。测 `RANDOM` 时注入 `DefaultChoiceResolver` 并固定 `rng.seed`。
+- **非**：不替代 Grim Rule；不绕过 Eligibility；不新增 `seq.choose.*`。
+- **预留**：`FAVOR` / `DISFAVOR`（局面价值评估）待设计，不进本枚举直至有可测定义。
+
 ---
 
 ## 4. `ChoiceKind` — 核心枚举
@@ -391,9 +411,9 @@ class ChoiceRequest:
 ## 9. `ChoiceResolver` 与 headless
 
 ```text
-UI 客户端     →  CustomChoiceResolver（等玩家点击 → 回填）
+UI 客户端     →  UiChoiceResolver（ASK 等点击；非 ASK 走 auto_choice_mode）
 Headless 测试 →  ScriptingChoiceResolver（按 prompt_id / 队列应答）
-默认 / AI     →  DefaultChoiceResolver（default_index；ORDER 保持原序）
+默认 / AI     →  DefaultChoiceResolver（mode：ASK/REGISTRATION_ORDER≈原序；RANDOM）
 ```
 
 测试注入：
@@ -473,7 +493,7 @@ seq.encounter.revelation
 |---|---|---|
 | OQ-PI-01 | Optional Forced「may take 1 horror」 | 仍 `OPTIONAL_EFFECT`；控制者选；默认=跳过 |
 | OQ-PI-02 | 多调查员各有一条 eligible [reaction] | 并行 USE_ABILITY；仅 **均选用** 的 TRIGGERED 批交队长排序 |
-| OQ-PI-03 | AI 默认 ORDER | 保持 COLLECT 顺序 |
+| OQ-PI-03 | AI 默认 ORDER | 保持 COLLECT 顺序；见 §3.2 `REGISTRATION_ORDER` / `RANDOM` |
 
 | OQ-PI-04 | Search 未拿牌的 **回置顺序** | 默认保持 reveal 序；可选 `ORDER_CARDS` |
 | OQ-PI-05 | `CAMPAIGN_DECISION` 是否独立进程 | v1 与 Setup 同 resolver；战役服务发起 ask |
@@ -486,6 +506,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-21 | v0.4.3 | **§3.2 `AutoChoiceMode`**：`ASK` / `REGISTRATION_ORDER` / `RANDOM`；FAVOR/DISFAVOR 后补 |
 | 2026-10-10 | v0.4.2 | **默认自动选用**：`compute_default` / `resolve_choice` / `used_default` + `INTERACTION_CHOICE`；deadline UI 暂缓 |
 | 2026-09-29 | v0.4.0 | 挂接 [21-selection-spec](21-selection-spec.md)：通用 filter / 基数 / Memory bind |
 | 2026-09-28 | v0.3.0 | **§1.1 / §3.1**：玩家选择=有限期确认+默认；≠ nest/内联；ChoiceRequest 加 deadline |
