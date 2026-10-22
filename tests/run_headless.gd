@@ -7757,14 +7757,11 @@ func _test_tim_dmg_apply_slots() -> bool:
 		snap["would_dmg"] = inv.damage_taken
 		snap["would_pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
 	h.ctx.sequences.register_handler(would_h)
-	h.ctx.sequences.register_handler(
-		SequenceHandler.when_forced(
-			&"damage",
-			func() -> void:
-				snap["when_dmg"] = inv.damage_taken
-				snap["when_pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
-		)
-	)
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		snap["when_dmg"] = inv.damage_taken
+		snap["when_pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_h)
 	h.ctx.sequences.register_handler(
 		SequenceHandler.after_forced(
 			&"damage",
@@ -7821,13 +7818,10 @@ func _test_tim_dmg_prevent() -> bool:
 			func() -> void: DamagePipeline.reduce_pending(h.ctx, &"inv_1", 1)
 		)
 	)
-	h.ctx.sequences.register_handler(
-		SequenceHandler.when_forced(
-			&"damage",
-			func() -> void:
-				when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
-		)
-	)
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
 		&"seq.effect.damage",
