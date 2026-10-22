@@ -22,6 +22,9 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.choices = defaults
 	ctx.interaction = PlayerInteractionGate.new()
 	ctx.interaction.resolver = ctx.choices
+	ctx.ability_response_prefs = AbilityResponsePreferences.new()
+	ctx.player_window_intents = PlayerWindowIntentPool.new()
+	ctx.player_window_intents.bind_game_context(ctx)
 	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)
 	ctx.registrations = RegistrationStore.new()
 	ctx.stat_projections = StatProjectionStore.new()
@@ -415,6 +418,55 @@ static func setup_test_enemy(
 	ctx.state.registry.register_enemy(enemy)
 	if aloof:
 		AloofStatus.ensure_forbid_attack(ctx, enemy_id)
+
+
+## 01017《体能训练》式免费触发：花 1 资源 → 本次检定 +1 战（批打白名单锚）。
+static func register_physical_training_01017() -> void:
+	CardRegistry.register_definition(
+		&"01017",
+		{"card_type": &"asset", "traits": [&"Talent"], "title": "Physical Training"}
+	)
+
+
+static func install_physical_training_01017(
+	ctx: GameContext,
+	controller_id: StringName,
+	card_id: StringName = &""
+) -> TriggeredAbilityDescriptor:
+	register_physical_training_01017()
+	var instance_id := card_id
+	if instance_id == &"":
+		instance_id = ctx.state.registry.allocate_instance_id(&"card")
+		var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, &"01017")
+		var card := CardInstance.new()
+		card.id = eid
+		card.owner_id = controller_id
+		card.controller_id = controller_id
+		card.zone = AhcEnums.Zone.PLAY_AREA
+		ctx.state.registry.register_card(card)
+		var inv := ctx.state.registry.get_investigator(controller_id)
+		if inv != null:
+			inv.play_area.append(instance_id)
+	var payload := ModifierPayload.add_skill(AhcEnums.StatRef.SKILL_COMBAT, 1)
+	var template := RegistrationTemplate.lasting_modifier(
+		controller_id, AhcEnums.DurationAnchorKind.THIS_SKILL_TEST, payload
+	)
+	var composition := CompositionNode.seq([
+		CompositionNode.nest_lose_resources(controller_id, 1),
+		CompositionNode.register(template),
+	])
+	var desc := TriggeredAbilityDescriptor.free_triggered(
+		controller_id,
+		composition,
+		&"any_player_window",
+		instance_id,
+		&"01017"
+	)
+	desc.id = &"01017:physical_training"
+	desc.pw_intent_batch = true
+	desc.max_batch = 10
+	ctx.triggered_abilities.register(desc)
+	return desc
 
 
 static func config_spreading_flames() -> RulesConfig:

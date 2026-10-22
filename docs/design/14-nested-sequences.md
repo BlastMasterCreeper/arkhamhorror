@@ -90,12 +90,12 @@ class SequenceHandler:
 
 | 决策 | 谁 | 层 |
 |---|---|---|
-| **[reaction] 是否选用** | **该能力所在卡的控制者** | ResponseWindow |
-| **多条 [reaction] 均选用时的顺序** | **Lead Investigator（队长）** | ResponseWindow |
-| **Forced 是否触发** | eligible 则必须发起 | Eligibility + 自动 Initiation |
-| **关闭时点 / 结束本轮** | 调查员 / 流程 | ResponseWindow |
+| **[reaction] 是否加入响应池** | **该能力所在卡的控制者** | ResponseWindow |
+| **响应池内下一条放行谁** | **Lead Investigator（队长）**（每次 1 条） | ResponseWindow |
+| **Forced 是否触发** | eligible 则必须发起 | Eligibility + 自动 Initiation（不进池） |
+| **终止本窗响应** | 无人新加入且池空 | ResponseWindow |
 
-队长 **不**替其他调查员决定「用不用 [reaction]」。**选用不是 Eligibility 关卡**；选用后必须 Initiation（L6–L7）。
+队长 **不**替其他调查员决定「进不进池」。**入池不是 Eligibility 关卡**；被放行后必须 Initiation（L6–L7）。详 [16 §7.1](16-player-interaction.md)。
 
 ### 5.2 类别优先级 vs 同类内自排
 
@@ -104,29 +104,32 @@ class SequenceHandler:
 | 层 | 谁定 | 规则 |
 |---|---|---|
 | **类别优先级** | 引擎 | `AbilityCategoryTier`：FORCED → FRAMEWORK → TRIGGERED → DELAYED → LISTENER。**显现不在本链**（独立 `REVELATION` 类，06 §8.1.1） |
-| **同类内顺序** | 玩家 / 流程 | 仅 **同一 tier 内**：Forced 批内队长选序；[reaction] 控制者选用；均已选用后队长排 TRIGGERED 批内顺序；显现类内见 `EnterHandTimingPolicy` |
+| **同类内顺序** | 玩家 / 流程 | 仅 **同一 tier 内**：Forced 批内队长选序；可选响应 → 响应池，队长每次放行 1 条；显现类内见 `EnterHandTimingPolicy` |
 
 ```text
-1. FORCED      ← 整类 resolve 完
+1. FORCED      ← 整类 resolve 完（不进响应池）
 2. FRAMEWORK
-3. TRIGGERED   ← [reaction] 选用 + 类内队长选序
+3. TRIGGERED   ← 入响应池 + 队长每次放行 1 条 nest
 4. DELAYED
 5. LISTENER    ← AFTER-B
 
 显现（Revelation）← 独立类；抽取步骤 When 之后的后续步骤 nest，不进上列 Forced 批
 ```
 
-**禁止**：用队长选序把 [reaction] 插到 Forced 之前或中间。**禁止**把显现当成 Forced 以得到假的「Forced 先于 When-draw Fast」跨类序。
+**禁止**：用队长放行把 [reaction] 插到 Forced 之前或中间。**禁止**把显现当成 Forced 以得到假的「Forced 先于 When-draw Fast」跨类序。  
+**禁止**：一轮内整批 `ORDER_SIMULTANEOUS` 锁死可选响应总序（已废；见 16 §7.1.2）。
 
 ### 5.3 窗口流水线
 
 ```text
 打开 TimingWindow
-  → EligibilityPipeline COLLECT（L0–L5）→ eligible 集合
-  → ResponseWindow.resolve_batch(eligible)   # 按 tier 分批；同类内 Initiation + nest
-  → nest 返回 → 若窗口仍 open → refresh → 再 COLLECT
+  → Forced 批自动 Initiation
+  → 响应池 loop（COLLECT 未入池 → 入池/撤 → 队长放行 1 条 → nest → refresh）
+  → 终止：无人新加入且池空
 关闭 TimingWindow
 ```
+
+完整节拍与玩家时间段窗（发起池）对照见 [16 §7.1 / §7.3](16-player-interaction.md)。
 
 ---
 
@@ -167,16 +170,21 @@ sequences.nest(child_trigger, child_resolve)
 ```text
 open(XX, phase)
 resolved_handlers = {}
-loop:
+response_pool = {}
+# Forced 批先自动 resolve（不进池）
+loop:                                    # 响应池 · 可选响应
     response_round += 1
-    eligible = EligibilityPipeline.run(COLLECT) \ resolved_handlers
-    if eligible.empty(): break
-    ResponseWindow.resolve_batch(eligible)   # 按 tier 分批；同类内 Initiation + nest
-    mark resolved
+    candidates = COLLECT \ resolved \ already_in_pool
+    poll join/decline/withdraw（响应模式见 16 §7.1.3）
+    if pool.empty() and no_new_joins: break
+    pick = Lead 从 pool 选 1 条（或 AutoChoice）
+    lock → re-check → Initiation → nest
+    mark resolved；非法出池；合法未放行者保留
 close(XX)
 ```
 
-引擎：`ResolutionSequenceStack._run_response_loop`；`_resolved_in_window` 防同窗口重复结算。
+引擎：`ResolutionSequenceStack` 响应回路 + 粘性响应池；`_resolved_in_window` 防同窗口重复结算。  
+**现状**：`player_initiated` TRIGGERED 走响应池（join → 队长每次 1 条）；其余 tier 仍 auto 批（17 W3）。代码标识符仍为 `willingness_*`（待重命名）。
 
 ---
 
@@ -231,6 +239,9 @@ sequences.end_ability_resolution()
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-22 | v0.5.4 | **§5 / §8** `InitiationPool` / 发起池（替 ActivationPool） |
+| 2026-10-22 | v0.5.3 | **§5 / §8** 术语对齐响应池 / 发起池（16 §7.0） |
+| 2026-10-22 | v0.5.2 | **§5 / §8** 时点窗改意愿池（链 16 §7.1）；废整批 ORDER 可选响应 |
 | 2026-05-25 | v0.1 | 初稿；SequenceStack 竖切 |
 | 2026-05-25 | v0.2 | TimingWindow refresh；[reaction] 禁自响应；控制者 vs 队长 |
 | 2026-05-25 | v0.3 | Eligibility 分工；链到 15 TimingCatalog |

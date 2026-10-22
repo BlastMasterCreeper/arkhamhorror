@@ -229,6 +229,13 @@ enum AutoChoiceMode {
 	RANDOM,
 }
 
+## 可选响应入池偏好（16 §7.1.3）；Forced 不受影响。
+enum AbilityResponseMode {
+	ASK,
+	AUTO_JOIN,
+	AUTO_DECLINE,
+}
+
 enum EventRecordKind {
 	FRAMEWORK_STEP,
 	INITIATION_STEP,
