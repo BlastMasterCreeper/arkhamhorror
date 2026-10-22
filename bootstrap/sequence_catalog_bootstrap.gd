@@ -197,7 +197,8 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.damage(game_ctx, params),
-		true ## SPLIT：信封 WOULD；Assign 后 WHEN（prevent）；Apply 后 AFTER
+		false,
+		true ## 信封无槽；时点只挂 Apply 砖（WOULD prevent / WHEN 已受到）
 	)
 	catalog.register_run(
 		&"seq.effect.lose_resources",

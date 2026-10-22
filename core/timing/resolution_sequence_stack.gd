@@ -78,18 +78,20 @@ func is_self_response_blocked(source_id: StringName) -> bool:
 	return source_id in _causation_stack
 
 
-## `split_timing`（15 §3.1）：信封头开 **WOULD**（整段 PreImpact = 第一块前）；
-## 跳过 ALIAS WHEN；抽取步骤完成后的 WHEN 由 handler `offer_slot`。
+## `split_timing`：信封头 **WOULD**（抽牌第一块前）。
+## `no_envelope_slot`：信封不开槽（伤害等：时点只挂 Apply 砖，见 `offer_slot`）。
 func run(
 	trigger: TriggeringCondition,
 	resolve_fn: Callable,
-	split_timing: bool = false
+	split_timing: bool = false,
+	no_envelope_slot: bool = false
 ) -> void:
 	_push_frame(trigger)
-	if split_timing:
-		_run_response_loop(AhcEnums.SequencePhase.WOULD)
-	else:
-		_run_response_loop(AhcEnums.SequencePhase.WHEN)
+	if not no_envelope_slot:
+		if split_timing:
+			_run_response_loop(AhcEnums.SequencePhase.WOULD)
+		else:
+			_run_response_loop(AhcEnums.SequencePhase.WHEN)
 	_run_phase(AhcEnums.SequencePhase.RESOLVE, resolve_fn)
 	_run_response_loop(AhcEnums.SequencePhase.AFTER)
 	_pop_frame()
@@ -98,12 +100,14 @@ func run(
 func nest(
 	trigger: TriggeringCondition,
 	resolve_fn: Callable,
-	split_timing: bool = false
+	split_timing: bool = false,
+	no_envelope_slot: bool = false
 ) -> void:
-	run(trigger, resolve_fn, split_timing)
+	run(trigger, resolve_fn, split_timing, no_envelope_slot)
 
 
-## RESOLVE 中段打开响应窗（当前帧，不 push）。抽牌 WHEN 用此；WOULD 通常走信封头。
+## RESOLVE 砖块边界打开 WOULD / WHEN（当前帧，不 push）。
+## 抽牌：信封 WOULD + 入手后 WHEN；伤害：Apply 前 WOULD、Apply 后 WHEN。
 func offer_slot(phase: AhcEnums.SequencePhase) -> void:
 	if _frames.is_empty():
 		return

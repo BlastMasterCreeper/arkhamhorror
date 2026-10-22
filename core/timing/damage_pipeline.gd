@@ -1,9 +1,10 @@
 class_name DamagePipeline
 extends RefCounted
 
-## Dealing Damage/Horror（07-effect-resolution §4）：
-## Assign → WHEN（prevent/reduce）→ Apply → defeat 检测。
-## v1 Assign：全部落到调查员卡（asset soak / ASSIGN_* PI 后补）。
+## Dealing Damage/Horror（07-effect-resolution §4）· 已裁决：
+## - **Assign = 玩家选择（PI）**，不是结算砖，不 emit 时点。
+## - 时点挂在 **Apply** 砖：WOULD（将要受到 / prevent）→ L0 写入 → WHEN（已受到）。
+## v1 Assign：默认全量 → 调查员卡（`ASSIGN_*` Gate 后补）。
 
 
 const PENDING_AMOUNT := &"pending_damage_amount"
@@ -11,7 +12,6 @@ const PENDING_KIND := &"pending_damage_kind"
 const PENDING_DIRECT := &"pending_damage_direct"
 
 
-## 对调查员造成伤害/恐惧：走 Assign → 中段 WHEN → Apply。
 static func deal_investigator(
 	game_ctx: GameContext,
 	inv_id: StringName,
@@ -26,16 +26,16 @@ static func deal_investigator(
 	var requested := maxi(amount, 0)
 	if requested <= 0:
 		return {"ok": false, "amount": 0}
-	## Step 1 Assign（v1：全量 → 调查员卡）。
+	## Assign（PI）：v1 默认全量归调查员；不打开时点窗。
 	_set_pending(game_ctx, inv_id, kind, requested, is_direct)
-	## Between 1–2：prevent / reduce（卡面 when-take 钉此槽）。
+	## Apply 砖 PreImpact：will take / prevent·reduce。
 	if game_ctx.sequences != null:
-		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN)
+		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WOULD)
 	var final_amount := pending_amount(game_ctx, inv_id)
 	_clear_pending(game_ctx, inv_id)
 	if final_amount <= 0:
 		return {"ok": false, "amount": 0, "kind": kind, "prevented": true}
-	## Step 2 Apply。
+	## Apply：状态原语写入。
 	if kind == &"horror":
 		game_ctx.mutator.take_horror(inv_id, final_amount)
 	else:
@@ -43,6 +43,9 @@ static func deal_investigator(
 			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
 			final_amount
 		)
+	## Apply 砖 When：已受到伤害/恐惧后的反应。
+	if game_ctx.sequences != null:
+		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN)
 	DefeatFlow.check_investigator_caps(game_ctx, inv_id)
 	return {"ok": true, "amount": final_amount, "kind": kind, "prevented": false}
 
@@ -59,7 +62,7 @@ static func pending_kind(game_ctx: GameContext, inv_id: StringName) -> StringNam
 	return game_ctx.memory.get_referent(inv_id, PENDING_KIND) as StringName
 
 
-## WHEN 窗内：降低尚未 Apply 的分配量（prevent 用 `by >= pending`）。
+## Apply-WOULD 窗内：降低尚未写入的量（prevent 用 `by >= pending`）。
 static func reduce_pending(game_ctx: GameContext, inv_id: StringName, by: int) -> int:
 	if game_ctx == null or game_ctx.memory == null or by <= 0:
 		return pending_amount(game_ctx, inv_id)
