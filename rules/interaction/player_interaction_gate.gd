@@ -67,12 +67,13 @@ func ask_use_ability(
 	handler: Variant,
 	controller_id: StringName,
 	ctx: GameContext,
-	default_use: bool = false
+	default_use: bool = false,
+	prompt_id: StringName = &"reaction:use"
 ) -> bool:
 	var req: ChoiceRequest = ChoiceRequest.new()
 	req.kind = AhcEnums.ChoiceKind.USE_ABILITY
 	req.decider_id = controller_id
-	req.prompt_id = &"reaction:use"
+	req.prompt_id = prompt_id
 	req.options = [handler]
 	req.context = {"handler": handler}
 	req.default_index = 1 if default_use else 0
@@ -81,6 +82,26 @@ func ask_use_ability(
 	if pick is bool:
 		return pick
 	return pick != null
+
+
+## 时点响应窗：控制者是否将可选响应加入意愿池（16 §7.1）。
+func ask_willingness_join(
+	handler: Variant,
+	controller_id: StringName,
+	ctx: GameContext
+) -> bool:
+	return ask_use_ability(
+		handler, controller_id, ctx, false, &"willingness:join"
+	)
+
+
+## 意愿池内队长每次放行 1 条；options 为稳定 id（常为 source_id）。
+func ask_pick_willingness(
+	option_ids: Array,
+	lead_id: StringName,
+	ctx: GameContext
+) -> Variant:
+	return ask_pick_option(option_ids, lead_id, &"willingness:pick", ctx)
 
 
 func ask_optional_effect(

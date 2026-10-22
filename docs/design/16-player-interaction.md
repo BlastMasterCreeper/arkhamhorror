@@ -550,7 +550,7 @@ seq.encounter.revelation
 | P0 | **有限期确认 + default_***（§3.1） | ✅ 默认自动选用（`compute_default` / `resolve_choice` / `used_default` + EventRecord）；**deadline UI 倒计时暂缓** |
 | P0 | **§5 完整目录**（本文件） | v0.2 |
 | P0 | **SelectionSpec / CandidateFilter / ChoiceBind**（[21](21-selection-spec.md)） | ✅ 骨架；`pick_target`/`select` 已接 Enumerator |
-| P1 | 时点响应窗：粘性意愿池 + 队长每次放行 1 条（§7.1） | 设计已裁决；实现待接（替换 stack fire-all） |
+| P1 | 时点响应窗：粘性意愿池 + 队长每次放行 1 条（§7.1） | ✅ 最小竖切（`player_initiated` TRIGGERED；RW-01～03）；响应模式三态待接 |
 | P1 | 玩家时间段窗：意图池 + 主表/争议倒计时（§7.3） | 设计已裁决；实现待接 |
 | P1 | 能力响应模式 `ASK` / `AUTO_JOIN` / `AUTO_DECLINE` | 设计已裁决；实现待接 |
 | P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | ✅ `OPTIONAL`→`OPTIONAL_EFFECT`；`CHOICE` must→`PICK_OPTION` |

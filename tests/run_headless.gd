@@ -96,6 +96,9 @@ func _initialize() -> void:
 	_run_test("TRIG-02 reaction declined by default", _test_trig_reaction_declined)
 	_run_test("TRIG-03 reaction accepted resolves", _test_trig_reaction_accepted)
 	_run_test("TRIG-04 peril blocks teammate triggered", _test_trig_peril_blocks)
+	_run_test("RW-01 willingness pool lead picks one at a time", _test_rw_willingness_pool_order)
+	_run_test("RW-02 forced before willingness reactions", _test_rw_forced_before_reactions)
+	_run_test("RW-03 reaction eligible after nest joins later", _test_rw_reaction_after_nest)
 	_run_test("TRIG-05 install triggered on asset play", _test_trig_install_on_play)
 	_run_test("TRIG-06 free listed in player window", _test_trig_free_listed_in_window)
 	_run_test("TRIG-07 free activate exhausts and moves", _test_trig_free_activate_move)
@@ -2255,7 +2258,7 @@ func _test_trig_reaction_declined() -> bool:
 func _test_trig_reaction_accepted() -> bool:
 	var h := RuleTestHarness.new(42)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"reaction:use", "pick": true},
+		{"prompt_id": &"willingness:join", "pick": true},
 	])
 	var desc := TriggeredAbilityDescriptor.reaction(
 		&"gain_resource",
@@ -2286,12 +2289,98 @@ func _test_trig_peril_blocks() -> bool:
 	)
 	h.ctx.triggered_abilities.register(desc)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"reaction:use", "pick": true},
+		{"prompt_id": &"willingness:join", "pick": true},
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_2")
 	var pool_before := inv.resource_pool
 	h.ctx.resource_gain.gain(h.ctx, &"inv_2", 1, [&"resource_action"])
 	return inv.resource_pool == pool_before + 1
+
+
+func _test_rw_willingness_pool_order() -> bool:
+	## 两条 [reaction] 同窗：均入池 → 队长先放行 B → 再放行 A。
+	var h := RuleTestHarness.new(42)
+	var order: Array[String] = []
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+		{"prompt_id": &"willingness:pick", "pick": &"react_b"},
+	])
+	var react_a := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_a",
+		&"inv_1",
+		func() -> void: order.append("a")
+	)
+	var react_b := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_b",
+		&"inv_1",
+		func() -> void: order.append("b")
+	)
+	h.ctx.sequences.register_handler(react_a)
+	h.ctx.sequences.register_handler(react_b)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return order == ["b", "a"]
+
+
+func _test_rw_forced_before_reactions() -> bool:
+	## Forced 自动批先于意愿池；两条反应随后按 pick 序。
+	var h := RuleTestHarness.new(42)
+	var order: Array[String] = []
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+		{"prompt_id": &"willingness:pick", "pick": &"react_1"},
+	])
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_forced(
+			&"gain_resource",
+			func() -> void: order.append("forced")
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_1",
+			&"inv_1",
+			func() -> void: order.append("r1")
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_2",
+			&"inv_1",
+			func() -> void: order.append("r2")
+		)
+	)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return order == ["forced", "r1", "r2"]
+
+
+func _test_rw_reaction_after_nest() -> bool:
+	## 第一条反应 nest 后才登记第二条 → 下一轮 COLLECT 再入池。
+	var h := RuleTestHarness.new(42)
+	var order: Array[String] = []
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var react_outer := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_outer",
+		&"inv_1",
+		func() -> void:
+			order.append("outer")
+			var react_inner := SequenceHandler.after_reaction(
+				&"gain_resource",
+				&"react_inner",
+				&"inv_1",
+				func() -> void: order.append("inner")
+			)
+			h.ctx.sequences.register_handler(react_inner)
+	)
+	h.ctx.sequences.register_handler(react_outer)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return order == ["outer", "inner"]
 
 
 func _test_trig_install_on_play() -> bool:
@@ -2560,7 +2649,7 @@ func _test_adb_12145_reaction_discover() -> bool:
 		return false
 	_adb_setup_downtown_location(h)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"reaction:use", "pick": true},
+		{"prompt_id": &"willingness:join", "pick": true},
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool

@@ -206,12 +206,16 @@ func _rebind_descriptor(
 	return descriptor
 
 
-func resolve(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
+## skip_use_prompt：时点窗意愿池已 ask join 后由 stack 回调执行时为 true。
+func resolve(
+	descriptor: TriggeredAbilityDescriptor,
+	skip_use_prompt: bool = false
+) -> Dictionary:
 	if descriptor == null or _ctx == null:
 		return {"ok": false, "error": "no_context"}
 	if not _trigger_applies(descriptor):
 		return {"ok": false, "error": "not_eligible"}
-	if not _should_use(descriptor):
+	if not skip_use_prompt and not _should_use(descriptor):
 		return {"ok": false, "error": "declined"}
 	if descriptor.composition == null:
 		return {"ok": false, "error": "invalid_intent"}
@@ -310,7 +314,8 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 	handler.callback = func() -> void:
 		if not _trigger_applies(desc):
 			return
-		resolve(desc)
+		## player_initiated：join 已由 stack 意愿池确认；此处跳过二次 ask。
+		resolve(desc, desc.is_player_initiated())
 	_ctx.sequences.register_handler(handler)
 
 

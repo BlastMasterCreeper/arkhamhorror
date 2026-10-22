@@ -183,8 +183,8 @@ loop:                                    # 意愿池 · 可选响应
 close(XX)
 ```
 
-引擎目标：`ResolutionSequenceStack` 响应回路；`_resolved_in_window` 防同窗口重复结算。  
-**现状**：stack 仍 fire-all handlers（17 W3）；意愿池为实现待接。
+引擎：`ResolutionSequenceStack` 响应回路 + 粘性意愿池；`_resolved_in_window` 防同窗口重复结算。  
+**现状**：`player_initiated` TRIGGERED 走意愿池（join → 队长每次 1 条）；其余 tier 仍 auto 批（17 W3）。
 
 ---
 
