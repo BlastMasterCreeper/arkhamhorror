@@ -37,6 +37,7 @@ static func _run_core(game_ctx: GameContext, inv_id: StringName, amount: int) ->
 	if amount <= 0:
 		return _empty_result()
 	DrawInvestigatorComposition.init_draw_state(memory, inv_id)
+	## WOULD 由栈信封在 RESOLVE 前打开（整段 PreImpact）；此处只 offer WHEN。
 	while DrawInvestigatorComposition.draw_slots_filled(memory, inv_id) < amount:
 		var collect := DrawSubflowHandlers.collect_one_step(game_ctx, inv_id, catalog)
 		if collect.get("defeated", false):
@@ -54,7 +55,15 @@ static func _run_core(game_ctx: GameContext, inv_id: StringName, amount: int) ->
 			mutator.reveal_to_controller(card_id, inv_id)
 		for card_id in drawn:
 			mutator.commit_enter_hand(card_id, inv_id)
+	## SPLIT WHEN：抽取步骤完成（HAND）；显现 nest 在 bootstrap 返回后。
+	_offer_draw_slot(game_ctx, AhcEnums.SequencePhase.WHEN)
 	return _result_from_memory(memory, inv_id, false)
+
+
+static func _offer_draw_slot(game_ctx: GameContext, phase: AhcEnums.SequencePhase) -> void:
+	if game_ctx == null or game_ctx.sequences == null:
+		return
+	game_ctx.sequences.offer_slot(phase)
 
 
 static func _result_from_memory(memory: RulesMemory, inv_id: StringName, defeated: bool) -> Dictionary:

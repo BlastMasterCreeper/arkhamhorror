@@ -33,6 +33,15 @@ static func when_forced(kind: StringName, fn: Callable) -> SequenceHandler:
 	return h
 
 
+static func would_forced(kind: StringName, fn: Callable) -> SequenceHandler:
+	var h := SequenceHandler.new()
+	h.match_kind = kind
+	h.phase = AhcEnums.SequencePhase.WOULD
+	h.tier = Tier.FORCED
+	h.callback = fn
+	return h
+
+
 static func after_forced(kind: StringName, fn: Callable) -> SequenceHandler:
 	var h := SequenceHandler.new()
 	h.match_kind = kind

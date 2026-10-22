@@ -9,6 +9,7 @@ static func run(game_ctx: GameContext, drawer_id: StringName) -> Dictionary:
 		return _fail("invalid_context")
 	var frame := EncounterResolutionFrame.create(drawer_id)
 	game_ctx.memory.push_encounter_frame(frame)
+	## WOULD 由栈信封在 RESOLVE 前打开（整段 PreImpact）；WHEN 在 G1/揭示后 offer。
 	var collect := DrawEncounterSubflowHandlers.collect_one_step(game_ctx, frame)
 	if collect.get("rules_gap", false):
 		game_ctx.memory.pop_encounter_frame()
@@ -120,6 +121,8 @@ static func _resolve_one_card(
 		return _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
 	_reveal_encounter_drawn(game_ctx, card_id, drawer_id, def_id)
 	_emit_encounter_card_drawn(game_ctx, drawer_id, card_id)
+	## SPLIT WHEN：抽取步骤完成（LIMBO）；显现 / G4 在后续队列（15 §3 / §17）。
+	_offer_draw_slot(game_ctx, AhcEnums.SequencePhase.WHEN)
 	if game_ctx.sequences != null:
 		var trigger := TriggeringCondition.encounter_card_drawn(drawer_id, card_id)
 		game_ctx.sequences.nest(
@@ -131,6 +134,12 @@ static func _resolve_one_card(
 	else:
 		outcome = _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
 	return outcome
+
+
+static func _offer_draw_slot(game_ctx: GameContext, phase: AhcEnums.SequencePhase) -> void:
+	if game_ctx == null or game_ctx.sequences == null:
+		return
+	game_ctx.sequences.offer_slot(phase)
 
 
 static func _reveal_encounter_drawn(
