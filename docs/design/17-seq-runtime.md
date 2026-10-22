@@ -86,7 +86,7 @@
 |---|---|---|
 | W1 | Eligibility L0–L5 COLLECT | 订阅 `(sequence_id, slot)` + L3 Condition（历史谓词 → [06c](06c-stat-projections.md) StatProjection）— **未实现 Pipeline** |
 | W2 | Tier 批处理 | FORCED → TRIGGERED → …（14 §5.2） |
-| W3 | ResponseWindow | USE_ABILITY、ORDER_SIMULTANEOUS — **stack 现 fire 全部 handler** |
+| W3 | ResponseWindow | 意愿池 + 队长每次放行 1 条（[16 §7.1](16-player-interaction.md)）— **设计已裁决；stack 现仍 fire-all** |
 | W4 | nest 后 refresh | TimingWindow 仍 open 则再 COLLECT |
 | W5 | 能力 resolution 范围 | `begin/end_ability_resolution` 禁自响应 |
 
