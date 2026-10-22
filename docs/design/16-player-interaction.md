@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility / ResponseWindow）、[07-composition.md](07-composition.md)（Choice / Optional）、[14-nested-sequences.md](14-nested-sequences.md)（同窗口多响应）、[00-architecture-overview.md](../00-architecture-overview.md)  
 > **规则来源**：Grimoire Initiation、Effects · Target、Simultaneously；ArkhamDB RR · Lead Investigator / Choices  
-> **状态**：v0.5.2 · 2026-10-22 — §7.1 响应池 / §7.3 发动池；§7.3.4 窗温度（交互层，实现后补）；目标选择 V 层 dry-run（[21 §3.1.4](21-selection-spec.md)）  
+> **状态**：v0.5.3 · 2026-10-22 — §7.1 响应池 / §7.3 发起池；§7.3.4 窗温度（交互层，实现后补）；目标选择 V 层 dry-run（[21 §3.1.4](21-selection-spec.md)）  
 > **选择规格**：[21-selection-spec.md](21-selection-spec.md)
 
 ---
@@ -310,9 +310,11 @@ var auto_choice_mode: AhcEnums.AutoChoiceMode = AhcEnums.AutoChoiceMode.ASK
 | 窗口 | 中文 | 英文（目标 API） | 语义 |
 |---|---|---|---|
 | 时点响应窗 | **响应池** | `ResponsePool` | **被动**：时点到了，选不选响 |
-| 玩家时间段窗 | **发动池** | `ActivationPool` | **主动**：窗开着，选不选发起 |
+| 玩家时间段窗 | **发起池** | `InitiationPool` | **主动**：窗开着，选不选发起（走 Initiation；含打出 / `[free]` 等） |
 
 **禁止**用 `ActionPool`：规则术语 **Action / 行动** 专指调查员行动。  
+**禁止**用 `ActivationPool`：与 **Activate action / 激活** 撞名；窗内发起用 `InitiationPool`（对齐 [06](06-ability-initiation.md) Initiation，不限于 Activate）。  
+放行后两条池都可进 Initiation；池名区分的是 **窗形态**（时点响应 vs 时间段主动发起），不是「是否叫 Initiation」。  
 **实现现状**：代码仍用 `willingness_*` / `PlayerWindowIntentPool` 标识符，**待重命名**为上表；语义以本表为准。
 
 ### 7.1 ResponseWindow（时点响应窗 · 响应池）（已裁决 2026-10-22）
@@ -395,10 +397,10 @@ Grimoire / FAQ：**必须选择一项可以执行的选项**。
 
 ---
 
-### 7.3 PlayerWindow（玩家时间段窗 · 发动池）（已裁决 2026-10-22）
+### 7.3 PlayerWindow（玩家时间段窗 · 发起池）（已裁决 2026-10-22）
 
 `FrameworkFlowEngine` / `SkillTestEngine` 的 `PlayerWindow` = **开放区间**：允许快速打出、免费触发等，**不是**某条件刚触发的响应批。  
-**交互**：拉取式清单 + **发动池**（`ActivationPool`）+ **主表倒计时**；玩家竞争式自行开火，**不是**时点窗响应池（§7.1）。  
+**交互**：拉取式清单 + **发起池**（`InitiationPool`）+ **主表倒计时**；玩家竞争式自行开火，**不是**时点窗响应池（§7.1）。  
 **勿**称 Action 池：规则 **Action / 行动** 另有专义。
 
 | Window | 典型可入池内容 |
@@ -410,8 +412,8 @@ Grimoire / FAQ：**必须选择一项可以执行的选项**。
 #### 7.3.1 节拍
 
 ```text
-PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当发动池大小 ≤ 1）
-玩家将当前通过门槛的能力放入发动池（快速卡 / [free]；可撤回）
+PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当发起池大小 ≤ 1）
+玩家将当前通过门槛的能力放入发起池（快速卡 / [free]；可撤回）
   · 池 ≥ 2 → 主表暂停 → 争议宽限（可撤）
        → 宽限尽仍 ≥ 2 → 队长从池中选 1 条（或 AutoChoice）
   · 主表尽 + 池 0 → 关闭整个 PlayerWindow
@@ -442,7 +444,7 @@ PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当发动�
 
 同 §7.1.3 字段，语义不同：
 
-| 模式 | 玩家时间段窗（发动池） |
+| 模式 | 玩家时间段窗（发起池） |
 |---|---|
 | `ASK` | eligible 时出现在清单，由玩家决定是否入池 |
 | `AUTO_JOIN` | **不**自动发动；最多置顶/高亮建议（开放窗禁止静默连打乱序） |
@@ -452,7 +454,7 @@ PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当发动�
 
 #### 7.3.4 窗温度与少打扰（交互层 · 已裁决方向 2026-10-22）
 
-玩家时间段 **又碎又开放**（非「一人一轮」的行动次序，却遍布神话/敌人/检定/升级）。规则层发动池解决「怎么抢、怎么关」；**展示与唤起**按窗温度收敛自由——**实现属交互层，本竖切后补**。
+玩家时间段 **又碎又开放**（非「一人一轮」的行动次序，却遍布神话/敌人/检定/升级）。规则层发起池解决「怎么抢、怎么关」；**展示与唤起**按窗温度收敛自由——**实现属交互层，本竖切后补**。
 
 | 温度 | 例子 | 默认策略 |
 |---|---|---|
@@ -466,9 +468,9 @@ PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当发动�
 2. **阶段级免打扰**（可选）— 本阶段持续无 eligible 则自动跳过后续冷/温窗；热窗可破例。  
 3. **窗配置表** — 按 `PlayerWindow` 配 `main_ms` / `contention_ms` / `skip_if_empty` / `wake_only_eligible`。  
 4. **Nest 后定点刷新** — 只通知新获得 eligible 的控制者。  
-5. **公平模式**（可选）— 倒计时抢池 vs 玩家序 Pass，与发动池并存。
+5. **公平模式**（可选）— 倒计时抢池 vs 玩家序 Pass，与发起池并存。
 
-原则：**默认收敛自由，有需要时再放开**；与响应池（被动、事件驱动）对照，发动池（主动、窗内发起）靠温度表减扰。
+原则：**默认收敛自由，有需要时再放开**；与响应池（被动、事件驱动）对照，发起池（主动、窗内发起）靠温度表减扰。
 
 ### 7.4 伤害 · 目标 · Action 入口
 
@@ -587,7 +589,7 @@ seq.encounter.revelation
 | P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | ✅ `OPTIONAL`→`OPTIONAL_EFFECT`；`CHOICE` must→`PICK_OPTION` |
 | P1 | ST.2 `COMMIT_TO_TEST` + 检定窗；白名单 `[free]` 入池 `×n`（锚 01017） | ✅ `pw_intent_batch` + PW-BATCH-01；检定窗可 list/enqueue free |
 | P2 | §7.3.4 窗温度 / `wake_only_eligible` / 阶段免打扰 | **交互层**（规则语义不变；本竖切只定方向） |
-| P2 | 标识符重命名 `willingness_*`→`ResponsePool`、`PlayerWindowIntentPool`→`ActivationPool` | 待接（语义以 §7.0 为准） |
+| P2 | 标识符重命名 `willingness_*`→`ResponsePool`、`PlayerWindowIntentPool`→`InitiationPool` | 待接（语义以 §7.0 为准） |
 | P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
 | P2 | `PAY_COST` / `PAY_X` 接 CostPipeline | 待接 |
 | P2 | Damage：`ASSIGN_*` / `CHOOSE_TRAUMA` | 待接 |
@@ -618,6 +620,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-22 | v0.5.3 | **§7.0** 发动池/`ActivationPool` → **发起池/`InitiationPool`**（避 Activate 撞名；禁 ActivationPool） |
 | 2026-10-22 | v0.5.2 | **§7.0** 定名响应池/`ResponsePool`·发动池/`ActivationPool`（禁 ActionPool）；**§7.3.4** 窗温度与少打扰（交互层方向，实现后补） |
 | 2026-10-22 | v0.5.1 | 落地：意愿池 / 响应模式 / `PlayerWindowIntentPool.pulse` / 01017 `pw_intent_batch` |
 | 2026-10-22 | v0.5.0 | **§7.1 意愿池**（时点响应窗）；**§7.3 意图池+倒计时**（玩家时间段窗）；响应模式；`×n` 白名单 |

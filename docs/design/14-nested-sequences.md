@@ -129,7 +129,7 @@ class SequenceHandler:
 关闭 TimingWindow
 ```
 
-完整节拍与玩家时间段窗（发动池）对照见 [16 §7.1 / §7.3](16-player-interaction.md)。
+完整节拍与玩家时间段窗（发起池）对照见 [16 §7.1 / §7.3](16-player-interaction.md)。
 
 ---
 
@@ -239,7 +239,7 @@ sequences.end_ability_resolution()
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-22 | v0.5.3 | **§5 / §8** 术语对齐响应池 / 发动池（16 §7.0） |
+| 2026-10-22 | v0.5.3 | **§5 / §8** 术语对齐响应池 / 发起池（16 §7.0） |
 | 2026-10-22 | v0.5.2 | **§5 / §8** 时点窗改意愿池（链 16 §7.1）；废整批 ORDER 可选响应 |
 | 2026-05-25 | v0.1 | 初稿；SequenceStack 竖切 |
 | 2026-05-25 | v0.2 | TimingWindow refresh；[reaction] 禁自响应；控制者 vs 队长 |

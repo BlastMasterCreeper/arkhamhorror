@@ -104,7 +104,7 @@
 |---|---|---|
 | I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **落在已压栈手续** 内解释（§4.0.5 为「是」才 nest 子帧） |
 | I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3；抽查纪要 [23](23-vacuum-audit.md) |
-| I3 | PlayerWindow | Framework / ST 开窗 → 发动池 + 主表倒计时（[16 §7.3](16-player-interaction.md)）；**勿**与时点响应池混用 |
+| I3 | PlayerWindow | Framework / ST 开窗 → 发起池 + 主表倒计时（[16 §7.3](16-player-interaction.md)）；**勿**与时点响应池混用 |
 
 ### 3.7 测试
 
@@ -327,7 +327,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-22 | v0.4.25 | W1 竖切 Eligibility COLLECT；W3/I3 术语对齐响应池 / 发动池 |
+| 2026-10-22 | v0.4.25 | W1 竖切 Eligibility COLLECT；W3/I3 术语对齐响应池 / 发起池 |
 | 2026-10-22 | v0.4.24 | W3/I3/§7：意愿池与 PlayerWindow 意图池（链 16 §7.1 / §7.3） |
 | 2026-09-28 | v0.4.23 | I2 升硬门槛；OQ-SEQ-03 修订（禁真空；nest 仅 §4.0.5；PI≠nest） |
 | 2026-09-22 | v0.4.22 | §1.1：时点 vs 条件；统一 `seq.effect.damage` / `seq.skill_test` / `lose_resources`+`all` |
