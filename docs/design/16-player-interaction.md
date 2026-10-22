@@ -554,7 +554,7 @@ seq.encounter.revelation
 | P1 | 玩家时间段窗：意图池 + 主表/争议倒计时（§7.3） | ✅ `PlayerWindowIntentPool.pulse`（headless 到期）；PW-01～03；UI 倒计时展示待接 |
 | P1 | 能力响应模式 `ASK` / `AUTO_JOIN` / `AUTO_DECLINE` | ✅ `AbilityResponsePreferences` + RW-MODE-01/02 |
 | P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | ✅ `OPTIONAL`→`OPTIONAL_EFFECT`；`CHOICE` must→`PICK_OPTION` |
-| P1 | ST.2 `COMMIT_TO_TEST` + 检定窗；白名单 `[free]` 入池 `×n`（锚 01017） | 待接 |
+| P1 | ST.2 `COMMIT_TO_TEST` + 检定窗；白名单 `[free]` 入池 `×n`（锚 01017） | ✅ `pw_intent_batch` + PW-BATCH-01；检定窗可 list/enqueue free |
 | P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
 | P2 | `PAY_COST` / `PAY_X` 接 CostPipeline | 待接 |
 | P2 | Damage：`ASSIGN_*` / `CHOOSE_TRAUMA` | 待接 |
@@ -585,6 +585,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-22 | v0.5.1 | 落地：意愿池 / 响应模式 / `PlayerWindowIntentPool.pulse` / 01017 `pw_intent_batch` |
 | 2026-10-22 | v0.5.0 | **§7.1 意愿池**（时点响应窗）；**§7.3 意图池+倒计时**（玩家时间段窗）；响应模式；`×n` 白名单 |
 | 2026-10-21 | v0.4.3 | **§3.2 `AutoChoiceMode`**：`ASK` / `REGISTRATION_ORDER` / `RANDOM`；FAVOR/DISFAVOR 后补 |
 | 2026-10-10 | v0.4.2 | **默认自动选用**：`compute_default` / `resolve_choice` / `used_default` + `INTERACTION_CHOICE`；deadline UI 暂缓 |
