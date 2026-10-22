@@ -64,16 +64,37 @@ func list_free_abilities(controller_id: StringName) -> Array[TriggeredAbilityDes
 
 
 func is_free_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
-	if descriptor == null or _ctx == null or _ctx.framework == null or _ctx.state == null:
+	if descriptor == null or _ctx == null or _ctx.state == null:
 		return false
 	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
 		return false
-	if not _ctx.framework.waiting_player_window:
+	if not _has_open_free_window():
 		return false
-	var window: AhcEnums.PlayerWindow = _ctx.framework.pending_player_window
+	var window: AhcEnums.PlayerWindow = _current_free_window()
 	if not _window_allows(descriptor, window):
 		return false
 	return _source_playable(descriptor)
+
+
+func _has_open_free_window() -> bool:
+	if _ctx.framework != null and _ctx.framework.waiting_player_window:
+		return true
+	if not _ctx.skill_test_stack.is_empty():
+		var st: SkillTestContext = _ctx.skill_test_stack[_ctx.skill_test_stack.size() - 1]
+		if st != null and st.waiting_player_window:
+			return true
+	return false
+
+
+## 框架 PlayerWindow 或当前检定窗（调用前须 _has_open_free_window）。
+func _current_free_window() -> AhcEnums.PlayerWindow:
+	if _ctx.framework != null and _ctx.framework.waiting_player_window:
+		return _ctx.framework.pending_player_window
+	if not _ctx.skill_test_stack.is_empty():
+		var st: SkillTestContext = _ctx.skill_test_stack[_ctx.skill_test_stack.size() - 1]
+		if st != null and st.waiting_player_window:
+			return st.pending_player_window
+	return AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION
 
 
 func is_action_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:

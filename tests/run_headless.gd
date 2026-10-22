@@ -104,6 +104,7 @@ func _initialize() -> void:
 	_run_test("PW-01 intent pool sole resolves on pulse", _test_pw_intent_sole_pulse)
 	_run_test("PW-02 intent pool contention lead pick", _test_pw_intent_contention)
 	_run_test("PW-03 empty pulse closes window", _test_pw_intent_empty_closes)
+	_run_test("PW-BATCH-01 01017 physical training x3", _test_pw_batch_01017)
 	_run_test("TRIG-05 install triggered on asset play", _test_trig_install_on_play)
 	_run_test("TRIG-06 free listed in player window", _test_trig_free_listed_in_window)
 	_run_test("TRIG-07 free activate exhausts and moves", _test_trig_free_activate_move)
@@ -2555,6 +2556,42 @@ func _test_pw_intent_empty_closes() -> bool:
 		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
 	var pulse := h.ctx.player_window_intents.pulse()
 	return bool(pulse.get("ok", false)) and bool(pulse.get("closed", false))
+
+
+func _test_pw_batch_01017() -> bool:
+	## 01017 白名单 ×3：检定窗入池一次 pulse 连花 3 资源并叠 +3 战。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	GameBootstrap.install_physical_training_01017(h.ctx, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 5
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 2)
+	st.begin(test)
+	var commit_res := h.ctx.skill_tests.step_commit(test, [])
+	if not bool(commit_res.get("ok", false)):
+		return false
+	if not test.waiting_player_window:
+		return false
+	var enq := h.ctx.player_window_intents.enqueue_free(
+		&"01017:physical_training", &"inv_1", 3
+	)
+	if not bool(enq.get("ok", false)):
+		return false
+	if int(enq.get("pool_size", 0)) != 1:
+		return false
+	var before := inv.resource_pool
+	var pulse := h.ctx.player_window_intents.pulse()
+	if not bool(pulse.get("ok", false)) or int(pulse.get("resolved", 0)) != 3:
+		return false
+	if inv.resource_pool != before - 3:
+		return false
+	var q := ModifierQuery.new()
+	q.controller_id = &"inv_1"
+	q.stat = AhcEnums.StatRef.SKILL_COMBAT
+	return h.ctx.modifiers.compute(0, q) == 3
 
 
 func _test_trig_install_on_play() -> bool:

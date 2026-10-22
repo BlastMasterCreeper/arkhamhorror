@@ -296,6 +296,8 @@ func _count_committed_by_definition(ctx: SkillTestContext, definition_id: String
 func _open_player_window(ctx: SkillTestContext, window: AhcEnums.PlayerWindow) -> void:
 	ctx.waiting_player_window = true
 	ctx.pending_player_window = window
+	if _game_ctx != null and _game_ctx.player_window_intents != null:
+		_game_ctx.player_window_intents.begin_window()
 
 
 func _advance_step(step: AhcEnums.SkillTestStep, ctx: SkillTestContext) -> void:
