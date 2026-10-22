@@ -7689,7 +7689,7 @@ func _test_tim_draw_encounter_split() -> bool:
 	var card := h.ctx.state.registry.get_card(card_id)
 	var zones := {"would": AhcEnums.Zone.REMOVED_FROM_GAME, "when": AhcEnums.Zone.REMOVED_FROM_GAME}
 	var revelation_started := [false]
-	CardRegistry.register_definition(&"tim_enc_plain", {"card_type": &"treachery"})
+	var when_before_rev := [true]
 	CardRegistry.register_revelation(
 		&"tim_enc_plain",
 		&"revelation:0",
@@ -7697,22 +7697,19 @@ func _test_tim_draw_encounter_split() -> bool:
 			revelation_started[0] = true
 			return CompositionNode.seq([])
 	)
-	h.ctx.sequences.register_handler(
-		SequenceHandler.would_forced(
-			&"draw_encounter",
-			func() -> void: zones["would"] = card.zone
-		)
+	var would_enc := SequenceHandler.would_forced(
+		&"draw_encounter",
+		func() -> void: zones["would"] = card.zone
 	)
-	h.ctx.sequences.register_handler(
-		SequenceHandler.when_forced(
-			&"draw_encounter",
-			func() -> void:
-				zones["when"] = card.zone
-				## WHEN 时显现体尚未跑。
-				if revelation_started[0]:
-					zones["when"] = AhcEnums.Zone.REMOVED_FROM_GAME
-		)
+	var when_enc := SequenceHandler.when_forced(
+		&"draw_encounter",
+		func() -> void: pass
 	)
+	when_enc.callback = func() -> void:
+		zones["when"] = card.zone
+		when_before_rev[0] = not revelation_started[0]
+	h.ctx.sequences.register_handler(would_enc)
+	h.ctx.sequences.register_handler(when_enc)
 	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
 	var trace := h.ctx.memory.phase_trace
 	var would_i := -1
@@ -7730,6 +7727,7 @@ func _test_tim_draw_encounter_split() -> bool:
 		res.get("ok", false)
 		and zones["would"] == AhcEnums.Zone.DECK
 		and zones["when"] == AhcEnums.Zone.LIMBO
+		and when_before_rev[0]
 		and would_i >= 0
 		and when_i >= 0
 		and resolve_i >= 0
