@@ -7752,14 +7752,11 @@ func _test_tim_dmg_assign_when() -> bool:
 			func() -> void: snap["would_dmg"] = inv.damage_taken
 		)
 	)
-	h.ctx.sequences.register_handler(
-		SequenceHandler.when_forced(
-			&"damage",
-			func() -> void:
-				snap["when_dmg"] = inv.damage_taken
-				snap["when_pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
-		)
-	)
+	var when_dmg := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_dmg.callback = func() -> void:
+		snap["when_dmg"] = inv.damage_taken
+		snap["when_pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_dmg)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
 		&"seq.effect.damage",
