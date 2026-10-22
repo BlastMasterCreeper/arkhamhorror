@@ -107,7 +107,7 @@ func nest(
 
 
 ## RESOLVE 砖块边界打开 WOULD / WHEN（当前帧，不 push）。
-## 抽牌：信封 WOULD + 入手后 WHEN；伤害：Apply 前 WOULD、Apply 后 WHEN。
+## 抽牌：信封 WOULD + 入手后 WHEN；伤害：Apply 前 WOULD→WHEN（均 PreImpact）。
 func offer_slot(phase: AhcEnums.SequencePhase) -> void:
 	if _frames.is_empty():
 		return

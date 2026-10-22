@@ -177,7 +177,7 @@
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
 | **父 Would / When** | 卡面 draw 转译：Would = 整段 PreImpact（信封头）；When = 抽取步骤砖块后（15 §3） | ✅ `split_timing`：信封 WOULD + 中段 `offer_slot(WHEN)`（TIM-01/02） |
-| **伤害 Apply 槽** | Assign = **PI**（非时点）；WOULD/WHEN 只挂 **Apply** 砖（07 §4） | ✅ `no_envelope_slot` + Apply 前/后 `offer_slot`（TIM-DMG-01/02） |
+| **伤害 PreImpact 槽** | Assign = **PI**；**WOULD→WHEN 均在 Apply 前**（防伤钉 WOULD；07 §4） | ✅ `no_envelope_slot` + Apply 前双 `offer_slot`（TIM-DMG-01/02） |
 | **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |

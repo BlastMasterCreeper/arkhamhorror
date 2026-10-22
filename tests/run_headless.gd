@@ -353,8 +353,8 @@ func _initialize() -> void:
 	_run_test("TIMING-ZONE-01 would-deck when-hand-or-limbo", _test_draw_when_zones)
 	_run_test("TIM-01 draw investigator SPLIT zones", _test_tim_draw_investigator_split)
 	_run_test("TIM-02 draw encounter SPLIT zones", _test_tim_draw_encounter_split)
-	_run_test("TIM-DMG-01 Apply WOULD then WHEN", _test_tim_dmg_apply_slots)
-	_run_test("TIM-DMG-02 Apply WOULD reduce_pending", _test_tim_dmg_prevent)
+	_run_test("TIM-DMG-01 WOULD then WHEN before Apply", _test_tim_dmg_apply_slots)
+	_run_test("TIM-DMG-02 WOULD reduce_pending before Apply", _test_tim_dmg_prevent)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -7741,11 +7741,17 @@ func _test_tim_draw_encounter_split() -> bool:
 
 
 func _test_tim_dmg_apply_slots() -> bool:
-	## TIM-DMG-01：Assign 非时点；Apply 前 WOULD（pending、未写入）；Apply 后 WHEN（已写入）。
+	## TIM-DMG-01：Assign 非时点；WOULD→WHEN 均在 Apply 前（pending、未写入）；AFTER 时已写入。
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
-	var snap := {"would_dmg": -1, "would_pending": -1, "when_dmg": -1}
+	var snap := {
+		"would_dmg": -1,
+		"would_pending": -1,
+		"when_dmg": -1,
+		"when_pending": -1,
+		"after_dmg": -1,
+	}
 	var would_h := SequenceHandler.would_forced(&"damage", func() -> void: pass)
 	would_h.callback = func() -> void:
 		snap["would_dmg"] = inv.damage_taken
@@ -7754,7 +7760,15 @@ func _test_tim_dmg_apply_slots() -> bool:
 	h.ctx.sequences.register_handler(
 		SequenceHandler.when_forced(
 			&"damage",
-			func() -> void: snap["when_dmg"] = inv.damage_taken
+			func() -> void:
+				snap["when_dmg"] = inv.damage_taken
+				snap["when_pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_forced(
+			&"damage",
+			func() -> void: snap["after_dmg"] = inv.damage_taken
 		)
 	)
 	var res := h.ctx.sequence_catalog.run(
@@ -7782,7 +7796,9 @@ func _test_tim_dmg_apply_slots() -> bool:
 		and int(res.get("amount", 0)) == 2
 		and snap["would_dmg"] == 0
 		and snap["would_pending"] == 2
-		and snap["when_dmg"] == 2
+		and snap["when_dmg"] == 0
+		and snap["when_pending"] == 2
+		and snap["after_dmg"] == 2
 		and inv.damage_taken == 2
 		and would_i >= 0
 		and when_i >= 0
@@ -7795,13 +7811,21 @@ func _test_tim_dmg_apply_slots() -> bool:
 
 
 func _test_tim_dmg_prevent() -> bool:
-	## TIM-DMG-02：Apply-WOULD 内 reduce_pending → 写入量减少。
+	## TIM-DMG-02：WOULD 内 reduce_pending → Apply 写入量减少；WHEN 仍见已降低的 pending。
 	var h := RuleTestHarness.new(42)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var when_pending := {"n": -1}
 	h.ctx.sequences.register_handler(
 		SequenceHandler.would_forced(
 			&"damage",
 			func() -> void: DamagePipeline.reduce_pending(h.ctx, &"inv_1", 1)
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.when_forced(
+			&"damage",
+			func() -> void:
+				when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
 		)
 	)
 	var res := h.ctx.sequence_catalog.run(
@@ -7812,6 +7836,7 @@ func _test_tim_dmg_prevent() -> bool:
 	return (
 		bool(res.get("ok", false))
 		and int(res.get("amount", 0)) == 1
+		and when_pending["n"] == 1
 		and inv.horror_taken == 1
 	)
 

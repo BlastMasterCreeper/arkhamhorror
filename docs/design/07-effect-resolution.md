@@ -202,28 +202,34 @@ Grimoire p.8：
 - 剩余 → investigator 卡
 - Direct：必须 investigator 卡
 
-**已裁决（2026-10-22）**：Assign = **`PlayerInteractionGate` 有限期确认**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`），**不是** RESOLVE 时点砖，**不** emit WOULD/WHEN。默认未确认 → 全量归调查员卡。
+**已裁决（2026-10-22）**：
 
-### Step 2 Apply（**唯一结算砖 · 时点锚**）
+- Assign = **`PlayerInteractionGate` 有限期确认**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`），**不是** RESOLVE 时点砖，**不** emit WOULD/WHEN。
+- **始终有 Assign 步**：对调查员 → 可摊；对卡牌 → 候选 = {该卡}（含直接伤害 = 调查员卡）；对敌人 → {该敌人}（仅 damage）。
+- 默认未确认 → 对调查员全量归调查员卡；对卡/敌 → 唯一候选。
+- lasting / RESTRICTION 可改分配候选（如 Bodyguard）。
+
+### Step 2 Apply（**唯一结算砖**）
 
 - 同时放置 tokens
 - 若未 apply 任何 → 未 successfully dealt
 - 检查 defeat：investigator / enemy / asset
 
-时点挂在 **Apply**，不挂整段 `seq.effect.damage` 信封，也不挂 Assign：
+**WOULD / WHEN 均在 Apply 之前**（栈 PreImpact；与 would≈when、would 主要为优先级错开一致）。不挂信封，也不挂 Assign：
 
 | 槽 | 时刻 | 卡面钉法 |
 |---|---|---|
-| **WOULD** | Apply PreImpact（分配结果已定、尚未写入） | would take… / prevent·reduce；`reduce_pending` |
-| **WHEN** | Apply 写入之后 | when you take…（已受到后的反应） |
-| **AFTER** | 整段 `seq.effect.damage` pop | after you take… |
+| **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配**；早期误印 *when* 的防伤对策编译收此；`reduce_pending` |
+| **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take* = **你控制的卡**将承伤；非取消反应/修正 |
+| **AFTER** | Apply + defeat 检测后 / seq pop | *after you take…* |
 
 ```gdscript
 # Assign = PI（非时点）→ pending
-offer_slot(WOULD)   # prevent
+offer_slot(WOULD)   # prevent / cancel / reduce / reassign
+offer_slot(WHEN)    # non-cancel when-take（仍未写入）
 apply L0
-offer_slot(WHEN)    # after taken
 check_defeat
+# AFTER on pop
 ```
 
 **竖切**：`core/timing/damage_pipeline.gd` · `no_envelope_slot`；v1 Assign 默认全量调查员（Gate 后补）。敌/支援仍走既有 Defeat 入口。

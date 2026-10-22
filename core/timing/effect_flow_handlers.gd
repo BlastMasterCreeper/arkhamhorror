@@ -429,7 +429,7 @@ static func _apply_to_investigator(
 	amount: int,
 	is_direct: bool = false
 ) -> int:
-	## Assign → WHEN（prevent）→ Apply（07 §4）；敌/支援路径不经此。
+	## Assign → WOULD（prevent）→ WHEN → Apply（07 §4）；敌/支援路径不经此。
 	var result := DamagePipeline.deal_investigator(
 		game_ctx,
 		inv_id,
