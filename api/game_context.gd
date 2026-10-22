@@ -9,6 +9,8 @@ var events: EventRecordLog
 var config: RulesConfig
 var choices: ChoiceResolver
 var interaction: PlayerInteractionGate
+## 可选响应入池偏好（16 §7.1.3）。
+var ability_response_prefs: AbilityResponsePreferences
 
 var actions: ActionSystem
 var skill_tests: SkillTestEngine

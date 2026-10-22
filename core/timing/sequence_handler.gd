@@ -13,6 +13,9 @@ var callback: Callable
 ## 能力来源（卡实例 / ability id）；用于自身效果结算禁响应。
 var source_id: StringName = &""
 var controller_id: StringName = &""
+## 响应模式查找键（16 §7.1.3）；可空。
+var definition_id: StringName = &""
+var ability_id: StringName = &""
 var player_initiated: bool = false
 var enabled: bool = true
 
@@ -39,7 +42,9 @@ static func after_reaction(
 	kind: StringName,
 	source_id: StringName,
 	controller_id: StringName,
-	fn: Callable
+	fn: Callable,
+	ability_id: StringName = &"",
+	definition_id: StringName = &""
 ) -> SequenceHandler:
 	var h := SequenceHandler.new()
 	h.match_kind = kind
@@ -47,6 +52,8 @@ static func after_reaction(
 	h.tier = Tier.TRIGGERED
 	h.source_id = source_id
 	h.controller_id = controller_id
+	h.ability_id = ability_id if ability_id != &"" else source_id
+	h.definition_id = definition_id
 	h.player_initiated = true
 	h.callback = fn
 	return h

@@ -22,6 +22,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.choices = defaults
 	ctx.interaction = PlayerInteractionGate.new()
 	ctx.interaction.resolver = ctx.choices
+	ctx.ability_response_prefs = AbilityResponsePreferences.new()
 	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)
 	ctx.registrations = RegistrationStore.new()
 	ctx.stat_projections = StatProjectionStore.new()

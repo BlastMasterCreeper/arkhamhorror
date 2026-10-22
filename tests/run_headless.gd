@@ -99,6 +99,8 @@ func _initialize() -> void:
 	_run_test("RW-01 willingness pool lead picks one at a time", _test_rw_willingness_pool_order)
 	_run_test("RW-02 forced before willingness reactions", _test_rw_forced_before_reactions)
 	_run_test("RW-03 reaction eligible after nest joins later", _test_rw_reaction_after_nest)
+	_run_test("RW-MODE-01 AUTO_JOIN skips ask", _test_rw_mode_auto_join)
+	_run_test("RW-MODE-02 AUTO_DECLINE skips pool", _test_rw_mode_auto_decline)
 	_run_test("TRIG-05 install triggered on asset play", _test_trig_install_on_play)
 	_run_test("TRIG-06 free listed in player window", _test_trig_free_listed_in_window)
 	_run_test("TRIG-07 free activate exhausts and moves", _test_trig_free_activate_move)
@@ -2381,6 +2383,47 @@ func _test_rw_reaction_after_nest() -> bool:
 	h.ctx.sequences.register_handler(react_outer)
 	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
 	return order == ["outer", "inner"]
+
+
+func _test_rw_mode_auto_join() -> bool:
+	## AUTO_JOIN：不经 willingness:join ask；默认 resolver 亦会结算。
+	var h := RuleTestHarness.new(42)
+	h.ctx.ability_response_prefs.set_mode(
+		AhcEnums.AbilityResponseMode.AUTO_JOIN, &"", &"", &"react_auto"
+	)
+	var fired := [false]
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_auto",
+			&"inv_1",
+			func() -> void: fired[0] = true
+		)
+	)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return fired[0]
+
+
+func _test_rw_mode_auto_decline() -> bool:
+	## AUTO_DECLINE：即使脚本愿 join 也不入池。
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	h.ctx.ability_response_prefs.set_mode(
+		AhcEnums.AbilityResponseMode.AUTO_DECLINE, &"", &"", &"react_no"
+	)
+	var fired := [false]
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_no",
+			&"inv_1",
+			func() -> void: fired[0] = true
+		)
+	)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return not fired[0]
 
 
 func _test_trig_install_on_play() -> bool:

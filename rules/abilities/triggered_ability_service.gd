@@ -304,6 +304,8 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 	handler.phase = descriptor.phase
 	handler.source_id = descriptor.source_id
 	handler.controller_id = descriptor.controller_id
+	handler.definition_id = descriptor.definition_id
+	handler.ability_id = descriptor.id
 	handler.player_initiated = descriptor.is_player_initiated()
 	match descriptor.ability_kind:
 		TriggeredAbilityDescriptor.AbilityKind.FORCED:

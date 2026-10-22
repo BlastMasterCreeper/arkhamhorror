@@ -239,6 +239,16 @@ func _ask_willingness_join(handler: SequenceHandler) -> bool:
 	if _game_ctx == null or _game_ctx.interaction == null:
 		## 无交互层：保守不入池（与默认 skip 一致）。
 		return false
+	var mode := AhcEnums.AbilityResponseMode.ASK
+	if _game_ctx.ability_response_prefs != null:
+		mode = _game_ctx.ability_response_prefs.mode_for_handler(handler)
+	match mode:
+		AhcEnums.AbilityResponseMode.AUTO_JOIN:
+			return true
+		AhcEnums.AbilityResponseMode.AUTO_DECLINE:
+			return false
+		_:
+			pass
 	var controller := handler.controller_id
 	if controller == &"" and _game_ctx.state != null:
 		controller = _game_ctx.state.lead_investigator_id
