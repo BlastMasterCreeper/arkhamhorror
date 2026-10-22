@@ -101,6 +101,9 @@ func _initialize() -> void:
 	_run_test("RW-03 reaction eligible after nest joins later", _test_rw_reaction_after_nest)
 	_run_test("RW-MODE-01 AUTO_JOIN skips ask", _test_rw_mode_auto_join)
 	_run_test("RW-MODE-02 AUTO_DECLINE skips pool", _test_rw_mode_auto_decline)
+	_run_test("PW-01 intent pool sole resolves on pulse", _test_pw_intent_sole_pulse)
+	_run_test("PW-02 intent pool contention lead pick", _test_pw_intent_contention)
+	_run_test("PW-03 empty pulse closes window", _test_pw_intent_empty_closes)
 	_run_test("TRIG-05 install triggered on asset play", _test_trig_install_on_play)
 	_run_test("TRIG-06 free listed in player window", _test_trig_free_listed_in_window)
 	_run_test("TRIG-07 free activate exhausts and moves", _test_trig_free_activate_move)
@@ -2424,6 +2427,134 @@ func _test_rw_mode_auto_decline() -> bool:
 	)
 	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
 	return not fired[0]
+
+
+func _pw_register_free_resource(h: RuleTestHarness, ability_id: StringName, amount: int = 1) -> StringName:
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"pw_free_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.play_area.append(card_id)
+	var desc := TriggeredAbilityDescriptor.free_triggered(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), amount
+		),
+		&"during_your_turn",
+		card_id,
+		&"pw_free_asset"
+	)
+	desc.id = ability_id
+	h.ctx.triggered_abilities.register(desc)
+	return ability_id
+
+
+func _test_pw_intent_sole_pulse() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	_pw_register_free_resource(h, &"free_res_1", 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.resource_pool
+	var enq := h.ctx.player_window_intents.enqueue_free(&"free_res_1", &"inv_1")
+	if not bool(enq.get("ok", false)):
+		return false
+	var pulse := h.ctx.player_window_intents.pulse()
+	return (
+		bool(pulse.get("ok", false))
+		and int(pulse.get("resolved", 0)) == 1
+		and inv.resource_pool == before + 2
+		and h.ctx.framework.waiting_player_window
+		and h.ctx.player_window_intents.size() == 0
+	)
+
+
+func _test_pw_intent_contention() -> bool:
+	## 两名调查员各挂一条 → pulse 争议由队长挑 inv_2 的意图。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	h.ctx.lead_investigator_id = &"inv_1"
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	## inv_1 free
+	var card_a := h.ctx.state.registry.allocate_instance_id(&"card")
+	var ea := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_a, &"pw_a")
+	var ca := CardInstance.new()
+	ca.id = ea
+	ca.owner_id = &"inv_1"
+	ca.controller_id = &"inv_1"
+	ca.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(ca)
+	h.ctx.state.registry.get_investigator(&"inv_1").play_area.append(card_a)
+	var desc_a := TriggeredAbilityDescriptor.free_triggered(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		),
+		&"any_player_window",
+		card_a,
+		&"pw_a"
+	)
+	desc_a.id = &"free_a"
+	h.ctx.triggered_abilities.register(desc_a)
+	## inv_2 free
+	var card_b := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eb := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_b, &"pw_b")
+	var cb := CardInstance.new()
+	cb.id = eb
+	cb.owner_id = &"inv_2"
+	cb.controller_id = &"inv_2"
+	cb.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(cb)
+	h.ctx.state.registry.get_investigator(&"inv_2").play_area.append(card_b)
+	var desc_b := TriggeredAbilityDescriptor.free_triggered(
+		&"inv_2",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), 3
+		),
+		&"any_player_window",
+		card_b,
+		&"pw_b"
+	)
+	desc_b.id = &"free_b"
+	h.ctx.triggered_abilities.register(desc_b)
+	var enq_a := h.ctx.player_window_intents.enqueue_free(&"free_a", &"inv_1")
+	var enq_b := h.ctx.player_window_intents.enqueue_free(&"free_b", &"inv_2")
+	if not bool(enq_a.get("ok", false)) or not bool(enq_b.get("ok", false)):
+		return false
+	var pick_id: StringName = enq_b.get("entry_id", &"") as StringName
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pw_intent:pick", "pick": pick_id},
+	])
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	var before2 := inv2.resource_pool
+	var pulse := h.ctx.player_window_intents.pulse()
+	return (
+		bool(pulse.get("ok", false))
+		and int(pulse.get("resolved", 0)) == 1
+		and inv2.resource_pool == before2 + 3
+		and h.ctx.player_window_intents.size() == 1
+	)
+
+
+func _test_pw_intent_empty_closes() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var pulse := h.ctx.player_window_intents.pulse()
+	return bool(pulse.get("ok", false)) and bool(pulse.get("closed", false))
 
 
 func _test_trig_install_on_play() -> bool:

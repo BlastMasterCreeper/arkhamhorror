@@ -11,6 +11,8 @@ var choices: ChoiceResolver
 var interaction: PlayerInteractionGate
 ## 可选响应入池偏好（16 §7.1.3）。
 var ability_response_prefs: AbilityResponsePreferences
+## 玩家时间段窗意图池（16 §7.3）。
+var player_window_intents: PlayerWindowIntentPool
 
 var actions: ActionSystem
 var skill_tests: SkillTestEngine

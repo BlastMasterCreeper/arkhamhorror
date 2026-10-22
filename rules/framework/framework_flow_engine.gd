@@ -66,6 +66,8 @@ func advance() -> void:
 func close_player_window_and_continue() -> void:
 	var after_action := pending_player_window == AhcEnums.PlayerWindow.PW_INV_AFTER_ACTION
 	waiting_player_window = false
+	if _game_ctx != null and _game_ctx.player_window_intents != null:
+		_game_ctx.player_window_intents.end_window()
 	if after_action and current_step == AhcEnums.FrameworkStep.INV_2_2_1_TAKE_ACTION and not pending_action_loop:
 		_goto(AhcEnums.FrameworkStep.INV_2_2_2_TURN_ENDS)
 	advance()
@@ -229,6 +231,8 @@ func _maybe_open_window_for(step: AhcEnums.FrameworkStep) -> void:
 func _open_player_window(w: AhcEnums.PlayerWindow) -> void:
 	pending_player_window = w
 	waiting_player_window = true
+	if _game_ctx != null and _game_ctx.player_window_intents != null:
+		_game_ctx.player_window_intents.begin_window()
 	player_window_opened.emit(w)
 
 

@@ -355,11 +355,15 @@ func _trigger_applies(descriptor: TriggeredAbilityDescriptor) -> bool:
 	return loc == descriptor.definition_id or loc == descriptor.source_id
 
 
-func _find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
+func find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
 	for desc in _descriptors:
 		if desc != null and desc.id == ability_id:
 			return desc
 	return null
+
+
+func _find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
+	return find_by_id(ability_id)
 
 
 func _window_allows(

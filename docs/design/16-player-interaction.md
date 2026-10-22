@@ -552,7 +552,7 @@ seq.encounter.revelation
 | P0 | **SelectionSpec / CandidateFilter / ChoiceBind**（[21](21-selection-spec.md)） | ✅ 骨架；`pick_target`/`select` 已接 Enumerator |
 | P1 | 时点响应窗：粘性意愿池 + 队长每次放行 1 条（§7.1） | ✅ 最小竖切（`player_initiated` TRIGGERED；RW-01～03）；响应模式三态待接 |
 | P1 | 玩家时间段窗：意图池 + 主表/争议倒计时（§7.3） | 设计已裁决；实现待接 |
-| P1 | 能力响应模式 `ASK` / `AUTO_JOIN` / `AUTO_DECLINE` | 设计已裁决；实现待接 |
+| P1 | 能力响应模式 `ASK` / `AUTO_JOIN` / `AUTO_DECLINE` | ✅ `AbilityResponsePreferences` + RW-MODE-01/02 |
 | P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | ✅ `OPTIONAL`→`OPTIONAL_EFFECT`；`CHOICE` must→`PICK_OPTION` |
 | P1 | ST.2 `COMMIT_TO_TEST` + 检定窗；白名单 `[free]` 入池 `×n`（锚 01017） | 待接 |
 | P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
