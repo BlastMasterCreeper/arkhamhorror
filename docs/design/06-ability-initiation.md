@@ -247,15 +247,15 @@ apply_cost_modifiers(intent)
 **EligibilityPipeline** 只回答客观问题：「这条能力 eligible 吗？Initiation 能过 L6–L7 吗？」  
 **ResponseWindow** 处理玩家 / 流程主观决策 — **不计入 L0–L7**。
 
-**已裁决（2026-10-22）**：时点响应窗用 **粘性意愿池**（详 [16 §7.1](16-player-interaction.md)）。玩家时间段窗（`PlayerWindow`）用 **意图池 + 倒计时**（[16 §7.3](16-player-interaction.md)），二者勿混。
+**已裁决（2026-10-22）**：时点响应窗用 **粘性响应池**（`ResponsePool`；详 [16 §7.1](16-player-interaction.md)）。玩家时间段窗（`PlayerWindow`）用 **发动池 + 倒计时**（`ActivationPool`；[16 §7.3](16-player-interaction.md)），二者勿混。代码标识符待重命名。
 
 ```text
 COLLECT（L0–L5）→ eligible 集合
         │
         ▼
 ResponseWindow（时点响应窗）
-  ├─ Forced：eligible → 自动 PRE_INITIATE（L6–L7）→ resolve（不进意愿池）
-  ├─ 可选 [reaction] / 有时点快速等 → 控制者决定是否加入意愿池
+  ├─ Forced：eligible → 自动 PRE_INITIATE（L6–L7）→ resolve（不进响应池）
+  ├─ 可选 [reaction] / 有时点快速等 → 控制者决定是否加入响应池
   │      · 入池后可撤回（锁池结算前）
   │      · 池非空 → 队长每次选 1 条 → Initiation → nest
   │      · nest 返回 → 再 COLLECT 未入池者；非法自动出池
@@ -267,11 +267,11 @@ ResponseWindow（时点响应窗）
 
 | 行为 | 层 | 说明 |
 |---|---|---|
-| 控制者加入意愿池 | ResponseWindow | 授权发起，不是门槛 |
+| 控制者加入响应池 | ResponseWindow | 授权发起，不是门槛 |
 | 控制者拒绝入池 / 撤回 | ResponseWindow | 不发起（非 gate fail） |
 | 队长从池中放行 1 条 | ResponseWindow | **不**整批锁死总序 |
 | 「May」跳过整条强制 | ResponseWindow | 可选强制的不发起 |
-| eligible 但 L6 失败 | Eligibility | Initiation 中止；意图出池 |
+| eligible 但 L6 失败 | Eligibility | Initiation 中止；出池 |
 
 队长 **不**替其他调查员决定进不进池；只在池内 **每次选 1 条** 放行。见 [14 §5](14-nested-sequences.md)、[16 §7.1](16-player-interaction.md)。
 
@@ -550,6 +550,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
+| 2026-10-22 | v0.4.17 | **§6** 术语对齐 16 §7.0：响应池 / 发动池 |
 | 2026-10-22 | v0.4.16 | **§6** 时点响应窗改意愿池（链 16 §7.1）；与 PlayerWindow 意图池（16 §7.3）分立 |
 | 2026-09-21 | v0.4.15 | §4：卡牌正文 = Composition；hook 只订阅已有 seq 槽，不建 `seq.card…` |
 | 2026-09-21 | v0.4.14 | **§4.2** 打出始终 `PLAY_CARD`（不是能力）；Fast 只改窗口/花费。**§8.4** Then = 内联 Seq |

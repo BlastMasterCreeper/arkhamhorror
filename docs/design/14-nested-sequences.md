@@ -90,8 +90,8 @@ class SequenceHandler:
 
 | 决策 | 谁 | 层 |
 |---|---|---|
-| **[reaction] 是否加入意愿池** | **该能力所在卡的控制者** | ResponseWindow |
-| **意愿池内下一条放行谁** | **Lead Investigator（队长）**（每次 1 条） | ResponseWindow |
+| **[reaction] 是否加入响应池** | **该能力所在卡的控制者** | ResponseWindow |
+| **响应池内下一条放行谁** | **Lead Investigator（队长）**（每次 1 条） | ResponseWindow |
 | **Forced 是否触发** | eligible 则必须发起 | Eligibility + 自动 Initiation（不进池） |
 | **终止本窗响应** | 无人新加入且池空 | ResponseWindow |
 
@@ -104,12 +104,12 @@ class SequenceHandler:
 | 层 | 谁定 | 规则 |
 |---|---|---|
 | **类别优先级** | 引擎 | `AbilityCategoryTier`：FORCED → FRAMEWORK → TRIGGERED → DELAYED → LISTENER。**显现不在本链**（独立 `REVELATION` 类，06 §8.1.1） |
-| **同类内顺序** | 玩家 / 流程 | 仅 **同一 tier 内**：Forced 批内队长选序；可选响应 → 意愿池，队长每次放行 1 条；显现类内见 `EnterHandTimingPolicy` |
+| **同类内顺序** | 玩家 / 流程 | 仅 **同一 tier 内**：Forced 批内队长选序；可选响应 → 响应池，队长每次放行 1 条；显现类内见 `EnterHandTimingPolicy` |
 
 ```text
-1. FORCED      ← 整类 resolve 完（不进意愿池）
+1. FORCED      ← 整类 resolve 完（不进响应池）
 2. FRAMEWORK
-3. TRIGGERED   ← 入意愿池 + 队长每次放行 1 条 nest
+3. TRIGGERED   ← 入响应池 + 队长每次放行 1 条 nest
 4. DELAYED
 5. LISTENER    ← AFTER-B
 
@@ -124,12 +124,12 @@ class SequenceHandler:
 ```text
 打开 TimingWindow
   → Forced 批自动 Initiation
-  → 意愿池 loop（COLLECT 未入池 → 入池/撤 → 队长放行 1 条 → nest → refresh）
+  → 响应池 loop（COLLECT 未入池 → 入池/撤 → 队长放行 1 条 → nest → refresh）
   → 终止：无人新加入且池空
 关闭 TimingWindow
 ```
 
-完整节拍与玩家时间段窗（意图池）对照见 [16 §7.1 / §7.3](16-player-interaction.md)。
+完整节拍与玩家时间段窗（发动池）对照见 [16 §7.1 / §7.3](16-player-interaction.md)。
 
 ---
 
@@ -170,9 +170,9 @@ sequences.nest(child_trigger, child_resolve)
 ```text
 open(XX, phase)
 resolved_handlers = {}
-willingness_pool = {}
+response_pool = {}
 # Forced 批先自动 resolve（不进池）
-loop:                                    # 意愿池 · 可选响应
+loop:                                    # 响应池 · 可选响应
     response_round += 1
     candidates = COLLECT \ resolved \ already_in_pool
     poll join/decline/withdraw（响应模式见 16 §7.1.3）
@@ -183,8 +183,8 @@ loop:                                    # 意愿池 · 可选响应
 close(XX)
 ```
 
-引擎：`ResolutionSequenceStack` 响应回路 + 粘性意愿池；`_resolved_in_window` 防同窗口重复结算。  
-**现状**：`player_initiated` TRIGGERED 走意愿池（join → 队长每次 1 条）；其余 tier 仍 auto 批（17 W3）。
+引擎：`ResolutionSequenceStack` 响应回路 + 粘性响应池；`_resolved_in_window` 防同窗口重复结算。  
+**现状**：`player_initiated` TRIGGERED 走响应池（join → 队长每次 1 条）；其余 tier 仍 auto 批（17 W3）。代码标识符仍为 `willingness_*`（待重命名）。
 
 ---
 
@@ -239,6 +239,7 @@ sequences.end_ability_resolution()
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-22 | v0.5.3 | **§5 / §8** 术语对齐响应池 / 发动池（16 §7.0） |
 | 2026-10-22 | v0.5.2 | **§5 / §8** 时点窗改意愿池（链 16 §7.1）；废整批 ORDER 可选响应 |
 | 2026-05-25 | v0.1 | 初稿；SequenceStack 竖切 |
 | 2026-05-25 | v0.2 | TimingWindow refresh；[reaction] 禁自响应；控制者 vs 队长 |

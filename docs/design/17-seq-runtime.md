@@ -84,9 +84,9 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| W1 | Eligibility L0–L5 COLLECT | 订阅 `(sequence_id, slot)` + L3 Condition（历史谓词 → [06c](06c-stat-projections.md) StatProjection）— **未实现 Pipeline** |
+| W1 | Eligibility L0–L5 COLLECT | 订阅 `(sequence_id, slot)` + L3 Condition + L4 RESTRICTION（[06 §5](06-ability-initiation.md)）— **竖切中** |
 | W2 | Tier 批处理 | FORCED → TRIGGERED → …（14 §5.2） |
-| W3 | ResponseWindow | 意愿池 + 队长每次放行 1 条（[16 §7.1](16-player-interaction.md)）— **`player_initiated` TRIGGERED 已接；Forced 仍 auto 批** |
+| W3 | ResponseWindow | 响应池 + 队长每次放行 1 条（[16 §7.1](16-player-interaction.md)）— **`player_initiated` TRIGGERED 已接；Forced 仍 auto 批** |
 | W4 | nest 后 refresh | TimingWindow 仍 open 则再 COLLECT |
 | W5 | 能力 resolution 范围 | `begin/end_ability_resolution` 禁自响应 |
 
@@ -104,7 +104,7 @@
 |---|---|---|
 | I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **落在已压栈手续** 内解释（§4.0.5 为「是」才 nest 子帧） |
 | I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3；抽查纪要 [23](23-vacuum-audit.md) |
-| I3 | PlayerWindow | Framework / ST 开窗 → 意图池 + 主表倒计时（[16 §7.3](16-player-interaction.md)）；**勿**与时点意愿池混用 |
+| I3 | PlayerWindow | Framework / ST 开窗 → 发动池 + 主表倒计时（[16 §7.3](16-player-interaction.md)）；**勿**与时点响应池混用 |
 
 ### 3.7 测试
 
@@ -327,6 +327,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-22 | v0.4.25 | W1 竖切 Eligibility COLLECT；W3/I3 术语对齐响应池 / 发动池 |
 | 2026-10-22 | v0.4.24 | W3/I3/§7：意愿池与 PlayerWindow 意图池（链 16 §7.1 / §7.3） |
 | 2026-09-28 | v0.4.23 | I2 升硬门槛；OQ-SEQ-03 修订（禁真空；nest 仅 §4.0.5；PI≠nest） |
 | 2026-09-22 | v0.4.22 | §1.1：时点 vs 条件；统一 `seq.effect.damage` / `seq.skill_test` / `lose_resources`+`all` |

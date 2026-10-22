@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility / ResponseWindow）、[07-composition.md](07-composition.md)（Choice / Optional）、[14-nested-sequences.md](14-nested-sequences.md)（同窗口多响应）、[00-architecture-overview.md](../00-architecture-overview.md)  
 > **规则来源**：Grimoire Initiation、Effects · Target、Simultaneously；ArkhamDB RR · Lead Investigator / Choices  
-> **状态**：v0.5.0 · 2026-10-22 — §7.1 意愿池 / §7.3 意图池已裁决；目标选择须 V 层 dry-run（[21 §3.1.4](21-selection-spec.md)）  
+> **状态**：v0.5.2 · 2026-10-22 — §7.1 响应池 / §7.3 发动池；§7.3.4 窗温度（交互层，实现后补）；目标选择 V 层 dry-run（[21 §3.1.4](21-selection-spec.md)）  
 > **选择规格**：[21-selection-spec.md](21-selection-spec.md)
 
 ---
@@ -305,19 +305,29 @@ var auto_choice_mode: AhcEnums.AutoChoiceMode = AhcEnums.AutoChoiceMode.ASK
 
 ## 7. 与现有组件的映射
 
-### 7.1 ResponseWindow（时点响应窗 · 意愿池）（已裁决 2026-10-22）
+### 7.0 双池定名（已裁决 2026-10-22）
+
+| 窗口 | 中文 | 英文（目标 API） | 语义 |
+|---|---|---|---|
+| 时点响应窗 | **响应池** | `ResponsePool` | **被动**：时点到了，选不选响 |
+| 玩家时间段窗 | **发动池** | `ActivationPool` | **主动**：窗开着，选不选发起 |
+
+**禁止**用 `ActionPool`：规则术语 **Action / 行动** 专指调查员行动。  
+**实现现状**：代码仍用 `willingness_*` / `PlayerWindowIntentPool` 标识符，**待重命名**为上表；语义以本表为准。
+
+### 7.1 ResponseWindow（时点响应窗 · 响应池）（已裁决 2026-10-22）
 
 见 [06 §6](06-ability-initiation.md)、[14 §5](14-nested-sequences.md)。  
-**形态**：某 when/after 条件打开的时点窗。因 nest 返回后可能冒出新响应，**不**采用「一轮内全部选用再整批 `ORDER_SIMULTANEOUS`」；改用 **粘性意愿池**。
+**形态**：某 when/after 条件打开的时点窗。因 nest 返回后可能冒出新响应，**不**采用「一轮内全部选用再整批 `ORDER_SIMULTANEOUS`」；改用 **粘性响应池**（`ResponsePool`）。
 
 #### 7.1.1 回路
 
 ```text
 TimingWindow open
-  → Forced / 必须结算批：eligible → 自动 Initiation（不进意愿池；≥2 条队长选序或 AutoChoice）
-  → 意愿池 loop：
+  → Forced / 必须结算批：eligible → 自动 Initiation（不进响应池；≥2 条队长选序或 AutoChoice）
+  → 响应池 loop：
         1. COLLECT 潜在可选响应（未进池、本窗未结算）
-        2. 各控制者决定是否加入意愿池（§7.1.3 响应模式；ASK 时经 Gate）
+        2. 各控制者决定是否加入响应池（§7.1.3 响应模式；ASK 时经 Gate）
         3. 池非空 → 队长从池中选 1 条（或 AutoChoice）→ 锁 → 重验 → Initiation → nest
         4. nest 返回：非法自动出池；合法未结算者保留；再 COLLECT 未入池者
      until：本轮无人新加入 且 池空
@@ -326,11 +336,11 @@ TimingWindow close
 
 | 规则 | 说明 |
 |---|---|
-| **Forced 不进池** | 强制整类优先于可选意愿池 |
+| **Forced 不进池** | 强制整类优先于可选响应池；仍须过 COLLECT（含 L4） |
 | **粘性** | 入池后挂着，避免每个时点反复全员轮询 |
 | **可撤回** | 入池后、被选中锁池结算前，控制者可撤 |
 | **每次放行 1 条** | 队长（或 `AutoChoiceMode`）从池中挑 1 条 nest；**不**整批锁死总序 |
-| **结算中不接新意图** | 锁池期间串行；结束后再 COLLECT / 入池 |
+| **结算中不接新条目** | 锁池期间串行；结束后再 COLLECT / 入池 |
 | **本窗不重复** | 与 `_resolved_in_window` 一致；同一 handler 本窗不刷屏 |
 | **重验失败** | 丢出池、提示、不关窗，继续 loop |
 
@@ -338,7 +348,7 @@ TimingWindow close
 
 #### 7.1.2 与旧「整批 ORDER」对照
 
-| 旧（已废） | 新（意愿池） |
+| 旧（已废） | 新（响应池） |
 |---|---|
 | 一轮全部 `USE_ABILITY` → 一次 `ORDER_SIMULTANEOUS` → 按序全跑 | 入池粘住 → 每次队长放行 1 条 → nest 后可再入池 |
 | nest 后新反应难插入已锁总序 | nest 返回后对未入池者再轮询加入 |
@@ -347,7 +357,7 @@ TimingWindow close
 
 电子版减负：按 `definition_id` + `ability_id` 存偏好（会话可覆盖）。**仅可选**入口（反应触发、有时点快速打出、带选用的延时支）；**Forced 不受影响**。
 
-| 模式 | 时点响应窗（意愿池） |
+| 模式 | 时点响应窗（响应池） |
 |---|---|
 | `ASK`（默认） | 首次 eligible 时问是否入池 |
 | `AUTO_JOIN` | eligible 则静默入池 |
@@ -385,32 +395,33 @@ Grimoire / FAQ：**必须选择一项可以执行的选项**。
 
 ---
 
-### 7.3 PlayerWindow（玩家时间段窗 · 意图池）（已裁决 2026-10-22）
+### 7.3 PlayerWindow（玩家时间段窗 · 发动池）（已裁决 2026-10-22）
 
 `FrameworkFlowEngine` / `SkillTestEngine` 的 `PlayerWindow` = **开放区间**：允许快速打出、免费触发等，**不是**某条件刚触发的响应批。  
-**交互**：拉取式行动板 + **意图池** + **主表倒计时**；玩家竞争式自行开火，**不是**时点窗那套意愿池（§7.1）。
+**交互**：拉取式清单 + **发动池**（`ActivationPool`）+ **主表倒计时**；玩家竞争式自行开火，**不是**时点窗响应池（§7.1）。  
+**勿**称 Action 池：规则 **Action / 行动** 另有专义。
 
 | Window | 典型可入池内容 |
 |---|---|
-| `PW_INV_BEFORE/AFTER_ACTION` | 快速打出、`[free]`；宏观行动本身仍走客户端 `ActionRequest` |
+| `PW_INV_BEFORE/AFTER_ACTION` | 快速打出、`[free]`；宏观 **行动** 仍走客户端 `ActionRequest`（非本池） |
 | `PW_SKILL_TEST_AFTER_COMMIT` / `AFTER_REVEAL` | 检定窗合法 `[free]` / 快速 |
 | Mythos / Enemy / Upkeep 各 `PW_*` | 同上（窗内合法集） |
 
 #### 7.3.1 节拍
 
 ```text
-PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当意图池大小 ≤ 1）
-玩家将当前通过门槛的能力放入意图池（快速卡 / [free]；可撤回）
+PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当发动池大小 ≤ 1）
+玩家将当前通过门槛的能力放入发动池（快速卡 / [free]；可撤回）
   · 池 ≥ 2 → 主表暂停 → 争议宽限（可撤）
        → 宽限尽仍 ≥ 2 → 队长从池中选 1 条（或 AutoChoice）
   · 主表尽 + 池 0 → 关闭整个 PlayerWindow
-  · 主表尽 + 池 1 → 锁池 → 重验 → 结算该意图 → 解锁 → 刷新主表（窗仍开）
-结算（锁池）期间不接新意图；结束后清单 refresh
+  · 主表尽 + 池 1 → 锁池 → 重验 → 结算该条目 → 解锁 → 刷新主表（窗仍开）
+结算（锁池）期间不接新条目；结束后清单 refresh
 ```
 
 | 规则 | 说明 |
 |---|---|
-| **串行权威** | 同时只结算一条；前端清单是预览，提交时重验；失败整意图丢弃，无半结算 |
+| **串行权威** | 同时只结算一条；前端清单是预览，提交时重验；失败整条丢弃，无半结算 |
 | **可撤回** | 入池后、锁池前控制者可撤；撤到 ≤1 则取消争议、恢复主表逻辑 |
 | **争议出口** | ≥2 不得无限停表；宽限 + 队长挑 1（headless 宽限=0 + AutoChoice） |
 | **空池超时关窗** | 电子节拍；配置见 `RulesConfig`（可接 `player_window_auto_close_ms`） |
@@ -425,19 +436,39 @@ PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当意图�
 |---|---|
 | 无目标 / 固定自身；无 Choice；每次同构；失败模式单纯 | 要选目标/分支；nest 长手续；限次；快速事件打出 |
 
-锁池后连续 Initiation 最多 `n` 次；中途不再 eligible 则停。竞争单位是**整条意图（含 n）**，不是拆开抢每一次。
+锁池后连续 Initiation 最多 `n` 次；中途不再 eligible 则停。竞争单位是**整条条目（含 n）**，不是拆开抢每一次。
 
 #### 7.3.3 能力响应模式在玩家窗的含义
 
 同 §7.1.3 字段，语义不同：
 
-| 模式 | 玩家时间段窗 |
+| 模式 | 玩家时间段窗（发动池） |
 |---|---|
-| `ASK` | eligible 时出现在行动板，由玩家决定是否入池 |
+| `ASK` | eligible 时出现在清单，由玩家决定是否入池 |
 | `AUTO_JOIN` | **不**自动发动；最多置顶/高亮建议（开放窗禁止静默连打乱序） |
 | `AUTO_DECLINE` | 不进建议列表（完整列表仍可手动找） |
 
 关窗：空池主表超时，或规则指定关闭者 `CONFIRM_STEP` / 全员 Pass（与节拍并存时，超时为空窗快进主路径）。
+
+#### 7.3.4 窗温度与少打扰（交互层 · 已裁决方向 2026-10-22）
+
+玩家时间段 **又碎又开放**（非「一人一轮」的行动次序，却遍布神话/敌人/检定/升级）。规则层发动池解决「怎么抢、怎么关」；**展示与唤起**按窗温度收敛自由——**实现属交互层，本竖切后补**。
+
+| 温度 | 例子 | 默认策略 |
+|---|---|---|
+| **冷** | 神话开始后、升级重整后等常空手 | eligible 为空 → 不进交互面，直接过 |
+| **温** | 行动前后、敌人阶段间隙 | 短主表；仅 **有合法发动** 的控制者被唤起 |
+| **热** | 检定 commit / reveal 后 | 较长主表；置顶检定相关 `[free]` |
+
+交互层目标策略（不改规则语义）：
+
+1. **有货才唤起** — 开窗先 COLLECT；无候选的控制者静默 Pass。  
+2. **阶段级免打扰**（可选）— 本阶段持续无 eligible 则自动跳过后续冷/温窗；热窗可破例。  
+3. **窗配置表** — 按 `PlayerWindow` 配 `main_ms` / `contention_ms` / `skip_if_empty` / `wake_only_eligible`。  
+4. **Nest 后定点刷新** — 只通知新获得 eligible 的控制者。  
+5. **公平模式**（可选）— 倒计时抢池 vs 玩家序 Pass，与发动池并存。
+
+原则：**默认收敛自由，有需要时再放开**；与响应池（被动、事件驱动）对照，发动池（主动、窗内发起）靠温度表减扰。
 
 ### 7.4 伤害 · 目标 · Action 入口
 
@@ -555,6 +586,8 @@ seq.encounter.revelation
 | P1 | 能力响应模式 `ASK` / `AUTO_JOIN` / `AUTO_DECLINE` | ✅ `AbilityResponsePreferences` + RW-MODE-01/02 |
 | P1 | Composition：`Optional` / `Choice` → Gate（非 nest） | ✅ `OPTIONAL`→`OPTIONAL_EFFECT`；`CHOICE` must→`PICK_OPTION` |
 | P1 | ST.2 `COMMIT_TO_TEST` + 检定窗；白名单 `[free]` 入池 `×n`（锚 01017） | ✅ `pw_intent_batch` + PW-BATCH-01；检定窗可 list/enqueue free |
+| P2 | §7.3.4 窗温度 / `wake_only_eligible` / 阶段免打扰 | **交互层**（规则语义不变；本竖切只定方向） |
+| P2 | 标识符重命名 `willingness_*`→`ResponsePool`、`PlayerWindowIntentPool`→`ActivationPool` | 待接（语义以 §7.0 为准） |
 | P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
 | P2 | `PAY_COST` / `PAY_X` 接 CostPipeline | 待接 |
 | P2 | Damage：`ASSIGN_*` / `CHOOSE_TRAUMA` | 待接 |
@@ -585,6 +618,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-22 | v0.5.2 | **§7.0** 定名响应池/`ResponsePool`·发动池/`ActivationPool`（禁 ActionPool）；**§7.3.4** 窗温度与少打扰（交互层方向，实现后补） |
 | 2026-10-22 | v0.5.1 | 落地：意愿池 / 响应模式 / `PlayerWindowIntentPool.pulse` / 01017 `pw_intent_batch` |
 | 2026-10-22 | v0.5.0 | **§7.1 意愿池**（时点响应窗）；**§7.3 意图池+倒计时**（玩家时间段窗）；响应模式；`×n` 白名单 |
 | 2026-10-21 | v0.4.3 | **§3.2 `AutoChoiceMode`**：`ASK` / `REGISTRATION_ORDER` / `RANDOM`；FAVOR/DISFAVOR 后补 |
