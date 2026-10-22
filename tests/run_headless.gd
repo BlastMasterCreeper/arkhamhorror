@@ -7632,7 +7632,7 @@ func _test_draw_when_zones() -> bool:
 
 
 func _test_tim_draw_investigator_split() -> bool:
-	## TIM-01：WOULD 时仍在 DECK；WHEN 时已在 HAND；显现 nest 在 WHEN 之后。
+	## TIM-01：信封 WOULD 时仍在 DECK；中段 WHEN 时已在 HAND；显现在 WHEN 之后。
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"tim_plain")
@@ -7675,8 +7675,9 @@ func _test_tim_draw_investigator_split() -> bool:
 		and when_i >= 0
 		and resolve_i >= 0
 		and after_i >= 0
-		and resolve_i < would_i
-		and would_i < when_i
+		## 信封 WOULD → RESOLVE → 砖块 WHEN → AFTER
+		and would_i < resolve_i
+		and resolve_i < when_i
 		and when_i < after_i
 	)
 
@@ -7731,8 +7732,8 @@ func _test_tim_draw_encounter_split() -> bool:
 		and would_i >= 0
 		and when_i >= 0
 		and resolve_i >= 0
-		and resolve_i < would_i
-		and would_i < when_i
+		and would_i < resolve_i
+		and resolve_i < when_i
 		and revelation_started[0]
 	)
 

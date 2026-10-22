@@ -37,8 +37,7 @@ static func _run_core(game_ctx: GameContext, inv_id: StringName, amount: int) ->
 	if amount <= 0:
 		return _empty_result()
 	DrawInvestigatorComposition.init_draw_state(memory, inv_id)
-	## SPLIT WOULD：整次抽取 PreImpact；牌仍在 DECK（15 §3.1）。
-	_offer_draw_slot(game_ctx, AhcEnums.SequencePhase.WOULD)
+	## WOULD 由栈信封在 RESOLVE 前打开（整段 PreImpact）；此处只 offer WHEN。
 	while DrawInvestigatorComposition.draw_slots_filled(memory, inv_id) < amount:
 		var collect := DrawSubflowHandlers.collect_one_step(game_ctx, inv_id, catalog)
 		if collect.get("defeated", false):

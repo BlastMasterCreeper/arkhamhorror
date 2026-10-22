@@ -78,14 +78,17 @@ func is_self_response_blocked(source_id: StringName) -> bool:
 	return source_id in _causation_stack
 
 
-## `split_timing`：跳过信封头 ALIAS WHEN；由 handler 在砖块边界 `offer_slot`（15 §3.1 SPLIT）。
+## `split_timing`（15 §3.1）：信封头开 **WOULD**（整段 PreImpact = 第一块前）；
+## 跳过 ALIAS WHEN；抽取步骤完成后的 WHEN 由 handler `offer_slot`。
 func run(
 	trigger: TriggeringCondition,
 	resolve_fn: Callable,
 	split_timing: bool = false
 ) -> void:
 	_push_frame(trigger)
-	if not split_timing:
+	if split_timing:
+		_run_response_loop(AhcEnums.SequencePhase.WOULD)
+	else:
 		_run_response_loop(AhcEnums.SequencePhase.WHEN)
 	_run_phase(AhcEnums.SequencePhase.RESOLVE, resolve_fn)
 	_run_response_loop(AhcEnums.SequencePhase.AFTER)
@@ -100,7 +103,7 @@ func nest(
 	run(trigger, resolve_fn, split_timing)
 
 
-## RESOLVE 砖块边界打开 WOULD / WHEN 响应窗（当前帧，不 push）。
+## RESOLVE 中段打开响应窗（当前帧，不 push）。抽牌 WHEN 用此；WOULD 通常走信封头。
 func offer_slot(phase: AhcEnums.SequencePhase) -> void:
 	if _frames.is_empty():
 		return
