@@ -351,6 +351,8 @@ func _initialize() -> void:
 	_run_test("ENT-02 enter_hand no revelation", _test_ent_no_revelation)
 	_run_test("ENT-03 enter_hand revelation order and limbo discard", _test_ent_revelation_order)
 	_run_test("TIMING-ZONE-01 would-deck when-hand-or-limbo", _test_draw_when_zones)
+	_run_test("TIM-01 draw investigator SPLIT zones", _test_tim_draw_investigator_split)
+	_run_test("TIM-02 draw encounter SPLIT zones", _test_tim_draw_encounter_split)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -7627,6 +7629,114 @@ func _test_draw_when_zones() -> bool:
 	if h.ctx.mutator.pop_encounter_deck_top() != enc_id:
 		return false
 	return enc_card.zone == AhcEnums.Zone.LIMBO
+
+
+func _test_tim_draw_investigator_split() -> bool:
+	## TIM-01：WOULD 时仍在 DECK；WHEN 时已在 HAND；显现 nest 在 WHEN 之后。
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"tim_plain")
+	var card := h.ctx.state.registry.get_card(card_id)
+	var zones := {"would": AhcEnums.Zone.REMOVED_FROM_GAME, "when": AhcEnums.Zone.REMOVED_FROM_GAME}
+	h.ctx.sequences.register_handler(
+		SequenceHandler.would_forced(
+			&"draw_investigator",
+			func() -> void: zones["would"] = card.zone
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.when_forced(
+			&"draw_investigator",
+			func() -> void: zones["when"] = card.zone
+		)
+	)
+	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var trace := h.ctx.memory.phase_trace
+	var would_i := -1
+	var when_i := -1
+	var resolve_i := -1
+	var after_i := -1
+	for i in range(trace.size()):
+		var line := str(trace[i])
+		if line.begins_with("WOULD:draw_investigator@"):
+			would_i = i
+		elif line.begins_with("WHEN:draw_investigator@"):
+			when_i = i
+		elif line.begins_with("RESOLVE:draw_investigator@") and resolve_i < 0:
+			resolve_i = i
+		elif line.begins_with("AFTER:draw_investigator@"):
+			after_i = i
+	return (
+		res.get("ok", false)
+		and zones["would"] == AhcEnums.Zone.DECK
+		and zones["when"] == AhcEnums.Zone.HAND
+		and card.zone == AhcEnums.Zone.HAND
+		and would_i >= 0
+		and when_i >= 0
+		and resolve_i >= 0
+		and after_i >= 0
+		and resolve_i < would_i
+		and would_i < when_i
+		and when_i < after_i
+	)
+
+
+func _test_tim_draw_encounter_split() -> bool:
+	## TIM-02：WOULD 时仍在 DECK；WHEN 时已在 LIMBO；显现尚未开始。
+	var h := RuleTestHarness.new(42)
+	h.ctx.memory.clear_trace()
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"tim_enc_plain")
+	var card := h.ctx.state.registry.get_card(card_id)
+	var zones := {"would": AhcEnums.Zone.REMOVED_FROM_GAME, "when": AhcEnums.Zone.REMOVED_FROM_GAME}
+	var revelation_started := [false]
+	CardRegistry.register_definition(&"tim_enc_plain", {"card_type": &"treachery"})
+	CardRegistry.register_revelation(
+		&"tim_enc_plain",
+		&"revelation:0",
+		func(_bind: AbilityBindContext) -> CompositionNode:
+			revelation_started[0] = true
+			return CompositionNode.seq([])
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.would_forced(
+			&"draw_encounter",
+			func() -> void: zones["would"] = card.zone
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.when_forced(
+			&"draw_encounter",
+			func() -> void:
+				zones["when"] = card.zone
+				## WHEN 时显现体尚未跑。
+				if revelation_started[0]:
+					zones["when"] = AhcEnums.Zone.REMOVED_FROM_GAME
+		)
+	)
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var trace := h.ctx.memory.phase_trace
+	var would_i := -1
+	var when_i := -1
+	var resolve_i := -1
+	for i in range(trace.size()):
+		var line := str(trace[i])
+		if line.begins_with("WOULD:draw_encounter@"):
+			would_i = i
+		elif line.begins_with("WHEN:draw_encounter@"):
+			when_i = i
+		elif line.begins_with("RESOLVE:draw_encounter@") and resolve_i < 0:
+			resolve_i = i
+	return (
+		res.get("ok", false)
+		and zones["would"] == AhcEnums.Zone.DECK
+		and zones["when"] == AhcEnums.Zone.LIMBO
+		and would_i >= 0
+		and when_i >= 0
+		and resolve_i >= 0
+		and resolve_i < would_i
+		and would_i < when_i
+		and revelation_started[0]
+	)
 
 
 func _test_revelation_own_priority_class() -> bool:

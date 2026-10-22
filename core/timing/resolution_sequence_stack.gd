@@ -78,18 +78,42 @@ func is_self_response_blocked(source_id: StringName) -> bool:
 	return source_id in _causation_stack
 
 
-func run(trigger: TriggeringCondition, resolve_fn: Callable) -> void:
-	# ALIAS 默认：WHEN 在整段 RESOLVE 前。draw SPLIT 的 Would/When 须在
-	# handler 砖块边界另 emit（15 §3.1）；本顺序不能代替。
+## `split_timing`：跳过信封头 ALIAS WHEN；由 handler 在砖块边界 `offer_slot`（15 §3.1 SPLIT）。
+func run(
+	trigger: TriggeringCondition,
+	resolve_fn: Callable,
+	split_timing: bool = false
+) -> void:
 	_push_frame(trigger)
-	_run_response_loop(AhcEnums.SequencePhase.WHEN)
+	if not split_timing:
+		_run_response_loop(AhcEnums.SequencePhase.WHEN)
 	_run_phase(AhcEnums.SequencePhase.RESOLVE, resolve_fn)
 	_run_response_loop(AhcEnums.SequencePhase.AFTER)
 	_pop_frame()
 
 
-func nest(trigger: TriggeringCondition, resolve_fn: Callable) -> void:
-	run(trigger, resolve_fn)
+func nest(
+	trigger: TriggeringCondition,
+	resolve_fn: Callable,
+	split_timing: bool = false
+) -> void:
+	run(trigger, resolve_fn, split_timing)
+
+
+## RESOLVE 砖块边界打开 WOULD / WHEN 响应窗（当前帧，不 push）。
+func offer_slot(phase: AhcEnums.SequencePhase) -> void:
+	if _frames.is_empty():
+		return
+	if (
+		phase != AhcEnums.SequencePhase.WOULD
+		and phase != AhcEnums.SequencePhase.WHEN
+	):
+		push_warning("ResolutionSequenceStack.offer_slot: only WOULD/WHEN (%s)" % phase)
+		return
+	var frame := _frames[_frames.size() - 1]
+	var previous_phase := frame.phase
+	_run_response_loop(phase)
+	frame.phase = previous_phase
 
 
 func _push_frame(trigger: TriggeringCondition) -> void:

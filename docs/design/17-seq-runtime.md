@@ -176,7 +176,7 @@
 
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
-| **父 Would / When** | 卡面 draw 转译：Would = 这次抽取 PreImpact；When = 抽取步骤（15 §3） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
+| **父 Would / When** | 卡面 draw 转译：Would = 这次抽取 PreImpact；When = 抽取步骤（15 §3） | ✅ `split_timing` + `offer_slot`；`seq.draw.*` 砖块边界 emit（TIM-01/02） |
 | **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |

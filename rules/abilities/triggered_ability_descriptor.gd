@@ -206,6 +206,8 @@ static func phase_from_raw(raw: Variant) -> AhcEnums.SequencePhase:
 	if raw is int:
 		return raw as AhcEnums.SequencePhase
 	match str(raw).to_upper():
+		"WOULD":
+			return AhcEnums.SequencePhase.WOULD
 		"WHEN":
 			return AhcEnums.SequencePhase.WHEN
 		"RESOLVE":
