@@ -196,7 +196,8 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 				params.get("source", params.get("card_id", &"")) as StringName
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.damage(game_ctx, params)
+			return EffectFlowHandlers.damage(game_ctx, params),
+		true ## SPLIT：信封 WOULD；Assign 后 WHEN（prevent）；Apply 后 AFTER
 	)
 	catalog.register_run(
 		&"seq.effect.lose_resources",

@@ -218,6 +218,16 @@ class DamagePipeline:
         check_defeat(assignment.affected)
 ```
 
+**竖切（2026-10-22）**：`core/timing/damage_pipeline.gd` · 调查员路径经 `seq.effect.damage`（`split_timing`）：
+
+| 槽 | 时刻 | 卡面钉法 |
+|---|---|---|
+| **WOULD** | 信封头（整段 PreImpact） | when you would take damage/horror |
+| **WHEN** | Assign 后、Apply 前 | when you take…（prevent/reduce）；`DamagePipeline.reduce_pending` |
+| **AFTER** | Apply + defeat 检测后 | after you take… |
+
+v1 Assign = 全量落到调查员卡；asset soak / `ASSIGN_*` PI 后补。敌/支援仍走既有 Defeat 入口。
+
 ### 4.1 Moving damage / horror（已裁决 OQ-07-02）
 
 卡牌文本 **Move / Move 1 damage / Move 1 horror**（从 A 转移到 B）使用独立原语 **`EffectOp.TRANSFER_AFFLICTION`**，**不算 heal**。
