@@ -194,7 +194,7 @@ func check_cannot(req: EffectRequest, ctx: ApplicationContext) -> bool:
 
 Grimoire p.8：
 
-### Step 1 Assign
+### Step 1 Assign（**玩家选择，不是结算砖**）
 
 - 确定 amount
 - Investigator 可分配到 eligible assets（有 health/sanity）
@@ -202,21 +202,37 @@ Grimoire p.8：
 - 剩余 → investigator 卡
 - Direct：必须 investigator 卡
 
-**Between 1 and 2**：prevent / reduce / reassign 能力
+**已裁决（2026-10-22）**：
 
-### Step 2 Apply
+- Assign = **`PlayerInteractionGate` 有限期确认**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`），**不是** RESOLVE 时点砖，**不** emit WOULD/WHEN。
+- **始终有 Assign 步**：对调查员 → 可摊；对卡牌 → 候选 = {该卡}（含直接伤害 = 调查员卡）；对敌人 → {该敌人}（仅 damage）。
+- 默认未确认 → 对调查员全量归调查员卡；对卡/敌 → 唯一候选。
+- lasting / RESTRICTION 可改分配候选（如 Bodyguard）。
+
+### Step 2 Apply（**唯一结算砖**）
 
 - 同时放置 tokens
 - 若未 apply 任何 → 未 successfully dealt
 - 检查 defeat：investigator / enemy / asset
 
+**WOULD / WHEN 均在 Apply 之前**（栈 PreImpact；与 would≈when、would 主要为优先级错开一致）。不挂信封，也不挂 Assign：
+
+| 槽 | 时刻 | 卡面钉法 |
+|---|---|---|
+| **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配**；早期误印 *when* 的防伤对策编译收此；`reduce_pending` |
+| **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take* = **你控制的卡**将承伤；非取消反应/修正 |
+| **AFTER** | Apply + defeat 检测后 / seq pop | *after you take…* |
+
 ```gdscript
-class DamagePipeline:
-    func deal(dealt: DamageDealt) -> void:
-        var assignment := assign(dealt)      # 可插入 prevent
-        apply(assignment)                     # 同时 apply
-        check_defeat(assignment.affected)
+# Assign = PI（非时点）→ pending
+offer_slot(WOULD)   # prevent / cancel / reduce / reassign
+offer_slot(WHEN)    # non-cancel when-take（仍未写入）
+apply L0
+check_defeat
+# AFTER on pop
 ```
+
+**竖切**：`core/timing/damage_pipeline.gd` · `no_envelope_slot`；v1 Assign 默认全量调查员（Gate 后补）。敌/支援仍走既有 Defeat 入口。
 
 ### 4.1 Moving damage / horror（已裁决 OQ-07-02）
 
