@@ -19,6 +19,8 @@ var composition: CompositionNode = null
 var resource_cost: int = 0
 var action_cost: int = 0
 var optional: bool = false
+## COLLECT L3 情景（可空）；装入 SequenceHandler.collect_condition。
+var collect_condition: Condition = null
 ## Free：`during_your_turn` | `any_player_window`（空 = any）。
 var window: StringName = &""
 ## 玩家窗意图池是否允许入池次数 n>1（16 §7.3.2）；默认否。

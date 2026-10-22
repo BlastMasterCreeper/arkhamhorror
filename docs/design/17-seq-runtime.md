@@ -84,7 +84,7 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| W1 | Eligibility L0–L5 COLLECT | 订阅 `(sequence_id, slot)` + L3 Condition + L4 RESTRICTION（[06 §5](06-ability-initiation.md)）— **竖切中** |
+| W1 | Eligibility L0–L5 COLLECT | `EligibilityPipeline.passes_collect`：L3 Condition + L4 RESTRICTION + L5 limit；接栈 COLLECT / 池 prune（[06 §5](06-ability-initiation.md)） |
 | W2 | Tier 批处理 | FORCED → TRIGGERED → …（14 §5.2） |
 | W3 | ResponseWindow | 响应池 + 队长每次放行 1 条（[16 §7.1](16-player-interaction.md)）— **`player_initiated` TRIGGERED 已接；Forced 仍 auto 批** |
 | W4 | nest 后 refresh | TimingWindow 仍 open 则再 COLLECT |

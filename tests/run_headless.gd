@@ -101,6 +101,11 @@ func _initialize() -> void:
 	_run_test("RW-03 reaction eligible after nest joins later", _test_rw_reaction_after_nest)
 	_run_test("RW-MODE-01 AUTO_JOIN skips ask", _test_rw_mode_auto_join)
 	_run_test("RW-MODE-02 AUTO_DECLINE skips pool", _test_rw_mode_auto_decline)
+	_run_test("ELIG-L3-01 condition fail skips pool", _test_elig_l3_condition_fail)
+	_run_test("ELIG-L3-02 condition pass joins pool", _test_elig_l3_condition_pass)
+	_run_test("ELIG-L4-01 peril blocks reaction at collect", _test_elig_l4_peril_collect)
+	_run_test("ELIG-L5-01 limit exhausted skips", _test_elig_l5_limit)
+	_run_test("ELIG-01 collect has no dry_run", _test_elig_collect_no_dry_run)
 	_run_test("PW-01 intent pool sole resolves on pulse", _test_pw_intent_sole_pulse)
 	_run_test("PW-02 intent pool contention lead pick", _test_pw_intent_contention)
 	_run_test("PW-03 empty pulse closes window", _test_pw_intent_empty_closes)
@@ -2428,6 +2433,109 @@ func _test_rw_mode_auto_decline() -> bool:
 	)
 	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
 	return not fired[0]
+
+
+func _test_elig_l3_condition_fail() -> bool:
+	## L3：collect_condition 不满足 → 不进响应池。
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var fired := [false]
+	var react := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_cond_fail",
+		&"inv_1",
+		func() -> void: fired[0] = true
+	)
+	react.collect_condition = Condition.with_tags([&"needs_missing_tag"])
+	h.ctx.sequences.register_handler(react)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return not fired[0]
+
+
+func _test_elig_l3_condition_pass() -> bool:
+	## L3：标签匹配 → 可入池结算。
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var fired := [false]
+	var react := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_cond_ok",
+		&"inv_1",
+		func() -> void: fired[0] = true
+	)
+	react.collect_condition = Condition.with_tags([&"resource_action"])
+	h.ctx.sequences.register_handler(react)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return fired[0]
+
+
+func _test_elig_l4_peril_collect() -> bool:
+	## L4：险境 FORBID_TRIGGER 在 COLLECT 筛掉队友反应（不入池）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_elig_l4")
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var fired := [false]
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_peril_blocked",
+			&"inv_2",
+			func() -> void: fired[0] = true
+		)
+	)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_2", 1, [&"resource_action"])
+	return not fired[0]
+
+
+func _test_elig_l5_limit() -> bool:
+	## L5：次数耗尽不出候选。
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var fired := [false]
+	var react := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_limit",
+		&"inv_1",
+		func() -> void: fired[0] = true
+	)
+	react.limit_remaining = 0
+	h.ctx.sequences.register_handler(react)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return not fired[0]
+
+
+func _test_elig_collect_no_dry_run() -> bool:
+	## COLLECT 只跑 L1–L5；无 composition 时仍可判定，不依赖 dry_run。
+	var h := RuleTestHarness.new(42)
+	var react := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_dry",
+		&"inv_1",
+		func() -> void: pass
+	)
+	react.collect_condition = Condition.with_tags([&"resource_action"])
+	var app_ctx := ApplicationContext.new()
+	app_ctx.tags = [&"gain_resource", &"resource_action"]
+	var reports: Array = EligibilityPipeline.run_collect(react, h.ctx, app_ctx, false)
+	if reports.size() != 5:
+		return false
+	for r in reports:
+		if r == null or not (r as EligibilityPipeline.GateReport).passed:
+			return false
+		## 关卡号须在 1–5；无 L6/L7。
+		var level: int = (r as EligibilityPipeline.GateReport).level
+		if level < 1 or level > 5:
+			return false
+	return EligibilityPipeline.passes_collect(react, h.ctx, app_ctx, false)
 
 
 func _pw_register_free_resource(h: RuleTestHarness, ability_id: StringName, amount: int = 1) -> StringName:

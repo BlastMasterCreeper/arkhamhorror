@@ -505,9 +505,13 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | B-04 | Pay cost fail mid-initiate | L6 失败；无 cost 已付 |
 | B-05 | Then 链 vs After draw | Then 段优先 |
 | B-06 | Card leaves play during initiate | 效果仍 resolve |
-| ELIG-01 | COLLECT 不跑 dry_run | 仅 L1–L5 |
+| ELIG-01 | COLLECT 不跑 dry_run | 仅 L1–L5（无 composition / dry_run 调用） |
 | ELIG-02 | [reaction] 选用后进 L6–L7 | 选用非 gate |
 | ELIG-03 | 关闭时点 vs 不选用 | 轮次结束 vs 单条跳过 |
+| ELIG-L3-01 | collect_condition 标签不匹配 | 不出响应池 |
+| ELIG-L3-02 | collect_condition 标签匹配 | 可入池结算 |
+| ELIG-L4-01 | 险境 FORBID_TRIGGER 挡队友反应 | COLLECT 即筛掉（不经 Initiation） |
+| ELIG-L5-01 | limit_remaining=0 | 不出候选 |
 
 ---
 

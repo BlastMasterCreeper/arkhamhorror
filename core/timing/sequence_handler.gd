@@ -18,6 +18,10 @@ var definition_id: StringName = &""
 var ability_id: StringName = &""
 var player_initiated: bool = false
 var enabled: bool = true
+## COLLECT L3 情景（可空 = 无条件）。
+var collect_condition: Condition = null
+## COLLECT L5：剩余次数；`< 0` = 无限；`0` = 耗尽不出候选。
+var limit_remaining: int = -1
 
 
 static func when_forced(kind: StringName, fn: Callable) -> SequenceHandler:

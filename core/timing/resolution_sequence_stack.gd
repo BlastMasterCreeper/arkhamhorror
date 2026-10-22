@@ -184,17 +184,22 @@ func _collect_matched_handlers(
 	frame: ResolutionSequenceFrame,
 	phase: AhcEnums.SequencePhase
 ) -> Array[SequenceHandler]:
+	## L0 = matches(kind)；其后 EligibilityPipeline COLLECT L1–L5（06 §5）。
 	var matched: Array[SequenceHandler] = []
+	var app_ctx := build_application_context(phase)
 	for handler in _handlers:
 		if handler.phase != phase:
-			continue
-		if not handler.enabled:
 			continue
 		if not handler.matches(frame.trigger):
 			continue
 		if _is_handler_resolved(handler):
 			continue
-		if is_self_response_blocked(handler.source_id):
+		if not EligibilityPipeline.passes_collect(
+			handler,
+			_game_ctx,
+			app_ctx,
+			is_self_response_blocked(handler.source_id)
+		):
 			continue
 		matched.append(handler)
 	return matched
@@ -308,12 +313,22 @@ func _remove_from_willingness_pool(handler: SequenceHandler) -> void:
 
 
 func _prune_willingness_pool() -> void:
+	## nest 返回后重验：非法自动出池（16 §7.1）。
+	var phase := AhcEnums.SequencePhase.AFTER
+	if not _frames.is_empty():
+		phase = _frames[_frames.size() - 1].phase
+	var app_ctx := build_application_context(phase)
 	for i in range(_willingness_pool.size() - 1, -1, -1):
 		var handler := _willingness_pool[i]
-		if handler == null or not handler.enabled or _is_handler_resolved(handler):
+		if handler == null or _is_handler_resolved(handler):
 			_willingness_pool.remove_at(i)
 			continue
-		if is_self_response_blocked(handler.source_id):
+		if not EligibilityPipeline.passes_collect(
+			handler,
+			_game_ctx,
+			app_ctx,
+			is_self_response_blocked(handler.source_id)
+		):
 			_willingness_pool.remove_at(i)
 
 

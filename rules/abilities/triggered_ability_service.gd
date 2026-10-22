@@ -328,6 +328,7 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 	handler.definition_id = descriptor.definition_id
 	handler.ability_id = descriptor.id
 	handler.player_initiated = descriptor.is_player_initiated()
+	handler.collect_condition = descriptor.collect_condition
 	match descriptor.ability_kind:
 		TriggeredAbilityDescriptor.AbilityKind.FORCED:
 			handler.tier = SequenceHandler.Tier.FORCED
