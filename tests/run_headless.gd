@@ -358,12 +358,12 @@ func _initialize() -> void:
 	_run_test("TIM-02 draw encounter SPLIT zones", _test_tim_draw_encounter_split)
 	_run_test("TIM-DMG-01 WOULD then WHEN before Apply", _test_tim_dmg_apply_slots)
 	_run_test("TIM-DMG-02 WOULD reduce_pending before Apply", _test_tim_dmg_prevent)
-	_run_test("SA-01 PRIOR_FILL horror to asset first", _test_sa_prior_fill)
-	_run_test("SA-02 MIN_TO_SUBJECT damage if able", _test_sa_min_to_subject)
-	_run_test("SA-03 MAX_TO_MATCH trait cap", _test_sa_max_to_match)
-	_run_test("SA-04 INCLUDE direct allows asset soak", _test_sa_include_direct)
-	_run_test("SA-05 INCLUDE Bodyguard other at location", _test_sa_include_bodyguard)
-	_run_test("SA-06 pipeline apply PRIOR_FILL legs", _test_sa_pipeline_prior_fill)
+	_run_test("ASN-01 PRIOR_FILL horror to asset first", _test_asn_prior_fill)
+	_run_test("ASN-02 MIN_TO_SUBJECT damage if able", _test_asn_min_to_subject)
+	_run_test("ASN-03 MAX_TO_MATCH trait cap", _test_asn_max_to_match)
+	_run_test("ASN-04 INCLUDE direct allows asset assign", _test_asn_include_direct)
+	_run_test("ASN-05 INCLUDE Bodyguard other at location", _test_asn_include_bodyguard)
+	_run_test("ASN-06 pipeline apply PRIOR_FILL legs", _test_asn_pipeline_prior_fill)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -7894,7 +7894,7 @@ func _test_tim_dmg_prevent() -> bool:
 	)
 
 
-func _sa_leg_amount(legs: Array, bearer: StringName, id: StringName) -> int:
+func _asn_leg_amount(legs: Array, bearer: StringName, id: StringName) -> int:
 	var total := 0
 	for leg in legs:
 		if not (leg is Dictionary):
@@ -7907,55 +7907,55 @@ func _sa_leg_amount(legs: Array, bearer: StringName, id: StringName) -> int:
 	return total
 
 
-func _test_sa_prior_fill() -> bool:
-	## SA-01 · 03109：PRIOR_FILL horror → 先填满资产神智，剩余归调查员。
+func _test_asn_prior_fill() -> bool:
+	## ASN-01 · 03109：PRIOR_FILL horror → 先填满资产神智，剩余归调查员。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
-		h.ctx, &"inv_1", &"ally_sa_prior", {"health": 0, "sanity": 2}
+		h.ctx, &"inv_1", &"ally_asn_prior", {"health": 0, "sanity": 2}
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
 			RestrictionPayload.assign_prior_fill(card_id, &"inv_1", &"horror")
 		)
 	)
-	var legs := SoakAssigner.default_assignment(h.ctx, &"inv_1", &"horror", 3, false)
+	var legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"horror", 3, false)
 	return (
-		_sa_leg_amount(legs, &"card", card_id) == 2
-		and _sa_leg_amount(legs, &"investigator", &"inv_1") == 1
-		and SoakAssigner.validate(h.ctx, &"inv_1", &"horror", false, 3, legs)
+		_asn_leg_amount(legs, &"card", card_id) == 2
+		and _asn_leg_amount(legs, &"investigator", &"inv_1") == 1
+		and DamageAssigner.validate(h.ctx, &"inv_1", &"horror", false, 3, legs)
 	)
 
 
-func _test_sa_min_to_subject() -> bool:
-	## SA-02 · 09007：MIN_TO_SUBJECT damage 1 if_able。
+func _test_asn_min_to_subject() -> bool:
+	## ASN-02 · 09007：MIN_TO_SUBJECT damage 1 if_able。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
-		h.ctx, &"inv_1", &"ally_sa_min", {"health": 2, "sanity": 0}
+		h.ctx, &"inv_1", &"ally_asn_min", {"health": 2, "sanity": 0}
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
 			RestrictionPayload.assign_min_to_subject(card_id, &"inv_1", 1, &"damage")
 		)
 	)
-	var legs := SoakAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
+	var legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
 	var bad_all_inv := [{"bearer": &"investigator", "id": &"inv_1", "amount": 3}]
 	return (
-		_sa_leg_amount(legs, &"card", card_id) == 1
-		and _sa_leg_amount(legs, &"investigator", &"inv_1") == 2
-		and SoakAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, legs)
-		and not SoakAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_all_inv)
+		_asn_leg_amount(legs, &"card", card_id) == 1
+		and _asn_leg_amount(legs, &"investigator", &"inv_1") == 2
+		and DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, legs)
+		and not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_all_inv)
 	)
 
 
-func _test_sa_max_to_match() -> bool:
-	## SA-03 · 60232：MAX_TO_MATCH trait Miskatonic ≤ 1。
+func _test_asn_max_to_match() -> bool:
+	## ASN-03 · 60232：MAX_TO_MATCH trait Miskatonic ≤ 1。
 	var h := RuleTestHarness.new(42)
 	var a := GameBootstrap.add_asset_to_play(
-		h.ctx, &"inv_1", &"ally_sa_misk_a",
+		h.ctx, &"inv_1", &"ally_asn_misk_a",
 		{"health": 3, "sanity": 0, "traits": [&"Miskatonic"]}
 	)
 	var b := GameBootstrap.add_asset_to_play(
-		h.ctx, &"inv_1", &"ally_sa_misk_b",
+		h.ctx, &"inv_1", &"ally_asn_misk_b",
 		{"health": 3, "sanity": 0, "traits": [&"Miskatonic"]}
 	)
 	h.ctx.registrations.register(
@@ -7972,22 +7972,22 @@ func _test_sa_max_to_match() -> bool:
 		{"bearer": &"card", "id": b, "amount": 1},
 		{"bearer": &"investigator", "id": &"inv_1", "amount": 1},
 	]
-	var default_legs := SoakAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
+	var default_legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
 	return (
-		SoakAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, ok_one)
-		and not SoakAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_two)
-		and _sa_leg_amount(default_legs, &"investigator", &"inv_1") == 3
+		DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, ok_one)
+		and not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_two)
+		and _asn_leg_amount(default_legs, &"investigator", &"inv_1") == 3
 	)
 
 
-func _test_sa_include_direct() -> bool:
-	## SA-04 · 04015：INCLUDE + DIRECT 才允许 direct 摊资产；无 INCLUDE 则拒。
+func _test_asn_include_direct() -> bool:
+	## ASN-04 · 04015：INCLUDE + DIRECT 才允许 direct 摊资产；无 INCLUDE 则拒。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
-		h.ctx, &"inv_1", &"ally_sa_direct", {"health": 2, "sanity": 2}
+		h.ctx, &"inv_1", &"ally_asn_direct", {"health": 2, "sanity": 2}
 	)
-	var soak_only := [{"bearer": &"card", "id": card_id, "amount": 1}]
-	if SoakAssigner.validate(h.ctx, &"inv_1", &"damage", true, 1, soak_only):
+	var assign_only := [{"bearer": &"card", "id": card_id, "amount": 1}]
+	if DamageAssigner.validate(h.ctx, &"inv_1", &"damage", true, 1, assign_only):
 		return false
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
@@ -8000,11 +8000,11 @@ func _test_sa_include_direct() -> bool:
 			)
 		)
 	)
-	return SoakAssigner.validate(h.ctx, &"inv_1", &"damage", true, 1, soak_only)
+	return DamageAssigner.validate(h.ctx, &"inv_1", &"damage", true, 1, assign_only)
 
 
-func _test_sa_include_bodyguard() -> bool:
-	## SA-05 · Bodyguard：other_at_location 扩他人伤害候选。
+func _test_asn_include_bodyguard() -> bool:
+	## ASN-05 · Bodyguard：other_at_location 扩他人伤害候选。
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -8012,7 +8012,7 @@ func _test_sa_include_bodyguard() -> bool:
 	inv1.location_tag = &"sa_loc"
 	inv2.location_tag = &"sa_loc"
 	var guard_id := GameBootstrap.add_asset_to_play(
-		h.ctx, &"inv_1", &"ally_sa_guard", {"health": 2, "sanity": 0}
+		h.ctx, &"inv_1", &"ally_asn_guard", {"health": 2, "sanity": 0}
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
@@ -8025,20 +8025,20 @@ func _test_sa_include_bodyguard() -> bool:
 			)
 		)
 	)
-	var soak_guard := [{"bearer": &"card", "id": guard_id, "amount": 1}]
+	var assign_guard := [{"bearer": &"card", "id": guard_id, "amount": 1}]
 	var far := false
 	inv2.location_tag = &"elsewhere"
-	far = SoakAssigner.validate(h.ctx, &"inv_2", &"damage", false, 1, soak_guard)
+	far = DamageAssigner.validate(h.ctx, &"inv_2", &"damage", false, 1, assign_guard)
 	inv2.location_tag = &"sa_loc"
-	var near := SoakAssigner.validate(h.ctx, &"inv_2", &"damage", false, 1, soak_guard)
+	var near := DamageAssigner.validate(h.ctx, &"inv_2", &"damage", false, 1, assign_guard)
 	return near and not far
 
 
-func _test_sa_pipeline_prior_fill() -> bool:
-	## SA-06：pipeline Apply 按 PRIOR_FILL 腿写入资产 + 调查员。
+func _test_asn_pipeline_prior_fill() -> bool:
+	## ASN-06：pipeline Apply 按 PRIOR_FILL 腿写入资产 + 调查员。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
-		h.ctx, &"inv_1", &"ally_sa_pipe", {"health": 0, "sanity": 2}
+		h.ctx, &"inv_1", &"ally_asn_pipe", {"health": 0, "sanity": 2}
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(

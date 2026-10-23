@@ -113,7 +113,7 @@ static func aloof_forbid_attack(enemy_id: StringName) -> RegistrationTemplate:
 	return t
 
 
-## 承伤分摊约束：WHILE_IN_PLAY（资产离场卸）；SoakAssigner 原流程读取。
+## Assign（分摊）约束：WHILE_IN_PLAY（资产离场卸）；DamageAssigner 原流程读取。
 static func assign_constraint_while_in_play(
 	payload: RestrictionPayload
 ) -> RegistrationTemplate:

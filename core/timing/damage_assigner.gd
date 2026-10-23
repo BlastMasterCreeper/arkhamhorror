@@ -1,7 +1,7 @@
-class_name SoakAssigner
+class_name DamageAssigner
 extends RefCounted
 
-## 承伤/承恐分摊（deal 内 PI 的客观核）：候选 · 约束 · 默认表 · 校验。
+## Assign（分摊）客观核（deal 内 PI）：候选 · 约束 · 默认表 · 校验。
 ## 约束来自 RestrictionKind.ASSIGN_CONSTRAINT（原流程读取，非 LISTENER）。
 ## 腿：`{ "bearer": &"investigator"|"card", "id": StringName, "amount": int }`
 
@@ -172,7 +172,7 @@ static func _capacity_map(
 			if cap > 0:
 				caps[_card_key(c.subject_id)] = cap
 		return caps
-	## non-direct：己方可承伤/恐资产 + INCLUDE。
+	## non-direct：己方可分摊伤/恐的资产 + INCLUDE。
 	var inv := game_ctx.state.registry.get_investigator(inv_id)
 	if inv != null:
 		for card_id in inv.play_area:

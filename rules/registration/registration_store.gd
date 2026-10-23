@@ -118,7 +118,7 @@ func _find_skip_aoo_reg_id(controller_id: StringName) -> StringName:
 	return &""
 
 
-## 承伤分摊：收集与本次 deal 相关的 ASSIGN_CONSTRAINT（不卸）。
+## Assign（分摊）：收集与本次 deal 相关的 ASSIGN_CONSTRAINT（不卸）。
 ## `dealt_inv_id` = 本次受到分配的调查员；Bodyguard 等可用 other_at_location 扩到他人。
 func list_assign_constraints(dealt_inv_id: StringName) -> Array[RestrictionPayload]:
 	var out: Array[RestrictionPayload] = []

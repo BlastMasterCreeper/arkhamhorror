@@ -995,7 +995,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
 | —（原流程分支） | 借机不跑 | `SKIP_AOO` | 「This action does not provoke…」 | REST-E-AOO：`read_skip_aoo` | **已实现** · 翻译叶见 [20 §4](20-card-translation-schema.md) |
 | —（原流程分支） | 自动交战不跑 | `SUPPRESS_AUTO_ENGAGE` | 「移入后 engages you」（明示交战，非 Prey/Lead；冷漠/横置仍靠 mode=effect） | REST-E-AUTO-ENGAGE：`read_suppress_auto_engage` | **已实现** · 理由见 [20 §4.2.1](20-card-translation-schema.md) |
-| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include | REST-E-ASSIGN：`SoakAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
+| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include | REST-E-ASSIGN：`DamageAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
 | —（状态查询） | 成对交战状态 | `ENGAGEMENT` | 真实交战 / 视为交战（威胁区是区划检测，不是本 Buff） | `EngagementStatus` / `has_engagement` | **已实现** · [08 §3.1.1](08-enemy-engagement.md) |
 | `DISCOVER_CLUE` | 发现线索 | `FORBID_DISCOVER_CLUE` | 「While engaged… cannot discover…」（01121b） | REST-E-EFFECT：`DiscoverClueFlow` | **已实现** · 与 ENGAGEMENT 同 Register，脱离卸 |
 | `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
@@ -1044,7 +1044,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 | `seq.action.fight` / `BasicActionResolver.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行 | **已实现** |
 | Initiation INIT_2B · `AttackOfOpportunityResolver` | REST-E-AOO | `SKIP_AOO` | 原流程读取分支 | **已实现** |
 | `EnemySystem.auto_engage_at_location`（常由 `seq.engage` mode=auto / 区域变更后触发） | REST-E-AUTO-ENGAGE | `SUPPRESS_AUTO_ENGAGE` | 原流程读取分支 | **已实现** |
-| `DamagePipeline.deal_investigator` Assign（`SoakAssigner`） | REST-E-ASSIGN | `ASSIGN_CONSTRAINT` | 原流程读取（候选/先验/最小/最大） | **已实现** |
+| `DamagePipeline.deal_investigator` Assign（`DamageAssigner`） | REST-E-ASSIGN | `ASSIGN_CONSTRAINT` | 原流程读取（候选/先验/最小/最大） | **已实现** |
 | `AbilityInitiationPipeline` / Action play·trigger 前 | REST-E-PLAY / REST-E-TRIGGER | `FORBID_PLAY` / `FORBID_TRIGGER` | 拦 Intent | Kind 有；接线见 §16.4.2 |
 | `EffectResolutionGraph` step 4（`EffectRestrictionGate`） | REST-E-EFFECT | 按 `EffectOp`→Intent（§16.4.3） | 拦 Intent | 部分（如 DRAW） |
 | （状态查询，非某 seq 结算兴趣） | — | `ENGAGEMENT` | `EngagementStatus` 成对查询 | **已实现** · 不进本表消费列 |
@@ -1072,7 +1072,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 |---|---|
 | 结构 / 牌组合法性 | Setup、deckbuild |
 | 目标不存在、效果空转 | Eligibility L7 |
-| Assign / prevent / soak | `DamagePipeline` + Wrapper |
+| Assign / prevent / reassign | `DamagePipeline` + Wrapper |
 | Instead 竞争 | `PendingResolution` + initiation_seq |
 | 区域不变量（leave play token→pool） | `StateMutator` / [01 §5](01-game-state-zones.md) |
 | 关键词流程（Surge 再抽） | **G5** nest evaluate + 再抽 G1（**G4 后**；不在 G1 Register） |
@@ -1157,7 +1157,8 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-23 | v0.4.24 | `ASSIGN_CONSTRAINT` 四算子；REST-E-ASSIGN / SoakAssigner；§16.4.2/§16.4.4 |
+| 2026-10-23 | v0.4.25 | 框架称呼：`SoakAssigner` → `DamageAssigner`（正式 Assign，弃用 soak） |
+| 2026-10-23 | v0.4.24 | `ASSIGN_CONSTRAINT` 四算子；REST-E-ASSIGN / DamageAssigner；§16.4.2/§16.4.4 |
 | 2026-10-20 | v0.4.23 | 冷漠 `FORBID_ATTACK`：进场 Register；Fight 入口读 Evaluator；§16.4.2/§16.4.4 标已实现；竖切 50026 Narôgath |
 | 2026-10-20 | v0.4.22 | **§16.4.4** 兴趣类型报表：seq/入口 → 须读的 RestrictionKind（≠ LISTENER 订阅）；澄清「兴趣」= RESOLVE 检测 |
 | 2026-10-10 | v0.4.21 | §3.2.7：庞大 REPLACE 锚改到 `seq.enemy.attack`；`phase_attacks` 仅为固定 nest 手续 |

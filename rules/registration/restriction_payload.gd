@@ -7,7 +7,7 @@ var drawn_card_id: StringName = &""
 var encounter_frame_id: StringName = &""
 ## SUPPRESS_AUTO_ENGAGE 等：限制作用的敌人实例。
 var subject_id: StringName = &""
-## ASSIGN_CONSTRAINT：算子与过滤（伤/恐分摊；SoakAssigner 读）。
+## ASSIGN_CONSTRAINT：算子与过滤（伤/恐分摊；DamageAssigner 读）。
 var assign_op: AhcEnums.AssignConstraintOp = AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE
 ## damage | horror | either
 var assign_affliction: StringName = &"either"

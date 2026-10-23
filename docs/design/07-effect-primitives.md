@@ -502,7 +502,7 @@ Spawn 敌人/Asset = `Create` + `AtomMoveCard`（Wrapper 或 Simultaneous 组）
 |---|---|---|
 | **选择/搜索** | search top 5, choose card | L1 `Choice` + 查询 API；选中后 `MoveCard` |
 | **洗牌** | shuffle deck | Domain 工具 `PileOps.shuffle`；宏 `Shuffle(deck)` 调用之 |
-| **伤害 Assign** | soak、direct、prevent | `DamageWrapper` 步骤；输出多个 Adjust/Transfer |
+| **伤害 Assign** | assign、direct、prevent | `DamageWrapper` 步骤；输出多个 Adjust/Transfer |
 | **检定** | ST.1–ST.8 | `SkillTestEngine` |
 | **Initiation** | pay cost, AOO | `AbilityInitiationPipeline` |
 | **Timing** | Cancel, Replacement, After | `TimingBus` |

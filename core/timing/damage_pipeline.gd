@@ -4,12 +4,12 @@ extends RefCounted
 ## Dealing Damage/Horror（07-effect-resolution §4）· 已裁决：
 ## - **Assign = 玩家选择（PI）**，始终有；不是结算砖，不 emit 时点。
 ##   对调查员：可摊到合格资产 ∪ 调查员卡；对卡牌：候选 = {该卡}。
-## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（SoakAssigner 原流程读取）。
+## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（DamageAssigner 原流程读取）。
 ## - **WOULD / WHEN 均在 Apply 之前**（栈相位 PreImpact；非 Apply 后）。
 ##   WOULD：取消 / 防止 / 降低 / 改分配（抢在同事件 Forced-WHEN 前）。
 ##   WHEN：非取消的 *when you take*（你控制的卡将承伤）；与 would 常等价，档更晚。
 ## - Apply 按腿落标记后仅 AFTER（*after you take*）。
-## v1 Assign：`SoakAssigner.default_assignment`（`ASSIGN_*` Gate 后补）。
+## v1 Assign：`DamageAssigner.default_assignment`（`ASSIGN_*` Gate 后补）。
 
 
 const PENDING_AMOUNT := &"pending_damage_amount"
@@ -33,7 +33,7 @@ static func deal_investigator(
 	if requested <= 0:
 		return {"ok": false, "amount": 0}
 	## Assign（PI）：v1 默认表；不打开时点窗。
-	var legs := SoakAssigner.default_assignment(game_ctx, inv_id, kind, requested, is_direct)
+	var legs := DamageAssigner.default_assignment(game_ctx, inv_id, kind, requested, is_direct)
 	_set_pending(game_ctx, inv_id, kind, requested, is_direct, legs)
 	## PreImpact：WOULD（prevent）→ WHEN（非取消 when-take）；均在写入前。
 	if game_ctx.sequences != null:
@@ -91,7 +91,7 @@ static func reduce_pending(game_ctx: GameContext, inv_id: StringName, by: int) -
 	var next_amount := maxi(cur - by, 0)
 	var kind := pending_kind(game_ctx, inv_id)
 	var is_direct := pending_direct(game_ctx, inv_id)
-	var legs := SoakAssigner.default_assignment(game_ctx, inv_id, kind, next_amount, is_direct)
+	var legs := DamageAssigner.default_assignment(game_ctx, inv_id, kind, next_amount, is_direct)
 	game_ctx.memory.set_referent(inv_id, PENDING_AMOUNT, next_amount)
 	game_ctx.memory.set_referent(inv_id, PENDING_LEGS, legs)
 	return next_amount
@@ -108,7 +108,7 @@ static func reassign_pending_legs(game_ctx: GameContext, inv_id: StringName, leg
 	var total := pending_amount(game_ctx, inv_id)
 	var kind := pending_kind(game_ctx, inv_id)
 	var is_direct := pending_direct(game_ctx, inv_id)
-	if not SoakAssigner.validate(game_ctx, inv_id, kind, is_direct, total, legs):
+	if not DamageAssigner.validate(game_ctx, inv_id, kind, is_direct, total, legs):
 		return false
 	game_ctx.memory.set_referent(inv_id, PENDING_LEGS, legs.duplicate(true))
 	return true
