@@ -180,19 +180,20 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 定义规则引擎 **唯一可执行** 的 **状态原语（state primitive）**——**仅物理层**桌面实体变更。Grimoire 上的局面变更，在 **Composition / 命名流程** 内必须 **归约** 为：
 
 1. **状态原语**（物理：区/序、标记、形态）的有序/并行组合；
-2. **信息层最小写入**（可见性、地点指称等——**不是**状态原语）；
-3. **Register**（规则/Buff 写入，**是效果**，但不是状态原语）；
-4. 外加 **语义包装 (Wrapper)** 在步骤之间插入规则步骤（如伤害 Assign）。
+2. **信息原语**（可见性、离散旗、引用——**不是**状态原语）；
+3. **Register**（规则/Buff 写入，**是效果**，但不是原语）；
+4. 外加 **语义包装 (Wrapper)** / **命名流程** 组合上述叶子（如伤害 Assign）。
 
-**卡牌揭示（Reveal）** 经 `StateMutator.reveal_to_*`（`InformationExecutor`）写 `FaceAudience`；**是效果，不是状态原语**。需要翻面时 **另** 调物理 ③ `AtomFlipCard`。
+**卡牌揭示（Reveal）** = 信息原语 ①（`FaceAudience`）；需要翻面时 **另** 调物理状态原语 ③。  
+**命名流程** 组合两套原语；**禁止**原语叶子直接当 Timing 订阅面。
 
-**卡牌脚本与 YAML 不得直接调用 `GameStateStore` / `PhysicalOps` 的可变 API**；物理状态原语经 `StateMutator`（镜像物理层）执行。
+**卡牌脚本与 YAML 不得直接调用 `GameStateStore` / `PhysicalOps` 的可变 API**；两套原语经 `StateMutator` / `InformationExecutor` 执行。
 
 ---
 
 ## 2. 核心命题
 
-> 复杂效果 = **物理状态原语**（区/序 + 标记 + 形态）+ **信息层写入** + **Register**，再经组合与包装。
+> 复杂效果 = **状态原语** + **信息原语** + **Register**，经 **命名流程 / Composition** 组合与包装。
 
 「标记」包含：
 
@@ -207,10 +208,11 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 | 层 | 名称 | 职责 | 示例 |
 |---|---|---|---|
-| **物理 L0** | `PhysicalOps`（经 `StateMutator` 镜像） | **状态原语**；桌面实体 | `move_card`, `transfer_marker`, `set_face`, `set_exhausted` |
-| **信息层** | Domain / `InformationExecutor` | 框架语义、可见性、指称 | `reveal_to_*`（FaceAudience）、`location_tag` |
-| **L1** | Composition | 状态原语 + 信息写入 + Register 组合 | Then draw + horror |
-| **L2** | Semantics / Wrapper | 规则书语义；nest `seq.effect.*` | DealDamage；PlayCard = Initiation |
+| **物理原语** | `PhysicalOps`（经 `StateMutator` 镜像） | **状态原语**三类 | `move_card`, `transfer_marker`, `set_face`, `set_exhausted` |
+| **信息原语** | Domain / `InformationExecutor` | **信息原语**三类 | `reveal_to_*`, `set_flag`, `set_ref`（地点等） |
+| **命名流程** | `SequenceCatalog` + 堆栈 | 手续 / 可听种类；组合两套原语 | `seq.effect.take_horror`, `seq.enter_hand` |
+| **L1** | Composition | 原语 + Register 树 | Then draw + horror |
+| **L2** | Semantics / Wrapper | 规则书语义；nest `seq.*` | DealDamage；PlayCard = Initiation |
 
 ```
 CardScript / YAML  →  L2 Wrapper/Macro  →  L1 CompositionTree  →  L0 Atoms  →  GameStateStore
@@ -335,7 +337,7 @@ enum RefField {
 
 **另：** **Register** 写 `RegistrationStore`（Buff），**是效果**，经 Composition L2，**不是** L0 状态原语。
 
-共 **3 类状态原语（物理）** + **信息层最小写入（§5.4）** + **2 个 Domain 工厂**（`Create` / `Destroy`，非效果）。
+共 **3 类状态原语（物理）** + **3 类信息原语（§5.4）** + **2 个 Domain 工厂**（`Create` / `Destroy`，非效果）。命名流程在二者之上。
 
 ### 5.1 ① 卡牌地址 — `AtomMoveCard`
 
