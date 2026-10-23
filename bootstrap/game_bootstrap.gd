@@ -138,6 +138,8 @@ static func add_asset_to_play(
 		data["health"] = int(opts.get("health", 0))
 	if opts.has("sanity"):
 		data["sanity"] = int(opts.get("sanity", 0))
+	if opts.has("traits"):
+		data["traits"] = opts.get("traits", [])
 	if not data.has("card_type"):
 		data["card_type"] = &"asset"
 	CardRegistry.register_definition(definition_id, data)

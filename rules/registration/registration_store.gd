@@ -118,6 +118,32 @@ func _find_skip_aoo_reg_id(controller_id: StringName) -> StringName:
 	return &""
 
 
+## 承伤分摊：收集与本次 deal 相关的 ASSIGN_CONSTRAINT（不卸）。
+## `dealt_inv_id` = 本次受到分配的调查员；Bodyguard 等可用 other_at_location 扩到他人。
+func list_assign_constraints(dealt_inv_id: StringName) -> Array[RestrictionPayload]:
+	var out: Array[RestrictionPayload] = []
+	if dealt_inv_id == &"":
+		return out
+	for reg in _entries:
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			var r: RestrictionPayload = buff.restriction
+			if r.kind != AhcEnums.RestrictionKind.ASSIGN_CONSTRAINT:
+				continue
+			if r.assign_op == AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE:
+				if r.assign_expand_scope == &"other_at_location":
+					## Bodyguard：控制者≠受害者，同地点时生效。
+					if r.drawer_id == dealt_inv_id:
+						continue
+				elif r.drawer_id != dealt_inv_id and r.drawer_id != &"":
+					continue
+			elif r.drawer_id != dealt_inv_id and r.drawer_id != &"":
+				continue
+			out.append(r)
+	return out
+
+
 ## 读取：该敌人是否有 SUPPRESS_AUTO_ENGAGE（不卸）。
 func has_suppress_auto_engage(enemy_id: StringName) -> bool:
 	return _find_suppress_auto_engage_reg_id(enemy_id) != &""

@@ -7,6 +7,17 @@ var drawn_card_id: StringName = &""
 var encounter_frame_id: StringName = &""
 ## SUPPRESS_AUTO_ENGAGE 等：限制作用的敌人实例。
 var subject_id: StringName = &""
+## ASSIGN_CONSTRAINT：算子与过滤（伤/恐分摊；SoakAssigner 读）。
+var assign_op: AhcEnums.AssignConstraintOp = AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE
+## damage | horror | either
+var assign_affliction: StringName = &"either"
+var assign_direct_scope: AhcEnums.AssignDirectScope = AhcEnums.AssignDirectScope.NON_DIRECT
+## INCLUDE：self_deals | other_at_location
+var assign_expand_scope: StringName = &"self_deals"
+## MAX_TO_MATCH：特质名（如 Miskatonic）；空=不按特质
+var assign_trait: StringName = &""
+var assign_amount: int = 1
+var assign_if_able: bool = true
 
 
 static func forbid_draw() -> RestrictionPayload:
@@ -102,4 +113,86 @@ static func forbid_attack_aloof(enemy_id: StringName) -> RestrictionPayload:
 	var p := RestrictionPayload.new()
 	p.kind = AhcEnums.RestrictionKind.FORBID_ATTACK
 	p.subject_id = enemy_id
+	return p
+
+
+## 分摊约束工厂见 `assign_include_candidate` 等；WHILE_IN_PLAY 挂载用 RegistrationTemplate。
+
+
+## 分摊：扩大候选（04015 allow direct；Bodyguard 他人）。
+static func assign_include_candidate(
+	subject_card_id: StringName,
+	controller_id: StringName,
+	affliction: StringName = &"either",
+	direct_scope: AhcEnums.AssignDirectScope = AhcEnums.AssignDirectScope.BOTH,
+	expand_scope: StringName = &"self_deals"
+) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.ASSIGN_CONSTRAINT
+	p.assign_op = AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE
+	p.subject_id = subject_card_id
+	p.drawer_id = controller_id
+	p.drawn_card_id = subject_card_id
+	p.assign_affliction = affliction
+	p.assign_direct_scope = direct_scope
+	p.assign_expand_scope = expand_scope
+	return p
+
+
+## 分摊：优先填满本卡再摊调查员卡（03109）。
+static func assign_prior_fill(
+	subject_card_id: StringName,
+	controller_id: StringName,
+	affliction: StringName = &"horror",
+	direct_scope: AhcEnums.AssignDirectScope = AhcEnums.AssignDirectScope.NON_DIRECT
+) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.ASSIGN_CONSTRAINT
+	p.assign_op = AhcEnums.AssignConstraintOp.PRIOR_FILL
+	p.subject_id = subject_card_id
+	p.drawer_id = controller_id
+	p.drawn_card_id = subject_card_id
+	p.assign_affliction = affliction
+	p.assign_direct_scope = direct_scope
+	return p
+
+
+## 分摊：至少 N 点到本卡（09007）。
+static func assign_min_to_subject(
+	subject_card_id: StringName,
+	controller_id: StringName,
+	amount: int = 1,
+	affliction: StringName = &"damage",
+	direct_scope: AhcEnums.AssignDirectScope = AhcEnums.AssignDirectScope.NON_DIRECT,
+	if_able: bool = true
+) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.ASSIGN_CONSTRAINT
+	p.assign_op = AhcEnums.AssignConstraintOp.MIN_TO_SUBJECT
+	p.subject_id = subject_card_id
+	p.drawer_id = controller_id
+	p.drawn_card_id = subject_card_id
+	p.assign_affliction = affliction
+	p.assign_direct_scope = direct_scope
+	p.assign_amount = maxi(amount, 1)
+	p.assign_if_able = if_able
+	return p
+
+
+## 分摊：匹配特质合计至多 N（60232）。
+static func assign_max_to_match(
+	controller_id: StringName,
+	trait_name: StringName,
+	amount: int = 1,
+	affliction: StringName = &"either",
+	direct_scope: AhcEnums.AssignDirectScope = AhcEnums.AssignDirectScope.BOTH
+) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.ASSIGN_CONSTRAINT
+	p.assign_op = AhcEnums.AssignConstraintOp.MAX_TO_MATCH
+	p.drawer_id = controller_id
+	p.assign_trait = trait_name
+	p.assign_amount = maxi(amount, 0)
+	p.assign_affliction = affliction
+	p.assign_direct_scope = direct_scope
 	return p

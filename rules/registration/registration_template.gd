@@ -113,6 +113,18 @@ static func aloof_forbid_attack(enemy_id: StringName) -> RegistrationTemplate:
 	return t
 
 
+## 承伤分摊约束：WHILE_IN_PLAY（资产离场卸）；SoakAssigner 原流程读取。
+static func assign_constraint_while_in_play(
+	payload: RestrictionPayload
+) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = payload.drawer_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
+	t.drawn_card_id = payload.subject_id if payload.subject_id != &"" else payload.drawn_card_id
+	t.buffs.append(BuffSpec.restriction_buff(payload))
+	return t
+
+
 ## G2 peril Register：`WHILE_DRAWN_CARD_RESOLVING(card_id)` — G4 完 Unregister；不跨 Surge。
 static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()

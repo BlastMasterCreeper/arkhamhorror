@@ -202,16 +202,31 @@ Grimoire p.8：
 - 剩余 → investigator 卡
 - Direct：必须 investigator 卡
 
-**已裁决（2026-10-22）**：
+**已裁决（2026-10-22 · 约束参数化 2026-10-23）**：
 
 - Assign = **`PlayerInteractionGate` 有限期确认**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`），**不是** RESOLVE 时点砖，**不** emit WOULD/WHEN。
 - **始终有 Assign 步**：对调查员 → 可摊；对卡牌 → 候选 = {该卡}（含直接伤害 = 调查员卡）；对敌人 → {该敌人}（仅 damage）。
-- 默认未确认 → 对调查员全量归调查员卡；对卡/敌 → 唯一候选。
-- lasting / RESTRICTION 可改分配候选（如 Bodyguard）。
+- 默认未确认 → `SoakAssigner.default_assignment`（见下）；对卡/敌 → 唯一候选。
+- lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
+
+#### 分摊约束（`AssignConstraintOp`）
+
+挂 `RestrictionKind.ASSIGN_CONSTRAINT`（WHILE_IN_PLAY）；`SoakAssigner` @ Assign 读取。轴：`assign_affliction`（damage|horror|either）× `AssignDirectScope`（NON_DIRECT|DIRECT|BOTH）。
+
+| Op | 语义 | 锚例 |
+|---|---|---|
+| `INCLUDE_CANDIDATE` | 扩大候选：`self_deals`（04015 允许 direct 摊本卡）/ `other_at_location`（Bodyguard） | 04015 · Bodyguard |
+| `PRIOR_FILL` | 先填满本卡容量，才可摊调查员卡 | 03109 |
+| `MIN_TO_SUBJECT` | 至少 N 点到本卡（`if_able`） | 09007 |
+| `MAX_TO_MATCH` | 匹配特质合计 ≤ N | 60232 Miskatonic |
+
+**不是**本表：03315 Key of Ys = WOULD 改分配（`reassign_pending_legs`）；07189 Armor = AFTER 再分配（`MarkerTransferBatch`）；04305 Flamethrower = 敌人侧 Assign PI。
+
+默认算法：PRIOR_FILL → MIN_TO_SUBJECT → 剩余归调查员卡；再 `validate`。v1 默认**不**主动摊到无 PRIOR/MIN 的资产（Gate 后补玩家表）。
 
 ### Step 2 Apply（**唯一结算砖**）
 
-- 同时放置 tokens
+- 按腿同时放置 tokens（调查员 `adjust_marker` / 支援 `DefeatFlow.deal_*_to_asset`）
 - 若未 apply 任何 → 未 successfully dealt
 - 检查 defeat：investigator / enemy / asset
 
@@ -219,20 +234,20 @@ Grimoire p.8：
 
 | 槽 | 时刻 | 卡面钉法 |
 |---|---|---|
-| **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配**；早期误印 *when* 的防伤对策编译收此；`reduce_pending` |
+| **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配**；早期误印 *when* 的防伤对策编译收此；`reduce_pending` / `reassign_pending_legs` |
 | **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take* = **你控制的卡**将承伤；非取消反应/修正 |
 | **AFTER** | Apply + defeat 检测后 / seq pop | *after you take…* |
 
 ```gdscript
-# Assign = PI（非时点）→ pending
+# Assign = PI（非时点）→ pending legs
 offer_slot(WOULD)   # prevent / cancel / reduce / reassign
 offer_slot(WHEN)    # non-cancel when-take（仍未写入）
-apply L0
+apply legs          # 每腿 L0 / DefeatFlow
 check_defeat
 # AFTER on pop
 ```
 
-**竖切**：`core/timing/damage_pipeline.gd` · `no_envelope_slot`；v1 Assign 默认全量调查员（Gate 后补）。敌/支援仍走既有 Defeat 入口。
+**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/soak_assigner.gd` · `no_envelope_slot`；v1 Assign 默认表（Gate 后补）。敌/支援仍走既有 Defeat 入口。
 
 ### 4.1 Moving / 再分配 damage / horror（已裁决 OQ-07-02 · 包装修正 2026-10-23）
 
@@ -790,6 +805,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-23 | v0.6.9 | §4：`ASSIGN_CONSTRAINT` 四算子 + SoakAssigner；pending legs；03315/07189/04305 不进约束表 |
 | 2026-09-21 | v0.6.8 | §6.0 / §7.0：卡面译 Composition，Cancel/Instead 节点 nest 共享 seq |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-06-01：Replacement 最近一条（对齐 Grimoire Instead） |
