@@ -97,9 +97,11 @@ static func lose_resources(game_ctx: GameContext, params: Dictionary) -> Diction
 	var actual := mini(requested, inv.resource_pool)
 	if actual <= 0:
 		return {"ok": false, "amount": 0, "inv_id": inv_id}
-	game_ctx.mutator.adjust_marker(
+	game_ctx.mutator.transfer_marker(
+		AhcEnums.MarkerKind.RESOURCE,
+		actual,
 		MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.RESOURCE),
-		-actual
+		MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE)
 	)
 	_log(game_ctx, "effect:lose_resources", {"inv": inv_id, "amount": actual, "all": all_mode})
 	return {"ok": true, "amount": actual, "inv_id": inv_id}
@@ -128,7 +130,12 @@ static func heal(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var actual := mini(amount, current)
 	if actual <= 0:
 		return {"ok": false, "amount": 0, "inv_id": inv_id}
-	game_ctx.mutator.adjust_marker(MarkerSlot.investigator(inv_id, marker), -actual)
+	game_ctx.mutator.transfer_marker(
+		marker,
+		actual,
+		MarkerSlot.investigator(inv_id, marker),
+		MarkerSlot.supply(marker)
+	)
 	_log(game_ctx, "effect:heal", {"inv": inv_id, "kind": kind, "amount": actual})
 	return {"ok": true, "amount": actual, "inv_id": inv_id, "kind": kind}
 

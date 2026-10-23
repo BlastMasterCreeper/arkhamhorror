@@ -233,7 +233,7 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 
 - 某张卡的段落（12160 整段仍是树：nest 放毁灭 + If + nest 涌动）。
 - 控制流节点本身。
-- seq 内部的 L0 碎步（`seq.effect.take_horror` 的 handler 里 `AdjustMarker` 仍内联，不升格成 `seq.atom.adjust`）。
+- seq 内部的 L0 碎步（`seq.effect.take_horror` 的 handler 里 `transfer_marker` 仍内联，不升格成 `seq.atom.transfer`）。
 - 管线里 **为父手续服务** 的 Register 砖（遭遇抽牌 G2 险境、ENTER_PLAY 挂 Hunter）：算该父 `seq.*` 已覆盖；**不要**另开 `PERIL_CHECK`。只有卡面「获得持续/延时/涌动」这种 **当效果写出来的创建** 才 nest `seq.effect.register`。
 
 ```text

@@ -32,9 +32,16 @@ static func run(
 		}
 	var moved := 0
 	var n := maxi(amount, 1)
+	if game_ctx.mutator == null:
+		return {"ok": false, "error": "no_mutator", "amount": 0}
 	while moved < n and loc.clues > 0:
-		loc.clues -= 1
-		inv.clues_on_card += 1
+		if not game_ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.CLUE,
+			1,
+			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE),
+			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.CLUE)
+		):
+			break
 		moved += 1
 	if game_ctx.log != null:
 		game_ctx.log.log(

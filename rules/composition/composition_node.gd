@@ -16,6 +16,9 @@ var flag_field: AhcEnums.FlagField = AhcEnums.FlagField.ELIMINATED
 var flag_value: Variant = true
 var to_slot: CardSlot = null
 var marker_slot: MarkerSlot = null
+## L0 Transfer：源 / 目标地址（与 marker_slot 并存；Transfer 优先用 from/to）。
+var marker_from: MarkerSlot = null
+var marker_to: MarkerSlot = null
 var register_template: RegistrationTemplate = null
 var provenance: AbilityUnitRef = null
 var pending_id: StringName = &""
@@ -98,14 +101,22 @@ static func move_card(card_id: StringName, to: CardSlot) -> CompositionNode:
 	return n
 
 
-## L0 · AtomAdjustMarker
-static func adjust_marker(at: MarkerSlot, delta: int) -> CompositionNode:
+## L0 · AtomTransferMarker（桌面标记唯一变更原子）。
+static func transfer_marker(
+	kind: AhcEnums.MarkerKind,
+	amount: int,
+	from: MarkerSlot,
+	to: MarkerSlot
+) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_op = AhcEnums.AtomOp.ADJUST_MARKER
-	n.atom_name = &"adjust_marker"
-	n.marker_slot = at
-	n.marker_delta = delta
+	n.atom_op = AhcEnums.AtomOp.TRANSFER_MARKER
+	n.atom_name = &"transfer_marker"
+	n.marker_kind = kind
+	n.amount = maxi(amount, 1)
+	n.marker_delta = n.amount
+	n.marker_from = from
+	n.marker_to = to
 	return n
 
 

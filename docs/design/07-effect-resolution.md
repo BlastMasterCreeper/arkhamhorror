@@ -242,7 +242,7 @@ Grimoire p.8：
 
 ### Step 2 Apply（**唯一结算砖**）
 
-- 按腿同时放置 tokens（调查员 `adjust_marker` / 支援 `DefeatFlow.deal_*_to_asset`）
+- 按腿同时放置 tokens（调查员 / 支援：`transfer_marker` 自 ∞ 池；支援经 `DefeatFlow.deal_*_to_asset`）
 - 若未 apply 任何 → 未 successfully dealt
 - 检查 defeat：investigator / enemy / asset
 
@@ -273,7 +273,7 @@ check_defeat
 |---|---|---|
 | 语义 | 移除 affliction | 已有 token 在槽位间搬运 |
 | 触发「After heal」等 | 是 | **否** |
-| 落地 | `AdjustMarker` 负 delta | L0 **`transfer_marker`（1:1 原子）** |
+| 落地 | 承载者 → 池 | L0 **`transfer_marker`（1:1 原子）** |
 | 多源多目标 | — | 包装 **`MarkerTransferBatch`** 展开为多条原子腿 |
 | 走 DamagePipeline | 否 | 否 |
 

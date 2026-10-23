@@ -25,9 +25,11 @@ static func collect_one_step(
 			executor.execute(DrawInvestigatorComposition.shuffle_and_horror(inv_id))
 		else:
 			mutator.shuffle_discard_into_deck(inv_id)
-			mutator.adjust_marker(
-				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				1
+			mutator.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.HORROR_TAKEN)
 			)
 		DrawInvestigatorComposition.increment_shuffle_horror(memory, inv_id)
 	var card_id := mutator.pop_deck_top(inv_id)

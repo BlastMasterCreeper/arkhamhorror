@@ -20,10 +20,16 @@ const AUGURY := &"augury"
 
 
 var ops: PhysicalOps
+## Domain 侧状态（密谋 doom locus 等）；由 GameStateStore 安装后绑定。
+var domain: GameStateStore = null
 
 
 func _init(physical_ops: PhysicalOps) -> void:
 	ops = physical_ops
+
+
+func bind_domain(state: GameStateStore) -> void:
+	domain = state
 
 
 func install_table() -> void:
@@ -123,6 +129,10 @@ func locus_for_marker_slot(slot: MarkerSlot) -> MarkerLocus:
 		AhcEnums.BearerKind.GLOBAL:
 			return MarkerLocus.region(SUPPLY)
 		AhcEnums.BearerKind.CARD:
+			if domain != null:
+				var card := domain.registry.get_card(slot.bearer_id)
+				if card != null:
+					ensure_physical_card(card)
 			return MarkerLocus.card(slot.bearer_id)
 		AhcEnums.BearerKind.INVESTIGATOR:
 			ensure_player(slot.bearer_id)
@@ -132,6 +142,11 @@ func locus_for_marker_slot(slot: MarkerSlot) -> MarkerLocus:
 			):
 				return MarkerLocus.region(_resource_pool(slot.bearer_id))
 			return MarkerLocus.region(_inv_tokens(slot.bearer_id))
+		AhcEnums.BearerKind.LOCATION:
+			_ensure_marker_region(_loc_tokens(slot.bearer_id))
+			return MarkerLocus.region(_loc_tokens(slot.bearer_id))
+		AhcEnums.BearerKind.AGENDA:
+			return agenda_doom_locus(domain)
 	return MarkerLocus.region(SUPPLY)
 
 
@@ -202,16 +217,6 @@ func mirror_transfer_marker(
 ) -> bool:
 	var key := marker_key_for(kind)
 	return ops.transfer(key, amount, locus_for_marker_slot(from), locus_for_marker_slot(to))
-
-
-func mirror_adjust_marker(at: MarkerSlot, delta: int) -> bool:
-	var key := marker_key_for(at.kind)
-	var locus := locus_for_marker_slot(at)
-	if delta > 0:
-		return ops.add_markers(locus, key, delta)
-	if delta < 0:
-		return ops.remove_markers(locus, key, -delta)
-	return true
 
 
 ## L0 揭示（Reveal）的物理对应 = 翻面（CardFace）。
@@ -390,6 +395,10 @@ func _resource_pool(player_id: StringName) -> StringName:
 
 func _inv_tokens(player_id: StringName) -> StringName:
 	return StringName("inv_tokens_%s" % String(player_id))
+
+
+func _loc_tokens(location_id: StringName) -> StringName:
+	return StringName("loc_tokens_%s" % String(location_id))
 
 
 func _ensure_card_region(

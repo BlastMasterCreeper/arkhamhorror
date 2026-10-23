@@ -25,6 +25,22 @@ static func is_table_token_kind(kind: AhcEnums.MarkerKind) -> bool:
 	return false
 
 
+## 桌面标记种类 → 供给池端点种类。
+static func supply_kind(kind: AhcEnums.MarkerKind) -> AhcEnums.MarkerKind:
+	match kind:
+		AhcEnums.MarkerKind.DAMAGE, AhcEnums.MarkerKind.POOL_DAMAGE:
+			return AhcEnums.MarkerKind.POOL_DAMAGE
+		AhcEnums.MarkerKind.HORROR, AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.POOL_HORROR:
+			return AhcEnums.MarkerKind.POOL_HORROR
+		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+			return AhcEnums.MarkerKind.POOL_CLUE
+		AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
+			return AhcEnums.MarkerKind.POOL_RESOURCE
+		AhcEnums.MarkerKind.DOOM:
+			return AhcEnums.MarkerKind.DOOM
+	return kind
+
+
 ## 无穷池：取用永不因库存失败。
 func can_take(kind: AhcEnums.MarkerKind, amount: int) -> bool:
 	return amount > 0 and is_table_token_kind(kind)

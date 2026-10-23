@@ -753,10 +753,13 @@ static func _resolve_gain_resource(
 		q.controller_id = controller_id
 		q.stat = AhcEnums.StatRef.RESOURCE_GAIN_AMOUNT
 		amount = game_ctx.modifiers.compute(base_amount, q, app_ctx)
-	mutator.adjust_marker(
-		MarkerSlot.investigator(controller_id, AhcEnums.MarkerKind.RESOURCE),
-		amount
-	)
+	if amount > 0:
+		mutator.transfer_marker(
+			AhcEnums.MarkerKind.RESOURCE,
+			amount,
+			MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+			MarkerSlot.investigator(controller_id, AhcEnums.MarkerKind.RESOURCE)
+		)
 	if game_ctx != null and game_ctx.memory != null:
 		game_ctx.memory.set_referent(controller_id, &"last_gain_amount", amount)
 	return {"amount": amount}

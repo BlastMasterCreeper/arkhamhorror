@@ -187,7 +187,7 @@ Grimoire 规范流程
 | 类 | 改什么 | 典型子操作 |
 |---|---|---|
 | **① 卡牌地址** | `CardSlot`、zone、顺序 | `AtomMoveCard` |
-| **② 标记/计数地址** | `MarkerSlot`；含 pool 端点 | `AtomTransferMarker`；`AtomAdjustMarker` |
+| **② 标记/计数地址** | `MarkerSlot`；含 pool 端点 | **`AtomTransferMarker` only** |
 | **③ 揭示与离散** | `FaceAudience`；标志/引用 | **`AtomRevealCard`** → `reveal_to_*`；`AtomSetFlag`；`AtomSetRef` |
 
 **Register** 是效果但 **不是** L0；整流程 **Draw/DealDamage/Play** = 命名 `seq.*` 展开为 L0 + Register。

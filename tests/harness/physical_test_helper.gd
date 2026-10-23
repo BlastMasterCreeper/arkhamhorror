@@ -185,8 +185,11 @@ static func test_bridge_resource_adjust_mirrors() -> bool:
 		GameBootstrap.setup_minimal_investigator(ctx, &"inv_1")
 	var locus := MarkerLocus.region(StringName("resource_inv_1"))
 	var before := ctx.state.physical_ops.get_count(locus, MarkerKeys.RESOURCE)
-	if not ctx.mutator.adjust_marker(
-		MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 3
+	if not ctx.mutator.transfer_marker(
+		AhcEnums.MarkerKind.RESOURCE,
+		3,
+		MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+		MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
 	):
 		return false
 	return ctx.state.physical_ops.get_count(locus, MarkerKeys.RESOURCE) == before + 3

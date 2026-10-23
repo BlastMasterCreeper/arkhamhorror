@@ -154,16 +154,16 @@ static func _apply_legs(
 		var bearer: StringName = (leg as Dictionary).get("bearer", &"")
 		var id: StringName = (leg as Dictionary).get("id", &"")
 		if bearer == &"investigator":
-			if kind == &"horror":
-				game_ctx.mutator.take_horror(id if id != &"" else inv_id, amt)
-			else:
-				game_ctx.mutator.adjust_marker(
-					MarkerSlot.investigator(
-						id if id != &"" else inv_id,
-						AhcEnums.MarkerKind.DAMAGE
-					),
-					amt
-				)
+			var marker := (
+				AhcEnums.MarkerKind.HORROR_TAKEN if kind == &"horror" else AhcEnums.MarkerKind.DAMAGE
+			)
+			var target_id: StringName = id if id != &"" else inv_id
+			game_ctx.mutator.transfer_marker(
+				marker,
+				amt,
+				MarkerSlot.supply(marker),
+				MarkerSlot.investigator(target_id, marker)
+			)
 		elif bearer == &"card":
 			if kind == &"horror":
 				DefeatFlow.deal_horror_to_asset(game_ctx, id, amt)

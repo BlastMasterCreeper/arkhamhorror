@@ -23,8 +23,27 @@ func perform_attack(attack: EnemyAttack) -> void:
 	var inv := _state.registry.get_investigator(attack.target_investigator)
 	if inv == null:
 		return
-	inv.damage_taken += attack.damage
-	inv.horror_taken += attack.horror
+	var mutator: StateMutator = _game_ctx.mutator if _game_ctx != null else null
+	if mutator != null:
+		if attack.damage > 0:
+			mutator.transfer_marker(
+				AhcEnums.MarkerKind.DAMAGE,
+				attack.damage,
+				MarkerSlot.supply(AhcEnums.MarkerKind.DAMAGE),
+				MarkerSlot.investigator(attack.target_investigator, AhcEnums.MarkerKind.DAMAGE)
+			)
+		if attack.horror > 0:
+			mutator.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				attack.horror,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(
+					attack.target_investigator, AhcEnums.MarkerKind.HORROR_TAKEN
+				)
+			)
+	else:
+		inv.damage_taken += attack.damage
+		inv.horror_taken += attack.horror
 	_log.log(
 		AhcEnums.LogCategory.DAMAGE,
 		"enemy_attack:%s" % attack.kind,

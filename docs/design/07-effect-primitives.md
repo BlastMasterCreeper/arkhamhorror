@@ -182,7 +182,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 - 物理 token（damage、horror、doom、clue、uses/charges/ammo…）
 - 非 token 计数（`resource_pool`、`actions_remaining`、`clues_on_location`…）
 
-二者统一用 **MarkerSlot** 寻址，用 **Transfer** / **Adjust** 变更。
+二者统一用 **MarkerSlot** 寻址，用 **Transfer**（∞ 供给池）变更；**禁止 Adjust**。
 
 ---
 
@@ -385,13 +385,13 @@ class AtomTransferMarker:
 | Discover clue | location → investigator（或经池，视地址模型） |
 | Gain resource | `POOL_RESOURCE` → investigator |
 
-**兼容**：旧 `adjust_marker(+n/-n)` API **展开**为上述 Transfer（非独立 L0）。  
+**禁止** `adjust_marker` / 虚无 delta 糖：调用方必须显式写 `transfer_marker(kind, n, from, to)`（含 `MarkerSlot.supply(kind)` 池端点）。  
 **不检查** defeat（上层 `CheckDefeat`）。  
 heal 相关 [reaction]：TimingBus 看语义标签，非原子自身。
 
-#### ~~`AtomAdjustMarker`~~（废止为桌面标记 L0）
+#### ~~`AtomAdjustMarker`~~（废止）
 
-有物理层后不再作为桌面标记原语。勿新增「虚无 delta」路径。
+已删除。桌面标记只经 `AtomTransferMarker`。
 
 ---
 
@@ -520,7 +520,7 @@ Draw(1) := Choice? + MoveCard(deck.TOP → hand.BOTTOM)
 ```gdscript
 class AtomicRecord:
     var seq: int
-    var atom_kind: StringName    # move_card | reveal_card | transfer_marker | adjust_marker | set_flag | set_ref
+    var atom_kind: StringName    # move_card | reveal_card | transfer_marker | set_flag | set_ref
     var payload: Dictionary      # 地址 + 数值 + card_id
     var state_hash: String
 ```

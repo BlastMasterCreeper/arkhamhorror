@@ -108,37 +108,22 @@ func _emit_zone_move(
 
 
 ## L0 · AtomTransferMarker（桌面标记唯一变更原语；池为无穷供给）。
+## 禁止虚无 Adjust：增减一律经池或承载者之间的 Transfer。
 func transfer_marker(kind: AhcEnums.MarkerKind, amount: int, from: MarkerSlot, to: MarkerSlot) -> bool:
-	if amount <= 0:
+	if amount <= 0 or from == null or to == null:
+		return false
+	if not TokenPool.is_table_token_kind(kind):
 		return false
 	if not _take_marker(from, kind, amount):
 		return false
-	_give_marker(to, kind, amount)
+	if not _give_marker(to, kind, amount):
+		## 源已扣；回滚到源（池端 give 为空操作，仍可恢复承载者侧）。
+		_give_marker(from, kind, amount)
+		return false
 	_mirror_transfer_marker(kind, amount, from, to)
 	return true
 
 
-## 兼容入口：桌面标记展开为「无穷池 ↔ 承载者」Transfer；禁止从虚无创造/湮灭。
-## 非桌面计数若仍走本入口，行为未定义（应避免）。
-func adjust_marker(at: MarkerSlot, delta: int, clamp_min: int = 0) -> bool:
-	if delta == 0:
-		return true
-	if at == null:
-		return false
-	if at.bearer_kind == AhcEnums.BearerKind.GLOBAL:
-		## 对无穷池自身 Adjust = 空操作（池无库存）。
-		return TokenPool.is_table_token_kind(at.kind)
-	if not TokenPool.is_table_token_kind(at.kind):
-		return false
-	var pool_slot := MarkerSlot.pool(_canonical_pool_kind(at.kind))
-	if delta > 0:
-		return transfer_marker(at.kind, delta, pool_slot, at)
-	## 负 delta：须能整笔回池（不足则失败）。heal 等调用方应先 `mini` 到实际量。
-	var need := -delta
-	var have := _marker_count_at(at)
-	if have - need < clamp_min:
-		return false
-	return transfer_marker(at.kind, need, at, pool_slot)
 ## L0 · AtomSetFlag
 func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Variant) -> bool:
 	match field:
@@ -380,18 +365,6 @@ func shuffle_discard_into_deck(inv_id: StringName) -> void:
 	_mirror_rebuild_player_deck(inv_id)
 
 
-func add_resources(inv_id: StringName, amount: int) -> void:
-	if amount <= 0:
-		return
-	adjust_marker(MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.RESOURCE), amount)
-
-
-func take_horror(inv_id: StringName, amount: int) -> void:
-	if amount <= 0:
-		return
-	adjust_marker(MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.HORROR_TAKEN), amount)
-
-
 func discard_from_hand(card_id: StringName, inv_id: StringName) -> bool:
 	return move_card(card_id, CardSlot.discard_top(inv_id))
 
@@ -478,18 +451,34 @@ func _zone_for_pile(pile: AhcEnums.PileKind) -> AhcEnums.Zone:
 
 
 func _take_marker(from: MarkerSlot, kind: AhcEnums.MarkerKind, amount: int) -> bool:
-	if from.bearer_kind == AhcEnums.BearerKind.GLOBAL:
-		return _take_from_pool(kind, amount)
-	if from.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
-		return _take_from_investigator(from.bearer_id, kind, amount)
+	match from.bearer_kind:
+		AhcEnums.BearerKind.GLOBAL:
+			return _take_from_pool(kind, amount)
+		AhcEnums.BearerKind.INVESTIGATOR:
+			return _take_from_investigator(from.bearer_id, kind, amount)
+		AhcEnums.BearerKind.CARD:
+			return _take_from_card(from.bearer_id, kind, amount)
+		AhcEnums.BearerKind.LOCATION:
+			return _take_from_location(from.bearer_id, kind, amount)
+		AhcEnums.BearerKind.AGENDA:
+			return _take_from_agenda(kind, amount)
 	return false
 
 
-func _give_marker(to: MarkerSlot, kind: AhcEnums.MarkerKind, amount: int) -> void:
-	if to.bearer_kind == AhcEnums.BearerKind.GLOBAL:
-		_give_to_pool(kind, amount)
-	elif to.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
-		_give_to_investigator(to.bearer_id, kind, amount)
+func _give_marker(to: MarkerSlot, kind: AhcEnums.MarkerKind, amount: int) -> bool:
+	match to.bearer_kind:
+		AhcEnums.BearerKind.GLOBAL:
+			_give_to_pool(kind, amount)
+			return true
+		AhcEnums.BearerKind.INVESTIGATOR:
+			return _give_to_investigator(to.bearer_id, kind, amount)
+		AhcEnums.BearerKind.CARD:
+			return _give_to_card(to.bearer_id, kind, amount)
+		AhcEnums.BearerKind.LOCATION:
+			return _give_to_location(to.bearer_id, kind, amount)
+		AhcEnums.BearerKind.AGENDA:
+			return _give_to_agenda(kind, amount)
+	return false
 
 
 func _take_from_pool(kind: AhcEnums.MarkerKind, amount: int) -> bool:
@@ -520,52 +509,165 @@ func _take_from_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amou
 				return false
 			inv.horror_taken -= amount
 			return true
+		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+			if inv.clues_on_card < amount:
+				return false
+			inv.clues_on_card -= amount
+			return true
 	return false
 
 
-func _give_to_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> void:
+func _give_to_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> bool:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null or amount <= 0:
-		return
+		return false
 	match kind:
 		AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
 			inv.resource_pool += amount
+			return true
 		AhcEnums.MarkerKind.DAMAGE:
 			inv.damage_taken += amount
+			return true
 		AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.HORROR:
 			inv.horror_taken += amount
+			return true
+		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+			inv.clues_on_card += amount
+			return true
+	return false
 
 
-func _marker_count_at(at: MarkerSlot) -> int:
-	if at == null:
-		return 0
-	if at.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
-		var inv := _state.registry.get_investigator(at.bearer_id)
-		if inv == null:
-			return 0
-		match at.kind:
-			AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
-				return inv.resource_pool
-			AhcEnums.MarkerKind.DAMAGE:
-				return inv.damage_taken
-			AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.HORROR:
-				return inv.horror_taken
-	return 0
-
-
-func _canonical_pool_kind(kind: AhcEnums.MarkerKind) -> AhcEnums.MarkerKind:
+func _take_from_card(card_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null or amount <= 0:
+		return false
 	match kind:
 		AhcEnums.MarkerKind.DAMAGE, AhcEnums.MarkerKind.POOL_DAMAGE:
-			return AhcEnums.MarkerKind.POOL_DAMAGE
+			if card.tokens.damage < amount:
+				return false
+			card.tokens.damage -= amount
+			return true
 		AhcEnums.MarkerKind.HORROR, AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.POOL_HORROR:
-			return AhcEnums.MarkerKind.POOL_HORROR
-		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
-			return AhcEnums.MarkerKind.POOL_CLUE
-		AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
-			return AhcEnums.MarkerKind.POOL_RESOURCE
+			if card.tokens.horror < amount:
+				return false
+			card.tokens.horror -= amount
+			return true
 		AhcEnums.MarkerKind.DOOM:
-			return AhcEnums.MarkerKind.DOOM
-	return kind
+			if card.tokens.doom < amount:
+				return false
+			card.tokens.doom -= amount
+			return true
+		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+			if card.tokens.clue < amount:
+				return false
+			card.tokens.clue -= amount
+			return true
+	return false
+
+
+func _give_to_card(card_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null or amount <= 0:
+		return false
+	match kind:
+		AhcEnums.MarkerKind.DAMAGE, AhcEnums.MarkerKind.POOL_DAMAGE:
+			card.tokens.damage += amount
+			return true
+		AhcEnums.MarkerKind.HORROR, AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.POOL_HORROR:
+			card.tokens.horror += amount
+			return true
+		AhcEnums.MarkerKind.DOOM:
+			card.tokens.doom += amount
+			return true
+		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+			card.tokens.clue += amount
+			return true
+	return false
+
+
+func _take_from_location(location_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> bool:
+	var loc := _state.registry.get_location(location_id)
+	if loc == null or amount <= 0:
+		return false
+	match kind:
+		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+			if loc.clues < amount:
+				return false
+			loc.clues -= amount
+			return true
+	return false
+
+
+func _give_to_location(location_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> bool:
+	var loc := _state.registry.get_location(location_id)
+	if loc == null or amount <= 0:
+		return false
+	match kind:
+		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+			loc.clues += amount
+			return true
+	return false
+
+
+func _take_from_agenda(kind: AhcEnums.MarkerKind, amount: int) -> bool:
+	if kind != AhcEnums.MarkerKind.DOOM or amount <= 0:
+		return false
+	if _state.doom_on_agenda < amount:
+		return false
+	_state.doom_on_agenda -= amount
+	return true
+
+
+func _give_to_agenda(kind: AhcEnums.MarkerKind, amount: int) -> bool:
+	if kind != AhcEnums.MarkerKind.DOOM or amount <= 0:
+		return false
+	_state.doom_on_agenda += amount
+	return true
+
+
+func marker_count_at(at: MarkerSlot) -> int:
+	if at == null:
+		return 0
+	match at.bearer_kind:
+		AhcEnums.BearerKind.INVESTIGATOR:
+			var inv := _state.registry.get_investigator(at.bearer_id)
+			if inv == null:
+				return 0
+			match at.kind:
+				AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
+					return inv.resource_pool
+				AhcEnums.MarkerKind.DAMAGE:
+					return inv.damage_taken
+				AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.HORROR:
+					return inv.horror_taken
+				AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+					return inv.clues_on_card
+		AhcEnums.BearerKind.CARD:
+			var card := _state.registry.get_card(at.bearer_id)
+			if card == null:
+				return 0
+			match at.kind:
+				AhcEnums.MarkerKind.DAMAGE, AhcEnums.MarkerKind.POOL_DAMAGE:
+					return card.tokens.damage
+				AhcEnums.MarkerKind.HORROR, AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.POOL_HORROR:
+					return card.tokens.horror
+				AhcEnums.MarkerKind.DOOM:
+					return card.tokens.doom
+				AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+					return card.tokens.clue
+		AhcEnums.BearerKind.LOCATION:
+			var loc := _state.registry.get_location(at.bearer_id)
+			if loc == null:
+				return 0
+			match at.kind:
+				AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+					return loc.clues
+		AhcEnums.BearerKind.AGENDA:
+			if at.kind == AhcEnums.MarkerKind.DOOM:
+				return _state.doom_on_agenda
+		AhcEnums.BearerKind.GLOBAL:
+			return 0
+	return 0
 
 
 func _would_leave_hand(card: CardInstance, to: CardSlot) -> bool:
