@@ -37,7 +37,7 @@ Domain 可有 location_tag / controller 等 **派生索引**——随物理 Move
 
 | | **Reveal（揭示）** | **Flip（翻面）** |
 |---|---|---|
-| 层 | **信息原语 ①** | **状态原语 ③** |
+| 层 | **信息原语（可见性）** | **状态原语 ③** |
 | 写什么 | `FaceAudience` | `CardFace` A/B |
 | 关系 | **正交**：面朝下仍可有可知信息 |
 
@@ -334,7 +334,7 @@ enum RefField {
 
 **另：** **Register** 写 `RegistrationStore`（Buff），**是效果**，经 Composition L2，**不是** L0 状态原语。
 
-共 **3 类状态原语（物理）** + **3 类信息原语（§5.4）** + **2 个 Domain 工厂**（`Create` / `Destroy`，非效果）。命名流程在二者之上。
+共 **3 类状态原语（物理）** + **信息原语（可见性 / 知识，§5.4）** + **Register** + Domain 工厂。命名流程在其上组合。
 
 ### 5.1 ① 卡牌地址 — `AtomMoveCard`
 
