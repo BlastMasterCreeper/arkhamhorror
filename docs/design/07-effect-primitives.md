@@ -2,45 +2,50 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.12 · 2026-10-23 — 状态原语仅物理层；③ = 卡牌形态（翻面/横置）
+> **状态**：v0.3.13 · 2026-10-23 — 信息原语三类；命名序列与两套原语隔离
 
 ---
 
-## 0. 术语：效果 vs 状态原语（已裁决 · 物理层收口 2026-10-23）
+## 0. 术语：效果 · 状态原语 · 信息原语（已裁决 2026-10-23）
 
 | 术语 | 英文 | 是否 **效果** | 说明 |
 |---|---|---|---|
-| **效果** | effect | — | resolve 可对规则/局面产生 **直接影响**；dry-run 可 **CREATED** 的节点类型 |
-| **状态原语** | state primitive | **是**（子集） | **仅物理层**桌面实体变更的 L0 **三类**（区/序、标记、形态）；维系真实桌面联系与前端渲染 |
-| **Register（注册）** | Register | **是** | 写 `RegistrationStore` / Buff；见 [07-composition §4.1](07-composition.md) |
-| **揭示（Reveal）卡牌** | Reveal (card) | **是** | Grimoire 命名动作；写 **信息层** `FaceAudience`（谁可知牌面）；**不是**状态原语。常 **伴随** 物理翻面，但 **可见性 ⊀ 正反面** |
-| **信息层最小写入** | information write | 视字段 | 可见性、地点指称、淘汰旗等；**框架停留在信息层**；可参与 dry-run，但 **⊄ 状态原语** |
+| **效果** | effect | — | resolve 可对规则/局面产生 **直接影响**；dry-run 可 **CREATED** |
+| **状态原语** | state primitive | **是**（子集） | **仅物理层** L0 **三类**（区/序、标记、形态） |
+| **信息原语** | information primitive | **是**（子集） | **仅信息层**最小写入 **三类**（可见性、离散旗、引用）；**不是**状态原语 |
+| **Register（注册）** | Register | **是** | 写 `RegistrationStore` / Buff |
+| **命名流程** | named flow / `seq.*` | — | 规则手续 / 可被听到的效果种类；**组合**两套原语 + Register；**不是**原语，也 **不是**时点订阅面的叶子 |
 
 ```text
-效果（可 CREATED）
-  ├─ 状态原语（物理层 · PhysicalOps / 经 StateMutator 镜像）
-  │    ├─ ① 卡牌地址（区、次序 · MoveCard / shuffle）
-  │    ├─ ② 标记/计数（Transfer；∞ 供给池）
-  │    └─ ③ 卡牌形态（翻面 CardFace；横置/重整 orientation）
-  ├─ 信息层最小写入（FaceAudience、地点指称、Eliminated…）
-  └─ Register（→ RegistrationStore / Buff）
+命名流程 seq.*（Catalog + 堆栈 + Timing 订阅键）
+  └─ RESOLVE 内组合 ↓
 
-物理层：维持桌面实体风味与联系；供前端渲染
-信息层：游戏框架与规则语义；部分信息来自物理层镜像
+效果（可 CREATED）
+  ├─ 状态原语（物理层）
+  │    ├─ ① 卡牌地址（区、次序）
+  │    ├─ ② 标记/计数（Transfer；∞ 池）
+  │    └─ ③ 卡牌形态（翻面；横置/重整）
+  ├─ 信息原语（信息层）
+  │    ├─ ① 可见性（FaceAudience）
+  │    ├─ ② 离散旗（Eliminated / Resigned / location.revealed / is_hidden…）
+  │    └─ ③ 引用（location_tag、controller、attached_to…）
+  └─ Register（Buff）
+
+物理层 ↔ 信息层：部分 Domain 字段镜像物理；框架语义留在信息层
+禁止：裸原语当 Timing 订阅面；为卡面另开 seq.card…
 ```
 
-**Register 是效果**：发起/打出 **合法性检测（dry-run）** 中，成功 Register 即 **CREATED**，与状态原语并列（[06-ability-initiation §7](06-ability-initiation.md)、[07-composition §4.1](07-composition.md)）。
+**Register 是效果**：dry-run 成功 Register 即 **CREATED**（[06 §7](06-ability-initiation.md)、[07-composition §4.1](07-composition.md)）。
 
-**揭示 vs 翻面（已裁决）**：
+**揭示 vs 翻面**：
 
 | | **Reveal（揭示）** | **Flip（翻面）** |
 |---|---|---|
-| 层 | **信息层** | **物理层 · ③** |
-| 写什么 | `FaceAudience`（谁可知牌面） | `CardFace` A/B（哪一面朝上） |
-| 对应 | Grimoire Reveal | 桌面把牌翻过来 |
-| 关系 | **不正交强制同步**：面朝下仍可有可知信息；Reveal **不**等于形态原子 |
+| 层 | **信息原语 ①** | **状态原语 ③** |
+| 写什么 | `FaceAudience` | `CardFace` A/B |
+| 关系 | **正交**：面朝下仍可有可知信息 |
 
-**地点 Reveal**：信息旗 `LocationState.revealed` + 放线索等（组合）；**不是**把地点「翻面」误标为卡牌 Reveal 原语。
+**地点 Reveal**：信息原语 ②（`LocationState.revealed`）+ 线索 Transfer 等，经命名流程组合。
 
 ### 0.1 规则参数字段（RuleParameter · 信息型卡面描述）
 
@@ -442,36 +447,67 @@ class AtomSetExhausted:
 
 ---
 
-### 5.4 信息层最小写入（**不是**状态原语）
+### 5.4 信息原语（Information Primitives · **不是**状态原语）
 
-> 框架与规则语义停留在信息层。下列写入可仍是 **效果**（dry-run **CREATED**），但 **禁止**标成 L0 状态原语 / 物理原子。
+> **已裁决（2026-10-23）**：信息层也要有 **封闭的三类原语**，与物理状态原语对称；框架语义经此写入，禁止散落 `field =`。  
+> **仍是效果**（dry-run **CREATED**），但 **禁止**标成物理 L0 / 状态原语。  
+> **不是 Timing 订阅面**：能力订 `(seq.*, slot)`；信息原语只在 seq / Composition 内执行。
 
-#### Grimoire Reveal → `FaceAudience`
+| 类（信息） | 改什么 | 实现 |
+|---|---|---|
+| **① 可见性** | 谁可知牌面 | `FaceAudience`（`reveal_to_*` / `hide_from_all`） |
+| **② 离散旗** | 非形态布尔/枚举 | `ELIMINATED` / `RESIGNED`；`LocationState.revealed`；`is_hidden`… |
+| **③ 引用** | 实体指称 | `location_tag`；`controller_id`（纯控制权）；`attached_to`… |
+
+**明确不进信息原语**：
+
+| 勿塞入 | 归属 |
+|---|---|
+| 交战「成对状态」 | Register `ENGAGEMENT`（[06 §16](06-registration-buff-model.md)），不是裸 SetRef |
+| 步间指称 | `RulesMemory`（手续局部，非局面原语） |
+| 横置 / 翻面 | 物理状态原语 ③ |
+| 线索/资源计数 | 物理状态原语 ② Transfer |
+
+#### ① `InfoSetAudience`（可见性）
 
 ```gdscript
-# 信息层（InformationExecutor / StateMutator.reveal_to_*）
-audience: FaceAudience   # CONTROLLER | ALL | HIDDEN_ALL
+class InfoSetAudience:
+    var card_id: StringName
+    var audience: FaceAudience       # CONTROLLER | ALL | HIDDEN_ALL
+    var controller_id: StringName    # audience=CONTROLLER 时常用
 ```
 
 | 操作 | audience | 场景 |
 |---|---|---|
-| `reveal_to_controller` | CONTROLLER | 调查员抽牌 D2；Hidden 对控制者 |
-| `reveal_to_all` | ALL | 遭遇 E2 公开 |
-| `hide_from_all` | HIDDEN_ALL | Search 展示结束 |
+| `reveal_to_controller` | CONTROLLER | D2；Hidden 对控制者 |
+| `reveal_to_all` | ALL | E2 公开 |
+| `hide_from_all` | HIDDEN_ALL | Search 结束 |
 
-实现可 **另行** 调用 ③ `AtomFlipCard`（例如翻到 A），但 **可见性与面向正交**：面朝下仍可有可知信息。  
-**与 MoveCard 边界**：Reveal **不改 zone**。
+可 **另行** 调物理 `AtomFlipCard`；**不改 zone**。
 
-#### 离散旗 / 引用（信息）
+#### ② `InfoSetFlag`（离散旗）
 
-| 写入 | 例子 | 说明 |
-|---|---|---|
-| 旗 | `ELIMINATED` / `RESIGNED`；`LocationState.revealed` | Domain 布尔；地点「揭示」≠ 卡牌翻面原子 |
-| 引用 | 调查员 `location_tag`；交战指称；attachment | **所在地点是信息**，不是形态原子 |
+```gdscript
+class InfoSetFlag:
+    var bearer_id: StringName
+    var field: InfoFlagField         # ELIMINATED | RESIGNED | LOCATION_REVEALED | IS_HIDDEN | …
+    var value: Variant
+```
 
-地点进场放线索等仍走 ② Transfer + 信息旗，经命名流程 / Wrapper 组合。
+地点「揭示」= 本旗，**不是**卡牌翻面。
 
-代码中历史名 `AtomOp.REVEAL_CARD` / `SET_FLAG` / `SET_REF` 表示 **信息写入或兼容枚举**，**不得**再文档化为「状态原语 ③」。
+#### ③ `InfoSetRef`（引用）
+
+```gdscript
+class InfoSetRef:
+    var bearer_id: StringName
+    var field: InfoRefField          # LOCATION | CONTROLLER | ATTACHED_TO | …
+    var ref_id: StringName           # 空 = 清除
+```
+
+**所在地点是信息**（③），移动手续 = 信息 `LOCATION` +（若进场揭示）信息旗 + 可能物理线索 Transfer，经 **命名流程** 组合——不是单原语吞多步。
+
+历史枚举名 `AtomOp.REVEAL_CARD` / `SET_FLAG` / `SET_REF` = **信息原语兼容入口**，文档不得再写成「状态原语 ③」。
 
 ---
 
@@ -614,6 +650,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-23 | v0.3.13 | §0/§5.4：**信息原语**三类（可见性·离散旗·引用）；命名序列与两套原语隔离 |
 | 2026-10-23 | v0.3.12 | §0/§5：状态原语仅物理层；③=翻面/横置；Reveal/`FaceAudience`/SetRef → §5.4 信息层 |
 | 2026-10-23 | v0.3.11 | §5.2：桌面标记仅 Transfer；供给池无穷；废止 Adjust 为桌面 L0 |
 | 2026-09-21 | v0.3.10 | §3：L2 宏展开为 `seq.effect.*`（纸面无名也铸造）；07-composition §1.3.3 |
