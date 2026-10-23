@@ -219,8 +219,7 @@ func mirror_transfer_marker(
 	return ops.transfer(key, amount, locus_for_marker_slot(from), locus_for_marker_slot(to))
 
 
-## L0 揭示（Reveal）的物理对应 = 翻面（CardFace）。
-## 可见性（FaceAudience）只在信息层；物理层不管。
+## 物理状态原语 ③ · 翻面（CardFace）。信息层 Reveal（FaceAudience）另算，物理层不管可见性。
 func mirror_flip(card_id: StringName, face: AhcEnums.CardFace) -> bool:
 	if ops.store.get_card(card_id) == null:
 		return true

@@ -133,9 +133,10 @@ enum Zone {
 **牌面可见性是针对玩家（调查员观察者）的**，与 **zone** 正交。  
 Rules / headless **始终保留完整 `definition_id`**；可见性决定 **某观察者是否知晓牌面**，以及 Presentation 如何渲染。
 
-> **已裁决 · Reveal（揭示）是 L0 状态原语**  
-> Grimoire **Reveal 卡牌** 写入 `FaceAudience`（经 `StateMutator.reveal_to_*` / `AtomRevealCard`），**是效果施加**：改 Domain 揭示状态，Presentation 据此向用户 **公开牌面**；**参与** Composition dry-run **CREATED**。  
-> Headless 规则层始终保留完整 `definition_id`；与 UI 的差异仅在 **谁被视作已知牌面**。抽牌 **D2** = 规则 Reveal 步（zone 仍未 HAND）；**WHEN draw** 在 D3 入手之后，牌在 **HAND**。见 [15 §3.1](15-timing-entry-catalog.md)、[07-effect-primitives §5.3](07-effect-primitives.md)。
+> **已裁决 · Reveal（揭示）是信息层效果，不是物理状态原语**  
+> Grimoire **Reveal 卡牌** 写入 `FaceAudience`（经 `StateMutator.reveal_to_*` / `InformationExecutor`），**是效果施加**（dry-run **CREATED**），但归属 **信息层**——**谁可知牌面**。  
+> **物理状态原语 ③** 只管 **翻面**（`CardFace`）与 **横置/重整**；可见性与面向 **不正交强制同步**（面朝下仍可有可知信息）。  
+> Headless 规则层始终保留完整 `definition_id`。抽牌 **D2** = 信息 Reveal 步（zone 仍未 HAND）；**WHEN draw** 在 D3 入手之后。见 [15 §3.1](15-timing-entry-catalog.md)、[07-effect-primitives §5.3–§5.4](07-effect-primitives.md)。
 
 #### 3.6.1 三档受众（FaceAudience）
 
@@ -182,13 +183,13 @@ class CardFaceVisibility:
 
 | 操作 | 改什么 | 是否效果 | 是否改 zone |
 |---|---|---|---|
-| **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | `audience → CONTROLLER` | **是**（**AtomRevealCard**） | 否（D3 才 HAND） |
-| **遭遇抽 E2**（[15 §17](15-timing-entry-catalog.md)） | 默认 `audience → ALL`；**隐私（Hidden）** 跳过公开 | **是**（Reveal） | G1 pop 已 **LIMBO**；G4 才落场/弃 |
-| **窥探牌库/弃牌堆顶** | `audience → CONTROLLER` 或 **ALL** | **是**（Reveal） | 否 |
-| **Search 展示** | 按文本设 audience | **是**（Reveal） | 视后续是否 MoveCard |
-| **ENTER_HAND** | zone 变更 | **是**（MoveCard） | 是 |
+| **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | `audience → CONTROLLER` | **是**（信息层 Reveal；可另伴物理翻面） | 否（D3 才 HAND） |
+| **遭遇抽 E2**（[15 §17](15-timing-entry-catalog.md)） | 默认 `audience → ALL`；**隐私（Hidden）** 跳过公开 | **是**（信息层 Reveal） | G1 pop 已 **LIMBO**；G4 才落场/弃 |
+| **窥探牌库/弃牌堆顶** | `audience → CONTROLLER` 或 **ALL** | **是**（信息层 Reveal） | 否 |
+| **Search 展示** | 按文本设 audience | **是**（信息层 Reveal） | 视后续是否 MoveCard |
+| **ENTER_HAND** | zone 变更 | **是**（MoveCard · 物理 ①） | 是 |
 
-「揭示非在场牌」= **Reveal 原语**（写 `FaceAudience`），**不**等价于 enter play；与 **MoveCard** 分步（如 D2 reveal、D3 入手）。
+「揭示非在场牌」= **信息层 Reveal**（写 `FaceAudience`），**不**等价于 enter play，也 **不**等于物理翻面原子；与 **MoveCard** 分步（如 D2 reveal、D3 入手）。
 
 #### 3.6.4 Presentation 分流
 

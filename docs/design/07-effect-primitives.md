@@ -2,34 +2,45 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.11 · 2026-10-23 — 桌面标记仅 Transfer + 无穷供给池
+> **状态**：v0.3.12 · 2026-10-23 — 状态原语仅物理层；③ = 卡牌形态（翻面/横置）
 
 ---
 
-## 0. 术语：效果 vs 状态原语（已裁决）
+## 0. 术语：效果 vs 状态原语（已裁决 · 物理层收口 2026-10-23）
 
 | 术语 | 英文 | 是否 **效果** | 说明 |
 |---|---|---|---|
 | **效果** | effect | — | resolve 可对规则/局面产生 **直接影响**；dry-run 可 **CREATED** 的节点类型 |
-| **状态原语** | state primitive | **是**（子集） | 写 `GameStateStore` 的 L0 **三类**；**旧称「效果原子」易与 Grimoire 原子效果混淆** |
+| **状态原语** | state primitive | **是**（子集） | **仅物理层**桌面实体变更的 L0 **三类**（区/序、标记、形态）；维系真实桌面联系与前端渲染 |
 | **Register（注册）** | Register | **是** | 写 `RegistrationStore` / Buff；见 [07-composition §4.1](07-composition.md) |
-| **揭示（Reveal）卡牌** | Reveal (card) | **是** | Grimoire **明确命名** 的游戏动作；L0 **`AtomRevealCard`** 写 `CardFaceVisibility.audience`；用户交互上公开牌面 |
+| **揭示（Reveal）卡牌** | Reveal (card) | **是** | Grimoire 命名动作；写 **信息层** `FaceAudience`（谁可知牌面）；**不是**状态原语。常 **伴随** 物理翻面，但 **可见性 ⊀ 正反面** |
+| **信息层最小写入** | information write | 视字段 | 可见性、地点指称、淘汰旗等；**框架停留在信息层**；可参与 dry-run，但 **⊄ 状态原语** |
 
 ```text
 效果（可 CREATED）
-  ├─ 状态原语（StateMutator → GameState）
-  │    ├─ ① 卡牌地址（MoveCard）
+  ├─ 状态原语（物理层 · PhysicalOps / 经 StateMutator 镜像）
+  │    ├─ ① 卡牌地址（区、次序 · MoveCard / shuffle）
   │    ├─ ② 标记/计数（Transfer；∞ 供给池）
-  │    └─ ③ 揭示与离散（AtomRevealCard；SetFlag / SetRef）
+  │    └─ ③ 卡牌形态（翻面 CardFace；横置/重整 orientation）
+  ├─ 信息层最小写入（FaceAudience、地点指称、Eliminated…）
   └─ Register（→ RegistrationStore / Buff）
 
-Presentation / headless
-  └─ 只读 Domain 揭示状态；headless 始终保留完整 definition_id
+物理层：维持桌面实体风味与联系；供前端渲染
+信息层：游戏框架与规则语义；部分信息来自物理层镜像
 ```
 
-**Register 是效果**：发起/打出 **合法性检测（dry-run）** 中，成功 Register 即 **CREATED**，与 Atom 并列（[06-ability-initiation §7](06-ability-initiation.md)、[07-composition §4.1](07-composition.md)）。
+**Register 是效果**：发起/打出 **合法性检测（dry-run）** 中，成功 Register 即 **CREATED**，与状态原语并列（[06-ability-initiation §7](06-ability-initiation.md)、[07-composition §4.1](07-composition.md)）。
 
-**揭示 vs 地点翻面**：**卡牌** Reveal = ③ **`AtomRevealCard`**。**地点** `Reveal location` = ③ **`AtomSetFlag(REVEALED)`** + Adjust 等，经 L2 `RevealLocationWrapper` 展开。
+**揭示 vs 翻面（已裁决）**：
+
+| | **Reveal（揭示）** | **Flip（翻面）** |
+|---|---|---|
+| 层 | **信息层** | **物理层 · ③** |
+| 写什么 | `FaceAudience`（谁可知牌面） | `CardFace` A/B（哪一面朝上） |
+| 对应 | Grimoire Reveal | 桌面把牌翻过来 |
+| 关系 | **不正交强制同步**：面朝下仍可有可知信息；Reveal **不**等于形态原子 |
+
+**地点 Reveal**：信息旗 `LocationState.revealed` + 放线索等（组合）；**不是**把地点「翻面」误标为卡牌 Reveal 原语。
 
 ### 0.1 规则参数字段（RuleParameter · 信息型卡面描述）
 
@@ -161,21 +172,22 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 ## 1. 目标
 
-定义规则引擎 **唯一可执行** 的 **状态原语（state primitive，L0 域写入）**。Grimoire 上的局面变更，在 **Composition / 命名流程** 内必须 **归约** 为：
+定义规则引擎 **唯一可执行** 的 **状态原语（state primitive）**——**仅物理层**桌面实体变更。Grimoire 上的局面变更，在 **Composition / 命名流程** 内必须 **归约** 为：
 
-1. **状态原语** 的有序/并行组合（含 **揭示状态**）；
-2. **Register**（规则/Buff 写入，**是效果**，但不是状态原语）；
-3. 外加 **语义包装 (Wrapper)** 在步骤之间插入规则步骤（如伤害 Assign）。
+1. **状态原语**（物理：区/序、标记、形态）的有序/并行组合；
+2. **信息层最小写入**（可见性、地点指称等——**不是**状态原语）；
+3. **Register**（规则/Buff 写入，**是效果**，但不是状态原语）；
+4. 外加 **语义包装 (Wrapper)** 在步骤之间插入规则步骤（如伤害 Assign）。
 
-**卡牌揭示** 经 `StateMutator.reveal_to_*`（内部 `InformationExecutor`）写入 Domain；**是 L0 状态原语，是效果**。
+**卡牌揭示（Reveal）** 经 `StateMutator.reveal_to_*`（`InformationExecutor`）写 `FaceAudience`；**是效果，不是状态原语**。需要翻面时 **另** 调物理 ③ `AtomFlipCard`。
 
-**卡牌脚本与 YAML 不得直接调用 `GameStateStore` 的可变 API**；状态原语仅经 `StateMutator` 执行。
+**卡牌脚本与 YAML 不得直接调用 `GameStateStore` / `PhysicalOps` 的可变 API**；物理状态原语经 `StateMutator`（镜像物理层）执行。
 
 ---
 
 ## 2. 核心命题
 
-> 复杂效果 = **卡牌地址变更** + **标记/计数地址变更** + **揭示与离散字段变更**，再经组合与包装。
+> 复杂效果 = **物理状态原语**（区/序 + 标记 + 形态）+ **信息层写入** + **Register**，再经组合与包装。
 
 「标记」包含：
 
@@ -190,9 +202,10 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 | 层 | 名称 | 职责 | 示例 |
 |---|---|---|---|
-| **L0** | Domain / `StateMutator` | 执行 **状态原语**；维护区域不变量 | `move_card`, `reveal_to_controller`, `transfer_marker` |
-| **L1** | Composition | 状态原语 + Register 组合（Seq / Choice…） | Then draw + horror |
-| **L2** | Semantics / Wrapper | 规则书语义；编译为 nest `seq.effect.*` / 已有 seq（纸面可无名） | DealDamage → `seq.effect.deal_damage`；PlayCard 仍是 Initiation |
+| **物理 L0** | `PhysicalOps`（经 `StateMutator` 镜像） | **状态原语**；桌面实体 | `move_card`, `transfer_marker`, `set_face`, `set_exhausted` |
+| **信息层** | Domain / `InformationExecutor` | 框架语义、可见性、指称 | `reveal_to_*`（FaceAudience）、`location_tag` |
+| **L1** | Composition | 状态原语 + 信息写入 + Register 组合 | Then draw + horror |
+| **L2** | Semantics / Wrapper | 规则书语义；nest `seq.effect.*` | DealDamage；PlayCard = Initiation |
 
 ```
 CardScript / YAML  →  L2 Wrapper/Macro  →  L1 CompositionTree  →  L0 Atoms  →  GameStateStore
@@ -302,21 +315,22 @@ enum RefField {
 
 ---
 
-## 5. 状态原语（L0）
+## 5. 状态原语（L0 · 仅物理层）
 
-> **已裁决口径（与 §2 一致）**：L0 只有 **三类** `GameStateStore` 写入，称 **状态原语**；`Reveal` / `SetFlag` / `SetRef` 为 ③ 类内 **实现子操作**（`AtomOp` 枚举保留细项）。  
-> Grimoire **Reveal（揭示卡牌）** 对应 ③ **`AtomRevealCard`** — 写入 `FaceAudience`，用户交互上公开牌面；**是效果**，dry-run **CREATED**。  
+> **已裁决（2026-10-23）**：状态原语 **只保留在物理层**——桌面实体的区/序、标记、形态。  
+> **禁止**把信息层（`FaceAudience`、地点指称、淘汰旗、交战引用等）算进状态原语三类。  
+> 信息层最小写入仍可由框架 / Composition 调用，且 Grimoire Reveal **仍是效果**（dry-run **CREATED**），但归属见 §5.4，**不是** L0 ③。  
 > **状态原语 ⊂ 效果**；**Register ⊂ 效果** 但 **⊄ 状态原语**。见 §0。
 
-| 类（L0） | 改什么 | 实现子操作（代码） |
+| 类（L0） | 改什么（物理） | 实现 |
 |---|---|---|
-| **① 卡牌地址** | `CardSlot`、顺序、zone | `AtomMoveCard` |
-| **② 标记/计数地址** | `MarkerSlot` 间搬运（含 ∞ 供给池） | **`AtomTransferMarker` only**（Adjust 废止为桌面 L0） |
-| **③ 揭示与离散** | 牌面可见性；布尔/枚举/引用（非 pile 顺序） | **`AtomRevealCard`** → `reveal_to_*`；`AtomSetFlag`；`AtomSetRef` |
+| **① 卡牌地址** | 所在区域、次序（牌堆/手牌/场…） | `AtomMoveCard`；洗牌等区序工具 |
+| **② 标记/计数地址** | 标记所在与数量（含 ∞ 供给池） | **`AtomTransferMarker` only** |
+| **③ 卡牌形态** | 正反面；横置 / 重整（约 90°） | `AtomFlipCard`（`CardFace`）；`AtomSetExhausted` |
 
 **另：** **Register** 写 `RegistrationStore`（Buff），**是效果**，经 Composition L2，**不是** L0 状态原语。
 
-共 **3 类状态原语** + **2 个 Domain 工厂**（`Create` / `Destroy`，非效果）。
+共 **3 类状态原语（物理）** + **信息层最小写入（§5.4）** + **2 个 Domain 工厂**（`Create` / `Destroy`，非效果）。
 
 ### 5.1 ① 卡牌地址 — `AtomMoveCard`
 
@@ -395,68 +409,73 @@ heal 相关 [reaction]：TimingBus 看语义标签，非原子自身。
 
 ---
 
-### 5.3 ③ 揭示与离散 — `AtomRevealCard` / `AtomSetFlag` / `AtomSetRef`
+### 5.3 ③ 卡牌形态 — `AtomFlipCard` / `AtomSetExhausted`
 
-**类职责**：非 pile、非 marker 守恒搬运的 **字段写入** — 含 Grimoire **Reveal（揭示卡牌）** 与 exhaust、地点翻面、引用等。
+**类职责**：桌上卡牌的 **物理形态**——哪一面朝上、是否横置。对应 `PhysicalOps.set_face` / `set_exhausted`（经 Domain 镜像）。
 
-#### `AtomRevealCard`
-
-> 规则 **明确命名** 的 Reveal；**不是** Presentation 旁路。
+#### `AtomFlipCard`（翻面）
 
 ```gdscript
-class AtomRevealCard:
+class AtomFlipCard:
     var card_id: StringName
-    var audience: FaceAudience       # CONTROLLER | ALL | HIDDEN_ALL
-    var controller_id: StringName    # audience=CONTROLLER 时同步 controller（遭遇 draw 等）
+    var face: CardFace                 # A | B
 ```
 
-**做什么**：写入 `CardInstance.face_visibility.audience`；`CONTROLLER` 时通常同步 `controller_id`。  
-**用户交互**：Presentation 读 Domain 后向对应观察者 **公开牌面**。  
-**Headless**：规则层始终有完整 `definition_id`；测试 assert `face_known_to(card, observer)`。
+**做什么**：写物理 `PhysicalCard.face`（及 Domain 镜像若有）。  
+**不做什么**：**不**写 `FaceAudience`；不决定「谁可知牌面」。
 
-| 操作 | audience | 场景 |
-|---|---|---|
-| `reveal_to_controller` | CONTROLLER | 调查员抽牌 D2；Hidden 对控制者；窥探仅自己可见 |
-| `reveal_to_all` | ALL | 遭遇 E2 公开；「全体看牌库顶」 |
-| `hide_from_all` | HIDDEN_ALL | Search 展示结束、恢复未知 |
+| 场景 | 形态 |
+|---|---|
+| 双面地点 / Act / Agenda 翻到另一面 | `face = B`（或回 `A`） |
+| 抽牌后把牌翻到正面朝上 | 常伴随信息层 Reveal，但本原子只翻面 |
 
-**与 MoveCard 边界**：Reveal **不改 zone**（D2 后 zone 仍可 DECK/Limbo；D3 才 MoveCard 入手）。
-
-**实现**：`StateMutator.reveal_to_*` 委托 `InformationExecutor`（历史类名；语义 = L0 揭示原语）。**dry-run** 成功 → **CREATED**。
-
-#### `AtomSetFlag`
+#### `AtomSetExhausted`（横置 / 重整）
 
 ```gdscript
-class AtomSetFlag:
-    var bearer_id: StringName
-    var field: FlagField
-    var value: Variant                 # bool 或 CardFace
+class AtomSetExhausted:
+    var card_id: StringName
+    var exhausted: bool                # true = 横置（约 90°）；false = 重整
 ```
 
-**典型**：Exhaust / Ready、Hidden、Flip Act/Agenda 面（`FACE`）、Location **`REVEALED`**（地点翻面）。
-
-**不做什么**：Reveal 地点的 **放线索、改连接** → `RevealLocationWrapper`（组合 Adjust + SetFlag + 可能 MoveCard）。
-
-#### `AtomSetRef`
-
-```gdscript
-class AtomSetRef:
-    var bearer_id: StringName
-    var field: RefField
-    var ref_id: StringName             # 空 = 清除
-```
-
-**典型**：
-
-- 调查员移动：`LOCATION` → 新 `location_id`（**不**自动 Reveal 地点；Wrapper 处理 enter）
-- Attach：`ATTACHED_TO` + 伴随 `AtomMoveCard` → `ATTACHED_TO` pile
-- Engage：`ENGAGED_WITH`（Domain 同步 enemy/investigator 双向集合）
-
-**Slot 占用**：`SLOT_*` 设置时 Domain 校验 slot 类型与互斥；非法则原子失败。
+**做什么**：写物理 orientation + Domain `exhausted`（现经 `ExhaustReadyFlow` / `PhysicalBinding.mirror_exhausted`）。  
+**入口**：规则书手续多为 `seq.effect.exhaust` / `seq.effect.ready`（命名流程），RESOLVE 内落地本原子——**不是**信息层 SetFlag 冒充形态。
 
 ---
 
-### 5.4 Domain 工厂（非效果原子）
+### 5.4 信息层最小写入（**不是**状态原语）
+
+> 框架与规则语义停留在信息层。下列写入可仍是 **效果**（dry-run **CREATED**），但 **禁止**标成 L0 状态原语 / 物理原子。
+
+#### Grimoire Reveal → `FaceAudience`
+
+```gdscript
+# 信息层（InformationExecutor / StateMutator.reveal_to_*）
+audience: FaceAudience   # CONTROLLER | ALL | HIDDEN_ALL
+```
+
+| 操作 | audience | 场景 |
+|---|---|---|
+| `reveal_to_controller` | CONTROLLER | 调查员抽牌 D2；Hidden 对控制者 |
+| `reveal_to_all` | ALL | 遭遇 E2 公开 |
+| `hide_from_all` | HIDDEN_ALL | Search 展示结束 |
+
+实现可 **另行** 调用 ③ `AtomFlipCard`（例如翻到 A），但 **可见性与面向正交**：面朝下仍可有可知信息。  
+**与 MoveCard 边界**：Reveal **不改 zone**。
+
+#### 离散旗 / 引用（信息）
+
+| 写入 | 例子 | 说明 |
+|---|---|---|
+| 旗 | `ELIMINATED` / `RESIGNED`；`LocationState.revealed` | Domain 布尔；地点「揭示」≠ 卡牌翻面原子 |
+| 引用 | 调查员 `location_tag`；交战指称；attachment | **所在地点是信息**，不是形态原子 |
+
+地点进场放线索等仍走 ② Transfer + 信息旗，经命名流程 / Wrapper 组合。
+
+代码中历史名 `AtomOp.REVEAL_CARD` / `SET_FLAG` / `SET_REF` 表示 **信息写入或兼容枚举**，**不得**再文档化为「状态原语 ③」。
+
+---
+
+### 5.5 Domain 工厂（非效果原子）
 
 | 操作 | 归属 | 说明 |
 |---|---|---|
@@ -520,7 +539,7 @@ Draw(1) := Choice? + MoveCard(deck.TOP → hand.BOTTOM)
 ```gdscript
 class AtomicRecord:
     var seq: int
-    var atom_kind: StringName    # move_card | reveal_card | transfer_marker | set_flag | set_ref
+    var atom_kind: StringName    # move_card | transfer_marker | flip_card | set_exhausted | (+ info: reveal_audience …)
     var payload: Dictionary      # 地址 + 数值 + card_id
     var state_hash: String
 ```
@@ -595,6 +614,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-23 | v0.3.12 | §0/§5：状态原语仅物理层；③=翻面/横置；Reveal/`FaceAudience`/SetRef → §5.4 信息层 |
 | 2026-10-23 | v0.3.11 | §5.2：桌面标记仅 Transfer；供给池无穷；废止 Adjust 为桌面 L0 |
 | 2026-09-21 | v0.3.10 | §3：L2 宏展开为 `seq.effect.*`（纸面无名也铸造）；07-composition §1.3.3 |
 | 2026-09-21 | v0.3.9 | Fast 只改打出窗口/花费；种类始终 `PLAY_CARD`，不是能力 |

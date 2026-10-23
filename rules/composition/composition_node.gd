@@ -132,7 +132,7 @@ static func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Va
 	return n
 
 
-## L0 · AtomRevealCard（Grimoire Reveal 揭示卡牌；写 FaceAudience）
+## 信息层 Reveal（FaceAudience）；不是物理状态原语。执行时常伴随 flip→A。
 static func reveal_to_controller(card_id: StringName, controller_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM

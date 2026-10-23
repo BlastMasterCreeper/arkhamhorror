@@ -82,14 +82,16 @@ AbilitySpec
 
 | 是效果 | 不是效果 |
 |---|---|
-| **状态原语（state primitive）** L0 Atom → `GameStateStore`（**三类**；③ 含 Reveal） | 纯桌谈约定（不写入 Domain） |
+| **状态原语（state primitive）** 物理层 L0（**三类**：区/序 · 标记 · 形态翻面/横置） | 纯桌谈约定（不写入 Domain / 物理） |
+| **信息层写入**（Reveal → `FaceAudience`；地点指称等；**不是**状态原语） | — |
 | **Register** → `RegistrationStore` / Buff | |
 
 见 [07-effect-primitives §0/§5.3](docs/design/07-effect-primitives.md)、[07-composition §4.1](docs/design/07-composition.md)。
 
 ## 落地要素
 
-1. **状态原语** — L0 `StateMutator` **三类**写入（含 **`reveal_to_*`**、SetFlag/SetRef）  
+1. **状态原语** — 物理层 L0 **三类**（`move_card` / `transfer_marker` / `set_face`·`set_exhausted`）；经 `StateMutator` 镜像  
+1b. **信息层写入** — `reveal_to_*`（FaceAudience）、地点指称等（**不是**状态原语；Reveal 仍是效果）  
 2. **Register** — `RegistrationStore` / Buff（**是效果**）；查询见 [06 §16](docs/design/06-registration-buff-model.md)  
 8. **`PlayerInteractionGate`** — 窗口内决策（[16](docs/design/16-player-interaction.md)；**晚于** Eligibility/ResponseWindow，见 [17](docs/design/17-seq-runtime.md) §6）  
 9. **`SequenceCatalog` + handler** — 每条规则手续 `seq.*`  

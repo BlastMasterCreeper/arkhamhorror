@@ -13,7 +13,7 @@
 **英文（代码）**：`Composition` / `CompositionNode` / `CompositionExecutor` / `CompositionDryRunner`  
 **中文（文档）**：效果组合 / 组合节点
 
-**揭示（Reveal）卡牌** 经 L0 **`AtomRevealCard`** 写入 Domain，**参与** §4 dry-run **CREATED** — 见 [07-effect-primitives §5.3](07-effect-primitives.md)、[01 §3.6](01-game-state-zones.md)。
+**揭示（Reveal）卡牌** 经 **信息层** `reveal_to_*`（`FaceAudience`）写入 Domain，**参与** §4 dry-run **CREATED**，但 **不是**物理状态原语；形态翻面/横置见 [07-effect-primitives §5.3–§5.4](07-effect-primitives.md)、[01 §3.6](01-game-state-zones.md)。
 
 ### 1.0 翻译硬门槛（DoD · 已裁决 2026-09-28）
 
@@ -356,10 +356,11 @@ seq.encounter.revelation          ← 信封：显现手续（有 When/After）
 
 | 类型 | 改什么 | 组合节点 | 是否效果 |
 |---|---|---|---|
-| **状态变更** | `GameStateStore` | L0 **Atom**（**状态原语** 三类；含 **Reveal**） | **是** |
+| **状态变更（物理）** | 物理层 / 镜像 | L0 **Atom**（状态原语三类：区/序·标记·形态） | **是** |
+| **信息写入** | Domain | Reveal/`FaceAudience`、地点指称等（**非**状态原语） | **是**（视字段） |
 | **规则变更** | `RegistrationStore`（Buff） | L2 **Register** / **Unregister** | **是** |
 
-Grimoire **Reveal 卡牌** = L0 **`reveal_to_*`**（③ 揭示状态），**不是** Register 之外的第三类机制；命名流程 D2/E2 的 reveal 步 **是效果施加**。
+Grimoire **Reveal 卡牌** = 信息层 **`reveal_to_*`**（`FaceAudience`），**不是**物理状态原语 ③（③ = 翻面/横置）；命名流程 D2/E2 的 reveal 步 **是效果施加**。
 
 Cancel / Replacement、Draw、DealDamage 等 **不是** 第四类 CREATED 机制：前者是 L2 组合节点；后者是 **命名流程 / L3 宏** 展开。
 
@@ -394,7 +395,7 @@ flowchart TB
 
 | 层 | kind | 说明 |
 |---|---|---|
-| L0 | `Atom` | [07-effect-primitives §5](07-effect-primitives.md) **三类状态原语** |
+| L0 | `Atom`（物理） | [07-effect-primitives §5](07-effect-primitives.md) **三类状态原语**（区/序·标记·形态） |
 | L2 | `Register` | 插入 `Registration` |
 | L2 | `Unregister` | 移除 Registration |
 | L2 | `Interrupt` | 统一 Cancel / Ignore（nest `seq.interrupt.*` 或 `CompositionNode.interrupt_*`） |
