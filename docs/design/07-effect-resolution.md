@@ -202,12 +202,28 @@ Grimoire p.8：
 - 剩余 → investigator 卡
 - Direct：必须 investigator 卡
 
-**已裁决（2026-10-22 · 约束参数化 2026-10-23）**：
+**已裁决（2026-10-22 · 约束参数化 2026-10-23 · 交互形态 2026-10-23）**：
 
-- Assign = **`PlayerInteractionGate` 有限期确认**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`），**不是** RESOLVE 时点砖，**不** emit WOULD/WHEN。
-- **始终有 Assign 步**：对调查员 → 可摊；对卡牌 → 候选 = {该卡}（含直接伤害 = 调查员卡）；对敌人 → {该敌人}（仅 damage）。
-- 默认未确认 → `DamageAssigner.default_assignment`（见下）；对卡/敌 → 唯一候选。
+- Assign = **静态 PI**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`）：**不是** RESOLVE 时点砖，**不** nest，**不** emit WOULD/WHEN。
+- **始终有 Assign 步**：对调查员 → 可摊交互；对卡牌 → 候选 = {该卡}（可退化单点确认）；对敌人 → {该敌人}（仅 damage）。
 - lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
+- 逾期 / headless 未确认 → `DamageAssigner.default_assignment`（见下）。
+
+#### Assign 交互（前端会话 · 已裁决）
+
+引擎在 Gate 打开时向交互层提供 **快照**（非时点窗）：
+
+| 载荷 | 含义 |
+|---|---|
+| `pending_total` | 待分摊标记总数（本次 deal 的 amount） |
+| `candidates[]` | 可分配目标：调查员卡 ∪ 合格支援（含容量上限、当前已摊点数） |
+| `constraints[]` | 生效中的 `ASSIGN_CONSTRAINT` 算子摘要（供 UI 解释 / 禁用非法增减） |
+
+玩家在会话内对目标 **增减** 分配量，直到「已分配合计 = `pending_total`」，再 **确认**。  
+交互期间引擎按当前临时表 **重算可分配性**（容量、PRIOR_FILL、MIN、MAX_TO_MATCH 等）：某目标满额 / 违约束 → 该方向增减禁用或自动回退；不是另开 nest，也不是 LISTENER。
+
+确认后腿表写入 pending → 才进 WOULD/WHEN。  
+**禁止**：把增减做成多条 nest seq；禁止前端自算规则绕过 `DamageAssigner.validate`。
 
 #### 分摊约束（`AssignConstraintOp`）
 
@@ -222,7 +238,7 @@ Grimoire p.8：
 
 **不是**本表：03315 Key of Ys = WOULD 改分配（`reassign_pending_legs`）；07189 Armor = AFTER 再分配（`MarkerTransferBatch`）；04305 Flamethrower = 敌人侧 Assign PI。
 
-默认算法：PRIOR_FILL → MIN_TO_SUBJECT → 剩余归调查员卡；再 `validate`。v1 默认**不**主动摊到无 PRIOR/MIN 的资产（Gate 后补玩家表）。
+默认算法（逾期 / headless）：PRIOR_FILL → MIN_TO_SUBJECT → 剩余归调查员卡；再 `validate`。交互路径以玩家确认为准，引擎只保证合法性与容量。
 
 ### Step 2 Apply（**唯一结算砖**）
 
@@ -247,7 +263,7 @@ check_defeat
 # AFTER on pop
 ```
 
-**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `no_envelope_slot`；v1 Assign 默认表（Gate 后补）。敌/支援仍走既有 Defeat 入口。
+**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `no_envelope_slot`；**当前实现**仍走默认表（Gate 会话待接）。敌/支援仍走既有 Defeat 入口。
 
 ### 4.1 Moving / 再分配 damage / horror（已裁决 OQ-07-02 · 包装修正 2026-10-23）
 
@@ -805,6 +821,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-23 | v0.6.11 | §4：Assign 交互 = 静态 PI 会话（候选+约束→增减至耗尽→确认；期间重算可分配性） |
 | 2026-10-23 | v0.6.10 | 框架称呼：`SoakAssigner` → `DamageAssigner`（弃用 soak） |
 | 2026-10-23 | v0.6.9 | §4：`ASSIGN_CONSTRAINT` 四算子 + DamageAssigner；pending legs；03315/07189/04305 不进约束表 |
 | 2026-09-21 | v0.6.8 | §6.0 / §7.0：卡面译 Composition，Cancel/Instead 节点 nest 共享 seq |

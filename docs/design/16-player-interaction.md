@@ -148,8 +148,8 @@ var auto_choice_mode: AhcEnums.AutoChoiceMode = AhcEnums.AutoChoiceMode.ASK
 | `PICK_OPTION` | 选分支 | 控制者 | Composition `Choice`；二选一文本 |
 | `SEARCH_TAKE` | Search 取留 | 控制者 | 看顶 N 张：拿哪些、其余回置 |
 | `DISCARD_SELECT` | 选弃哪些牌 | 控制者 | discard N from hand/play |
-| `ASSIGN_DAMAGE` | 分配伤害 | 控制者 | Assign 到 asset；direct 到 inv |
-| `ASSIGN_HORROR` | 分配/承受恐怖 | 控制者 | 同上；同时 defeated 前 |
+| `ASSIGN_DAMAGE` | 分配伤害 | 控制者 | **静态会话**：候选+约束→目标间增减至耗尽→确认；见 [07 §4](07-effect-resolution.md) |
+| `ASSIGN_HORROR` | 分配/承受恐怖 | 控制者 | 同上（horror / sanity 容量） |
 | `CHOOSE_TRAUMA` | 选创伤类型 | 调查员 | 同时 health→0 与 sanity→0 |
 | `ORDER_SIMULTANEOUS` | 同时能力排序 | **队长** | 多条 forced/triggered 同时 |
 | `ORDER_CARDS` | 卡牌顺序 | 控制者 / 队长 | 同时入手；同时弃入弃牌堆 |
@@ -225,9 +225,9 @@ var auto_choice_mode: AhcEnums.AutoChoiceMode = AhcEnums.AutoChoiceMode.ASK
 
 | 交互 | Kind | 决策者 | 要点 |
 |---|---|---|---|
-| Assign damage **到哪些 asset** | `ASSIGN_DAMAGE` | 控制者 | 每点 / 每 asset 上限 |
-| Direct damage **仍选 inv** | `PICK_TARGET` | 控制者 | 仅 inv 卡 |
-| Assign horror | `ASSIGN_HORROR` | 控制者 | 同 damage 两步 |
+| Assign damage（会话内增减） | `ASSIGN_DAMAGE` | 控制者 | 载荷：`pending_total` + candidates（含 cap）+ constraints；确认时合计=total；期间 `DamageAssigner` 重算可增减 |
+| Assign horror（会话内增减） | `ASSIGN_HORROR` | 控制者 | 同上；sanity 容量 |
+| Direct：候选默认仅 inv；INCLUDE 可扩 | （上两行） | 控制者 | **不是**另开 `PICK_TARGET` |
 | 同时 defeated：**physical vs mental trauma** | `CHOOSE_TRAUMA` | 调查员 | RR |
 | discover / place clue **并列地点** | `TIE_BREAK` | **队长** | farthest / most clues 并列 |
 | **Uses/charges** 减哪个 sub_key | `PICK_OPTION` | 控制者 | 多 ammo 槽 |
@@ -592,7 +592,7 @@ seq.encounter.revelation
 | P2 | 标识符重命名 `willingness_*`→`ResponsePool`、`PlayerWindowIntentPool`→`InitiationPool` | 待接（语义以 §7.0 为准） |
 | P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
 | P2 | `PAY_COST` / `PAY_X` 接 CostPipeline | 待接 |
-| P2 | Damage：**Assign = PI 始终有**（对卡候选={该卡}；`ASSIGN_*`）/ `CHOOSE_TRAUMA` | 待接；防伤钉 WOULD，见 07 §4 |
+| P2 | Damage：**Assign = 静态 PI 会话**（候选+约束→增减耗尽→确认；期间重算可分配性）/ `CHOOSE_TRAUMA` | 契约已裁 07 §4；Gate 接线待接；防伤钉 WOULD |
 | P2 | `TIE_BREAK` / `ORDER_ATTACKS` / Hunter spawn | 待接 |
 | P3 | `SEARCH_TAKE` / `SETUP_CHOICE` / `CAMPAIGN_DECISION` | 待接 |
 | P3 | `INTERACTION_CHOICE` EventRecord（含 `used_default`） | ✅ Gate.ask 写入 |
