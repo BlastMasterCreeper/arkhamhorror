@@ -83,18 +83,18 @@ AbilitySpec
 | 是效果 | 不是效果 |
 |---|---|
 | **状态原语** 物理层（区/序 · 标记 · 形态） | 纯桌谈约定 |
-| **信息原语** 信息层（可见性 · 离散旗 · 引用） | — |
-| **Register** → `RegistrationStore` / Buff（**第三类效果叶**；不是信息原语） | — |
+| **信息原语** 知识（主轴 `FaceAudience`；桌上读不回） | — |
+| **Register** → Buff（第三类效果叶） | — |
 
-见 [07-effect-primitives §0/§5.3–§5.4](docs/design/07-effect-primitives.md)、[07-composition §4.1](docs/design/07-composition.md)。
+见 [07-effect-primitives §0/§5.4](docs/design/07-effect-primitives.md)。
 
-**隔离**：命名流程 `seq.*` **组合三类效果叶**（两套原语 + Register）；能力订 `(seq, slot)`。**禁止**原语/裸 Register 当注册时点；**禁止**把 Buff 塞进信息原语。
+**隔离**：`seq.*` 组合三类效果叶；能力订 `(seq, slot)`。地点/附着等 = 物理派生索引，**不是**信息原语。
 
 ## 落地要素
 
-1. **状态原语** — 物理层三类（`move_card` / `transfer_marker` / `set_face`·`set_exhausted`）  
-1b. **信息原语** — 可见性 / 离散旗 / 引用（`reveal_to_*`、`set_flag`、`set_ref`…）  
-2. **Register** — `RegistrationStore` / Buff（**是效果**）；查询见 [06 §16](docs/design/06-registration-buff-model.md)  
+1. **状态原语** — 物理三类（`move_card` / `transfer_marker` / `set_face`·`set_exhausted`）  
+1b. **信息原语** — `reveal_to_*` / `hide_from_all`（可见性）；勿把 `location_tag` 当信息原语  
+2. **Register** — Buff；查询见 [06 §16](docs/design/06-registration-buff-model.md)  
 8. **`PlayerInteractionGate`** — 窗口内决策（[16](docs/design/16-player-interaction.md)；**晚于** Eligibility/ResponseWindow，见 [17](docs/design/17-seq-runtime.md) §6）  
 9. **`SequenceCatalog` + handler** — 每条规则手续 `seq.*`  
 10. **`ResolutionSequenceStack` + Timing** — push/pop、Would/When/After（15 D/E/ST）  

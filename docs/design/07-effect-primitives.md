@@ -12,21 +12,23 @@
 |---|---|---|---|
 | **效果** | effect | — | resolve 可对规则/局面产生 **直接影响**；dry-run 可 **CREATED** |
 | **状态原语** | state primitive | **是**（子集） | **仅物理层** L0 **三类**（区/序、标记、形态） |
-| **信息原语** | information primitive | **是**（子集） | **仅信息层**最小写入 **三类**（可见性、离散旗、引用）；**不是**状态原语 |
-| **Register / Unregister** | Register (Buff) | **是** | 写 `RegistrationStore`；**第三类效果叶**（与两套原语并列，**不是**信息原语） |
-| **命名流程** | named flow / `seq.*` | — | 组合 **三类效果叶**；Timing 订阅键；**不是**叶子本身 |
+| **信息原语** | information primitive | **是**（子集） | **仅**物理桌面 **表达不了** 的知识写入（主轴：可见性 / 非对称可知）；**不是**状态原语 |
+| **Register / Unregister** | Register (Buff) | **是** | 写 `RegistrationStore`；第三类效果叶 |
+| **命名流程** | named flow / `seq.*` | — | 组合效果叶；Timing 订阅键 |
 
 ```text
-命名流程 seq.*（Catalog + 堆栈 + Timing 订阅键）
-  └─ RESOLVE 内组合 ↓ 三类效果叶（可 CREATED）
+命名流程 seq.*
+  └─ 组合 ↓ 效果叶（可 CREATED）
 
-  ├─ 状态原语（物理）     ①区/序 ②标记 ③形态
-  ├─ 信息原语（信息）     ①可见性 ②离散旗 ③引用
-  └─ Register（Buff）     MODIFIER / RESTRICTION / LISTENER；+ Unregister
-                          创建常经 seq.effect.register（铸造 ≠ 真空 insert）
+  ├─ 状态原语（物理）   ①区/序 ②标记 ③形态
+  ├─ 信息原语（知识）   可见性 FaceAudience（及同族非对称可知）
+  └─ Register（Buff）
 
-仅两套原语 ≠ 全部命名流程：险境、Cannot、修正值、LISTENER、涌动…靠 Register。
-禁止：把 Buff 塞进信息原语；裸原语/裸 Register 当 Timing 订阅面；seq.card…
+Domain 可有 location_tag / controller 等 **派生索引**——随物理 Move 维护，可读自区/威胁区/附着关系；
+**不是**信息原语（禁止再当一等 SetRef/SetFlag 原语推销）。
+
+信息层（框架）可以厚：查询、Eligibility、派生视图、场合信封；
+信息原语（可写叶子）故意薄：只写桌上读不回来的知识。
 ```
 
 **Register 是效果**：dry-run 成功创建即 **CREATED**（[06 §7](06-ability-initiation.md)、[07-composition §4.1](07-composition.md)、[06-registration-buff-model](06-registration-buff-model.md)）。
@@ -173,21 +175,21 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 定义规则引擎 **唯一可执行** 的 **状态原语（state primitive）**——**仅物理层**桌面实体变更。Grimoire 上的局面变更，在 **Composition / 命名流程** 内必须 **归约** 为：
 
-1. **状态原语**（物理：区/序、标记、形态）的有序/并行组合；
-2. **信息原语**（可见性、离散旗、引用——**不是**状态原语）；
-3. **Register**（规则/Buff 写入，**是效果**，但不是原语）；
-4. 外加 **语义包装 (Wrapper)** / **命名流程** 组合上述叶子（如伤害 Assign）。
+1. **状态原语**（物理）的有序/并行组合；
+2. **信息原语**（知识 / 可见性——桌上读不回；**不是**状态原语）；
+3. **Register**（Buff）；
+4. 外加命名流程 / Wrapper 组合（派生索引随物理维护，见 §5.4）。
 
-**卡牌揭示（Reveal）** = 信息原语 ①（`FaceAudience`）；需要翻面时 **另** 调物理状态原语 ③。  
-**命名流程** 组合两套原语；**禁止**原语叶子直接当 Timing 订阅面。
+**卡牌揭示** = 信息原语（`FaceAudience`）；翻面另调物理 ③。  
+**禁止**原语叶子当 Timing 订阅面。
 
-**卡牌脚本与 YAML 不得直接调用 `GameStateStore` / `PhysicalOps` 的可变 API**；两套原语经 `StateMutator` / `InformationExecutor` 执行。
+**卡牌脚本与 YAML 不得直接调用** `GameStateStore` / `PhysicalOps` 可变 API。
 
 ---
 
 ## 2. 核心命题
 
-> 复杂效果 = **状态原语** + **信息原语** + **Register**，经 **命名流程 / Composition** 组合与包装。
+> 复杂效果 = **状态原语** + **信息原语（薄）** + **Register**，经命名流程组合；地点等指称优先读物理 / 派生索引。
 
 「标记」包含：
 
@@ -202,9 +204,10 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 | 层 | 名称 | 职责 | 示例 |
 |---|---|---|---|
-| **物理原语** | `PhysicalOps`（经 `StateMutator` 镜像） | **状态原语**三类 | `move_card`, `transfer_marker`, `set_face`, `set_exhausted` |
-| **信息原语** | Domain / `InformationExecutor` | **信息原语**三类 | `reveal_to_*`, `set_flag`, `set_ref`（地点等） |
-| **命名流程** | `SequenceCatalog` + 堆栈 | 手续 / 可听种类；组合两套原语 | `seq.effect.take_horror`, `seq.enter_hand` |
+| **物理原语** | `PhysicalOps` / `StateMutator` | **状态原语**三类 | `move_card`, `transfer_marker`, `set_face`, `set_exhausted` |
+| **信息原语** | `InformationExecutor` | 知识写入（薄） | `reveal_to_*`, `hide_from_all` |
+| **派生索引** | Domain 缓存 | 随物理维护；非原语 | `location_tag`, threat 成员, `attached_to` |
+| **命名流程** | `SequenceCatalog` + 堆栈 | 组合效果叶 | `seq.effect.take_horror`, `seq.enter_hand` |
 | **L1** | Composition | 原语 + Register 树 | Then draw + horror |
 | **L2** | Semantics / Wrapper | 规则书语义；nest `seq.*` | DealDamage；PlayCard = Initiation |
 
@@ -443,67 +446,51 @@ class AtomSetExhausted:
 
 ---
 
-### 5.4 信息原语（Information Primitives · **不是**状态原语）
+### 5.4 信息原语（知识写入 · **不是**状态原语）
 
-> **已裁决（2026-10-23）**：信息层也要有 **封闭的三类原语**，与物理状态原语对称；框架语义经此写入，禁止散落 `field =`。  
-> **仍是效果**（dry-run **CREATED**），但 **禁止**标成物理 L0 / 状态原语。  
-> **不是 Timing 订阅面**：能力订 `(seq.*, slot)`；信息原语只在 seq / Composition 内执行。
+> **已裁决（2026-10-23 · 收薄）**：先前「可见性 / 离散旗 / 引用」三类 **过宽**。  
+> **引用**（`location_tag`、威胁区归属、附着）与 **多数离散旗**（地点已揭示≈翻面+线索、淘汰≈退场…）**可从物理层读出或随 Move/形态维护**——它们是 Domain **派生索引**，**不是**信息原语。  
+> 信息原语只保留桌上 **读不回来** 的知识；主轴 = **可见性 / 非对称可知**（`FaceAudience`）。  
+> 仍是效果（dry-run **CREATED**）；**不是** Timing 订阅面。
 
-| 类（信息） | 改什么 | 实现 |
-|---|---|---|
-| **① 可见性** | 谁可知牌面 | `FaceAudience`（`reveal_to_*` / `hide_from_all`） |
-| **② 离散旗** | 非形态布尔/枚举 | `ELIMINATED` / `RESIGNED`；`LocationState.revealed`；`is_hidden`… |
-| **③ 引用** | 实体指称 | `location_tag`；`controller_id`（纯控制权）；`attached_to`… |
-
-**明确不进信息原语**：
-
-| 勿塞入 | 归属 |
-|---|---|
-| 交战「成对状态」 | Register `ENGAGEMENT`（[06 §16](06-registration-buff-model.md)），不是裸 SetRef |
-| 步间指称 | `RulesMemory`（手续局部，非局面原语） |
-| 横置 / 翻面 | 物理状态原语 ③ |
-| 线索/资源计数 | 物理状态原语 ② Transfer |
-
-#### ① `InfoSetAudience`（可见性）
+#### 唯一主轴 · `InfoSetAudience`
 
 ```gdscript
 class InfoSetAudience:
     var card_id: StringName
     var audience: FaceAudience       # CONTROLLER | ALL | HIDDEN_ALL
-    var controller_id: StringName    # audience=CONTROLLER 时常用
 ```
 
 | 操作 | audience | 场景 |
 |---|---|---|
-| `reveal_to_controller` | CONTROLLER | D2；Hidden 对控制者 |
+| `reveal_to_controller` | CONTROLLER | D2；隐私对控制者 |
 | `reveal_to_all` | ALL | E2 公开 |
 | `hide_from_all` | HIDDEN_ALL | Search 结束 |
 
-可 **另行** 调物理 `AtomFlipCard`；**不改 zone**。
+与物理翻面 **正交**：面朝下仍可有可知信息。Reveal 手续可 **另** 调 `AtomFlipCard`；本原语 **不改 zone / face / exhausted**。
 
-#### ② `InfoSetFlag`（离散旗）
+同族扩展（仍属信息原语、须仍满足「桌上读不回」）：例如更细的 `known_to: Array[observer]`；**禁止**借扩展把地点/附着塞回来。
 
-```gdscript
-class InfoSetFlag:
-    var bearer_id: StringName
-    var field: InfoFlagField         # ELIMINATED | RESIGNED | LOCATION_REVEALED | IS_HIDDEN | …
-    var value: Variant
-```
+#### 派生索引（Domain 缓存 · **非**信息原语）
 
-地点「揭示」= 本旗，**不是**卡牌翻面。
+| 字段（例） | 权威来源 | 维护 |
+|---|---|---|
+| 调查员/敌人 `location_tag` | 物理：人棋/敌人卡相对地点区的布置 | 随 `MoveCard` / 移动手续更新索引 |
+| 威胁区成员 | 物理：`threat_<inv>` 区 | 同上 |
+| `attached_to` | 物理：附着叠放 / 附着区 | 同上 |
+| `controller`（常规） | 物理：手牌/场地区属主 | 随区变；**例外**隐私控制者与 audience 绑定处另议 |
+| `LocationState.revealed` | 物理：地点翻面 + 线索已放置 | 索引或直接读形态/标记 |
+| `eliminated` / `resigned` | 退场物理 + 战役/场面结局 | 命名流程组合；不升格为信息原语类 |
 
-#### ③ `InfoSetRef`（引用）
+历史 `AtomOp.SET_FLAG` / `SET_REF`：若仍存在，视为 **索引维护 API** 或待删兼容，**不得**文档化为信息原语 ②/③。
 
-```gdscript
-class InfoSetRef:
-    var bearer_id: StringName
-    var field: InfoRefField          # LOCATION | CONTROLLER | ATTACHED_TO | …
-    var ref_id: StringName           # 空 = 清除
-```
+#### 信息层可以厚，原语故意薄
 
-**所在地点是信息**（③），移动手续 = 信息 `LOCATION` +（若进场揭示）信息旗 + 可能物理线索 Transfer，经 **命名流程** 组合——不是单原语吞多步。
-
-历史枚举名 `AtomOp.REVEAL_CARD` / `SET_FLAG` / `SET_REF` = **信息原语兼容入口**，文档不得再写成「状态原语 ③」。
+| 厚（框架，非原语） | 薄（可写叶子） |
+|---|---|
+| 从物理投影的查询、Eligibility、场合信封、`RulesMemory` | `FaceAudience`（及同族可知） |
+| Register 查询 | — |
+| 战役日志 / 场景抽象（非桌面 token） | 另库；不叫信息原语除非满足「桌上读不回」 |
 
 ---
 
@@ -646,7 +633,8 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-23 | v0.3.13 | §0/§5.4：**信息原语**三类（可见性·离散旗·引用）；命名序列与两套原语隔离 |
+| 2026-10-23 | v0.3.14 | §5.4 收薄：信息原语主轴仅可见性；引用/多数旗 → 物理派生索引 |
+| 2026-10-23 | v0.3.13 | §0/§5.4：信息原语初稿（后收薄为 v0.3.14） |
 | 2026-10-23 | v0.3.12 | §0/§5：状态原语仅物理层；③=翻面/横置；Reveal/`FaceAudience`/SetRef → §5.4 信息层 |
 | 2026-10-23 | v0.3.11 | §5.2：桌面标记仅 Transfer；供给池无穷；废止 Adjust 为桌面 L0 |
 | 2026-09-21 | v0.3.10 | §3：L2 宏展开为 `seq.effect.*`（纸面无名也铸造）；07-composition §1.3.3 |

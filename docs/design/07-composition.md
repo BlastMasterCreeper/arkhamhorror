@@ -8,7 +8,7 @@
 
 ## 1. 目标
 
-定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**状态原语** + **信息原语** + **Register**，或指向已铸造 `seq.effect.*`）；枝干是顺序 / 同时 / 条件。运行时 **只能** 在某条已压栈命名流程的 RESOLVE 砖内 `execute`（**禁止真空**）。玩家选择走 Gate，不进「内联/nest」二分。
+定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**状态原语** + **信息原语**（可见性等）+ **Register**，或指向已铸造 `seq.effect.*`）；枝干是顺序 / 同时 / 条件。运行时 **只能** 在某条已压栈命名流程的 RESOLVE 砖内 `execute`（**禁止真空**）。玩家选择走 Gate，不进「内联/nest」二分。
 
 **英文（代码）**：`Composition` / `CompositionNode` / `CompositionExecutor` / `CompositionDryRunner`  
 **中文（文档）**：效果组合 / 组合节点
