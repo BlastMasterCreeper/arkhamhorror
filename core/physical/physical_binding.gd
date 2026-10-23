@@ -405,4 +405,6 @@ func _ensure_card_region(
 func _ensure_marker_region(region_id: StringName) -> void:
 	if ops.store.get_marker_region(region_id) != null:
 		return
-	ops.create_marker_region(region_id)
+	## 桌面 supply = 无穷标记池；chaos_bag / augury 等有限区另建。
+	var infinite := region_id == SUPPLY
+	ops.create_marker_region(region_id, infinite)

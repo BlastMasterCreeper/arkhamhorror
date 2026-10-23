@@ -620,6 +620,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-23 | v0.5.4 | Assign：静态 PI 会话（候选+约束→增减耗尽→确认；期间重算）；链 07 §4 |
 | 2026-10-22 | v0.5.3 | **§7.0** 发动池/`ActivationPool` → **发起池/`InitiationPool`**（避 Activate 撞名；禁 ActivationPool） |
 | 2026-10-22 | v0.5.2 | **§7.0** 定名响应池/`ResponsePool`·发动池/`ActivationPool`（禁 ActionPool）；**§7.3.4** 窗温度与少打扰（交互层方向，实现后补） |
 | 2026-10-22 | v0.5.1 | 落地：意愿池 / 响应模式 / `PlayerWindowIntentPool.pulse` / 01017 `pw_intent_batch` |

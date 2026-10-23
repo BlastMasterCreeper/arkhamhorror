@@ -107,7 +107,7 @@ func _emit_zone_move(
 		_after_zone_move.call(card_id, from_zone, to_zone)
 
 
-## L0 · AtomTransferMarker
+## L0 · AtomTransferMarker（桌面标记唯一变更原语；池为无穷供给）。
 func transfer_marker(kind: AhcEnums.MarkerKind, amount: int, from: MarkerSlot, to: MarkerSlot) -> bool:
 	if amount <= 0:
 		return false
@@ -118,20 +118,27 @@ func transfer_marker(kind: AhcEnums.MarkerKind, amount: int, from: MarkerSlot, t
 	return true
 
 
-## L0 · AtomAdjustMarker
+## 兼容入口：桌面标记展开为「无穷池 ↔ 承载者」Transfer；禁止从虚无创造/湮灭。
+## 非桌面计数若仍走本入口，行为未定义（应避免）。
 func adjust_marker(at: MarkerSlot, delta: int, clamp_min: int = 0) -> bool:
 	if delta == 0:
 		return true
-	var ok := false
-	if at.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
-		ok = _adjust_investigator_marker(at.bearer_id, at.kind, delta, clamp_min)
-	elif at.bearer_kind == AhcEnums.BearerKind.GLOBAL:
-		ok = _adjust_pool_marker(at.kind, delta, clamp_min)
-	if ok:
-		_mirror_adjust_marker(at, delta)
-	return ok
-
-
+	if at == null:
+		return false
+	if at.bearer_kind == AhcEnums.BearerKind.GLOBAL:
+		## 对无穷池自身 Adjust = 空操作（池无库存）。
+		return TokenPool.is_table_token_kind(at.kind)
+	if not TokenPool.is_table_token_kind(at.kind):
+		return false
+	var pool_slot := MarkerSlot.pool(_canonical_pool_kind(at.kind))
+	if delta > 0:
+		return transfer_marker(at.kind, delta, pool_slot, at)
+	## 负 delta：须能整笔回池（不足则失败）。heal 等调用方应先 `mini` 到实际量。
+	var need := -delta
+	var have := _marker_count_at(at)
+	if have - need < clamp_min:
+		return false
+	return transfer_marker(at.kind, need, at, pool_slot)
 ## L0 · AtomSetFlag
 func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Variant) -> bool:
 	match field:
@@ -421,48 +428,6 @@ func _insert_victory_display(card: CardInstance) -> bool:
 	return true
 
 
-func _adjust_investigator_marker(
-	inv_id: StringName,
-	kind: AhcEnums.MarkerKind,
-	delta: int,
-	clamp_min: int
-) -> bool:
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null:
-		return false
-	match kind:
-		AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
-			if delta < 0 and inv.resource_pool + delta < clamp_min:
-				return false
-			inv.resource_pool = maxi(inv.resource_pool + delta, clamp_min)
-			return true
-		AhcEnums.MarkerKind.HORROR_TAKEN:
-			inv.horror_taken = maxi(inv.horror_taken + delta, clamp_min)
-			return true
-		AhcEnums.MarkerKind.DAMAGE:
-			inv.damage_taken = maxi(inv.damage_taken + delta, clamp_min)
-			return true
-	return false
-
-
-func _adjust_pool_marker(kind: AhcEnums.MarkerKind, delta: int, clamp_min: int) -> bool:
-	var pool := _state.token_pool
-	match kind:
-		AhcEnums.MarkerKind.POOL_RESOURCE, AhcEnums.MarkerKind.RESOURCE:
-			pool.resource_available = maxi(pool.resource_available + delta, clamp_min)
-			return true
-		AhcEnums.MarkerKind.POOL_DAMAGE:
-			pool.damage_available = maxi(pool.damage_available + delta, clamp_min)
-			return true
-		AhcEnums.MarkerKind.POOL_HORROR:
-			pool.horror_available = maxi(pool.horror_available + delta, clamp_min)
-			return true
-		AhcEnums.MarkerKind.POOL_CLUE:
-			pool.clue_available = maxi(pool.clue_available + delta, clamp_min)
-			return true
-	return false
-
-
 func _remove_from_pile(card: CardInstance, inv: InvestigatorState) -> void:
 	match card.zone:
 		AhcEnums.Zone.DECK:
@@ -528,30 +493,79 @@ func _give_marker(to: MarkerSlot, kind: AhcEnums.MarkerKind, amount: int) -> voi
 
 
 func _take_from_pool(kind: AhcEnums.MarkerKind, amount: int) -> bool:
-	match kind:
-		AhcEnums.MarkerKind.POOL_RESOURCE, AhcEnums.MarkerKind.RESOURCE:
-			return true
-		AhcEnums.MarkerKind.POOL_DAMAGE, AhcEnums.MarkerKind.POOL_HORROR, AhcEnums.MarkerKind.POOL_CLUE:
-			return true
-	return false
+	return _state.token_pool.take(kind, amount)
 
 
 func _give_to_pool(kind: AhcEnums.MarkerKind, amount: int) -> void:
-	_adjust_pool_marker(kind, amount, 0)
+	_state.token_pool.give(kind, amount)
 
 
 func _take_from_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> bool:
-	if kind == AhcEnums.MarkerKind.RESOURCE or kind == AhcEnums.MarkerKind.POOL_RESOURCE:
-		var inv := _state.registry.get_investigator(inv_id)
-		if inv == null or inv.resource_pool < amount:
-			return false
-		inv.resource_pool -= amount
-		return true
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null or amount <= 0:
+		return false
+	match kind:
+		AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
+			if inv.resource_pool < amount:
+				return false
+			inv.resource_pool -= amount
+			return true
+		AhcEnums.MarkerKind.DAMAGE:
+			if inv.damage_taken < amount:
+				return false
+			inv.damage_taken -= amount
+			return true
+		AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.HORROR:
+			if inv.horror_taken < amount:
+				return false
+			inv.horror_taken -= amount
+			return true
 	return false
 
 
 func _give_to_investigator(inv_id: StringName, kind: AhcEnums.MarkerKind, amount: int) -> void:
-	_adjust_investigator_marker(inv_id, kind, amount, 0)
+	var inv := _state.registry.get_investigator(inv_id)
+	if inv == null or amount <= 0:
+		return
+	match kind:
+		AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
+			inv.resource_pool += amount
+		AhcEnums.MarkerKind.DAMAGE:
+			inv.damage_taken += amount
+		AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.HORROR:
+			inv.horror_taken += amount
+
+
+func _marker_count_at(at: MarkerSlot) -> int:
+	if at == null:
+		return 0
+	if at.bearer_kind == AhcEnums.BearerKind.INVESTIGATOR:
+		var inv := _state.registry.get_investigator(at.bearer_id)
+		if inv == null:
+			return 0
+		match at.kind:
+			AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
+				return inv.resource_pool
+			AhcEnums.MarkerKind.DAMAGE:
+				return inv.damage_taken
+			AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.HORROR:
+				return inv.horror_taken
+	return 0
+
+
+func _canonical_pool_kind(kind: AhcEnums.MarkerKind) -> AhcEnums.MarkerKind:
+	match kind:
+		AhcEnums.MarkerKind.DAMAGE, AhcEnums.MarkerKind.POOL_DAMAGE:
+			return AhcEnums.MarkerKind.POOL_DAMAGE
+		AhcEnums.MarkerKind.HORROR, AhcEnums.MarkerKind.HORROR_TAKEN, AhcEnums.MarkerKind.POOL_HORROR:
+			return AhcEnums.MarkerKind.POOL_HORROR
+		AhcEnums.MarkerKind.CLUE, AhcEnums.MarkerKind.POOL_CLUE:
+			return AhcEnums.MarkerKind.POOL_CLUE
+		AhcEnums.MarkerKind.RESOURCE, AhcEnums.MarkerKind.POOL_RESOURCE:
+			return AhcEnums.MarkerKind.POOL_RESOURCE
+		AhcEnums.MarkerKind.DOOM:
+			return AhcEnums.MarkerKind.DOOM
+	return kind
 
 
 func _would_leave_hand(card: CardInstance, to: CardSlot) -> bool:
@@ -590,11 +604,6 @@ func _mirror_transfer_marker(
 		return
 	_binding.mirror_transfer_marker(kind, amount, from, to)
 
-
-func _mirror_adjust_marker(at: MarkerSlot, delta: int) -> void:
-	if _binding == null:
-		return
-	_binding.mirror_adjust_marker(at, delta)
 
 
 func _mirror_flip(card_id: StringName, face: AhcEnums.CardFace) -> void:

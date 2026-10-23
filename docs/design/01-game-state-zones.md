@@ -219,7 +219,7 @@ class TokenBag:
     var uses: Dictionary[StringName, int]  # "ammo", "charges", ...
 ```
 
-全局 `TokenPool`（table 上 token pool）与卡上/调查员上 token 分开管理。
+全局 `TokenPool`（table 上 token **无穷供给池**）与卡上/调查员上 token 分开管理：取出不尽、回池不记账；桌面标记变更一律经 Transfer（见 [07-effect-primitives §5.2](07-effect-primitives.md)）。
 
 ---
 

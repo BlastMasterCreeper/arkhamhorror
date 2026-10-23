@@ -36,13 +36,16 @@ static func test_set_aside_to_deck_shuffle() -> bool:
 
 
 static func test_marker_transfer_pool_to_card() -> bool:
+	## 无穷 supply：无需预置库存；取出不扣减；放入不累加。
 	var ops := make_ops()
-	var supply := ops.create_marker_region(&"supply")
+	var supply := ops.create_marker_region(&"supply", true)
 	var set_aside := ops.create_card_region(CardRegion.Shape.FLAT, &"", &"set_aside")
 	var enemy_id := ops.materialize_card(&"e1", set_aside)
 	if enemy_id == &"":
 		return false
-	ops.add_markers(MarkerLocus.region(supply), MarkerKeys.DAMAGE, 5)
+	var region := ops.store.get_marker_region(supply)
+	if region == null or not region.infinite:
+		return false
 	var ok := ops.transfer(
 		MarkerKeys.DAMAGE,
 		2,
@@ -51,9 +54,17 @@ static func test_marker_transfer_pool_to_card() -> bool:
 	)
 	if not ok:
 		return false
+	## 回池湮入无穷供给。
+	var back := ops.transfer(
+		MarkerKeys.DAMAGE,
+		1,
+		MarkerLocus.card(enemy_id),
+		MarkerLocus.region(supply)
+	)
 	return (
-		ops.get_count(MarkerLocus.region(supply), MarkerKeys.DAMAGE) == 3
-		and ops.get_count(MarkerLocus.card(enemy_id), MarkerKeys.DAMAGE) == 2
+		back
+		and ops.get_count(MarkerLocus.region(supply), MarkerKeys.DAMAGE) == 0
+		and ops.get_count(MarkerLocus.card(enemy_id), MarkerKeys.DAMAGE) == 1
 	)
 
 
