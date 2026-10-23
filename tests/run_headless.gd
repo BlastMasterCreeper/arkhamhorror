@@ -17,6 +17,9 @@ func _initialize() -> void:
 	_run_test("PHYS-05 destroy requires empty", PhysicalTestHelper.test_destroy_requires_empty)
 	_run_test("PHYS-06 player resource pool", PhysicalTestHelper.test_player_resource_pool)
 	_run_test("PHYS-07 entity id alloc not definition", PhysicalTestHelper.test_entity_id_alloc_not_definition)
+	_run_test("MTB-01 expand multi source to multi target", _test_mtb_expand_legs)
+	_run_test("MTB-02 execute batch via atomic transfer_marker", _test_mtb_execute_resources)
+	_run_test("MTB-03 sum mismatch rejects", _test_mtb_sum_mismatch)
 	_run_test("PHYS-BRIDGE-01 move mirrors physical", PhysicalTestHelper.test_bridge_move_mirrors)
 	_run_test("PHYS-BRIDGE-02 resource adjust mirrors", PhysicalTestHelper.test_bridge_resource_adjust_mirrors)
 	_run_test("PHYS-BRIDGE-03 reveal mirrors flip", PhysicalTestHelper.test_bridge_reveal_mirrors_flip)
@@ -424,6 +427,55 @@ func _run_test(name: String, fn: Callable) -> void:
 	else:
 		print("  FAIL %s" % name)
 		_failed += 1
+
+
+func _test_mtb_expand_legs() -> bool:
+	## 2+1 → 2+1：展开为三条原子腿（非单次 L0）。
+	var a := MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+	var b := MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE)
+	var c := MarkerSlot.investigator(&"inv_3", AhcEnums.MarkerKind.RESOURCE)
+	var d := MarkerSlot.investigator(&"inv_4", AhcEnums.MarkerKind.RESOURCE)
+	var legs := MarkerTransferBatch.expand(
+		[{"slot": a, "amount": 2}, {"slot": b, "amount": 1}],
+		[{"slot": c, "amount": 2}, {"slot": d, "amount": 1}]
+	)
+	if legs.size() != 2:
+		return false
+	return (
+		int(legs[0].get("amount", 0)) == 2
+		and (legs[0].get("from") as MarkerSlot).bearer_id == &"inv_1"
+		and (legs[0].get("to") as MarkerSlot).bearer_id == &"inv_3"
+		and int(legs[1].get("amount", 0)) == 1
+		and (legs[1].get("from") as MarkerSlot).bearer_id == &"inv_2"
+		and (legs[1].get("to") as MarkerSlot).bearer_id == &"inv_4"
+	)
+
+
+func _test_mtb_execute_resources() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.resource_pool = 5
+	inv2.resource_pool = 0
+	var ok := MarkerTransferBatch.execute(
+		h.ctx.mutator,
+		AhcEnums.MarkerKind.RESOURCE,
+		[{"slot": MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), "amount": 3}],
+		[
+			{"slot": MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), "amount": 2},
+			{"slot": MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), "amount": 1},
+		]
+	)
+	return ok and inv1.resource_pool == 2 and inv2.resource_pool == 2
+
+
+func _test_mtb_sum_mismatch() -> bool:
+	var legs := MarkerTransferBatch.expand(
+		[{"slot": MarkerSlot.investigator(&"a", AhcEnums.MarkerKind.RESOURCE), "amount": 2}],
+		[{"slot": MarkerSlot.investigator(&"b", AhcEnums.MarkerKind.RESOURCE), "amount": 1}]
+	)
+	return legs.is_empty()
 
 
 func _test_setup_to_inv_phase() -> bool:
