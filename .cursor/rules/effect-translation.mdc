@@ -82,13 +82,13 @@ AbilitySpec
 
 | 是效果 | 不是效果 |
 |---|---|
-| **状态原语** 物理层 L0（区/序 · 标记 · 形态） | 纯桌谈约定 |
-| **信息原语** 信息层（可见性 · 离散旗 · 引用；**不是**状态原语） | — |
-| **Register** → `RegistrationStore` / Buff | |
+| **状态原语** 物理层（区/序 · 标记 · 形态） | 纯桌谈约定 |
+| **信息原语** 信息层（可见性 · 离散旗 · 引用） | — |
+| **Register** → `RegistrationStore` / Buff（**第三类效果叶**；不是信息原语） | — |
 
 见 [07-effect-primitives §0/§5.3–§5.4](docs/design/07-effect-primitives.md)、[07-composition §4.1](docs/design/07-composition.md)。
 
-**隔离**：命名流程 `seq.*`（含铸造 `seq.effect.*`）**组合**两套原语；能力订 `(seq, slot)`。**禁止**把物理/信息原语叶子直接当注册时点。
+**隔离**：命名流程 `seq.*` **组合三类效果叶**（两套原语 + Register）；能力订 `(seq, slot)`。**禁止**原语/裸 Register 当注册时点；**禁止**把 Buff 塞进信息原语。
 
 ## 落地要素
 

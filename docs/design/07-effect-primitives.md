@@ -13,29 +13,23 @@
 | **效果** | effect | — | resolve 可对规则/局面产生 **直接影响**；dry-run 可 **CREATED** |
 | **状态原语** | state primitive | **是**（子集） | **仅物理层** L0 **三类**（区/序、标记、形态） |
 | **信息原语** | information primitive | **是**（子集） | **仅信息层**最小写入 **三类**（可见性、离散旗、引用）；**不是**状态原语 |
-| **Register（注册）** | Register | **是** | 写 `RegistrationStore` / Buff |
-| **命名流程** | named flow / `seq.*` | — | 规则手续 / 可被听到的效果种类；**组合**两套原语 + Register；**不是**原语，也 **不是**时点订阅面的叶子 |
+| **Register / Unregister** | Register (Buff) | **是** | 写 `RegistrationStore`；**第三类效果叶**（与两套原语并列，**不是**信息原语） |
+| **命名流程** | named flow / `seq.*` | — | 组合 **三类效果叶**；Timing 订阅键；**不是**叶子本身 |
 
 ```text
 命名流程 seq.*（Catalog + 堆栈 + Timing 订阅键）
-  └─ RESOLVE 内组合 ↓
+  └─ RESOLVE 内组合 ↓ 三类效果叶（可 CREATED）
 
-效果（可 CREATED）
-  ├─ 状态原语（物理层）
-  │    ├─ ① 卡牌地址（区、次序）
-  │    ├─ ② 标记/计数（Transfer；∞ 池）
-  │    └─ ③ 卡牌形态（翻面；横置/重整）
-  ├─ 信息原语（信息层）
-  │    ├─ ① 可见性（FaceAudience）
-  │    ├─ ② 离散旗（Eliminated / Resigned / location.revealed / is_hidden…）
-  │    └─ ③ 引用（location_tag、controller、attached_to…）
-  └─ Register（Buff）
+  ├─ 状态原语（物理）     ①区/序 ②标记 ③形态
+  ├─ 信息原语（信息）     ①可见性 ②离散旗 ③引用
+  └─ Register（Buff）     MODIFIER / RESTRICTION / LISTENER；+ Unregister
+                          创建常经 seq.effect.register（铸造 ≠ 真空 insert）
 
-物理层 ↔ 信息层：部分 Domain 字段镜像物理；框架语义留在信息层
-禁止：裸原语当 Timing 订阅面；为卡面另开 seq.card…
+仅两套原语 ≠ 全部命名流程：险境、Cannot、修正值、LISTENER、涌动…靠 Register。
+禁止：把 Buff 塞进信息原语；裸原语/裸 Register 当 Timing 订阅面；seq.card…
 ```
 
-**Register 是效果**：dry-run 成功 Register 即 **CREATED**（[06 §7](06-ability-initiation.md)、[07-composition §4.1](07-composition.md)）。
+**Register 是效果**：dry-run 成功创建即 **CREATED**（[06 §7](06-ability-initiation.md)、[07-composition §4.1](07-composition.md)、[06-registration-buff-model](06-registration-buff-model.md)）。
 
 **揭示 vs 翻面**：
 

@@ -18,7 +18,8 @@ alwaysApply: true
 | **Fast** | **快速** | 关键词；只改 **打出** 的窗口/花费，种类仍是打出；**不是** ArkhamDB `[fast]` 文本符号（后者 = 免费触发） |
 | Commit (skill) | **投入** / commit | skill 从 hand 投入检定；Grimoire：**不能**称 play |
 | **state primitive** | **状态原语** | **仅物理层** L0 **三类**：① 区/序 ② 标记 Transfer ③ 形态（翻面 / 横置·重整） |
-| **information primitive** | **信息原语** | **仅信息层** **三类**：① 可见性 `FaceAudience` ② 离散旗 ③ 引用（地点/控制者/附着…）；**不是**状态原语 |
+| **information primitive** | **信息原语** | **仅信息层** **三类**：① 可见性 `FaceAudience` ② 离散旗 ③ 引用；**不是**状态原语；**不含** Buff |
+| **Register** | **注册 / Buff** | 第三类效果叶 → `RegistrationStore`；与两套原语并列 |
 | **effect** | **效果** | dry-run 可 CREATED：状态原语 + 信息原语 + Register |
 | **named flow** | **命名流程** | 规则书手续；`seq.*`；Catalog + 堆栈 + 时点。**不是**卡牌正文 |
 | **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |
