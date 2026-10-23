@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.13 · 2026-10-23 — 信息原语三类；命名序列与两套原语隔离
+> **状态**：v0.3.14 · 2026-10-23 — 信息原语收薄为可见性；引用/旗 → 物理派生索引
 
 ---
 
