@@ -120,14 +120,22 @@ static func _register_location(
 	loc.id = definition_id
 	loc.shroud = CardRegistry.location_shroud(definition_id)
 	loc.revealed = in_play and reveal
+	loc.clues = 0
+	game_ctx.state.registry.register_location(loc)
 	if reveal:
-		loc.clues = PerInvestigatorScale.place_location_clues(
+		var want := PerInvestigatorScale.place_location_clues(
 			game_ctx.state,
 			CardRegistry.location_printed_clues(definition_id)
 		)
-	else:
-		loc.clues = 0
-	game_ctx.state.registry.register_location(loc)
+		if want > 0 and game_ctx.mutator != null:
+			game_ctx.mutator.transfer_marker(
+				AhcEnums.MarkerKind.CLUE,
+				want,
+				MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
+				MarkerSlot.location(definition_id, AhcEnums.MarkerKind.CLUE)
+			)
+		elif want > 0:
+			loc.clues = want
 	if in_play:
 		var card_id := materialize_card(
 			game_ctx,

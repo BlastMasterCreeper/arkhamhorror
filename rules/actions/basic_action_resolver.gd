@@ -39,7 +39,7 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 				}
 			)
 		else:
-			_apply_discover_clue(location_id_copy, inv_copy)
+			_apply_discover_clue(game_ctx, location_id_copy, inv_copy)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
@@ -64,7 +64,7 @@ func engage(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Di
 	return {"ok": true, "enemy_id": enemy_id}
 
 
-func move(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
+func move(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null:
 		return {"ok": false, "error": "unknown_investigator"}
@@ -80,7 +80,16 @@ func move(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	inv.location_tag = dest_id
 	if not dest.revealed:
 		dest.revealed = true
-		dest.clues = maxi(dest.clues, 1)
+		if dest.clues < 1:
+			if game_ctx != null and game_ctx.mutator != null:
+				game_ctx.mutator.transfer_marker(
+					AhcEnums.MarkerKind.CLUE,
+					1,
+					MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
+					MarkerSlot.location(dest_id, AhcEnums.MarkerKind.CLUE)
+				)
+			else:
+				dest.clues = 1
 	return {"ok": true, "destination_id": dest_id}
 
 
@@ -212,12 +221,23 @@ func _commits_from_extra(extra: Dictionary) -> Array[CommittedCard]:
 	return out
 
 
-func _apply_discover_clue(location_id: StringName, inv_id: StringName) -> void:
+func _apply_discover_clue(
+	game_ctx: GameContext,
+	location_id: StringName,
+	inv_id: StringName
+) -> void:
+	if game_ctx != null and game_ctx.mutator != null:
+		game_ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.CLUE,
+			1,
+			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE),
+			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.CLUE)
+		)
+		return
+	## 无 mutator：仅测试旁路；正式路径必须经 Transfer。
 	var loc := _state.registry.get_location(location_id)
 	var inv := _state.registry.get_investigator(inv_id)
-	if loc == null or inv == null:
-		return
-	if loc.clues <= 0:
+	if loc == null or inv == null or loc.clues <= 0:
 		return
 	loc.clues -= 1
 	inv.clues_on_card += 1

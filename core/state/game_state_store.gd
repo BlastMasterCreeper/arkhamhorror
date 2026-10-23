@@ -41,6 +41,7 @@ func _init() -> void:
 	zones = ZoneManager.new(registry)
 	physical_ops = PhysicalOps.new(physical)
 	physical_binding = PhysicalBinding.new(physical_ops)
+	physical_binding.bind_domain(self)
 	physical_binding.install_table()
 	chaos_bag.bind_physical(physical_binding)
 

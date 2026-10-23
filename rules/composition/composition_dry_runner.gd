@@ -325,10 +325,15 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if node.to_slot == null:
 				return false
 			return sim.mutator.move_card(node.card_id, node.to_slot)
-		&"adjust_marker":
-			if node.marker_slot == null:
+		&"transfer_marker":
+			if node.marker_from == null or node.marker_to == null:
 				return false
-			return sim.mutator.adjust_marker(node.marker_slot, node.marker_delta)
+			var xfer_amt := maxi(node.amount, node.marker_delta)
+			if xfer_amt <= 0:
+				xfer_amt = 1
+			return sim.mutator.transfer_marker(
+				node.marker_kind, xfer_amt, node.marker_from, node.marker_to
+			)
 		&"set_flag":
 			return sim.mutator.set_flag(node.inv_id, node.flag_field, node.flag_value)
 		&"reveal_to_controller":

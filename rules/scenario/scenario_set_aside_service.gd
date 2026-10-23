@@ -35,7 +35,17 @@ static func put_location_into_play(
 		loc.revealed = true
 		var printed := CardRegistry.location_printed_clues(location_id)
 		if printed >= 0:
-			loc.clues = PerInvestigatorScale.place_location_clues(game_ctx.state, printed)
+			var want := PerInvestigatorScale.place_location_clues(game_ctx.state, printed)
+			var need := maxi(want - loc.clues, 0)
+			if need > 0 and game_ctx.mutator != null:
+				game_ctx.mutator.transfer_marker(
+					AhcEnums.MarkerKind.CLUE,
+					need,
+					MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
+					MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE)
+				)
+			elif need > 0:
+				loc.clues = want
 	var card := game_ctx.state.registry.get_card(location_id)
 	if card == null:
 		ScenarioLayoutSetup.materialize_card(
