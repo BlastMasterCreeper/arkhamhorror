@@ -234,36 +234,26 @@ check_defeat
 
 **竖切**：`core/timing/damage_pipeline.gd` · `no_envelope_slot`；v1 Assign 默认全量调查员（Gate 后补）。敌/支援仍走既有 Defeat 入口。
 
-### 4.1 Moving damage / horror（已裁决 OQ-07-02）
+### 4.1 Moving / 再分配 damage / horror（已裁决 OQ-07-02 · 包装修正 2026-10-23）
 
-卡牌文本 **Move / Move 1 damage / Move 1 horror**（从 A 转移到 B）使用独立原语 **`EffectOp.TRANSFER_AFFLICTION`**，**不算 heal**。
+卡面 **Move** / **再分配**（牌上已有标记挪到别处）**不算 heal**，也 **不** 走 `seq.effect.damage` 的 Assign/WOULD take。
 
-| | `HEAL` | `TRANSFER_AFFLICTION` |
+| | `HEAL` | Move / 再分配 |
 |---|---|---|
-| 语义 | 移除 affliction（治疗） | 在实体间 **移动** 已有 token |
+| 语义 | 移除 affliction | 已有 token 在槽位间搬运 |
 | 触发「After heal」等 | 是 | **否** |
-| 走 DamagePipeline assign | 否 | 否（源减、目标加，原子操作） |
-| defeat 检查 | 视 heal 规则 | 转移后双方检查 |
+| 落地 | `AdjustMarker` 负 delta | L0 **`transfer_marker`（1:1 原子）** |
+| 多源多目标 | — | 包装 **`MarkerTransferBatch`** 展开为多条原子腿 |
+| 走 DamagePipeline | 否 | 否 |
+
+**禁止**：把 N:M 做进单次 L0（伪原子、嵌套窗错位）；禁止另铸 `seq.effect.transfer_affliction`。
 
 ```gdscript
-enum AfflictionKind { DAMAGE, HORROR }
+# 单腿（Move 1 from A to B）
+mutator.transfer_marker(DAMAGE, 1, slot_a, slot_b)
 
-class TransferAfflictionRequest:
-    var from: EntityId
-    var to: EntityId
-    var kind: AfflictionKind
-    var amount: int
-
-func execute_transfer(req: TransferAfflictionRequest) -> void:
-    remove_tokens(req.from, req.kind, req.amount)
-    add_tokens(req.to, req.kind, req.amount)
-    check_defeat([req.from, req.to])
-    timing_bus.emit("affliction_transferred", req)   # 非 "healed"
-```
-
-```gdscript
-EffectBuilder.transfer_damage(1).from(asset_a).to(asset_b).submit(ctx)
-EffectBuilder.transfer_horror(1).from(inv).to(enemy).submit(ctx)
+# 多源多目标（再分配等）——包装展开，每腿仍是原子 transfer_marker
+MarkerTransferBatch.execute(mutator, DAMAGE, sources, targets)
 ```
 
 ---
