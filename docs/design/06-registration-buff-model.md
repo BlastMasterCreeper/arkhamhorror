@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.39 · 2026-10-24 — 撤掉无场景的 AmountPlan HORROR 预留
+> **状态**：v0.4.40 · 2026-10-24 — incoming additional：增量 K 分配（链 07 §4）
 
 ---
 
@@ -1255,6 +1255,8 @@ class AmountPlan:
 
 **落地进度**：AmountPlan（伤/发现）✅；ST 序列键收编 · 印刷量全表 待。恐惧量若仅单点，用 SCALAR，不进 AmountPlan。
 
+**Incoming additional（02221）≠ AmountPlan**：PreImpact 加量是 Forced 改 `DamagePipeline` pending；已确认腿保留，**只分配增量 K**（合法全合格集）。见 [07 §4](07-effect-resolution.md)。
+
 ### 16.4 RESTRICTION · Intent × 入口主表
 
 **模式**：Register RESTRICTION（`RestrictionKind` + payload）→ 在 **入口** 调 `RestrictionEvaluator.block_reason(intent, actor, store, ctx)`。  
@@ -1463,6 +1465,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.40 | incoming additional（02221）：保留 N 腿，仅增量 K @ 合法全合格集 |
 | 2026-10-24 | v0.4.39 | 撤 AmountPlan HORROR kind/payload/settle 预留（无消费式多腿场景） |
 | 2026-10-24 | v0.4.38 | 域 B：Attack/Discover Plan 收成 AmountPlan；统一 apply/settle |
 | 2026-10-24 | v0.4.37 | 修正来源不全是 Buff：混乱/投入=检定帧贡献；Buff 只是来源之一 |
