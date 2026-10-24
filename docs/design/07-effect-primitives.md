@@ -184,7 +184,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 定义规则引擎可执行的 **结算叶**。Grimoire 局面变更在 **Composition / 命名流程** 内归约为：
 
 1. **状态原语**（物理，看得见）；
-2. **信息原语**（不可见结算：Register · Log · Remember · Audience…）；
+2. **信息原语**（不可见结算：Register · Log · Remember…）；可见性见 §5.4.1（非结算）；
 3. 外加命名流程 / Wrapper（派生索引随物理维护，见 §5.4）。
 
 **禁止**原语叶子当 Timing 订阅面。卡牌脚本与 YAML **不得**直接调 `GameStateStore` / `PhysicalOps` 可变 API。
@@ -589,7 +589,7 @@ effective(card) =
 | 印刷图标 / 连接 / 特性 | `CardDefinition` 只读目录 | 导入期；信息层 **读** |
 | Gain … | **Register**（创建经 `seq.effect.register`） | 查询须区分 `is_printed_*` vs `has_effective_*`（[06 §Gain](06-registration-buff-model.md)） |
 | 视为空白 blank | **Register / Buff**（你已点明） | 压制 **印刷** 文本框；不抹 gained |
-| 谁看得到牌面 | 信息原语 `FaceAudience` | 与「牌上印了什么 / 生效什么」正交 |
+| 谁看得到牌面 | **权限层** `FaceAudience`（非原语） | 与印刷/生效特征正交 |
 
 检定 commit、连接图、关键词开火等：**只问 `effective_*`**，禁止手续直接假定「等于印刷」。
 
@@ -597,7 +597,7 @@ effective(card) =
 
 | 厚（不结算） | 不可见结算叶（信息原语） |
 |---|---|
-| 直读投影、Eligibility、场合、`RulesMemory` | A Register · B Log · C Remember · D Audience · … |
+| 直读投影、Eligibility、场合、`RulesMemory`、**Audience 权限** | A Register · B Log · C Remember · … |
 | `effective_*` **查询** | Gain / blank **创建** = A |
 | Register / log / 记忆的 **读取** | 对应库的 **写入** |
 | 印刷 Spec | — |
