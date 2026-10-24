@@ -328,6 +328,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-25 | v0.4.27 | §4.4：伤害 additional → `increase_pending`+`assign_delta`（TIM-DMG-03/04） |
 | 2026-10-22 | v0.4.26 | I3：`InitiationPool` / 发起池（替 ActivationPool） |
 | 2026-10-22 | v0.4.25 | W1 竖切 Eligibility COLLECT；W3/I3 术语对齐响应池 / 发起池 |
 | 2026-10-22 | v0.4.24 | W3/I3/§7：意愿池与 PlayerWindow 意图池（链 16 §7.1 / §7.3） |
