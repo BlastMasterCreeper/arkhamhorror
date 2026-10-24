@@ -352,13 +352,12 @@ seq.encounter.revelation          ← 信封：显现手续（有 When/After）
 
 ## 2. 游戏结算的两类「直接影响」（= 效果）
 
-几乎 **全部卡面效果 resolve** 对局面/规则的 **可 CREATED 写入** 只做两件事之一：
+几乎 **全部卡面效果 resolve** 对局面/规则的 **可 CREATED 写入** 只落两层：
 
 | 类型 | 改什么 | 组合节点 | 是否效果 |
 |---|---|---|---|
-| **状态变更（物理）** | 物理层 / 镜像 | **状态原语**三类：区/序·标记·形态 | **是** |
-| **信息原语** | Domain / RegistrationStore / log·记忆库 | 不可见结算：Register · 日志 · 记住 · Audience…（**非**状态原语） | **是** |
-| **规则变更** | `RegistrationStore`（Buff） | L2 **Register** / **Unregister** | **是** |
+| **物理结算** | 桌面摆子 | **状态原语**三类：区/序·标记·形态 | **是** |
+| **不可见结算（信息原语）** | RegistrationStore / log·记忆 / Audience… | Register · Log · Remember · Audience… | **是** |
 
 Grimoire **Reveal 卡牌** = 信息层 **`reveal_to_*`**（`FaceAudience`），**不是**物理状态原语 ③（③ = 翻面/横置）；命名流程 D2/E2 的 reveal 步 **是效果施加**。
 
@@ -567,7 +566,8 @@ tie     : nearest 等距 → 当前交互玩家 PICK_TARGET
 **有效性检测只关注「效果是否被创建」这一直接影响。**
 
 - **Register**：`RegistrationStore` 中 **成功插入一条 Registration** → 该节点 **CREATED**（**Buff 写入是效果**）
-- **Atom**（含 **`reveal_to_*`**、SetFlag/SetRef）：`StateMutator` 在 fork 上 **执行成功** → **CREATED**（**状态原语**）
+- **物理 Atom**：`StateMutator` 成功 → **CREATED**（状态原语）
+- **Audience / Log / Remember**：对应库写入成功 → **CREATED**（信息原语）
 - **Interrupt / Replace / ResolvePending**：pending 存在且操作成功 → **CREATED**
 
 **Presentation** 只 **读** Domain 揭示状态渲染 UI；**不** 单独维护「谁看到了什么」。
