@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.16 · 2026-10-24 — 原语 = 结算且必须做事；厚读分家
+> **状态**：v0.3.17 · 2026-10-24 — §5.4.0 信息原语盘点（①确定；②③④候选）
 
 ---
 
@@ -454,27 +454,52 @@ class AtomSetExhausted:
 
 ### 5.4 信息原语（知识结算 · **不是**状态原语）
 
-> **总判据（§0.0）**：原语必须是 **结算** 且 **做事**。信息原语 = 信息层上那种结算（改可知性等）。  
-> **收薄**：引用 / 多数旗若只是物理投影 → **不是结算**，故 **不是**信息原语。  
-> 主轴结算：`FaceAudience`（Reveal / hide）。dry-run **CREATED**；**不是** Timing 订阅面。
+> **总判据（§0.0）**：原语必须是 **结算** 且 **做事**。  
+> **信息原语** = 结算叶子，且写入的是 **非物理、非 Register** 的局面知识（桌上摆子读不回 / 不进 Buff 库）。  
+> dry-run **CREATED**；**不是** Timing 订阅面。
 
-#### 唯一主轴 · `InfoSetAudience`
+#### 5.4.0 能包括哪些（盘点 · 2026-10-24）
+
+筛法三问（全过才进信息原语）：
+
+1. **结算吗？** 执行时改局面；不是查询 / Eligibility / 印刷 Spec。  
+2. **物理层做不到吗？** 不是区/序、标记 Transfer、翻面·横置。  
+3. **不是 Register 吗？** Gain / blank / Cannot / lasting / LISTENER 走 Buff。
+
+| 族 | 判 | 写入什么 | 说明 |
+|---|---|---|---|
+| **① 可知性（Audience）** | **是** | `FaceAudience` / `known_to` | Grimoire Reveal、窥探、Search 结束 hide、隐私对控制者 |
+| **② 控制 / 归属** | **候选** | `controller_id` / `owner_id` | 「获得控制」等；常非区变迁。若一律跟区属主走则降为派生，不单立 |
+| **③ 图拓扑** | **候选** | 连接边增删/封锁 | 锁门、临时连边。若用标记/翻地点表达 → 物理；纯规则改图 → 信息 |
+| **④ 战役 / 场景笔记** | **另库候选** | Campaign log / scenario flags | 结算且做事，但是跨局/场景库，不宜塞进牌面 Audience |
+| **隐私 `is_hidden`** | **否（并入）** | — | 关键词效果 = Register RESTRICTION；可知性 = ①；Domain 布尔若保留 = 咽喉派生，不单立原语 |
+| **Seal / Uses / 线索·伤恐** | **否** | — | 混乱标记/用途标记 = 物理 Transfer（或 chaos 区 Move） |
+| **blank / Gain 词条** | **否** | — | Register |
+| **地点 revealed / 交战 / 附着 / location_tag** | **否** | — | 物理或咽喉派生索引 |
+| **RulesMemory / 场合信封** | **否** | — | 手续草稿，非局面效果叶 |
+| **Prey / Spawn Spec** | **否** | — | 规则参数（§0.1），不结算 |
+| **淘汰 `eliminated`** | **否（组合）** | — | 命名流程：退场 Move + 创伤等；旗若保留 = 流程结果索引，不单立信息原语 |
+
+**当前落地（实现）**：只保证 **①**。②③④ 待裁决后再加原子；未裁决前禁止用散落 `SetFlag`/`SetRef` 冒充。
+
+#### 5.4.1 主轴 · `InfoSetAudience`（①）
 
 ```gdscript
 class InfoSetAudience:
     var card_id: StringName
     var audience: FaceAudience       # CONTROLLER | ALL | HIDDEN_ALL
+    ## 可选扩展：known_to: Array[StringName]  # 非常规「仅这些观察者」
 ```
 
 | 操作 | audience | 场景 |
 |---|---|---|
 | `reveal_to_controller` | CONTROLLER | D2；隐私对控制者 |
 | `reveal_to_all` | ALL | E2 公开 |
-| `hide_from_all` | HIDDEN_ALL | Search 结束 |
+| `hide_from_all` | HIDDEN_ALL | Search 结束；收回窥探 |
 
 与物理翻面 **正交**：面朝下仍可有可知信息。Reveal 手续可 **另** 调 `AtomFlipCard`；本原语 **不改 zone / face / exhausted**。
 
-同族扩展（仍属信息原语、须仍满足「桌上读不回」）：例如更细的 `known_to: Array[observer]`；**禁止**借扩展把地点/附着塞回来。
+同族扩展：更细 `known_to`；**禁止**借扩展把地点/附着/交战塞回来。
 
 #### 派生索引 vs 直读（策略裁决）
 
@@ -657,6 +682,9 @@ CompositionExecutor.run(tree)
 | OQ-PRIM-02 | heal 超过当前 damage（浪费） | Transfer 量夹到当前值；多余不取 |
 | OQ-PRIM-03 | Engage 是否一个 `SetRef` 还是 Ref+MoveCard 两个原子 | **两个原子** Seq；Wrapper `Engage` 保证顺序 |
 | OQ-PRIM-04 | 调查员 defeated 时 clues 归地点 | Wrapper：`TransferMarker` CLUES_ON_INVESTIGATOR → CLUES_ON_LOCATION |
+| OQ-PRIM-05 | `set_controller` / `set_owner` 是否信息原语 ② | 倾向 **是**（当控制变更不伴随区 Move）；区属主可推导时不写 |
+| OQ-PRIM-06 | 连接图增删/封锁是否信息原语 ③ | 无物理标记表达时 **是**；有门禁标记则 Transfer |
+| OQ-PRIM-07 | 战役 log 是否第三套「战役原语」而非信息原语 | 倾向 **另库**；不进牌面 Audience |
 
 ---
 
@@ -664,6 +692,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.17 | §5.4.0：信息原语盘点——①Audience 确定；控制/拓扑/战役笔记为候选；其余归物理·Register·派生 |
 | 2026-10-24 | v0.3.16 | §0.0：原语 = 能影响游戏的结算（必须做事）；厚读 ≠ 原语 |
 | 2026-10-24 | v0.3.15 | §5.4：直读优先 vs 咽喉双写；卡牌生效特征 = 印刷∪Gain−blank（读路径） |
 | 2026-10-23 | v0.3.14 | §5.4 收薄：信息原语主轴仅可见性；引用/多数旗 → 物理派生索引 |
