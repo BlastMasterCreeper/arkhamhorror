@@ -91,17 +91,6 @@ static func discover_bonus(amount: int, apply_condition: Condition = null) -> Mo
 	return p
 
 
-## 本次造成恐惧 +N（AmountPlan · HORROR；settle 竖切待接）。
-static func horror_bonus(amount: int, apply_condition: Condition = null) -> ModifierPayload:
-	var p := ModifierPayload.new()
-	p.plan_kind = AhcEnums.ModifierPlanKind.HORROR
-	p.apply_mode = AhcEnums.ModifierApplyMode.CONSUME_CHOOSE_ONE_LEG
-	p.op = AhcEnums.ModOp.ADD
-	p.value = amount
-	p.condition = apply_condition
-	return p
-
-
 func is_scalar() -> bool:
 	return plan_kind == AhcEnums.ModifierPlanKind.NONE
 

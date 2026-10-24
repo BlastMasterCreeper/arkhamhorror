@@ -158,13 +158,6 @@ static func settle_amount_plan(
 			return _settle_attack_damage(game_ctx, plan)
 		AhcEnums.ModifierPlanKind.DISCOVER:
 			return _settle_discover(game_ctx, plan, ctx.get("inv_id", &"") as StringName)
-		AhcEnums.ModifierPlanKind.HORROR:
-			return {
-				"ok": false,
-				"error": &"horror_settle_pending",
-				"settled": 0,
-				"subjects": [] as Array[StringName],
-			}
 		_:
 			return {"ok": false, "error": &"unknown_plan_kind", "settled": 0, "subjects": [] as Array[StringName]}
 

@@ -375,11 +375,11 @@ enum StatRef {
 enum ModOp { ADD, SUB, MUL, DOUBLE, HALVE }
 
 ## MODIFIER：标量 NONE；域 B 效果量挂 AmountPlan.kind。
+## 仅保留有消费式多腿场景的 kind（伤 / 发现）；不为对称预留 HORROR。
 enum ModifierPlanKind {
 	NONE,
 	ATTACK_DAMAGE,
 	DISCOVER,
-	HORROR,
 }
 
 ## Plan 量修正默认消费式选一腿；标量走 SCALAR（ModifierEngine.compute）。

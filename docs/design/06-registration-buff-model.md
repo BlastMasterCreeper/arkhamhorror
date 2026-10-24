@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.38 · 2026-10-24 — 域 B 统一 AmountPlan + apply_to_amount_plan
+> **状态**：v0.4.39 · 2026-10-24 — 撤掉无场景的 AmountPlan HORROR 预留
 
 ---
 
@@ -884,7 +884,7 @@ Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
 enum ValueRealm { PRINTED, EFFECT_AMOUNT, SEQUENCE_SCALAR }
 
 ## 域 A 例：CARD_COST, SHROUD, HEALTH, SANITY, SKILL_*, ENEMY_FIGHT, ENEMY_EVADE…
-## 域 B 例：plan_kind ATTACK_DAMAGE | DISCOVER | HORROR | HEAL_* | RESOURCE_GAIN…
+## 域 B 例：plan_kind ATTACK_DAMAGE | DISCOVER；单点效果量亦可 SCALAR（资源等）
 ## 域 C 例：ST_DIFFICULTY, ST_SKILL_VALUE（比较用；含混乱贡献）
 ```
 
@@ -1181,7 +1181,6 @@ Grimoire 条文 / 卡面效果
 | **MOD-Q-GAIN-RES** | B | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
 | **MOD-Q-ATTACK-DAMAGE** | B | 攻击成功后、伤害落点前 | **AmountPlan** `ATTACK_DAMAGE` | **已实现** |
 | **MOD-Q-DISCOVER** | B | 调查成功后、发现落点前 | **AmountPlan** `DISCOVER` | **已实现** |
-| **MOD-Q-HORROR-AMT** | B | 造成恐惧量落点前 | **AmountPlan** `HORROR` | kind/payload 已备；settle 待 |
 | **MOD-Q-PRINTED-*** | A | 生命/神智/敌 fight·evade·health… | 对应 value_key | 待按卡增量 |
 
 #### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
@@ -1201,7 +1200,7 @@ Grimoire 条文 / 卡面效果
 ```text
 成功（Fight / Investigate / 指定行动）
   │
-  ├─ 1. 建 AmountPlan（kind=ATTACK_DAMAGE|DISCOVER|HORROR…）
+  ├─ 1. 建 AmountPlan（kind=ATTACK_DAMAGE|DISCOVER）
   │
   ├─ 2. 卡面替换（Instead / 「本攻击改为…」）→ 可多 leg
   │
@@ -1239,7 +1238,7 @@ class AmountLeg:
     var amount: int
 
 class AmountPlan:
-    var kind: ModifierPlanKind   # ATTACK_DAMAGE | DISCOVER | HORROR
+    var kind: ModifierPlanKind   # ATTACK_DAMAGE | DISCOVER
     var legs: Array[AmountLeg]
     var primary_subject_id: StringName
 ```
@@ -1252,10 +1251,10 @@ class AmountPlan:
 
 **PI 规格**：Gate（[16](16-player-interaction.md) / [21](21-selection-spec.md)）；prompt 按 kind（`mod.attack_damage_leg` 等）。
 
-**禁止**：`PER_EACH_LEG` 广播；扁全球量键冒充本次效果；为伤/发现各造 Engine。  
+**禁止**：`PER_EACH_LEG` 广播；扁全球量键冒充本次效果；为伤/发现各造 Engine；**无场景时不为恐惧等对称预留 Plan kind**。  
 **Register 侧**：`plan_kind` 与 `AmountPlan.kind` 对齐；`apply: CONSUME_CHOOSE_ONE_LEG`。
 
-**落地进度**：AmountPlan 统一 API ✅；Attack/Discover settle ✅；Horror settle 待；ST 序列键收编 · 印刷量全表 待。
+**落地进度**：AmountPlan（伤/发现）✅；ST 序列键收编 · 印刷量全表 待。恐惧量若仅单点，用 SCALAR，不进 AmountPlan。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1465,6 +1464,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.39 | 撤 AmountPlan HORROR kind/payload/settle 预留（无消费式多腿场景） |
 | 2026-10-24 | v0.4.38 | 域 B：Attack/Discover Plan 收成 AmountPlan；统一 apply/settle |
 | 2026-10-24 | v0.4.37 | 修正来源不全是 Buff：混乱/投入=检定帧贡献；Buff 只是来源之一 |
 | 2026-10-24 | v0.4.36 | §6：Modifier=数值修正；三域印刷/效果量/序列标量；统一来源·计算·寿命·apply |

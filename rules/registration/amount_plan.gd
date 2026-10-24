@@ -32,10 +32,6 @@ static func discover_single(location_id: StringName, amount: int = 1) -> AmountP
 	return _single(AhcEnums.ModifierPlanKind.DISCOVER, location_id, amount)
 
 
-static func horror_single(subject_id: StringName, amount: int = 1) -> AmountPlan:
-	return _single(AhcEnums.ModifierPlanKind.HORROR, subject_id, amount)
-
-
 static func _single(
 	kind: AhcEnums.ModifierPlanKind,
 	subject_id: StringName,
@@ -69,7 +65,5 @@ func pi_prompt_id() -> StringName:
 			return &"mod.attack_damage_leg"
 		AhcEnums.ModifierPlanKind.DISCOVER:
 			return &"mod.discover_leg"
-		AhcEnums.ModifierPlanKind.HORROR:
-			return &"mod.horror_leg"
 		_:
 			return &"mod.amount_plan_leg"
