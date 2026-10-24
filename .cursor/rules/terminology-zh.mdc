@@ -19,10 +19,11 @@ alwaysApply: true
 | Commit (skill) | **投入** / commit | skill 从 hand 投入检定；Grimoire：**不能**称 play |
 | **primitive** | **原语** | **能影响游戏的结算**；必须做事；dry-run 可 CREATED；查询不是原语 |
 | **state primitive** | **状态原语** | **物理**结算三类：① 区/序 ② 标记 ③ 形态（看得见） |
-| **information primitive** | **信息原语** | **不可见结算**总称：Register / 日志 / 记住 / 可知性…；对偶物理层 |
+| **information primitive** | **信息原语** | **不可见结算**：Register / 日志 / 记住…；对偶物理层；**不含**可见性 |
 | **Register** | **注册** | 信息原语结算动词：写入/卸下 `Registration`；**不是** Buff 本身 |
 | **Buff** | **Buff** | `Registration` 内载荷（MODIFIER / RESTRICTION / LISTENER）；查询非结算 |
-| **effect** | **效果** | 结算可 CREATED：物理状态原语 + 信息原语（含 Register） |
+| **FaceAudience / visibility** | **牌面可见性** | 权限/卡牌信息管理；**不是**原语；改可见性 **不算**结算 |
+| **effect** | **效果** | 结算可 CREATED：物理 + 信息原语；**不含**仅改 Audience |
 | **named flow** | **命名流程** | 规则书手续；`seq.*`；Catalog + 堆栈 + 时点。**不是**卡牌正文 |
 | **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |
 | **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
@@ -101,8 +102,8 @@ alwaysApply: true
 - **失败转嫁**（Fight fail redirect）在 **ST.7 `on_fail`** 内结算，先于 post-ST7 的反击/警戒。
 - **攻击（Fight action）** ≠ 敌人 **perform attack**（含借机攻击 / 反击 / 警戒 / 阶段攻击）。
 - **毁灭（Doom）** = doom 标记；≠「厄运」等非规范译法（对话/文档）。
-- **信息原语 = 不可见结算**（对偶物理层）：含 Register（延时/持续）、日志、记住、Audience…；**不是**「只有 FaceAudience」。见 07-primitives §0/§5.4。
-- **Reveal** 属信息原语 · Audience；物理 ③ 只管翻面/`exhausted`。地点/附着/`location_tag` = 物理派生，不是单立信息原语。
+- **信息原语 = 不可见结算**：Register / 日志 / 记住…；**可见性不是原语**（权限层）。见 07 §0/§5.4.1。
+- **改 FaceAudience 不算结算**；手续可附带同步权限。物理 ③ = 翻面/`exhausted`。
 - **命名流程 ≠ 原语**：`seq.*` 组合物理 + 不可见结算叶；能力订 `(seq, slot)`。
 - **进场（Enter play）不是效果**：广义移动（场外→场上）的结果信息。要听进场 → 听**广义移动**再过滤；`AT_ENTER_PLAY` / `ENTER_PLAY` 是过滤别名，不是第二套钩。不铸 `seq.effect.enter_play`。
 - **击败（Defeat）是效果**：Cancel 则无退场后续。伤/恐达生命/神智上限 = **常态检测**（同交战），Cancel 后条件仍在会再触；卡面击败被 Cancel 不自动重触。退场 = nest 广义移动（场上→场外），**不**内联进击败叶。

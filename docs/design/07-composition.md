@@ -13,7 +13,7 @@
 **英文（代码）**：`Composition` / `CompositionNode` / `CompositionExecutor` / `CompositionDryRunner`  
 **中文（文档）**：效果组合 / 组合节点
 
-**揭示（Reveal）卡牌** 经 **信息层** `reveal_to_*`（`FaceAudience`）写入 Domain，**参与** §4 dry-run **CREATED**，但 **不是**物理状态原语；形态翻面/横置见 [07-effect-primitives §5.3–§5.4](07-effect-primitives.md)、[01 §3.6](01-game-state-zones.md)。
+**牌面可见性**（`FaceAudience` / `reveal_to_*`）是 **权限/信息管理**，**不是**结算原语，**不**单独计 dry-run **CREATED**（[07 §5.4.1](07-effect-primitives.md)）。形态翻面/横置仍是物理 ③。
 
 ### 1.0 翻译硬门槛（DoD · 已裁决 2026-09-28）
 
@@ -357,9 +357,9 @@ seq.encounter.revelation          ← 信封：显现手续（有 When/After）
 | 类型 | 改什么 | 组合节点 | 是否效果 |
 |---|---|---|---|
 | **物理结算** | 桌面摆子 | **状态原语**三类：区/序·标记·形态 | **是** |
-| **不可见结算（信息原语）** | RegistrationStore / log·记忆 / Audience… | Register · Log · Remember · Audience… | **是** |
+| **不可见结算（信息原语）** | RegistrationStore / log·记忆 | Register · Log · Remember… | **是** |
 
-Grimoire **Reveal 卡牌** = 信息层 **`reveal_to_*`**（`FaceAudience`），**不是**物理状态原语 ③（③ = 翻面/横置）；命名流程 D2/E2 的 reveal 步 **是效果施加**。
+**可见性**（`FaceAudience`）**不是**上表第三行：权限同步，**不计** CREATED。D2/E2 的 reveal 步 = 手续内政策，不是效果叶。
 
 Cancel / Replacement、Draw、DealDamage 等 **不是** 第四类 CREATED 机制：前者是 L2 组合节点；后者是 **命名流程 / L3 宏** 展开。
 
@@ -565,9 +565,10 @@ tie     : nearest 等距 → 当前交互玩家 PICK_TARGET
 
 **有效性检测只关注「效果是否被创建」这一直接影响。**
 
-- **Register**：`RegistrationStore` 中 **成功插入一条 Registration** → 该节点 **CREATED**（**Buff 写入是效果**）
-- **物理 Atom**：`StateMutator` 成功 → **CREATED**（状态原语）
-- **Audience / Log / Remember**：对应库写入成功 → **CREATED**（信息原语）
+- **Register**：`RegistrationStore` 插入成功 → **CREATED**
+- **物理 Atom**：`StateMutator` 成功 → **CREATED**
+- **Log / Remember**：对应库写入成功 → **CREATED**
+- **Audience（`reveal_to_*`）**：**不计** CREATED（权限同步，非结算）
 - **Interrupt / Replace / ResolvePending**：pending 存在且操作成功 → **CREATED**
 
 **Presentation** 只 **读** Domain 揭示状态渲染 UI；**不** 单独维护「谁看到了什么」。

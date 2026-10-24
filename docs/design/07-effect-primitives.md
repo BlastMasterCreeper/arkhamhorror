@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.19 · 2026-10-24 — §5.4.2 Register（结算）↔ Buff（载荷）
+> **状态**：v0.3.20 · 2026-10-24 — 可见性 = 权限层，不进原语；不单独 CREATED
 
 ---
 
@@ -13,46 +13,43 @@
 > **原语 = 能对游戏造成影响的结算。** 关键是 **结算**——执行时 **必须做点什么**，dry-run 可标 **CREATED**。  
 > **不是原语**：只读查询、投影、缓存、Eligibility、场合信封、印刷 Spec、步间 `RulesMemory`——**不结算**。
 
-结算按「桌上能不能看见」分成两层（**对齐裁决**）：
+结算按「桌上能不能看见」分成两层；另有 **权限层** 管「谁可知牌面」（**不是**结算）：
 
-| 层 | 英文 | 说明 |
-|---|---|---|
-| **物理结算** | physical / state primitive | 桌面摆子：挪牌、传标记、翻面·横置 |
-| **不可见结算** | invisible settlement · **信息原语（广义）** | 桌上 **看不见** 但仍改局面：持续/延时效果、日志、记住、可知性… |
+| 层 | 英文 | 是结算？ | 说明 |
+|---|---|---|---|
+| **物理结算** | state primitive | **是** | 桌面摆子：挪牌、传标记、翻面·横置 |
+| **不可见结算** | information primitive | **是** | Register / Log / Remember…（看不见但仍改规则/记忆局面） |
+| **可见性 / 权限** | face audience · permission | **否** | 为游戏性服务的 **卡牌信息管理**（谁可知道牌面）；像玩家权限，不是效果叶 |
 
 ```text
 命名流程 seq.*
-  └─ RESOLVE ↓ 结算叶（必须做事）
+  └─ RESOLVE ↓ 结算叶（必须做事 · 可 CREATED）
 
-  ├─ 物理（看得见）
-  │    ①区/序  ②标记 Transfer  ③形态 Flip·Exhaust
-  │
-  └─ 不可见（看不见）＝ 信息原语（广义）
-       ├─ Register：创建/注销延时·持续 Buff（MODIFIER / RESTRICTION / LISTENER）
-       ├─ Log：剧本/战役日志写入
-       ├─ Remember：记住某事实（场景/战役记忆）
-       ├─ Audience：谁可知牌面（Reveal / hide）
-       └─ …（控制权、纯规则改图等，另裁）
+  ├─ 物理     ①区/序  ②标记  ③形态
+  └─ 不可见   Register · Log · Remember · …（控制权/拓扑另裁）
+
+并行（非结算）：
+  FaceAudience / known_to  ← 权限与信息管理；随手续/政策同步，本身不算结算
 ```
 
 | 术语 | 是否效果叶 | 说明 |
 |---|---|---|
-| **效果** | — | 结算可直接影响局面/规则；**CREATED** |
-| **状态原语** | **是** | **仅**物理三族 |
-| **信息原语** | **是** | **不可见结算**总称（含 Register / Log / Remember / Audience…） |
-| **Register** | **是** | 信息原语的一族：写 `RegistrationStore`；**不是**与信息原语并列的「第三叶」 |
-| **命名流程** | — | 组合两层结算叶 |
+| **效果 / 原语** | **是** | 结算且做事；dry-run **CREATED** |
+| **状态原语** | **是** | 仅物理三族 |
+| **信息原语** | **是** | 不可见结算（Register / Log / Remember…） |
+| **可见性（Audience）** | **否** | 权限/信息管理；**不**进原语表；**不**单独 CREATED |
+| **命名流程** | — | 组合结算叶；步内可 **附带** 同步可见性政策 |
 
-**曾误对齐**：把「信息原语」收成只有 `FaceAudience`，把 Register 拆成旁路第三叶——**作废**。Register / 记日志 / 记住 **就是**不可见结算的主体例子。
+**曾误对齐**：把 `FaceAudience` 当成信息原语主轴 / 与 Register 并列的结算叶——**作废**。可见性是权限层；不可见结算的主体是 Register / 日志 / 记住。
 
-**揭示 vs 翻面**：
+**揭示（纸面 Reveal）vs 翻面 vs 可见性**：
 
-| | **Reveal** | **Flip** |
-|---|---|---|
-| 层 | 信息原语 · Audience | 状态原语 ③ |
-| 写 | 谁可知 | 哪面朝上 |
+| | **纸面 Reveal 手续** | **Flip** | **FaceAudience** |
+|---|---|---|---|
+| 是什么 | 命名流程/卡面步（常伴翻面或入手） | 状态原语 ③ | 权限写入 |
+| 结算？ | 手续里的 **其它**结算才 CREATED | **是** | **否**（政策同步） |
 
-**地点「揭示」**：物理翻面 + 线索 Transfer 等组合；不要单造「地点旗」信息原语。
+**地点「揭示」**：物理翻面 + 线索等组合；可见性若变，仍是政策，不是地点旗原语。
 
 ### 0.1 规则参数字段（RuleParameter · 信息型卡面描述）
 
@@ -457,49 +454,55 @@ class AtomSetExhausted:
 
 ### 5.4 信息原语 = 不可见结算（**不是**状态原语）
 
-> **对齐（2026-10-24）**：信息原语指 **除开物理层以外的结算**——桌上 **看不见** 但仍做事的那些。  
-> **包括**：延时/持续效果的创建与注销、剧本日志记录、记住某事、可知性变更…  
-> **不是**：把信息原语收成「只有 FaceAudience」，再把 Register 拆成旁路第三叶。
+> **对齐**：除开物理层以外、**仍算结算**的那些——Register / Log / Remember…  
+> **可见性不在此列**（见 §5.4.1）。
 
-dry-run **CREATED**；**不是** Timing 订阅面（订阅仍挂 `seq.*`）。
+dry-run **CREATED**；**不是** Timing 订阅面。
 
-#### 5.4.0 族谱（不可见结算包括哪些）
+#### 5.4.0 族谱（不可见结算）
 
 | 族 | 写哪里 | 典型 | 状态 |
 |---|---|---|---|
-| **A. Register（延时 / 持续）** | `RegistrationStore` | lasting、Gain、blank、Cannot、LISTENER；`seq.effect.register` / `unregister` | **已有**（[06](06-registration-buff-model.md)） |
-| **B. Log（剧本 / 战役日志）** | Campaign / scenario log | 「在日志中记录…」 | **应有**；跨局库 |
-| **C. Remember（记住）** | 场景/战役记忆库 | 「记住…」「若你记得…」 | **应有**；≠ 步间 `RulesMemory` |
-| **D. Audience（可知性）** | `FaceAudience` / `known_to` | Reveal、窥探、hide、隐私对控制者 | **已有** |
-| **E. 控制 / 归属** | `controller_id` / `owner_id` | 获得控制（无区 Move 时） | 候选 |
-| **F. 纯规则拓扑** | 连接图 | 无标记表达的锁门/连边 | 候选 |
+| **A. Register** | `RegistrationStore` | lasting、Gain、blank、Cannot、LISTENER | **已有**（[06](06-registration-buff-model.md)） |
+| **B. Log** | Campaign / scenario log | 「在日志中记录…」 | **应有** |
+| **C. Remember** | 场景/战役记忆库 | 「记住…」「若你记得…」 | **应有**；≠ `RulesMemory` |
+| **E. 控制 / 归属** | `controller_id` / `owner_id` | 获得控制（无区 Move） | 候选 |
+| **F. 纯规则拓扑** | 连接图 | 无标记的锁门/连边 | 候选 |
 
-**明确不是本层**（物理或非结算）：
+**明确不是结算**（含曾误列入的 Audience）：
 
 | 排除 | 归哪 |
 |---|---|
-| 区/序 · 标记 · 翻面·横置 · Seal/Uses 标记 | **物理** |
-| 地点 revealed / 交战 / 附着 / `location_tag` | 物理或咽喉 **派生** |
-| `RulesMemory`、场合信封 | 手续草稿，**非**局面效果叶 |
-| Prey / Spawn Spec、印刷目录 | 规则参数 / 只读 |
-| `effective_*` 查询 | 厚读；**创建** Gain/blank 仍是 **A** |
+| **FaceAudience / 可知性** | **权限层** §5.4.1；非原语 |
+| 区/序 · 标记 · 翻面·横置 | **物理** |
+| 地点 revealed / 交战 / 附着 | 物理或派生 |
+| `RulesMemory`、场合、印刷 Spec | 草稿 / 只读 |
+| `effective_*` 查询 | 厚读；创建 Gain/blank = **A** |
 
-#### 5.4.1 Audience 族 · `InfoSetAudience`（D）
+#### 5.4.1 可见性 = 权限 / 卡牌信息管理（**不是原语**）
 
-```gdscript
-class InfoSetAudience:
-    var card_id: StringName
-    var audience: FaceAudience       # CONTROLLER | ALL | HIDDEN_ALL
-    ## 可选：known_to: Array[StringName]
+> **裁决（2026-10-24）**：牌面可见性是为游戏性服务的 **玩家权限式信息管理**，**不是**结算原语。  
+> 某些结算或命名流程步会 **自动同步** 可见性；**改变可见性本身不算一种结算**，dry-run **不**因仅改 Audience 而标 **CREATED**。
+
+```text
+结算 / 手续步（CREATED 看这些）
+  Move 入手 · 进弃牌 · Search 取牌 · Register · …
+        │
+        ▼ 可附带（政策，非效果叶）
+  FaceAudience / known_to   ← 谁被允许知道这张牌的牌面
 ```
 
-| 操作 | audience | 场景 |
-|---|---|---|
-| `reveal_to_controller` | CONTROLLER | D2；隐私对控制者 |
-| `reveal_to_all` | ALL | E2 公开 |
-| `hide_from_all` | HIDDEN_ALL | Search 结束；收回窥探 |
+| 问题 | 答 |
+|---|---|
+| 可见性纳入原语吗？ | **否** |
+| 改可见性算结算吗？ | **否**；是权限同步 |
+| 为何还有 `reveal_to_*` API？ | 手续/政策入口（D2/E2、窥探、Search 结束 hide）；**写权限**，不冒充效果叶 |
+| 纸面「Reveal the top card」？ | 常是 **手续步**（或伴物理翻面）；有意义的 CREATED 来自其后的取/弃/检定等，或根本无 CREATED |
+| Cancel revelation？ | Cancel 的是 **显现能力体**（Composition 效果），不是「取消 Audience 写入」；G4 仍 discard（FAQ） |
 
-与物理翻面 **正交**。本族 **不改** zone / face / exhausted。
+与物理翻面 **正交**：面朝下仍可对控制者可知（隐私）；翻面是形态结算，Audience 是权限。
+
+实现可保留 `InformationExecutor.reveal_to_*` / `hide_from_all` 作为 **政策写入**；Composition 若仍有 reveal 节点，标注为 **权限同步**，L7 **不计** CREATED。
 
 #### 5.4.2 Register 族（A）· 与 Buff 的关系
 
@@ -743,6 +746,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.20 | §0/§5.4.1：FaceAudience = 权限/信息管理，非结算原语；不单独 CREATED |
 | 2026-10-24 | v0.3.19 | §5.4.2：Register = 结算动词；Buff = Registration 载荷（非第二套原语） |
 | 2026-10-24 | v0.3.18 | §0/§5.4：信息原语 = 不可见结算；含 Register·Log·Remember·Audience；废「只有 Audience + Register 旁路」 |
 | 2026-10-24 | v0.3.17 | §5.4.0：信息原语盘点（后由 v0.3.18 改对齐） |
