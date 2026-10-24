@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.35 · 2026-10-24 — MOD-Q-SHROUD：调查难度经 ModifierEngine
+> **状态**：v0.4.36 · 2026-10-24 — §6 Modifier 统一三域（印刷/效果量/序列标量）
 
 ---
 
@@ -796,19 +796,102 @@ Asset 印刷 *Forced – After you fight: draw 1* / *After you fight, draw 1*（
 
 ---
 
-## 6. MODIFIER
+## 6. MODIFIER（数值修正 · 统一模型 · 已对齐）
 
-在 **ModifierQuery** 时改数值（技能、shroud、伤害量、cost…）。Constant 与 Lasting **相同 Payload**，仅 Lifetime 不同。
+> **定义**：Modifier = 对 **某个数值** 的修正。数值广泛存在；**不要**为每类数值各造一套引擎。  
+> **实现面**：同一 `ModifierEngine` + `ModifierPayload` + `ModifierQuery`；差在 **数值域 / 值键 / 应用模式 / 查询站何时调用**。
 
-```gdscript
-class ModifierPayload:
-    var stat: StatRef
-    var op: ModOp
-    var value: int
-    var stacking: StackingGroup
+### 6.1 三数值域（ValueRealm）
+
+| 域 | 是什么 | 例子 | 典型消费时机 |
+|---|---|---|---|
+| **A. 印刷/特征量** | 卡面或实体上的印刷（及 gained）数值的 **有效读** | 玩家牌费用；地点 **隐藏值（shroud）**；调查员/支援生命·神智；调查员技能；敌人攻击/生命/躲避… | 读 effective 时 / 发起前算 cost / 建检定难度前读 shroud |
+| **B. 效果量** | 即将 **结算** 的效果数量（可进 Plan） | 造成/治愈伤害·恐惧；发现/放置线索；获得/失去资源… | 效果 Plan 明确后、落点前 |
+| **C. 序列标量** | **不是**效果结算，但是命名流程步上的比较/中间量 | **检定难度**；**检定技能值**（仅 ST 比较用）；**混乱标记**对本次检定的修正 | 命名流程砖内（如 ST.5 / 设 difficulty） |
+
+**勿混**：
+
+| | **印刷技能修正**（域 A） | **检定技能值**（域 C） |
+|---|---|---|
+| 含义 | 「你的战斗 +1」等，改实体有效技能 | 本次检定拿去 **和难度比较** 的那个数 |
+| 组成 | 印刷 ∪ gained − blank 上的 MODIFIER | 常 = 有效技能 + 投入图标 + **序列修正**（含混乱） |
+| 混乱标记 | **不**改域 A 印刷技能 | **属于**域 C（本次比较值或难度，按标记） |
+
+### 6.2 统一构件（来源 · 载荷 · 查询 · 计算 · 寿命）
+
+```text
+来源 Source
+  ├─ Registration（MODIFIER Buff · 常）← seq.effect.register
+  ├─ Constant 能力（同 Payload，lifetime=WHILE_IN_PLAY）
+  └─ 短暂序列贡献（混乱标记、部分「本次检定」）→ 挂在 SkillTestContext / 等价帧，仍走同一 compute 规则
+
+载荷 ModifierPayload（行为 Buff 族之一）
+  value_key   StatRef / ValueKey     # 改哪个数
+  realm       可由 key 推导或显式
+  op/value    ADD|SUB|MUL|DOUBLE|HALVE…
+  match       condition / 标签 / 技能维
+  apply_mode  SCALAR | CONSUME_CHOOSE_ONE_LEG
+  plan_kind   NONE | ATTACK_DAMAGE | DISCOVER | HORROR | …（仅效果量多腿）
+
+查询 ModifierQuery
+  value_key + controller/subject + 上下文
+  （test_id · location_id · skill · plan 宿主…）
+
+引擎 ModifierEngine（唯一）
+  compute(base, query)            → 标量（域 A / 域 C / 单点效果量）
+  apply_to_amount_plan(plan, …) → 域 B 多腿：消费式选一 + 必要时 PI
+
+寿命
+  一律 Registration.lifetime（或 Constant 壳 / 检定帧）
+  不按 value_key 另造生命周期系统
 ```
 
-叠加：加算/减算 → 乘除 → ceil → 下限 0（Grimoire Modifiers）。
+**叠加律（Grimoire · 全域共用）**：加算/减算 → 乘除 → ceil → 下限 0。
+
+**创建**：卡面/能力经 `seq.effect.register`；**禁止**真空改 Store。dry-run：Register 成功 → CREATED。
+
+### 6.3 应用模式（与域的关系）
+
+| apply_mode | 用于 | 行为 |
+|---|---|---|
+| **SCALAR** | 域 A 读值；域 C 序列量；单点效果量 | `compute(base, query)` |
+| **CONSUME_CHOOSE_ONE_LEG** | 域 B 且 Plan 多腿（伤/恐/发现…） | 每条修正选 **一条** leg；多候选 PI；禁对每腿广播 |
+
+域 B 单腿 ⇒ 无 PI，等价于对该 leg 做一次 SCALAR 加算。
+
+### 6.4 值键增长规则
+
+新增一种可修正数值时：
+
+1. 归入域 A / B / C（上表）。  
+2. 增加 **一个** `value_key`（或复用已有 Plan kind），**不要**新 Engine。  
+3. 在 **有限查询站**（§16.3）挂一次 `compute` / `apply_to_amount_plan`。  
+4. 多目标效果量 → AmountPlan + `CONSUME_CHOOSE_ONE_LEG`（§16.3.2）。
+
+```gdscript
+## 示意 · 与实现 StatRef 对齐并扩展
+enum ValueRealm { PRINTED, EFFECT_AMOUNT, SEQUENCE_SCALAR }
+
+## 域 A 例：CARD_COST, SHROUD, HEALTH, SANITY, SKILL_*, ENEMY_FIGHT, ENEMY_EVADE…
+## 域 B 例：plan_kind ATTACK_DAMAGE | DISCOVER | HORROR | HEAL_* | RESOURCE_GAIN…
+## 域 C 例：ST_DIFFICULTY, ST_SKILL_VALUE（比较用；含混乱贡献）
+```
+
+### 6.5 与现实现对照（迁移方向）
+
+| 已有 | 域 | 备注 |
+|---|---|---|
+| `SKILL_*` / `SKILL_ANY` @ ST.5 | A→参与 C 组装 | 印刷维修正；ST.5 读有效技能后再加投入/混乱 |
+| `SHROUD` @ Investigate | A | 读地点隐藏值 |
+| `INITIATION_*_COST` | A | 费用 |
+| `RESOURCE_GAIN_AMOUNT` | B | 单点效果量 |
+| `AttackDamagePlan` / `DiscoverPlan` | B | 消费式多腿 |
+| `chaos_modifier` on test ctx | C | 应视为序列贡献，与 Store 修正同一叠加律 |
+| `HORROR` Plan | B | **待** · 与伤害同构 |
+
+**目标态 ST.5**：`ST_SKILL_VALUE = compute/assemble(有效技能, 投入, 域 C 修正含混乱)`；难度侧可 `ST_DIFFICULTY` 与域 A shroud 读分离（调查：先 A 读 shroud，再可叠加 C 的「本次难度」）。
+
+详查询站与 Plan：§16.3。
 
 ---
 
@@ -1066,18 +1149,29 @@ Grimoire 条文 / 卡面效果
 
 ### 16.3 MODIFIER · 查询站清单
 
-**模式（标量）**：Register MODIFIER → 站点 `ModifierEngine.compute(base, query, app_ctx)`。  
-**模式（攻击伤害 / 发现线索）**：**不要**只靠单一全局 `DAMAGE_AMOUNT` / `DISCOVER_AMOUNT`——基础 Fight/Investigate 的效果可被卡面 **替换**；修正挂在 **效果计划（Plan）** 上，适配多目标。见 §16.3.1–§16.3.2。
+> **总纲**见 [§6](#6-modifier数值修正--统一模型--已对齐)：Modifier = 对数值的修正；三域（印刷量 / 效果量 / 序列标量）；**一个** Engine；查询站只决定 **何时** 调用。
 
-| 查询站 ID | 何时调用 | 键 | 状态 |
-|---|---|---|---|
-| **MOD-Q-SKILL** | 检定 ST.5 | `SKILL_*` **或** `SKILL_ANY`（无类型，似 wild） | **已实现**（`ModifierEngine` + ST.5） |
-| **MOD-Q-GAIN-RES** | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
-| **MOD-Q-COST** | Initiation 付费前 | resource/action cost | **已实现**（enum 名略异） |
-| **MOD-Q-SHROUD** | 调查算 difficulty | `SHROUD` | **已实现**（基础 Investigate） |
-| **MOD-Q-ATTACK-DAMAGE** | 攻击成功后、伤害落点前 | §16.3.2 **AttackDamagePlan** | **已实现**（基础 Fight；多 leg PI） |
-| **MOD-Q-DISCOVER** | 调查成功后、发现落点前 | §16.3.2 **DiscoverPlan** | **已实现**（基础 Investigate；多 leg PI） |
-| **MOD-Q-HORROR-AMT** | 造成恐惧量（若走 Plan 则同构） | Plan 或 `HORROR_AMOUNT` | 待 |
+**模式**：
+
+| 模式 | API | 域 |
+|---|---|---|
+| 标量 | `ModifierEngine.compute(base, query)` | A 读值 · C 序列量 · B 单点 |
+| 效果 Plan | `apply_*_plan` / 统一 `apply_to_amount_plan` | B 多腿 · `CONSUME_CHOOSE_ONE_LEG` + PI |
+
+**禁止**：每类数值新 Engine；扁全球 `DAMAGE_AMOUNT` 冒充「本次攻击」；多腿效果量对每腿广播。
+
+| 查询站 ID | 域 | 何时调用 | 键 | 状态 |
+|---|---|---|---|---|
+| **MOD-Q-SKILL** | A（喂 C） | 检定 ST.5 组装比较值 | `SKILL_*` / `SKILL_ANY` | **已实现** |
+| **MOD-Q-ST-SKILL** | C | ST.5 比较用技能值（含混乱等序列贡献） | `ST_SKILL_VALUE` | 部分（混乱仍在 ctx；待收编） |
+| **MOD-Q-ST-DIFF** | C | 设/改本次检定难度 | `ST_DIFFICULTY` | 待（与 shroud 读分离） |
+| **MOD-Q-SHROUD** | A | 读地点隐藏值（常作调查难度底座） | `SHROUD` | **已实现** |
+| **MOD-Q-COST** | A | Initiation 付费前 | resource/action cost | **已实现** |
+| **MOD-Q-GAIN-RES** | B | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
+| **MOD-Q-ATTACK-DAMAGE** | B | 攻击成功后、伤害落点前 | **AttackDamagePlan** | **已实现** |
+| **MOD-Q-DISCOVER** | B | 调查成功后、发现落点前 | **DiscoverPlan** | **已实现** |
+| **MOD-Q-HORROR-AMT** | B | 造成恐惧量落点前 | HorrorPlan（与伤同构） | 待 |
+| **MOD-Q-PRINTED-*** | A | 生命/神智/敌 fight·evade·health… | 对应 value_key | 待按卡增量 |
 
 #### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
 
@@ -1160,7 +1254,8 @@ class DiscoverPlan:
 **禁止**：`PER_EACH_LEG` 广播量修正；扁平全局 `DAMAGE_AMOUNT` 冒充「本次攻击」。  
 **Register 侧**：payload 标 `plan_kind: ATTACK_DAMAGE | DISCOVER`，`apply: CONSUME_CHOOSE_ONE_LEG`（默认）。
 
-**落地进度**：① `SKILL_ANY` ✅；② AttackDamagePlan ✅；③ DiscoverPlan ✅；④ `SHROUD` ✅；⑤ `HORROR-AMT` 待。
+**落地进度（站）**：SKILL / SHROUD / COST / GAIN-RES / Attack / Discover ✅；Horror Plan · ST 序列键收编 · 印刷量全表 待。  
+**架构**：§6 统一三域；竖切站继续挂同一 Engine，禁止分叉。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1370,6 +1465,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.36 | §6：Modifier=数值修正；三域印刷/效果量/序列标量；统一来源·计算·寿命·apply |
 | 2026-10-24 | v0.4.35 | MOD-Q-SHROUD：StatRef.SHROUD + 基础 Investigate 算难度 |
 | 2026-10-24 | v0.4.34 | DiscoverPlan 接线 Investigate；消费式发现修正 + PI；zero amount 不结算 |
 | 2026-10-24 | v0.4.33 | MODIFIER 落地：SKILL_ANY；AttackDamagePlan 消费式+PI；基础 Fight 接线 |
