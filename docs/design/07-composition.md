@@ -8,7 +8,7 @@
 
 ## 1. 目标
 
-定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**状态原语** + **信息原语**（可见性等）+ **Register**，或指向已铸造 `seq.effect.*`）；枝干是顺序 / 同时 / 条件。运行时 **只能** 在某条已压栈命名流程的 RESOLVE 砖内 `execute`（**禁止真空**）。玩家选择走 Gate，不进「内联/nest」二分。
+定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**物理状态原语** + **信息原语 / 不可见结算**（Register · 日志 · 记住 · Audience…），或指向已铸造 `seq.effect.*`）；枝干是顺序 / 同时 / 条件。运行时 **只能** 在某条已压栈命名流程的 RESOLVE 砖内 `execute`（**禁止真空**）。玩家选择走 Gate，不进「内联/nest」二分。
 
 **英文（代码）**：`Composition` / `CompositionNode` / `CompositionExecutor` / `CompositionDryRunner`  
 **中文（文档）**：效果组合 / 组合节点
@@ -47,7 +47,7 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 
 ### 1.2 与命名流程对照
 
-两边最后都落到 **三类效果叶**（状态原语 + 信息原语 + Register）。差别在 **管什么**，不是两套互不相干的写入引擎。
+两边最后都落到 **两层结算叶**（物理状态原语 + 信息原语/不可见结算，含 Register）。差别在 **管什么**，不是两套互不相干的写入引擎。
 
 | | **命名流程（named flow / `seq.*`）** | **效果组合（Composition）** |
 |---|---|---|
@@ -357,7 +357,7 @@ seq.encounter.revelation          ← 信封：显现手续（有 When/After）
 | 类型 | 改什么 | 组合节点 | 是否效果 |
 |---|---|---|---|
 | **状态变更（物理）** | 物理层 / 镜像 | **状态原语**三类：区/序·标记·形态 | **是** |
-| **信息原语** | Domain | 可见性·离散旗·引用（**非**状态原语） | **是** |
+| **信息原语** | Domain / RegistrationStore / log·记忆库 | 不可见结算：Register · 日志 · 记住 · Audience…（**非**状态原语） | **是** |
 | **规则变更** | `RegistrationStore`（Buff） | L2 **Register** / **Unregister** | **是** |
 
 Grimoire **Reveal 卡牌** = 信息层 **`reveal_to_*`**（`FaceAudience`），**不是**物理状态原语 ③（③ = 翻面/横置）；命名流程 D2/E2 的 reveal 步 **是效果施加**。

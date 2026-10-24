@@ -2,50 +2,57 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.17 · 2026-10-24 — §5.4.0 信息原语盘点（①确定；②③④候选）
+> **状态**：v0.3.18 · 2026-10-24 — 信息原语 = 不可见结算（含 Register / Log / Remember / Audience）
 
 ---
 
-## 0. 术语：效果 · 原语 · 信息层（已裁决 2026-10-24）
+## 0. 术语：效果 · 原语 · 两层结算（已裁决 2026-10-24）
 
 ### 0.0 什么是「原语」（总判据）
 
-> **原语 = 能对游戏造成影响的结算。** 关键是 **结算（resolve）**——执行时 **必须做点什么**（写入局面 / Register），dry-run 可标 **CREATED**。  
-> **不是原语**：只读查询、投影、缓存、Eligibility 筛、场合信封、印刷目录解析——这些可以很厚，但 **不结算、不改局面**。
+> **原语 = 能对游戏造成影响的结算。** 关键是 **结算**——执行时 **必须做点什么**，dry-run 可标 **CREATED**。  
+> **不是原语**：只读查询、投影、缓存、Eligibility、场合信封、印刷 Spec、步间 `RulesMemory`——**不结算**。
 
-| 术语 | 英文 | 是否效果叶 | 说明 |
-|---|---|---|---|
-| **效果** | effect | — | 结算可对规则/局面产生直接影响；dry-run **CREATED** |
-| **原语** | primitive | **是**（叶） | 最小结算单位；**必须做事** |
-| **状态原语** | state primitive | **是** | 物理层结算：①区/序 ②标记 ③形态 |
-| **信息原语** | information primitive | **是** | 信息层结算：改「谁可知」等桌上读不回的知识（主轴 `FaceAudience`） |
-| **Register** | Register (Buff) | **是** | 结算写入 `RegistrationStore` |
-| **命名流程** | named flow / `seq.*` | — | **组合**上述结算叶；本身不是叶子 |
+结算按「桌上能不能看见」分成两层（**对齐裁决**）：
+
+| 层 | 英文 | 说明 |
+|---|---|---|
+| **物理结算** | physical / state primitive | 桌面摆子：挪牌、传标记、翻面·横置 |
+| **不可见结算** | invisible settlement · **信息原语（广义）** | 桌上 **看不见** 但仍改局面：持续/延时效果、日志、记住、可知性… |
 
 ```text
-命名流程 seq.*（手续 / 可听种类）
-  └─ RESOLVE 内 ↓ 结算叶（原语或 Register）——必须做事
+命名流程 seq.*
+  └─ RESOLVE ↓ 结算叶（必须做事）
 
-  ├─ 状态原语（物理结算）  Move / Transfer / Flip·Exhaust
-  ├─ 信息原语（知识结算）  Reveal audience …
-  └─ Register               创建/注销 Buff
-
-信息层（框架）可以厚，但厚的是读与推理：
-  直读/投影 · effective(印刷∪Gain−blank) · Eligibility · 场合 · RulesMemory
-这些 ≠ 原语（不结算）。
+  ├─ 物理（看得见）
+  │    ①区/序  ②标记 Transfer  ③形态 Flip·Exhaust
+  │
+  └─ 不可见（看不见）＝ 信息原语（广义）
+       ├─ Register：创建/注销延时·持续 Buff（MODIFIER / RESTRICTION / LISTENER）
+       ├─ Log：剧本/战役日志写入
+       ├─ Remember：记住某事实（场景/战役记忆）
+       ├─ Audience：谁可知牌面（Reveal / hide）
+       └─ …（控制权、纯规则改图等，另裁）
 ```
 
-**Register 是效果**：创建成功即 **CREATED**（[06](06-registration-buff-model.md)、[07-composition §4.1](07-composition.md)）。
-
-**揭示 vs 翻面**（都是结算，落不同原语）：
-
-| | **Reveal（揭示）** | **Flip（翻面）** |
+| 术语 | 是否效果叶 | 说明 |
 |---|---|---|
-| 哪类原语 | **信息原语** | **状态原语 ③** |
-| 做什么 | 写 `FaceAudience`（谁可知） | 写 `CardFace`（哪面朝上） |
-| 关系 | 正交；面朝下仍可有可知信息 |
+| **效果** | — | 结算可直接影响局面/规则；**CREATED** |
+| **状态原语** | **是** | **仅**物理三族 |
+| **信息原语** | **是** | **不可见结算**总称（含 Register / Log / Remember / Audience…） |
+| **Register** | **是** | 信息原语的一族：写 `RegistrationStore`；**不是**与信息原语并列的「第三叶」 |
+| **命名流程** | — | 组合两层结算叶 |
 
-**地点「揭示」**：命名流程组合——形态翻面 / 线索 Transfer / 派生索引；**不要**再造「信息原语·地点旗」。
+**曾误对齐**：把「信息原语」收成只有 `FaceAudience`，把 Register 拆成旁路第三叶——**作废**。Register / 记日志 / 记住 **就是**不可见结算的主体例子。
+
+**揭示 vs 翻面**：
+
+| | **Reveal** | **Flip** |
+|---|---|---|
+| 层 | 信息原语 · Audience | 状态原语 ③ |
+| 写 | 谁可知 | 哪面朝上 |
+
+**地点「揭示」**：物理翻面 + 线索 Transfer 等组合；不要单造「地点旗」信息原语。
 
 ### 0.1 规则参数字段（RuleParameter · 信息型卡面描述）
 
@@ -177,23 +184,19 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 ## 1. 目标
 
-定义规则引擎 **唯一可执行** 的 **状态原语（state primitive）**——**仅物理层**桌面实体变更。Grimoire 上的局面变更，在 **Composition / 命名流程** 内必须 **归约** 为：
+定义规则引擎可执行的 **结算叶**。Grimoire 局面变更在 **Composition / 命名流程** 内归约为：
 
-1. **状态原语**（物理）的有序/并行组合；
-2. **信息原语**（知识 / 可见性——桌上读不回；**不是**状态原语）；
-3. **Register**（Buff）；
-4. 外加命名流程 / Wrapper 组合（派生索引随物理维护，见 §5.4）。
+1. **状态原语**（物理，看得见）；
+2. **信息原语**（不可见结算：Register · Log · Remember · Audience…）；
+3. 外加命名流程 / Wrapper（派生索引随物理维护，见 §5.4）。
 
-**卡牌揭示** = 信息原语（`FaceAudience`）；翻面另调物理 ③。  
-**禁止**原语叶子当 Timing 订阅面。
-
-**卡牌脚本与 YAML 不得直接调用** `GameStateStore` / `PhysicalOps` 可变 API。
+**禁止**原语叶子当 Timing 订阅面。卡牌脚本与 YAML **不得**直接调 `GameStateStore` / `PhysicalOps` 可变 API。
 
 ---
 
 ## 2. 核心命题
 
-> 复杂效果 = **状态原语** + **信息原语（薄）** + **Register**，经命名流程组合；地点等指称优先读物理 / 派生索引。
+> 复杂效果 = **物理结算** + **不可见结算（信息原语）**，经命名流程组合。
 
 「标记」包含：
 
@@ -209,7 +212,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 | 层 | 名称 | 职责 | 示例 |
 |---|---|---|---|
 | **物理原语** | `PhysicalOps` / `StateMutator` | **状态原语**三类 | `move_card`, `transfer_marker`, `set_face`, `set_exhausted` |
-| **信息原语** | `InformationExecutor` | 知识写入（薄） | `reveal_to_*`, `hide_from_all` |
+| **信息原语** | Register / Log·Remember / `InformationExecutor` | **不可见结算**各族 | `seq.effect.register`；log；remember；`reveal_to_*` |
 | **派生索引** | Domain 缓存 | 随物理维护；非原语 | `location_tag`, threat 成员, `attached_to` |
 | **命名流程** | `SequenceCatalog` + 堆栈 | 组合效果叶 | `seq.effect.take_horror`, `seq.enter_hand` |
 | **L1** | Composition | 原语 + Register 树 | Then draw + horror |
@@ -452,43 +455,42 @@ class AtomSetExhausted:
 
 ---
 
-### 5.4 信息原语（知识结算 · **不是**状态原语）
+### 5.4 信息原语 = 不可见结算（**不是**状态原语）
 
-> **总判据（§0.0）**：原语必须是 **结算** 且 **做事**。  
-> **信息原语** = 结算叶子，且写入的是 **非物理、非 Register** 的局面知识（桌上摆子读不回 / 不进 Buff 库）。  
-> dry-run **CREATED**；**不是** Timing 订阅面。
+> **对齐（2026-10-24）**：信息原语指 **除开物理层以外的结算**——桌上 **看不见** 但仍做事的那些。  
+> **包括**：延时/持续效果的创建与注销、剧本日志记录、记住某事、可知性变更…  
+> **不是**：把信息原语收成「只有 FaceAudience」，再把 Register 拆成旁路第三叶。
 
-#### 5.4.0 能包括哪些（盘点 · 2026-10-24）
+dry-run **CREATED**；**不是** Timing 订阅面（订阅仍挂 `seq.*`）。
 
-筛法三问（全过才进信息原语）：
+#### 5.4.0 族谱（不可见结算包括哪些）
 
-1. **结算吗？** 执行时改局面；不是查询 / Eligibility / 印刷 Spec。  
-2. **物理层做不到吗？** 不是区/序、标记 Transfer、翻面·横置。  
-3. **不是 Register 吗？** Gain / blank / Cannot / lasting / LISTENER 走 Buff。
-
-| 族 | 判 | 写入什么 | 说明 |
+| 族 | 写哪里 | 典型 | 状态 |
 |---|---|---|---|
-| **① 可知性（Audience）** | **是** | `FaceAudience` / `known_to` | Grimoire Reveal、窥探、Search 结束 hide、隐私对控制者 |
-| **② 控制 / 归属** | **候选** | `controller_id` / `owner_id` | 「获得控制」等；常非区变迁。若一律跟区属主走则降为派生，不单立 |
-| **③ 图拓扑** | **候选** | 连接边增删/封锁 | 锁门、临时连边。若用标记/翻地点表达 → 物理；纯规则改图 → 信息 |
-| **④ 战役 / 场景笔记** | **另库候选** | Campaign log / scenario flags | 结算且做事，但是跨局/场景库，不宜塞进牌面 Audience |
-| **隐私 `is_hidden`** | **否（并入）** | — | 关键词效果 = Register RESTRICTION；可知性 = ①；Domain 布尔若保留 = 咽喉派生，不单立原语 |
-| **Seal / Uses / 线索·伤恐** | **否** | — | 混乱标记/用途标记 = 物理 Transfer（或 chaos 区 Move） |
-| **blank / Gain 词条** | **否** | — | Register |
-| **地点 revealed / 交战 / 附着 / location_tag** | **否** | — | 物理或咽喉派生索引 |
-| **RulesMemory / 场合信封** | **否** | — | 手续草稿，非局面效果叶 |
-| **Prey / Spawn Spec** | **否** | — | 规则参数（§0.1），不结算 |
-| **淘汰 `eliminated`** | **否（组合）** | — | 命名流程：退场 Move + 创伤等；旗若保留 = 流程结果索引，不单立信息原语 |
+| **A. Register（延时 / 持续）** | `RegistrationStore` | lasting、Gain、blank、Cannot、LISTENER；`seq.effect.register` / `unregister` | **已有**（[06](06-registration-buff-model.md)） |
+| **B. Log（剧本 / 战役日志）** | Campaign / scenario log | 「在日志中记录…」 | **应有**；跨局库 |
+| **C. Remember（记住）** | 场景/战役记忆库 | 「记住…」「若你记得…」 | **应有**；≠ 步间 `RulesMemory` |
+| **D. Audience（可知性）** | `FaceAudience` / `known_to` | Reveal、窥探、hide、隐私对控制者 | **已有** |
+| **E. 控制 / 归属** | `controller_id` / `owner_id` | 获得控制（无区 Move 时） | 候选 |
+| **F. 纯规则拓扑** | 连接图 | 无标记表达的锁门/连边 | 候选 |
 
-**当前落地（实现）**：只保证 **①**。②③④ 待裁决后再加原子；未裁决前禁止用散落 `SetFlag`/`SetRef` 冒充。
+**明确不是本层**（物理或非结算）：
 
-#### 5.4.1 主轴 · `InfoSetAudience`（①）
+| 排除 | 归哪 |
+|---|---|
+| 区/序 · 标记 · 翻面·横置 · Seal/Uses 标记 | **物理** |
+| 地点 revealed / 交战 / 附着 / `location_tag` | 物理或咽喉 **派生** |
+| `RulesMemory`、场合信封 | 手续草稿，**非**局面效果叶 |
+| Prey / Spawn Spec、印刷目录 | 规则参数 / 只读 |
+| `effective_*` 查询 | 厚读；**创建** Gain/blank 仍是 **A** |
+
+#### 5.4.1 Audience 族 · `InfoSetAudience`（D）
 
 ```gdscript
 class InfoSetAudience:
     var card_id: StringName
     var audience: FaceAudience       # CONTROLLER | ALL | HIDDEN_ALL
-    ## 可选扩展：known_to: Array[StringName]  # 非常规「仅这些观察者」
+    ## 可选：known_to: Array[StringName]
 ```
 
 | 操作 | audience | 场景 |
@@ -497,9 +499,21 @@ class InfoSetAudience:
 | `reveal_to_all` | ALL | E2 公开 |
 | `hide_from_all` | HIDDEN_ALL | Search 结束；收回窥探 |
 
-与物理翻面 **正交**：面朝下仍可有可知信息。Reveal 手续可 **另** 调 `AtomFlipCard`；本原语 **不改 zone / face / exhausted**。
+与物理翻面 **正交**。本族 **不改** zone / face / exhausted。
 
-同族扩展：更细 `known_to`；**禁止**借扩展把地点/附着/交战塞回来。
+#### 5.4.2 Register 族（A）· 简述
+
+创建/注销 Buff = **信息原语**，经 `seq.effect.register` / `unregister` 落地；禁止解释器真空 `RegistrationStore.register`。详 [06](06-registration-buff-model.md)、[20 §4.1](20-card-translation-schema.md)。
+
+#### 5.4.3 Log / Remember 族（B·C）· 方向
+
+| | **Log** | **Remember** |
+|---|---|---|
+| 纸面 | 写入战役/剧本日志条目 | 「记住 X」；后文「若记得 X」 |
+| 存储 | 持久 log store | 场景或战役记忆键值 |
+| ≠ | 事件回放 / UI 聊天记录 | `RulesMemory`（单次手续草稿） |
+
+具体原子形状另裁；原则：**都是不可见结算叶**，可进 Composition / 命名流程 RESOLVE。
 
 #### 派生索引 vs 直读（策略裁决）
 
@@ -539,14 +553,14 @@ effective(card) =
 
 检定 commit、连接图、关键词开火等：**只问 `effective_*`**，禁止手续直接假定「等于印刷」。
 
-#### 信息层可以厚 ≠ 信息原语要堆多
+#### 厚读 ≠ 不可见结算
 
-| 厚（不结算 · 非原语） | 结算叶（原语 / Register） |
+| 厚（不结算） | 不可见结算叶（信息原语） |
 |---|---|
-| 直读投影、索引、Eligibility、场合、`RulesMemory` | 信息原语：改 `FaceAudience`… |
-| `effective_*`（印刷 ∪ Gain − blank）**查询** | Gain / blank 的 **创建** = Register 结算 |
-| Register **查询** | Register **insert/remove** |
-| 战役 / 场景只读库 | 若某步改战役状态 = 另库结算（仍须「做事」） |
+| 直读投影、Eligibility、场合、`RulesMemory` | A Register · B Log · C Remember · D Audience · … |
+| `effective_*` **查询** | Gain / blank **创建** = A |
+| Register / log / 记忆的 **读取** | 对应库的 **写入** |
+| 印刷 Spec | — |
 
 ---
 
@@ -682,9 +696,9 @@ CompositionExecutor.run(tree)
 | OQ-PRIM-02 | heal 超过当前 damage（浪费） | Transfer 量夹到当前值；多余不取 |
 | OQ-PRIM-03 | Engage 是否一个 `SetRef` 还是 Ref+MoveCard 两个原子 | **两个原子** Seq；Wrapper `Engage` 保证顺序 |
 | OQ-PRIM-04 | 调查员 defeated 时 clues 归地点 | Wrapper：`TransferMarker` CLUES_ON_INVESTIGATOR → CLUES_ON_LOCATION |
-| OQ-PRIM-05 | `set_controller` / `set_owner` 是否信息原语 ② | 倾向 **是**（当控制变更不伴随区 Move）；区属主可推导时不写 |
-| OQ-PRIM-06 | 连接图增删/封锁是否信息原语 ③ | 无物理标记表达时 **是**；有门禁标记则 Transfer |
-| OQ-PRIM-07 | 战役 log 是否第三套「战役原语」而非信息原语 | 倾向 **另库**；不进牌面 Audience |
+| OQ-PRIM-05 | 控制/归属是否单立 E 族 | 无区 Move 时倾向 **是** |
+| OQ-PRIM-06 | 纯规则改图是否单立 F 族 | 无物理标记时倾向 **是** |
+| OQ-PRIM-07 | Log 与 Remember 是否合并为一个「记忆库」原子族 | 纸面常分写；存储可同后端不同 API |
 
 ---
 
@@ -692,7 +706,8 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-24 | v0.3.17 | §5.4.0：信息原语盘点——①Audience 确定；控制/拓扑/战役笔记为候选；其余归物理·Register·派生 |
+| 2026-10-24 | v0.3.18 | §0/§5.4：信息原语 = 不可见结算；含 Register·Log·Remember·Audience；废「只有 Audience + Register 旁路」 |
+| 2026-10-24 | v0.3.17 | §5.4.0：信息原语盘点（后由 v0.3.18 改对齐） |
 | 2026-10-24 | v0.3.16 | §0.0：原语 = 能影响游戏的结算（必须做事）；厚读 ≠ 原语 |
 | 2026-10-24 | v0.3.15 | §5.4：直读优先 vs 咽喉双写；卡牌生效特征 = 印刷∪Gain−blank（读路径） |
 | 2026-10-23 | v0.3.14 | §5.4 收薄：信息原语主轴仅可见性；引用/多数旗 → 物理派生索引 |
