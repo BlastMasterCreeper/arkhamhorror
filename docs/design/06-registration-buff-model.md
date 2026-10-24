@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.28 · 2026-10-24 — §2.3 能力 ≠ Buff；LISTENER 勿举 Forced/reaction
+> **状态**：v0.4.29 · 2026-10-24 — §3.2.1a Gain：只读特征 vs 文本能力注册/初始化
 
 ---
 
@@ -184,17 +184,39 @@ Effective* / COLLECT / Forced 自动发起 @ 各 consumer
 | **ICON** | gains [wild] | MODIFIER 或 ICON 标记 | `THIS_SKILL_TEST` 等 | 与印刷 union |
 | **数值** | gets +1 fight | **MODIFIER** | turn / phase / test | ModifierEngine |
 
-**可获得的能力 ≈ 几乎全部能力类型**（含关键词；关键词亦是能力/characteristic）：
+**可获得 ≈ 几乎全部能力类型**（含关键词）。但 **读特征** 与 **文本能力** 落地重量不同：
 
-| 能力类型 | gains 后怎么跑 |
+#### 3.2.1a 只读特征（供查询）vs 文本能力（须注册/初始化）
+
+| 档 | 获得什么 | 主要消费 | 落地重量 |
+|---|---|---|---|
+| **A. 只读特征** | trait、skill icon、部分 keyword「拥有」 | `has_effective_*` / 检定数图标 | **轻**：Register 标记（± MODIFIER）；查询并集即可 |
+| **B. 文本能力** | Forced / `[reaction]` / `[free]` / `[action]` / Constant 句 / 显现体… | **能力管线** | **重**：须走与进场挂印刷能力 **同形的注册与初始化** |
+
+```text
+gains 只读特征
+  → Register 标记 / MODIFIER
+  → 日后只被读（effective 查询）
+
+gains 文本能力
+  → 编译 AbilitySpec（与印刷同构）
+  → Register 挂上（lifetime · source · card 绑定）
+  → 初始化：订 timing / 进 COLLECT 池 / Forced 自动槽 / Limit 计数器…
+  → 之后与印刷能力同一套 Initiation / Forced 直执 / Activate
+  → Unregister 时做对称拆卸（退订、出池、清 Limit）
+```
+
+| 文本能力类型 | 初始化须考虑 |
 |---|---|
-| **Forced** | AbilitySpec · FORCED；时点到 **自动** Initiation（与印刷 Forced 同管线） |
-| **`[reaction]` / `[free]` / `[action]`** | AbilitySpec · 触发；COLLECT / 选用 / Activate |
-| **Constant** | AbilitySpec · Constant 和/或并行 **MODIFIER** |
-| **Revelation** | 少见；若 gains 显现体 → 仍走显现入口解释 |
-| **Keyword（关键词）** | 亦是能力/特征：先 **拥有**（KEYWORD 标记）再按 profile 挂行为（RESTRICTION / LISTENER 消费等） |
+| **Forced** | 订触发时点；窗到 **自动** 发起（非选用） |
+| **`[reaction]` / `[free]`** | 订槽；进响应/发起候选；控制者选用 |
+| **`[action]`** | Activate / 行动入口可发现 |
+| **Constant** | 挂入 Constant 查询集；数值类可并行 MODIFIER |
+| **Revelation** | 若 gains 显现体：仍仅在显现入口解释 |
+| **Keyword** | 拥有标记 + **按 KeywordProfile 初始化行为**（可能再挂 RESTRICTION / 延时消费等） |
 
-> **禁止**：把 Gain 收成「只有 KEYWORD 标记」；禁止「gains Forced 就改叫 LISTENER Buff」。**印刷** Forced ≠ Buff；**效果 gains Forced** = Register 一条带 Forced **AbilitySpec** 的登记。
+> **禁止**：gains Forced 只塞 KEYWORD 标记或改叫 LISTENER Buff；文本能力 **省略注册/初始化** 只靠「effective 读到有这句话」。  
+> **印刷** Forced 仍是能力；**效果 gains Forced** = Register + **初始化** 一条 Forced AbilitySpec。
 
 **非本表（非 characteristic）**：`gain N resource` / `gain an action` = 资源/行动 **状态原语**，不走 Gained characteristics。
 
@@ -1233,6 +1255,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.29 | §3.2.1a：gains 只读特征 vs 文本能力（须注册/初始化，同印刷挂载） |
 | 2026-10-24 | v0.4.28 | §2.3：Forced/reaction/Constant = 能力 ≠ LISTENER Buff；修正 §5.6 举例 |
 | 2026-10-24 | v0.4.27 | §2.2：结算面不按 BuffType/lasting 拆；控制等优先 Buff；Chronicle 外置 |
 | 2026-10-24 | v0.4.26 | §2.1：Register（结算动词）与 Buff（Registration 载荷）；对齐 07 §5.4.2 |

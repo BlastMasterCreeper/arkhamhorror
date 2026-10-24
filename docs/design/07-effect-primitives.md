@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.26 · 2026-10-24 — Gain 可含 Forced 等几乎全部能力；关键词亦是能力
+> **状态**：v0.3.27 · 2026-10-24 — Gain：只读特征 vs 文本能力（须注册/初始化）
 
 ---
 
@@ -554,20 +554,14 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 | **RESTRICTION** | Eligibility / Intent | cannot；SKIP_AOO；有效控制… |
 | **LISTENER** | Catalog → Composition | 「until… after…」壳内听；纯延时 `UNTIL_FIRED` |
 
-**Gain 特征 / 能力族**（*gains a characteristic*；[06 §3.2](06-registration-buff-model.md)）：
+**Gain**（[06 §3.2 / §3.2.1a](06-registration-buff-model.md)）分两档：
 
-可获得的对象 **几乎包含全部能力类型**；**关键词也是能力**（先拥有再挂行为）。
+| 档 | 获得 | 好说因为… | 还要… |
+|---|---|---|---|
+| **只读特征** | trait、icon、部分「拥有」keyword | **供读取**（`effective_*`） | Register 标记即可 |
+| **文本能力** | Forced / 触发 / Constant / 显现句…（关键词行为侧也算） | — | **能力注册 + 初始化**（订时点、进池、Forced 自动、Limit）；Unregister 对称拆卸 |
 
-| Kind | 例子 | 落地 |
-|---|---|---|
-| **ABILITY · Forced** | gains Forced – When… | AbilitySpec · FORCED；自动发起 |
-| **ABILITY · 触发** | gains `[reaction]` / `[free]` / `[action]` | AbilitySpec；COLLECT / 选用 / Activate |
-| **ABILITY · Constant** | gains 永续句 | AbilitySpec · Constant ± MODIFIER |
-| **KEYWORD** | gains surge | 拥有标记 + profile 行为（关键词 ⊂ 能力） |
-| **TRAIT / ICON** | gains trait / [wild] | 标记 / 检定修正 |
-| **数值** | gets +1 | MODIFIER |
-
-禁止：Gain = 仅 KEYWORD；gains Forced 当成 LISTENER Buff。印刷能力仍走 Ability；**效果 gains *** = Register 挂上对应 AbilitySpec/标记。
+可获得类型仍几乎盖全能力；关键词 ⊂ 能力。禁止 gains 文本能力只当只读标记或 LISTENER Buff。
 
 **不是 Buff**（纸面 **能力**，走 `AbilitySpec` / Initiation）：
 
@@ -840,6 +834,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.27 | Gain 分档：只读特征 vs 文本能力（注册+初始化，同印刷挂载） |
 | 2026-10-24 | v0.3.26 | Gain 可含 Forced/触发/Constant/关键词等几乎全部能力类型 |
 | 2026-10-24 | v0.3.25 | §5.4.2：Gain 特征族含触发/永续能力；纠正「只有 KEYWORD 标记」 |
 | 2026-10-24 | v0.3.24 | §5.4.2b：Register 包装/丰富 — 薄 API、厚壳与 Buff；优先 RestrictionKind/Lifetime/控制 |
