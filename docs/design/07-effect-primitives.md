@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.14 · 2026-10-23 — 信息原语收薄为可见性；引用/旗 → 物理派生索引
+> **状态**：v0.3.15 · 2026-10-24 — 直读优先；卡牌生效特征查询（印刷∪Gain−blank）
 
 ---
 
@@ -471,26 +471,52 @@ class InfoSetAudience:
 
 同族扩展（仍属信息原语、须仍满足「桌上读不回」）：例如更细的 `known_to: Array[observer]`；**禁止**借扩展把地点/附着塞回来。
 
-#### 派生索引（Domain 缓存 · **非**信息原语）
+#### 派生索引 vs 直读（策略裁决）
 
-| 字段（例） | 权威来源 | 维护 |
+实体规模小（1–4 调查员、场面卡数十张量级），**直读物理 / 经投影函数扫描的开销通常可接受**。单独做「延迟失效缓存」要挂的更新点反而多（Move、交战进出威胁区、附着、击败退场、翻面、线索 Transfer…），漏一处 = 静默错局面，代价高于多几次扫描。
+
+| 策略 | 何时用 | 风险 |
 |---|---|---|
-| 调查员/敌人 `location_tag` | 物理：人棋/敌人卡相对地点区的布置 | 随 `MoveCard` / 移动手续更新索引 |
-| 威胁区成员 | 物理：`threat_<inv>` 区 | 同上 |
-| `attached_to` | 物理：附着叠放 / 附着区 | 同上 |
-| `controller`（常规） | 物理：手牌/场地区属主 | 随区变；**例外**隐私控制者与 audience 绑定处另议 |
-| `LocationState.revealed` | 物理：地点翻面 + 线索已放置 | 索引或直接读形态/标记 |
-| `eliminated` / `resigned` | 退场物理 + 战役/场面结局 | 命名流程组合；不升格为信息原语类 |
+| **A. 直读投影**（默认） | `enemies_at(loc)`、`cards_in(region)` 每次从物理区算 | 热路径上重复扫描；逻辑简单、无陈旧 |
+| **B. 咽喉双写** | 仅在 `StateMutator.move_card` / `transfer_marker` / `flip` **同一事务**写 Domain 索引 | 可接受；**不是**散落 listener 缓存 |
+| **C. 延迟失效缓存** | **默认不用** | 触发面大、易漏；仅 profile 证明热点后再考虑，且失效必须挂咽喉而非各 flow |
 
-历史 `AtomOp.SET_FLAG` / `SET_REF`：若仍存在，视为 **索引维护 API** 或待删兼容，**不得**文档化为信息原语 ②/③。
+**裁决**：默认 **A**；现有 `location_tag` / threat 列表若保留，按 **B** 在 Mutator 咽喉维护，文档称 **派生索引**，不称信息原语。禁止演进成 C。
+
+| 字段（例） | 权威 | 维护 |
+|---|---|---|
+| 位置 / 威胁区 / 附着 | 物理区 | A 直读，或 B 咽喉索引 |
+| `LocationState.revealed` | 形态 + 线索标记 | 同上 |
+| 常规 `controller` | 手牌/场地区属主 | 同上；隐私例外可与 audience 绑定 |
+
+#### 卡牌信息解析（厚读 · **非**新写原语）
+
+卡面印刷与生效特征 **是信息**，但走 **目录 + Register 查询**，不新增「图标原语」：
+
+```text
+effective(card) =
+    printed(CardDefinition)          # 技能投入图标、连接、特性、关键词、能力文本…
+      ∪ gained(Register)             # Gain 图标/特性/关键词/能力（Grimoire：视为具备）
+      − blank_printed(Register)      # 文本框 blank：抹印刷；gained 不被 blank（RR）
+```
+
+| 来源 | 归属 | 说明 |
+|---|---|---|
+| 印刷图标 / 连接 / 特性 | `CardDefinition` 只读目录 | 导入期；信息层 **读** |
+| Gain … | **Register**（创建经 `seq.effect.register`） | 查询须区分 `is_printed_*` vs `has_effective_*`（[06 §Gain](06-registration-buff-model.md)） |
+| 视为空白 blank | **Register / Buff**（你已点明） | 压制 **印刷** 文本框；不抹 gained |
+| 谁看得到牌面 | 信息原语 `FaceAudience` | 与「牌上印了什么 / 生效什么」正交 |
+
+检定 commit、连接图、关键词开火等：**只问 `effective_*`**，禁止手续直接假定「等于印刷」。
 
 #### 信息层可以厚，原语故意薄
 
 | 厚（框架，非原语） | 薄（可写叶子） |
 |---|---|
-| 从物理投影的查询、Eligibility、场合信封、`RulesMemory` | `FaceAudience`（及同族可知） |
-| Register 查询 | — |
-| 战役日志 / 场景抽象（非桌面 token） | 另库；不叫信息原语除非满足「桌上读不回」 |
+| 物理直读/咽喉索引、Eligibility、场合、`RulesMemory` | `FaceAudience` |
+| **卡牌生效特征查询**（印刷 ∪ Gain − blank） | — |
+| Register 查询（修正 / 限制 / 监听） | Register **创建** 仍是效果叶 |
+| 战役 / 场景抽象库 | 另库 |
 
 ---
 
@@ -633,6 +659,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.15 | §5.4：直读优先 vs 咽喉双写；卡牌生效特征 = 印刷∪Gain−blank（读路径） |
 | 2026-10-23 | v0.3.14 | §5.4 收薄：信息原语主轴仅可见性；引用/多数旗 → 物理派生索引 |
 | 2026-10-23 | v0.3.13 | §0/§5.4：信息原语初稿（后收薄为 v0.3.14） |
 | 2026-10-23 | v0.3.12 | §0/§5：状态原语仅物理层；③=翻面/横置；Reveal/`FaceAudience`/SetRef → §5.4 信息层 |
