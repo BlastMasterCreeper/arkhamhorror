@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.23 · 2026-10-24 — Register 为原语：发起有效性须 CREATED；空结算禁发起
+> **状态**：v0.3.24 · 2026-10-24 — §5.4.2b Register 包装：薄结算、厚 Template/Buff
 
 ---
 
@@ -580,9 +580,55 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 
 **裁决倾向**：**信息原语结算面不再拆**——就是 Register（± Unregister）。复杂度留在 **Buff 形态与 Lifetime**，不要再增殖结算动词。
 
-**与发起有效性**：Register 留在原语内，正是为了 L7 dry-run——「只挂 Buff、不动子」仍算干了点什么；与物理双零 = 空结算禁发起（§0）。
+**与发起有效性**：Register 留在原语内，正是为了 L7 dry-run——「只挂 Buff、不动子」仍算干了点什么；空效果体另用 `EmptySettle`（§4.1.2 composition）；真挂 Buff 仍靠 Register。
 
 卡面创建经 `seq.effect.register`；禁止真空 `RegistrationStore.register`。
+
+#### 5.4.2b Register 作为信息原语：怎么包装 / 丰富
+
+> 结算面保持极薄；**丰富发生在壳参数与 Buff 载荷**，不增殖 `seq.effect.*` 结算动词。
+
+```text
+Composition / 卡面
+  └─ nest 或内联 → seq.effect.register | unregister     ← 唯一结算包装
+        params: RegistrationTemplate
+          ├─ 壳：source · lifetime · scope · tags · referents…
+          └─ buffs[]：BuffSpec { type, payload, … }
+                ├─ MODIFIER      → ModifierEngine
+                ├─ RESTRICTION   → Eligibility / Intent
+                ├─ LISTENER      → Catalog fire → Composition（效果创造的延时/持续壳内听）
+                └─ 拥有标记      → has_effective_*（再按需挂行为 Buff）
+```
+
+| 层 | 包装什么 | 丰富方向 | 不要塞什么 |
+|---|---|---|---|
+| **结算 API** | `register(template)` / `unregister(id\|filter)` | 保持两动词；CREATED=插入成功 | 按 BuffType 拆 `seq.effect.modifier` 等 |
+| **壳 Lifetime** | `WHILE_*` / `DURATION` / `UNTIL_FIRED` / `UNTIL_CONDITION` | 补齐纸面 until/while；tick 边界先于同界 Listener | 另开 LastingStore |
+| **壳 Scope / source** | 谁受益、绑哪张源卡 | 有效控制、宿主离场卸 | 真空改 `controller_id` 当原语 |
+| **MODIFIER payload** | stat · op · value · stacking | blank 印刷框、技能/费用/伤害量 | 印刷 Constant 能力（那是 Ability） |
+| **RESTRICTION payload** | RestrictionKind + 参数 | cannot 族、SKIP_AOO、冷漠、交战、**有效控制**、拓扑限制 | 把 Prey/Spawn 指令做成 Restriction |
+| **LISTENER payload** | timing slot + Composition / nest seq | 效果创造的「until… after…」与纯延时 | 印刷 Forced / `[reaction]`（能力） |
+| **拥有标记** | KEYWORD / TRAIT / ICON… | gains X；拥有≠行为 | 第四种「行为 BuffType」 |
+| **糖 template** | `lasting_modifier` / `skip_aoo` / `gained_keyword…` | 编译期/Builder 展开为完整 Template | 运行时糖 Atom 吞多步 |
+
+**包装纪律（与物理原语对称）**：
+
+1. **薄结算、厚载荷** — 信息原语对外只有 Register/Unregister；花样全在 Template。  
+2. **一律经命名流程** — `seq.effect.register` / `unregister`；Composition 叶禁止直写 Store。  
+3. **一次 Register 可多 Buff 同壳** — 同一 lifetime 罩住 +1 与「每次…」（[06 §5.4](06-registration-buff-model.md)）。  
+4. **查询不是原语** — `collect` / `has_effective_*` / ModifierEngine 为厚读。  
+5. **与 Chronicle 分家** — 日志/记住不进 BuffType；需要时另叶。  
+6. **与 EmptySettle 分家** — 无正文事件用不写入的空叶过发起门；有 lasting 正文仍 Register。
+
+**优先丰富清单**（不改结算动词）：
+
+| 优先级 | 丰富点 | 用途 |
+|---|---|---|
+| P0 | RestrictionKind 报表完备 | cannot / 入口改道（SKIP_AOO 等） |
+| P0 | Lifetime 与离场/帧 tick 对齐 | 险境、隐私、UNTIL_FIRED |
+| P1 | 有效控制 / blank 为正式 payload | 吃掉「信息原语候选」 |
+| P1 | LISTENER payload 与 AbilitySpec 边界测试 | 防 Forced 误编进 Buff |
+| P2 | Template 工厂覆盖纸面句式 | 编译器少手写壳字段 |
 
 #### 5.4.3 Chronicle（记事）· 日志 ∪ 记住
 
@@ -780,6 +826,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.24 | §5.4.2b：Register 包装/丰富 — 薄 API、厚壳与 Buff；优先 RestrictionKind/Lifetime/控制 |
 | 2026-10-24 | v0.3.23 | §0：Register 作原语 ↔ 发起有效性；物理∧Register 皆无 CREATED = 空结算禁发起 |
 | 2026-10-24 | v0.3.22 | §5.4.2：LISTENER Buff 举例改为 lasting/延时；Forced/reaction = 能力 |
 | 2026-10-24 | v0.3.21 | §5.4：信息原语≈Register+Chronicle；控制走 Buff；Register 结算面不按 BuffType 拆 |

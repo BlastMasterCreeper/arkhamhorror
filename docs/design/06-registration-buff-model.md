@@ -81,6 +81,8 @@ Buff 形态          =  MODIFIER | RESTRICTION | LISTENER | 拥有标记…
 - **可以**把「获得控制」编成带 lifetime 的 Buff（查 `effective_controller`），而不是 `set_controller` 信息原语。  
 - 复杂度增长点：新 **payload / RestrictionKind / Listener timing**，不是新 Register 动词。
 
+**包装（信息原语对外）**：唯一结算入口 `seq.effect.register` / `unregister`，参数 = `RegistrationTemplate`（壳 + `buffs[]`）。Builder/编译器用 `lasting_modifier` 等工厂丰富 Template；运行时不增殖结算动词。详 [07 §5.4.2b](07-effect-primitives.md)。
+
 ### 2.3 能力 ≠ Buff（LISTENER 举例勿混）
 
 > **已对齐（2026-10-24）**：纸面 **Forced / `[reaction]` / `[action]` / Constant / Revelation** 是 **卡牌能力**（`AbilitySpec` + Initiation / COLLECT），**不是** lasting/延时效果，也 **不要**在概念上叫 Buff。
