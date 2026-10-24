@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.32 · 2026-10-24 — Register 只写 Buff；Gain 特征可衍生行为 Buff
+> **状态**：v0.4.33 · 2026-10-24 — MODIFIER 落地：SKILL_ANY；AttackDamagePlan 消费式+PI
 
 ---
 
@@ -174,20 +174,19 @@ enum BuffType {
 3. **查询统一** — `EffectiveCharacteristicQuery`（或 RegistrationStore 门面）：`has_effective_keyword` / `has_effective_trait` / `effective_abilities` / `effective_skill_icons` = **（印刷 − blank）∪ gained**（按 kind 叠加；**blank 不抹 gained**，见 RR / [07 §5.4](07-effect-primitives.md)）。
 
 ```text
-EffectOp.GRANT_CHARACTERISTIC
-  target: card_id | investigator_id
+seq.effect.register · Grant 特征 Buff
   kind: KEYWORD | TRAIT | ICON | ABILITY
-  payload: &"surge" | trait_id | icon | AbilitySpec ref
-  lifetime: WHILE_DRAWN_CARD_RESOLVING | DURATION(THIS_TURN) | …
+  payload: &"surge" | trait_id | icon | AbilitySpec
+  lifetime: …
         │
-        ├─ KEYWORD  → KEYWORD 标记 Register（无 Composition；§3.1 Surge 为首例）
-        ├─ TRAIT    → TRAIT 标记 Register 或 CardInstance overlay
-        ├─ ICON     → MODIFIER Register（常为 THIS_SKILL_TEST）或 ICON 标记
-        └─ ABILITY  → AbilitySpec（Forced / 触发 / Constant / …）挂 Store + lifetime
-                      按 AbilityKind 走既有能力管线；Keyword → 标记 + profile 行为
+        ├─ 写出 Gain Buff（CREATED）
+        └─ 衍生（CharacteristicDeriver）：
+             KEYWORD → Profile 再挂 LISTENER / RESTRICTION / MODIFIER
+             ABILITY → Lifecycle mount（Forced/触发/…）；Constant 可再衍生 MODIFIER
+             TRAIT/ICON → 多只读；ICON 可衍生 MODIFIER
         │
         ▼
-Effective* / COLLECT / Forced 自动发起 @ 各 consumer
+Effective* / COLLECT / 行为三型 consumer
 ```
 
 #### 3.2.1 Kind 路由与叠加
@@ -1072,12 +1071,12 @@ Grimoire 条文 / 卡面效果
 
 | 查询站 ID | 何时调用 | 键 | 状态 |
 |---|---|---|---|
-| **MOD-Q-SKILL** | 检定 ST.5 | `SKILL_*` **或** `SKILL_ANY`（无类型，似 wild） | 四维 **已实现**；`SKILL_ANY` **待** |
+| **MOD-Q-SKILL** | 检定 ST.5 | `SKILL_*` **或** `SKILL_ANY`（无类型，似 wild） | **已实现**（`ModifierEngine` + ST.5） |
 | **MOD-Q-GAIN-RES** | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
 | **MOD-Q-COST** | Initiation 付费前 | resource/action cost | **已实现**（enum 名略异） |
 | **MOD-Q-SHROUD** | 调查算 difficulty | `SHROUD` | 待 |
-| **MOD-Q-ATTACK-DAMAGE** | 攻击成功后、伤害落点前 | 见 §16.3.1 **AttackDamagePlan** | **待**（取代扁 `DAMAGE_AMOUNT`） |
-| **MOD-Q-DISCOVER** | 调查成功后、发现落点前 | 见 §16.3.2 **DiscoverPlan** | **待** |
+| **MOD-Q-ATTACK-DAMAGE** | 攻击成功后、伤害落点前 | §16.3.2 **AttackDamagePlan** | **已实现**（基础 Fight；多 leg PI） |
+| **MOD-Q-DISCOVER** | 调查成功后、发现落点前 | §16.3.2 **DiscoverPlan** | 类型已备；**调查接线待** |
 | **MOD-Q-HORROR-AMT** | 造成恐惧量（若走 Plan 则同构） | Plan 或 `HORROR_AMOUNT` | 待 |
 
 #### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
@@ -1085,9 +1084,9 @@ Grimoire 条文 / 卡面效果
 | Payload.stat | ST.5 匹配 |
 |---|---|
 | `SKILL_COMBAT` 等 | 仅当本次检定技能相同 |
-| **`SKILL_ANY`**（待加） | **任意**技能检定（纸面「+1 skill value」无指定维、类 wild） |
+| **`SKILL_ANY`** | **任意**技能检定（纸面「+1 skill value」无指定维、类 wild） |
 
-`compute`：收集 `stat == 本次技能 OR stat == SKILL_ANY`。
+`compute`：标量载荷中 `stat == 本次技能 OR stat == SKILL_ANY`；`plan_kind != NONE` 的载荷 **不进** 标量 `compute`。
 
 #### 16.3.2 攻击伤害 / 发现线索：Plan + 修正（重点）
 
@@ -1161,7 +1160,7 @@ class DiscoverPlan:
 **禁止**：`PER_EACH_LEG` 广播量修正；扁平全局 `DAMAGE_AMOUNT` 冒充「本次攻击」。  
 **Register 侧**：payload 标 `plan_kind: ATTACK_DAMAGE | DISCOVER`，`apply: CONSUME_CHOOSE_ONE_LEG`（默认）。
 
-**落地顺序**：① `SKILL_ANY`；② 单 leg Fight + 致命打击；③ 多 leg + PI 选宿主；④ Discover 同构。
+**落地进度**：① `SKILL_ANY` ✅；② 单 leg Fight + 攻击伤 bonus ✅；③ 多 leg + PI 选宿主 ✅（引擎+测试）；④ Discover 同构类型 ✅、Investigate 接线待。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1371,6 +1370,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.33 | MODIFIER 落地：SKILL_ANY；AttackDamagePlan 消费式+PI；基础 Fight 接线 |
 | 2026-10-24 | v0.4.32 | Register 只写 Buff；Gain 特征族可衍生行为 Buff / 能力挂载；禁旁路 AbilitySpec |
 | 2026-10-24 | v0.4.31 | 攻击/发现量修正消费式选一 leg；多候选触发 PI；禁对每个目标广播 |
 | 2026-10-24 | v0.4.30 | §16.3：无类型技能 SKILL_ANY；AttackDamagePlan/DiscoverPlan 替代扁 DAMAGE/DISCOVER 量 |

@@ -23,6 +23,18 @@ static func lasting_modifier(
 	return t
 
 
+## 本次攻击 +N 伤害（消费式选一 leg）；常挂 THIS_SKILL_TEST。
+static func attack_damage_bonus_this_test(
+	controller_id: StringName,
+	amount: int = 1
+) -> RegistrationTemplate:
+	return lasting_modifier(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_SKILL_TEST,
+		ModifierPayload.attack_damage_bonus(amount)
+	)
+
+
 static func lasting_restriction(
 	controller_id: StringName,
 	duration: AhcEnums.DurationAnchorKind,

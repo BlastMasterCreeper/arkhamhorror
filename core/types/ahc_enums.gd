@@ -363,9 +363,24 @@ enum StatRef {
 	SKILL_INTELLECT,
 	SKILL_COMBAT,
 	SKILL_AGILITY,
+	## 无类型技能修正（似 wild）；ST.5 匹配任意技能检定。
+	SKILL_ANY,
 	RESOURCE_GAIN_AMOUNT,
 	INITIATION_RESOURCE_COST,
 	INITIATION_ACTION_COST,
 }
 
 enum ModOp { ADD, SUB, MUL, DOUBLE, HALVE }
+
+## MODIFIER 挂标量站点 vs 效果 Plan（攻击伤 / 发现线索）。
+enum ModifierPlanKind {
+	NONE,
+	ATTACK_DAMAGE,
+	DISCOVER,
+}
+
+## Plan 量修正默认消费式选一腿；标量走 SCALAR（ModifierEngine.compute）。
+enum ModifierApplyMode {
+	SCALAR,
+	CONSUME_CHOOSE_ONE_LEG,
+}

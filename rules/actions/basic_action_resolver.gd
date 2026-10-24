@@ -112,8 +112,12 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	test.difficulty = enemy.fight
 	var enemy_id_copy := enemy_id
 	var inv_copy := inv_id
+	## ST.7：建伤害 Plan → 消费式攻击伤修正 → 仅 amount>0 落点（06 §16.3.2）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		EnemyDefeatResolver.deal_damage(game_ctx, enemy_id_copy, 1)
+		var plan := AttackDamagePlan.single_enemy(enemy_id_copy, 1)
+		if game_ctx != null and game_ctx.modifiers != null:
+			plan = game_ctx.modifiers.apply_attack_damage_plan(plan, inv_copy, game_ctx)
+		ModifierEngine.settle_attack_damage_plan(game_ctx, plan)
 	test.on_fail = func(_ctx: SkillTestContext) -> void:
 		var fight_damage: int = int(extra.get("fight_damage", 1))
 		FightFailRedirectResolver.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
