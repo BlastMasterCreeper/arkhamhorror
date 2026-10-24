@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.25 · 2026-10-24 — Gain = KEYWORD·TRAIT·ICON·ABILITY（触发/永续），非仅 KEYWORD
+> **状态**：v0.3.26 · 2026-10-24 — Gain 可含 Forced 等几乎全部能力；关键词亦是能力
 
 ---
 
@@ -554,17 +554,20 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 | **RESTRICTION** | Eligibility / Intent | cannot；SKIP_AOO；有效控制… |
 | **LISTENER** | Catalog → Composition | 「until… after…」壳内听；纯延时 `UNTIL_FIRED` |
 
-**Gain 特征族**（*gains a characteristic* · **含但不限于关键词**；[06 §3.2](06-registration-buff-model.md)）：
+**Gain 特征 / 能力族**（*gains a characteristic*；[06 §3.2](06-registration-buff-model.md)）：
 
-| Kind | 例子 | 落地（示意） | 查询 |
-|---|---|---|---|
-| **KEYWORD** | gains surge | KEYWORD 标记（拥有）；行为另挂 | `has_effective_keyword` |
-| **TRAIT** | gains [[Cultist]] | TRAIT 标记 | `has_effective_trait` |
-| **ICON** | gains [wild] | ICON 标记 / 检定 MODIFIER | `effective_skill_icons` |
-| **ABILITY（触发）** | gains `[reaction]` / `[action]` / `[free]` until… | **AbilitySpec** 挂入 Store（lifetime）；**Initiation COLLECT**，不是「印刷 Forced 改叫 LISTENER Buff」 | `effective_abilities` |
-| **ABILITY（永续/Constant）** | gains 常驻数值/常驻句 | **AbilitySpec**（Constant）和/或 **MODIFIER** | 同上 / ModifierEngine |
+可获得的对象 **几乎包含全部能力类型**；**关键词也是能力**（先拥有再挂行为）。
 
-禁止把 Gain 收成「只有 KEYWORD 标记」。关键词只是 Gain 的一支；**获得触发/永续能力**走 ABILITY 支。
+| Kind | 例子 | 落地 |
+|---|---|---|
+| **ABILITY · Forced** | gains Forced – When… | AbilitySpec · FORCED；自动发起 |
+| **ABILITY · 触发** | gains `[reaction]` / `[free]` / `[action]` | AbilitySpec；COLLECT / 选用 / Activate |
+| **ABILITY · Constant** | gains 永续句 | AbilitySpec · Constant ± MODIFIER |
+| **KEYWORD** | gains surge | 拥有标记 + profile 行为（关键词 ⊂ 能力） |
+| **TRAIT / ICON** | gains trait / [wild] | 标记 / 检定修正 |
+| **数值** | gets +1 | MODIFIER |
+
+禁止：Gain = 仅 KEYWORD；gains Forced 当成 LISTENER Buff。印刷能力仍走 Ability；**效果 gains *** = Register 挂上对应 AbilitySpec/标记。
 
 **不是 Buff**（纸面 **能力**，走 `AbilitySpec` / Initiation）：
 
@@ -619,7 +622,7 @@ Composition / 卡面
 | **MODIFIER payload** | stat · op · value · stacking | blank 印刷框、技能/费用/伤害量 | 印刷 Constant 能力（那是 Ability） |
 | **RESTRICTION payload** | RestrictionKind + 参数 | cannot 族、SKIP_AOO、冷漠、交战、**有效控制**、拓扑限制 | 把 Prey/Spawn 指令做成 Restriction |
 | **LISTENER payload** | timing slot + Composition / nest seq | 效果创造的「until… after…」与纯延时 | 印刷 Forced / `[reaction]`（能力） |
-| **Gain 族** | KEYWORD·TRAIT·ICON·ABILITY（触发/永续） | 统一 Grant；按 kind 路由 | 把 Gain 等同于 KEYWORD 标记 |
+| **Gain 族** | 几乎全部能力类型（含 Forced、关键词）+ TRAIT/ICON/数值 | Grant → AbilitySpec / 标记 / MODIFIER | 把 Gain 收成仅 KEYWORD |
 | **糖 template** | `lasting_modifier` / `skip_aoo` / `gained_keyword…` | 编译期/Builder 展开为完整 Template | 运行时糖 Atom 吞多步 |
 
 **包装纪律（与物理原语对称）**：
@@ -837,6 +840,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.26 | Gain 可含 Forced/触发/Constant/关键词等几乎全部能力类型 |
 | 2026-10-24 | v0.3.25 | §5.4.2：Gain 特征族含触发/永续能力；纠正「只有 KEYWORD 标记」 |
 | 2026-10-24 | v0.3.24 | §5.4.2b：Register 包装/丰富 — 薄 API、厚壳与 Buff；优先 RestrictionKind/Lifetime/控制 |
 | 2026-10-24 | v0.3.23 | §0：Register 作原语 ↔ 发起有效性；物理∧Register 皆无 CREATED = 空结算禁发起 |

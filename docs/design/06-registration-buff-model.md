@@ -85,14 +85,15 @@ Buff 形态          =  MODIFIER | RESTRICTION | LISTENER | 拥有标记…
 
 ### 2.3 能力 ≠ Buff（LISTENER 举例勿混）
 
-> **已对齐（2026-10-24）**：纸面 **Forced / `[reaction]` / `[action]` / Constant / Revelation** 是 **卡牌能力**（`AbilitySpec` + Initiation / COLLECT），**不是** lasting/延时效果，也 **不要**在概念上叫 Buff。
+> **已对齐**：纸面 **Forced / 触发 / Constant / Revelation / 关键词** 都是 **能力**（或 characteristic）。印刷能力 ≠ lasting LISTENER Buff。  
+> **效果可以 gains 几乎任意能力类型**（含 Forced、关键词）——那是 Register 挂上的 **AbilitySpec / 标记**，仍按该能力类型跑管线，不是改叫 BuffType。
 
-| | **能力（Ability）** | **Buff（Register 载荷）** |
+| | **能力（Ability）** | **行为 Buff（MODIFIER/RESTRICTION/LISTENER）** |
 |---|---|---|
-| 纸面 | Forced –、`[reaction]`、Constant… | 「获得 until…」「at the start of next…」等 **效果创造** 的持续/延时 |
-| 从哪来 | 印刷（或 gains **ability** 文本）挂在卡上 | 某次效果 **Register** 进 Store |
-| 运行 | 时点 COLLECT → Forced 直执 / reaction 选用 | `collect(BuffType)` / LISTENER fire |
-| 寿命 | 通常随卡在场/在手等（能力存在条件） | `LifetimeSpec`（可 `UNTIL_FIRED`） |
+| 纸面 | Forced、`[reaction]`、Constant、关键词… | 「until… +1」「cannot」「until… after…抽」等 |
+| 从哪来 | **印刷**，或 **gains …**（Register 挂 AbilitySpec/标记） | 效果 Register 的行为载荷 |
+| 运行 | 按 AbilityKind：Forced 自动 / 触发选用 / Constant 查询 / 关键词 profile | `collect` / ModifierEngine / LISTENER fire |
+| 寿命 | 印刷随卡；gained 随 Registration lifetime | 同壳 `LifetimeSpec` |
 
 **LISTENER Buff 的合法例子**：
 
@@ -166,11 +167,11 @@ EffectOp.GRANT_CHARACTERISTIC
         ├─ KEYWORD  → KEYWORD 标记 Register（无 Composition；§3.1 Surge 为首例）
         ├─ TRAIT    → TRAIT 标记 Register 或 CardInstance overlay
         ├─ ICON     → MODIFIER Register（常为 THIS_SKILL_TEST）或 ICON 标记
-        └─ ABILITY  → AbilitySpec（触发或 Constant）挂 Store + lifetime
-                      触发 → Initiation COLLECT；永续数值亦可并行 MODIFIER
+        └─ ABILITY  → AbilitySpec（Forced / 触发 / Constant / …）挂 Store + lifetime
+                      按 AbilityKind 走既有能力管线；Keyword → 标记 + profile 行为
         │
         ▼
-Effective* / COLLECT @ 各 consumer（G5 / Initiation / SkillTest / Target）
+Effective* / COLLECT / Forced 自动发起 @ 各 consumer
 ```
 
 #### 3.2.1 Kind 路由与叠加
@@ -178,13 +179,22 @@ Effective* / COLLECT @ 各 consumer（G5 / Initiation / SkillTest / Target）
 | Kind | 典型卡面 | 存储 | 生命周期常见 | 叠加 |
 |---|---|---|---|---|
 | **KEYWORD** | gains surge / gains Retaliate | KEYWORD 标记 Register | `WHILE_DRAWN_CARD_RESOLVING` 或 `WHILE_IN_PLAY` | **按 keyword 定**（Surge **不叠加**，§3.1） |
-| **ABILITY（触发）** | gains `[reaction]` / `[action]` / `[free]` until… | **AbilitySpec** + lifetime 挂 Store；**Initiation COLLECT** | `DURATION(THIS_TURN)` 等 | 多条并存；各 Limit 独立 |
-| **ABILITY（永续/Constant）** | gains 常驻句 / 常驻修正 | **AbilitySpec**（Constant）和/或 **MODIFIER** | 与 granting 同 lifetime | 同印刷 Constant 消费路径 |
-| **TRAIT** | gains the [[Cultist]] trait | TRAIT 标记 Register | 与 granting 效果同 lifetime | trait 集合 **union** |
-| **ICON** | gains [wild]（检定中） | MODIFIER 或 ICON 标记 | `THIS_SKILL_TEST` | 与印刷图标 union |
-| **数值** | gets +1 fight | 现有 **MODIFIER** Register | turn / phase / test | ModifierEngine 合并 |
+| **ABILITY** | gains **任意能力类型**（见下） | **AbilitySpec** + lifetime 挂 Store | 与 granting 同 lifetime | 多条并存；Limit 各算 |
+| **TRAIT** | gains the [[Cultist]] trait | TRAIT 标记 Register | 同上 | trait **union** |
+| **ICON** | gains [wild] | MODIFIER 或 ICON 标记 | `THIS_SKILL_TEST` 等 | 与印刷 union |
+| **数值** | gets +1 fight | **MODIFIER** | turn / phase / test | ModifierEngine |
 
-> **Gain ≠ 仅 KEYWORD**：关键词只是 characteristic 之一；**获得触发能力 / 永续能力** 属 ABILITY 支，进能力管线，不要说成「KEYWORD 标记」。
+**可获得的能力 ≈ 几乎全部能力类型**（含关键词；关键词亦是能力/characteristic）：
+
+| 能力类型 | gains 后怎么跑 |
+|---|---|
+| **Forced** | AbilitySpec · FORCED；时点到 **自动** Initiation（与印刷 Forced 同管线） |
+| **`[reaction]` / `[free]` / `[action]`** | AbilitySpec · 触发；COLLECT / 选用 / Activate |
+| **Constant** | AbilitySpec · Constant 和/或并行 **MODIFIER** |
+| **Revelation** | 少见；若 gains 显现体 → 仍走显现入口解释 |
+| **Keyword（关键词）** | 亦是能力/特征：先 **拥有**（KEYWORD 标记）再按 profile 挂行为（RESTRICTION / LISTENER 消费等） |
+
+> **禁止**：把 Gain 收成「只有 KEYWORD 标记」；禁止「gains Forced 就改叫 LISTENER Buff」。**印刷** Forced ≠ Buff；**效果 gains Forced** = Register 一条带 Forced **AbilitySpec** 的登记。
 
 **非本表（非 characteristic）**：`gain N resource` / `gain an action` = 资源/行动 **状态原语**，不走 Gained characteristics。
 
