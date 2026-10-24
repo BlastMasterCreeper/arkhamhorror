@@ -8141,14 +8141,11 @@ func _test_tim_dmg_increase_pending() -> bool:
 	var h := RuleTestHarness.new(42)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var when_pending := {"n": -1}
-	h.ctx.sequences.register_handler(
-		SequenceHandler.when_forced(
-			&"damage",
-			func() -> void:
-				DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
-				when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
-		)
-	)
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
+		when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
 		&"seq.effect.damage",
@@ -8169,32 +8166,26 @@ func _test_tim_dmg_increase_keeps_legs() -> bool:
 		h.ctx, &"inv_1", &"ally_inc_dmg", {"health": 3, "sanity": 0}
 	)
 	var snap := {"asset_n": -1, "inv_n": -1, "pending": -1}
-	h.ctx.sequences.register_handler(
-		SequenceHandler.would_forced(
-			&"damage",
-			func() -> void:
-				## 模拟已确认 Assign：1 资产 + 1 调查员。
-				DamagePipeline.reassign_pending_legs(
-					h.ctx,
-					&"inv_1",
-					[
-						{"bearer": &"card", "id": card_id, "amount": 1},
-						{"bearer": &"investigator", "id": &"inv_1", "amount": 1},
-					]
-				)
+	var would_h := SequenceHandler.would_forced(&"damage", func() -> void: pass)
+	would_h.callback = func() -> void:
+		## 模拟已确认 Assign：1 资产 + 1 调查员。
+		DamagePipeline.reassign_pending_legs(
+			h.ctx,
+			&"inv_1",
+			[
+				{"bearer": &"card", "id": card_id, "amount": 1},
+				{"bearer": &"investigator", "id": &"inv_1", "amount": 1},
+			]
 		)
-	)
-	h.ctx.sequences.register_handler(
-		SequenceHandler.when_forced(
-			&"damage",
-			func() -> void:
-				DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
-				var legs := DamagePipeline.pending_legs(h.ctx, &"inv_1")
-				snap["asset_n"] = _asn_leg_amount(legs, &"card", card_id)
-				snap["inv_n"] = _asn_leg_amount(legs, &"investigator", &"inv_1")
-				snap["pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
-		)
-	)
+	h.ctx.sequences.register_handler(would_h)
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
+		var legs := DamagePipeline.pending_legs(h.ctx, &"inv_1")
+		snap["asset_n"] = _asn_leg_amount(legs, &"card", card_id)
+		snap["inv_n"] = _asn_leg_amount(legs, &"investigator", &"inv_1")
+		snap["pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
 		&"seq.effect.damage",
