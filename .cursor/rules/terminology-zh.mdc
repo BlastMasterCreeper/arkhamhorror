@@ -17,10 +17,11 @@ alwaysApply: true
 | **Play (card)** | **打出** | **仅 asset / event** 从 hand 进入 play / 结算；≠ skill |
 | **Fast** | **快速** | 关键词；只改 **打出** 的窗口/花费，种类仍是打出；**不是** ArkhamDB `[fast]` 文本符号（后者 = 免费触发） |
 | Commit (skill) | **投入** / commit | skill 从 hand 投入检定；Grimoire：**不能**称 play |
-| **state primitive** | **状态原语** | **仅物理层** L0 **三类**：① 区/序 ② 标记 Transfer ③ 形态（翻面 / 横置·重整） |
-| **information primitive** | **信息原语** | 桌上读不回的知识写入；主轴 **可见性** `FaceAudience`；**不是**状态原语；地点/附着等为物理派生索引 |
-| **Register** | **注册 / Buff** | 第三类效果叶 → `RegistrationStore`；与两套原语并列 |
-| **effect** | **效果** | dry-run 可 CREATED：状态原语 + 信息原语 + Register |
+| **primitive** | **原语** | **能影响游戏的结算**；必须做事（写入）；dry-run 可 CREATED；查询/投影不是原语 |
+| **state primitive** | **状态原语** | 物理层结算三类：① 区/序 ② 标记 Transfer ③ 形态 |
+| **information primitive** | **信息原语** | 信息层结算（主轴改可见性 `FaceAudience`）；不是状态原语 |
+| **Register** | **注册 / Buff** | 第三类结算叶 → `RegistrationStore` |
+| **effect** | **效果** | 结算可 CREATED：状态原语 + 信息原语 + Register |
 | **named flow** | **命名流程** | 规则书手续；`seq.*`；Catalog + 堆栈 + 时点。**不是**卡牌正文 |
 | **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |
 | **Reveal (card)** | **揭示（卡牌）** | Grimoire 命名动作；L0 `AtomRevealCard`；写 FaceAudience |
