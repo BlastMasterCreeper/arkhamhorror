@@ -37,7 +37,7 @@ CREATED ∈ {
 只改 `FaceAudience`、只跑控制流、只读查询 → **不够**。  
 把 Register 留在原语外，会导致「纯挂 lasting / cannot / 延时」的合法效果体被判空结算——故 **Register 必须是信息原语结算叶**。
 
-**FAQ 1.27（弱点事件）**：**禁止**加「无游戏性特殊结算」糖。事件打出后的 **弃置（物理 Move）** 已是 CREATED；dry-run 须含该框架步（[07-composition §4.1.1](07-composition.md)）。
+**FAQ 1.27（弱点事件）**：有效性只测 **效果体**（弃置等框架步不计）。该类卡是 **发起例外**（可空效果体仍打出），**不是**假结算、也 **不是**把弃位置进 CREATED（[07-composition §4.1.1–4.1.2](07-composition.md)）。
 
 结算两层 + 权限层（非结算）：
 

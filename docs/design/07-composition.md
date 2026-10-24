@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.8 · 2026-10-24 — §4.1.1 FAQ 1.27：弱点事件靠框架弃置 CREATED；禁假结算
+> **状态**：v0.9.9 · 2026-10-24 — 有效性只测效果体；FAQ 1.27 = 发起例外（非弃置、非假结算）
 
 ---
 
@@ -577,34 +577,46 @@ dry-run 只问效果体能否 **CREATED** 至少一项直接影响（[07-primiti
 
 **空结算**：物理原语皆无法结算 **且** 无任何 Register 创建 Buff（亦无其它 CREATED）→ 整树 FIZZLE → **不允许发起**。
 
-#### 4.1.1 FAQ 1.27 · 弱点事件与「改变局面」（勿造假结算）
+#### 4.1.1 有效性只看「自身效果体」（已对齐）
+
+dry-run **CREATED** 的对象是 **卡牌/能力自己的效果组合**，不是整次打出手续里人人都有的框架步。
+
+| 计入有效性 | **不**计入 |
+|---|---|
+| 效果体里的物理原语、Register、Chronicle… | 事件打出后 **固定弃置**（每张事件都有 → 若计入则检测无意义） |
+| | 付费、借机攻击、仅改可见性、纯控制流 |
+
+#### 4.1.2 FAQ 1.27 · 弱点事件例外（设计师补丁）
 
 > **Weakness Events and "changing the game state"**（FAQ Game Play 1.27）：  
-> *Some weakness events such as Quantum Paradox do not change the game state in the traditional sense when played, but nevertheless provide negative effects if they are in your hand. These weakness events may still be played to avoid their negative effects.*
+> 若干弱点事件（如 Quantum Paradox）打出时效果体 **传统意义上不改局面**，但在手有负面；**仍允许打出** 以摆脱负面。
 
-设计师补丁意图：正文效果体可能「传统意义上」不改局面，但 **打出以离手**、躲开在手负面。
+这是对「事件效果须有 potential to change the game state」的 **规则例外**，不是重定义 CREATED。
 
 | 做法 | 裁决 |
 |---|---|
-| 为该类卡加 **无游戏性特殊结算** / 空 Atom 只为 CREATED | **禁止** — 糖；破坏「必须干了点什么」 |
-| 把「打出事件 → 弃置」算进有效性 | **要** — 事件打出手续末步 **Move 入手/悬置 → 弃牌堆** 是 **物理 ①**，dry-run **CREATED** |
-| 在手 Constant 负面随离手卸下 | 随 **Move** / 能力卸载，不是假 Buff |
+| 把框架弃置算进 CREATED | **禁止** — 检测失效 |
+| 无游戏性假结算 Atom 撑 CREATED | **不取** — 糖；CREATED 语义被掏空 |
+| **发起例外**：点名/标签弱点事件 **跳过**「效果体须 has_any_CREATED」 | **要** — 诚实表达 FAQ；其余事件/能力仍禁空结算 |
 
 ```text
-PLAY_CARD（事件）有效性 dry-run 范围
-  = 效果体 Composition
-  ∪ 框架弃置步（事件打出后进所有者弃牌堆）   ← 弱点事件常靠这一步非空
-```
+普通事件 / 能力：
+  可发起 ⟺ … ∧ simulate(效果体).has_any_created
 
-仅 dry-run **效果体** 而忽略弃置 → 会误伤 Quantum Paradox 类；补假结算则污染原语。**对齐 FAQ：真实离手/弃置即改变局面。**
+FAQ 1.27 类弱点事件：
+  可发起 ⟺ … ∧ （跳过效果体 CREATED 门）
+  // 在手负面 = 印刷能力/Restriction，离手后自然不再适用；不靠假结算
+```
 
 ### 4.2 发起合法条件
 
 ```text
 initiation 合法  ⟺  play restrictions 过
                 AND  cost 可付
-                AND  simulate(composition ∪ 框架必做步).has_any_created == true
-                     // 事件：含打出后弃置；空结算禁发起
+                AND  (
+                      simulate(效果体).has_any_created
+                      OR  FAQ_1_27_weakness_event_exception
+                    )
 ```
 
 ```gdscript
