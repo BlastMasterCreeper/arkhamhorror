@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.9 · 2026-10-24 — 有效性只测效果体；FAQ 1.27 = 发起例外（非弃置、非假结算）
+> **状态**：v0.9.10 · 2026-10-24 — FAQ 1.27 = InitGateSettle（仅发起认 CREATED）
 
 ---
 
@@ -586,37 +586,35 @@ dry-run **CREATED** 的对象是 **卡牌/能力自己的效果组合**，不是
 | 效果体里的物理原语、Register、Chronicle… | 事件打出后 **固定弃置**（每张事件都有 → 若计入则检测无意义） |
 | | 付费、借机攻击、仅改可见性、纯控制流 |
 
-#### 4.1.2 FAQ 1.27 · 弱点事件例外（设计师补丁）
+#### 4.1.2 FAQ 1.27 · 发起专用空结算（已裁决）
 
 > **Weakness Events and "changing the game state"**（FAQ Game Play 1.27）：  
-> 若干弱点事件（如 Quantum Paradox）打出时效果体 **传统意义上不改局面**，但在手有负面；**仍允许打出** 以摆脱负面。
+> 若干弱点事件（如 Quantum Paradox）效果体传统上不改局面，但在手有负面；仍允许打出。
 
-这是对「事件效果须有 potential to change the game state」的 **规则例外**，不是重定义 CREATED。
+**手段（用户意图 · 已采纳）**：效果体编译一枚 **无游戏性空结算** 叶（下称 `InitGateSettle` / 名义结算），**只**为发起有效性提供 CREATED。
 
-| 做法 | 裁决 |
+| 消费者 | `InitGateSettle` 算 CREATED？ |
 |---|---|
-| 把框架弃置算进 CREATED | **禁止** — 检测失效 |
-| 无游戏性假结算 Atom 撑 CREATED | **不取** — 糖；CREATED 语义被掏空 |
-| **发起例外**：点名/标签弱点事件 **跳过**「效果体须 has_any_CREATED」 | **要** — 诚实表达 FAQ；其余事件/能力仍禁空结算 |
+| **发起 / L7 dry-run**（效果体须非空） | **是** |
+| `after_step` / Then「上一步是否 CREATED」 | **否** |
+| must-choose / 支路过滤 | **否** |
+| 「本效果是否放置了…」类条件 | **否** |
+| Cancel 显现/效果体、实际局面 | **否**（无物理/Register 写入） |
 
 ```text
-普通事件 / 能力：
-  可发起 ⟺ … ∧ simulate(效果体).has_any_created
-
-FAQ 1.27 类弱点事件：
-  可发起 ⟺ … ∧ （跳过效果体 CREATED 门）
-  // 在手负面 = 印刷能力/Restriction，离手后自然不再适用；不靠假结算
+禁止：把框架弃置算进效果体 CREATED（每张事件都有 → 检测无意义）
+允许：FAQ 1.27 类在效果体挂 InitGateSettle（写死仅发起门可见）
 ```
+
+实现形状另裁（Composition 叶 / dry-run 专用 flag）；原则：**一种叶、两档消费**——发起门认，其余 CREATED 语义不认。
 
 ### 4.2 发起合法条件
 
 ```text
 initiation 合法  ⟺  play restrictions 过
                 AND  cost 可付
-                AND  (
-                      simulate(效果体).has_any_created
-                      OR  FAQ_1_27_weakness_event_exception
-                    )
+                AND  simulate(效果体).has_any_created_for_initiate == true
+                     // 含真结算 ∪ InitGateSettle；其它消费用 has_any_created（不含名义叶）
 ```
 
 ```gdscript
