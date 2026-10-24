@@ -847,6 +847,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-25 | v0.6.13 | §4：落地 `increase_pending` + `assign_delta`/`merge_legs`（TIM-DMG-03/04）；Gate 仍待接 |
 | 2026-10-24 | v0.6.12 | §4 PreImpact 加量：保留已确认 N 腿；仅增量 K 在合法全合格集上 Assign（02221） |
 | 2026-10-23 | v0.6.11 | §4：Assign 交互 = 静态 PI 会话（候选+约束→增减至耗尽→确认；期间重算可分配性） |
 | 2026-10-23 | v0.6.10 | 框架称呼：`SoakAssigner` → `DamageAssigner`（弃用 soak） |
