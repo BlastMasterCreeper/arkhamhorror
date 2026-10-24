@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.31 · 2026-10-24 — 攻击/发现量修正：消费式选一腿；多候选 PI
+> **状态**：v0.4.32 · 2026-10-24 — Register 只写 Buff；Gain 特征可衍生行为 Buff
 
 ---
 
@@ -49,64 +49,80 @@ class BuffSpec:
 
 ```text
 Register（结算 · 不可见）
-  创建 → Registration（存续记录）
-              └─ 内含 0..n 个 BuffSpec（MODIFIER | RESTRICTION | LISTENER
-                                      或 KEYWORD/TRAIT「拥有」标记）
+  只能创建 → Registration
+              └─ 内含 1..n 个 BuffSpec（见下 · 载荷族）
 
-Unregister（结算）→ 记录消失 → 其 Buff 不再被查询/开火
+Unregister（结算）→ 记录消失 → 其 Buff（含衍生）一并卸下
 ```
 
-| | **Register** | **Buff** |
+> **硬约束（已对齐）**：信息原语 Register **只能**写出 Buff（或你不愿全称 buff 时：Store 里的 Registration 载荷）。  
+> **禁止** Register 旁路直接挂裸 `AbilitySpec` / 真空订时点。能力管线吃的是 **Gain 特征 Buff 衍生出的挂载**，不是第二套结算入口。
+
+| | **Register** | **Buff（载荷）** |
 |---|---|---|
-| 词性 | **动词**（结算叶） | **名词**（载荷形状） |
-| 做什么 | 把一条 lasting/延时效果 **写进/卸出** Store | 说明这条效果 **改数值 / 禁允 / 听时点** |
-| dry-run | 插入成功 → **CREATED** | 不单独 CREATED；随 Registration 创建 |
-| 纸面 | 「获得 until…」「下个阶段初…」「cannot（效果给予）」的落地 | 编译进 `BuffSpec`；**不含**印刷 Forced/reaction |
-| 不是 | — | 不是第四层原语；不是「先造 Buff 对象再粘上去」的第二 API |
+| 词性 | **动词**（结算叶） | **名词**（Registration 内形状） |
+| 做什么 | 把 lasting / 延时 / **Gain 特征** **写进/卸出** Store | 行为修正 **或** 特征授予（§3 / §3.2） |
+| dry-run | 插入成功 → **CREATED** | 不单独 CREATED；随 Registration |
+| 不是 | — | 不是第四层原语 |
 
-**Buff 仅三种行为型**（§3）；关键词本身不是 BuffType。动态「拥有」可先 Register **KEYWORD 标记**，再按同一 profile 挂真正的三种 Buff（§3.2：「拥有 ≠ 行为」）。
+**Buff 两族（同壳，非两种原语）**：
 
-与 [07 §5.4.2](07-effect-primitives.md) 对齐：信息原语 **主量** = Register/Unregister；Buff = 载荷。控制权等优先做 Buff，不单立原语。日志∪记住 = 薄 **Chronicle**，不进本 Store。
+| 族 | 成员 | 角色 |
+|---|---|---|
+| **行为** | `MODIFIER` · `RESTRICTION` · `LISTENER` | 直接改数值 / 禁允 / 听时点跑 Composition |
+| **Gain 特征** | `KEYWORD` · `TRAIT` · `ICON` · `ABILITY` | Grimoire *gains a characteristic*；**拥有**记录 |
+
+**衍生（核心）**：Gain 特征 Buff **创建时**可按 profile **再 Register / 挂载衍生行为 Buff**（或能力管线挂载）。卸 Gain 壳 → 对称拆衍生。见 §2.3 / §3.2.1a。
+
+与 [07 §5.4.2](07-effect-primitives.md) 对齐：信息原语 **主量** = Register/Unregister；Buff = 唯一可注册物。日志∪记住 = 薄 **Chronicle**。
 
 ### 2.2 原语语境：Register 不按 Buff 再拆结算
 
 ```text
 信息原语结算面     ≈  Register / Unregister
 Registration 壳    =  lifetime · scope · source（参数，非原语）
-Buff 形态          =  MODIFIER | RESTRICTION | LISTENER | 拥有标记…
+Buff 形态          =  行为三型 | Gain 特征族
+衍生               =  Gain 创建 → 再挂行为 Buff / 能力挂载（仍经 Register 或同壳子载荷）
 ```
 
 - **不要**为每种 BuffType 各造一个结算原语。  
 - **不要**为持续/延时各造一套 Store（§4）。  
-- **可以**把「获得控制」编成带 lifetime 的 Buff（查 `effective_controller`），而不是 `set_controller` 信息原语。  
-- 复杂度增长点：新 **payload / RestrictionKind / Listener timing**，不是新 Register 动词。
+- **不要**「Register AbilitySpec」绕过 Buff——Ability 是 Gain.`ABILITY` 的 payload，初始化是 **衍生**。  
+- 复杂度增长点：新 payload / RestrictionKind / Listener timing / Gain kind，不是新 Register 动词。
 
-**包装（信息原语对外）**：唯一结算入口 `seq.effect.register` / `unregister`，参数 = `RegistrationTemplate`（壳 + `buffs[]`）。Builder/编译器用 `lasting_modifier` 等工厂丰富 Template；运行时不增殖结算动词。详 [07 §5.4.2b](07-effect-primitives.md)。
+**包装**：唯一结算入口 `seq.effect.register` / `unregister`，参数 = `RegistrationTemplate`（壳 + `buffs[]`）。详 [07 §5.4.2b](07-effect-primitives.md)。
 
-### 2.3 能力 ≠ Buff（LISTENER 举例勿混）
+### 2.3 印刷能力 ≠ Buff；Gain 能力 = 特征 Buff → 衍生
 
-> **已对齐**：纸面 **Forced / 触发 / Constant / Revelation / 关键词** 都是 **能力**（或 characteristic）。印刷能力 ≠ lasting LISTENER Buff。  
-> **效果可以 gains 几乎任意能力类型**（含 Forced、关键词）——那是 Register 挂上的 **AbilitySpec / 标记**，仍按该能力类型跑管线，不是改叫 BuffType。
+> **已对齐**：纸面 **印刷** Forced / 触发 / Constant / Revelation / 关键词 = **能力 / characteristic**，进场挂载，**不是** Register 出来的 Buff。  
+> **效果 gains …** = Register **Gain 特征 Buff**；该 Buff **会创建衍生**（行为 Buff 和/或能力管线挂载）。仍 **不是**把 Forced 改叫 `LISTENER`。
 
-| | **能力（Ability）** | **行为 Buff（MODIFIER/RESTRICTION/LISTENER）** |
-|---|---|---|
-| 纸面 | Forced、`[reaction]`、Constant、关键词… | 「until… +1」「cannot」「until… after…抽」等 |
-| 从哪来 | **印刷**，或 **gains …**（Register 挂 AbilitySpec/标记） | 效果 Register 的行为载荷 |
-| 运行 | 按 AbilityKind：Forced 自动 / 触发选用 / Constant 查询 / 关键词 profile | `collect` / ModifierEngine / LISTENER fire |
-| 寿命 | 印刷随卡；gained 随 Registration lifetime | 同壳 `LifetimeSpec` |
+| | **印刷能力** | **Gain 特征 Buff** | **行为 Buff** |
+|---|---|---|---|
+| 从哪来 | 卡面定义 · 进场 | 效果 `gains …` → Register | 效果直接「until…」**或** Gain **衍生** |
+| Store | 否（定义侧） | **是**（KEYWORD/TRAIT/ICON/ABILITY） | **是**（三型） |
+| 运行 | AbilityKind 管线 | `effective_*`；创建时 **衍生** | Modifier / Eligibility / LISTENER fire |
 
-**LISTENER Buff 的合法例子**：
+```text
+gains surge / Retaliate / Forced – …
+  → Register Gain 特征 Buff（KEYWORD 或 ABILITY + payload）
+  → 衍生：
+       KEYWORD profile → 再挂 LISTENER / RESTRICTION / MODIFIER（拥有 ≠ 行为）
+       ABILITY payload → 能力 Lifecycle mount（订时点 / COLLECT / Forced 槽 / Limit）
+                       → Constant 数值句可再衍生 MODIFIER
+  → Unregister Gain 壳 → 卸全部衍生
+```
 
-- Event：*Until end of your turn, after you successfully evade, draw 1 card.*  
-- 延时：*At the beginning of the next mythos phase, place 1 doom…*  
-- 动态：`gains surge` 之后的延时再抽（KEYWORD 标记 + 延时消费）
+**LISTENER Buff 的合法例子**（行为族，可直接 Register 或由 Gain 衍生）：
 
-**不要再举例成 LISTENER Buff**：
+- Event：*Until end of your turn, after you successfully evade, draw 1.*（效果直接造 LISTENER）  
+- 延时：*At the beginning of the next mythos phase…*  
+- `gains surge` **衍生**出的延时再抽 LISTENER（Gain 是 KEYWORD 标记；LISTENER 是衍生）
 
-- 支援印刷 *Forced – After you fight: draw 1.* → **Forced 能力**  
-- *`[reaction]` After you defeat an enemy…* → **反应能力**
+**不要举例成「Forced = LISTENER Buff」**：
 
-**实现注记**：在场能力「订时点跑效果」与 lasting LISTENER **可共享** Catalog 订阅/开火机械；那是 **同形实现**，不是把能力重新分类成 Buff。对话与 07 举例必须以纸面为准。
+- 支援 **印刷** *Forced – After you fight: draw 1.* → 印刷能力  
+- *效果* *… gains “Forced – After you fight: draw 1.”* → **Gain.`ABILITY` Buff** → 衍生 Forced 挂载（实现可与 LISTENER **同形订阅**，分类仍是能力挂载，不是把 Gain 改叫 LISTENER）
 
 ---
 
@@ -186,39 +202,56 @@ Effective* / COLLECT / Forced 自动发起 @ 各 consumer
 
 **可获得 ≈ 几乎全部能力类型**（含关键词）。但 **读特征** 与 **文本能力** 落地重量不同：
 
-#### 3.2.1a 只读特征（供查询）vs 文本能力（须注册/初始化）
+#### 3.2.1a Gain Buff：只读 vs 文本能力（衍生）
 
-| 档 | 获得什么 | 主要消费 | 落地重量 |
+> Register **只**写出 Buff。Gain = **特征族 Buff**；文本能力档在创建时 **衍生**行为 Buff / 能力挂载（§2.1 / §2.3）。
+
+| 档 | Gain Buff 载荷 | 衍生？ | 消费 |
 |---|---|---|---|
-| **A. 只读特征** | trait、skill icon、部分 keyword「拥有」 | `has_effective_*` / 检定数图标 | **轻**：Register 标记（± MODIFIER）；查询并集即可 |
-| **B. 文本能力** | Forced / `[reaction]` / `[free]` / `[action]` / Constant 句 / 显现体… | **能力管线** | **重**：须走与进场挂印刷能力 **同形的注册与初始化** |
+| **A. 只读特征** | TRAIT / ICON / 部分 KEYWORD「拥有」 | 通常 **无**（或仅 ICON→MODIFIER） | `effective_*` 并集 |
+| **B. 文本能力 / 有行为的 keyword** | `ABILITY`（内嵌与印刷同构的 AbilitySpec）或 KEYWORD | **有** | 衍生挂载后走能力管线 / 行为三型 |
 
 ```text
-gains 只读特征
-  → Register 标记 / MODIFIER
-  → 日后只被读（effective 查询）
+gains 只读
+  → Register Gain Buff（标记）
+  → 查询并集；少衍生
 
-gains 文本能力
-  → 编译 AbilitySpec（与印刷同构）
-  → Register 挂上（lifetime · source · card 绑定）
-  → 初始化：订 timing / 进 COLLECT 池 / Forced 自动槽 / Limit 计数器…
-  → 之后与印刷能力同一套 Initiation / Forced 直执 / Activate
-  → Unregister 时做对称拆卸（退订、出池、清 Limit）
+gains 文本能力 / 行为 keyword
+  → 编译 AbilitySpec 或 KeywordProfile 键
+  → Register Gain Buff（壳 + 载荷）          ← 唯一 CREATED 结算
+  → 【衍生】mount：
+       · KeywordProfile → 再 Register LISTENER / RESTRICTION / MODIFIER
+       · AbilitySpec    → Lifecycle（订时点 / COLLECT / Forced / Limit）
+       · Constant 数值  → 可再衍生 MODIFIER
+  → 之后与印刷能力 / 印刷 keyword **同 consumer**
+  → Unregister Gain → 级联卸衍生
 ```
 
-| 文本能力类型 | 初始化须考虑 |
+| 文本能力类型 | 衍生须做什么 |
 |---|---|
-| **Forced** | 订触发时点；窗到 **自动** 发起（非选用） |
-| **`[reaction]` / `[free]`** | 订槽；进响应/发起候选；控制者选用 |
-| **`[action]`** | Activate / 行动入口可发现 |
-| **Constant** | 挂入 Constant 查询集；数值类可并行 MODIFIER |
-| **Revelation** | 若 gains 显现体：仍仅在显现入口解释 |
-| **Keyword** | 拥有标记 + **按 KeywordProfile 初始化行为**（可能再挂 RESTRICTION / 延时消费等） |
+| **Forced** | 订触发时点；窗到 **自动** 发起 |
+| **`[reaction]` / `[free]`** | 订槽；进响应候选 |
+| **`[action]`** | Activate 可发现 |
+| **Constant** | Constant 查询集；数值可衍生 MODIFIER |
+| **Revelation** | 仅显现入口解释 |
+| **Keyword** | 标记已由 Gain 写出；**再**按 Profile 衍生行为 Buff |
 
-> **禁止**：gains Forced 只塞 KEYWORD 标记或改叫 LISTENER Buff；文本能力 **省略注册/初始化** 只靠「effective 读到有这句话」。  
-> **印刷** Forced 仍是能力；**效果 gains Forced** = Register + **初始化** 一条 Forced AbilitySpec。
+> **禁止**：绕过 Gain Buff 真空挂 AbilitySpec；把 Forced **改叫** LISTENER；省略衍生只靠「effective 读到有这句话」。  
+> **印刷** Forced = 能力，不经 Register。**效果 gains Forced** = Register Gain.`ABILITY` → **衍生** Forced 挂载。
 
-**非本表（非 characteristic）**：`gain N resource` / `gain an action` = 资源/行动 **状态原语**，不走 Gained characteristics。
+**实现建议（薄）**：
+
+```gdscript
+# Template：一次 Register，buffs 含 Gain；衍生在 Store.on_register 回调
+RegistrationTemplate.grant_characteristic(card_id, kind, payload, lifetime)
+# on_register(gain_buff):
+#   for derived in CharacteristicDeriver.expand(gain_buff):
+#       register_child(derived)   # 行为 Buff，lifetime 绑父 Gain
+#   if gain_buff.kind == ABILITY:
+#       AbilityLifecycle.mount(gain_buff.ability_spec, bind)
+```
+
+**非本表**：`gain N resource` / `gain an action` = 状态原语，不走 Gain 特征。
 
 #### 3.2.2 查询 API（目标 · P0 竖切）
 
@@ -239,8 +272,8 @@ class EffectiveCharacteristicQuery:
 
 **P0 竖切**：`has_effective_keyword` + Surge KEYWORD Register/UnRegister · **`draw_encounter_flow` G5** ✅（`EffectiveCharacteristicQuery` · `EncounterGainedKeyword` · ENC-SURGE-02/03 · GAIN-01）
 
-**P1**：until end of turn 的 `[action]` / `[reaction]` → `GRANT ABILITY` + LISTENER。  
-**P2**：trait / icon / 其它 keyword（Retaliate、Aloof…）按扩展包卡面增量。
+**P1**：until-EOT `[reaction]` / Forced → Register Gain.`ABILITY` → 衍生 Lifecycle mount（**不是**改叫 LISTENER）。  
+**P2**：trait / icon / 其它 keyword（Retaliate…）→ Gain 标记 + Profile **衍生**行为 Buff。
 
 #### 3.2.3 Core 2026 卡面统计
 
@@ -1338,6 +1371,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.32 | Register 只写 Buff；Gain 特征族可衍生行为 Buff / 能力挂载；禁旁路 AbilitySpec |
 | 2026-10-24 | v0.4.31 | 攻击/发现量修正消费式选一 leg；多候选触发 PI；禁对每个目标广播 |
 | 2026-10-24 | v0.4.30 | §16.3：无类型技能 SKILL_ANY；AttackDamagePlan/DiscoverPlan 替代扁 DAMAGE/DISCOVER 量 |
 | 2026-10-24 | v0.4.29 | §3.2.1a：gains 只读特征 vs 文本能力（须注册/初始化，同印刷挂载） |

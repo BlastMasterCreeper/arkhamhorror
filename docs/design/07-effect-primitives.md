@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.27 · 2026-10-24 — Gain：只读特征 vs 文本能力（须注册/初始化）
+> **状态**：v0.3.28 · 2026-10-24 — Register 只写 Buff；Gain 衍生行为 / 能力挂载
 
 ---
 
@@ -531,49 +531,39 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 └────────────────────────────────────────────────┘
          │ 内含
          ▼
-┌─ Buff / Gain 载荷（非原语）────────────────────┐
+┌─ Buff 载荷（非原语 · Register 唯一可写物）─────┐
 │  行为三型：MODIFIER | RESTRICTION | LISTENER   │
-│  Gain 特征族（Grimoire characteristic）：       │
-│    KEYWORD · TRAIT · ICON · ABILITY（触发/永续）│
-│  扩展：有效控制、blank、拓扑限制…               │
+│  Gain 特征族：KEYWORD · TRAIT · ICON · ABILITY │
+│  扩展：有效控制、blank…                        │
+│  Gain 创建 → 可【衍生】再挂行为 Buff / 能力挂载 │
 └────────────────────────────────────────────────┘
 ```
 
 | 轴 | 有什么 | 是原语吗？ |
 |---|---|---|
-| **结算** | Register · Unregister | **是** |
+| **结算** | Register · Unregister（**只能**写/卸 Buff） | **是** |
 | **壳参数** | lifetime · scope · source | **否** |
-| **载荷** | 行为三型 + **Gain 各族** | **否** |
-| **消费** | collect / Initiation COLLECT / ModifierEngine… | **否**（厚读或能力管线） |
+| **载荷** | 行为三型 + Gain 特征族 | **否** |
+| **衍生** | Gain → 行为 Buff / Lifecycle mount | **否**（创建副作用；子项仍是 Buff 或挂载） |
+| **消费** | collect / COLLECT / ModifierEngine… | **否** |
 
-**行为三型**（效果创造的 lasting / 延时 / cannot…）：
+**行为三型**：
 
 | BuffType | 消费 | 典型 |
 |---|---|---|
-| **MODIFIER** | ModifierEngine | until… +1 fight；费用/伤害量等 **数值** 修正 |
-| **RESTRICTION** | Eligibility / Intent | cannot；SKIP_AOO；有效控制… |
-| **LISTENER** | Catalog → Composition | 「until… after…」壳内听；纯延时 `UNTIL_FIRED` |
-| **BLANK**（非 MODIFIER） | 压制 **印刷** 文本框 | 「视为空白」；`effective = (印刷−blank)∪gained`；**不**走加减法 |
+| **MODIFIER** | ModifierEngine | until… +1；伤害/发现量等 |
+| **RESTRICTION** | Eligibility / Intent | cannot；SKIP_AOO… |
+| **LISTENER** | Catalog → Composition | 「until… after…」；延时；**或** keyword Gain **衍生** |
+| **BLANK**（非 MODIFIER） | 压制印刷文本框 | 见 06；**不**走加减法 |
 
-**Gain**（[06 §3.2 / §3.2.1a](06-registration-buff-model.md)）分两档：
+**Gain 特征 Buff**（[06 §3.2](06-registration-buff-model.md)）：Register 写出「拥有」；**文本能力 / 行为 keyword** 在创建时 **衍生**（非改叫 LISTENER）：
 
-| 档 | 获得 | 好说因为… | 还要… |
-|---|---|---|---|
-| **只读特征** | trait、icon、部分「拥有」keyword | **供读取**（`effective_*`） | Register 标记即可 |
-| **文本能力** | Forced / 触发 / Constant / 显现句…（关键词行为侧也算） | — | **能力注册 + 初始化**（订时点、进池、Forced 自动、Limit）；Unregister 对称拆卸 |
+| 档 | Gain 载荷 | 衍生 |
+|---|---|---|
+| 只读 | TRAIT / ICON / 部分 KEYWORD | 通常无 |
+| 文本能力 / 行为 keyword | `ABILITY`+AbilitySpec 或 KEYWORD | Lifecycle mount；Profile → LISTENER/RESTRICTION/MODIFIER |
 
-可获得类型仍几乎盖全能力；关键词 ⊂ 能力。禁止 gains 文本能力只当只读标记或 LISTENER Buff。
-
-**不是 Buff**（纸面 **能力**，走 `AbilitySpec` / Initiation）：
-
-| 纸面 | 为何不是 LISTENER Buff |
-|---|---|
-| **Forced –** | 卡牌 **能力**；时点到由能力管线自动发起 |
-| **`[reaction]` / `[action]` / `[free]`** | 同上；玩家选用 / Activate |
-| **Constant** | 能力；查 modifier 时贡献，不是「延时效果」 |
-| **Revelation** | 显现能力；入口 seq 内解释 |
-
-引擎若把「在场时订时点」做成与 LISTENER **同形的挂载**，那是 **实现复用**，文档/对话仍称 **能力**，禁止把 Forced/reaction 举例成「LISTENER Buff / 延时效果」。详见 [06 §2.3](06-registration-buff-model.md)。
+**印刷能力不是 Buff**（进场挂载，不经 Register）。**效果 gains 能力** = Gain Buff → 衍生挂载。禁止 Register 旁路挂裸 AbilitySpec；禁止把印刷 Forced 举例成 LISTENER。详见 [06 §2.3 / §3.2.1a](06-registration-buff-model.md)。
 
 持续 vs 延时：**同一 Register**，差在 `DURATION/WHILE_*` vs `UNTIL_FIRED`（[06 §4](06-registration-buff-model.md)）。多 Buff 可同壳一次 Register（§5.4）。
 
@@ -836,6 +826,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.28 | Register 只写 Buff；Gain 创建可衍生行为 Buff / 能力挂载 |
 | 2026-10-24 | v0.3.27 | Gain 分档：只读特征 vs 文本能力（注册+初始化，同印刷挂载） |
 | 2026-10-24 | v0.3.26 | Gain 可含 Forced/触发/Constant/关键词等几乎全部能力类型 |
 | 2026-10-24 | v0.3.25 | §5.4.2：Gain 特征族含触发/永续能力；纠正「只有 KEYWORD 标记」 |
