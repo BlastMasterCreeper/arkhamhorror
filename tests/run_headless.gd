@@ -78,6 +78,7 @@ func _initialize() -> void:
 	_run_test("MOD-05 discover bonus single leg investigate", _test_mod_discover_bonus_single_leg)
 	_run_test("MOD-06 discover bonus chooses one of many legs", _test_mod_discover_multi_leg_pi)
 	_run_test("MOD-07 zero-amount discover legs skip bonus and settle", _test_mod_discover_zero_leg_skips)
+	_run_test("MOD-08 shroud modifier lowers investigate difficulty", _test_mod_shroud_investigate)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -1853,6 +1854,28 @@ func _test_mod_discover_zero_leg_skips() -> bool:
 		and leg_b.amount == 0
 		and int(settled.get("discovered", -1)) == 0
 	)
+
+
+func _test_mod_shroud_investigate() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.shroud = 4
+	loc.clues = 2
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.reduce_shroud_this_turn(&"inv_1", 3)
+	))
+	var q := ModifierQuery.new()
+	q.controller_id = &"inv_1"
+	q.stat = AhcEnums.StatRef.SHROUD
+	if h.ctx.modifiers.compute(4, q) != 1:
+		return false
+	## 印刷 shroud 4、−3 → 难度 1；默认混沌袋易成功并发现线索。
+	var res := h.investigate_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and res.success and loc.clues == 1 and inv.clues_on_card == 1
 
 
 func _test_restriction_blocks_draw() -> bool:

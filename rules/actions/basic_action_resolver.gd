@@ -24,7 +24,14 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
 	test.skill = AhcEnums.SkillType.INTELLECT
-	test.difficulty = loc.shroud
+	## MOD-Q-SHROUD：印刷 shroud 经 ModifierEngine 后再作难度（下限 0）。
+	var shroud := loc.shroud
+	if game_ctx != null and game_ctx.modifiers != null:
+		var shroud_q := ModifierQuery.new()
+		shroud_q.controller_id = inv_id
+		shroud_q.stat = AhcEnums.StatRef.SHROUD
+		shroud = game_ctx.modifiers.compute(loc.shroud, shroud_q)
+	test.difficulty = shroud
 	var location_id_copy := location_id
 	var inv_copy := inv_id
 	## ST.7：建发现 Plan → 消费式发现修正 → 仅 amount>0 落点（06 §16.3.2）。
@@ -217,24 +224,3 @@ func _commits_from_extra(extra: Dictionary) -> Array[CommittedCard]:
 			out.append(item)
 	return out
 
-
-func _apply_discover_clue(
-	game_ctx: GameContext,
-	location_id: StringName,
-	inv_id: StringName
-) -> void:
-	if game_ctx != null and game_ctx.mutator != null:
-		game_ctx.mutator.transfer_marker(
-			AhcEnums.MarkerKind.CLUE,
-			1,
-			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE),
-			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.CLUE)
-		)
-		return
-	## 无 mutator：仅测试旁路；正式路径必须经 Transfer。
-	var loc := _state.registry.get_location(location_id)
-	var inv := _state.registry.get_investigator(inv_id)
-	if loc == null or inv == null or loc.clues <= 0:
-		return
-	loc.clues -= 1
-	inv.clues_on_card += 1

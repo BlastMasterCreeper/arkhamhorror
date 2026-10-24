@@ -47,6 +47,18 @@ static func discover_bonus_this_test(
 	)
 
 
+## 调查 shroud −N（标量 MOD-Q-SHROUD）。
+static func reduce_shroud_this_turn(
+	controller_id: StringName,
+	amount: int = 1
+) -> RegistrationTemplate:
+	return lasting_modifier(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_TURN,
+		ModifierPayload.reduce_shroud(amount)
+	)
+
+
 static func lasting_restriction(
 	controller_id: StringName,
 	duration: AhcEnums.DurationAnchorKind,

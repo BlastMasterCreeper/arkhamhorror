@@ -23,6 +23,19 @@ static func add_skill_any(amount: int) -> ModifierPayload:
 	return add_skill(AhcEnums.StatRef.SKILL_ANY, amount)
 
 
+## 调查 shroud 修正（常为减：reduce_shroud；加算用 ADD）。
+static func modify_shroud(amount: int, op: AhcEnums.ModOp = AhcEnums.ModOp.ADD) -> ModifierPayload:
+	var p := ModifierPayload.new()
+	p.stat = AhcEnums.StatRef.SHROUD
+	p.op = op
+	p.value = amount
+	return p
+
+
+static func reduce_shroud(amount: int) -> ModifierPayload:
+	return modify_shroud(amount, AhcEnums.ModOp.SUB)
+
+
 static func add_resource_gain(amount: int, apply_condition: Condition = null) -> ModifierPayload:
 	var p := ModifierPayload.new()
 	p.stat = AhcEnums.StatRef.RESOURCE_GAIN_AMOUNT

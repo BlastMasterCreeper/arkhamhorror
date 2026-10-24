@@ -365,6 +365,8 @@ enum StatRef {
 	SKILL_AGILITY,
 	## 无类型技能修正（似 wild）；ST.5 匹配任意技能检定。
 	SKILL_ANY,
+	## 调查难度（地点 shroud）；MOD-Q-SHROUD。
+	SHROUD,
 	RESOURCE_GAIN_AMOUNT,
 	INITIATION_RESOURCE_COST,
 	INITIATION_ACTION_COST,
