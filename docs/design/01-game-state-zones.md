@@ -128,6 +128,67 @@ enum Zone {
 
 **Limbo 语义**：Event/Treachery **显现结算中**时进 LIMBO；Limbo 中卡**不算 In-Play**（Grimoire Limbo）。**已 commit 的 Skill** 不进 LIMBO — 见 `SkillTestContext.committed`，zone 暂留 HAND 直至 ST.8（OQ-01-03）。
 
+### 3.5.1 放置关系（Placement · 已裁决 2026-10-24）
+
+> **问题**：旁置、附着、垫下（可背面）、牌库、特殊区域「是否在场」常被揉成 `ATTACHED` / `SET_ASIDE` 一种。  
+> **裁决**：物理层用 **放置关系** 区分地址；场上/场外是 **规则谓词**（可被卡面改写）；可见性仍正交。
+
+#### 放置种类（物理地址 · 状态原语 ①）
+
+| Kind | 物理像什么 | 与宿主关系 | 典型 |
+|---|---|---|---|
+| **FREE** | 独立区（play / threat / location_area…） | 无宿主叠放 | 场上支援、威胁区敌人 |
+| **BESIDE** | 宿主实体**旁**的独立 flat 区 | `beside_host_id`；**不**叠在宿主下 | 旁置地点/密谋/行动/场景实体的指示物牌、探索辅堆等 |
+| **ATTACHED** | 叠在宿主上并重叠（Grimoire *attach*） | `attached_to`；宿主离场默认带走弃置 | 附着地点的 treachery、武器附着等 |
+| **UNDER** | 垫在宿主**之下**（可正面/背面） | `under_host_id` + 序；**不是** attach | 蜂拥垫牌、部分「放这张卡下」 |
+| **DECK_ORDERED** | 有序牌堆（Shape.DECK） | 库/弃的序 | 调查员库、遭遇库、部分特殊有序堆 |
+
+```text
+禁止混用：
+  ATTACHED ≠ UNDER     （规则：附着 vs 垫下；离场默认不同）
+  UNDER ≠ DECK_ORDERED （垫下通常可知「是哪张/有几张」；牌库默认不知内容）
+  BESIDE ≠ SET_ASIDE   （旁置有宿主座位；set-aside 是全局场外区，可再亚型）
+```
+
+物理区 id 建议：`beside_<host>` / `under_<host>` / 既有 `threat_*` / `deck_*`；Domain 可咽喉双写 `attached_to` / `under_host_id` / `beside_host_id`（派生索引，非信息原语）。
+
+#### 场上 / 场外（规则谓词 · 非单纯 zone）
+
+- **默认表**：play / threat / location_area / attached / under（若卡面未另说）/ current act·agenda / scenario reference → 常 **in play**；deck / hand / discard / set-aside / RFG / victory / limbo → **out of play**。  
+- **特殊区域**：卡面或区域规格可写明 *in play* / *out of play*（或「视为在场」）。该声明 **覆盖默认表**。  
+- **互动范围**：Eligibility 默认用 in-play 筛玩家可触发/可选目标；**不是**铁律——卡面写「即使场外也可」「仅手牌」等时放宽或收紧。  
+- **实现注意**：`ZoneMoveFlow.zone_is_in_play` 过窄（仅 PLAY/THREAT）须升到与本表 + 区域规格一致；进场/离场别名钩听 **谓词变迁**，不听「zone 字符串集合」硬编码。
+
+#### 离场默认捆绑 vs 保留（§5.2 细则）
+
+默认（宿主 **离开 in-play** 时，与 Move 同事务）：
+
+1. 宿主标记回 ∞ 池（Transfer）  
+2. **ATTACHED** → 各 owner 弃牌堆  
+3. **UNDER** → 默认随规则：常见弃置或回遭遇库底（蜂拥等另规）；**不**自动当 attachment 弃  
+4. `WHILE_IN_PLAY` Register 卸除  
+
+**卡面可改写**（`LeavePlayPolicy` / 命名流程参数）：
+
+| 旗 | 含义 |
+|---|---|
+| `retain_tokens` | 离场不剥标记（交换宿主、部分放逐例外等） |
+| `retain_attachments` | 附着不弃，随宿主或改挂 |
+| `retain_under` | 垫下牌不散，随宿主迁移 |
+| `attachments_to_victory` | Victory 附着进胜利区（FAQ 类） |
+
+禁止把「默认剥光」写成唯一实现且无视卡面保留句。
+
+#### 垫下背面 vs 牌库（可见性）
+
+| | **UNDER + 背面** | **DECK_ORDERED** |
+|---|---|---|
+| 物理形态 | `CardFace` 背 / exhausted 无关 | 牌库形区 + 序 |
+| 默认 `FaceAudience` | 常 **ALL 或 CONTROLLER**（玩家**知道是哪张/可知身份**；「背面」只是朝向） | **HIDDEN_ALL**（不知内容） |
+| 信息层 | 身份通常已在生效特征查询里可知 | 未 reveal 前观察者不知 `definition_id`（规则层仍持有） |
+
+> 背面 ≠ 不可知。垫下背面是 **形态**；牌库隐藏是 **可见性**。二者正交（§3.6）。
+
 ### 3.6 牌面可见性（按观察者）
 
 **牌面可见性是针对玩家（调查员观察者）的**，与 **zone** 正交。  
@@ -267,15 +328,16 @@ class GameStateStore:
 - 若能力指定「以非默认状态进场」，**无过渡动画式状态**，直接处于该状态。
 - 触发：`TimingBus.emit("enters_play", payload)`。
 
-### 5.2 Leaves Play（Grimoire p.14）
+### 5.2 Leaves Play（Grimoire p.14 · 保留例外见 §3.5.1）
 
-**同时**发生：
+**默认**与迁出 **同事务**发生（可用 `LeavePlayPolicy` 改写）：
 
-1. 卡上所有 token 归还 `global_token_pool`
-2. 所有 attachments 弃置（进各自 owner discard）
-3. 影响该卡的 lasting / delayed effects 对该卡过期
+1. 卡上 token → ∞ 供给池（`transfer_marker`；`retain_tokens` 则跳过）  
+2. **ATTACHED** → 各 owner discard（`retain_attachments` / 改挂 / 进胜利区则例外）  
+3. **UNDER** 按垫下规则处理（默认不与 attachment 混用同一弃置例程）  
+4. 影响该卡且绑 `WHILE_IN_PLAY` 的 Register 卸除（其它 lasting 见 06 OQ-BUFF-04）
 
-然后卡迁入目标 Out-of-Play 区域。
+然后卡迁入目标区域；目标区的 **in-play 谓词** 由 §3.5.1 决定（特殊区可仍算在场）。
 
 ### 5.3 同时效果（已裁决 OQ-01-02）
 
@@ -372,7 +434,6 @@ class LocationState:
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-01-04 | P2 | `SET_ASIDE` 与 `REMOVED_FROM_GAME` 是否需子类型（campaign 指定 area）？ |
 | OQ-01-05 | P1 | 多 copy 同 title 非 exceptional 卡 in play：instance_id 与 definition_id 在 Target 解析中的优先级？ |
 | OQ-01-06 | P2 | Attachment 链（A attach B attach C）leave play 时 discard 顺序是否由 owner 选？ |
 
@@ -383,6 +444,8 @@ class LocationState:
 | OQ-01-02 | 通用「同时效果组」语义：同一 timing point 开始结算；组完成后才触发 `after`；适用于 Unique 冲突与「A and B」。原语 `SimultaneousEffectGroup`。 | 2026-05-25 |
 | OQ-01-01 | **Domain** `CardInstance.is_hidden`；**Presentation** 对非 owner 隐藏牌名。见 §3.6。 | 2026-05-25 |
 | OQ-01-03 | **B**：`SkillTestContext.committed` 追踪；zone **仍为 HAND** 至 ST.8；**不进 LIMBO**。见 §3.5 Limbo 说明、04 §4。 | 2026-05-25 |
+| OQ-01-04 | **亚型可建**：set-aside / RFG / 旁置特殊区用区域规格（`play_membership` + PlacementKind）；不单靠一个扁平 SET_ASIDE。见 §3.5.1。 | 2026-10-24 |
+| OQ-01-07 | **ATTACHED ≠ UNDER ≠ DECK**：垫下背面默认可知身份；牌库默认 HIDDEN_ALL。离场保留用 `LeavePlayPolicy`。见 §3.5.1 / §5.2。 | 2026-10-24 |
 
 ---
 
@@ -390,6 +453,7 @@ class LocationState:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.5 | §3.5.1 放置关系；场上谓词可覆盖；离场保留；垫下 vs 牌库可见性 |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-01-02 裁决：SimultaneousEffectGroup 同时效果语义 |
 | 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |

@@ -367,6 +367,8 @@ class AtomMoveCard:
 
 **Limbo**：进入/离开 `PileKind.LIMBO` 不触发 enters/leaves play（Grimoire Limbo）。
 
+**放置关系**（旁置 / 附着 / 垫下 / 牌库）：见 [01 §3.5.1](01-game-state-zones.md)。`MoveCard` 的目标须带齐 PlacementKind + 宿主（若有）；**ATTACHED ≠ UNDER**；离场默认捆绑可用 `LeavePlayPolicy` 保留标记/附着/垫下。
+
 ---
 
 ### 5.2 ② 标记/计数地址 — `AtomTransferMarker`（已裁决 · 无穷池 2026-10-23）
