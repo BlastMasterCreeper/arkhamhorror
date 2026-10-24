@@ -896,9 +896,8 @@ enum ValueRealm { PRINTED, EFFECT_AMOUNT, SEQUENCE_SCALAR }
 | `SHROUD` @ Investigate | A | 读地点隐藏值 |
 | `INITIATION_*_COST` | A | 费用 |
 | `RESOURCE_GAIN_AMOUNT` | B | 单点效果量 |
-| `AmountPlan`（ATTACK_DAMAGE / DISCOVER / HORROR…） | B | 统一效果量 Plan；消费式多腿 |
+| `AmountPlan`（仅 `ATTACK_DAMAGE` / `DISCOVER`） | B | 有消费式多腿场景才用 Plan；不为恐惧对称预留 |
 | `chaos_modifier` on test ctx | C | **非 Buff** 来源；与 Store 修正同一叠加律，挂检定帧 |
-| `HORROR` Plan | B | **待** · 与伤害同构 |
 
 **目标态 ST.5**：`ST_SKILL_VALUE = compute/assemble(有效技能, 投入, 域 C 修正含混乱)`；难度侧可 `ST_DIFFICULTY` 与域 A shroud 读分离（调查：先 A 读 shroud，再可叠加 C 的「本次难度」）。
 

@@ -251,19 +251,45 @@ Grimoire p.8：
 | 槽 | 时刻 | 卡面钉法 |
 |---|---|---|
 | **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配**；早期误印 *when* 的防伤对策编译收此；`reduce_pending` / `reassign_pending_legs` |
-| **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take* = **你控制的卡**将承伤；非取消反应/修正 |
+| **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take* = **你控制的卡**将承伤；非取消反应/修正；**additional 加量**（下款） |
 | **AFTER** | Apply + defeat 检测后 / seq pop | *after you take…* |
 
 ```gdscript
 # Assign = PI（非时点）→ pending legs
 offer_slot(WOULD)   # prevent / cancel / reduce / reassign
-offer_slot(WHEN)    # non-cancel when-take（仍未写入）
+offer_slot(WHEN)    # non-cancel when-take；additional → increase_pending
 apply legs          # 每腿 L0 / DefeatFlow
 check_defeat
 # AFTER on pop
 ```
 
-**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `no_envelope_slot`；**当前实现**仍走默认表（Gate 会话待接）。敌/支援仍走既有 Defeat 入口。
+#### PreImpact 加量（additional · 已裁决 2026-10-24）
+
+> 锚：**02221 Psychopomp's Song**（*When you would take 1 or more damage: Take 2 additional damage…*）。  
+> FAQ：额外 **修改同一次**尚未写入的受伤量（可与原量一次取消）；≠ *After you take…: Take 2* 的第二实例。
+
+在 **已确认 Assign 之后** Forced/效果使 pending 量 +K 时：
+
+| | 裁决 |
+|---|---|
+| 实例 | 仍同一次 deal；`pending_amount := N+K` |
+| **已确认的 N 腿** | **保留**（禁止全量推翻重分 / 策略反悔） |
+| **增量 K** | 另开一轮 Assign PI：只分配这 K 点 |
+| K 的候选 | 本次「你受到」的 **合法全合格集**（己方可承受支援 ∪ 调查员 ∪ 生效中的 `INCLUDE_CANDIDATE` 等）——**不**限于已选 subject |
+| 禁止 | 把 K 当成第二次 `deal`；把非本次合格卡塞进候选；用加量窗口重写已钉死的 N |
+
+```text
+Assign(N) 已确认
+  → WOULD/WHEN：02221 → increase_pending(+K)
+  → Assign_delta(K)  @ 合法全合格集   ## 仅增量
+  → legs' = legs_N ∪ legs_K
+  → Apply
+```
+
+API 示意：`DamagePipeline.increase_pending(inv_id, by)` → 更新总量 → `DamageAssigner.assign_delta(…, by)`（Gate；逾期默认算法只摊 K）。  
+与 `reduce_pending`（降量后按剩余总量重建默认腿）**不对称**：加量走增量分配，避免撤销已承受。
+
+**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `no_envelope_slot`；**当前实现**仍走默认表（Gate 会话待接；`increase_pending` / `assign_delta` **待接**）。敌/支援仍走既有 Defeat 入口。
 
 ### 4.1 Moving / 再分配 damage / horror（已裁决 OQ-07-02 · 包装修正 2026-10-23）
 
