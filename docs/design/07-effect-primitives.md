@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.24 · 2026-10-24 — §5.4.2b Register 包装：薄结算、厚 Template/Buff
+> **状态**：v0.3.25 · 2026-10-24 — Gain = KEYWORD·TRAIT·ICON·ABILITY（触发/永续），非仅 KEYWORD
 
 ---
 
@@ -531,29 +531,40 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 └────────────────────────────────────────────────┘
          │ 内含
          ▼
-┌─ Buff 形态（载荷 · 非原语）────────────────────┐
+┌─ Buff / Gain 载荷（非原语）────────────────────┐
 │  行为三型：MODIFIER | RESTRICTION | LISTENER   │
-│  拥有标记：KEYWORD | TRAIT |（ICON/…）         │
-│  扩展例：有效控制、blank 印刷框、拓扑限制…      │
-│  → 查询 / ModifierEngine / Catalog fire        │
+│  Gain 特征族（Grimoire characteristic）：       │
+│    KEYWORD · TRAIT · ICON · ABILITY（触发/永续）│
+│  扩展：有效控制、blank、拓扑限制…               │
 └────────────────────────────────────────────────┘
 ```
 
 | 轴 | 有什么 | 是原语吗？ |
 |---|---|---|
-| **结算** | Register · Unregister | **是**（一对互逆；可视为单一 `RecordWrite{op}`） |
-| **壳参数** | `LifetimeSpec` · `ScopeFilter` · source | **否**（Registration 字段） |
-| **Buff 形态** | 三型行为 + 拥有标记 + payload | **否**（载荷分类） |
-| **消费** | collect / evaluate / fire Composition | **否**（厚读或日后手续） |
+| **结算** | Register · Unregister | **是** |
+| **壳参数** | lifetime · scope · source | **否** |
+| **载荷** | 行为三型 + **Gain 各族** | **否** |
+| **消费** | collect / Initiation COLLECT / ModifierEngine… | **否**（厚读或能力管线） |
 
-**Buff 三型在做什么**（形态，不是三种 Register）：
+**行为三型**（效果创造的 lasting / 延时 / cannot…）：
 
-| BuffType | 消费方式 | 典型纸面（**效果创造的** lasting / 延时） |
+| BuffType | 消费 | 典型 |
 |---|---|---|
-| **MODIFIER** | ModifierEngine | until end of turn gets +1；blank 印刷框 |
-| **RESTRICTION** | Eligibility / Intent | 效果给予的 cannot；险境帧限制；有效控制… |
-| **LISTENER** | Catalog → Composition | 「直到回合结束，每次战斗后抽 1」；「下个神话阶段开始时…」；`UNTIL_FIRED` 延时 |
-| **拥有标记** | `has_effective_*` | gains surge / trait；**再**挂真 Buff |
+| **MODIFIER** | ModifierEngine | until… +1；blank 印刷框 |
+| **RESTRICTION** | Eligibility / Intent | cannot；SKIP_AOO；有效控制… |
+| **LISTENER** | Catalog → Composition | 「until… after…」壳内听；纯延时 `UNTIL_FIRED` |
+
+**Gain 特征族**（*gains a characteristic* · **含但不限于关键词**；[06 §3.2](06-registration-buff-model.md)）：
+
+| Kind | 例子 | 落地（示意） | 查询 |
+|---|---|---|---|
+| **KEYWORD** | gains surge | KEYWORD 标记（拥有）；行为另挂 | `has_effective_keyword` |
+| **TRAIT** | gains [[Cultist]] | TRAIT 标记 | `has_effective_trait` |
+| **ICON** | gains [wild] | ICON 标记 / 检定 MODIFIER | `effective_skill_icons` |
+| **ABILITY（触发）** | gains `[reaction]` / `[action]` / `[free]` until… | **AbilitySpec** 挂入 Store（lifetime）；**Initiation COLLECT**，不是「印刷 Forced 改叫 LISTENER Buff」 | `effective_abilities` |
+| **ABILITY（永续/Constant）** | gains 常驻数值/常驻句 | **AbilitySpec**（Constant）和/或 **MODIFIER** | 同上 / ModifierEngine |
+
+禁止把 Gain 收成「只有 KEYWORD 标记」。关键词只是 Gain 的一支；**获得触发/永续能力**走 ABILITY 支。
 
 **不是 Buff**（纸面 **能力**，走 `AbilitySpec` / Initiation）：
 
@@ -608,7 +619,7 @@ Composition / 卡面
 | **MODIFIER payload** | stat · op · value · stacking | blank 印刷框、技能/费用/伤害量 | 印刷 Constant 能力（那是 Ability） |
 | **RESTRICTION payload** | RestrictionKind + 参数 | cannot 族、SKIP_AOO、冷漠、交战、**有效控制**、拓扑限制 | 把 Prey/Spawn 指令做成 Restriction |
 | **LISTENER payload** | timing slot + Composition / nest seq | 效果创造的「until… after…」与纯延时 | 印刷 Forced / `[reaction]`（能力） |
-| **拥有标记** | KEYWORD / TRAIT / ICON… | gains X；拥有≠行为 | 第四种「行为 BuffType」 |
+| **Gain 族** | KEYWORD·TRAIT·ICON·ABILITY（触发/永续） | 统一 Grant；按 kind 路由 | 把 Gain 等同于 KEYWORD 标记 |
 | **糖 template** | `lasting_modifier` / `skip_aoo` / `gained_keyword…` | 编译期/Builder 展开为完整 Template | 运行时糖 Atom 吞多步 |
 
 **包装纪律（与物理原语对称）**：
@@ -826,6 +837,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.25 | §5.4.2：Gain 特征族含触发/永续能力；纠正「只有 KEYWORD 标记」 |
 | 2026-10-24 | v0.3.24 | §5.4.2b：Register 包装/丰富 — 薄 API、厚壳与 Buff；优先 RestrictionKind/Lifetime/控制 |
 | 2026-10-24 | v0.3.23 | §0：Register 作原语 ↔ 发起有效性；物理∧Register 皆无 CREATED = 空结算禁发起 |
 | 2026-10-24 | v0.3.22 | §5.4.2：LISTENER Buff 举例改为 lasting/延时；Forced/reaction = 能力 |

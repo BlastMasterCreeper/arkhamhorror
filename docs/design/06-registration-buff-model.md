@@ -166,10 +166,11 @@ EffectOp.GRANT_CHARACTERISTIC
         ├─ KEYWORD  → KEYWORD 标记 Register（无 Composition；§3.1 Surge 为首例）
         ├─ TRAIT    → TRAIT 标记 Register 或 CardInstance overlay
         ├─ ICON     → MODIFIER Register（常为 THIS_SKILL_TEST）或 ICON 标记
-        └─ ABILITY  → LISTENER Register + AbilitySpec（until end of turn 等）
+        └─ ABILITY  → AbilitySpec（触发或 Constant）挂 Store + lifetime
+                      触发 → Initiation COLLECT；永续数值亦可并行 MODIFIER
         │
         ▼
-Effective* 查询 @ 各 consumer（G5 / Initiation / SkillTest / Target）
+Effective* / COLLECT @ 各 consumer（G5 / Initiation / SkillTest / Target）
 ```
 
 #### 3.2.1 Kind 路由与叠加
@@ -177,10 +178,13 @@ Effective* 查询 @ 各 consumer（G5 / Initiation / SkillTest / Target）
 | Kind | 典型卡面 | 存储 | 生命周期常见 | 叠加 |
 |---|---|---|---|---|
 | **KEYWORD** | gains surge / gains Retaliate | KEYWORD 标记 Register | `WHILE_DRAWN_CARD_RESOLVING` 或 `WHILE_IN_PLAY` | **按 keyword 定**（Surge **不叠加**，§3.1） |
-| **ABILITY** | gains: `[action]` … until end of turn | `LISTENER` + `AbilitySpec` | `DURATION(THIS_TURN)` / `THIS_PHASE` | 多条并存；各 Limit 独立 |
+| **ABILITY（触发）** | gains `[reaction]` / `[action]` / `[free]` until… | **AbilitySpec** + lifetime 挂 Store；**Initiation COLLECT** | `DURATION(THIS_TURN)` 等 | 多条并存；各 Limit 独立 |
+| **ABILITY（永续/Constant）** | gains 常驻句 / 常驻修正 | **AbilitySpec**（Constant）和/或 **MODIFIER** | 与 granting 同 lifetime | 同印刷 Constant 消费路径 |
 | **TRAIT** | gains the [[Cultist]] trait | TRAIT 标记 Register | 与 granting 效果同 lifetime | trait 集合 **union** |
 | **ICON** | gains [wild]（检定中） | MODIFIER 或 ICON 标记 | `THIS_SKILL_TEST` | 与印刷图标 union |
 | **数值** | gets +1 fight | 现有 **MODIFIER** Register | turn / phase / test | ModifierEngine 合并 |
+
+> **Gain ≠ 仅 KEYWORD**：关键词只是 characteristic 之一；**获得触发能力 / 永续能力** 属 ABILITY 支，进能力管线，不要说成「KEYWORD 标记」。
 
 **非本表（非 characteristic）**：`gain N resource` / `gain an action` = 资源/行动 **状态原语**，不走 Gained characteristics。
 
