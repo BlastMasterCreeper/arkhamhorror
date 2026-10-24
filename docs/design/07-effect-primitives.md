@@ -37,7 +37,7 @@ CREATED ∈ {
 只改 `FaceAudience`、只跑控制流、只读查询 → **不够**。  
 把 Register 留在原语外，会导致「纯挂 lasting / cannot / 延时」的合法效果体被判空结算——故 **Register 必须是信息原语结算叶**。
 
-**FAQ 1.27（弱点事件）**：有效性只测 **效果体**（框架弃置不计）。采纳 **发起专用空结算** `InitGateSettle`：仅 L7/发起认 CREATED；after_step / must-choose / 局面写入一律不认（[07-composition §4.1.2](07-composition.md)）。
+**空效果体（锚 09125）**：打出无正文时效果体编译 **`EmptySettle`**（框架完备，非 FAQ 门特例）。L7/发起认 CREATED；不写入局面。见 [07-composition §4.1.2](07-composition.md)。
 
 结算两层 + 权限层（非结算）：
 

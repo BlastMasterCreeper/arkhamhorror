@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.10 · 2026-10-24 — FAQ 1.27 = InitGateSettle（仅发起认 CREATED）
+> **状态**：v0.9.11 · 2026-10-24 — 空效果体 = EmptySettle（锚 09125；完备性非门特例）
 
 ---
 
@@ -586,35 +586,39 @@ dry-run **CREATED** 的对象是 **卡牌/能力自己的效果组合**，不是
 | 效果体里的物理原语、Register、Chronicle… | 事件打出后 **固定弃置**（每张事件都有 → 若计入则检测无意义） |
 | | 付费、借机攻击、仅改可见性、纯控制流 |
 
-#### 4.1.2 FAQ 1.27 · 发起专用空结算（已裁决）
+#### 4.1.2 空效果体 · `EmptySettle`（框架完备 · 已裁决）
 
-> **Weakness Events and "changing the game state"**（FAQ Game Play 1.27）：  
-> 若干弱点事件（如 Quantum Paradox）效果体传统上不改局面，但在手有负面；仍允许打出。
+**锚例**：[09125 Quantum Paradox](https://arkhamdb.com/card/09125)（Scarlet Keys #125；勿与 09124 Lurker 混淆）。
 
-**手段（用户意图 · 已采纳）**：效果体编译一枚 **无游戏性空结算** 叶（下称 `InitGateSettle` / 名义结算），**只**为发起有效性提供 CREATED。
-
-| 消费者 | `InitGateSettle` 算 CREATED？ |
+| 印刷 | 引擎归属 |
 |---|---|
-| **发起 / L7 dry-run**（效果体须非空） | **是** |
-| `after_step` / Then「上一步是否 CREATED」 | **否** |
-| must-choose / 支路过滤 | **否** |
-| 「本效果是否放置了…」类条件 | **否** |
-| Cancel 显现/效果体、实际局面 | **否**（无物理/Register 写入） |
+| 额外费用：弃 4 张其它手牌 | **成本**（不计「改变局面」有效性） |
+| *Forced –* 若回合结束仍在手：揭示并受 1 恐惧 | **在手能力**（`AbilitySpec`），**不是**打出效果体 |
+| **无任何打出后效果句** | 效果体 = **空** |
+
+普通规则：事件效果体须有 potential to change the game state → 空树无法发起。  
+FAQ 1.27 承认这是设计失误补丁；**引擎正解不是在发起门上开特例**（破坏「效果体非空」完备性），而是让 **空效果体仍是合法 Composition 形状**：
 
 ```text
-禁止：把框架弃置算进效果体 CREATED（每张事件都有 → 检测无意义）
-允许：FAQ 1.27 类在效果体挂 InitGateSettle（写死仅发起门可见）
+效果体 := EmptySettle     # 无游戏性结算叶：不写物理 / 不 Register / 不记事
 ```
 
-实现形状另裁（Composition 叶 / dry-run 专用 flag）；原则：**一种叶、两档消费**——发起门认，其余 CREATED 语义不认。
+| | **`EmptySettle`** |
+|---|---|
+| 是什么 | 效果叶：表示「本效果体故意为空，但仍算一次可发起的结算」 |
+| 发起 / L7 | **CREATED**（效果体非空门通过） |
+| 局面 | **不写**（故 must-choose「须能改局面」、after_step「上一步是否真写入」等 **不**把它当成功写入） |
+| ≠ | 框架弃置；发起门 if-tag 例外；假 Atom 冒充伤害/抽牌 |
+
+**完备性**：凡「只有费用 / 在手能力、打出无正文」的事件，编译器 **一律**产出含 `EmptySettle` 的效果体；不靠 FAQ 卡表白名单绕过 dry-run。FAQ 1.27 只解释纸面为何允许打出；框架侧用同一叶收口。
 
 ### 4.2 发起合法条件
 
 ```text
 initiation 合法  ⟺  play restrictions 过
-                AND  cost 可付
+                AND  cost 可付   // 含 09125 弃 4 张等；成本成败另检
                 AND  simulate(效果体).has_any_created_for_initiate == true
-                     // 含真结算 ∪ InitGateSettle；其它消费用 has_any_created（不含名义叶）
+                     // 真结算叶 ∪ EmptySettle；写入类消费另用 has_any_created（不含 EmptySettle）
 ```
 
 ```gdscript

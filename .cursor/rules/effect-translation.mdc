@@ -86,7 +86,7 @@ AbilitySpec
 | **不可见结算**（≈ Register + 薄 Chronicle） | `RulesMemory`、印刷 Spec、**仅改可见性** |
 
 见 [07 §0 / §5.4](docs/design/07-effect-primitives.md)：Register 是原语，亦为 **发起有效性**——须 CREATED（物理或 Register 出 Buff）；双零 = 空结算禁发起。可见性不计 CREATED。  
-FAQ 1.27：可挂 `InitGateSettle`（无游戏性）；**仅**发起/L7 认 CREATED，after_step/must-choose/局面 **不认**（[07-composition §4.1.2](docs/design/07-composition.md)）。
+空打出正文（锚 09125）：效果体编译 `EmptySettle`（框架完备，非 FAQ 白名单例外）；发起认 CREATED，不写入局面（[07-composition §4.1.2](docs/design/07-composition.md)）。
 
 **隔离**：`seq.*` 组合两层结算叶；能力订 `(seq, slot)`。Register 结算面 **不**按 BuffType 拆。
 
