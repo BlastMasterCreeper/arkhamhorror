@@ -30,8 +30,17 @@ static func run(
 			"location_id": location_id,
 			"inv_id": inv_id,
 		}
+	## 0 量不结算（与 AttackDamagePlan / 06 §16.3.2 同向；禁止 maxi(amount,1) 抬升）。
+	if amount <= 0:
+		return {
+			"ok": false,
+			"error": "zero_amount",
+			"amount": 0,
+			"location_id": location_id,
+			"inv_id": inv_id,
+		}
 	var moved := 0
-	var n := maxi(amount, 1)
+	var n := amount
 	if game_ctx.mutator == null:
 		return {"ok": false, "error": "no_mutator", "amount": 0}
 	while moved < n and loc.clues > 0:

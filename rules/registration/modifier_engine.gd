@@ -222,3 +222,41 @@ static func settle_attack_damage_plan(game_ctx: GameContext, plan: AttackDamageP
 			dealt += leg.amount
 			targets.append(leg.target_id)
 	return {"ok": true, "dealt": dealt, "targets": targets}
+
+
+## 落点：仅 amount>0 的 leg nest/run `seq.effect.discover_clue`。
+static func settle_discover_plan(
+	game_ctx: GameContext,
+	plan: DiscoverPlan,
+	inv_id: StringName
+) -> Dictionary:
+	var discovered := 0
+	var locations: Array[StringName] = []
+	if plan == null or inv_id == &"":
+		return {"ok": false, "discovered": 0, "locations": locations}
+	for i in plan.legs.size():
+		var leg: DiscoverPlan.DiscoverLeg = plan.legs[i]
+		if leg == null or leg.amount <= 0 or leg.location_id == &"":
+			continue
+		var moved := 0
+		if game_ctx != null and game_ctx.sequence_catalog != null:
+			var nest_res: Variant = game_ctx.sequence_catalog.nest(
+				game_ctx,
+				&"seq.effect.discover_clue",
+				{
+					"inv_id": inv_id,
+					"location_id": leg.location_id,
+					"amount": leg.amount,
+				}
+			)
+			if nest_res is Dictionary:
+				moved = int((nest_res as Dictionary).get("amount", 0))
+		elif game_ctx != null:
+			var run_res := DiscoverClueFlow.run(
+				game_ctx, inv_id, leg.location_id, leg.amount
+			)
+			moved = int(run_res.get("amount", 0))
+		if moved > 0:
+			discovered += moved
+			locations.append(leg.location_id)
+	return {"ok": true, "discovered": discovered, "locations": locations}

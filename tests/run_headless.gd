@@ -75,6 +75,9 @@ func _initialize() -> void:
 	_run_test("MOD-02 attack damage bonus single leg", _test_mod_attack_damage_single_leg)
 	_run_test("MOD-03 attack damage bonus chooses one of many legs", _test_mod_attack_damage_multi_leg_pi)
 	_run_test("MOD-04 zero-amount legs skip bonus and settle", _test_mod_attack_damage_zero_leg_skips)
+	_run_test("MOD-05 discover bonus single leg investigate", _test_mod_discover_bonus_single_leg)
+	_run_test("MOD-06 discover bonus chooses one of many legs", _test_mod_discover_multi_leg_pi)
+	_run_test("MOD-07 zero-amount discover legs skip bonus and settle", _test_mod_discover_zero_leg_skips)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -1786,6 +1789,70 @@ func _test_mod_attack_damage_zero_leg_skips() -> bool:
 	var leg_b: AttackDamagePlan.DamageLeg = plan.legs[1]
 	var settled := ModifierEngine.settle_attack_damage_plan(h.ctx, plan)
 	return leg_a.amount == 0 and leg_b.amount == 0 and int(settled.get("dealt", -1)) == 0
+
+
+func _test_mod_discover_bonus_single_leg() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.clues = 3
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var res := h.investigate_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and res.success
+		and loc.clues == 1
+		and inv.clues_on_card == 2
+	)
+
+
+func _test_mod_discover_multi_leg_pi() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"mod.discover_leg", "pick": &"loc_b"},
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := DiscoverPlan.new()
+	plan.primary_location_id = &"loc_a"
+	plan.legs.append(DiscoverPlan.DiscoverLeg.make(&"loc_a", 1))
+	plan.legs.append(DiscoverPlan.DiscoverLeg.make(&"loc_b", 1))
+	plan = h.ctx.modifiers.apply_discover_plan(plan, &"inv_1", h.ctx)
+	var leg_a: DiscoverPlan.DiscoverLeg = plan.legs[0]
+	var leg_b: DiscoverPlan.DiscoverLeg = plan.legs[1]
+	return (
+		leg_a.amount == 1
+		and leg_b.amount == 2
+		and not h.ctx.interaction.last_used_default
+	)
+
+
+func _test_mod_discover_zero_leg_skips() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := DiscoverPlan.new()
+	plan.primary_location_id = &"loc_a"
+	plan.legs.append(DiscoverPlan.DiscoverLeg.make(&"loc_a", 0))
+	plan.legs.append(DiscoverPlan.DiscoverLeg.make(&"loc_b", 0))
+	plan = h.ctx.modifiers.apply_discover_plan(plan, &"inv_1", h.ctx)
+	var leg_a: DiscoverPlan.DiscoverLeg = plan.legs[0]
+	var leg_b: DiscoverPlan.DiscoverLeg = plan.legs[1]
+	var settled := ModifierEngine.settle_discover_plan(h.ctx, plan, &"inv_1")
+	return (
+		leg_a.amount == 0
+		and leg_b.amount == 0
+		and int(settled.get("discovered", -1)) == 0
+	)
 
 
 func _test_restriction_blocks_draw() -> bool:

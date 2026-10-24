@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.33 · 2026-10-24 — MODIFIER 落地：SKILL_ANY；AttackDamagePlan 消费式+PI
+> **状态**：v0.4.34 · 2026-10-24 — DiscoverPlan 接线 Investigate；发现量修正落地
 
 ---
 
@@ -1076,7 +1076,7 @@ Grimoire 条文 / 卡面效果
 | **MOD-Q-COST** | Initiation 付费前 | resource/action cost | **已实现**（enum 名略异） |
 | **MOD-Q-SHROUD** | 调查算 difficulty | `SHROUD` | 待 |
 | **MOD-Q-ATTACK-DAMAGE** | 攻击成功后、伤害落点前 | §16.3.2 **AttackDamagePlan** | **已实现**（基础 Fight；多 leg PI） |
-| **MOD-Q-DISCOVER** | 调查成功后、发现落点前 | §16.3.2 **DiscoverPlan** | 类型已备；**调查接线待** |
+| **MOD-Q-DISCOVER** | 调查成功后、发现落点前 | §16.3.2 **DiscoverPlan** | **已实现**（基础 Investigate；多 leg PI） |
 | **MOD-Q-HORROR-AMT** | 造成恐惧量（若走 Plan 则同构） | Plan 或 `HORROR_AMOUNT` | 待 |
 
 #### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
@@ -1160,7 +1160,7 @@ class DiscoverPlan:
 **禁止**：`PER_EACH_LEG` 广播量修正；扁平全局 `DAMAGE_AMOUNT` 冒充「本次攻击」。  
 **Register 侧**：payload 标 `plan_kind: ATTACK_DAMAGE | DISCOVER`，`apply: CONSUME_CHOOSE_ONE_LEG`（默认）。
 
-**落地进度**：① `SKILL_ANY` ✅；② 单 leg Fight + 攻击伤 bonus ✅；③ 多 leg + PI 选宿主 ✅（引擎+测试）；④ Discover 同构类型 ✅、Investigate 接线待。
+**落地进度**：① `SKILL_ANY` ✅；② 单 leg Fight + 攻击伤 bonus ✅；③ 多 leg + PI 选宿主 ✅；④ Discover + Investigate ✅（`DiscoverClueFlow` 拒绝 amount≤0）。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1370,6 +1370,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.34 | DiscoverPlan 接线 Investigate；消费式发现修正 + PI；zero amount 不结算 |
 | 2026-10-24 | v0.4.33 | MODIFIER 落地：SKILL_ANY；AttackDamagePlan 消费式+PI；基础 Fight 接线 |
 | 2026-10-24 | v0.4.32 | Register 只写 Buff；Gain 特征族可衍生行为 Buff / 能力挂载；禁旁路 AbilitySpec |
 | 2026-10-24 | v0.4.31 | 攻击/发现量修正消费式选一 leg；多候选触发 PI；禁对每个目标广播 |

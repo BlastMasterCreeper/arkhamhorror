@@ -35,6 +35,18 @@ static func attack_damage_bonus_this_test(
 	)
 
 
+## 本次发现 +N 线索（消费式选一 leg）；常挂 THIS_SKILL_TEST（如推理）。
+static func discover_bonus_this_test(
+	controller_id: StringName,
+	amount: int = 1
+) -> RegistrationTemplate:
+	return lasting_modifier(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_SKILL_TEST,
+		ModifierPayload.discover_bonus(amount)
+	)
+
+
 static func lasting_restriction(
 	controller_id: StringName,
 	duration: AhcEnums.DurationAnchorKind,

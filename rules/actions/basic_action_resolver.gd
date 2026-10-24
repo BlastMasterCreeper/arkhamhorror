@@ -27,19 +27,12 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	test.difficulty = loc.shroud
 	var location_id_copy := location_id
 	var inv_copy := inv_id
+	## ST.7：建发现 Plan → 消费式发现修正 → 仅 amount>0 落点（06 §16.3.2）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		if game_ctx != null and game_ctx.sequence_catalog != null:
-			game_ctx.sequence_catalog.nest(
-				game_ctx,
-				&"seq.effect.discover_clue",
-				{
-					"inv_id": inv_copy,
-					"location_id": location_id_copy,
-					"amount": 1,
-				}
-			)
-		else:
-			_apply_discover_clue(game_ctx, location_id_copy, inv_copy)
+		var plan := DiscoverPlan.single_location(location_id_copy, 1)
+		if game_ctx != null and game_ctx.modifiers != null:
+			plan = game_ctx.modifiers.apply_discover_plan(plan, inv_copy, game_ctx)
+		ModifierEngine.settle_discover_plan(game_ctx, plan, inv_copy)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
