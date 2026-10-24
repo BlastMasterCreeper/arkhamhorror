@@ -20,7 +20,8 @@ alwaysApply: true
 | **primitive** | **原语** | **能影响游戏的结算**；必须做事；dry-run 可 CREATED；查询不是原语 |
 | **state primitive** | **状态原语** | **物理**结算三类：① 区/序 ② 标记 ③ 形态（看得见） |
 | **information primitive** | **信息原语** | **不可见结算**总称：Register / 日志 / 记住 / 可知性…；对偶物理层 |
-| **Register** | **注册 / Buff** | 信息原语一族 → `RegistrationStore`（延时/持续）；不是旁路第三叶 |
+| **Register** | **注册** | 信息原语结算动词：写入/卸下 `Registration`；**不是** Buff 本身 |
+| **Buff** | **Buff** | `Registration` 内载荷（MODIFIER / RESTRICTION / LISTENER）；查询非结算 |
 | **effect** | **效果** | 结算可 CREATED：物理状态原语 + 信息原语（含 Register） |
 | **named flow** | **命名流程** | 规则书手续；`seq.*`；Catalog + 堆栈 + 时点。**不是**卡牌正文 |
 | **Composition** | **效果组合** | 卡牌正文的可执行树；在 seq 步 / 打出 resolve 里 execute |

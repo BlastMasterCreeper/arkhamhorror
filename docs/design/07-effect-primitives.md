@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.18 · 2026-10-24 — 信息原语 = 不可见结算（含 Register / Log / Remember / Audience）
+> **状态**：v0.3.19 · 2026-10-24 — §5.4.2 Register（结算）↔ Buff（载荷）
 
 ---
 
@@ -501,9 +501,46 @@ class InfoSetAudience:
 
 与物理翻面 **正交**。本族 **不改** zone / face / exhausted。
 
-#### 5.4.2 Register 族（A）· 简述
+#### 5.4.2 Register 族（A）· 与 Buff 的关系
 
-创建/注销 Buff = **信息原语**，经 `seq.effect.register` / `unregister` 落地；禁止解释器真空 `RegistrationStore.register`。详 [06](06-registration-buff-model.md)、[20 §4.1](20-card-translation-schema.md)。
+> 详规格：[06-registration-buff-model](06-registration-buff-model.md)。此处只钉 **谁结算、谁是载荷**。
+
+```text
+纸面 lasting / delayed / cannot / gain / 挂能力
+        │
+        ▼ 结算（信息原语 · 必须做事）
+   Register / Unregister          ← 动词：写入或卸下一条登记
+        │
+        ▼ 库存里留下的东西
+   Registration                   ← 名词：一条记录（lifetime · scope · source）
+        │
+        └─ buffs: Array[BuffSpec] ← Buff：这条登记「管什么」
+              ├─ MODIFIER      改数值
+              ├─ RESTRICTION   禁/允（cannot…）
+              └─ LISTENER      时点到了跑 Composition
+         （另有 KEYWORD/TRAIT 等「拥有」标记，仍挂在 Registration 上）
+```
+
+| 词 | 角色 | 是结算叶吗？ |
+|---|---|---|
+| **Register / Unregister** | **动作**：往 `RegistrationStore` 插入/移除 | **是**（信息原语 A；`seq.effect.register` / `unregister`） |
+| **Registration** | **记录**：Store 里的一条存续条目 | 否（状态）；由 Register **创建** |
+| **Buff（BuffSpec）** | **载荷**：登记里写明的规则变更种类 | 否（形状）；**不**单独当第三套原语 |
+| **查询 Buff** | Eligibility / ModifierEngine / Catalog 读 Store | 否（厚读） |
+
+**一句话**：**Register 是创建/注销延时·持续效果的结算；Buff 是登记条目里装的三种（或标记）载荷。**  
+没有「先 Buff 再 Register」的第二套动词——卡面「获得 until end of turn…」「cannot…」「Forced – When…」编译为 **带 BuffSpec 的 Registration**，经 **Register** 落地。
+
+| 纸面说法 | 结算 | Store 里 |
+|---|---|---|
+| lasting / until … / delayed | Register | Registration + lifetime |
+| gets +1 · blank 印刷文本框 | Register | MODIFIER / blank 载荷 |
+| cannot … | Register | RESTRICTION |
+| Forced / reaction 挂时点 | Register（常进场） | LISTENER → 日后 fire 再跑 Composition |
+| gains surge（动态） | Register | KEYWORD 标记（拥有）± 编译 LISTENER |
+| 回合结束卸下 | Unregister（lifetime tick） | 记录消失 |
+
+**禁止**：解释器真空 `RegistrationStore.register`；为关键词新增第四种 `BuffType`；把 Buff **查询**当成结算叶。
 
 #### 5.4.3 Log / Remember 族（B·C）· 方向
 
@@ -706,6 +743,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.19 | §5.4.2：Register = 结算动词；Buff = Registration 载荷（非第二套原语） |
 | 2026-10-24 | v0.3.18 | §0/§5.4：信息原语 = 不可见结算；含 Register·Log·Remember·Audience；废「只有 Audience + Register 旁路」 |
 | 2026-10-24 | v0.3.17 | §5.4.0：信息原语盘点（后由 v0.3.18 改对齐） |
 | 2026-10-24 | v0.3.16 | §0.0：原语 = 能影响游戏的结算（必须做事）；厚读 ≠ 原语 |

@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.21 · 2026-10-10 — 庞大 REPLACE @ seq.enemy.attack
+> **状态**：v0.4.22 · 2026-10-24 — §2.1 Register（结算）与 Buff（载荷）关系
 
 ---
 
@@ -37,12 +37,36 @@ class BuffSpec:
     var tags: Array[StringName]
 ```
 
-| 原语 | 含义 |
+| 词 | 含义 |
 |---|---|
-| **Register** | `RegistrationStore.register(reg)` |
-| **Unregister** | id / filter / lifetime tick |
-| **Buff** | `BuffSpec` + payload |
+| **Register** | 结算动作：`RegistrationStore.register(reg)`（信息原语） |
+| **Unregister** | 结算动作：按 id / filter / lifetime tick 卸下 |
+| **Registration** | Store 里的一条记录（含 lifetime · scope · `buffs`） |
+| **Buff** | `BuffSpec` + payload——登记的 **载荷**，不是另一套结算动词 |
 | **Context** | `ApplicationContext`（§9） |
+
+### 2.1 Register 与 Buff（关系 · 已对齐）
+
+```text
+Register（结算 · 不可见）
+  创建 → Registration（存续记录）
+              └─ 内含 0..n 个 BuffSpec（MODIFIER | RESTRICTION | LISTENER
+                                      或 KEYWORD/TRAIT「拥有」标记）
+
+Unregister（结算）→ 记录消失 → 其 Buff 不再被查询/开火
+```
+
+| | **Register** | **Buff** |
+|---|---|---|
+| 词性 | **动词**（结算叶） | **名词**（载荷形状） |
+| 做什么 | 把一条 lasting/延时效果 **写进/卸出** Store | 说明这条效果 **改数值 / 禁允 / 听时点** |
+| dry-run | 插入成功 → **CREATED** | 不单独 CREATED；随 Registration 创建 |
+| 纸面 | 「获得 until…」「挂上 Forced」「cannot」的 **落地** | 编译器填进 `BuffSpec.type` + payload |
+| 不是 | — | 不是第四层原语；不是「先造 Buff 对象再粘上去」的第二 API |
+
+**Buff 仅三种行为型**（§3）；关键词本身不是 BuffType。动态「拥有」可先 Register **KEYWORD 标记**，再按同一 profile 挂真正的三种 Buff（§3.2：「拥有 ≠ 行为」）。
+
+与 [07 §5.4.2](07-effect-primitives.md) 对齐：信息原语族 A = Register/Unregister；Buff 是族 A 写入后的 **内容**。
 
 ---
 
@@ -1157,6 +1181,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.22 | §2.1：Register（结算动词）与 Buff（Registration 载荷）；对齐 07 §5.4.2 |
 | 2026-10-23 | v0.4.25 | 框架称呼：`SoakAssigner` → `DamageAssigner`（正式 Assign，弃用 soak） |
 | 2026-10-23 | v0.4.24 | `ASSIGN_CONSTRAINT` 四算子；REST-E-ASSIGN / DamageAssigner；§16.4.2/§16.4.4 |
 | 2026-10-20 | v0.4.23 | 冷漠 `FORBID_ATTACK`：进场 Register；Fight 入口读 Evaluator；§16.4.2/§16.4.4 标已实现；竖切 50026 Narôgath |
