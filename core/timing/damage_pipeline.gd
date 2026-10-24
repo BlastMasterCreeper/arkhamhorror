@@ -101,6 +101,32 @@ static func prevent_pending(game_ctx: GameContext, inv_id: StringName) -> void:
 	reduce_pending(game_ctx, inv_id, pending_amount(game_ctx, inv_id))
 
 
+## PreImpact 加量（02221 additional）：保留已确认 N 腿，只为增量 K 再分配。
+## 候选 = 本次合法全合格集（容量扣掉已占用）；默认算法摊 K（Gate 后补）。
+static func increase_pending(game_ctx: GameContext, inv_id: StringName, by: int) -> int:
+	if game_ctx == null or game_ctx.memory == null or by <= 0:
+		return pending_amount(game_ctx, inv_id)
+	var cur := pending_amount(game_ctx, inv_id)
+	if cur <= 0:
+		## 无已确认实例则不加（「受到 1+」前提）。
+		return cur
+	var kind := pending_kind(game_ctx, inv_id)
+	var is_direct := pending_direct(game_ctx, inv_id)
+	var reserved := pending_legs(game_ctx, inv_id)
+	var delta_legs := DamageAssigner.assign_delta(
+		game_ctx, inv_id, kind, by, is_direct, reserved
+	)
+	var merged: Array = DamageAssigner.merge_legs(reserved, delta_legs)
+	var next_amount := cur + by
+	if not DamageAssigner.validate(game_ctx, inv_id, kind, is_direct, next_amount, merged):
+		## 防御：K 全归调查员卡，仍保留 N 腿。
+		delta_legs = [{"bearer": &"investigator", "id": inv_id, "amount": by}]
+		merged = DamageAssigner.merge_legs(reserved, delta_legs)
+	game_ctx.memory.set_referent(inv_id, PENDING_AMOUNT, next_amount)
+	game_ctx.memory.set_referent(inv_id, PENDING_LEGS, merged)
+	return next_amount
+
+
 ## WOULD 窗内改分配：替换腿表（须校验守恒与约束）；供 Key of Ys 等后挂。
 static func reassign_pending_legs(game_ctx: GameContext, inv_id: StringName, legs: Array) -> bool:
 	if game_ctx == null or game_ctx.memory == null:

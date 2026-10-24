@@ -366,6 +366,8 @@ func _initialize() -> void:
 	_run_test("TIM-02 draw encounter SPLIT zones", _test_tim_draw_encounter_split)
 	_run_test("TIM-DMG-01 WOULD then WHEN before Apply", _test_tim_dmg_apply_slots)
 	_run_test("TIM-DMG-02 WOULD reduce_pending before Apply", _test_tim_dmg_prevent)
+	_run_test("TIM-DMG-03 WHEN increase_pending adds delta K", _test_tim_dmg_increase_pending)
+	_run_test("TIM-DMG-04 increase_pending keeps reserved legs", _test_tim_dmg_increase_keeps_legs)
 	_run_test("ASN-01 PRIOR_FILL horror to asset first", _test_asn_prior_fill)
 	_run_test("ASN-02 MIN_TO_SUBJECT damage if able", _test_asn_min_to_subject)
 	_run_test("ASN-03 MAX_TO_MATCH trait cap", _test_asn_max_to_match)
@@ -8131,6 +8133,84 @@ func _test_tim_dmg_prevent() -> bool:
 		and int(res.get("amount", 0)) == 1
 		and when_pending["n"] == 1
 		and inv.horror_taken == 1
+	)
+
+
+func _test_tim_dmg_increase_pending() -> bool:
+	## TIM-DMG-03：WHEN 内 increase_pending(+2)（02221）；同实例量 2→4，Apply 写入 4。
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var when_pending := {"n": -1}
+	h.ctx.sequences.register_handler(
+		SequenceHandler.when_forced(
+			&"damage",
+			func() -> void:
+				DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
+				when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		)
+	)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.damage",
+		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
+	)
+	return (
+		bool(res.get("ok", false))
+		and int(res.get("amount", 0)) == 4
+		and when_pending["n"] == 4
+		and inv.damage_taken == 4
+	)
+
+
+func _test_tim_dmg_increase_keeps_legs() -> bool:
+	## TIM-DMG-04：已确认 N 腿（资产+调查员）保留；K 默认进调查员；不推翻资产腿。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_inc_dmg", {"health": 3, "sanity": 0}
+	)
+	var snap := {"asset_n": -1, "inv_n": -1, "pending": -1}
+	h.ctx.sequences.register_handler(
+		SequenceHandler.would_forced(
+			&"damage",
+			func() -> void:
+				## 模拟已确认 Assign：1 资产 + 1 调查员。
+				DamagePipeline.reassign_pending_legs(
+					h.ctx,
+					&"inv_1",
+					[
+						{"bearer": &"card", "id": card_id, "amount": 1},
+						{"bearer": &"investigator", "id": &"inv_1", "amount": 1},
+					]
+				)
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.when_forced(
+			&"damage",
+			func() -> void:
+				DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
+				var legs := DamagePipeline.pending_legs(h.ctx, &"inv_1")
+				snap["asset_n"] = _asn_leg_amount(legs, &"card", card_id)
+				snap["inv_n"] = _asn_leg_amount(legs, &"investigator", &"inv_1")
+				snap["pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		)
+	)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.damage",
+		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and int(res.get("amount", 0)) == 4
+		and snap["pending"] == 4
+		and snap["asset_n"] == 1
+		and snap["inv_n"] == 3
+		and card != null
+		and card.tokens.damage == 1
+		and inv.damage_taken == 3
 	)
 
 

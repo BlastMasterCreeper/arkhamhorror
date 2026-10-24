@@ -19,25 +19,96 @@ static func default_assignment(
 		return empty
 	var caps := _capacity_map(game_ctx, inv_id, kind, is_direct)
 	var constraints := _active_constraints(game_ctx, inv_id, kind, is_direct)
-	var alloc: Dictionary = {} ## id -> amount；调查员用 inv_id 键，前缀区分
+	var legs := _allocate_default(inv_id, total, caps, constraints)
+	if not validate(game_ctx, inv_id, kind, is_direct, total, legs):
+		return [{"bearer": &"investigator", "id": inv_id, "amount": total}]
+	return legs
+
+
+## 仅分配增量 K（07 §4）：在已确认腿占用容量之后，对合法全合格集摊 K。
+## 不修改 reserved_legs；返回的是 **仅含 K** 的腿表。
+static func assign_delta(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	kind: StringName,
+	delta_amount: int,
+	is_direct: bool,
+	reserved_legs: Array = []
+) -> Array[Dictionary]:
+	var total := maxi(delta_amount, 0)
+	var empty: Array[Dictionary] = []
+	if game_ctx == null or inv_id == &"" or total <= 0:
+		return empty
+	var caps := _capacity_map(game_ctx, inv_id, kind, is_direct)
+	_reserve_caps(caps, reserved_legs)
+	var constraints := _active_constraints(game_ctx, inv_id, kind, is_direct)
+	var legs := _allocate_default(inv_id, total, caps, constraints)
+	## 增量腿自身须合法；与 reserved 合并后的总量校验由 pipeline 做。
+	if not validate(game_ctx, inv_id, kind, is_direct, total, legs):
+		return [{"bearer": &"investigator", "id": inv_id, "amount": total}]
+	return legs
+
+
+## 合并两套腿（同 bearer+id 加算）。
+static func merge_legs(base_legs: Array, delta_legs: Array) -> Array[Dictionary]:
+	var alloc: Dictionary = {}
+	var inv_id: StringName = &""
+	for leg in base_legs:
+		if not (leg is Dictionary):
+			continue
+		var amt := int((leg as Dictionary).get("amount", 0))
+		if amt <= 0:
+			continue
+		var bearer: StringName = (leg as Dictionary).get("bearer", &"")
+		var id: StringName = (leg as Dictionary).get("id", &"")
+		if bearer == &"investigator":
+			inv_id = id
+			_add(alloc, _inv_key(id), amt)
+		else:
+			_add(alloc, _card_key(id), amt)
+	for leg2 in delta_legs:
+		if not (leg2 is Dictionary):
+			continue
+		var amt2 := int((leg2 as Dictionary).get("amount", 0))
+		if amt2 <= 0:
+			continue
+		var bearer2: StringName = (leg2 as Dictionary).get("bearer", &"")
+		var id2: StringName = (leg2 as Dictionary).get("id", &"")
+		if bearer2 == &"investigator":
+			if inv_id == &"":
+				inv_id = id2
+			_add(alloc, _inv_key(id2 if id2 != &"" else inv_id), amt2)
+		else:
+			_add(alloc, _card_key(id2), amt2)
+	return _alloc_to_legs(alloc, inv_id)
+
+
+static func _allocate_default(
+	inv_id: StringName,
+	total: int,
+	caps: Dictionary,
+	constraints: Array[RestrictionPayload]
+) -> Array[Dictionary]:
+	var alloc: Dictionary = {}
 	var rem := total
+	var caps_work: Dictionary = caps.duplicate()
 	## 1) PRIOR_FILL：先填满优先卡。
 	for c in constraints:
 		if c.assign_op != AhcEnums.AssignConstraintOp.PRIOR_FILL:
 			continue
 		var sid: StringName = c.subject_id
-		var cap := int(caps.get(_card_key(sid), 0))
+		var cap := int(caps_work.get(_card_key(sid), 0))
 		var take := mini(cap, rem)
 		if take > 0:
 			_add(alloc, _card_key(sid), take)
 			rem -= take
-			caps[_card_key(sid)] = cap - take
+			caps_work[_card_key(sid)] = cap - take
 	## 2) MIN_TO_SUBJECT。
 	for c in constraints:
 		if c.assign_op != AhcEnums.AssignConstraintOp.MIN_TO_SUBJECT:
 			continue
 		var sid2: StringName = c.subject_id
-		var cap2 := int(caps.get(_card_key(sid2), 0))
+		var cap2 := int(caps_work.get(_card_key(sid2), 0))
 		var need := mini(c.assign_amount, rem)
 		if need > cap2:
 			if c.assign_if_able:
@@ -47,17 +118,27 @@ static func default_assignment(
 		if need > 0:
 			_add(alloc, _card_key(sid2), need)
 			rem -= need
-			caps[_card_key(sid2)] = cap2 - need
-	## 3) 剩余默认归调查员卡（受 MAX_TO_MATCH 限制的不能往匹配资产乱塞——默认本来就不塞）。
+			caps_work[_card_key(sid2)] = cap2 - need
+	## 3) 剩余默认归调查员卡。
 	if rem > 0:
 		_add(alloc, _inv_key(inv_id), rem)
-		rem = 0
-	## 4) 若默认把点分到匹配资产会破 MAX——默认算法不主动分给资产，仅 PRIOR/MIN 会；
-	##    再跑一遍校验，失败则整表打回调查员（防御）。
-	var legs := _alloc_to_legs(alloc, inv_id)
-	if not validate(game_ctx, inv_id, kind, is_direct, total, legs):
-		return [{"bearer": &"investigator", "id": inv_id, "amount": total}]
-	return legs
+	return _alloc_to_legs(alloc, inv_id)
+
+
+static func _reserve_caps(caps: Dictionary, reserved_legs: Array) -> void:
+	for leg in reserved_legs:
+		if not (leg is Dictionary):
+			continue
+		var amt := int((leg as Dictionary).get("amount", 0))
+		if amt <= 0:
+			continue
+		var bearer: StringName = (leg as Dictionary).get("bearer", &"")
+		if bearer != &"card":
+			continue
+		var id: StringName = (leg as Dictionary).get("id", &"")
+		var key := _card_key(id)
+		if caps.has(key):
+			caps[key] = maxi(int(caps[key]) - amt, 0)
 
 
 static func validate(
