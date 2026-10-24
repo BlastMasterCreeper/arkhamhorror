@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.7 · 2026-10-24 — §4：空结算 = 无物理且无 Register CREATED → 禁发起
+> **状态**：v0.9.8 · 2026-10-24 — §4.1.1 FAQ 1.27：弱点事件靠框架弃置 CREATED；禁假结算
 
 ---
 
@@ -577,13 +577,34 @@ dry-run 只问效果体能否 **CREATED** 至少一项直接影响（[07-primiti
 
 **空结算**：物理原语皆无法结算 **且** 无任何 Register 创建 Buff（亦无其它 CREATED）→ 整树 FIZZLE → **不允许发起**。
 
+#### 4.1.1 FAQ 1.27 · 弱点事件与「改变局面」（勿造假结算）
+
+> **Weakness Events and "changing the game state"**（FAQ Game Play 1.27）：  
+> *Some weakness events such as Quantum Paradox do not change the game state in the traditional sense when played, but nevertheless provide negative effects if they are in your hand. These weakness events may still be played to avoid their negative effects.*
+
+设计师补丁意图：正文效果体可能「传统意义上」不改局面，但 **打出以离手**、躲开在手负面。
+
+| 做法 | 裁决 |
+|---|---|
+| 为该类卡加 **无游戏性特殊结算** / 空 Atom 只为 CREATED | **禁止** — 糖；破坏「必须干了点什么」 |
+| 把「打出事件 → 弃置」算进有效性 | **要** — 事件打出手续末步 **Move 入手/悬置 → 弃牌堆** 是 **物理 ①**，dry-run **CREATED** |
+| 在手 Constant 负面随离手卸下 | 随 **Move** / 能力卸载，不是假 Buff |
+
+```text
+PLAY_CARD（事件）有效性 dry-run 范围
+  = 效果体 Composition
+  ∪ 框架弃置步（事件打出后进所有者弃牌堆）   ← 弱点事件常靠这一步非空
+```
+
+仅 dry-run **效果体** 而忽略弃置 → 会误伤 Quantum Paradox 类；补假结算则污染原语。**对齐 FAQ：真实离手/弃置即改变局面。**
+
 ### 4.2 发起合法条件
 
 ```text
 initiation 合法  ⟺  play restrictions 过
                 AND  cost 可付
-                AND  simulate(composition).has_any_created == true
-                     // ⇔ 非空结算：至少一物理 CREATED 或一 Register CREATED（或 Chronicle/…）
+                AND  simulate(composition ∪ 框架必做步).has_any_created == true
+                     // 事件：含打出后弃置；空结算禁发起
 ```
 
 ```gdscript
