@@ -80,10 +80,21 @@ static func attack_damage_bonus(amount: int, apply_condition: Condition = null) 
 	return p
 
 
-## 本次发现线索 +N（同构；Discover 竖切后接）。
+## 本次发现线索 +N（AmountPlan · DISCOVER）。
 static func discover_bonus(amount: int, apply_condition: Condition = null) -> ModifierPayload:
 	var p := ModifierPayload.new()
 	p.plan_kind = AhcEnums.ModifierPlanKind.DISCOVER
+	p.apply_mode = AhcEnums.ModifierApplyMode.CONSUME_CHOOSE_ONE_LEG
+	p.op = AhcEnums.ModOp.ADD
+	p.value = amount
+	p.condition = apply_condition
+	return p
+
+
+## 本次造成恐惧 +N（AmountPlan · HORROR；settle 竖切待接）。
+static func horror_bonus(amount: int, apply_condition: Condition = null) -> ModifierPayload:
+	var p := ModifierPayload.new()
+	p.plan_kind = AhcEnums.ModifierPlanKind.HORROR
 	p.apply_mode = AhcEnums.ModifierApplyMode.CONSUME_CHOOSE_ONE_LEG
 	p.op = AhcEnums.ModOp.ADD
 	p.value = amount

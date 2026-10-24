@@ -374,11 +374,12 @@ enum StatRef {
 
 enum ModOp { ADD, SUB, MUL, DOUBLE, HALVE }
 
-## MODIFIER 挂标量站点 vs 效果 Plan（攻击伤 / 发现线索）。
+## MODIFIER：标量 NONE；域 B 效果量挂 AmountPlan.kind。
 enum ModifierPlanKind {
 	NONE,
 	ATTACK_DAMAGE,
 	DISCOVER,
+	HORROR,
 }
 
 ## Plan 量修正默认消费式选一腿；标量走 SCALAR（ModifierEngine.compute）。

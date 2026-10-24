@@ -50,18 +50,18 @@ func _is_typed_skill(stat: AhcEnums.StatRef) -> bool:
 	)
 
 
-## 消费式：每个 ATTACK_DAMAGE 修正选一条 amount>0 的 leg 加上；多候选 → PI。
-func apply_attack_damage_plan(
-	plan: AttackDamagePlan,
+## 域 B：每个匹配 plan_kind 的消费式修正选一条 amount>0 的 leg；多候选 → PI。
+func apply_to_amount_plan(
+	plan: AmountPlan,
 	controller_id: StringName,
 	game_ctx: GameContext = null,
 	app_ctx: ApplicationContext = null
-) -> AttackDamagePlan:
-	if plan == null:
+) -> AmountPlan:
+	if plan == null or plan.kind == AhcEnums.ModifierPlanKind.NONE:
 		return plan
 	var mods := _store.collect_modifiers(controller_id)
 	for mod in mods:
-		if mod.plan_kind != AhcEnums.ModifierPlanKind.ATTACK_DAMAGE:
+		if mod.plan_kind != plan.kind:
 			continue
 		if mod.apply_mode != AhcEnums.ModifierApplyMode.CONSUME_CHOOSE_ONE_LEG:
 			continue
@@ -73,41 +73,10 @@ func apply_attack_damage_plan(
 		var indices := plan.positive_leg_indices()
 		if indices.is_empty():
 			continue
-		var chosen := _choose_attack_leg_index(plan, indices, controller_id, game_ctx)
+		var chosen := _choose_leg_index(plan, indices, controller_id, game_ctx)
 		if chosen < 0:
 			continue
 		var leg := plan.leg_at(chosen)
-		if leg != null:
-			leg.amount += bonus
-	return plan
-
-
-func apply_discover_plan(
-	plan: DiscoverPlan,
-	controller_id: StringName,
-	game_ctx: GameContext = null,
-	app_ctx: ApplicationContext = null
-) -> DiscoverPlan:
-	if plan == null:
-		return plan
-	var mods := _store.collect_modifiers(controller_id)
-	for mod in mods:
-		if mod.plan_kind != AhcEnums.ModifierPlanKind.DISCOVER:
-			continue
-		if mod.apply_mode != AhcEnums.ModifierApplyMode.CONSUME_CHOOSE_ONE_LEG:
-			continue
-		if mod.condition != null and (app_ctx == null or not mod.condition.matches(app_ctx)):
-			continue
-		var bonus := _bonus_delta(mod)
-		if bonus == 0:
-			continue
-		var indices := plan.positive_leg_indices()
-		if indices.is_empty():
-			continue
-		var chosen := _choose_discover_leg_index(plan, indices, controller_id, game_ctx)
-		if chosen < 0:
-			continue
-		var leg: DiscoverPlan.DiscoverLeg = plan.legs[chosen]
 		if leg != null:
 			leg.amount += bonus
 	return plan
@@ -123,65 +92,34 @@ func _bonus_delta(mod: ModifierPayload) -> int:
 			return 0
 
 
-func _choose_attack_leg_index(
-	plan: AttackDamagePlan,
+func _choose_leg_index(
+	plan: AmountPlan,
 	indices: Array[int],
 	controller_id: StringName,
 	game_ctx: GameContext
 ) -> int:
 	if indices.size() == 1:
 		return indices[0]
-	## 多候选 → PI；主目标仅作 default。
+	## 多候选 → PI；primary_subject_id 仅作 default。
 	var candidates: Array = []
 	var default_index := 0
 	for i in indices.size():
 		var leg_i := plan.leg_at(indices[i])
 		if leg_i == null:
 			continue
-		candidates.append(leg_i.target_id)
-		if plan.primary_target_id != &"" and leg_i.target_id == plan.primary_target_id:
+		candidates.append(leg_i.subject_id)
+		if plan.primary_subject_id != &"" and leg_i.subject_id == plan.primary_subject_id:
 			default_index = candidates.size() - 1
 	if candidates.is_empty():
 		return -1
 	if game_ctx != null and game_ctx.interaction != null:
 		var pick: Variant = _ask_pick_leg_target(
-			candidates, controller_id, default_index, &"mod.attack_damage_leg", game_ctx
+			candidates, controller_id, default_index, plan.pi_prompt_id(), game_ctx
 		)
 		if pick != null:
 			for i in indices.size():
 				var leg := plan.leg_at(indices[i])
-				if leg != null and leg.target_id == pick:
-					return indices[i]
-	return indices[default_index] if default_index < indices.size() else indices[0]
-
-
-func _choose_discover_leg_index(
-	plan: DiscoverPlan,
-	indices: Array[int],
-	controller_id: StringName,
-	game_ctx: GameContext
-) -> int:
-	if indices.size() == 1:
-		return indices[0]
-	var candidates: Array = []
-	var default_index := 0
-	for i in indices.size():
-		var leg: DiscoverPlan.DiscoverLeg = plan.legs[indices[i]]
-		if leg == null:
-			continue
-		candidates.append(leg.location_id)
-		if plan.primary_location_id != &"" and leg.location_id == plan.primary_location_id:
-			default_index = candidates.size() - 1
-	if candidates.is_empty():
-		return -1
-	if game_ctx != null and game_ctx.interaction != null:
-		var pick: Variant = _ask_pick_leg_target(
-			candidates, controller_id, default_index, &"mod.discover_leg", game_ctx
-		)
-		if pick != null:
-			for i in indices.size():
-				var leg: DiscoverPlan.DiscoverLeg = plan.legs[indices[i]]
-				if leg != null and leg.location_id == pick:
+				if leg != null and leg.subject_id == pick:
 					return indices[i]
 	return indices[default_index] if default_index < indices.size() else indices[0]
 
@@ -207,36 +145,56 @@ func _ask_pick_leg_target(
 	return pick
 
 
-## 落点：仅 amount>0 的 leg 结算伤害。
-static func settle_attack_damage_plan(game_ctx: GameContext, plan: AttackDamagePlan) -> Dictionary:
-	var dealt := 0
-	var targets: Array[StringName] = []
-	if plan == null:
-		return {"ok": false, "dealt": 0, "targets": targets}
-	for i in plan.legs.size():
-		var leg: AttackDamagePlan.DamageLeg = plan.legs[i]
-		if leg == null or leg.amount <= 0 or leg.target_id == &"":
-			continue
-		var result := EnemyDefeatResolver.deal_damage(game_ctx, leg.target_id, leg.amount)
-		if bool(result.get("ok", false)):
-			dealt += leg.amount
-			targets.append(leg.target_id)
-	return {"ok": true, "dealt": dealt, "targets": targets}
-
-
-## 落点：仅 amount>0 的 leg nest/run `seq.effect.discover_clue`。
-static func settle_discover_plan(
+## 落点：仅 amount>0 的 leg；按 plan.kind 分派。ctx 可带 inv_id（发现）等。
+static func settle_amount_plan(
 	game_ctx: GameContext,
-	plan: DiscoverPlan,
+	plan: AmountPlan,
+	ctx: Dictionary = {}
+) -> Dictionary:
+	if plan == null:
+		return {"ok": false, "settled": 0, "subjects": [] as Array[StringName]}
+	match plan.kind:
+		AhcEnums.ModifierPlanKind.ATTACK_DAMAGE:
+			return _settle_attack_damage(game_ctx, plan)
+		AhcEnums.ModifierPlanKind.DISCOVER:
+			return _settle_discover(game_ctx, plan, ctx.get("inv_id", &"") as StringName)
+		AhcEnums.ModifierPlanKind.HORROR:
+			return {
+				"ok": false,
+				"error": &"horror_settle_pending",
+				"settled": 0,
+				"subjects": [] as Array[StringName],
+			}
+		_:
+			return {"ok": false, "error": &"unknown_plan_kind", "settled": 0, "subjects": [] as Array[StringName]}
+
+
+static func _settle_attack_damage(game_ctx: GameContext, plan: AmountPlan) -> Dictionary:
+	var settled := 0
+	var subjects: Array[StringName] = []
+	for i in plan.legs.size():
+		var leg := plan.leg_at(i)
+		if leg == null or leg.amount <= 0 or leg.subject_id == &"":
+			continue
+		var result := EnemyDefeatResolver.deal_damage(game_ctx, leg.subject_id, leg.amount)
+		if bool(result.get("ok", false)):
+			settled += leg.amount
+			subjects.append(leg.subject_id)
+	return {"ok": true, "settled": settled, "dealt": settled, "subjects": subjects, "targets": subjects}
+
+
+static func _settle_discover(
+	game_ctx: GameContext,
+	plan: AmountPlan,
 	inv_id: StringName
 ) -> Dictionary:
-	var discovered := 0
-	var locations: Array[StringName] = []
-	if plan == null or inv_id == &"":
-		return {"ok": false, "discovered": 0, "locations": locations}
+	var settled := 0
+	var subjects: Array[StringName] = []
+	if inv_id == &"":
+		return {"ok": false, "error": &"missing_inv_id", "settled": 0, "subjects": subjects}
 	for i in plan.legs.size():
-		var leg: DiscoverPlan.DiscoverLeg = plan.legs[i]
-		if leg == null or leg.amount <= 0 or leg.location_id == &"":
+		var leg := plan.leg_at(i)
+		if leg == null or leg.amount <= 0 or leg.subject_id == &"":
 			continue
 		var moved := 0
 		if game_ctx != null and game_ctx.sequence_catalog != null:
@@ -245,7 +203,7 @@ static func settle_discover_plan(
 				&"seq.effect.discover_clue",
 				{
 					"inv_id": inv_id,
-					"location_id": leg.location_id,
+					"location_id": leg.subject_id,
 					"amount": leg.amount,
 				}
 			)
@@ -253,10 +211,16 @@ static func settle_discover_plan(
 				moved = int((nest_res as Dictionary).get("amount", 0))
 		elif game_ctx != null:
 			var run_res := DiscoverClueFlow.run(
-				game_ctx, inv_id, leg.location_id, leg.amount
+				game_ctx, inv_id, leg.subject_id, leg.amount
 			)
 			moved = int(run_res.get("amount", 0))
 		if moved > 0:
-			discovered += moved
-			locations.append(leg.location_id)
-	return {"ok": true, "discovered": discovered, "locations": locations}
+			settled += moved
+			subjects.append(leg.subject_id)
+	return {
+		"ok": true,
+		"settled": settled,
+		"discovered": settled,
+		"subjects": subjects,
+		"locations": subjects,
+	}

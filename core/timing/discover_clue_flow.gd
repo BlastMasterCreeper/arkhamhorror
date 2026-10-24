@@ -30,7 +30,7 @@ static func run(
 			"location_id": location_id,
 			"inv_id": inv_id,
 		}
-	## 0 量不结算（与 AttackDamagePlan / 06 §16.3.2 同向；禁止 maxi(amount,1) 抬升）。
+	## 0 量不结算（与 AmountPlan / 06 §16.3.2 同向；禁止 maxi(amount,1) 抬升）。
 	if amount <= 0:
 		return {
 			"ok": false,

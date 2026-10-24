@@ -1761,13 +1761,14 @@ func _test_mod_attack_damage_multi_leg_pi() -> bool:
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := AttackDamagePlan.new()
-	plan.primary_target_id = &"enemy_a"
-	plan.legs.append(AttackDamagePlan.DamageLeg.make(&"enemy_a", 1))
-	plan.legs.append(AttackDamagePlan.DamageLeg.make(&"enemy_b", 1))
-	plan = h.ctx.modifiers.apply_attack_damage_plan(plan, &"inv_1", h.ctx)
-	var leg_a: AttackDamagePlan.DamageLeg = plan.legs[0]
-	var leg_b: AttackDamagePlan.DamageLeg = plan.legs[1]
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
+	plan.primary_subject_id = &"enemy_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_a", 1))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_b", 1))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
+	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
 	return (
 		leg_a.amount == 1
 		and leg_b.amount == 2
@@ -1781,15 +1782,16 @@ func _test_mod_attack_damage_zero_leg_skips() -> bool:
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := AttackDamagePlan.new()
-	plan.primary_target_id = &"enemy_a"
-	plan.legs.append(AttackDamagePlan.DamageLeg.make(&"enemy_a", 0))
-	plan.legs.append(AttackDamagePlan.DamageLeg.make(&"enemy_b", 0))
-	plan = h.ctx.modifiers.apply_attack_damage_plan(plan, &"inv_1", h.ctx)
-	var leg_a: AttackDamagePlan.DamageLeg = plan.legs[0]
-	var leg_b: AttackDamagePlan.DamageLeg = plan.legs[1]
-	var settled := ModifierEngine.settle_attack_damage_plan(h.ctx, plan)
-	return leg_a.amount == 0 and leg_b.amount == 0 and int(settled.get("dealt", -1)) == 0
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
+	plan.primary_subject_id = &"enemy_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_a", 0))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_b", 0))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
+	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
+	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan)
+	return leg_a.amount == 0 and leg_b.amount == 0 and int(settled.get("settled", -1)) == 0
 
 
 func _test_mod_discover_bonus_single_leg() -> bool:
@@ -1821,13 +1823,14 @@ func _test_mod_discover_multi_leg_pi() -> bool:
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := DiscoverPlan.new()
-	plan.primary_location_id = &"loc_a"
-	plan.legs.append(DiscoverPlan.DiscoverLeg.make(&"loc_a", 1))
-	plan.legs.append(DiscoverPlan.DiscoverLeg.make(&"loc_b", 1))
-	plan = h.ctx.modifiers.apply_discover_plan(plan, &"inv_1", h.ctx)
-	var leg_a: DiscoverPlan.DiscoverLeg = plan.legs[0]
-	var leg_b: DiscoverPlan.DiscoverLeg = plan.legs[1]
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.primary_subject_id = &"loc_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 1))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 1))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
+	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
 	return (
 		leg_a.amount == 1
 		and leg_b.amount == 2
@@ -1841,18 +1844,19 @@ func _test_mod_discover_zero_leg_skips() -> bool:
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := DiscoverPlan.new()
-	plan.primary_location_id = &"loc_a"
-	plan.legs.append(DiscoverPlan.DiscoverLeg.make(&"loc_a", 0))
-	plan.legs.append(DiscoverPlan.DiscoverLeg.make(&"loc_b", 0))
-	plan = h.ctx.modifiers.apply_discover_plan(plan, &"inv_1", h.ctx)
-	var leg_a: DiscoverPlan.DiscoverLeg = plan.legs[0]
-	var leg_b: DiscoverPlan.DiscoverLeg = plan.legs[1]
-	var settled := ModifierEngine.settle_discover_plan(h.ctx, plan, &"inv_1")
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.primary_subject_id = &"loc_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 0))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 0))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
+	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
+	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan, {"inv_id": &"inv_1"})
 	return (
 		leg_a.amount == 0
 		and leg_b.amount == 0
-		and int(settled.get("discovered", -1)) == 0
+		and int(settled.get("settled", -1)) == 0
 	)
 
 

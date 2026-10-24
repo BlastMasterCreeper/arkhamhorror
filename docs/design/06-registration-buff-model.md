@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.37 · 2026-10-24 — 修正来源不全是 Buff（混乱/投入 ≠ Register）
+> **状态**：v0.4.38 · 2026-10-24 — 域 B 统一 AmountPlan + apply_to_amount_plan
 
 ---
 
@@ -896,7 +896,7 @@ enum ValueRealm { PRINTED, EFFECT_AMOUNT, SEQUENCE_SCALAR }
 | `SHROUD` @ Investigate | A | 读地点隐藏值 |
 | `INITIATION_*_COST` | A | 费用 |
 | `RESOURCE_GAIN_AMOUNT` | B | 单点效果量 |
-| `AttackDamagePlan` / `DiscoverPlan` | B | 消费式多腿 |
+| `AmountPlan`（ATTACK_DAMAGE / DISCOVER / HORROR…） | B | 统一效果量 Plan；消费式多腿 |
 | `chaos_modifier` on test ctx | C | **非 Buff** 来源；与 Store 修正同一叠加律，挂检定帧 |
 | `HORROR` Plan | B | **待** · 与伤害同构 |
 
@@ -1179,9 +1179,9 @@ Grimoire 条文 / 卡面效果
 | **MOD-Q-SHROUD** | A | 读地点隐藏值（常作调查难度底座） | `SHROUD` | **已实现** |
 | **MOD-Q-COST** | A | Initiation 付费前 | resource/action cost | **已实现** |
 | **MOD-Q-GAIN-RES** | B | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
-| **MOD-Q-ATTACK-DAMAGE** | B | 攻击成功后、伤害落点前 | **AttackDamagePlan** | **已实现** |
-| **MOD-Q-DISCOVER** | B | 调查成功后、发现落点前 | **DiscoverPlan** | **已实现** |
-| **MOD-Q-HORROR-AMT** | B | 造成恐惧量落点前 | HorrorPlan（与伤同构） | 待 |
+| **MOD-Q-ATTACK-DAMAGE** | B | 攻击成功后、伤害落点前 | **AmountPlan** `ATTACK_DAMAGE` | **已实现** |
+| **MOD-Q-DISCOVER** | B | 调查成功后、发现落点前 | **AmountPlan** `DISCOVER` | **已实现** |
+| **MOD-Q-HORROR-AMT** | B | 造成恐惧量落点前 | **AmountPlan** `HORROR` | kind/payload 已备；settle 待 |
 | **MOD-Q-PRINTED-*** | A | 生命/神智/敌 fight·evade·health… | 对应 value_key | 待按卡增量 |
 
 #### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
@@ -1201,16 +1201,14 @@ Grimoire 条文 / 卡面效果
 ```text
 成功（Fight / Investigate / 指定行动）
   │
-  ├─ 1. 建 Plan（默认基础效果）
-  │      AttackDamagePlan.legs[] / DiscoverPlan.legs[]
+  ├─ 1. 建 AmountPlan（kind=ATTACK_DAMAGE|DISCOVER|HORROR…）
   │
-  ├─ 2. 卡面替换（Instead / 「本攻击改为…」）
-  │      可多 leg（多敌伤、多地发现…）
+  ├─ 2. 卡面替换（Instead / 「本攻击改为…」）→ 可多 leg
   │
-  ├─ 3. 消费式应用攻击/发现 MODIFIER（见下）
-  │      每个修正实例选 **一条** leg 加上去——多候选 → PI
+  ├─ 3. ModifierEngine.apply_to_amount_plan
+  │      匹配 plan.kind 的 Buff 修正；消费式选一腿；多候选 PI
   │
-  └─ 4. 落点：leg amount>0 才结算（0 不结算；FAQ 谨慎）
+  └─ 4. settle_amount_plan：leg amount>0 才结算
 ```
 
 #### 消费式修正 + 触发时 PI（已对齐）
@@ -1236,37 +1234,28 @@ MODIFIER「本次攻击 +1」(消费式)
 ```
 
 ```gdscript
-class DamageLeg:
-    var target_id: StringName
+class AmountLeg:
+    var subject_id: StringName   # 敌 / 地 / 调查员…
     var amount: int
 
-class AttackDamagePlan:
-    var legs: Array[DamageLeg]
-    var tags: Array[StringName]
-    var primary_target_id: StringName   # default / 单目标暗示
-
-class DiscoverLeg:
-    var location_id: StringName
-    var amount: int
-
-class DiscoverPlan:
-    var legs: Array[DiscoverLeg]
-    var primary_location_id: StringName
+class AmountPlan:
+    var kind: ModifierPlanKind   # ATTACK_DAMAGE | DISCOVER | HORROR
+    var legs: Array[AmountLeg]
+    var primary_subject_id: StringName
 ```
 
 | 修正例子 | 行为 |
 |---|---|
-| 致命打击 +1 | 对 Plan **选一敌** +1（多敌 PI） |
-| 推理 additional clue | 对 Plan **选一地** +1（多地 PI） |
-| Brand 替换 | **步骤 2** 重写 Plan；再进消费式修正 |
+| 致命打击 +1 | `kind=ATTACK_DAMAGE` 选一 subject +1（多敌 PI） |
+| 推理 additional clue | `kind=DISCOVER` 选一地 +1（多地 PI） |
+| Brand 替换 | **步骤 2** 重写 Plan；再 `apply_to_amount_plan` |
 
-**PI 规格**：走既有 Gate（[16](16-player-interaction.md) / [21](21-selection-spec.md)）——`ChoiceRequest` + `default_*` + 有限期；**不是** nest `seq.choose.*`，也不是修正 Register 时预选。
+**PI 规格**：Gate（[16](16-player-interaction.md) / [21](21-selection-spec.md)）；prompt 按 kind（`mod.attack_damage_leg` 等）。
 
-**禁止**：`PER_EACH_LEG` 广播量修正；扁平全局 `DAMAGE_AMOUNT` 冒充「本次攻击」。  
-**Register 侧**：payload 标 `plan_kind: ATTACK_DAMAGE | DISCOVER`，`apply: CONSUME_CHOOSE_ONE_LEG`（默认）。
+**禁止**：`PER_EACH_LEG` 广播；扁全球量键冒充本次效果；为伤/发现各造 Engine。  
+**Register 侧**：`plan_kind` 与 `AmountPlan.kind` 对齐；`apply: CONSUME_CHOOSE_ONE_LEG`。
 
-**落地进度（站）**：SKILL / SHROUD / COST / GAIN-RES / Attack / Discover ✅；Horror Plan · ST 序列键收编 · 印刷量全表 待。  
-**架构**：§6 统一三域；竖切站继续挂同一 Engine，禁止分叉。
+**落地进度**：AmountPlan 统一 API ✅；Attack/Discover settle ✅；Horror settle 待；ST 序列键收编 · 印刷量全表 待。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1476,6 +1465,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.38 | 域 B：Attack/Discover Plan 收成 AmountPlan；统一 apply/settle |
 | 2026-10-24 | v0.4.37 | 修正来源不全是 Buff：混乱/投入=检定帧贡献；Buff 只是来源之一 |
 | 2026-10-24 | v0.4.36 | §6：Modifier=数值修正；三域印刷/效果量/序列标量；统一来源·计算·寿命·apply |
 | 2026-10-24 | v0.4.35 | MOD-Q-SHROUD：StatRef.SHROUD + 基础 Investigate 算难度 |

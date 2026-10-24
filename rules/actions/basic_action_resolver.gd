@@ -34,12 +34,12 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	test.difficulty = shroud
 	var location_id_copy := location_id
 	var inv_copy := inv_id
-	## ST.7：建发现 Plan → 消费式发现修正 → 仅 amount>0 落点（06 §16.3.2）。
+	## ST.7：AmountPlan(DISCOVER) → 消费式修正 → 仅 amount>0 落点（06 §6 / §16.3.2）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		var plan := DiscoverPlan.single_location(location_id_copy, 1)
+		var plan := AmountPlan.discover_single(location_id_copy, 1)
 		if game_ctx != null and game_ctx.modifiers != null:
-			plan = game_ctx.modifiers.apply_discover_plan(plan, inv_copy, game_ctx)
-		ModifierEngine.settle_discover_plan(game_ctx, plan, inv_copy)
+			plan = game_ctx.modifiers.apply_to_amount_plan(plan, inv_copy, game_ctx)
+		ModifierEngine.settle_amount_plan(game_ctx, plan, {"inv_id": inv_copy})
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
@@ -112,12 +112,12 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	test.difficulty = enemy.fight
 	var enemy_id_copy := enemy_id
 	var inv_copy := inv_id
-	## ST.7：建伤害 Plan → 消费式攻击伤修正 → 仅 amount>0 落点（06 §16.3.2）。
+	## ST.7：AmountPlan(ATTACK_DAMAGE) → 消费式修正 → 仅 amount>0 落点（06 §6 / §16.3.2）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		var plan := AttackDamagePlan.single_enemy(enemy_id_copy, 1)
+		var plan := AmountPlan.attack_damage_single(enemy_id_copy, 1)
 		if game_ctx != null and game_ctx.modifiers != null:
-			plan = game_ctx.modifiers.apply_attack_damage_plan(plan, inv_copy, game_ctx)
-		ModifierEngine.settle_attack_damage_plan(game_ctx, plan)
+			plan = game_ctx.modifiers.apply_to_amount_plan(plan, inv_copy, game_ctx)
+		ModifierEngine.settle_amount_plan(game_ctx, plan)
 	test.on_fail = func(_ctx: SkillTestContext) -> void:
 		var fight_damage: int = int(extra.get("fight_damage", 1))
 		FightFailRedirectResolver.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
