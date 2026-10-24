@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.27 · 2026-10-24 — §2.2 Register 结算面不按 Buff 拆；控制优先 Buff
+> **状态**：v0.4.28 · 2026-10-24 — §2.3 能力 ≠ Buff；LISTENER 勿举 Forced/reaction
 
 ---
 
@@ -61,7 +61,7 @@ Unregister（结算）→ 记录消失 → 其 Buff 不再被查询/开火
 | 词性 | **动词**（结算叶） | **名词**（载荷形状） |
 | 做什么 | 把一条 lasting/延时效果 **写进/卸出** Store | 说明这条效果 **改数值 / 禁允 / 听时点** |
 | dry-run | 插入成功 → **CREATED** | 不单独 CREATED；随 Registration 创建 |
-| 纸面 | 「获得 until…」「挂上 Forced」「cannot」的 **落地** | 编译器填进 `BuffSpec.type` + payload |
+| 纸面 | 「获得 until…」「下个阶段初…」「cannot（效果给予）」的落地 | 编译进 `BuffSpec`；**不含**印刷 Forced/reaction |
 | 不是 | — | 不是第四层原语；不是「先造 Buff 对象再粘上去」的第二 API |
 
 **Buff 仅三种行为型**（§3）；关键词本身不是 BuffType。动态「拥有」可先 Register **KEYWORD 标记**，再按同一 profile 挂真正的三种 Buff（§3.2：「拥有 ≠ 行为」）。
@@ -81,6 +81,30 @@ Buff 形态          =  MODIFIER | RESTRICTION | LISTENER | 拥有标记…
 - **可以**把「获得控制」编成带 lifetime 的 Buff（查 `effective_controller`），而不是 `set_controller` 信息原语。  
 - 复杂度增长点：新 **payload / RestrictionKind / Listener timing**，不是新 Register 动词。
 
+### 2.3 能力 ≠ Buff（LISTENER 举例勿混）
+
+> **已对齐（2026-10-24）**：纸面 **Forced / `[reaction]` / `[action]` / Constant / Revelation** 是 **卡牌能力**（`AbilitySpec` + Initiation / COLLECT），**不是** lasting/延时效果，也 **不要**在概念上叫 Buff。
+
+| | **能力（Ability）** | **Buff（Register 载荷）** |
+|---|---|---|
+| 纸面 | Forced –、`[reaction]`、Constant… | 「获得 until…」「at the start of next…」等 **效果创造** 的持续/延时 |
+| 从哪来 | 印刷（或 gains **ability** 文本）挂在卡上 | 某次效果 **Register** 进 Store |
+| 运行 | 时点 COLLECT → Forced 直执 / reaction 选用 | `collect(BuffType)` / LISTENER fire |
+| 寿命 | 通常随卡在场/在手等（能力存在条件） | `LifetimeSpec`（可 `UNTIL_FIRED`） |
+
+**LISTENER Buff 的合法例子**：
+
+- Event：*Until end of your turn, after you successfully evade, draw 1 card.*  
+- 延时：*At the beginning of the next mythos phase, place 1 doom…*  
+- 动态：`gains surge` 之后的延时再抽（KEYWORD 标记 + 延时消费）
+
+**不要再举例成 LISTENER Buff**：
+
+- 支援印刷 *Forced – After you fight: draw 1.* → **Forced 能力**  
+- *`[reaction]` After you defeat an enemy…* → **反应能力**
+
+**实现注记**：在场能力「订时点跑效果」与 lasting LISTENER **可共享** Catalog 订阅/开火机械；那是 **同形实现**，不是把能力重新分类成 Buff。对话与 07 举例必须以纸面为准。
+
 ---
 
 ## 3. BuffType（三种）
@@ -89,17 +113,18 @@ Buff 形态          =  MODIFIER | RESTRICTION | LISTENER | 拥有标记…
 enum BuffType {
     MODIFIER,       # 被动改数值
     RESTRICTION,    # 被动禁止/允许；编译卡面 "cannot …"；Grimoire：cannot 绝对，不得 countermand（07 §3.2）
-    LISTENER,       # timing 到点跑 Composition
+    LISTENER,       # lasting/延时：timing 到点跑 Composition（≠ 印刷 Forced/reaction 能力）
 }
 ```
 
-| 非 Buff 机制 | 实现方式 |
+| 非 Buff（勿混入） | 实现方式 |
 |---|---|
+| **Forced / `[reaction]` / `[action]` / Constant / Revelation** | **`AbilitySpec`** + Initiation / COLLECT（§2.3）；**不是** LISTENER Buff |
 | Surge（**印刷**） | `CardDefinition.keywords` 含 `surge` |
-| Surge（**动态** `gains surge`） | G3 内 Register **KEYWORD 标记** · `WHILE_DRAWN_CARD_RESOLVING(card_id)`；G5 与印刷合并 evaluate，**不叠加**（见 §3.1、[15 §17.4.5](15-timing-entry-catalog.md)） |
-| Peril、Aloof、Massive 等其它 **关键词** | `CardDefinition.keywords` + 编译为 MODIFIER/RESTRICTION/LISTENER |
-| Cancel / Replacement | [07-composition](07-composition.md) 的 `CancelPending` / `ReplacePending` 节点 |
-| Skill Test / Encounter 帧 | `SkillTestContext` 字段 + 子系统读 Context |
+| Surge（**动态** `gains surge`） | Register **KEYWORD 标记** + 延时消费（§3.1） |
+| Peril、Aloof、Massive 等关键词行为 | keywords + 编译 MODIFIER/RESTRICTION/LISTENER（关键词 ≠ 能力类型） |
+| Cancel / Replacement | Composition Interrupt / Replace 节点 |
+| Skill Test / Encounter 帧 | Context + 子系统 |
 
 ### 3.1 涌动（Surge）· 已裁决
 
@@ -688,18 +713,12 @@ Registration {
 | Listener 触发次数 | 寿命内 **可多次** | 通常 **一次**（整段 Unregister） |
 | 典型文本 | until end of **turn/phase** | at start of **next** …（一次） |
 
-### 5.6 与 Constant 对比
+### 5.6 与印刷能力对比（勿称 Buff）
 
-Asset：**After you fight, draw 1**（Constant）
+Asset 印刷 *Forced – After you fight: draw 1* / *After you fight, draw 1*（Constant/Forced）→ **`AbilitySpec`**，**不是**本条 LISTENER Buff 示例。
 
-```text
-Registration {
-  lifetime: WHILE_IN_PLAY,
-  buffs: [ Listener(AFTER_YOU_FIGHT, Draw(1)) ],
-}
-```
-
-与 Event「until end of **your turn**…」结构相同；仅 Lifetime 为 `THIS_TURN` vs `WHILE_IN_PLAY`。
+若实现把「在场订 `AFTER_YOU_FIGHT`」做成与 §5.1 **同形**挂载，lifetime 像 `WHILE_IN_PLAY`——那是机械复用；**概念上仍是能力**（§2.3）。  
+真正的 LISTENER Buff 对照物：Event *Until end of your turn, after you fight, draw 1*（§5.1）——**效果创造**的持续壳 + Listener。
 
 ---
 
@@ -1194,6 +1213,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.28 | §2.3：Forced/reaction/Constant = 能力 ≠ LISTENER Buff；修正 §5.6 举例 |
 | 2026-10-24 | v0.4.27 | §2.2：结算面不按 BuffType/lasting 拆；控制等优先 Buff；Chronicle 外置 |
 | 2026-10-24 | v0.4.26 | §2.1：Register（结算动词）与 Buff（Registration 载荷）；对齐 07 §5.4.2 |
 | 2026-10-23 | v0.4.25 | 框架称呼：`SoakAssigner` → `DamageAssigner`（正式 Assign，弃用 soak） |

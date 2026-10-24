@@ -21,7 +21,8 @@ alwaysApply: true
 | **state primitive** | **状态原语** | **物理**结算三类：① 区/序 ② 标记 ③ 形态（看得见） |
 | **information primitive** | **信息原语** | **几乎 = Register**；另薄 **Chronicle**（日志∪记住）；不含可见性 |
 | **Register** | **注册** | 不可见结算主动词：写入/卸下 `Registration`；结算面不按 Buff 再拆 |
-| **Buff** | **Buff** | Registration 载荷形态（三型 + 拥有标记）；非结算原语 |
+| **Buff** | **Buff** | Register 载荷（lasting/延时等）；**≠** Forced/`[reaction]`/Constant 等 **能力** |
+| **Ability** | **能力** | Forced / 反应 / 激活 / 免费 / Constant / 显现；`AbilitySpec`；不是 LISTENER Buff |
 | **Chronicle** | **记事** | 日志∪记住的简单记事库；≠ Register；≠ `RulesMemory` |
 | **FaceAudience / visibility** | **牌面可见性** | 权限层；非原语；改可见性不算结算 |
 | **effect** | **效果** | 结算可 CREATED：物理 + 信息原语；**不含**仅改 Audience |

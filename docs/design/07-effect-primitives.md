@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.21 · 2026-10-24 — 信息原语≈Register；Chronicle 薄；Register 结算面不按 Buff 拆
+> **状态**：v0.3.22 · 2026-10-24 — LISTENER Buff ≠ Forced/reaction 能力
 
 ---
 
@@ -529,12 +529,23 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 
 **Buff 三型在做什么**（形态，不是三种 Register）：
 
-| BuffType | 消费方式 | 典型纸面 |
+| BuffType | 消费方式 | 典型纸面（**效果创造的** lasting / 延时） |
 |---|---|---|
-| **MODIFIER** | ModifierEngine 叠数值/成本 | gets +1 fight；费用 −1 |
-| **RESTRICTION** | Eligibility / Intent 查询 | cannot；险境；冷漠；**有效控制/禁自动交战** 等 |
-| **LISTENER** | Catalog 时点 → 跑 Composition | Forced/reaction 挂机；延时「下个神话阶段初…」 |
-| **KEYWORD/TRAIT 标记** | `has_effective_*`（拥有 ≠ 行为） | gains surge；再按 profile 挂真 Buff |
+| **MODIFIER** | ModifierEngine | until end of turn gets +1；blank 印刷框 |
+| **RESTRICTION** | Eligibility / Intent | 效果给予的 cannot；险境帧限制；有效控制… |
+| **LISTENER** | Catalog → Composition | 「直到回合结束，每次战斗后抽 1」；「下个神话阶段开始时…」；`UNTIL_FIRED` 延时 |
+| **拥有标记** | `has_effective_*` | gains surge / trait；**再**挂真 Buff |
+
+**不是 Buff**（纸面 **能力**，走 `AbilitySpec` / Initiation）：
+
+| 纸面 | 为何不是 LISTENER Buff |
+|---|---|
+| **Forced –** | 卡牌 **能力**；时点到由能力管线自动发起 |
+| **`[reaction]` / `[action]` / `[free]`** | 同上；玩家选用 / Activate |
+| **Constant** | 能力；查 modifier 时贡献，不是「延时效果」 |
+| **Revelation** | 显现能力；入口 seq 内解释 |
+
+引擎若把「在场时订时点」做成与 LISTENER **同形的挂载**，那是 **实现复用**，文档/对话仍称 **能力**，禁止把 Forced/reaction 举例成「LISTENER Buff / 延时效果」。详见 [06 §2.3](06-registration-buff-model.md)。
 
 持续 vs 延时：**同一 Register**，差在 `DURATION/WHILE_*` vs `UNTIL_FIRED`（[06 §4](06-registration-buff-model.md)）。多 Buff 可同壳一次 Register（§5.4）。
 
@@ -748,6 +759,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.22 | §5.4.2：LISTENER Buff 举例改为 lasting/延时；Forced/reaction = 能力 |
 | 2026-10-24 | v0.3.21 | §5.4：信息原语≈Register+Chronicle；控制走 Buff；Register 结算面不按 BuffType 拆 |
 | 2026-10-24 | v0.3.20 | §0/§5.4.1：FaceAudience = 权限/信息管理，非结算原语；不单独 CREATED |
 | 2026-10-24 | v0.3.19 | §5.4.2：Register = 结算动词；Buff = Registration 载荷（非第二套原语） |
