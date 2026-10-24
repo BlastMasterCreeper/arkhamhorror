@@ -71,6 +71,14 @@ func _initialize() -> void:
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
 	_run_test("C-04 register applies modifier", _test_register_modifier)
+	_run_test("MOD-01 SKILL_ANY matches any skill query", _test_mod_skill_any)
+	_run_test("MOD-02 attack damage bonus single leg", _test_mod_attack_damage_single_leg)
+	_run_test("MOD-03 attack damage bonus chooses one of many legs", _test_mod_attack_damage_multi_leg_pi)
+	_run_test("MOD-04 zero-amount legs skip bonus and settle", _test_mod_attack_damage_zero_leg_skips)
+	_run_test("MOD-05 discover bonus single leg investigate", _test_mod_discover_bonus_single_leg)
+	_run_test("MOD-06 discover bonus chooses one of many legs", _test_mod_discover_multi_leg_pi)
+	_run_test("MOD-07 zero-amount discover legs skip bonus and settle", _test_mod_discover_zero_leg_skips)
+	_run_test("MOD-08 shroud modifier lowers investigate difficulty", _test_mod_shroud_investigate)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -1703,6 +1711,175 @@ func _test_register_modifier() -> bool:
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionTestHelper.lasting_willpower_turn(&"inv_1", 1))
 	return c.modifier_willpower(3, &"inv_1") == 4
+
+
+func _test_mod_skill_any() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var payload := ModifierPayload.add_skill_any(2)
+	c.execute(CompositionNode.register(RegistrationTemplate.lasting_modifier(
+		&"inv_1", AhcEnums.DurationAnchorKind.THIS_TURN, payload
+	)))
+	var q_will := ModifierQuery.new()
+	q_will.controller_id = &"inv_1"
+	q_will.stat = AhcEnums.StatRef.SKILL_WILLPOWER
+	var q_combat := ModifierQuery.new()
+	q_combat.controller_id = &"inv_1"
+	q_combat.stat = AhcEnums.StatRef.SKILL_COMBAT
+	var q_res := ModifierQuery.new()
+	q_res.controller_id = &"inv_1"
+	q_res.stat = AhcEnums.StatRef.RESOURCE_GAIN_AMOUNT
+	return (
+		h.ctx.modifiers.compute(3, q_will) == 5
+		and h.ctx.modifiers.compute(1, q_combat) == 3
+		and h.ctx.modifiers.compute(1, q_res) == 1
+	)
+
+
+func _test_mod_attack_damage_single_leg() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.health = 5
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
+	))
+	var res := h.fight_action({"enemy_id": &"enemy_1"})
+	enemy = h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy != null and enemy.damage == 2
+
+
+func _test_mod_attack_damage_multi_leg_pi() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"mod.attack_damage_leg", "pick": &"enemy_b"},
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
+	plan.primary_subject_id = &"enemy_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_a", 1))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_b", 1))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
+	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
+	return (
+		leg_a.amount == 1
+		and leg_b.amount == 2
+		and not h.ctx.interaction.last_used_default
+	)
+
+
+func _test_mod_attack_damage_zero_leg_skips() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
+	plan.primary_subject_id = &"enemy_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_a", 0))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_b", 0))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
+	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
+	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan)
+	return leg_a.amount == 0 and leg_b.amount == 0 and int(settled.get("settled", -1)) == 0
+
+
+func _test_mod_discover_bonus_single_leg() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.clues = 3
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var res := h.investigate_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and res.success
+		and loc.clues == 1
+		and inv.clues_on_card == 2
+	)
+
+
+func _test_mod_discover_multi_leg_pi() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"mod.discover_leg", "pick": &"loc_b"},
+	])
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.primary_subject_id = &"loc_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 1))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 1))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
+	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
+	return (
+		leg_a.amount == 1
+		and leg_b.amount == 2
+		and not h.ctx.interaction.last_used_default
+	)
+
+
+func _test_mod_discover_zero_leg_skips() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.primary_subject_id = &"loc_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 0))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 0))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
+	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
+	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan, {"inv_id": &"inv_1"})
+	return (
+		leg_a.amount == 0
+		and leg_b.amount == 0
+		and int(settled.get("settled", -1)) == 0
+	)
+
+
+func _test_mod_shroud_investigate() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.shroud = 4
+	loc.clues = 2
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.reduce_shroud_this_turn(&"inv_1", 3)
+	))
+	var q := ModifierQuery.new()
+	q.controller_id = &"inv_1"
+	q.stat = AhcEnums.StatRef.SHROUD
+	if h.ctx.modifiers.compute(4, q) != 1:
+		return false
+	## 印刷 shroud 4、−3 → 难度 1；默认混沌袋易成功并发现线索。
+	var res := h.investigate_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and res.success and loc.clues == 1 and inv.clues_on_card == 1
 
 
 func _test_restriction_blocks_draw() -> bool:

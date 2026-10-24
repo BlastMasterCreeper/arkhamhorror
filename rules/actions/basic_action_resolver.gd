@@ -24,22 +24,22 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
 	test.skill = AhcEnums.SkillType.INTELLECT
-	test.difficulty = loc.shroud
+	## MOD-Q-SHROUD：印刷 shroud 经 ModifierEngine 后再作难度（下限 0）。
+	var shroud := loc.shroud
+	if game_ctx != null and game_ctx.modifiers != null:
+		var shroud_q := ModifierQuery.new()
+		shroud_q.controller_id = inv_id
+		shroud_q.stat = AhcEnums.StatRef.SHROUD
+		shroud = game_ctx.modifiers.compute(loc.shroud, shroud_q)
+	test.difficulty = shroud
 	var location_id_copy := location_id
 	var inv_copy := inv_id
+	## ST.7：AmountPlan(DISCOVER) → 消费式修正 → 仅 amount>0 落点（06 §6 / §16.3.2）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		if game_ctx != null and game_ctx.sequence_catalog != null:
-			game_ctx.sequence_catalog.nest(
-				game_ctx,
-				&"seq.effect.discover_clue",
-				{
-					"inv_id": inv_copy,
-					"location_id": location_id_copy,
-					"amount": 1,
-				}
-			)
-		else:
-			_apply_discover_clue(game_ctx, location_id_copy, inv_copy)
+		var plan := AmountPlan.discover_single(location_id_copy, 1)
+		if game_ctx != null and game_ctx.modifiers != null:
+			plan = game_ctx.modifiers.apply_to_amount_plan(plan, inv_copy, game_ctx)
+		ModifierEngine.settle_amount_plan(game_ctx, plan, {"inv_id": inv_copy})
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
@@ -112,8 +112,12 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	test.difficulty = enemy.fight
 	var enemy_id_copy := enemy_id
 	var inv_copy := inv_id
+	## ST.7：AmountPlan(ATTACK_DAMAGE) → 消费式修正 → 仅 amount>0 落点（06 §6 / §16.3.2）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		EnemyDefeatResolver.deal_damage(game_ctx, enemy_id_copy, 1)
+		var plan := AmountPlan.attack_damage_single(enemy_id_copy, 1)
+		if game_ctx != null and game_ctx.modifiers != null:
+			plan = game_ctx.modifiers.apply_to_amount_plan(plan, inv_copy, game_ctx)
+		ModifierEngine.settle_amount_plan(game_ctx, plan)
 	test.on_fail = func(_ctx: SkillTestContext) -> void:
 		var fight_damage: int = int(extra.get("fight_damage", 1))
 		FightFailRedirectResolver.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
@@ -220,24 +224,3 @@ func _commits_from_extra(extra: Dictionary) -> Array[CommittedCard]:
 			out.append(item)
 	return out
 
-
-func _apply_discover_clue(
-	game_ctx: GameContext,
-	location_id: StringName,
-	inv_id: StringName
-) -> void:
-	if game_ctx != null and game_ctx.mutator != null:
-		game_ctx.mutator.transfer_marker(
-			AhcEnums.MarkerKind.CLUE,
-			1,
-			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE),
-			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.CLUE)
-		)
-		return
-	## 无 mutator：仅测试旁路；正式路径必须经 Transfer。
-	var loc := _state.registry.get_location(location_id)
-	var inv := _state.registry.get_investigator(inv_id)
-	if loc == null or inv == null or loc.clues <= 0:
-		return
-	loc.clues -= 1
-	inv.clues_on_card += 1
