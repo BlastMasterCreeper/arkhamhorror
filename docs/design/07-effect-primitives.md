@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.22 · 2026-10-24 — LISTENER Buff ≠ Forced/reaction 能力
+> **状态**：v0.3.23 · 2026-10-24 — Register 为原语：发起有效性须 CREATED；空结算禁发起
 
 ---
 
@@ -11,35 +11,52 @@
 ### 0.0 什么是「原语」（总判据）
 
 > **原语 = 能对游戏造成影响的结算。** 关键是 **结算**——执行时 **必须做点什么**，dry-run 可标 **CREATED**。  
-> **不是原语**：只读查询、投影、缓存、Eligibility、场合信封、印刷 Spec、步间 `RulesMemory`——**不结算**。
+> **不是原语**：只读查询、投影、缓存、Eligibility 前段、场合信封、印刷 Spec、步间 `RulesMemory`、**仅改可见性**——**不结算**。
 
-结算按「桌上能不能看见」分成两层；另有 **权限层** 管「谁可知牌面」（**不是**结算）：
+#### 为何 Register 必须是原语（发起有效性）
 
-| 层 | 英文 | 是结算？ | 说明 |
-|---|---|---|---|
-| **物理结算** | state primitive | **是** | 桌面摆子：挪牌、传标记、翻面·横置 |
-| **不可见结算** | information primitive | **是** | Register / Log / Remember…（看不见但仍改规则/记忆局面） |
-| **可见性 / 权限** | face audience · permission | **否** | 为游戏性服务的 **卡牌信息管理**（谁可知道牌面）；像玩家权限，不是效果叶 |
+> **已裁决**：发起有效性与原语结算同一尺子——**必须干了点什么**（[07-composition §4](07-composition.md)）。
+
+```text
+可发起  ⟺  …成本等过门…
+        AND  dry-run(效果体).has_any_CREATED
+
+CREATED ∈ {
+  物理原语结算成功,
+  Register 插入 Registration（创建了 Buff/标记）成功,
+  Chronicle 记事写入成功,   # 薄
+  Interrupt/Replace 等成功
+}
+
+空结算 = 没有任何物理原语能结算
+       ∧ 没有任何 Register 创建 Buff
+       ∧ （亦无 Chronicle 等其它 CREATED）
+     → FIZZLE → **禁止发起**
+```
+
+只改 `FaceAudience`、只跑控制流、只读查询 → **不够**。  
+把 Register 留在原语外，会导致「纯挂 lasting / cannot / 延时」的合法效果体被判空结算——故 **Register 必须是信息原语结算叶**。
+
+结算两层 + 权限层（非结算）：
+
+| 层 | 是结算？ | 计入发起 CREATED？ |
+|---|---|---|
+| **物理原语** | **是** | **是** |
+| **Register**（主量信息原语） | **是** | **是**（插入即 CREATED；不查 Buff 日后是否开火） |
+| **Chronicle**（日志∪记住） | **是**（薄） | **是** |
+| **可见性 Audience** | **否** | **否** |
 
 ```text
 命名流程 seq.*
   └─ RESOLVE ↓ 结算叶（可 CREATED）
 
   ├─ 物理     ①区/序  ②标记  ③形态
-  └─ 不可见   ≈ Register（主量）+ 记事 Chronicle（日志/记住，薄）
+  └─ 不可见   ≈ Register（主量）+ Chronicle（薄）
 
-并行（非结算）：FaceAudience ← 权限同步
+并行（非结算 · 不计 CREATED）：FaceAudience
 ```
 
-| 术语 | 是否效果叶 | 说明 |
-|---|---|---|
-| **效果 / 原语** | **是** | 结算且做事；**CREATED** |
-| **状态原语** | **是** | 仅物理三族 |
-| **信息原语** | **是** | **几乎 = Register**；另有薄 **Chronicle**（日志∪记住） |
-| **可见性** | **否** | 权限层；不单独 CREATED |
-| **控制权** | — | **不**单立原语；经 Register Buff（有效控制） |
-
-**收束**：可见性≠原语；控制/拓扑优先吃进 Buff；日志与记住并成简单记事类。不可见结算的主体是 **Register**。
+**控制权**不单立原语：经 Register Buff。Forced/reaction 是 **能力**，不是 Buff（[06 §2.3](06-registration-buff-model.md)）。
 
 **揭示（纸面 Reveal）vs 翻面 vs 可见性**：
 
@@ -561,6 +578,8 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 
 **裁决倾向**：**信息原语结算面不再拆**——就是 Register（± Unregister）。复杂度留在 **Buff 形态与 Lifetime**，不要再增殖结算动词。
 
+**与发起有效性**：Register 留在原语内，正是为了 L7 dry-run——「只挂 Buff、不动子」仍算干了点什么；与物理双零 = 空结算禁发起（§0）。
+
 卡面创建经 `seq.effect.register`；禁止真空 `RegistrationStore.register`。
 
 #### 5.4.3 Chronicle（记事）· 日志 ∪ 记住
@@ -759,6 +778,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.23 | §0：Register 作原语 ↔ 发起有效性；物理∧Register 皆无 CREATED = 空结算禁发起 |
 | 2026-10-24 | v0.3.22 | §5.4.2：LISTENER Buff 举例改为 lasting/延时；Forced/reaction = 能力 |
 | 2026-10-24 | v0.3.21 | §5.4：信息原语≈Register+Chronicle；控制走 Buff；Register 结算面不按 BuffType 拆 |
 | 2026-10-24 | v0.3.20 | §0/§5.4.1：FaceAudience = 权限/信息管理，非结算原语；不单独 CREATED |

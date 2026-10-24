@@ -2,7 +2,7 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.6 · 2026-09-28 — 硬门槛：禁真空 / 三分法 / 应展尽展
+> **状态**：v0.9.7 · 2026-10-24 — §4：空结算 = 无物理且无 Register CREATED → 禁发起
 
 ---
 
@@ -563,17 +563,19 @@ tie     : nearest 等距 → 当前交互玩家 PICK_TARGET
 
 ### 4.1 原则（已裁决）
 
-**有效性检测只关注「效果是否被创建」这一直接影响。**
+**有效性 = 与原语相同的尺子：必须干了点什么。**  
+dry-run 只问效果体能否 **CREATED** 至少一项直接影响（[07-primitives §0](07-effect-primitives.md)）。
 
-- **Register**：`RegistrationStore` 插入成功 → **CREATED**
-- **物理 Atom**：`StateMutator` 成功 → **CREATED**
-- **Log / Remember**：对应库写入成功 → **CREATED**
-- **Audience（`reveal_to_*`）**：**不计** CREATED（权限同步，非结算）
-- **Interrupt / Replace / ResolvePending**：pending 存在且操作成功 → **CREATED**
+| 计 CREATED | 不计 CREATED |
+|---|---|
+| **物理 Atom** 结算成功 | 仅改 **FaceAudience** |
+| **Register** 插入 Registration（创建了 Buff/标记） | 纯控制流 / 条件未进任何叶 |
+| **Chronicle** 记事写入 | 只读查询、印刷 Spec |
+| Interrupt / Replace / ResolvePending 成功 | Buff **日后**是否开火 / 是否退化 |
 
-**Presentation** 只 **读** Domain 揭示状态渲染 UI；**不** 单独维护「谁看到了什么」。
+**创建之后** Listener 会不会触发、MODIFIER 会不会被问到、牌堆会否变空 — **一律不查**。Register 插入成功即够。
 
-**创建之后** Buff 是否退化、Listener 将来能否触发、MODIFIER 是否用到、牌堆是否会在未来变空 — **一律不查**。
+**空结算**：物理原语皆无法结算 **且** 无任何 Register 创建 Buff（亦无其它 CREATED）→ 整树 FIZZLE → **不允许发起**。
 
 ### 4.2 发起合法条件
 
@@ -581,6 +583,7 @@ tie     : nearest 等距 → 当前交互玩家 PICK_TARGET
 initiation 合法  ⟺  play restrictions 过
                 AND  cost 可付
                 AND  simulate(composition).has_any_created == true
+                     // ⇔ 非空结算：至少一物理 CREATED 或一 Register CREATED（或 Chronicle/…）
 ```
 
 ```gdscript

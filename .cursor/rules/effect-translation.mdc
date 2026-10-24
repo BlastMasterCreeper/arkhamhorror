@@ -85,7 +85,7 @@ AbilitySpec
 | **物理结算**（状态原语：区/序 · 标记 · 形态） | 纯桌谈；只读查询/Eligibility |
 | **不可见结算**（≈ Register + 薄 Chronicle） | `RulesMemory`、印刷 Spec、**仅改可见性** |
 
-见 [07 §5.4](docs/design/07-effect-primitives.md)：信息原语主量 = Register；控制走 Buff；可见性非原语。
+见 [07 §0 / §5.4](docs/design/07-effect-primitives.md)：Register 是原语，亦为 **发起有效性**——须 CREATED（物理或 Register 出 Buff）；双零 = 空结算禁发起。可见性不计 CREATED。
 
 **隔离**：`seq.*` 组合两层结算叶；能力订 `(seq, slot)`。Register 结算面 **不**按 BuffType 拆。
 

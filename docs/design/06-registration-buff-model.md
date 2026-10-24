@@ -631,9 +631,13 @@ mount（进场 / G2 / …）
 
 卡面把「获得持续/延时/Cannot/涌动」当效果写出来时，创建本身走命名流程 **`seq.effect.register`**（参数 = `RegistrationTemplate`）；CREATED = 插入成功。管线里为父手续挂载的 Register（G2 险境、进场 Hunter）仍是该父 seq 的砖，不另开 `PERIL_CHECK`。见 [07-composition §1.3.3](07-composition.md#133-catalog-必须覆盖一切可解释效果纸面可以无名)。
 
-### 4.1 合法性（dry-run）
+### 4.1 合法性（dry-run）· 为何 Register 是原语
 
-创建 Registration **即** 直接影响（见 [07-composition §4](07-composition.md)）。  
+创建 Registration **即** 直接影响 / **CREATED**（见 [07-composition §4](07-composition.md)、[07-primitives §0](07-effect-primitives.md)）。
+
+发起有效性与原语同一判据：**必须干了点什么**。若效果体 **既** 无任何物理原语能结算，**又** 无任何 Register 插入，则为 **空结算**，**禁止发起**。  
+故「直到回合结束 +1」「获得 cannot」「挂上延时 LISTENER」等 **只靠 Register** 的效果体，必须把 Register 算作结算原语，否则合法挂 Buff 会被误判为空。
+
 **不**检查创建后 Buff 是否退化、Listener 是否会触发。
 
 ---
