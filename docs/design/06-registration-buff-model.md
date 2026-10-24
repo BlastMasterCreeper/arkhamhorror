@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.36 · 2026-10-24 — §6 Modifier 统一三域（印刷/效果量/序列标量）
+> **状态**：v0.4.37 · 2026-10-24 — 修正来源不全是 Buff（混乱/投入 ≠ Register）
 
 ---
 
@@ -819,36 +819,47 @@ Asset 印刷 *Forced – After you fight: draw 1* / *After you fight, draw 1*（
 
 ### 6.2 统一构件（来源 · 载荷 · 查询 · 计算 · 寿命）
 
+> **已对齐**：**修正的来源不全是 Buff。**  
+> Buff（Register MODIFIER）只是来源之一。引擎改的是 **数值**；贡献可来自 Store、检定帧、投入组装等。  
+> **禁止**把混乱标记、投入图标等一律 Register 成 Buff。
+
 ```text
-来源 Source
-  ├─ Registration（MODIFIER Buff · 常）← seq.effect.register
-  ├─ Constant 能力（同 Payload，lifetime=WHILE_IN_PLAY）
-  └─ 短暂序列贡献（混乱标记、部分「本次检定」）→ 挂在 SkillTestContext / 等价帧，仍走同一 compute 规则
-
-载荷 ModifierPayload（行为 Buff 族之一）
-  value_key   StatRef / ValueKey     # 改哪个数
-  realm       可由 key 推导或显式
-  op/value    ADD|SUB|MUL|DOUBLE|HALVE…
-  match       condition / 标签 / 技能维
-  apply_mode  SCALAR | CONSUME_CHOOSE_ONE_LEG
-  plan_kind   NONE | ATTACK_DAMAGE | DISCOVER | HORROR | …（仅效果量多腿）
-
-查询 ModifierQuery
-  value_key + controller/subject + 上下文
-  （test_id · location_id · skill · plan 宿主…）
-
-引擎 ModifierEngine（唯一）
-  compute(base, query)            → 标量（域 A / 域 C / 单点效果量）
-  apply_to_amount_plan(plan, …) → 域 B 多腿：消费式选一 + 必要时 PI
-
-寿命
-  一律 Registration.lifetime（或 Constant 壳 / 检定帧）
-  不按 value_key 另造生命周期系统
+数值修正系统（计算面 · 唯一）
+  compute / apply_to_amount_plan
+  叠加律共用（+/− → ×÷ → ceil → floor 0）
+        ▲
+        │ 汇入（按查询站收集）
+        │
+来源 Source（可多类并存）
+  ├─ Buff · Registration MODIFIER     ← seq.effect.register；Constant 同 Payload
+  ├─ 检定帧短暂贡献                   ← 混乱标记修正等（SkillTestContext；非 Buff）
+  ├─ 投入组装                         ← commit 图标加成（常并入比较值底座；非 Buff）
+  └─ （可扩展）其它非 Buff 贡献         ← 仍禁止为省事而假 Register
 ```
 
-**叠加律（Grimoire · 全域共用）**：加算/减算 → 乘除 → ceil → 下限 0。
+| 来源 | 是 Buff？ | 寿命 | 例子 |
+|---|---|---|---|
+| Registration / Constant MODIFIER | **是** | `LifetimeSpec` / WHILE_IN_PLAY | until… +1 fight；费用 −1；攻击伤 +1 |
+| 检定帧 | **否** | 本次检定 | **混乱标记**对比较值/难度的修正 |
+| 投入组装 | **否** | 本次检定（已 commit） | 技能图标点数 |
+| 印刷底座 | **否** | 实体上 | 未修正的 shroud / 技能印刷值（compute 的 `base`） |
 
-**创建**：卡面/能力经 `seq.effect.register`；**禁止**真空改 Store。dry-run：Register 成功 → CREATED。
+```text
+Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
+  value_key · op/value · match · apply_mode · plan_kind…
+
+查询 ModifierQuery
+  value_key + controller/subject + 上下文（test_id · location · skill · plan…）
+
+引擎 ModifierEngine（唯一计算入口）
+  compute(base, query)              → 汇入：匹配的 Buff +（若站需要）帧上短暂贡献
+  apply_to_amount_plan(plan, …)   → 域 B 多腿；消费式选一 + PI
+```
+
+**寿命**：Buff → Registration；混乱/投入 → 检定帧；**不**为每个 value_key 另造寿命系统。
+
+**Buff 创建**：仍经 `seq.effect.register`；禁止真空 Store。dry-run：Register → CREATED。  
+**非 Buff 来源**：揭示混乱、commit 步骤写入上下文——**不是**信息原语 Register。
 
 ### 6.3 应用模式（与域的关系）
 
@@ -886,7 +897,7 @@ enum ValueRealm { PRINTED, EFFECT_AMOUNT, SEQUENCE_SCALAR }
 | `INITIATION_*_COST` | A | 费用 |
 | `RESOURCE_GAIN_AMOUNT` | B | 单点效果量 |
 | `AttackDamagePlan` / `DiscoverPlan` | B | 消费式多腿 |
-| `chaos_modifier` on test ctx | C | 应视为序列贡献，与 Store 修正同一叠加律 |
+| `chaos_modifier` on test ctx | C | **非 Buff** 来源；与 Store 修正同一叠加律，挂检定帧 |
 | `HORROR` Plan | B | **待** · 与伤害同构 |
 
 **目标态 ST.5**：`ST_SKILL_VALUE = compute/assemble(有效技能, 投入, 域 C 修正含混乱)`；难度侧可 `ST_DIFFICULTY` 与域 A shroud 读分离（调查：先 A 读 shroud，再可叠加 C 的「本次难度」）。
@@ -1465,6 +1476,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.37 | 修正来源不全是 Buff：混乱/投入=检定帧贡献；Buff 只是来源之一 |
 | 2026-10-24 | v0.4.36 | §6：Modifier=数值修正；三域印刷/效果量/序列标量；统一来源·计算·寿命·apply |
 | 2026-10-24 | v0.4.35 | MOD-Q-SHROUD：StatRef.SHROUD + 基础 Investigate 算难度 |
 | 2026-10-24 | v0.4.34 | DiscoverPlan 接线 Investigate；消费式发现修正 + PI；zero amount 不结算 |
