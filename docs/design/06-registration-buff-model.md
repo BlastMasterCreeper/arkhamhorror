@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.30 · 2026-10-24 — §16.3：SKILL_ANY；攻击伤/发现线索用 Plan+修正
+> **状态**：v0.4.31 · 2026-10-24 — 攻击/发现量修正：消费式选一腿；多候选 PI
 
 ---
 
@@ -1065,17 +1065,37 @@ Grimoire 条文 / 卡面效果
 成功（Fight / Investigate / 指定行动）
   │
   ├─ 1. 建 Plan（默认基础效果）
-  │      AttackDamagePlan.legs[] = [{ enemy, base }]
-  │      DiscoverPlan.legs[]     = [{ location, base }]
+  │      AttackDamagePlan.legs[] / DiscoverPlan.legs[]
   │
   ├─ 2. 卡面替换（Instead / 「本攻击改为…」）
-  │      改写或重写 legs（多敌、多地点、base=充能数…）
+  │      可多 leg（多敌伤、多地发现…）
   │
-  ├─ 3. 应用攻击/发现类 MODIFIER（致命打击、Deduction…）
-  │      按 apply 策略改 legs 的 amount
+  ├─ 3. 消费式应用攻击/发现 MODIFIER（见下）
+  │      每个修正实例选 **一条** leg 加上去——多候选 → PI
   │
-  └─ 4. 落点：每条 leg amount>0 才结算（0 不结算；FAQ 谨慎）
-         → nest/内联 DamagePipeline / DiscoverClueFlow（可多 leg）
+  └─ 4. 落点：leg amount>0 才结算（0 不结算；FAQ 谨慎）
+```
+
+#### 消费式修正 + 触发时 PI（已对齐）
+
+> **禁止**默认「每个目标都 +1」。多 leg 时伤害/发现类量修正必须 **选定一个** 宿主 leg。
+
+修正 Buff 在 Plan **已明确**之后、落点之前 **消费式应用**（不是 Register 时选目标；也不是对全体 legs 广播）：
+
+| | 说明 |
+|---|---|
+| **何时** | 结算序列已得出 Plan（含替换后）；进入「应用本次攻击/发现修正」步 |
+| **消费** | 本检定/本攻击上下文里，每条适用的量修正 **用一次**：选 1 条 leg，`amount += N`，该修正实例本轮不再重复加 |
+| **1 条候选 leg** | 无 PI，直接挂上 |
+| **多条候选** | **`PlayerInteractionGate` 有限期确认**选一个目标/地点；逾期用 default（如主目标 / head） |
+| **0 条 / 无法挂** | 修正本轮不生效（与「0 伤不结算」同向，不硬跟宽松 FAQ） |
+
+```text
+Plan.legs = [敌A:1, 敌B:1]          # 例如范围伤替换
+MODIFIER「本次攻击 +1」(消费式)
+  → PI：选 A 或 B
+  → 选 A 后 legs = [A:2, B:1]
+  → 再落点两条伤害
 ```
 
 ```gdscript
@@ -1084,30 +1104,31 @@ class DamageLeg:
     var amount: int
 
 class AttackDamagePlan:
-    var legs: Array[DamageLeg]      # 一敌或多敌
-    var tags: Array[StringName]      # attack / spell / …
-    ## 修正策略提示（payload 可覆盖）
-    ## PER_PRIMARY | PER_EACH_LEG | ONCE_SPLIT — 默认 PER_PRIMARY（+1 打在主目标）
+    var legs: Array[DamageLeg]
+    var tags: Array[StringName]
+    var primary_target_id: StringName   # default / 单目标暗示
 
 class DiscoverLeg:
     var location_id: StringName
     var amount: int
 
 class DiscoverPlan:
-    var legs: Array[DiscoverLeg]    # 一地或多地
-    var tags: Array[StringName]
+    var legs: Array[DiscoverLeg]
+    var primary_location_id: StringName
 ```
 
-| 修正例子 | 挂哪 | 建议 apply |
-|---|---|---|
-| 致命打击：*that attack deals +1 damage* | `AttackDamagePlan` | 默认 **主目标 +1**；卡面写清「每个敌人」则 `PER_EACH_LEG` |
-| 推理：*discover 1 additional clue* | `DiscoverPlan` | 默认 **主发现地点 +1**；多地点时按卡面/FAQ 谨慎扩展 |
-| Brand 替换伤害 | **步骤 2** 重写 Plan，不是 MODIFIER | 充能→legs；再进步骤 3 |
+| 修正例子 | 行为 |
+|---|---|
+| 致命打击 +1 | 对 Plan **选一敌** +1（多敌 PI） |
+| 推理 additional clue | 对 Plan **选一地** +1（多地 PI） |
+| Brand 替换 | **步骤 2** 重写 Plan；再进消费式修正 |
 
-**禁止**：在扁平 `deal_damage(amount)` 入口用全局 `DAMAGE_AMOUNT` 冒充「本次攻击」——指定 Fight 替换基础效果后，修正会找错宿主。  
-**Register 侧**：攻击/发现修正的 payload 标 `plan_kind: ATTACK_DAMAGE | DISCOVER` + `apply_mode`，lifetime 常为 `THIS_SKILL_TEST` / 本次攻击。
+**PI 规格**：走既有 Gate（[16](16-player-interaction.md) / [21](21-selection-spec.md)）——`ChoiceRequest` + `default_*` + 有限期；**不是** nest `seq.choose.*`，也不是修正 Register 时预选。
 
-**落地顺序（实现）**：① `SKILL_ANY`；② `AttackDamagePlan` 接入基础 Fight + 一条替换卡 + 致命打击；③ `DiscoverPlan` 同构；④ 多 leg 用例竖切。
+**禁止**：`PER_EACH_LEG` 广播量修正；扁平全局 `DAMAGE_AMOUNT` 冒充「本次攻击」。  
+**Register 侧**：payload 标 `plan_kind: ATTACK_DAMAGE | DISCOVER`，`apply: CONSUME_CHOOSE_ONE_LEG`（默认）。
+
+**落地顺序**：① `SKILL_ANY`；② 单 leg Fight + 致命打击；③ 多 leg + PI 选宿主；④ Discover 同构。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1317,6 +1338,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.31 | 攻击/发现量修正消费式选一 leg；多候选触发 PI；禁对每个目标广播 |
 | 2026-10-24 | v0.4.30 | §16.3：无类型技能 SKILL_ANY；AttackDamagePlan/DiscoverPlan 替代扁 DAMAGE/DISCOVER 量 |
 | 2026-10-24 | v0.4.29 | §3.2.1a：gains 只读特征 vs 文本能力（须注册/初始化，同印刷挂载） |
 | 2026-10-24 | v0.4.28 | §2.3：Forced/reaction/Constant = 能力 ≠ LISTENER Buff；修正 §5.6 举例 |
