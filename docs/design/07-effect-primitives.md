@@ -550,9 +550,10 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 
 | BuffType | 消费 | 典型 |
 |---|---|---|
-| **MODIFIER** | ModifierEngine | until… +1；blank 印刷框 |
+| **MODIFIER** | ModifierEngine | until… +1 fight；费用/伤害量等 **数值** 修正 |
 | **RESTRICTION** | Eligibility / Intent | cannot；SKIP_AOO；有效控制… |
 | **LISTENER** | Catalog → Composition | 「until… after…」壳内听；纯延时 `UNTIL_FIRED` |
+| **BLANK**（非 MODIFIER） | 压制 **印刷** 文本框 | 「视为空白」；`effective = (印刷−blank)∪gained`；**不**走加减法 |
 
 **Gain**（[06 §3.2 / §3.2.1a](06-registration-buff-model.md)）分两档：
 
@@ -613,7 +614,8 @@ Composition / 卡面
 | **结算 API** | `register(template)` / `unregister(id\|filter)` | 保持两动词；CREATED=插入成功 | 按 BuffType 拆 `seq.effect.modifier` 等 |
 | **壳 Lifetime** | `WHILE_*` / `DURATION` / `UNTIL_FIRED` / `UNTIL_CONDITION` | 补齐纸面 until/while；tick 边界先于同界 Listener | 另开 LastingStore |
 | **壳 Scope / source** | 谁受益、绑哪张源卡 | 有效控制、宿主离场卸 | 真空改 `controller_id` 当原语 |
-| **MODIFIER payload** | stat · op · value · stacking | blank 印刷框、技能/费用/伤害量 | 印刷 Constant 能力（那是 Ability） |
+| **MODIFIER payload** | stat · op · value · stacking | 技能/费用/伤害量等数值 | 把 **blank** 塞进 MODIFIER |
+| **BLANK payload** | 空白哪些框/面 | 视为空白印刷文本 | 当数值修正；抹 gained（RR：不抹） |
 | **RESTRICTION payload** | RestrictionKind + 参数 | cannot 族、SKIP_AOO、冷漠、交战、**有效控制**、拓扑限制 | 把 Prey/Spawn 指令做成 Restriction |
 | **LISTENER payload** | timing slot + Composition / nest seq | 效果创造的「until… after…」与纯延时 | 印刷 Forced / `[reaction]`（能力） |
 | **Gain 族** | 几乎全部能力类型（含 Forced、关键词）+ TRAIT/ICON/数值 | Grant → AbilitySpec / 标记 / MODIFIER | 把 Gain 收成仅 KEYWORD |
@@ -634,7 +636,7 @@ Composition / 卡面
 |---|---|---|
 | P0 | RestrictionKind 报表完备 | cannot / 入口改道（SKIP_AOO 等） |
 | P0 | Lifetime 与离场/帧 tick 对齐 | 险境、隐私、UNTIL_FIRED |
-| P1 | 有效控制 / blank 为正式 payload | 吃掉「信息原语候选」 |
+| P1 | 有效控制；**BLANK** 独立载荷（≠ MODIFIER） | 文本框空白进 effective 公式 |
 | P1 | LISTENER payload 与 AbilitySpec 边界测试 | 防 Forced 误编进 Buff |
 | P2 | Template 工厂覆盖纸面句式 | 编译器少手写壳字段 |
 
@@ -676,7 +678,7 @@ effective(card) =
 |---|---|---|
 | 印刷图标 / 连接 / 特性 | `CardDefinition` 只读目录 | 导入期；信息层 **读** |
 | Gain … | **Register**（创建经 `seq.effect.register`） | 查询须区分 `is_printed_*` vs `has_effective_*`（[06 §Gain](06-registration-buff-model.md)） |
-| 视为空白 blank | **Register / Buff**（你已点明） | 压制 **印刷** 文本框；不抹 gained |
+| 视为空白 blank | **Register · BLANK**（**不是** MODIFIER） | 压制 **印刷** 文本框；不抹 gained；改的是 effective 读径，不是 +/− 数值 |
 | 谁看得到牌面 | **权限层** `FaceAudience`（非原语） | 与印刷/生效特征正交 |
 
 检定 commit、连接图、关键词开火等：**只问 `effective_*`**，禁止手续直接假定「等于印刷」。
