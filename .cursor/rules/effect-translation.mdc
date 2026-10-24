@@ -83,18 +83,18 @@ AbilitySpec
 | 是效果 | 不是效果 |
 |---|---|
 | **物理结算**（状态原语：区/序 · 标记 · 形态） | 纯桌谈；只读查询/Eligibility |
-| **不可见结算**（信息原语：Register / 日志 / 记住…） | 步间 `RulesMemory`、印刷 Spec、**仅改可见性** |
+| **不可见结算**（≈ Register + 薄 Chronicle） | `RulesMemory`、印刷 Spec、**仅改可见性** |
 
-见 [07 §0 / §5.4.1](docs/design/07-effect-primitives.md)：可见性 = 权限管理，**不是**原语；改 Audience **不算**结算。
+见 [07 §5.4](docs/design/07-effect-primitives.md)：信息原语主量 = Register；控制走 Buff；可见性非原语。
 
-**隔离**：`seq.*` 组合两层结算叶；能力订 `(seq, slot)`。Register ∈ 信息原语。
+**隔离**：`seq.*` 组合两层结算叶；能力订 `(seq, slot)`。Register 结算面 **不**按 BuffType 拆。
 
 ## 落地要素
 
-1. **状态原语** — 物理三类（`move_card` / `transfer_marker` / `set_face`·`set_exhausted`）  
-1b. **信息原语（不可见）** — Register；Log；Remember；…  
-1c. **可见性（非原语）** — `reveal_to_*` / `hide_from_all` = 权限同步；不计 CREATED  
-2. **Register** — 信息原语一族；查询见 [06 §16](docs/design/06-registration-buff-model.md)  
+1. **状态原语** — 物理三类  
+1b. **信息原语** — **Register**（主）；**Chronicle**（日志∪记住，薄）  
+1c. **可见性（非原语）** — `reveal_to_*` / `hide` = 权限同步；不计 CREATED  
+2. **Buff** — Registration 载荷；查询见 [06](docs/design/06-registration-buff-model.md)  
 8. **`PlayerInteractionGate`** — 窗口内决策（[16](docs/design/16-player-interaction.md)；**晚于** Eligibility/ResponseWindow，见 [17](docs/design/17-seq-runtime.md) §6）  
 9. **`SequenceCatalog` + handler** — 每条规则手续 `seq.*`  
 10. **`ResolutionSequenceStack` + Timing** — push/pop、Would/When/After（15 D/E/ST）  

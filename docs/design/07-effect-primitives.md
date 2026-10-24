@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.20 · 2026-10-24 — 可见性 = 权限层，不进原语；不单独 CREATED
+> **状态**：v0.3.21 · 2026-10-24 — 信息原语≈Register；Chronicle 薄；Register 结算面不按 Buff 拆
 
 ---
 
@@ -23,24 +23,23 @@
 
 ```text
 命名流程 seq.*
-  └─ RESOLVE ↓ 结算叶（必须做事 · 可 CREATED）
+  └─ RESOLVE ↓ 结算叶（可 CREATED）
 
   ├─ 物理     ①区/序  ②标记  ③形态
-  └─ 不可见   Register · Log · Remember · …（控制权/拓扑另裁）
+  └─ 不可见   ≈ Register（主量）+ 记事 Chronicle（日志/记住，薄）
 
-并行（非结算）：
-  FaceAudience / known_to  ← 权限与信息管理；随手续/政策同步，本身不算结算
+并行（非结算）：FaceAudience ← 权限同步
 ```
 
 | 术语 | 是否效果叶 | 说明 |
 |---|---|---|
-| **效果 / 原语** | **是** | 结算且做事；dry-run **CREATED** |
+| **效果 / 原语** | **是** | 结算且做事；**CREATED** |
 | **状态原语** | **是** | 仅物理三族 |
-| **信息原语** | **是** | 不可见结算（Register / Log / Remember…） |
-| **可见性（Audience）** | **否** | 权限/信息管理；**不**进原语表；**不**单独 CREATED |
-| **命名流程** | — | 组合结算叶；步内可 **附带** 同步可见性政策 |
+| **信息原语** | **是** | **几乎 = Register**；另有薄 **Chronicle**（日志∪记住） |
+| **可见性** | **否** | 权限层；不单独 CREATED |
+| **控制权** | — | **不**单立原语；经 Register Buff（有效控制） |
 
-**曾误对齐**：把 `FaceAudience` 当成信息原语主轴 / 与 Register 并列的结算叶——**作废**。可见性是权限层；不可见结算的主体是 Register / 日志 / 记住。
+**收束**：可见性≠原语；控制/拓扑优先吃进 Buff；日志与记住并成简单记事类。不可见结算的主体是 **Register**。
 
 **揭示（纸面 Reveal）vs 翻面 vs 可见性**：
 
@@ -459,25 +458,16 @@ class AtomSetExhausted:
 
 dry-run **CREATED**；**不是** Timing 订阅面。
 
-#### 5.4.0 族谱（不可见结算）
+#### 5.4.0 族谱（不可见结算 · 收束）
 
-| 族 | 写哪里 | 典型 | 状态 |
+| 族 | 写哪里 | 说明 | 状态 |
 |---|---|---|---|
-| **A. Register** | `RegistrationStore` | lasting、Gain、blank、Cannot、LISTENER | **已有**（[06](06-registration-buff-model.md)） |
-| **B. Log** | Campaign / scenario log | 「在日志中记录…」 | **应有** |
-| **C. Remember** | 场景/战役记忆库 | 「记住…」「若你记得…」 | **应有**；≠ `RulesMemory` |
-| **E. 控制 / 归属** | `controller_id` / `owner_id` | 获得控制（无区 Move） | 候选 |
-| **F. 纯规则拓扑** | 连接图 | 无标记的锁门/连边 | 候选 |
+| **A. Register** | `RegistrationStore` | lasting / 延时 / cannot / gain / blank / 挂能力 / **有效控制**… | **主量**（[06](06-registration-buff-model.md)） |
+| **B. Chronicle（记事）** | 场景/战役记事库 | 「在日志中记录…」∪「记住…」；键值/条目，**无**三种 Buff | **薄**；≠ `RulesMemory` |
 
-**明确不是结算**（含曾误列入的 Audience）：
+控制权、纯规则拓扑、Gain 特征等：**优先 Register Buff**，不单立信息原语族。
 
-| 排除 | 归哪 |
-|---|---|
-| **FaceAudience / 可知性** | **权限层** §5.4.1；非原语 |
-| 区/序 · 标记 · 翻面·横置 | **物理** |
-| 地点 revealed / 交战 / 附着 | 物理或派生 |
-| `RulesMemory`、场合、印刷 Spec | 草稿 / 只读 |
-| `effective_*` 查询 | 厚读；创建 Gain/blank = **A** |
+**不是结算**：FaceAudience（权限）；物理三族；派生索引；`RulesMemory`；印刷 Spec；`effective_*` 查询。
 
 #### 5.4.1 可见性 = 权限 / 卡牌信息管理（**不是原语**）
 
@@ -504,56 +494,68 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 
 实现可保留 `InformationExecutor.reveal_to_*` / `hide_from_all` 作为 **政策写入**；Composition 若仍有 reveal 节点，标注为 **权限同步**，L7 **不计** CREATED。
 
-#### 5.4.2 Register 族（A）· 与 Buff 的关系
+#### 5.4.2 Register · 设计解剖（结算面 vs 载荷面）
 
-> 详规格：[06-registration-buff-model](06-registration-buff-model.md)。此处只钉 **谁结算、谁是载荷**。
+> 详：[06 §2–§5 / §9](06-registration-buff-model.md)。此处回答：**形态是什么、原语语境下还能不能拆。**
 
 ```text
-纸面 lasting / delayed / cannot / gain / 挂能力
-        │
-        ▼ 结算（信息原语 · 必须做事）
-   Register / Unregister          ← 动词：写入或卸下一条登记
-        │
-        ▼ 库存里留下的东西
-   Registration                   ← 名词：一条记录（lifetime · scope · source）
-        │
-        └─ buffs: Array[BuffSpec] ← Buff：这条登记「管什么」
-              ├─ MODIFIER      改数值
-              ├─ RESTRICTION   禁/允（cannot…）
-              └─ LISTENER      时点到了跑 Composition
-         （另有 KEYWORD/TRAIT 等「拥有」标记，仍挂在 Registration 上）
+┌─ 结算面（信息原语 · 仅此）─────────────────────┐
+│  Register / Unregister                         │
+│  = 插入或卸下一条 Registration                 │
+│  CREATED ⇔ 插入成功（Unload 亦为结算）           │
+└────────────────────────────────────────────────┘
+         │ 写出
+         ▼
+┌─ Registration（壳）────────────────────────────┐
+│  source · lifetime · scope · tags              │
+│  lasting vs 延时 = 只改 lifetime，不是两种原语  │
+└────────────────────────────────────────────────┘
+         │ 内含
+         ▼
+┌─ Buff 形态（载荷 · 非原语）────────────────────┐
+│  行为三型：MODIFIER | RESTRICTION | LISTENER   │
+│  拥有标记：KEYWORD | TRAIT |（ICON/…）         │
+│  扩展例：有效控制、blank 印刷框、拓扑限制…      │
+│  → 查询 / ModifierEngine / Catalog fire        │
+└────────────────────────────────────────────────┘
 ```
 
-| 词 | 角色 | 是结算叶吗？ |
+| 轴 | 有什么 | 是原语吗？ |
 |---|---|---|
-| **Register / Unregister** | **动作**：往 `RegistrationStore` 插入/移除 | **是**（信息原语 A；`seq.effect.register` / `unregister`） |
-| **Registration** | **记录**：Store 里的一条存续条目 | 否（状态）；由 Register **创建** |
-| **Buff（BuffSpec）** | **载荷**：登记里写明的规则变更种类 | 否（形状）；**不**单独当第三套原语 |
-| **查询 Buff** | Eligibility / ModifierEngine / Catalog 读 Store | 否（厚读） |
+| **结算** | Register · Unregister | **是**（一对互逆；可视为单一 `RecordWrite{op}`） |
+| **壳参数** | `LifetimeSpec` · `ScopeFilter` · source | **否**（Registration 字段） |
+| **Buff 形态** | 三型行为 + 拥有标记 + payload | **否**（载荷分类） |
+| **消费** | collect / evaluate / fire Composition | **否**（厚读或日后手续） |
 
-**一句话**：**Register 是创建/注销延时·持续效果的结算；Buff 是登记条目里装的三种（或标记）载荷。**  
-没有「先 Buff 再 Register」的第二套动词——卡面「获得 until end of turn…」「cannot…」「Forced – When…」编译为 **带 BuffSpec 的 Registration**，经 **Register** 落地。
+**Buff 三型在做什么**（形态，不是三种 Register）：
 
-| 纸面说法 | 结算 | Store 里 |
+| BuffType | 消费方式 | 典型纸面 |
 |---|---|---|
-| lasting / until … / delayed | Register | Registration + lifetime |
-| gets +1 · blank 印刷文本框 | Register | MODIFIER / blank 载荷 |
-| cannot … | Register | RESTRICTION |
-| Forced / reaction 挂时点 | Register（常进场） | LISTENER → 日后 fire 再跑 Composition |
-| gains surge（动态） | Register | KEYWORD 标记（拥有）± 编译 LISTENER |
-| 回合结束卸下 | Unregister（lifetime tick） | 记录消失 |
+| **MODIFIER** | ModifierEngine 叠数值/成本 | gets +1 fight；费用 −1 |
+| **RESTRICTION** | Eligibility / Intent 查询 | cannot；险境；冷漠；**有效控制/禁自动交战** 等 |
+| **LISTENER** | Catalog 时点 → 跑 Composition | Forced/reaction 挂机；延时「下个神话阶段初…」 |
+| **KEYWORD/TRAIT 标记** | `has_effective_*`（拥有 ≠ 行为） | gains surge；再按 profile 挂真 Buff |
 
-**禁止**：解释器真空 `RegistrationStore.register`；为关键词新增第四种 `BuffType`；把 Buff **查询**当成结算叶。
+持续 vs 延时：**同一 Register**，差在 `DURATION/WHILE_*` vs `UNTIL_FIRED`（[06 §4](06-registration-buff-model.md)）。多 Buff 可同壳一次 Register（§5.4）。
 
-#### 5.4.3 Log / Remember 族（B·C）· 方向
+##### 原语语境下 Register 还能拆吗？
 
-| | **Log** | **Remember** |
-|---|---|---|
-| 纸面 | 写入战役/剧本日志条目 | 「记住 X」；后文「若记得 X」 |
-| 存储 | 持久 log store | 场景或战役记忆键值 |
-| ≠ | 事件回放 / UI 聊天记录 | `RulesMemory`（单次手续草稿） |
+| 拆法 | 结论 |
+|---|---|
+| 按 BuffType 拆成 3 个结算原语 | **否** — 共享壳与 Store；差别在载荷 |
+| 拆 lasting / delayed 两套原语 | **否** — 已并 lifetime |
+| 拆 Register vs Unregister | **可选** 语法糖；语义上是一对互逆写 |
+| 拆「拥有标记」vs「行为 Buff」为两套 Store | **不建议** — 同为 Registration；查询已分 `has_effective` / collect(type) |
+| 把 Chronicle 并进 Register（FACT Buff） | **可但不必** — 记事无 lifetime/三型消费，保持薄库更干净 |
 
-具体原子形状另裁；原则：**都是不可见结算叶**，可进 Composition / 命名流程 RESOLVE。
+**裁决倾向**：**信息原语结算面不再拆**——就是 Register（± Unregister）。复杂度留在 **Buff 形态与 Lifetime**，不要再增殖结算动词。
+
+卡面创建经 `seq.effect.register`；禁止真空 `RegistrationStore.register`。
+
+#### 5.4.3 Chronicle（记事）· 日志 ∪ 记住
+
+简单、无 Buff 三型：追加/写入条目或键值；后文「若日志有… / 若记得…」只读。  
+≠ 事件回放 UI；≠ 步间 `RulesMemory`。可进 Composition 为薄结算叶；**不是** Register 的第四 BuffType。
 
 #### 派生索引 vs 直读（策略裁决）
 
@@ -746,6 +748,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.21 | §5.4：信息原语≈Register+Chronicle；控制走 Buff；Register 结算面不按 BuffType 拆 |
 | 2026-10-24 | v0.3.20 | §0/§5.4.1：FaceAudience = 权限/信息管理，非结算原语；不单独 CREATED |
 | 2026-10-24 | v0.3.19 | §5.4.2：Register = 结算动词；Buff = Registration 载荷（非第二套原语） |
 | 2026-10-24 | v0.3.18 | §0/§5.4：信息原语 = 不可见结算；含 Register·Log·Remember·Audience；废「只有 Audience + Register 旁路」 |

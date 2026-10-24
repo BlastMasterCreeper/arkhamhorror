@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.26 · 2026-10-24 — §2.1 Register（结算）与 Buff（载荷）关系
+> **状态**：v0.4.27 · 2026-10-24 — §2.2 Register 结算面不按 Buff 拆；控制优先 Buff
 
 ---
 
@@ -66,7 +66,20 @@ Unregister（结算）→ 记录消失 → 其 Buff 不再被查询/开火
 
 **Buff 仅三种行为型**（§3）；关键词本身不是 BuffType。动态「拥有」可先 Register **KEYWORD 标记**，再按同一 profile 挂真正的三种 Buff（§3.2：「拥有 ≠ 行为」）。
 
-与 [07 §5.4.2](07-effect-primitives.md) 对齐：信息原语族 A = Register/Unregister；Buff 是族 A 写入后的 **内容**。
+与 [07 §5.4.2](07-effect-primitives.md) 对齐：信息原语 **主量** = Register/Unregister；Buff = 载荷。控制权等优先做 Buff，不单立原语。日志∪记住 = 薄 **Chronicle**，不进本 Store。
+
+### 2.2 原语语境：Register 不按 Buff 再拆结算
+
+```text
+信息原语结算面     ≈  Register / Unregister
+Registration 壳    =  lifetime · scope · source（参数，非原语）
+Buff 形态          =  MODIFIER | RESTRICTION | LISTENER | 拥有标记…
+```
+
+- **不要**为每种 BuffType 各造一个结算原语。  
+- **不要**为持续/延时各造一套 Store（§4）。  
+- **可以**把「获得控制」编成带 lifetime 的 Buff（查 `effective_controller`），而不是 `set_controller` 信息原语。  
+- 复杂度增长点：新 **payload / RestrictionKind / Listener timing**，不是新 Register 动词。
 
 ---
 
@@ -1181,6 +1194,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.27 | §2.2：结算面不按 BuffType/lasting 拆；控制等优先 Buff；Chronicle 外置 |
 | 2026-10-24 | v0.4.26 | §2.1：Register（结算动词）与 Buff（Registration 载荷）；对齐 07 §5.4.2 |
 | 2026-10-23 | v0.4.25 | 框架称呼：`SoakAssigner` → `DamageAssigner`（正式 Assign，弃用 soak） |
 | 2026-10-23 | v0.4.24 | `ASSIGN_CONSTRAINT` 四算子；REST-E-ASSIGN / DamageAssigner；§16.4.2/§16.4.4 |
