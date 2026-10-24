@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.29 · 2026-10-24 — §3.2.1a Gain：只读特征 vs 文本能力注册/初始化
+> **状态**：v0.4.30 · 2026-10-24 — §16.3：SKILL_ANY；攻击伤/发现线索用 Plan+修正
 
 ---
 
@@ -1034,18 +1034,80 @@ Grimoire 条文 / 卡面效果
 
 ### 16.3 MODIFIER · 查询站清单
 
-**模式**：Register MODIFIER → 在 **下列站点** 调用 `ModifierEngine.compute(base, query, app_ctx)`；`Condition.matches(app_ctx)` 过滤场合。
+**模式（标量）**：Register MODIFIER → 站点 `ModifierEngine.compute(base, query, app_ctx)`。  
+**模式（攻击伤害 / 发现线索）**：**不要**只靠单一全局 `DAMAGE_AMOUNT` / `DISCOVER_AMOUNT`——基础 Fight/Investigate 的效果可被卡面 **替换**；修正挂在 **效果计划（Plan）** 上，适配多目标。见 §16.3.1–§16.3.2。
 
-| 查询站 ID | 何时调用 | `StatRef` | 典型 `ApplicationContext` | 状态 |
-|---|---|---|---|---|
-| **MOD-Q-SKILL** | 检定 ST.5 算 modified value | `SKILL_WILLPOWER` … `SKILL_AGILITY` | `skill_test` 填充 | **已实现**（`SkillTestEngine.step_calculate_modified_value`） |
-| **MOD-Q-GAIN-RES** | `seq.effect.gain_resource` 落 resource 前 | `RESOURCE_GAIN_AMOUNT` | `framework_step` + `tags`（如 `gain_resource`） | **已实现**（`SequenceCatalogBootstrap._resolve_gain_resource`；旧 id 别名） |
-| **MOD-Q-SHROUD** | 地点 investigate 算 difficulty | `SHROUD`（待 enum） | location + tags | 待实现 |
-| **MOD-Q-DAMAGE-AMT** | Deal damage Assign 前定 amount | `DAMAGE_AMOUNT`（待 enum） | source、target tags | 待实现 |
-| **MOD-Q-HORROR-AMT** | Deal horror Assign 前 | `HORROR_AMOUNT`（待 enum） | 同上 | 待实现 |
-| **MOD-Q-COST** | Initiation L6 前 | `ACTION_COST` / resource cost（待 enum） | `initiation` | 待实现 |
+| 查询站 ID | 何时调用 | 键 | 状态 |
+|---|---|---|---|
+| **MOD-Q-SKILL** | 检定 ST.5 | `SKILL_*` **或** `SKILL_ANY`（无类型，似 wild） | 四维 **已实现**；`SKILL_ANY` **待** |
+| **MOD-Q-GAIN-RES** | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
+| **MOD-Q-COST** | Initiation 付费前 | resource/action cost | **已实现**（enum 名略异） |
+| **MOD-Q-SHROUD** | 调查算 difficulty | `SHROUD` | 待 |
+| **MOD-Q-ATTACK-DAMAGE** | 攻击成功后、伤害落点前 | 见 §16.3.1 **AttackDamagePlan** | **待**（取代扁 `DAMAGE_AMOUNT`） |
+| **MOD-Q-DISCOVER** | 调查成功后、发现落点前 | 见 §16.3.2 **DiscoverPlan** | **待** |
+| **MOD-Q-HORROR-AMT** | 造成恐惧量（若走 Plan 则同构） | Plan 或 `HORROR_AMOUNT` | 待 |
 
-**新增 MODIFIER 卡面**：先在本表 **登记查询站**（或复用已有站 + `Condition`），再扩 `StatRef`；**不要**在 `seq.*` handler 内散落 `if card_id`.
+#### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
+
+| Payload.stat | ST.5 匹配 |
+|---|---|
+| `SKILL_COMBAT` 等 | 仅当本次检定技能相同 |
+| **`SKILL_ANY`**（待加） | **任意**技能检定（纸面「+1 skill value」无指定维、类 wild） |
+
+`compute`：收集 `stat == 本次技能 OR stat == SKILL_ANY`。
+
+#### 16.3.2 攻击伤害 / 发现线索：Plan + 修正（重点）
+
+基础 Fight →「对目标造成 1 伤害」；基础 Investigate →「在本地点发现 1 线索」。  
+卡面常 **替换** 该效果（多目标伤、多地点发现、按充能改伤害等）。修正（致命打击、推理）必须作用在 **替换后的计划** 上，而不是假定「永远单目标 1 点」。
+
+```text
+成功（Fight / Investigate / 指定行动）
+  │
+  ├─ 1. 建 Plan（默认基础效果）
+  │      AttackDamagePlan.legs[] = [{ enemy, base }]
+  │      DiscoverPlan.legs[]     = [{ location, base }]
+  │
+  ├─ 2. 卡面替换（Instead / 「本攻击改为…」）
+  │      改写或重写 legs（多敌、多地点、base=充能数…）
+  │
+  ├─ 3. 应用攻击/发现类 MODIFIER（致命打击、Deduction…）
+  │      按 apply 策略改 legs 的 amount
+  │
+  └─ 4. 落点：每条 leg amount>0 才结算（0 不结算；FAQ 谨慎）
+         → nest/内联 DamagePipeline / DiscoverClueFlow（可多 leg）
+```
+
+```gdscript
+class DamageLeg:
+    var target_id: StringName
+    var amount: int
+
+class AttackDamagePlan:
+    var legs: Array[DamageLeg]      # 一敌或多敌
+    var tags: Array[StringName]      # attack / spell / …
+    ## 修正策略提示（payload 可覆盖）
+    ## PER_PRIMARY | PER_EACH_LEG | ONCE_SPLIT — 默认 PER_PRIMARY（+1 打在主目标）
+
+class DiscoverLeg:
+    var location_id: StringName
+    var amount: int
+
+class DiscoverPlan:
+    var legs: Array[DiscoverLeg]    # 一地或多地
+    var tags: Array[StringName]
+```
+
+| 修正例子 | 挂哪 | 建议 apply |
+|---|---|---|
+| 致命打击：*that attack deals +1 damage* | `AttackDamagePlan` | 默认 **主目标 +1**；卡面写清「每个敌人」则 `PER_EACH_LEG` |
+| 推理：*discover 1 additional clue* | `DiscoverPlan` | 默认 **主发现地点 +1**；多地点时按卡面/FAQ 谨慎扩展 |
+| Brand 替换伤害 | **步骤 2** 重写 Plan，不是 MODIFIER | 充能→legs；再进步骤 3 |
+
+**禁止**：在扁平 `deal_damage(amount)` 入口用全局 `DAMAGE_AMOUNT` 冒充「本次攻击」——指定 Fight 替换基础效果后，修正会找错宿主。  
+**Register 侧**：攻击/发现修正的 payload 标 `plan_kind: ATTACK_DAMAGE | DISCOVER` + `apply_mode`，lifetime 常为 `THIS_SKILL_TEST` / 本次攻击。
+
+**落地顺序（实现）**：① `SKILL_ANY`；② `AttackDamagePlan` 接入基础 Fight + 一条替换卡 + 致命打击；③ `DiscoverPlan` 同构；④ 多 leg 用例竖切。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1255,6 +1317,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.4.30 | §16.3：无类型技能 SKILL_ANY；AttackDamagePlan/DiscoverPlan 替代扁 DAMAGE/DISCOVER 量 |
 | 2026-10-24 | v0.4.29 | §3.2.1a：gains 只读特征 vs 文本能力（须注册/初始化，同印刷挂载） |
 | 2026-10-24 | v0.4.28 | §2.3：Forced/reaction/Constant = 能力 ≠ LISTENER Buff；修正 §5.6 举例 |
 | 2026-10-24 | v0.4.27 | §2.2：结算面不按 BuffType/lasting 拆；控制等优先 Buff；Chronicle 外置 |
