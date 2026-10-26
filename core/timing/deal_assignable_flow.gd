@@ -97,7 +97,11 @@ static func _among_subjects(
 	var subject_ids: Array[StringName] = _normalize_subjects(primary, candidates)
 	if subject_ids.is_empty():
 		return {"ok": false, "amount": 0, "error": "missing_primary"}
-	var d_legs := _default_among(game_ctx, subject_ids, damage_amt, controller_id)
+	var d_legs: Array = []
+	if damage_amt > 0:
+		d_legs = _assign_among(
+			game_ctx, controller_id, &"damage", damage_amt, subject_ids, &"assign:among:damage"
+		)
 	var h_legs: Array = []
 	if horror_amt > 0:
 		## 恐惧：仅落到可承恐的卡/调查员（敌人跳过）。
@@ -107,7 +111,14 @@ static func _among_subjects(
 			if kind == DealSubject.KIND_CARD or kind == DealSubject.KIND_INVESTIGATOR:
 				horror_subjects.append(sid)
 		if not horror_subjects.is_empty():
-			h_legs = _default_among(game_ctx, horror_subjects, horror_amt, controller_id)
+			h_legs = _assign_among(
+				game_ctx,
+				controller_id,
+				&"horror",
+				horror_amt,
+				horror_subjects,
+				&"assign:among:horror"
+			)
 	var applied_d := 0
 	var applied_h := 0
 	for raw in d_legs:
@@ -162,18 +173,23 @@ static func _normalize_subjects(
 	return out
 
 
-## 默认分配（Gate 待接）：全量归 primary（首个合格主体）。
-static func _default_among(
-	_game_ctx: GameContext,
-	subjects: Array[StringName],
+## Assign among：有 Gate 则 ask；否则全量归 primary。
+static func _assign_among(
+	game_ctx: GameContext,
+	controller_id: StringName,
+	kind: StringName,
 	amount: int,
-	_controller_id: StringName
+	subjects: Array[StringName],
+	prompt_id: StringName
 ) -> Array:
-	var total := maxi(amount, 0)
-	var empty: Array = []
-	if total <= 0 or subjects.is_empty():
-		return empty
-	return [{"id": subjects[0], "amount": total}]
+	var subj: Array = []
+	for s in subjects:
+		subj.append(s)
+	if game_ctx != null and game_ctx.interaction != null:
+		return game_ctx.interaction.ask_assign_among(
+			game_ctx, controller_id, kind, amount, subj, prompt_id
+		)
+	return DamageAssigner.default_among(subj, amount)
 
 
 static func _each_at_location(

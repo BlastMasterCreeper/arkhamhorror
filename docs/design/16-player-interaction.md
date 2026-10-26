@@ -148,8 +148,8 @@ var auto_choice_mode: AhcEnums.AutoChoiceMode = AhcEnums.AutoChoiceMode.ASK
 | `PICK_OPTION` | 选分支 | 控制者 | Composition `Choice`；二选一文本 |
 | `SEARCH_TAKE` | Search 取留 | 控制者 | 看顶 N 张：拿哪些、其余回置 |
 | `DISCARD_SELECT` | 选弃哪些牌 | 控制者 | discard N from hand/play |
-| `ASSIGN_DAMAGE` | 分配伤害 | 控制者 | **静态会话**：候选+约束→目标间增减至耗尽→确认；见 [07 §4](07-effect-resolution.md) |
-| `ASSIGN_HORROR` | 分配/承受恐怖 | 控制者 | 同上（horror / sanity 容量） |
+| `ASSIGN_DAMAGE` | 分配伤害 | 控制者 | **静态会话**：`ask_assign_damage` / `ask_assign_among`；见 [07 §4](07-effect-resolution.md) |
+| `ASSIGN_HORROR` | 分配/承受恐怖 | 控制者 | `ask_assign_horror` / among；同上 |
 | `CHOOSE_TRAUMA` | 选创伤类型 | 调查员 | 同时 health→0 与 sanity→0 |
 | `ORDER_SIMULTANEOUS` | 同时能力排序 | **队长** | 多条 forced/triggered 同时 |
 | `ORDER_CARDS` | 卡牌顺序 | 控制者 / 队长 | 同时入手；同时弃入弃牌堆 |
@@ -513,6 +513,7 @@ class ChoiceRequest:
 | `PAY_COST` | `{cost_slot, candidates[]}` |
 | `SEARCH_TAKE` | `{revealed_ids[], must_take, may_take}` |
 | `TIE_BREAK` | 同 `PICK_TARGET`；`decider_id` = lead |
+| `ASSIGN_DAMAGE` / `ASSIGN_HORROR` | **默认腿表**（`options` = 合法 `legs[]`）；`context`：`pending_total`、`candidates[]`（含 capacity）、`constraints[]`、`mode`=`investigator`\|`among`。确认 pick = 最终腿表；须经 `DamageAssigner.validate` / `validate_among` |
 
 ---
 
@@ -620,6 +621,7 @@ seq.encounter.revelation
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.5.5 | Assign Gate 落地：`ask_assign_damage/horror/among`；载荷 pending_total+candidates+constraints |
 | 2026-10-23 | v0.5.4 | Assign：静态 PI 会话（候选+约束→增减耗尽→确认；期间重算）；链 07 §4 |
 | 2026-10-22 | v0.5.3 | **§7.0** 发动池/`ActivationPool` → **发起池/`InitiationPool`**（避 Activate 撞名；禁 ActivationPool） |
 | 2026-10-22 | v0.5.2 | **§7.0** 定名响应池/`ResponsePool`·发动池/`ActivationPool`（禁 ActionPool）；**§7.3.4** 窗温度与少打扰（交互层方向，实现后补） |

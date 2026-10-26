@@ -141,13 +141,98 @@ static func _reserve_caps(caps: Dictionary, reserved_legs: Array) -> void:
 			caps[key] = maxi(int(caps[key]) - amt, 0)
 
 
+## Gate / UI 快照：调查员卡（无限）∪ 有剩余容量的场上卡。
+static func candidate_entries(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	kind: StringName,
+	is_direct: bool,
+	reserved_legs: Array = []
+) -> Array:
+	var out: Array = []
+	if game_ctx == null or inv_id == &"":
+		return out
+	out.append(
+		{
+			"bearer": &"investigator",
+			"id": inv_id,
+			"capacity": -1,
+			"amount": 0,
+		}
+	)
+	var caps := _capacity_map(game_ctx, inv_id, kind, is_direct)
+	_reserve_caps(caps, reserved_legs)
+	for key in caps.keys():
+		var rem := int(caps[key])
+		if rem <= 0:
+			continue
+		var cid := StringName(str(key).substr(5))
+		out.append({"bearer": &"card", "id": cid, "capacity": rem, "amount": 0})
+	return out
+
+
+## Gate context：生效中 ASSIGN_CONSTRAINT 摘要。
+static func constraint_summaries(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	kind: StringName,
+	is_direct: bool
+) -> Array:
+	var out: Array = []
+	for c in _active_constraints(game_ctx, inv_id, kind, is_direct):
+		out.append(
+			{
+				"op": c.assign_op,
+				"subject_id": c.subject_id,
+				"affliction": c.assign_affliction,
+				"direct_scope": c.assign_direct_scope,
+				"expand_scope": c.assign_expand_scope,
+				"trait": c.assign_trait,
+				"amount": c.assign_amount,
+				"if_able": c.assign_if_able,
+			}
+		)
+	return out
+
+
+## 外向 among：候选 id 列表上的默认全量归 primary；校验合计与集合。
+static func default_among(subjects: Array, amount: int) -> Array:
+	var total := maxi(amount, 0)
+	var empty: Array = []
+	if total <= 0 or subjects.is_empty():
+		return empty
+	var primary: StringName = subjects[0] as StringName
+	return [{"id": primary, "amount": total}]
+
+
+static func validate_among(subjects: Array, total: int, legs: Array) -> bool:
+	if total < 0:
+		return false
+	var allowed: Dictionary = {}
+	for s in subjects:
+		allowed[s as StringName] = true
+	var sum := 0
+	for leg in legs:
+		if not (leg is Dictionary):
+			return false
+		var amt := int((leg as Dictionary).get("amount", 0))
+		if amt < 0:
+			return false
+		var sid: StringName = (leg as Dictionary).get("id", &"")
+		if sid == &"" or not allowed.has(sid):
+			return false
+		sum += amt
+	return sum == total
+
+
 static func validate(
 	game_ctx: GameContext,
 	inv_id: StringName,
 	kind: StringName,
 	is_direct: bool,
 	total: int,
-	legs: Array
+	legs: Array,
+	reserved_legs: Array = []
 ) -> bool:
 	if total < 0:
 		return false
@@ -167,6 +252,7 @@ static func validate(
 	if sum != total:
 		return false
 	var caps := _capacity_map(game_ctx, inv_id, kind, is_direct)
+	_reserve_caps(caps, reserved_legs)
 	## 每腿须在候选且不超过容量（调查员卡容量视为无限）。
 	for key in by_key.keys():
 		var amt2 := int(by_key[key])

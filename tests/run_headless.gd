@@ -385,6 +385,8 @@ func _initialize() -> void:
 	_run_test("ASN-05 INCLUDE Bodyguard other at location", _test_asn_include_bodyguard)
 	_run_test("ASN-06 pipeline apply PRIOR_FILL legs", _test_asn_pipeline_prior_fill)
 	_run_test("ASN-07 GRANT_CAPACITY without printed health", _test_asn_grant_capacity)
+	_run_test("ASN-08 Assign Gate scripted legs", _test_asn_gate_scripted)
+	_run_test("ASN-09 Assign Gate among subjects", _test_asn_gate_among)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -8676,6 +8678,78 @@ func _test_asn_grant_capacity() -> bool:
 		and card != null
 		and card.tokens.damage == 2
 		and DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) == 0
+	)
+
+
+func _test_asn_gate_scripted() -> bool:
+	## ASN-08：Assign Gate 显式确认腿表（非默认全归调查员）。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_gate", {"health": 3, "sanity": 0}
+	)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new(
+		[
+			{
+				"prompt_id": &"assign:damage",
+				"pick": [{"bearer": &"card", "id": card_id, "amount": 2}],
+			}
+		]
+	)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and not h.ctx.interaction.last_used_default
+		and card != null
+		and card.tokens.damage == 2
+		and inv.damage_taken == 0
+	)
+
+
+func _test_asn_gate_among() -> bool:
+	## ASN-09：外向 among 经 Gate 拆到两敌。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_g0", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_g1", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_g0").health = 10
+	h.ctx.state.registry.get_enemy(&"enemy_g1").health = 10
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new(
+		[
+			{
+				"prompt_id": &"assign:among:damage",
+				"pick": [
+					{"id": &"enemy_g0", "amount": 1},
+					{"id": &"enemy_g1", "amount": 1},
+				],
+			}
+		]
+	)
+	var res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{
+			"controller_id": &"inv_1",
+			"target": &"subjects",
+			"damage": 2,
+			"primary_id": &"enemy_g0",
+			"candidates": [&"enemy_g0", &"enemy_g1"],
+		}
+	)
+	var e0 := h.ctx.state.registry.get_enemy(&"enemy_g0")
+	var e1 := h.ctx.state.registry.get_enemy(&"enemy_g1")
+	return (
+		res is Dictionary
+		and bool((res as Dictionary).get("ok", false))
+		and not h.ctx.interaction.last_used_default
+		and e0.damage == 1
+		and e1.damage == 1
 	)
 
 

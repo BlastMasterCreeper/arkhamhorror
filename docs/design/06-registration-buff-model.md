@@ -1244,7 +1244,7 @@ legs=[主:1, 旁:1] + 致命打击+1
 # ASSIGN（04305）
 amount=4, candidates=同地敌 + 致命打击+1
   → amount=5              ## 仍是攻击伤害数值
-  → Assign(5) → legs      ## 执行物化；Gate 待接；默认→primary
+  → Assign(5) → legs      ## Gate ask_assign_among；逾期默认→primary
 ```
 
 ##### 发现线索
@@ -1281,7 +1281,7 @@ class AmountPlan:
 | 发现线索 | 同上；指名 `add_named_bonus` | Investigate ST.7 / 效果步 | ✅ |
 | 敌人攻击伤害/恐惧 | 定攻击 → 修印刷量 → **造成** | `EnemyAttack.build_from_enemy` → `DamagePipeline` | ✅ |
 | 调查员承伤 +K | 先 Assign(N) → `increase_pending` | `DamagePipeline`（含敌人攻击） | ✅ |
-| 04305 ASSIGN 物化 | 改 `amount` → Assign | `effect_shape=ASSIGN` | ✅ API；Gate 待 |
+| 04305 ASSIGN 物化 | 改 `amount` → Assign | `effect_shape=ASSIGN` | ✅ API + Gate（`ask_assign_among`） |
 | 09059/09108 指名发现 | 效果步 `add_named_bonus` | Composition / 能力成功句 | ✅ API（MOD-12） |
 
 **调查员承伤 additional（02221）≠ AmountPlan**：见 [07 §4](07-effect-resolution.md)。敌人攻击已并入同一承伤管线。

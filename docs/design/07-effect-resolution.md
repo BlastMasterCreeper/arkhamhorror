@@ -294,7 +294,7 @@ Assign(N) 已确认
 API 示意：`DamagePipeline.increase_pending(inv_id, by)` → 更新总量 → `DamageAssigner.assign_delta(…, by)`（Gate；逾期默认算法只摊 K）。  
 与 `reduce_pending`（降量后按剩余总量重建默认腿）**不对称**：加量走增量分配，避免撤销已承受。
 
-**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `no_envelope_slot`；**已实现** `increase_pending` + `assign_delta` / `merge_legs`（默认表摊 K；Gate 会话待接）。测例 TIM-DMG-03/04。敌/支援仍走既有 Defeat 入口。
+**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `PlayerInteractionGate.ask_assign_*`；`increase_pending` + `assign_delta` / `merge_legs`（增量 K 亦经 Gate）。测例 TIM-DMG-03/04 · ASN-08/09。敌/支援仍走既有 Defeat 入口。
 
 ### 4.1 Moving / 再分配 damage / horror（已裁决 OQ-07-02 · 包装修正 2026-10-23）
 
@@ -852,6 +852,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.6.15 | §4：Assign Gate（`ask_assign_*` / among）；逾期默认腿表 |
 | 2026-10-26 | v0.6.14 | §4：`GRANT_CAPACITY`；deal legs 混装敌/卡/调查员（`DealSubject`） |
 | 2026-10-25 | v0.6.13 | §4：落地 `increase_pending` + `assign_delta`/`merge_legs`（TIM-DMG-03/04）；Gate 仍待接 |
 | 2026-10-24 | v0.6.12 | §4 PreImpact 加量：保留已确认 N 腿；仅增量 K 在合法全合格集上 Assign（02221） |

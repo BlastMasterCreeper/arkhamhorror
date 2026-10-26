@@ -6,7 +6,7 @@ extends RefCounted
 ## - **无分配** `seq.effect.deal`：已定 legs / 单点，无 Assign。
 ## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（DamageAssigner 原流程读取）。
 ## - **WOULD / WHEN 均在 Apply 之前**（栈相位 PreImpact）。
-## v1 Assign：`DamageAssigner.default_assignment`（`ASSIGN_*` Gate 后补）。
+## Assign = PI：`PlayerInteractionGate.ask_assign_*`（逾期 / headless → 默认腿表）。
 
 
 const PENDING_AMOUNT := &"pending_damage_amount"
@@ -51,11 +51,11 @@ static func deal_investigator_bundle(
 	var d_legs: Array = []
 	var h_legs: Array = []
 	if d_req > 0:
-		d_legs = DamageAssigner.default_assignment(
+		d_legs = _assign_investigator(
 			game_ctx, inv_id, &"damage", d_req, direct_damage
 		)
 	if h_req > 0:
-		h_legs = DamageAssigner.default_assignment(
+		h_legs = _assign_investigator(
 			game_ctx, inv_id, &"horror", h_req, direct_horror
 		)
 	_set_pending_bundle(
@@ -199,8 +199,8 @@ static func prevent_pending(game_ctx: GameContext, inv_id: StringName) -> void:
 	reduce_pending(game_ctx, inv_id, pending_amount(game_ctx, inv_id))
 
 
-## PreImpact 加量（02221 additional）：保留已确认 N 腿，只为增量 K 再分配。
-## 候选 = 本次合法全合格集（容量扣掉已占用）；默认算法摊 K（Gate 后补）。
+## PreImpact 加量（02221 additional）：保留已确认 N 腿，只为增量 K 再分配（Gate）。
+## 候选 = 本次合法全合格集（容量扣掉已占用）。
 static func increase_pending(game_ctx: GameContext, inv_id: StringName, by: int) -> int:
 	if game_ctx == null or game_ctx.memory == null or by <= 0:
 		return pending_amount(game_ctx, inv_id)
@@ -211,13 +211,16 @@ static func increase_pending(game_ctx: GameContext, inv_id: StringName, by: int)
 	var kind := pending_kind(game_ctx, inv_id)
 	var is_direct := pending_direct(game_ctx, inv_id)
 	var reserved := pending_legs(game_ctx, inv_id)
-	var delta_legs := DamageAssigner.assign_delta(
-		game_ctx, inv_id, kind, by, is_direct, reserved
+	var delta_prompt := (
+		&"assign:horror:delta" if kind == &"horror" else &"assign:damage:delta"
+	)
+	var delta_legs := _assign_investigator(
+		game_ctx, inv_id, kind, by, is_direct, reserved, delta_prompt
 	)
 	var merged: Array = DamageAssigner.merge_legs(reserved, delta_legs)
 	var next_amount := cur + by
 	if not DamageAssigner.validate(game_ctx, inv_id, kind, is_direct, next_amount, merged):
-		## 防御：K 全归调查员卡，仍保留 N 腿。
+		## 失败：K 全归调查员卡，仍保留 N 腿。
 		delta_legs = [{"bearer": &"investigator", "id": inv_id, "amount": by}]
 		merged = DamageAssigner.merge_legs(reserved, delta_legs)
 	game_ctx.memory.set_referent(inv_id, PENDING_AMOUNT, next_amount)
@@ -226,6 +229,35 @@ static func increase_pending(game_ctx: GameContext, inv_id: StringName, by: int)
 		game_ctx.memory.set_referent(inv_id, PENDING_HORROR_AMOUNT, next_amount)
 		game_ctx.memory.set_referent(inv_id, PENDING_HORROR_LEGS, merged.duplicate(true))
 	return next_amount
+
+
+## Assign PI：有 Gate 则 ask；否则默认腿表。
+static func _assign_investigator(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	kind: StringName,
+	amount: int,
+	is_direct: bool,
+	reserved_legs: Array = [],
+	prompt_id: StringName = &""
+) -> Array:
+	if game_ctx != null and game_ctx.interaction != null:
+		if kind == &"horror":
+			var hor_prompt := prompt_id if prompt_id != &"" else &"assign:horror"
+			return game_ctx.interaction.ask_assign_horror(
+				game_ctx, inv_id, amount, is_direct, reserved_legs, hor_prompt
+			)
+		var dmg_prompt := prompt_id if prompt_id != &"" else &"assign:damage"
+		return game_ctx.interaction.ask_assign_damage(
+			game_ctx, inv_id, amount, is_direct, reserved_legs, dmg_prompt
+		)
+	if not reserved_legs.is_empty():
+		return DamageAssigner.assign_delta(
+			game_ctx, inv_id, kind, amount, is_direct, reserved_legs
+		)
+	return DamageAssigner.default_assignment(
+		game_ctx, inv_id, kind, amount, is_direct
+	)
 
 
 ## WOULD 窗内改分配：替换腿表（须校验守恒与约束）；供 Key of Ys 等后挂。
