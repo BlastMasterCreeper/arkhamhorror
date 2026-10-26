@@ -80,6 +80,9 @@ func _initialize() -> void:
 	_run_test("MOD-07 discover anon bonus pins primary location", _test_mod_discover_determined_multi)
 	_run_test("MOD-08 zero-amount discover primary still gets anon bonus", _test_mod_discover_zero_primary_bonus)
 	_run_test("MOD-09 shroud modifier lowers investigate difficulty", _test_mod_shroud_investigate)
+	_run_test("MOD-10 enemy ENEMY_DAMAGE then DamagePipeline", _test_mod_enemy_damage_then_pipeline)
+	_run_test("MOD-11 enemy attack WHEN increase_pending", _test_mod_enemy_attack_increase_pending)
+	_run_test("MOD-12 discover named bonus other location", _test_mod_discover_named_bonus)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -1904,6 +1907,59 @@ func _test_mod_shroud_investigate() -> bool:
 	var res := h.investigate_action()
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return res.ok and res.success and loc.clues == 1 and inv.clues_on_card == 1
+
+
+func _test_mod_enemy_damage_then_pipeline() -> bool:
+	## MOD-10：先修敌人攻击伤害量 → DamagePipeline 承伤。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ed", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_ed")
+	enemy.attack_damage = 3
+	enemy.attack_horror = 0
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.reduce_enemy_damage_this_turn(&"inv_1", 1)
+	))
+	var strike := EnemyAttack.build_from_enemy(
+		h.ctx, &"enemy_ed", &"inv_1", false, AhcEnums.AttackKind.PHASE
+	)
+	if strike.damage != 2:
+		return false
+	h.ctx.combat.perform_attack(strike)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv.damage_taken == 2
+
+
+func _test_mod_enemy_attack_increase_pending() -> bool:
+	## MOD-11：敌人攻击进 DamagePipeline；WHEN 可 increase_pending（02221 同路）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ip", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_ip")
+	enemy.attack_damage = 2
+	enemy.attack_horror = 0
+	var when_n := {"n": -1}
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
+		when_n["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_h)
+	var strike := EnemyAttack.build_from_enemy(
+		h.ctx, &"enemy_ip", &"inv_1", false, AhcEnums.AttackKind.PHASE
+	)
+	h.ctx.combat.perform_attack(strike)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return when_n["n"] == 4 and inv.damage_taken == 4
+
+
+func _test_mod_discover_named_bonus() -> bool:
+	## MOD-12 · 09059 形：效果步指名在另一地点加发现（非无名 Buff 选腿）。
+	var h := RuleTestHarness.new(42)
+	var plan := AmountPlan.discover_single(&"loc_a", 1)
+	plan.add_named_bonus(&"loc_enemy", 1)
+	return (
+		plan.leg_at(plan.find_leg_index(&"loc_a")).amount == 1
+		and plan.leg_at(plan.find_leg_index(&"loc_enemy")).amount == 1
+	)
 
 
 func _test_restriction_blocks_draw() -> bool:

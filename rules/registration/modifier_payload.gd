@@ -69,7 +69,20 @@ static func reduce_initiation_action_cost(
 	return p
 
 
-## 本次攻击伤害 +N（消费式选一 leg；多候选 PI）。
+## 敌人攻击伤害印刷量 −N（标量 ENEMY_DAMAGE；先修再造成）。
+static func reduce_enemy_damage(
+	amount: int,
+	apply_condition: Condition = null
+) -> ModifierPayload:
+	var p := ModifierPayload.new()
+	p.stat = AhcEnums.StatRef.ENEMY_DAMAGE
+	p.op = AhcEnums.ModOp.SUB
+	p.value = amount
+	p.condition = apply_condition
+	return p
+
+
+## 本次攻击伤害 +N（无名；改已定效果的攻击伤害量）。
 static func attack_damage_bonus(amount: int, apply_condition: Condition = null) -> ModifierPayload:
 	var p := ModifierPayload.new()
 	p.plan_kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE

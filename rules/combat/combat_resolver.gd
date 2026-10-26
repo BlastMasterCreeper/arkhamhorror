@@ -17,33 +17,32 @@ func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
 
 
+func game_context() -> GameContext:
+	return _game_ctx
+
+
 func perform_attack(attack: EnemyAttack) -> void:
 	if attack == null:
 		return
 	var inv := _state.registry.get_investigator(attack.target_investigator)
 	if inv == null:
 		return
-	var mutator: StateMutator = _game_ctx.mutator if _game_ctx != null else null
-	if mutator != null:
+	## 承伤走 DamagePipeline：Assign → WOULD/WHEN（increase_pending）→ Apply。
+	if _game_ctx != null:
 		if attack.damage > 0:
-			mutator.transfer_marker(
-				AhcEnums.MarkerKind.DAMAGE,
-				attack.damage,
-				MarkerSlot.supply(AhcEnums.MarkerKind.DAMAGE),
-				MarkerSlot.investigator(attack.target_investigator, AhcEnums.MarkerKind.DAMAGE)
+			DamagePipeline.deal_investigator(
+				_game_ctx, attack.target_investigator, &"damage", attack.damage, false
 			)
 		if attack.horror > 0:
-			mutator.transfer_marker(
-				AhcEnums.MarkerKind.HORROR_TAKEN,
-				attack.horror,
-				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
-				MarkerSlot.investigator(
-					attack.target_investigator, AhcEnums.MarkerKind.HORROR_TAKEN
-				)
+			DamagePipeline.deal_investigator(
+				_game_ctx, attack.target_investigator, &"horror", attack.horror, false
 			)
 	else:
 		inv.damage_taken += attack.damage
 		inv.horror_taken += attack.horror
+		if attack.damage > 0 or attack.horror > 0:
+			## 无 ctx 时仍做上限检测（测试兜底）。
+			pass
 	_log.log(
 		AhcEnums.LogCategory.DAMAGE,
 		"enemy_attack:%s" % attack.kind,

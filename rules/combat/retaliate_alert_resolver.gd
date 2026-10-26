@@ -79,13 +79,8 @@ static func _perform(
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": false, "triggered": false}
-	var strike := EnemyAttack.enemy_strike(
-		enemy_id,
-		investigator_id,
-		enemy.attack_damage,
-		enemy.attack_horror,
-		false,
-		kind
+	var strike := EnemyAttack.build_from_enemy(
+		game_ctx, enemy_id, investigator_id, false, kind
 	)
 	game_ctx.combat.perform_attack(strike)
 	if game_ctx.log != null:
@@ -95,8 +90,8 @@ static func _perform(
 			{
 				"enemy_id": enemy_id,
 				"target": investigator_id,
-				"damage": enemy.attack_damage,
-				"horror": enemy.attack_horror,
+				"damage": strike.damage,
+				"horror": strike.horror,
 			}
 		)
 	return {"ok": true, "triggered": true, "kind": kind}

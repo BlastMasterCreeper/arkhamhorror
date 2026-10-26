@@ -130,6 +130,17 @@ func add_to_subject(subject_id: StringName, delta: int) -> void:
 		leg.amount += delta
 
 
+## 效果步指名落点（09059/09108）：在已定 subject 上加量（可建腿）。非无名 Buff。
+func add_named_bonus(subject_id: StringName, delta: int) -> void:
+	if subject_id == &"" or delta == 0:
+		return
+	add_to_subject(subject_id, delta)
+	if subject_id == primary_subject_id:
+		var leg := leg_at(find_leg_index(primary_subject_id))
+		if leg != null:
+			amount = leg.amount
+
+
 ## 无名修正：只改本次攻击伤害（或发现）数值；不含目标。
 func apply_amount_bonus(delta: int) -> void:
 	if delta == 0:

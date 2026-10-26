@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.42 · 2026-10-26 — additional：先定效果；无名修正只改攻击/发现量（无目标）
+> **状态**：v0.4.43 · 2026-10-26 — additional 全路径：攻击/发现 Plan · 敌伤标量 · 承伤 pipeline
 
 ---
 
@@ -1187,6 +1187,8 @@ Grimoire 条文 / 卡面效果
 | **MOD-Q-GAIN-RES** | B | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
 | **MOD-Q-ATTACK-DAMAGE** | B | 攻击成功后、伤害落点前 | **AmountPlan** `ATTACK_DAMAGE` | **已实现** |
 | **MOD-Q-DISCOVER** | B | 调查成功后、发现落点前 | **AmountPlan** `DISCOVER` | **已实现** |
+| **MOD-Q-ENEMY-DAMAGE** | A | 敌人攻击造成前 | `ENEMY_DAMAGE` | **已实现** |
+| **MOD-Q-ENEMY-HORROR** | A | 敌人攻击造成前 | `ENEMY_HORROR` | **已实现** |
 | **MOD-Q-PRINTED-*** | A | 生命/神智/敌 fight·evade·health… | 对应 value_key | 待按卡增量 |
 
 #### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
@@ -1269,9 +1271,18 @@ class AmountPlan:
 **禁止**：`PER_EACH_LEG`；修正自带目标；用选腿冒充 04305 Assign；为恐惧对称预留 Plan kind。  
 **Register**：`plan_kind` + `CONSUME_*`（用一次）；量变经 `apply_amount_bonus`。
 
-**落地**：`effect_shape` + 无名改量 ✅（MOD-03/05/07）；对敌 Assign Gate · 指名发现效果步 · ST/印刷量 待。
+##### additional 全路径（已对齐落地）
 
-**调查员承伤 additional（02221）≠ AmountPlan**：见 [07 §4](07-effect-resolution.md)。
+| 路径 | 序 | 入口 | 状态 |
+|---|---|---|---|
+| 玩家攻击伤害 | 定效果 → 无名改量 → settle | Fight ST.7 `AmountPlan` | ✅ |
+| 发现线索 | 同上；指名 `add_named_bonus` | Investigate ST.7 / 效果步 | ✅ |
+| 敌人攻击伤害/恐惧 | 定攻击 → 修印刷量 → **造成** | `EnemyAttack.build_from_enemy` → `DamagePipeline` | ✅ |
+| 调查员承伤 +K | 先 Assign(N) → `increase_pending` | `DamagePipeline`（含敌人攻击） | ✅ |
+| 04305 ASSIGN 物化 | 改 `amount` → Assign | `effect_shape=ASSIGN` | ✅ API；Gate 待 |
+| 09059/09108 指名发现 | 效果步 `add_named_bonus` | Composition / 能力成功句 | ✅ API（MOD-12） |
+
+**调查员承伤 additional（02221）≠ AmountPlan**：见 [07 §4](07-effect-resolution.md)。敌人攻击已并入同一承伤管线。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1481,6 +1492,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.43 | additional 全路径：敌伤 `ENEMY_DAMAGE` + 攻击进 `DamagePipeline`；指名 `add_named_bonus` |
 | 2026-10-26 | v0.4.42 | §16.3.2：先定效果；无名 additional 只改攻击/发现量；`DETERMINED`/`ASSIGN` |
 | 2026-10-26 | v0.4.41 | §16.3.2：对敌伤 `PIN_PRIMARY` / `ADD_TO_POOL`（由 v0.4.42 收成 effect_shape） |
 | 2026-10-24 | v0.4.40 | incoming additional（02221）：保留 N 腿，仅增量 K @ 合法全合格集 |
