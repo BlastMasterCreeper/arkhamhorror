@@ -99,7 +99,7 @@ static func _damage_determined_bundle(
 			h_sum += maxi(int((leg2 as Dictionary).get("amount", 0)), 0)
 	if d_sum <= 0 and h_sum <= 0:
 		return {"ok": false, "amount": 0, "damage": 0, "horror": 0, "error": "empty_legs"}
-	var use_pipeline := (
+	var use_pipeline: bool = (
 		target == &"controller"
 		or target == &""
 		or params.get("assign_format", &"") == &"pipeline"
