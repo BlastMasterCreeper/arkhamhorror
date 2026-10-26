@@ -27,7 +27,7 @@ func perform_attack(attack: EnemyAttack) -> void:
 	var inv := _state.registry.get_investigator(attack.target_investigator)
 	if inv == null:
 		return
-	## 承伤经 seq.effect.damage.assignable（Assign+Apply 同帧）。
+	## 伤/恐均经 seq.effect.damage.assignable（kind 区分；Assign+Apply 同帧）。
 	if _game_ctx != null:
 		if attack.damage > 0:
 			_deal_via_seq(&"damage", attack.damage, attack)

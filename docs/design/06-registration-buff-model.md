@@ -1227,7 +1227,7 @@ Grimoire 条文 / 卡面效果
   └─ 4. settle：ASSIGN → nest `seq.effect.damage.assignable`；DETERMINED → nest `seq.effect.damage` + `legs[]`
 ```
 
-**伤害两条 seq（已裁决）**：`damage.assignable` = Assign+Apply 同帧；`damage` = 无分配已定。发现线索仍一条 + `legs[]`。L0 仍单目标。
+**造成伤害/恐惧两条 seq（已裁决）**：`damage.assignable` = Assign+Apply 同帧；`damage` = 无分配已定。均用 `kind`=damage\|horror（话术常略写 damage）。发现线索仍一条 + `legs[]`。L0 仍单目标。
 
 ##### `AmountEffectShape`
 
@@ -1494,6 +1494,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.46 | 明示 horror 与 damage 同两条 seq（`kind`） |
 | 2026-10-26 | v0.4.45 | 伤害拆 `damage.assignable` / `damage`；ASSIGN settle → assignable |
 | 2026-10-26 | v0.4.44 | settle 多目标：一条 seq + `legs[]`；L0 仍单目标（MOD-13/14/15） |
 | 2026-10-26 | v0.4.43 | additional 全路径：敌伤 `ENEMY_DAMAGE` + 攻击进 `DamagePipeline`；指名 `add_named_bonus` |

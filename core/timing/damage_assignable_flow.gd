@@ -1,9 +1,10 @@
 class_name DamageAssignableFlow
 extends RefCounted
 
-## seq.effect.damage.assignable · 待分配伤害（Assign PI + 应用 封为一条）。
+## seq.effect.damage.assignable · 待分配造成伤害/恐惧（Assign PI + 应用 封为一条）。
+## params.kind = damage | horror（描述常略写 damage，恐惧同路）。
 ## 与 seq.effect.damage（已定 legs / 单点、无分配）分开。
-## 帧内：Assign → WOULD/WHEN → Apply；TC.kind 仍为 damage（时点响应面）。
+## 帧内：Assign → WOULD/WHEN → Apply；TC.kind 仍为 damage（时点响应面含 horror 载荷）。
 
 
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:

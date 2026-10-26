@@ -2,8 +2,8 @@ class_name DamagePipeline
 extends RefCounted
 
 ## Dealing Damage/Horror（07-effect-resolution §4）· 已裁决：
-## - **有分配** `seq.effect.damage.assignable`：Assign PI + Apply 同帧封死。
-## - **无分配** `seq.effect.damage`：已定 legs / 单点，无 Assign。
+## - **有分配** `seq.effect.damage.assignable`：Assign PI + Apply 同帧封死（kind=damage|horror）。
+## - **无分配** `seq.effect.damage`：已定 legs / 单点，无 Assign（kind 同上）。
 ## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（DamageAssigner 原流程读取）。
 ## - **WOULD / WHEN 均在 Apply 之前**（栈相位 PreImpact）。
 ## v1 Assign：`DamageAssigner.default_assignment`（`ASSIGN_*` Gate 后补）。

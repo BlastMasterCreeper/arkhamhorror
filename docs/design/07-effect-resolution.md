@@ -205,8 +205,8 @@ Grimoire p.8：
 **已裁决（2026-10-22 · 约束参数化 2026-10-23 · 交互形态 2026-10-23）**：
 
 - Assign = **静态 PI**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`）：**不是** 独立时点砖，**不**单独成 seq。
-- **有分配手续** = `seq.effect.damage.assignable`：Assign PI + Apply **封为一条**（同帧；TC.kind 仍 `damage`）。
-- **无分配手续** = `seq.effect.damage`：已定 `legs[]` / 单点，**无** Assign。
+- **有分配手续** = `seq.effect.damage.assignable`：Assign PI + Apply **封为一条**（同帧；`kind`=damage\|horror；TC.kind 仍 `damage`）。
+- **无分配手续** = `seq.effect.damage`：已定 `legs[]` / 单点，**无** Assign（`kind` 同上）。描述常略写「伤害」，恐惧同路。
 - lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
 - 逾期 / headless 未确认 → `DamageAssigner.default_assignment`（见下）。
 

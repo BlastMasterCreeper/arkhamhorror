@@ -81,8 +81,8 @@
 
 | flow_id | Grimoire 词条 | 粒度裁决（草案） |
 |---|---|---|
-| `seq.effect.damage.assignable` | Dealing（待分配） | Assign PI+Apply 同帧；与无分配 **分开** |
-| `seq.effect.damage` | Dealing（无分配 / 已定） | `legs[]` / 单点；**无** Assign；L0 单目标 |
+| `seq.effect.damage.assignable` | Dealing Damage/Horror（待分配） | `kind`；Assign+Apply 同帧；与无分配 **分开** |
+| `seq.effect.damage` | Dealing Damage/Horror（无分配） | `kind`；`legs[]` / 单点；**无** Assign |
 | `seq.effect.heal` | Heal | **保留** |
 | `seq.effect.lose_resources` | （失去资源） | **保留**；`all` 参数 |
 | `seq.effect.lose_action` | （失去行动） | **保留** |
