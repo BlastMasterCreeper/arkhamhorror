@@ -27,22 +27,15 @@ func perform_attack(attack: EnemyAttack) -> void:
 	var inv := _state.registry.get_investigator(attack.target_investigator)
 	if inv == null:
 		return
-	## 承伤走 DamagePipeline：Assign → WOULD/WHEN（increase_pending）→ Apply。
+	## 承伤经 seq.effect.damage：压栈后 Assign → WOULD/WHEN → Apply（与卡面造成同路）。
 	if _game_ctx != null:
 		if attack.damage > 0:
-			DamagePipeline.deal_investigator(
-				_game_ctx, attack.target_investigator, &"damage", attack.damage, false
-			)
+			_deal_via_seq(&"damage", attack.damage, attack)
 		if attack.horror > 0:
-			DamagePipeline.deal_investigator(
-				_game_ctx, attack.target_investigator, &"horror", attack.horror, false
-			)
+			_deal_via_seq(&"horror", attack.horror, attack)
 	else:
 		inv.damage_taken += attack.damage
 		inv.horror_taken += attack.horror
-		if attack.damage > 0 or attack.horror > 0:
-			## 无 ctx 时仍做上限检测（测试兜底）。
-			pass
 	_log.log(
 		AhcEnums.LogCategory.DAMAGE,
 		"enemy_attack:%s" % attack.kind,
@@ -53,7 +46,7 @@ func perform_attack(attack: EnemyAttack) -> void:
 			"horror": attack.horror,
 		}
 	)
-	## 伤/恐常态检测（与 seq.effect.damage 路径对称）。
+	## 伤/恐常态检测（seq 路径内已 check；此处兜底无 catalog 时）。
 	if _game_ctx != null and (attack.damage > 0 or attack.horror > 0):
 		DefeatFlow.check_investigator_caps(_game_ctx, attack.target_investigator)
 	if _timing:
@@ -76,3 +69,21 @@ func perform_attack(attack: EnemyAttack) -> void:
 			enemy.exhausted = true
 	if _game_ctx != null:
 		ElusiveResolver.try_flee_after_enemy_attack(_game_ctx, attack.enemy_id)
+
+
+func _deal_via_seq(kind: StringName, amount: int, attack: EnemyAttack) -> void:
+	var params := {
+		"controller_id": attack.target_investigator,
+		"kind": kind,
+		"amount": amount,
+		"source": attack.enemy_id,
+	}
+	if (
+		_game_ctx.sequence_catalog != null
+		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.damage")
+	):
+		_game_ctx.sequence_catalog.nest(_game_ctx, &"seq.effect.damage", params)
+		return
+	DamagePipeline.deal_investigator(
+		_game_ctx, attack.target_investigator, kind, amount, false
+	)
