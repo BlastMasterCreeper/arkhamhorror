@@ -206,7 +206,7 @@ Grimoire p.8：
 
 - Assign = **静态 PI**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`）：**不是** 独立时点砖，**不**单独成 seq。
 - **有分配手续** = `seq.effect.deal.assignable`：伤与恐可 **同入参**；Assign 后 **同时** Apply（同帧封死；TC.kind 仍 `damage`）。禁止伤/恐各 nest 一条。
-- **无分配手续** = `seq.effect.deal`：已定 `legs[]` / 单点，**无** Assign；伤+恐已定用 Simultaneous。
+- **无分配手续** = `seq.effect.deal`：已定 `legs[]` / 单点，**无** Assign；伤+恐已定用 `legs_damage` + `legs_horror`（**可单边空**，兼容单类型）。
 - lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
 - 逾期 / headless 未确认 → `DamageAssigner.default_assignment`（见下）。
 
@@ -236,9 +236,12 @@ Grimoire p.8：
 | `PRIOR_FILL` | 先填满本卡容量，才可摊调查员卡 | 03109 |
 | `MIN_TO_SUBJECT` | 至少 N 点到本卡（`if_able`） | 09007 |
 | `MAX_TO_MATCH` | 匹配特质合计 ≤ N | 60232 Miskatonic |
-| `GRANT_CAPACITY` | 赋分摊容量：无印刷 health/sanity 亦可摊；有印刷则叠加 | 特殊 Buff（无印刷生命仍可扛） |
+| `GRANT_CAPACITY` | 无印刷 health/sanity 时 **开候选**（不设可分配上限）；有印刷容量仍走印刷−标记 | 特殊 Buff（无印刷生命仍可扛） |
 
-**容量**：场上卡（不限 cardtype）= 印刷 health/sanity + 生效 `GRANT_CAPACITY` − 已有标记；无印刷且无 GRANT → 不可摊。
+**容量**：
+- **调查员**：伤害/恐惧分配均不设上限（−1）。
+- **敌人**：伤害分配不设上限；通常无恐惧通道。
+- **场上卡**（不限 cardtype）：有印刷 → 印刷 − 已有标记；**无印刷 + GRANT** → −1（不设上限）；无印刷且无 GRANT → 不可摊。
 
 **不是**本表：03315 Key of Ys = WOULD 改分配（`reassign_pending_legs`）；07189 Armor = AFTER 再分配（`MarkerTransferBatch`）；04305 Flamethrower = 敌人侧 Assign PI。
 
@@ -257,7 +260,7 @@ Grimoire p.8：
 |---|---|---|
 | **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配**；早期误印 *when* 的防伤对策编译收此；`reduce_pending` / `reassign_pending_legs` |
 | **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take* = **你控制的卡**将承伤；非取消反应/修正；**additional 加量**（下款） |
-| **AFTER** | Apply + defeat 检测后 / seq pop | *after you take…* |
+| **AFTER** | Apply + defeat 检测后 / seq pop | *after you take…*：**同一时点**；条件分「受到伤害后」（damage>0）/「受到恐惧后」（horror>0）/「受到伤害和/或恐惧后」（至少一种）。TC.kind 仍 `damage`；payload 恒带 `damage`/`horror`（可一侧为 0）；`SequenceHandler.affliction_filter` |
 
 ```gdscript
 # Assign = PI（非时点）→ pending legs
@@ -852,6 +855,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.6.17 | §4：无印刷+GRANT 不设上限；inv/敌伤害无限；`legs_damage`/`legs_horror`；AFTER 伤/恐/和或条件 |
 | 2026-10-26 | v0.6.16 | §4：外向/已定腿 PreImpact（`DealPreImpact` WOULD→WHEN→Apply） |
 | 2026-10-26 | v0.6.15 | §4：Assign Gate（`ask_assign_*` / among）；逾期默认腿表 |
 | 2026-10-26 | v0.6.14 | §4：`GRANT_CAPACITY`；deal legs 混装敌/卡/调查员（`DealSubject`） |

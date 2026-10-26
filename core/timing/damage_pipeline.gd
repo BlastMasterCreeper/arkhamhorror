@@ -83,6 +83,7 @@ static func deal_investigator_bundle(
 		_apply_legs(game_ctx, inv_id, &"horror", final_h_legs)
 	if final_d > 0 or final_h > 0:
 		DefeatFlow.check_investigator_caps(game_ctx, inv_id)
+	DealAfflictionReport.patch_current(game_ctx, final_d, final_h)
 	return {
 		"ok": final_d > 0 or final_h > 0,
 		"amount": final_d + final_h,
@@ -104,36 +105,87 @@ static func apply_investigator_legs(
 	is_direct: bool,
 	legs: Array
 ) -> Dictionary:
+	var use_legs: Array = legs
+	var summed := _sum_leg_amounts(legs)
+	if summed <= 0 and amount > 0:
+		use_legs = [{"bearer": &"investigator", "id": inv_id, "amount": amount}]
+	if kind == &"horror":
+		return apply_investigator_bundle_legs(
+			game_ctx, inv_id, [], use_legs, false, is_direct
+		)
+	return apply_investigator_bundle_legs(
+		game_ctx, inv_id, use_legs, [], is_direct, false
+	)
+
+
+## 已定伤/恐腿（可单边空）：一次 WOULD/WHEN，再同时 Apply。
+static func apply_investigator_bundle_legs(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	damage_legs: Array,
+	horror_legs: Array,
+	direct_damage: bool = false,
+	direct_horror: bool = false
+) -> Dictionary:
 	if game_ctx == null or game_ctx.mutator == null or inv_id == &"":
-		return {"ok": false, "amount": 0}
+		return {"ok": false, "amount": 0, "damage": 0, "horror": 0}
 	if game_ctx.state.registry.get_investigator(inv_id) == null:
-		return {"ok": false, "amount": 0, "error": "unknown_investigator"}
-	var requested := maxi(amount, 0)
-	if requested <= 0:
-		requested = 0
-		for leg in legs:
-			if leg is Dictionary:
-				requested += int((leg as Dictionary).get("amount", 0))
-	if requested <= 0:
-		return {"ok": false, "amount": 0}
-	_set_pending(game_ctx, inv_id, kind, requested, is_direct, legs)
+		return {"ok": false, "amount": 0, "damage": 0, "horror": 0, "error": "unknown_investigator"}
+	var d_req := _sum_leg_amounts(damage_legs)
+	var h_req := _sum_leg_amounts(horror_legs)
+	if d_req <= 0 and h_req <= 0:
+		return {"ok": false, "amount": 0, "damage": 0, "horror": 0}
+	_set_pending_bundle(
+		game_ctx,
+		inv_id,
+		d_req,
+		direct_damage,
+		damage_legs if d_req > 0 else [],
+		h_req,
+		direct_horror,
+		horror_legs if h_req > 0 else []
+	)
 	if game_ctx.sequences != null:
 		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WOULD)
 		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN)
-	var final_amount := pending_amount(game_ctx, inv_id)
-	var final_legs := pending_legs(game_ctx, inv_id)
-	_clear_pending(game_ctx, inv_id)
-	if final_amount <= 0:
-		return {"ok": false, "amount": 0, "kind": kind, "prevented": true, "legs": []}
-	_apply_legs(game_ctx, inv_id, kind, final_legs)
-	DefeatFlow.check_investigator_caps(game_ctx, inv_id)
+	var final_d := 0
+	var final_d_legs: Array = []
+	var final_h := 0
+	var final_h_legs: Array = []
+	if d_req > 0:
+		final_d = int(game_ctx.memory.get_referent(inv_id, PENDING_AMOUNT))
+		final_d_legs = pending_legs(game_ctx, inv_id)
+	if h_req > 0:
+		final_h = pending_horror_amount(game_ctx, inv_id)
+		final_h_legs = pending_horror_legs(game_ctx, inv_id)
+	_clear_pending_bundle(game_ctx, inv_id)
+	if final_d > 0:
+		_apply_legs(game_ctx, inv_id, &"damage", final_d_legs)
+	if final_h > 0:
+		_apply_legs(game_ctx, inv_id, &"horror", final_h_legs)
+	if final_d > 0 or final_h > 0:
+		DefeatFlow.check_investigator_caps(game_ctx, inv_id)
+	DealAfflictionReport.patch_current(game_ctx, final_d, final_h)
 	return {
-		"ok": true,
-		"amount": final_amount,
-		"kind": kind,
-		"prevented": false,
-		"legs": final_legs,
+		"ok": final_d > 0 or final_h > 0,
+		"amount": final_d + final_h,
+		"damage": final_d,
+		"horror": final_h,
+		"kind": &"damage" if final_d > 0 else &"horror",
+		"prevented": final_d <= 0 and final_h <= 0 and (d_req > 0 or h_req > 0),
+		"legs": final_d_legs,
+		"legs_damage": final_d_legs,
+		"legs_horror": final_h_legs,
+		"simultaneous": d_req > 0 and h_req > 0,
 	}
+
+
+static func _sum_leg_amounts(legs: Array) -> int:
+	var total := 0
+	for leg in legs:
+		if leg is Dictionary:
+			total += maxi(int((leg as Dictionary).get("amount", 0)), 0)
+	return total
 
 
 static func pending_amount(game_ctx: GameContext, inv_id: StringName) -> int:

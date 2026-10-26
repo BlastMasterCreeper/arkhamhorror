@@ -89,6 +89,7 @@ func _initialize() -> void:
 	_run_test("MOD-16 deal.assignable damage+horror one seq", _test_mod_deal_assignable_bundle_one_seq)
 	_run_test("MOD-17 deal mixed enemy+card legs", _test_mod_deal_mixed_subject_legs)
 	_run_test("MOD-18 deal.assignable among card subject", _test_mod_deal_assignable_card_subject)
+	_run_test("MOD-19 deal legs_damage/legs_horror empty side", _test_mod_deal_dual_legs_empty_side)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -389,6 +390,7 @@ func _initialize() -> void:
 	_run_test("ASN-07 GRANT_CAPACITY without printed health", _test_asn_grant_capacity)
 	_run_test("ASN-08 Assign Gate scripted legs", _test_asn_gate_scripted)
 	_run_test("ASN-09 Assign Gate among subjects", _test_asn_gate_among)
+	_run_test("TIM-DMG-07 AFTER affliction filters", _test_tim_dmg_after_affliction_filters)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -2159,6 +2161,67 @@ func _test_mod_deal_assignable_card_subject() -> bool:
 		and int((res as Dictionary).get("damage", 0)) == 2
 		and card != null
 		and card.tokens.damage == 2
+	)
+
+
+func _test_mod_deal_dual_legs_empty_side() -> bool:
+	## MOD-19：seq.effect.deal 支持 legs_damage/legs_horror；单边空载兼容单类型。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_dual", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_dual").health = 10
+	var only_dmg: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"target": &"subjects",
+			"legs_damage": [{"id": &"enemy_dual", "amount": 2}],
+			"legs_horror": [],
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_dual")
+	if (
+		not (only_dmg is Dictionary)
+		or int((only_dmg as Dictionary).get("damage", 0)) != 2
+		or int((only_dmg as Dictionary).get("horror", 0)) != 0
+		or enemy.damage != 2
+	):
+		return false
+	var only_hor: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"target": &"controller",
+			"assign_format": &"pipeline",
+			"legs_damage": [],
+			"legs_horror": [{"bearer": &"investigator", "id": &"inv_1", "amount": 1}],
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var both: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"target": &"controller",
+			"assign_format": &"pipeline",
+			"legs_damage": [{"bearer": &"investigator", "id": &"inv_1", "amount": 1}],
+			"legs_horror": [{"bearer": &"investigator", "id": &"inv_1", "amount": 1}],
+		}
+	)
+	return (
+		only_hor is Dictionary
+		and int((only_hor as Dictionary).get("horror", 0)) == 1
+		and int((only_hor as Dictionary).get("damage", 0)) == 0
+		and both is Dictionary
+		and bool((both as Dictionary).get("simultaneous", false))
+		and int((both as Dictionary).get("damage", 0)) == 1
+		and int((both as Dictionary).get("horror", 0)) == 1
+		and inv.damage_taken == 1
+		and inv.horror_taken == 2
 	)
 
 
@@ -8573,6 +8636,52 @@ func _test_tim_dmg_outbound_reduce() -> bool:
 	)
 
 
+func _test_tim_dmg_after_affliction_filters() -> bool:
+	## TIM-DMG-07：受到伤害后 / 恐惧后 / 伤害和或恐惧后 = 同一 AFTER 时点、不同条件。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var counts := {"dmg": 0, "hor": 0, "either": 0}
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_take_damage(
+			func() -> void: counts["dmg"] = int(counts["dmg"]) + 1
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_take_horror(
+			func() -> void: counts["hor"] = int(counts["hor"]) + 1
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_take_damage_or_horror(
+			func() -> void: counts["either"] = int(counts["either"]) + 1
+		)
+	)
+	## 仅伤害 → dmg+either；恐不触发。
+	h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "damage": 1, "horror": 0}
+	)
+	if counts["dmg"] != 1 or counts["hor"] != 0 or counts["either"] != 1:
+		return false
+	## 仅恐惧 → hor+either；伤条件不触发。
+	h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "damage": 0, "horror": 1}
+	)
+	if counts["dmg"] != 1 or counts["hor"] != 1 or counts["either"] != 2:
+		return false
+	## 伤+恐同帧 → 三者各 +1（仍一条 AFTER）。
+	h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "damage": 1, "horror": 1}
+	)
+	return counts["dmg"] == 2 and counts["hor"] == 2 and counts["either"] == 3
+
+
 func _test_asn_prior_fill() -> bool:
 	## ASN-01 · 03109：PRIOR_FILL horror → 先填满资产神智，剩余归调查员。
 	var h := RuleTestHarness.new(42)
@@ -8724,7 +8833,7 @@ func _test_asn_pipeline_prior_fill() -> bool:
 
 
 func _test_asn_grant_capacity() -> bool:
-	## ASN-07：无印刷 health 时 GRANT_CAPACITY 才可摊；超量拒；落地写入。
+	## ASN-07：无印刷 + GRANT → 开候选且不设上限；无 GRANT 拒；落任意量后仍 -1。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
 		h.ctx, &"inv_1", &"ally_asn_grant", {"health": 0, "sanity": 0}
@@ -8739,8 +8848,11 @@ func _test_asn_grant_capacity() -> bool:
 	)
 	if not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
 		return false
+	## 无印刷不设上限：超量（相对 GRANT amount 参数）仍合法。
 	var over := [{"bearer": &"card", "id": card_id, "amount": 3}]
-	if DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, over):
+	if not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, over):
+		return false
+	if DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) != -1:
 		return false
 	var applied := DamagePipeline.apply_investigator_legs(
 		h.ctx,
@@ -8756,7 +8868,8 @@ func _test_asn_grant_capacity() -> bool:
 		and int(applied.get("amount", 0)) == 2
 		and card != null
 		and card.tokens.damage == 2
-		and DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) == 0
+		and DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) == -1
+		and DealSubject.damage_capacity(h.ctx, &"inv_1") == -1
 	)
 
 

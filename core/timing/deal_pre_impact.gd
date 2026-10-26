@@ -35,6 +35,10 @@ static func apply_legs(
 	if final_amt <= 0:
 		return {"ok": false, "amount": 0, "kind": kind, "prevented": true, "legs": []}
 	var applied := _apply(game_ctx, kind, final_legs)
+	if kind == &"horror":
+		DealAfflictionReport.patch_current(game_ctx, 0, applied)
+	else:
+		DealAfflictionReport.patch_current(game_ctx, applied, 0)
 	return {
 		"ok": applied > 0,
 		"amount": applied,
@@ -79,6 +83,7 @@ static func apply_bundle(
 		applied_d = _apply(game_ctx, &"damage", final_d_legs)
 	if final_h > 0:
 		applied_h = _apply(game_ctx, &"horror", final_h_legs)
+	DealAfflictionReport.patch_current(game_ctx, applied_d, applied_h)
 	return {
 		"ok": applied_d > 0 or applied_h > 0,
 		"amount": applied_d + applied_h,
@@ -86,6 +91,7 @@ static func apply_bundle(
 		"horror": applied_h,
 		"prevented": applied_d <= 0 and applied_h <= 0 and (d_tot > 0 or h_tot > 0),
 		"legs": final_d_legs,
+		"legs_damage": final_d_legs,
 		"legs_horror": final_h_legs,
 		"simultaneous": d_tot > 0 and h_tot > 0,
 	}

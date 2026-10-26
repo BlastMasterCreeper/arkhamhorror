@@ -1227,7 +1227,7 @@ Grimoire 条文 / 卡面效果
   └─ 4. settle：ASSIGN → nest `seq.effect.deal.assignable`；DETERMINED → nest `seq.effect.deal` + `legs[]`
 ```
 
-**造成伤害/恐惧两条 seq（已裁决）**：`deal.assignable` = 待分配（伤+恐可同入参，Assign 后 **同时** Apply）；`deal` = 无分配已定。禁止伤/恐各开一条 assignable。翻译已定双写用 Simultaneous。发现线索仍一条 + `legs[]`。多目标 **不限单卡种**：凡有生命/神智（或 `GRANT_CAPACITY` Buff）的场上卡 ∪ 敌人 ∪ 调查员；`DealSubject` 按 id 归类落点，L0 仍单目标。
+**造成伤害/恐惧两条 seq（已裁决）**：`deal.assignable` = 待分配（伤+恐可同入参，可单边 0，Assign 后 **同时** Apply）；`deal` = 无分配已定（`legs_damage`/`legs_horror` 可单边空）。禁止伤/恐各开一条 assignable。发现线索仍一条 + `legs[]`。多目标 **不限单卡种**：凡有印刷生命/神智、或无印刷+`GRANT_CAPACITY` 的场上卡 ∪ 敌人 ∪ 调查员；无印刷+GRANT **不设可分配上限**；调查员伤/恐与敌人伤害分配无限。`DealSubject` 按 id 归类落点，L0 仍单目标。AFTER「受到伤害/恐惧/伤害和或恐惧」= 同一 `damage` 时点 + `affliction_filter`。
 
 ##### `AmountEffectShape`
 
@@ -1495,6 +1495,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-10-26 | v0.4.49 | Assign Gate：`ask_assign_*` / among（04305） |
+| 2026-10-26 | v0.4.49 | GRANT 无印刷不设上限；deal 双通道腿；AFTER 伤/恐/和或条件 |
 | 2026-10-26 | v0.4.48 | `GRANT_CAPACITY`；deal legs 混装主体（敌/卡/调查员） |
 | 2026-10-26 | v0.4.47 | 更名 `deal`；伤+恐同条 assignable、同时 Apply |
 | 2026-10-26 | v0.4.46 | 明示 horror 与 damage 同两条 seq（`kind`） |

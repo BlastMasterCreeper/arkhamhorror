@@ -92,12 +92,14 @@ static func _allocate_default(
 	var alloc: Dictionary = {}
 	var rem := total
 	var caps_work: Dictionary = caps.duplicate()
-	## 1) PRIOR_FILL：先填满优先卡。
+	## 1) PRIOR_FILL：先填满优先卡（无限容量不自动吃光）。
 	for c in constraints:
 		if c.assign_op != AhcEnums.AssignConstraintOp.PRIOR_FILL:
 			continue
 		var sid: StringName = c.subject_id
 		var cap := int(caps_work.get(_card_key(sid), 0))
+		if cap < 0:
+			continue
 		var take := mini(cap, rem)
 		if take > 0:
 			_add(alloc, _card_key(sid), take)
@@ -110,7 +112,7 @@ static func _allocate_default(
 		var sid2: StringName = c.subject_id
 		var cap2 := int(caps_work.get(_card_key(sid2), 0))
 		var need := mini(c.assign_amount, rem)
-		if need > cap2:
+		if cap2 >= 0 and need > cap2:
 			if c.assign_if_able:
 				need = cap2
 			else:
@@ -118,7 +120,8 @@ static func _allocate_default(
 		if need > 0:
 			_add(alloc, _card_key(sid2), need)
 			rem -= need
-			caps_work[_card_key(sid2)] = cap2 - need
+			if cap2 >= 0:
+				caps_work[_card_key(sid2)] = cap2 - need
 	## 3) 剩余默认归调查员卡。
 	if rem > 0:
 		_add(alloc, _inv_key(inv_id), rem)
@@ -137,8 +140,13 @@ static func _reserve_caps(caps: Dictionary, reserved_legs: Array) -> void:
 			continue
 		var id: StringName = (leg as Dictionary).get("id", &"")
 		var key := _card_key(id)
-		if caps.has(key):
-			caps[key] = maxi(int(caps[key]) - amt, 0)
+		if not caps.has(key):
+			continue
+		var cur := int(caps[key])
+		if cur < 0:
+			## 无限：占用不减 cap。
+			continue
+		caps[key] = maxi(cur - amt, 0)
 
 
 ## Gate / UI 快照：调查员卡（无限）∪ 有剩余容量的场上卡。
@@ -164,7 +172,8 @@ static func candidate_entries(
 	_reserve_caps(caps, reserved_legs)
 	for key in caps.keys():
 		var rem := int(caps[key])
-		if rem <= 0:
+		## 0 = 无余量；>0 有限；<0 无限（无印刷+GRANT）。
+		if rem == 0:
 			continue
 		var cid := StringName(str(key).substr(5))
 		out.append({"bearer": &"card", "id": cid, "capacity": rem, "amount": 0})
@@ -253,14 +262,15 @@ static func validate(
 		return false
 	var caps := _capacity_map(game_ctx, inv_id, kind, is_direct)
 	_reserve_caps(caps, reserved_legs)
-	## 每腿须在候选且不超过容量（调查员卡容量视为无限）。
+	## 每腿须在候选且不超过容量（调查员无限；卡 cap<0 = 无印刷不设上限）。
 	for key in by_key.keys():
 		var amt2 := int(by_key[key])
 		if str(key).begins_with("inv:"):
 			continue
 		if not caps.has(key):
 			return false
-		if amt2 > int(caps[key]):
+		var cap_v := int(caps[key])
+		if cap_v >= 0 and amt2 > cap_v:
 			return false
 	var constraints := _active_constraints(game_ctx, inv_id, kind, is_direct)
 	for c in constraints:
@@ -269,16 +279,23 @@ static func validate(
 				var sk := _card_key(c.subject_id)
 				var on_subj := int(by_key.get(sk, 0))
 				var on_inv := int(by_key.get(_inv_key(inv_id), 0))
-				var cap_left := int(caps.get(sk, 0)) - on_subj
-				## 若本卡还能再吃且调查员卡上有量 → 违例。
-				if cap_left > 0 and on_inv > 0:
-					return false
+				var cap_raw := int(caps.get(sk, 0))
+				if cap_raw < 0:
+					## 无限容量：不强制先填满。
+					pass
+				else:
+					var cap_left := cap_raw - on_subj
+					## 若本卡还能再吃且调查员卡上有量 → 违例。
+					if cap_left > 0 and on_inv > 0:
+						return false
 			AhcEnums.AssignConstraintOp.MIN_TO_SUBJECT:
 				var sk2 := _card_key(c.subject_id)
 				var got := int(by_key.get(sk2, 0))
 				var cap_av := int(caps.get(sk2, 0))
-				var need2 := mini(c.assign_amount, cap_av) if c.assign_if_able else c.assign_amount
-				if got < need2 and (not c.assign_if_able or cap_av > 0):
+				var need2 := c.assign_amount
+				if cap_av >= 0 and c.assign_if_able:
+					need2 = mini(c.assign_amount, cap_av)
+				if got < need2 and (not c.assign_if_able or cap_av != 0):
 					if c.assign_if_able and cap_av == 0:
 						pass
 					elif got < need2:
@@ -364,7 +381,8 @@ static func _put_cap(
 	constraints: Array[RestrictionPayload]
 ) -> void:
 	var cap := card_remaining_with_grants(game_ctx, card_id, kind, constraints)
-	if cap > 0:
+	## >0 有限容量；-1 无限（无印刷+GRANT）。
+	if cap > 0 or cap < 0:
 		caps[_card_key(card_id)] = cap
 
 
@@ -382,6 +400,8 @@ static func card_remaining(
 	return card_remaining_with_grants(game_ctx, card_id, kind, constraints)
 
 
+## 剩余容量：有印刷 → 印刷−标记；无印刷 + GRANT → **-1（不设上限）**；否则 0（非候选）。
+## 调查员 / 敌人外向分配上限不经此函数（各自无限）。
 static func card_remaining_with_grants(
 	game_ctx: GameContext,
 	card_id: StringName,
@@ -406,16 +426,20 @@ static func card_remaining_with_grants(
 	else:
 		printed = CardRegistry.printed_health(def)
 		tokens = card.tokens.damage
-	var grant := 0
+	var has_grant := false
 	for c in constraints:
 		if c.assign_op != AhcEnums.AssignConstraintOp.GRANT_CAPACITY:
 			continue
 		if c.subject_id != card_id:
 			continue
-		grant += maxi(c.assign_amount, 0)
-	if printed <= 0 and grant <= 0:
-		return 0
-	return maxi(maxi(printed, 0) + grant - tokens, 0)
+		has_grant = true
+		break
+	if printed > 0:
+		return maxi(printed - tokens, 0)
+	## 无印刷：GRANT 仅打开候选，不设可分配上限。
+	if has_grant:
+		return -1
+	return 0
 
 
 static func _asset_remaining(game_ctx: GameContext, card_id: StringName, kind: StringName) -> int:

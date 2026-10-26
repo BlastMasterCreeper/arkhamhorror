@@ -6,7 +6,7 @@ extends RefCounted
 
 
 ## 无分配造成伤害/恐惧（seq.effect.deal）：已定 legs / 敌·支援单点；**不含** Assign。
-## 单 kind 用 params.kind；伤+恐已定且需同时写 → legs_damage + legs_horror（翻译 Simultaneous）。
+## 单 kind 用 params.kind + legs；伤+恐 → legs_damage + legs_horror（可单边空）。
 ## 待分配 → `seq.effect.deal.assignable`。
 static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var kind := StringName(str(params.get("kind", "damage")))
@@ -15,6 +15,14 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null or game_ctx.mutator == null:
 		return {"ok": false, "amount": 0}
 	var is_direct := bool(params.get("direct", false))
+	var raw_ld: Variant = params.get("legs_damage", null)
+	var raw_lh: Variant = params.get("legs_horror", null)
+	if raw_ld is Array or raw_lh is Array:
+		var d_legs: Array = raw_ld as Array if raw_ld is Array else []
+		var h_legs: Array = raw_lh as Array if raw_lh is Array else []
+		return _damage_determined_bundle(
+			game_ctx, params, target, inv_id, is_direct, d_legs, h_legs
+		)
 	var raw_legs: Variant = params.get("legs", null)
 	if raw_legs is Array and not (raw_legs as Array).is_empty():
 		var legs_arr := raw_legs as Array
@@ -71,6 +79,66 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	return {"ok": applied > 0, "amount": applied, "kind": kind, "target": target}
 
 
+static func _damage_determined_bundle(
+	game_ctx: GameContext,
+	params: Dictionary,
+	target: StringName,
+	inv_id: StringName,
+	is_direct: bool,
+	damage_legs: Array,
+	horror_legs: Array
+) -> Dictionary:
+	## 单边空载兼容单类型；两侧皆空 → 拒。
+	var d_sum := 0
+	var h_sum := 0
+	for leg in damage_legs:
+		if leg is Dictionary:
+			d_sum += maxi(int((leg as Dictionary).get("amount", 0)), 0)
+	for leg2 in horror_legs:
+		if leg2 is Dictionary:
+			h_sum += maxi(int((leg2 as Dictionary).get("amount", 0)), 0)
+	if d_sum <= 0 and h_sum <= 0:
+		return {"ok": false, "amount": 0, "damage": 0, "horror": 0, "error": "empty_legs"}
+	var use_pipeline := (
+		target == &"controller"
+		or target == &""
+		or params.get("assign_format", &"") == &"pipeline"
+	)
+	var result: Dictionary
+	if use_pipeline:
+		result = DamagePipeline.apply_investigator_bundle_legs(
+			game_ctx,
+			inv_id,
+			damage_legs,
+			horror_legs,
+			bool(params.get("direct_damage", is_direct)),
+			bool(params.get("direct_horror", is_direct))
+		)
+		result["target"] = &"controller"
+	else:
+		var scope: StringName = inv_id if inv_id != &"" else &"deal_out"
+		result = DealPreImpact.apply_bundle(game_ctx, damage_legs, horror_legs, scope)
+		result["target"] = target
+		result["multi"] = true
+	var applied := int(result.get("amount", 0))
+	_log(
+		game_ctx,
+		"effect:damage",
+		{
+			"kind": &"damage" if d_sum > 0 else &"horror",
+			"target": result.get("target", target),
+			"amount": applied,
+			"damage": int(result.get("damage", 0)),
+			"horror": int(result.get("horror", 0)),
+			"determined_bundle": true,
+			"source": params.get("source", params.get("card_id", &"")),
+			"direct": is_direct,
+		}
+	)
+	result["ok"] = applied > 0
+	return result
+
+
 static func _damage_investigator_determined_legs(
 	game_ctx: GameContext,
 	params: Dictionary,
@@ -79,12 +147,8 @@ static func _damage_investigator_determined_legs(
 	is_direct: bool,
 	legs: Array
 ) -> Dictionary:
-	var total := 0
-	for leg in legs:
-		if leg is Dictionary:
-			total += int((leg as Dictionary).get("amount", 0))
 	var result := DamagePipeline.apply_investigator_legs(
-		game_ctx, inv_id, kind, total, is_direct, legs
+		game_ctx, inv_id, kind, 0, is_direct, legs
 	)
 	var applied := int(result.get("amount", 0))
 	_log(
@@ -105,6 +169,10 @@ static func _damage_investigator_determined_legs(
 		"kind": kind,
 		"target": &"controller",
 		"legs": result.get("legs", []),
+		"legs_damage": result.get("legs_damage", []),
+		"legs_horror": result.get("legs_horror", []),
+		"damage": int(result.get("damage", 0)),
+		"horror": int(result.get("horror", 0)),
 		"prevented": bool(result.get("prevented", false)),
 	}
 

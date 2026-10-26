@@ -74,6 +74,9 @@ static func _investigator_take(
 		direct_dmg,
 		direct_hor
 	)
+	DealAfflictionReport.patch_current(
+		game_ctx, int(result.get("damage", 0)), int(result.get("horror", 0))
+	)
 	_log(game_ctx, result, params)
 	result["assignable"] = true
 	result["target"] = &"controller"
@@ -138,6 +141,7 @@ static func _among_subjects(
 		"simultaneous": damage_amt > 0 and horror_amt > 0,
 		"prevented": bool(pre.get("prevented", false)),
 	}
+	DealAfflictionReport.patch_current(game_ctx, applied_d, applied_h)
 	_log(game_ctx, result, params)
 	return result
 

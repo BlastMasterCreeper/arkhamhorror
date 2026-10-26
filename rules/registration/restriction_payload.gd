@@ -198,7 +198,7 @@ static func assign_max_to_match(
 	return p
 
 
-## 分摊：赋容量（无印刷 health/sanity 亦可摊；有印刷则 +N）。
+## 分摊：无印刷 health/sanity 时 GRANT 仅开候选（不设上限）；`amount` 保留兼容，不设 cap。
 static func assign_grant_capacity(
 	subject_card_id: StringName,
 	controller_id: StringName,

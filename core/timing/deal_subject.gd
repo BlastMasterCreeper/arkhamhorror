@@ -74,26 +74,44 @@ static func apply(
 			return 0
 
 
-## 伤害剩余可承受容量（敌人 health−damage；卡 = 印刷+GRANT−tokens；调查员无限用大数）。
-## `dealt_inv_id` 供 GRANT_CAPACITY 作用域；空则只看印刷。
+## 分配快照容量：敌人 / 调查员 = -1（不设上限）；卡 = 印刷剩余或无印刷+GRANT 的 -1。
 static func damage_capacity(
 	game_ctx: GameContext,
 	subject_id: StringName,
 	dealt_inv_id: StringName = &""
 ) -> int:
+	return _capacity(game_ctx, subject_id, &"damage", dealt_inv_id)
+
+
+## 恐惧分配容量：调查员 = -1；卡同上；敌人通常 0（无神智通道）。
+static func horror_capacity(
+	game_ctx: GameContext,
+	subject_id: StringName,
+	dealt_inv_id: StringName = &""
+) -> int:
+	return _capacity(game_ctx, subject_id, &"horror", dealt_inv_id)
+
+
+static func _capacity(
+	game_ctx: GameContext,
+	subject_id: StringName,
+	kind: StringName,
+	dealt_inv_id: StringName
+) -> int:
 	var bearer := classify(game_ctx, subject_id)
 	match bearer:
 		KIND_ENEMY:
-			var enemy := game_ctx.state.registry.get_enemy(subject_id)
-			if enemy == null:
+			if kind == &"horror":
 				return 0
-			return maxi(enemy.health - enemy.damage, 0)
+			if game_ctx.state.registry.get_enemy(subject_id) == null:
+				return 0
+			return -1
 		KIND_CARD:
 			return DamageAssigner.card_remaining(
-				game_ctx, subject_id, &"damage", dealt_inv_id, false
+				game_ctx, subject_id, kind, dealt_inv_id, false
 			)
 		KIND_INVESTIGATOR:
-			return 9999
+			return -1
 		_:
 			return 0
 
