@@ -73,12 +73,12 @@ func _initialize() -> void:
 	_run_test("C-04 register applies modifier", _test_register_modifier)
 	_run_test("MOD-01 SKILL_ANY matches any skill query", _test_mod_skill_any)
 	_run_test("MOD-02 attack damage bonus single leg", _test_mod_attack_damage_single_leg)
-	_run_test("MOD-03 PIN_PRIMARY pins bonus to attack target", _test_mod_attack_damage_pin_primary)
-	_run_test("MOD-04 PIN_PRIMARY bumps zero primary leg", _test_mod_attack_damage_pin_primary_from_zero)
-	_run_test("MOD-05 ADD_TO_POOL bonus then default assign", _test_mod_attack_damage_add_to_pool)
+	_run_test("MOD-03 DETERMINED bonus bumps attack damage on primary", _test_mod_attack_damage_determined)
+	_run_test("MOD-04 DETERMINED bumps zero primary attack damage", _test_mod_attack_damage_determined_from_zero)
+	_run_test("MOD-05 ASSIGN mods attack amount then materialize", _test_mod_attack_damage_assign)
 	_run_test("MOD-06 discover bonus single leg investigate", _test_mod_discover_bonus_single_leg)
-	_run_test("MOD-07 discover bonus chooses one of many legs", _test_mod_discover_multi_leg_pi)
-	_run_test("MOD-08 zero-amount discover legs skip bonus and settle", _test_mod_discover_zero_leg_skips)
+	_run_test("MOD-07 discover anon bonus pins primary location", _test_mod_discover_determined_multi)
+	_run_test("MOD-08 zero-amount discover primary still gets anon bonus", _test_mod_discover_zero_primary_bonus)
 	_run_test("MOD-09 shroud modifier lowers investigate difficulty", _test_mod_shroud_investigate)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
@@ -1755,35 +1755,33 @@ func _test_mod_attack_damage_single_leg() -> bool:
 	return res.ok and res.success and enemy != null and enemy.damage == 2
 
 
-func _test_mod_attack_damage_pin_primary() -> bool:
-	## MOD-03 · 03153：未写分配 → +N 钉主目标，旁路腿不变；无选腿 PI。
+func _test_mod_attack_damage_determined() -> bool:
+	## MOD-03 · 03153：效果/目标已定；无名 +N 改攻击伤害（primary），旁路不变。
 	var h := RuleTestHarness.new(42)
-	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"mod.attack_damage_leg", "pick": &"enemy_b"},
-	])
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := AmountPlan.attack_damage_pin_primary(
+	var plan := AmountPlan.attack_damage_determined(
 		&"enemy_a", {&"enemy_a": 1, &"enemy_b": 1}
 	)
 	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
 	return (
-		plan.find_leg_index(&"enemy_a") >= 0
+		plan.effect_shape == AhcEnums.AmountEffectShape.DETERMINED
 		and plan.leg_at(plan.find_leg_index(&"enemy_a")).amount == 2
 		and plan.leg_at(plan.find_leg_index(&"enemy_b")).amount == 1
+		and plan.amount == 2
 	)
 
 
-func _test_mod_attack_damage_pin_primary_from_zero() -> bool:
-	## MOD-04：主目标腿为 0 仍可被 PIN_PRIMARY 加成；旁路仍为 0。
+func _test_mod_attack_damage_determined_from_zero() -> bool:
+	## MOD-04：primary 攻击伤害为 0 仍可被无名修正；旁路仍为 0。
 	var h := RuleTestHarness.new(42)
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := AmountPlan.attack_damage_pin_primary(
+	var plan := AmountPlan.attack_damage_determined(
 		&"enemy_a", {&"enemy_a": 0, &"enemy_b": 0}
 	)
 	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
@@ -1793,8 +1791,8 @@ func _test_mod_attack_damage_pin_primary_from_zero() -> bool:
 	)
 
 
-func _test_mod_attack_damage_add_to_pool() -> bool:
-	## MOD-05 · 04305：写明分配 → +N 进 pool；settle 默认整池→primary。
+func _test_mod_attack_damage_assign() -> bool:
+	## MOD-05 · 04305：先定效果；+N 改攻击伤害 amount；settle 再 Assign（默认→primary）。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
@@ -1808,18 +1806,18 @@ func _test_mod_attack_damage_add_to_pool() -> bool:
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := AmountPlan.attack_damage_assign_pool(
+	var plan := AmountPlan.attack_damage_assign(
 		4, &"enemy_a", [&"enemy_a", &"enemy_b"] as Array[StringName]
 	)
 	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
-	if plan.pool_amount != 5:
+	if plan.amount != 5 or not plan.legs.is_empty():
 		return false
 	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan)
 	ea = h.ctx.state.registry.get_enemy(&"enemy_a")
 	eb = h.ctx.state.registry.get_enemy(&"enemy_b")
 	return (
 		int(settled.get("settled", 0)) == 5
-		and plan.pool_amount == 0
+		and plan.amount == 0
 		and ea.damage == 5
 		and eb.damage == 0
 	)
@@ -1845,31 +1843,29 @@ func _test_mod_discover_bonus_single_leg() -> bool:
 	)
 
 
-func _test_mod_discover_multi_leg_pi() -> bool:
+func _test_mod_discover_determined_multi() -> bool:
+	## MOD-07：多地已定；无名发现修正不含目标 → 只加 primary（调查地）。
 	var h := RuleTestHarness.new(42)
-	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"mod.discover_leg", "pick": &"loc_b"},
-	])
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
 	))
 	var plan := AmountPlan.new()
 	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.effect_shape = AhcEnums.AmountEffectShape.DETERMINED
 	plan.primary_subject_id = &"loc_a"
 	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 1))
 	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 1))
+	plan.amount = 1
 	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
-	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
-	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
 	return (
-		leg_a.amount == 1
-		and leg_b.amount == 2
-		and not h.ctx.interaction.last_used_default
+		plan.leg_at(plan.find_leg_index(&"loc_a")).amount == 2
+		and plan.leg_at(plan.find_leg_index(&"loc_b")).amount == 1
 	)
 
 
-func _test_mod_discover_zero_leg_skips() -> bool:
+func _test_mod_discover_zero_primary_bonus() -> bool:
+	## MOD-08：primary 发现量为 0 时无名修正仍加在 primary。
 	var h := RuleTestHarness.new(42)
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionNode.register(
@@ -1877,17 +1873,14 @@ func _test_mod_discover_zero_leg_skips() -> bool:
 	))
 	var plan := AmountPlan.new()
 	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.effect_shape = AhcEnums.AmountEffectShape.DETERMINED
 	plan.primary_subject_id = &"loc_a"
 	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 0))
 	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 0))
 	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
-	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
-	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
-	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan, {"inv_id": &"inv_1"})
 	return (
-		leg_a.amount == 0
-		and leg_b.amount == 0
-		and int(settled.get("settled", -1)) == 0
+		plan.leg_at(plan.find_leg_index(&"loc_a")).amount == 1
+		and plan.leg_at(plan.find_leg_index(&"loc_b")).amount == 0
 	)
 
 

@@ -51,7 +51,8 @@ func _is_typed_skill(stat: AhcEnums.StatRef) -> bool:
 
 
 ## 域 B：匹配 plan_kind 的消费式修正应用一次。
-## 攻击伤：按 plan.bonus_routing（PIN_PRIMARY / ADD_TO_POOL）；发现：选一腿（多候选 PI）。
+## 无名 +N **不含目标**：只改已定效果的攻击伤害/发现量（plan.apply_amount_bonus）。
+## 须先定效果（DETERMINED 腿 / ASSIGN 候选）；指名落点（09059 等）由效果步另写，不经此默认。
 func apply_to_amount_plan(
 	plan: AmountPlan,
 	controller_id: StringName,
@@ -71,32 +72,9 @@ func apply_to_amount_plan(
 		var bonus := _bonus_delta(mod)
 		if bonus == 0:
 			continue
-		if plan.kind == AhcEnums.ModifierPlanKind.ATTACK_DAMAGE:
-			_apply_attack_bonus(plan, bonus)
-			continue
-		## DISCOVER 等：消费式选一正量腿。
-		var indices := plan.positive_leg_indices()
-		if indices.is_empty():
-			continue
-		var chosen := _choose_leg_index(plan, indices, controller_id, game_ctx)
-		if chosen < 0:
-			continue
-		var leg := plan.leg_at(chosen)
-		if leg != null:
-			leg.amount += bonus
+		## 攻击与发现无名修正同构：改量，不选宿主。
+		plan.apply_amount_bonus(bonus)
 	return plan
-
-
-func _apply_attack_bonus(plan: AmountPlan, bonus: int) -> void:
-	match plan.bonus_routing:
-		AhcEnums.AmountBonusRouting.ADD_TO_POOL:
-			plan.pool_amount = maxi(plan.pool_amount + bonus, 0)
-		_:
-			## PIN_PRIMARY（默认）：钉攻击主目标；无则新建腿。
-			var primary := plan.primary_subject_id
-			if primary == &"":
-				return
-			plan.add_to_subject(primary, bonus)
 
 
 func _bonus_delta(mod: ModifierPayload) -> int:
@@ -180,8 +158,8 @@ static func settle_amount_plan(
 
 
 static func _settle_attack_damage(game_ctx: GameContext, plan: AmountPlan) -> Dictionary:
-	## ADD_TO_POOL：Gate Assign 待接；headless 默认整池 → primary。
-	plan.assign_pool_default()
+	## ASSIGN：执行时物化（Gate 待接；headless 默认整量 → primary）。
+	plan.materialize_assign_default()
 	var settled := 0
 	var subjects: Array[StringName] = []
 	for i in plan.legs.size():
@@ -198,7 +176,7 @@ static func _settle_attack_damage(game_ctx: GameContext, plan: AmountPlan) -> Di
 		"dealt": settled,
 		"subjects": subjects,
 		"targets": subjects,
-		"pool_remaining": plan.pool_amount,
+		"amount_remaining": plan.amount,
 	}
 
 

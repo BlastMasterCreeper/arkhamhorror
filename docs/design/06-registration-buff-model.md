@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.41 · 2026-10-26 — 对敌伤 AmountPlan：`PIN_PRIMARY` / `ADD_TO_POOL`
+> **状态**：v0.4.42 · 2026-10-26 — additional：先定效果；无名修正只改攻击/发现量（无目标）
 
 ---
 
@@ -853,7 +853,7 @@ Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
 
 引擎 ModifierEngine（唯一计算入口）
   compute(base, query)              → 汇入：匹配的 Buff +（若站需要）帧上短暂贡献
-  apply_to_amount_plan(plan, …)   → 域 B：攻击按 Plan.bonus_routing；发现选一腿
+  apply_to_amount_plan(plan, …)   → 域 B：无名 +N 改已定效果的量（无目标）
 ```
 
 **寿命**：Buff → Registration；混乱/投入 → 检定帧；**不**为每个 value_key 另造寿命系统。
@@ -866,16 +866,16 @@ Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
 | apply_mode | 用于 | 行为 |
 |---|---|---|
 | **SCALAR** | 域 A 读值；域 C 序列量；单点效果量 | `compute(base, query)` |
-| **CONSUME_CHOOSE_ONE_LEG** | 域 B Buff 标记（每条修正用一次） | **发现**：选一正量腿（多候选可 PI）。**攻击伤**：落地由 Plan.`bonus_routing` 决定，**不**用本模式选腿 |
+| **CONSUME_CHOOSE_ONE_LEG** | 域 B Buff（每条用一次） | 无名 +N → `plan.apply_amount_bonus`；**修正不含目标** |
 
-对敌攻击 Plan 路由（卡面写死，挂在 `AmountPlan`，非 Buff）：
+**主序（已裁决）**：**先确认目标 / 定效果** → **再**无名数值修正（只落在已定效果的量上）→ 物化/执行。
 
-| `AmountBonusRouting` | 卡面 | 行为 |
-|---|---|---|
-| **`PIN_PRIMARY`**（默认） | 未写分配（03153） | +N → `primary_subject_id`；无选腿 PI |
-| **`ADD_TO_POOL`** | 写明分配（04305） | +N → `pool_amount`；再 Assign 总可分配量（Gate 待接；headless 默认整池→primary） |
+| `AmountEffectShape` | 卡面 | 定效果后 | 无名修正 | 执行 |
+|---|---|---|---|---|
+| **`DETERMINED`** | 单敌 / 03153 | 腿已定；攻击伤害 = primary | `+=` primary（攻击伤害量） | settle 腿 |
+| **`ASSIGN`** | 04305 | 候选集已定；`amount` = 攻击伤害 | `+= amount` | Assign → legs → settle |
 
-**禁止**：默认「每个敌都 +1」；把对敌路由混进调查员承伤 `DamagePipeline`。
+**禁止**：修正里带宿主；默认每腿 +1；把对敌量修混进调查员承伤 `DamagePipeline`。
 
 ### 6.4 值键增长规则
 
@@ -884,7 +884,7 @@ Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
 1. 归入域 A / B / C（上表）。  
 2. 增加 **一个** `value_key`（或复用已有 Plan kind），**不要**新 Engine。  
 3. 在 **有限查询站**（§16.3）挂一次 `compute` / `apply_to_amount_plan`。  
-4. 多目标效果量 → AmountPlan；攻击设 `bonus_routing`；发现用选一腿（§16.3.2）。
+4. 多目标效果量 → AmountPlan + `effect_shape`（§16.3.2）。
 
 ```gdscript
 ## 示意 · 与实现 StatRef 对齐并扩展
@@ -1173,7 +1173,7 @@ Grimoire 条文 / 卡面效果
 | 模式 | API | 域 |
 |---|---|---|
 | 标量 | `ModifierEngine.compute(base, query)` | A 读值 · C 序列量 · B 单点 |
-| 效果 Plan | `apply_to_amount_plan` | B：攻击 `bonus_routing`；发现选一腿 |
+| 效果 Plan | `apply_to_amount_plan` | B：先定效果；无名 +N 改量（`effect_shape`） |
 
 **禁止**：每类数值新 Engine；扁全球 `DAMAGE_AMOUNT` 冒充「本次攻击」；多腿效果量对每腿广播。
 
@@ -1201,83 +1201,77 @@ Grimoire 条文 / 卡面效果
 #### 16.3.2 攻击伤害 / 发现线索：Plan + 修正（重点）
 
 基础 Fight →「对目标造成 1 伤害」；基础 Investigate →「在本地点发现 1 线索」。  
-卡面常 **替换** 该效果（多目标伤、多地点发现、按充能改伤害等）。修正（致命打击、推理）必须作用在 **替换后的计划** 上，而不是假定「永远单目标 1 点」。
+卡面常 **替换** 该效果（多目标伤、多地点发现等）。无名修正（致命打击、推理）必须作用在 **已定效果** 的量上。
 
-**对敌造成 ≠ 调查员受到（落点形态）**：二者可以是同一次桌面写入的两视角，但 **修正进计划的路由表不同**——对敌走 `AmountPlan.bonus_routing`；调查员承伤走 `DamagePipeline` Assign / `increase_pending`（[07 §4](07-effect-resolution.md)），**不要**用选敌腿 PI 冒充承伤分摊。
+**主序（已裁决 2026-10-26）**
+
+1. **先确认目标 / 定效果**（单敌、多腿、或 ASSIGN 候选集）  
+2. **再**无名数值修正——修正 **不含目标**，只改「本次攻击伤害 / 发现量」  
+3. **再**物化（仅 `ASSIGN`：把已修正的攻击伤害 Assign 成腿）与 settle  
+
+挂钩点是 **攻击/发现数值**，不是效果执行步，也不是 Assign 本身。04305 上「先修量再分」与「先分再修」若合格集相同则结果等价；规范仍用先修攻击伤害量。
+
+**对敌造成 ≠ 调查员受到**：承伤量在「受到」才钉 → 先 Assign 再 `increase_pending`（[07 §4](07-effect-resolution.md)）。敌人承伤单主体、无 Assign。
 
 ```text
 成功（Fight / Investigate / 指定行动）
   │
-  ├─ 1. 建 AmountPlan（kind=ATTACK_DAMAGE|DISCOVER）
+  ├─ 1–2. 定效果 → AmountPlan（kind + effect_shape + primary/candidates/legs）
   │
-  ├─ 2. 卡面替换（Instead / 「本攻击改为…」）→ 可多 leg / 可建 pool
-  │      攻击：卡面是否写分配 → 设 bonus_routing
+  ├─ 3. apply_to_amount_plan：无名 Buff 消费一次 → apply_amount_bonus
+  │      DETERMINED：+= primary（攻击伤害线）
+  │      ASSIGN：+= amount（攻击伤害数值）
   │
-  ├─ 3. ModifierEngine.apply_to_amount_plan
-  │      匹配 plan.kind；每条 Buff 消费一次
-  │      ATTACK：PIN_PRIMARY | ADD_TO_POOL
-  │      DISCOVER：选一正量腿（多地可 PI）
-  │
-  └─ 4. settle_amount_plan
-         ATTACK+ADD_TO_POOL：先 Assign pool→legs（Gate 待接；默认→primary）
-         仅 leg amount>0 落点
+  └─ 4. settle：ASSIGN 则 materialize_assign → 落腿；仅 leg>0 写入
 ```
 
-##### 对敌攻击：`AmountBonusRouting`（已裁决 2026-10-26）
+##### `AmountEffectShape`
 
-| 路由 | 锚 | 卡面特征 | 修正 +N |
-|---|---|---|---|
-| **`PIN_PRIMARY`** | 03153 | **未**写分配 / AOE 写明额外对 **attacked** 敌 | 钉 `primary_subject_id`；**无**选腿 PI |
-| **`ADD_TO_POOL`** | 04305 | **写明** assign …；*additional damage adds to this total* | 并入 `pool_amount`；**再** Assign 总量 |
+| 形态 | 锚 | 定效果 | 无名 +N | 执行 |
+|---|---|---|---|---|
+| **`DETERMINED`** | 单敌 · 03153 | 腿已定 | 改 primary 攻击伤害 | settle |
+| **`ASSIGN`** | 04305 | 候选已定；`amount`=攻击伤害 | 改 `amount` | Assign → settle |
 
 ```text
-# PIN_PRIMARY（03153）
-legs = [主:1, 旁:1] + 致命打击+1
-  → legs = [主:2, 旁:1]     ## 不问选哪个敌
+# DETERMINED（03153）
+legs=[主:1, 旁:1] + 致命打击+1
+  → [主:2, 旁:1]          ## 修正无目标；加在攻击伤害（主）上
 
-# ADD_TO_POOL（04305）
-pool=4, legs=[] + 致命打击+1
-  → pool=5
-  → Assign(5) @ 合格敌     ## Gate；headless 默认整池→primary
+# ASSIGN（04305）
+amount=4, candidates=同地敌 + 致命打击+1
+  → amount=5              ## 仍是攻击伤害数值
+  → Assign(5) → legs      ## 执行物化；Gate 待接；默认→primary
 ```
 
-##### 发现线索：仍消费式选一腿
+##### 发现线索
 
-| | 说明 |
-|---|---|
-| **何时** | Plan 已明确后、落点前 |
-| **消费** | 每条适用修正用一次 |
-| **1 候选** | 直接挂 |
-| **多地点** | Gate 选一地；逾期 default（primary / head） |
-| **0 正量腿** | 本轮不生效 |
+无名推理类同构：`DETERMINED` 下 += primary（调查地）。  
+**指名落点**（09059 敌所在地、09108 任选地）由能力/事件 **效果步** 写入已定发现效果或另建腿——不是给无名 Buff 补宿主。
 
 ```gdscript
-class AmountLeg:
-    var subject_id: StringName
-    var amount: int
-
 class AmountPlan:
-    var kind: ModifierPlanKind           # ATTACK_DAMAGE | DISCOVER
+    var kind: ModifierPlanKind
+    var effect_shape: AmountEffectShape   # DETERMINED | ASSIGN
+    var amount: int                       # ASSIGN=攻击伤害量；DETERMINED 与 primary 同步
     var legs: Array[AmountLeg]
     var primary_subject_id: StringName
-    var bonus_routing: AmountBonusRouting  # 攻击专用；默认 PIN_PRIMARY
-    var pool_amount: int                   # ADD_TO_POOL 可分配总量
-    var candidate_ids: Array[StringName]    # Assign 候选
+    var candidate_ids: Array[StringName]
 ```
 
-| 修正例子 | 行为 |
+| 例子 | 行为 |
 |---|---|
-| 致命打击 +1 @ 未写分配多敌 | `PIN_PRIMARY` → 主目标 +1 |
-| 致命打击 +1 @ 04305 式分配 | `ADD_TO_POOL` → pool +1 后再 Assign |
-| 推理 additional clue | `DISCOVER` 选一地 +1（多地 PI） |
-| Brand 替换 | **步骤 2** 重写 Plan；再 `apply_to_amount_plan` |
+| 致命打击 @ 单敌/03153 | 改攻击伤害（primary） |
+| 致命打击 @ 04305 | 改 `amount`；执行再 Assign |
+| 推理 | 改调查地发现量 |
+| 09059 / 09108 | 效果指名定发现对象；非无名 Buff 选腿 |
+| Brand 替换 | 步骤 1–2 重写 Plan；再 apply |
 
-**禁止**：`PER_EACH_LEG` 广播；扁全球量键；为伤/发现各造 Engine；无场景时不为恐惧对称预留 Plan kind；用「选一敌腿」冒充 04305 的总量 Assign。  
-**Register 侧**：`plan_kind` 对齐；Buff `apply: CONSUME_CHOOSE_ONE_LEG` 仅表「用一次」；攻击落点读 Plan 路由。
+**禁止**：`PER_EACH_LEG`；修正自带目标；用选腿冒充 04305 Assign；为恐惧对称预留 Plan kind。  
+**Register**：`plan_kind` + `CONSUME_*`（用一次）；量变经 `apply_amount_bonus`。
 
-**落地进度**：AmountPlan + 攻击 `bonus_routing` ✅（MOD-03/05）；发现选腿 ✅；ST 序列键 · 印刷量 · 对敌 Assign Gate 待。
+**落地**：`effect_shape` + 无名改量 ✅（MOD-03/05/07）；对敌 Assign Gate · 指名发现效果步 · ST/印刷量 待。
 
-**调查员承伤 additional（02221）≠ AmountPlan**：Forced 改 `DamagePipeline` pending；保留已确认 N 腿，只分配增量 K。见 [07 §4](07-effect-resolution.md)。
+**调查员承伤 additional（02221）≠ AmountPlan**：见 [07 §4](07-effect-resolution.md)。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1487,7 +1481,8 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-26 | v0.4.41 | §16.3.2：对敌伤 `PIN_PRIMARY` / `ADD_TO_POOL`；与承伤 Assign 分表 |
+| 2026-10-26 | v0.4.42 | §16.3.2：先定效果；无名 additional 只改攻击/发现量；`DETERMINED`/`ASSIGN` |
+| 2026-10-26 | v0.4.41 | §16.3.2：对敌伤 `PIN_PRIMARY` / `ADD_TO_POOL`（由 v0.4.42 收成 effect_shape） |
 | 2026-10-24 | v0.4.40 | incoming additional（02221）：保留 N 腿，仅增量 K @ 合法全合格集 |
 | 2026-10-24 | v0.4.39 | 撤 AmountPlan HORROR kind/payload/settle 预留（无消费式多腿场景） |
 | 2026-10-24 | v0.4.38 | 域 B：Attack/Discover Plan 收成 AmountPlan；统一 apply/settle |

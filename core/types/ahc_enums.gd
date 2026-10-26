@@ -382,19 +382,19 @@ enum ModifierPlanKind {
 	DISCOVER,
 }
 
-## Plan 量修正：标量 SCALAR；域 B 效果量 Buff 仍标记 CONSUME_*（每条用一次）。
-## 攻击伤落到哪条腿 **不**由本枚举决定 → 见 AmountBonusRouting（Plan 侧）。
+## Plan 量修正：标量 SCALAR；域 B 效果量 Buff 标记 CONSUME_*（每条用一次）。
+## 无名攻击/发现修正 **不含目标**；只改已定效果的量。物化见 AmountEffectShape。
 enum ModifierApplyMode {
 	SCALAR,
-	## 发现等多宿主：消费式选一腿（多候选可 PI）。攻击伤改走 Plan.bonus_routing。
+	## 域 B：本条修正消费一次。攻击/发现无名 +N → 改 Plan 攻击伤害（或发现）量。
 	CONSUME_CHOOSE_ONE_LEG,
 }
 
-## 对敌攻击伤害：修正 +N 如何进入 AmountPlan（卡面写死；非 Buff 自带）。
-## 与调查员承伤 Assign / increase_pending 无关。
-enum AmountBonusRouting {
-	## 未写分配（03153）：+N 钉 primary_subject_id（攻击目标），无选腿 PI。
-	PIN_PRIMARY,
-	## 写明分配（04305）：+N 并入 pool_amount，再 Assign 总可分配量。
-	ADD_TO_POOL,
+## 已定攻击/发现效果的物化形态（卡面写死；先于无名修正）。
+## 无名 additional 只改「本次攻击伤害/发现量」数值，不带目标、不改 Assign 步骤。
+enum AmountEffectShape {
+	## 目标已定（单敌 / 03153 多腿）：攻击伤害量 = primary 腿；修正 += primary。
+	DETERMINED,
+	## 04305：效果已定（候选集已知）；`amount` = 攻击伤害量；修正 += amount；执行时再 Assign。
+	ASSIGN,
 }
