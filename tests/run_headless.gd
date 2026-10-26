@@ -83,6 +83,9 @@ func _initialize() -> void:
 	_run_test("MOD-10 enemy ENEMY_DAMAGE then DamagePipeline", _test_mod_enemy_damage_then_pipeline)
 	_run_test("MOD-11 enemy attack WHEN increase_pending", _test_mod_enemy_attack_increase_pending)
 	_run_test("MOD-12 discover named bonus other location", _test_mod_discover_named_bonus)
+	_run_test("MOD-13 attack multi-leg settle one seq", _test_mod_attack_multi_leg_settle_one_seq)
+	_run_test("MOD-14 discover multi-leg settle one seq", _test_mod_discover_multi_leg_settle_one_seq)
+	_run_test("MOD-15 multi-leg damage AFTER fires once", _test_mod_multi_leg_damage_after_once)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -1959,6 +1962,99 @@ func _test_mod_discover_named_bonus() -> bool:
 	return (
 		plan.leg_at(plan.find_leg_index(&"loc_a")).amount == 1
 		and plan.leg_at(plan.find_leg_index(&"loc_enemy")).amount == 1
+	)
+
+
+func _test_mod_attack_multi_leg_settle_one_seq() -> bool:
+	## MOD-13 · 03153 形：多敌 DETERMINED settle → 一条 seq.effect.damage + legs；L0 仍单目标。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	var ea := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var eb := h.ctx.state.registry.get_enemy(&"enemy_b")
+	ea.health = 10
+	eb.health = 10
+	var plan := AmountPlan.attack_damage_determined(
+		&"enemy_a", {&"enemy_a": 2, &"enemy_b": 1}
+	)
+	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan)
+	ea = h.ctx.state.registry.get_enemy(&"enemy_a")
+	eb = h.ctx.state.registry.get_enemy(&"enemy_b")
+	return (
+		bool(settled.get("multi", false))
+		and int(settled.get("settled", 0)) == 3
+		and ea.damage == 2
+		and eb.damage == 1
+	)
+
+
+func _test_mod_discover_multi_leg_settle_one_seq() -> bool:
+	## MOD-14：多地 DISCOVER settle → 一条 seq.effect.discover_clue + legs；原语逐地。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a", 2, 3)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 2, 3)
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.effect_shape = AhcEnums.AmountEffectShape.DETERMINED
+	plan.primary_subject_id = &"loc_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 2))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 1))
+	plan.amount = 2
+	var settled := ModifierEngine.settle_amount_plan(
+		h.ctx, plan, {"inv_id": &"inv_1"}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var la := h.ctx.state.registry.get_location(&"loc_a")
+	var lb := h.ctx.state.registry.get_location(&"loc_b")
+	return (
+		bool(settled.get("multi", false))
+		and int(settled.get("settled", 0)) == 3
+		and inv.clues_on_card == 3
+		and la.clues == 1
+		and lb.clues == 2
+	)
+
+
+func _test_mod_multi_leg_damage_after_once() -> bool:
+	## MOD-15：legs 多目标仍一条 damage 帧 → AFTER 只响一次。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_a").health = 10
+	h.ctx.state.registry.get_enemy(&"enemy_b").health = 10
+	var after_n := {"n": 0}
+	var after_h := SequenceHandler.after_forced(&"damage", func() -> void: pass)
+	after_h.callback = func() -> void:
+		after_n["n"] = int(after_n["n"]) + 1
+	h.ctx.sequences.register_handler(after_h)
+	var nest_res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.damage",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"damage",
+			"target": &"enemy",
+			"legs": [
+				{"id": &"enemy_a", "amount": 1},
+				{"id": &"enemy_b", "amount": 1},
+			],
+		}
+	)
+	var ea := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var eb := h.ctx.state.registry.get_enemy(&"enemy_b")
+	return (
+		nest_res is Dictionary
+		and bool((nest_res as Dictionary).get("multi", false))
+		and int((nest_res as Dictionary).get("amount", 0)) == 2
+		and after_n["n"] == 1
+		and ea.damage == 1
+		and eb.damage == 1
 	)
 
 

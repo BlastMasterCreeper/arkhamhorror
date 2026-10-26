@@ -1224,8 +1224,10 @@ Grimoire 条文 / 卡面效果
   │      DETERMINED：+= primary（攻击伤害线）
   │      ASSIGN：+= amount（攻击伤害数值）
   │
-  └─ 4. settle：ASSIGN 则 materialize_assign → 落腿；仅 leg>0 写入
+  └─ 4. settle：ASSIGN 则 materialize_assign → 落腿；**一条** `seq.effect.*` + `legs[]`；仅 leg>0 写入
 ```
+
+**多目标粒度（已裁决）**：`AmountPlan.legs` / `params.legs` 由 **命名流程**（`seq.effect.damage` / `seq.effect.discover_clue`）一次压栈承载；**状态原语（L0）仍单目标**，handler 内逐腿内联写入。禁止为每腿另 nest 同种 seq；禁止 L0 吞多目标。
 
 ##### `AmountEffectShape`
 
@@ -1492,6 +1494,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.44 | settle 多目标：一条 seq + `legs[]`；L0 仍单目标（MOD-13/14/15） |
 | 2026-10-26 | v0.4.43 | additional 全路径：敌伤 `ENEMY_DAMAGE` + 攻击进 `DamagePipeline`；指名 `add_named_bonus` |
 | 2026-10-26 | v0.4.42 | §16.3.2：先定效果；无名 additional 只改攻击/发现量；`DETERMINED`/`ASSIGN` |
 | 2026-10-26 | v0.4.41 | §16.3.2：对敌伤 `PIN_PRIMARY` / `ADD_TO_POOL`（由 v0.4.42 收成 effect_shape） |

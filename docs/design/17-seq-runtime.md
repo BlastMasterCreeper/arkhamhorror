@@ -222,8 +222,8 @@
 | `seq.enemy.defeat` | 击败（敌人别名） | 同核；TC `enemy_defeated` |
 | `seq.defeat.leave_play` | 击败后退场 | nest from defeat；敌人路由 / 调查员淘汰清理 |
 | `seq.engage` | 交战内核（auto / effect） | `EngageFlow`；行动外壳 nest effect |
-| `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅 |
-| `seq.effect.damage` | **造成伤害/恐惧**（Dealing Damage/Horror；take/deal 同 seq） | `kind` + `source` + `target`；卡面 / 显现 / Fire! |
+| `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅；多地 = `legs[]`（仍一帧；L0 逐地） |
+| `seq.effect.damage` | **造成伤害/恐惧**（Dealing Damage/Horror；take/deal 同 seq） | `kind` + `source` + `target`；多目标 = `legs[]`（仍一帧；L0 逐体）；卡面 / 显现 / Fire! |
 | `seq.effect.lose_resources` | 失去资源（含全部：`all: true`） | 卡面；CREATED = 实际扣到 |
 | `seq.effect.heal` | 治疗伤害或恐惧（`kind` 参数） | 卡面 |
 | `seq.effect.lose_action` | 失去行动 | 卡面 |
@@ -328,6 +328,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.28 | §5：`seq.effect.damage` / `discover_clue` 支持 `legs[]` 多目标；一帧；L0 仍单目标 |
 | 2026-10-25 | v0.4.27 | §4.4：伤害 additional → `increase_pending`+`assign_delta`（TIM-DMG-03/04） |
 | 2026-10-22 | v0.4.26 | I3：`InitiationPool` / 发起池（替 ActivationPool） |
 | 2026-10-22 | v0.4.25 | W1 竖切 Eligibility COLLECT；W3/I3 术语对齐响应池 / 发起池 |

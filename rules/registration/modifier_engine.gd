@@ -107,23 +107,52 @@ static func settle_amount_plan(
 static func _settle_attack_damage(game_ctx: GameContext, plan: AmountPlan) -> Dictionary:
 	## ASSIGN：执行时物化（Gate 待接；headless 默认整量 → primary）。
 	plan.materialize_assign_default()
-	var settled := 0
+	var legs_payload: Array = []
 	var subjects: Array[StringName] = []
 	for i in plan.legs.size():
 		var leg := plan.leg_at(i)
 		if leg == null or leg.amount <= 0 or leg.subject_id == &"":
 			continue
-		var result := EnemyDefeatResolver.deal_damage(game_ctx, leg.subject_id, leg.amount)
-		if bool(result.get("ok", false)):
-			settled += leg.amount
-			subjects.append(leg.subject_id)
+		legs_payload.append({"id": leg.subject_id, "amount": leg.amount})
+		subjects.append(leg.subject_id)
+	if legs_payload.is_empty():
+		return {
+			"ok": false,
+			"settled": 0,
+			"dealt": 0,
+			"subjects": subjects,
+			"amount_remaining": plan.amount,
+		}
+	var settled := 0
+	## 一条 seq.effect.damage + legs；原语仍逐敌单目标。
+	if game_ctx != null and game_ctx.sequence_catalog != null:
+		var nest_res: Variant = game_ctx.sequence_catalog.nest(
+			game_ctx,
+			&"seq.effect.damage",
+			{
+				"controller_id": plan.primary_subject_id,
+				"kind": &"damage",
+				"target": &"enemy",
+				"legs": legs_payload,
+			}
+		)
+		if nest_res is Dictionary:
+			settled = int((nest_res as Dictionary).get("amount", 0))
+	else:
+		for entry in legs_payload:
+			var eid: StringName = entry.get("id", &"")
+			var amt := int(entry.get("amount", 0))
+			var result := EnemyDefeatResolver.deal_damage(game_ctx, eid, amt)
+			if bool(result.get("ok", false)):
+				settled += amt
 	return {
-		"ok": true,
+		"ok": settled > 0,
 		"settled": settled,
 		"dealt": settled,
 		"subjects": subjects,
 		"targets": subjects,
 		"amount_remaining": plan.amount,
+		"multi": true,
 	}
 
 
@@ -132,39 +161,38 @@ static func _settle_discover(
 	plan: AmountPlan,
 	inv_id: StringName
 ) -> Dictionary:
-	var settled := 0
 	var subjects: Array[StringName] = []
 	if inv_id == &"":
 		return {"ok": false, "error": &"missing_inv_id", "settled": 0, "subjects": subjects}
+	var legs_payload: Array = []
 	for i in plan.legs.size():
 		var leg := plan.leg_at(i)
 		if leg == null or leg.amount <= 0 or leg.subject_id == &"":
 			continue
-		var moved := 0
-		if game_ctx != null and game_ctx.sequence_catalog != null:
-			var nest_res: Variant = game_ctx.sequence_catalog.nest(
-				game_ctx,
-				&"seq.effect.discover_clue",
-				{
-					"inv_id": inv_id,
-					"location_id": leg.subject_id,
-					"amount": leg.amount,
-				}
-			)
-			if nest_res is Dictionary:
-				moved = int((nest_res as Dictionary).get("amount", 0))
-		elif game_ctx != null:
-			var run_res := DiscoverClueFlow.run(
-				game_ctx, inv_id, leg.subject_id, leg.amount
-			)
-			moved = int(run_res.get("amount", 0))
-		if moved > 0:
-			settled += moved
-			subjects.append(leg.subject_id)
+		legs_payload.append({"location_id": leg.subject_id, "amount": leg.amount})
+		subjects.append(leg.subject_id)
+	if legs_payload.is_empty():
+		return {"ok": false, "settled": 0, "subjects": subjects}
+	var settled := 0
+	## 一条 seq.effect.discover_clue + legs；原语仍逐地单目标。
+	if game_ctx != null and game_ctx.sequence_catalog != null:
+		var nest_res: Variant = game_ctx.sequence_catalog.nest(
+			game_ctx,
+			&"seq.effect.discover_clue",
+			{"inv_id": inv_id, "legs": legs_payload}
+		)
+		if nest_res is Dictionary:
+			settled = int((nest_res as Dictionary).get("amount", 0))
+	else:
+		var run_res := DiscoverClueFlow.run_params(
+			game_ctx, {"inv_id": inv_id, "legs": legs_payload}
+		)
+		settled = int(run_res.get("amount", 0))
 	return {
-		"ok": true,
+		"ok": settled > 0,
 		"settled": settled,
 		"discovered": settled,
 		"subjects": subjects,
 		"locations": subjects,
+		"multi": true,
 	}

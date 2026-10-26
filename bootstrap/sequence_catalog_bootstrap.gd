@@ -172,29 +172,14 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
 		&"seq.effect.discover_clue",
 		func(params: Dictionary) -> TriggeringCondition:
-			var inv_id: StringName = params.get("inv_id", &"")
-			var location_id: StringName = params.get("location_id", &"")
-			var amount: int = int(params.get("amount", 1))
-			return TriggeringCondition.discover_clue(inv_id, location_id, amount),
+			return TriggeringCondition.discover_clue_from_params(params),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return DiscoverClueFlow.run(
-				game_ctx,
-				params.get("inv_id", &"") as StringName,
-				params.get("location_id", &"") as StringName,
-				int(params.get("amount", 1))
-			)
+			return DiscoverClueFlow.run_params(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.effect.damage",
 		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.damage(
-				params.get("controller_id", params.get("inv_id", &"")) as StringName,
-				StringName(str(params.get("kind", "damage"))),
-				int(params.get("amount", 1)),
-				bool(params.get("direct", false)),
-				StringName(str(params.get("target", "controller"))),
-				params.get("source", params.get("card_id", &"")) as StringName
-			),
+			return TriggeringCondition.damage_from_params(params),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.damage(game_ctx, params),
 		false,

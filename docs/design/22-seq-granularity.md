@@ -81,11 +81,11 @@
 
 | flow_id | Grimoire 词条 | 粒度裁决（草案） |
 |---|---|---|
-| `seq.effect.damage` | Dealing Damage/Horror | **已统一** take/deal；`kind`+`target`+`source` |
+| `seq.effect.damage` | Dealing Damage/Horror | **已统一** take/deal；`kind`+`target`+`source`；多目标 `legs[]`（一帧；L0 单目标） |
 | `seq.effect.heal` | Heal | **保留** |
 | `seq.effect.lose_resources` | （失去资源） | **保留**；`all` 参数 |
 | `seq.effect.lose_action` | （失去行动） | **保留** |
-| `seq.effect.discover_clue` | Clues / discover | **保留** |
+| `seq.effect.discover_clue` | Clues / discover | **保留**；多地 `legs[]`（一帧；L0 单目标） |
 | `seq.effect.place_clue` | 线索放到地点 | **保留**（与 discover 因果不同） |
 | `seq.effect.place_doom` | Doom（卡面放置） | **保留**；**勿**并入 mythos |
 | `seq.effect.discard_card` | Discard | **已统一**；`from=hand` / `card_id` / 寻址 |

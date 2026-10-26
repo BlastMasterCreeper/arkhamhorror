@@ -693,13 +693,25 @@ static func discover_clue(
 	amount: int = 1,
 	after_timing: StringName = &"after_discover_clue"
 ) -> TriggeringCondition:
+	return discover_clue_from_params(
+		{"inv_id": inv_id, "location_id": location_id, "amount": amount},
+		after_timing
+	)
+
+
+## 单地或 legs 多地；多目标仍一条 discover_clue 帧（AFTER 一次）。
+static func discover_clue_from_params(
+	params: Dictionary,
+	after_timing: StringName = &"after_discover_clue"
+) -> TriggeringCondition:
+	var inv_id: StringName = params.get("inv_id", &"")
 	var t := TriggeringCondition.new()
 	t.id = StringName("discover_clue_%s_%d" % [inv_id, Time.get_ticks_msec()])
 	t.kind = &"discover_clue"
 	t.controller_id = inv_id
 	t.tags = [&"discover_clue"]
 	t.after_timing = after_timing
-	t.payload = {"inv_id": inv_id, "location_id": location_id, "amount": amount}
+	t.payload = params.duplicate(true)
 	return t
 
 
@@ -730,12 +742,36 @@ static func damage(
 	source: StringName = &"",
 	after_timing: StringName = &"after_damage"
 ) -> TriggeringCondition:
+	return damage_from_params(
+		{
+			"controller_id": controller_id,
+			"kind": kind,
+			"amount": amount,
+			"direct": is_direct,
+			"target": target,
+			"source": source,
+		},
+		after_timing
+	)
+
+
+## 单目标或 legs 多目标；多目标仍一条 damage 帧。
+static func damage_from_params(
+	params: Dictionary,
+	after_timing: StringName = &"after_damage"
+) -> TriggeringCondition:
+	var controller_id: StringName = params.get(
+		"controller_id", params.get("inv_id", &"")
+	)
+	var kind := StringName(str(params.get("kind", "damage")))
+	var payload := params.duplicate(true)
+	payload["kind"] = kind
 	return _effect(
 		&"damage",
 		controller_id,
 		[&"effect", &"damage", kind],
 		after_timing,
-		{"kind": kind, "amount": amount, "direct": is_direct, "target": target, "source": source}
+		payload
 	)
 
 

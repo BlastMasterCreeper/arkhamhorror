@@ -6,53 +6,19 @@ extends RefCounted
 
 
 ## 造成伤害/恐惧（Dealing Damage/Horror）· take/deal 同 seq；用 kind + source + target。
+## 多目标：params.legs = [{id|enemy_id|card_id, amount}, ...]；状态原语仍单目标。
 static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var kind := StringName(str(params.get("kind", "damage")))
-	var amount := maxi(int(params.get("amount", 1)), 1)
 	var target := StringName(str(params.get("target", "controller")))
 	var inv_id := _controller_id(game_ctx, params)
 	if game_ctx == null or game_ctx.mutator == null:
 		return {"ok": false, "amount": 0}
-	var applied := 0
 	var is_direct := bool(params.get("direct", false))
-	match target:
-		&"each_at_controller_location", &"each_at_source_location":
-			var loc_id := _location_for_target(game_ctx, params, target)
-			if loc_id == &"":
-				return {"ok": false, "amount": 0}
-			for other_id in game_ctx.state.registry.all_investigator_ids():
-				var other := game_ctx.state.registry.get_investigator(other_id)
-				if other == null or other.eliminated or other.resigned:
-					continue
-				if other.location_tag != loc_id:
-					continue
-				applied += _apply_to_investigator(game_ctx, other_id, kind, amount, is_direct)
-		&"non_elite_with_health_at_attached_location":
-			if kind != &"damage":
-				return {"ok": false, "amount": 0, "error": "horror_not_supported_for_target"}
-			applied = _deal_non_elite_with_health_at_attached(game_ctx, params, amount)
-		&"enemy":
-			if kind != &"damage":
-				return {"ok": false, "amount": 0, "error": "horror_not_supported_for_enemy"}
-			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
-			if game_ctx.state.registry.get_enemy(enemy_id) == null:
-				return {"ok": false, "amount": 0}
-			var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
-			applied = amount if bool(result.get("ok", false)) else 0
-		&"asset", &"card":
-			var asset_id: StringName = params.get("card_id", params.get("asset_id", &""))
-			if game_ctx.state.registry.get_card(asset_id) == null:
-				return {"ok": false, "amount": 0, "error": "unknown_asset"}
-			var asset_res: Dictionary
-			if kind == &"horror":
-				asset_res = DefeatFlow.deal_horror_to_asset(game_ctx, asset_id, amount)
-			else:
-				asset_res = DefeatFlow.deal_damage_to_asset(game_ctx, asset_id, amount)
-			applied = amount if bool(asset_res.get("ok", false)) else 0
-		_:
-			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
-				return {"ok": false, "amount": 0, "error": "unknown_investigator"}
-			applied = _apply_to_investigator(game_ctx, inv_id, kind, amount, is_direct)
+	var raw_legs: Variant = params.get("legs", null)
+	if raw_legs is Array and not (raw_legs as Array).is_empty():
+		return _damage_legs(game_ctx, params, kind, target, inv_id, is_direct, raw_legs as Array)
+	var amount := maxi(int(params.get("amount", 1)), 1)
+	var applied := _damage_one(game_ctx, params, kind, target, inv_id, is_direct, amount, &"")
 	_log(
 		game_ctx,
 		"effect:damage",
@@ -61,10 +27,120 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			"target": target,
 			"amount": applied,
 			"source": params.get("source", params.get("card_id", &"")),
-			"direct": bool(params.get("direct", false)),
+			"direct": is_direct,
 		}
 	)
 	return {"ok": applied > 0, "amount": applied, "kind": kind, "target": target}
+
+
+static func _damage_legs(
+	game_ctx: GameContext,
+	params: Dictionary,
+	kind: StringName,
+	target: StringName,
+	inv_id: StringName,
+	is_direct: bool,
+	legs: Array
+) -> Dictionary:
+	var applied := 0
+	var subjects: Array[StringName] = []
+	var leg_results: Array = []
+	for raw in legs:
+		if not (raw is Dictionary):
+			continue
+		var d: Dictionary = raw
+		var amt := int(d.get("amount", 0))
+		if amt <= 0:
+			continue
+		var sid: StringName = d.get(
+			"id", d.get("enemy_id", d.get("card_id", d.get("subject_id", &"")))
+		)
+		var one := _damage_one(game_ctx, params, kind, target, inv_id, is_direct, amt, sid)
+		leg_results.append({"id": sid, "amount": one})
+		if one > 0:
+			applied += one
+			if sid != &"":
+				subjects.append(sid)
+	_log(
+		game_ctx,
+		"effect:damage",
+		{
+			"kind": kind,
+			"target": target,
+			"amount": applied,
+			"multi": true,
+			"subjects": subjects,
+			"source": params.get("source", params.get("card_id", &"")),
+			"direct": is_direct,
+		}
+	)
+	return {
+		"ok": applied > 0,
+		"amount": applied,
+		"kind": kind,
+		"target": target,
+		"subjects": subjects,
+		"legs": leg_results,
+		"multi": true,
+	}
+
+
+static func _damage_one(
+	game_ctx: GameContext,
+	params: Dictionary,
+	kind: StringName,
+	target: StringName,
+	inv_id: StringName,
+	is_direct: bool,
+	amount: int,
+	override_id: StringName
+) -> int:
+	match target:
+		&"each_at_controller_location", &"each_at_source_location":
+			## 广播仍按同量扫地点；legs 模式不走此支。
+			var loc_id := _location_for_target(game_ctx, params, target)
+			if loc_id == &"":
+				return 0
+			var sum := 0
+			for other_id in game_ctx.state.registry.all_investigator_ids():
+				var other := game_ctx.state.registry.get_investigator(other_id)
+				if other == null or other.eliminated or other.resigned:
+					continue
+				if other.location_tag != loc_id:
+					continue
+				sum += _apply_to_investigator(game_ctx, other_id, kind, amount, is_direct)
+			return sum
+		&"non_elite_with_health_at_attached_location":
+			if kind != &"damage":
+				return 0
+			return _deal_non_elite_with_health_at_attached(game_ctx, params, amount)
+		&"enemy":
+			if kind != &"damage":
+				return 0
+			var enemy_id: StringName = override_id
+			if enemy_id == &"":
+				enemy_id = params.get("enemy_id", params.get("card_id", &""))
+			if game_ctx.state.registry.get_enemy(enemy_id) == null:
+				return 0
+			var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
+			return amount if bool(result.get("ok", false)) else 0
+		&"asset", &"card":
+			var asset_id: StringName = override_id
+			if asset_id == &"":
+				asset_id = params.get("card_id", params.get("asset_id", &""))
+			if game_ctx.state.registry.get_card(asset_id) == null:
+				return 0
+			var asset_res: Dictionary
+			if kind == &"horror":
+				asset_res = DefeatFlow.deal_horror_to_asset(game_ctx, asset_id, amount)
+			else:
+				asset_res = DefeatFlow.deal_damage_to_asset(game_ctx, asset_id, amount)
+			return amount if bool(asset_res.get("ok", false)) else 0
+		_:
+			var who := inv_id if override_id == &"" else override_id
+			if who == &"" or game_ctx.state.registry.get_investigator(who) == null:
+				return 0
+			return _apply_to_investigator(game_ctx, who, kind, amount, is_direct)
 
 
 static func take_horror(game_ctx: GameContext, params: Dictionary) -> Dictionary:
