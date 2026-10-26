@@ -19,7 +19,7 @@
 2. **`seq.*` 只做时点切分**（WOULD/WHEN/RESOLVE/AFTER 与因果 nest）。**禁止**把条件写进 `flow_id`（技能类型、目标过滤、Elite、pile、amount=all 等）。
 3. **条件 / 视角差异 → `params`**（及 Eligibility / Scope / 目标解析）。例：
    - `seq.skill_test` + `params.skill`（勿 `seq.skill_test.willpower|…`）
-   - **造成伤害/恐惧**（Dealing Damage/Horror）：`seq.effect.damage` + `kind` + `source` + `target`；纸面 “take / deal” 只是视角，**同一条 seq**
+   - **造成伤害/恐惧**：待分配 `seq.effect.damage.assignable`；无分配已定 `seq.effect.damage`；纸面 take/deal 同词条、按是否分配分两条
    - `seq.effect.lose_resources` + `all: true`（勿另开 `lose_all_resources`）
 4. Forced 订阅 **时点 seq 的 kind**；「是不是附着地点上的非 Elite」等过滤留在 params / 解析器，不铸造 `seq.fire_damage`。
 5. **敏感度**：并得越宽，订该 `sequence_id` 的能力被枚举越频；差异必须进 **params / tags / ApplicationContext** 供 Eligibility 拦截。过滤贵过再铸一条、或订阅语义必须靠不同 `sequence_id` → **拆**。
