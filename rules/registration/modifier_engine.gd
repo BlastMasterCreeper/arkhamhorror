@@ -87,59 +87,6 @@ func _bonus_delta(mod: ModifierPayload) -> int:
 			return 0
 
 
-func _choose_leg_index(
-	plan: AmountPlan,
-	indices: Array[int],
-	controller_id: StringName,
-	game_ctx: GameContext
-) -> int:
-	if indices.size() == 1:
-		return indices[0]
-	## 多候选 → PI；primary_subject_id 仅作 default。
-	var candidates: Array = []
-	var default_index := 0
-	for i in indices.size():
-		var leg_i := plan.leg_at(indices[i])
-		if leg_i == null:
-			continue
-		candidates.append(leg_i.subject_id)
-		if plan.primary_subject_id != &"" and leg_i.subject_id == plan.primary_subject_id:
-			default_index = candidates.size() - 1
-	if candidates.is_empty():
-		return -1
-	if game_ctx != null and game_ctx.interaction != null:
-		var pick: Variant = _ask_pick_leg_target(
-			candidates, controller_id, default_index, plan.pi_prompt_id(), game_ctx
-		)
-		if pick != null:
-			for i in indices.size():
-				var leg := plan.leg_at(indices[i])
-				if leg != null and leg.subject_id == pick:
-					return indices[i]
-	return indices[default_index] if default_index < indices.size() else indices[0]
-
-
-func _ask_pick_leg_target(
-	candidates: Array,
-	controller_id: StringName,
-	default_index: int,
-	prompt_id: StringName,
-	game_ctx: GameContext
-) -> Variant:
-	var req := ChoiceRequest.new()
-	req.kind = AhcEnums.ChoiceKind.PICK_TARGET
-	req.decider_id = controller_id
-	req.prompt_id = prompt_id
-	req.options = candidates.duplicate()
-	req.default_index = clampi(default_index, 0, maxi(candidates.size() - 1, 0))
-	req.default_policy = &"first_option"
-	req.deadline_ms = -1
-	var pick: Variant = game_ctx.interaction.ask(req, game_ctx)
-	if pick == null:
-		return DefaultChoiceResolver.compute_default(req)
-	return pick
-
-
 ## 落点：仅 amount>0 的 leg；按 plan.kind 分派。ctx 可带 inv_id（发现）等。
 static func settle_amount_plan(
 	game_ctx: GameContext,
