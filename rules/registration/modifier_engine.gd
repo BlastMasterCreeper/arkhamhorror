@@ -105,8 +105,62 @@ static func settle_amount_plan(
 
 
 static func _settle_attack_damage(game_ctx: GameContext, plan: AmountPlan) -> Dictionary:
-	## ASSIGN：执行时物化（Gate 待接；headless 默认整量 → primary）。
-	plan.materialize_assign_default()
+	if plan.effect_shape == AhcEnums.AmountEffectShape.ASSIGN:
+		return _settle_attack_assignable(game_ctx, plan)
+	return _settle_attack_determined(game_ctx, plan)
+
+
+static func _settle_attack_assignable(game_ctx: GameContext, plan: AmountPlan) -> Dictionary:
+	## 有分配：nest damage.assignable（内侧 Assign+Apply）。
+	var amount := plan.amount
+	var subjects: Array[StringName] = []
+	if amount <= 0:
+		return {
+			"ok": false,
+			"settled": 0,
+			"dealt": 0,
+			"subjects": subjects,
+			"amount_remaining": plan.amount,
+		}
+	var settled := 0
+	if game_ctx != null and game_ctx.sequence_catalog != null:
+		var nest_res: Variant = game_ctx.sequence_catalog.nest(
+			game_ctx,
+			&"seq.effect.damage.assignable",
+			{
+				"controller_id": plan.primary_subject_id,
+				"kind": &"damage",
+				"target": &"enemy",
+				"amount": amount,
+				"primary_id": plan.primary_subject_id,
+				"candidates": plan.candidate_ids,
+			}
+		)
+		if nest_res is Dictionary:
+			settled = int((nest_res as Dictionary).get("amount", 0))
+			var legs_v: Variant = (nest_res as Dictionary).get("legs", [])
+			if legs_v is Array:
+				for entry in legs_v as Array:
+					if entry is Dictionary:
+						var sid: StringName = (entry as Dictionary).get("id", &"")
+						if sid != &"":
+							subjects.append(sid)
+	else:
+		plan.materialize_assign_default()
+		return _settle_attack_determined(game_ctx, plan)
+	plan.amount = 0
+	return {
+		"ok": settled > 0,
+		"settled": settled,
+		"dealt": settled,
+		"subjects": subjects,
+		"targets": subjects,
+		"amount_remaining": plan.amount,
+		"assignable": true,
+	}
+
+
+static func _settle_attack_determined(game_ctx: GameContext, plan: AmountPlan) -> Dictionary:
 	var legs_payload: Array = []
 	var subjects: Array[StringName] = []
 	for i in plan.legs.size():
@@ -124,7 +178,7 @@ static func _settle_attack_damage(game_ctx: GameContext, plan: AmountPlan) -> Di
 			"amount_remaining": plan.amount,
 		}
 	var settled := 0
-	## 一条 seq.effect.damage + legs；原语仍逐敌单目标。
+	## 无分配：一条 seq.effect.damage + legs。
 	if game_ctx != null and game_ctx.sequence_catalog != null:
 		var nest_res: Variant = game_ctx.sequence_catalog.nest(
 			game_ctx,

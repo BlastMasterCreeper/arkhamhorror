@@ -204,8 +204,9 @@ Grimoire p.8：
 
 **已裁决（2026-10-22 · 约束参数化 2026-10-23 · 交互形态 2026-10-23）**：
 
-- Assign = **静态 PI**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`）：**不是** RESOLVE 时点砖，**不** nest，**不** emit WOULD/WHEN。
-- **始终有 Assign 步**：对调查员 → 可摊交互；对卡牌 → 候选 = {该卡}（可退化单点确认）；对敌人 → {该敌人}（仅 damage）。
+- Assign = **静态 PI**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`）：**不是** 独立时点砖，**不**单独成 seq。
+- **有分配手续** = `seq.effect.damage.assignable`：Assign PI + Apply **封为一条**（同帧；TC.kind 仍 `damage`）。
+- **无分配手续** = `seq.effect.damage`：已定 `legs[]` / 单点，**无** Assign。
 - lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
 - 逾期 / headless 未确认 → `DamageAssigner.default_assignment`（见下）。
 

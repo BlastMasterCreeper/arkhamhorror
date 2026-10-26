@@ -3453,10 +3453,10 @@ func _test_adb_12145_reaction_declined() -> bool:
 
 func _test_seq_eff_nest_take_horror() -> bool:
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.damage"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.damage.assignable"):
 		return false
 	var node := CompositionNode.nest_take_horror(&"inv_1", 2)
-	if node.nest_flow_id != &"seq.effect.damage":
+	if node.nest_flow_id != &"seq.effect.damage.assignable":
 		return false
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(node)
@@ -7577,7 +7577,7 @@ func _test_g5_investigator_horror_cap() -> bool:
 	inv.horror_taken = 0
 	var applied := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.damage.assignable",
 		{
 			"controller_id": &"inv_1",
 			"kind": &"horror",
@@ -8245,7 +8245,7 @@ func _test_tim_dmg_apply_slots() -> bool:
 	)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.damage.assignable",
 		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
 	)
 	var trace := h.ctx.memory.phase_trace
@@ -8299,7 +8299,7 @@ func _test_tim_dmg_prevent() -> bool:
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.damage.assignable",
 		{"controller_id": &"inv_1", "kind": &"horror", "amount": 2}
 	)
 	return (
@@ -8322,7 +8322,7 @@ func _test_tim_dmg_increase_pending() -> bool:
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.damage.assignable",
 		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
 	)
 	return (
@@ -8362,7 +8362,7 @@ func _test_tim_dmg_increase_keeps_legs() -> bool:
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.damage.assignable",
 		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
 	)
 	var card := h.ctx.state.registry.get_card(card_id)

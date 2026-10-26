@@ -809,12 +809,12 @@ static func for_each_memory(
 	return n
 
 
-## 调查员受到 horror · nest `seq.effect.damage`（kind=horror）。
+## 调查员受到 horror · nest `seq.effect.damage.assignable`（kind=horror）。
 static func take_horror(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_horror(inv_id, amount, is_direct)
 
 
-## 调查员受到 damage · nest `seq.effect.damage`（kind=damage）。
+## 调查员受到 damage · nest `seq.effect.damage.assignable`（kind=damage）。
 static func take_damage(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_damage(inv_id, amount, is_direct)
 
@@ -827,7 +827,7 @@ static func _nest_leaf(atom_name: StringName, flow_id: StringName) -> Compositio
 	return n
 
 
-## 造成伤害/恐惧（Dealing Damage/Horror）· take/deal 同 seq。
+## 造成伤害/恐惧。controller / 广播 → assignable；已定敌·支援 → damage。
 static func nest_damage(
 	controller_id: StringName,
 	kind: StringName = &"damage",
@@ -836,7 +836,16 @@ static func nest_damage(
 	target: StringName = &"controller",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
-	var n := _nest_leaf(&"nest_damage", &"seq.effect.damage")
+	var needs_assign := (
+		target == &"controller"
+		or target == &""
+		or target == &"each_at_controller_location"
+		or target == &"each_at_source_location"
+	)
+	var flow := (
+		&"seq.effect.damage.assignable" if needs_assign else &"seq.effect.damage"
+	)
+	var n := _nest_leaf(&"nest_damage", flow)
 	n.inv_id = controller_id
 	n.marker_delta = maxi(amount, 1)
 	n.is_direct = is_direct

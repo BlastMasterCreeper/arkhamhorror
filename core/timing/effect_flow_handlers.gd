@@ -5,8 +5,8 @@ extends RefCounted
 ## L0 写入只出现在这里，不出现在卡面 Composition 树当效果本身。
 
 
-## 造成伤害/恐惧（Dealing Damage/Horror）· take/deal 同 seq；用 kind + source + target。
-## 多目标：params.legs = [{id|enemy_id|card_id, amount}, ...]；状态原语仍单目标。
+## 无分配伤害（seq.effect.damage）：已定 legs / 敌·支援单点；**不含** Assign。
+## 调查员承伤 / 待摊总量 → `seq.effect.damage.assignable`。
 static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var kind := StringName(str(params.get("kind", "damage")))
 	var target := StringName(str(params.get("target", "controller")))
@@ -16,7 +16,26 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var is_direct := bool(params.get("direct", false))
 	var raw_legs: Variant = params.get("legs", null)
 	if raw_legs is Array and not (raw_legs as Array).is_empty():
-		return _damage_legs(game_ctx, params, kind, target, inv_id, is_direct, raw_legs as Array)
+		var legs_arr := raw_legs as Array
+		if target == &"controller" or params.get("assign_format", &"") == &"pipeline":
+			return _damage_investigator_determined_legs(
+				game_ctx, params, kind, inv_id, is_direct, legs_arr
+			)
+		return _damage_legs(game_ctx, params, kind, target, inv_id, is_direct, legs_arr)
+	## 无 legs 的调查员承伤 / 地点广播 = 待分配 → 拒（须走 assignable）。
+	if (
+		target == &"controller"
+		or target == &""
+		or target == &"each_at_controller_location"
+		or target == &"each_at_source_location"
+	):
+		return {
+			"ok": false,
+			"amount": 0,
+			"error": "use_seq.effect.damage.assignable",
+			"kind": kind,
+			"target": target,
+		}
 	var amount := maxi(int(params.get("amount", 1)), 1)
 	var applied := _damage_one(game_ctx, params, kind, target, inv_id, is_direct, amount, &"")
 	_log(
@@ -31,6 +50,44 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		}
 	)
 	return {"ok": applied > 0, "amount": applied, "kind": kind, "target": target}
+
+
+static func _damage_investigator_determined_legs(
+	game_ctx: GameContext,
+	params: Dictionary,
+	kind: StringName,
+	inv_id: StringName,
+	is_direct: bool,
+	legs: Array
+) -> Dictionary:
+	var total := 0
+	for leg in legs:
+		if leg is Dictionary:
+			total += int((leg as Dictionary).get("amount", 0))
+	var result := DamagePipeline.apply_investigator_legs(
+		game_ctx, inv_id, kind, total, is_direct, legs
+	)
+	var applied := int(result.get("amount", 0))
+	_log(
+		game_ctx,
+		"effect:damage",
+		{
+			"kind": kind,
+			"target": &"controller",
+			"amount": applied,
+			"determined_legs": true,
+			"source": params.get("source", params.get("card_id", &"")),
+			"direct": is_direct,
+		}
+	)
+	return {
+		"ok": applied > 0,
+		"amount": applied,
+		"kind": kind,
+		"target": &"controller",
+		"legs": result.get("legs", []),
+		"prevented": bool(result.get("prevented", false)),
+	}
 
 
 static func _damage_legs(
@@ -97,19 +154,8 @@ static func _damage_one(
 ) -> int:
 	match target:
 		&"each_at_controller_location", &"each_at_source_location":
-			## 广播仍按同量扫地点；legs 模式不走此支。
-			var loc_id := _location_for_target(game_ctx, params, target)
-			if loc_id == &"":
-				return 0
-			var sum := 0
-			for other_id in game_ctx.state.registry.all_investigator_ids():
-				var other := game_ctx.state.registry.get_investigator(other_id)
-				if other == null or other.eliminated or other.resigned:
-					continue
-				if other.location_tag != loc_id:
-					continue
-				sum += _apply_to_investigator(game_ctx, other_id, kind, amount, is_direct)
-			return sum
+			## 地点广播属待分配 → 无分配帧拒；走 assignable。
+			return 0
 		&"non_elite_with_health_at_attached_location":
 			if kind != &"damage":
 				return 0
@@ -137,10 +183,8 @@ static func _damage_one(
 				asset_res = DefeatFlow.deal_damage_to_asset(game_ctx, asset_id, amount)
 			return amount if bool(asset_res.get("ok", false)) else 0
 		_:
-			var who := inv_id if override_id == &"" else override_id
-			if who == &"" or game_ctx.state.registry.get_investigator(who) == null:
-				return 0
-			return _apply_to_investigator(game_ctx, who, kind, amount, is_direct)
+			## 调查员承伤无 legs = 待分配，无分配帧不写。
+			return 0
 
 
 static func take_horror(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -512,7 +556,7 @@ static func _apply_to_investigator(
 	amount: int,
 	is_direct: bool = false
 ) -> int:
-	## Assign → WOULD（prevent）→ WHEN → Apply（07 §4）；敌/支援路径不经此。
+	## 仅 non_elite 等已定扫场回退；规范承伤走 damage.assignable。
 	var result := DamagePipeline.deal_investigator(
 		game_ctx,
 		inv_id,

@@ -27,7 +27,7 @@ func perform_attack(attack: EnemyAttack) -> void:
 	var inv := _state.registry.get_investigator(attack.target_investigator)
 	if inv == null:
 		return
-	## 承伤经 seq.effect.damage：压栈后 Assign → WOULD/WHEN → Apply（与卡面造成同路）。
+	## 承伤经 seq.effect.damage.assignable（Assign+Apply 同帧）。
 	if _game_ctx != null:
 		if attack.damage > 0:
 			_deal_via_seq(&"damage", attack.damage, attack)
@@ -80,9 +80,11 @@ func _deal_via_seq(kind: StringName, amount: int, attack: EnemyAttack) -> void:
 	}
 	if (
 		_game_ctx.sequence_catalog != null
-		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.damage")
+		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.damage.assignable")
 	):
-		_game_ctx.sequence_catalog.nest(_game_ctx, &"seq.effect.damage", params)
+		_game_ctx.sequence_catalog.nest(
+			_game_ctx, &"seq.effect.damage.assignable", params
+		)
 		return
 	DamagePipeline.deal_investigator(
 		_game_ctx, attack.target_investigator, kind, amount, false

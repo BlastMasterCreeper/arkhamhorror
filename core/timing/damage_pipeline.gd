@@ -2,13 +2,10 @@ class_name DamagePipeline
 extends RefCounted
 
 ## Dealing Damage/Horror（07-effect-resolution §4）· 已裁决：
-## - **Assign = 玩家选择（PI）**，始终有；不是结算砖，不 emit 时点。
-##   对调查员：可摊到合格资产 ∪ 调查员卡；对卡牌：候选 = {该卡}。
+## - **有分配** `seq.effect.damage.assignable`：Assign PI + Apply 同帧封死。
+## - **无分配** `seq.effect.damage`：已定 legs / 单点，无 Assign。
 ## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（DamageAssigner 原流程读取）。
-## - **WOULD / WHEN 均在 Apply 之前**（栈相位 PreImpact；非 Apply 后）。
-##   WOULD：取消 / 防止 / 降低 / 改分配（抢在同事件 Forced-WHEN 前）。
-##   WHEN：非取消的 *when you take*（你控制的卡将承伤）；与 would 常等价，档更晚。
-## - Apply 按腿落标记后仅 AFTER（*after you take*）。
+## - **WOULD / WHEN 均在 Apply 之前**（栈相位 PreImpact）。
 ## v1 Assign：`DamageAssigner.default_assignment`（`ASSIGN_*` Gate 后补）。
 
 
@@ -18,6 +15,7 @@ const PENDING_DIRECT := &"pending_damage_direct"
 const PENDING_LEGS := &"pending_damage_legs"
 
 
+## 有分配手续用：Assign PI → WOULD/WHEN → Apply。
 static func deal_investigator(
 	game_ctx: GameContext,
 	inv_id: StringName,
@@ -32,10 +30,32 @@ static func deal_investigator(
 	var requested := maxi(amount, 0)
 	if requested <= 0:
 		return {"ok": false, "amount": 0}
-	## Assign（PI）：v1 默认表；不打开时点窗。
 	var legs := DamageAssigner.default_assignment(game_ctx, inv_id, kind, requested, is_direct)
+	return apply_investigator_legs(game_ctx, inv_id, kind, requested, is_direct, legs)
+
+
+## 无分配应用：腿已定（或 Assign 刚钉死）。
+static func apply_investigator_legs(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	kind: StringName,
+	amount: int,
+	is_direct: bool,
+	legs: Array
+) -> Dictionary:
+	if game_ctx == null or game_ctx.mutator == null or inv_id == &"":
+		return {"ok": false, "amount": 0}
+	if game_ctx.state.registry.get_investigator(inv_id) == null:
+		return {"ok": false, "amount": 0, "error": "unknown_investigator"}
+	var requested := maxi(amount, 0)
+	if requested <= 0:
+		requested = 0
+		for leg in legs:
+			if leg is Dictionary:
+				requested += int((leg as Dictionary).get("amount", 0))
+	if requested <= 0:
+		return {"ok": false, "amount": 0}
 	_set_pending(game_ctx, inv_id, kind, requested, is_direct, legs)
-	## PreImpact：WOULD（prevent）→ WHEN（非取消 when-take）；均在写入前。
 	if game_ctx.sequences != null:
 		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WOULD)
 		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN)
@@ -44,7 +64,6 @@ static func deal_investigator(
 	_clear_pending(game_ctx, inv_id)
 	if final_amount <= 0:
 		return {"ok": false, "amount": 0, "kind": kind, "prevented": true, "legs": []}
-	## Apply：按腿状态原语写入。
 	_apply_legs(game_ctx, inv_id, kind, final_legs)
 	DefeatFlow.check_investigator_caps(game_ctx, inv_id)
 	return {

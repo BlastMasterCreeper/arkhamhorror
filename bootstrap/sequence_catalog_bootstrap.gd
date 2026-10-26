@@ -177,13 +177,22 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 			return DiscoverClueFlow.run_params(game_ctx, params)
 	)
 	catalog.register_run(
+		&"seq.effect.damage.assignable",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.damage_from_params(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return DamageAssignableFlow.run(game_ctx, params),
+		false,
+		true ## Assign PI + Apply 同帧；信封无槽，Apply 前 offer WOULD/WHEN
+	)
+	catalog.register_run(
 		&"seq.effect.damage",
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.damage_from_params(params),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EffectFlowHandlers.damage(game_ctx, params),
 		false,
-		true ## 信封无槽；Assign=PI 后 Apply 前 WOULD→WHEN（prevent / when-take）
+		true ## 无分配：已定 legs/单点；信封无槽，Apply 前 offer WOULD/WHEN（承伤腿）
 	)
 	catalog.register_run(
 		&"seq.effect.lose_resources",

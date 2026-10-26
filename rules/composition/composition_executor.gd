@@ -1686,14 +1686,26 @@ func _execute_nest_damage(node: CompositionNode) -> bool:
 	if target == &"enemy_at_controller_location" and enemy_id == &"":
 		enemy_id = _pick_enemy_at_controller_location(inv_id)
 		target = &"enemy"
+	var needs_assign := (
+		target == &"controller"
+		or target == &""
+		or target == &"each_at_controller_location"
+		or target == &"each_at_source_location"
+	)
+	var flow_id: StringName = node.nest_flow_id
+	## 待分配目标：强制 assignable（兼容旧 JSON 仍写 seq.effect.damage）。
+	if needs_assign:
+		flow_id = &"seq.effect.damage.assignable"
+	elif flow_id == &"":
+		flow_id = &"seq.effect.damage"
 	var result := _nest_or_direct(
-		&"seq.effect.damage",
+		flow_id,
 		{
 			"controller_id": inv_id,
 			"kind": kind,
 			"amount": amount,
 			"direct": node.is_direct,
-			"target": target,
+			"target": target if target != &"" else &"controller",
 			"source": node.card_id,
 			"card_id": node.card_id,
 			"enemy_id": enemy_id,
