@@ -1494,6 +1494,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.49 | Assign Gate：`ask_assign_*` / among（04305） |
 | 2026-10-26 | v0.4.48 | `GRANT_CAPACITY`；deal legs 混装主体（敌/卡/调查员） |
 | 2026-10-26 | v0.4.47 | 更名 `deal`；伤+恐同条 assignable、同时 Apply |
 | 2026-10-26 | v0.4.46 | 明示 horror 与 damage 同两条 seq（`kind`） |

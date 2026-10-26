@@ -264,6 +264,8 @@ func ask_assign_among(
 	var pick: Variant = ask(req, game_ctx)
 	if pick is Array and DamageAssigner.validate_among(subjects, total, pick as Array):
 		return (pick as Array).duplicate(true)
+	## 非法确认 → 默认腿；记作 used_default。
+	last_used_default = true
 	return defaults.duplicate(true)
 
 
@@ -321,6 +323,8 @@ func _ask_assign_investigator(
 		)
 	):
 		return (pick as Array).duplicate(true)
+	## 非法确认 → 默认腿；记作 used_default。
+	last_used_default = true
 	return defaults.duplicate(true)
 
 

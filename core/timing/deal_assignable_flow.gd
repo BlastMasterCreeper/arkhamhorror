@@ -119,20 +119,11 @@ static func _among_subjects(
 				horror_subjects,
 				&"assign:among:horror"
 			)
-	var applied_d := 0
-	var applied_h := 0
-	for raw in d_legs:
-		if not (raw is Dictionary):
-			continue
-		var sid: StringName = (raw as Dictionary).get("id", &"")
-		var amt := int((raw as Dictionary).get("amount", 0))
-		applied_d += DealSubject.apply(game_ctx, &"damage", sid, amt)
-	for raw2 in h_legs:
-		if not (raw2 is Dictionary):
-			continue
-		var sid2: StringName = (raw2 as Dictionary).get("id", &"")
-		var amt2 := int((raw2 as Dictionary).get("amount", 0))
-		applied_h += DealSubject.apply(game_ctx, &"horror", sid2, amt2)
+	## Assign 后 PreImpact（与承伤对称），再 Apply。
+	var scope: StringName = controller_id if controller_id != &"" else &"deal_out"
+	var pre := DealPreImpact.apply_bundle(game_ctx, d_legs, h_legs, scope)
+	var applied_d := int(pre.get("damage", 0))
+	var applied_h := int(pre.get("horror", 0))
 	var result := {
 		"ok": applied_d > 0 or applied_h > 0,
 		"amount": applied_d + applied_h,
@@ -140,11 +131,12 @@ static func _among_subjects(
 		"horror": applied_h,
 		"kind": &"damage" if applied_d > 0 else &"horror",
 		"target": &"subjects",
-		"legs": d_legs,
-		"legs_horror": h_legs,
+		"legs": pre.get("legs", d_legs),
+		"legs_horror": pre.get("legs_horror", h_legs),
 		"assignable": true,
 		"controller_id": controller_id,
 		"simultaneous": damage_amt > 0 and horror_amt > 0,
+		"prevented": bool(pre.get("prevented", false)),
 	}
 	_log(game_ctx, result, params)
 	return result

@@ -38,6 +38,24 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			"target": target,
 		}
 	var amount := maxi(int(params.get("amount", 1)), 1)
+	## 单点已定：若可归类为主体 id，走 PreImpact；否则旧扫场路径。
+	var override_id: StringName = params.get(
+		"enemy_id", params.get("card_id", params.get("primary_id", &""))
+	)
+	if (
+		override_id != &""
+		and DealSubject.classify(game_ctx, override_id) != &""
+		and target != &"non_elite_with_health_at_attached_location"
+	):
+		return _damage_legs(
+			game_ctx,
+			params,
+			kind,
+			target,
+			inv_id,
+			is_direct,
+			[{"id": override_id, "amount": amount}]
+		)
 	var applied := _damage_one(game_ctx, params, kind, target, inv_id, is_direct, amount, &"")
 	_log(
 		game_ctx,
@@ -100,28 +118,15 @@ static func _damage_legs(
 	is_direct: bool,
 	legs: Array
 ) -> Dictionary:
-	var applied := 0
+	## 已定主体腿：PreImpact WOULD→WHEN→Apply（与承伤对称）。
+	var scope: StringName = inv_id if inv_id != &"" else &"deal_out"
+	var pre := DealPreImpact.apply_legs(game_ctx, kind, legs, scope)
+	var applied := int(pre.get("amount", 0))
+	var final_legs: Array = pre.get("legs", []) as Array
 	var subjects: Array[StringName] = []
-	var leg_results: Array = []
-	for raw in legs:
-		if not (raw is Dictionary):
-			continue
-		var d: Dictionary = raw
-		var amt := int(d.get("amount", 0))
-		if amt <= 0:
-			continue
-		var sid: StringName = d.get(
-			"id", d.get("enemy_id", d.get("card_id", d.get("subject_id", &"")))
-		)
-		## 有 id 时按运行时归类落点（敌/卡/调查员混装）；不限 target 卡种标签。
-		var one := 0
-		if sid != &"" and DealSubject.classify(game_ctx, sid) != &"":
-			one = DealSubject.apply(game_ctx, kind, sid, amt)
-		else:
-			one = _damage_one(game_ctx, params, kind, target, inv_id, is_direct, amt, sid)
-		leg_results.append({"id": sid, "amount": one})
-		if one > 0:
-			applied += one
+	for raw in final_legs:
+		if raw is Dictionary:
+			var sid: StringName = (raw as Dictionary).get("id", &"")
 			if sid != &"":
 				subjects.append(sid)
 	_log(
@@ -135,6 +140,7 @@ static func _damage_legs(
 			"subjects": subjects,
 			"source": params.get("source", params.get("card_id", &"")),
 			"direct": is_direct,
+			"preimpact": true,
 		}
 	)
 	return {
@@ -143,8 +149,9 @@ static func _damage_legs(
 		"kind": kind,
 		"target": target,
 		"subjects": subjects,
-		"legs": leg_results,
+		"legs": final_legs,
 		"multi": true,
+		"prevented": bool(pre.get("prevented", false)),
 	}
 
 

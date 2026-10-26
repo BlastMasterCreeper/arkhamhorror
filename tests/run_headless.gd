@@ -378,6 +378,8 @@ func _initialize() -> void:
 	_run_test("TIM-DMG-02 WOULD reduce_pending before Apply", _test_tim_dmg_prevent)
 	_run_test("TIM-DMG-03 WHEN increase_pending adds delta K", _test_tim_dmg_increase_pending)
 	_run_test("TIM-DMG-04 increase_pending keeps reserved legs", _test_tim_dmg_increase_keeps_legs)
+	_run_test("TIM-DMG-05 outbound WOULD before Apply", _test_tim_dmg_outbound_preimpact)
+	_run_test("TIM-DMG-06 outbound reduce_pending", _test_tim_dmg_outbound_reduce)
 	_run_test("ASN-01 PRIOR_FILL horror to asset first", _test_asn_prior_fill)
 	_run_test("ASN-02 MIN_TO_SUBJECT damage if able", _test_asn_min_to_subject)
 	_run_test("ASN-03 MAX_TO_MATCH trait cap", _test_asn_max_to_match)
@@ -8492,6 +8494,83 @@ func _asn_leg_amount(legs: Array, bearer: StringName, id: StringName) -> int:
 			continue
 		total += int((leg as Dictionary).get("amount", 0))
 	return total
+
+
+func _test_tim_dmg_outbound_preimpact() -> bool:
+	## TIM-DMG-05：已定敌腿 WOULD→WHEN 在 Apply 前（pending 未写入）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_pre", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_pre").health = 10
+	h.ctx.memory.clear_trace()
+	var snap := {"would_dmg": -1, "would_pending": -1, "when_dmg": -1, "after_dmg": -1}
+	var would_h := SequenceHandler.would_forced(&"damage", func() -> void: pass)
+	would_h.callback = func() -> void:
+		snap["would_dmg"] = h.ctx.state.registry.get_enemy(&"enemy_pre").damage
+		snap["would_pending"] = DealPreImpact.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(would_h)
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		snap["when_dmg"] = h.ctx.state.registry.get_enemy(&"enemy_pre").damage
+	h.ctx.sequences.register_handler(when_h)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_forced(
+			&"damage",
+			func() -> void: snap["after_dmg"] = h.ctx.state.registry.get_enemy(&"enemy_pre").damage
+		)
+	)
+	var nest_res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"damage",
+			"target": &"subjects",
+			"legs": [{"id": &"enemy_pre", "amount": 2}],
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_pre")
+	return (
+		nest_res is Dictionary
+		and int((nest_res as Dictionary).get("amount", 0)) == 2
+		and snap["would_dmg"] == 0
+		and snap["would_pending"] == 2
+		and snap["when_dmg"] == 0
+		and snap["after_dmg"] == 2
+		and enemy.damage == 2
+	)
+
+
+func _test_tim_dmg_outbound_reduce() -> bool:
+	## TIM-DMG-06：外向 WOULD reduce_pending → Apply 量减少。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_red", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_red").health = 10
+	h.ctx.sequences.register_handler(
+		SequenceHandler.would_forced(
+			&"damage",
+			func() -> void: DealPreImpact.reduce_pending(h.ctx, &"inv_1", 1)
+		)
+	)
+	var nest_res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"damage",
+			"target": &"subjects",
+			"legs": [{"id": &"enemy_red", "amount": 3}],
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_red")
+	return (
+		nest_res is Dictionary
+		and int((nest_res as Dictionary).get("amount", 0)) == 2
+		and enemy.damage == 2
+	)
 
 
 func _test_asn_prior_fill() -> bool:
