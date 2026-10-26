@@ -5,6 +5,7 @@ extends RefCounted
 ## 伤与恐可同时入参；同帧 Assign（可分步 PI）后 **同时** Apply。
 ## 禁止伤、恐各 nest 一条 assignable。
 ## 无分配已定 → seq.effect.deal。
+## 多目标候选不限卡种：敌人 / 有生命·神智（或 GRANT_CAPACITY）的场上卡 / 调查员。
 
 
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -30,8 +31,8 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var direct_dmg := bool(params.get("direct_damage", is_direct))
 	var direct_hor := bool(params.get("direct_horror", is_direct))
 	match target:
-		&"enemy", &"enemies":
-			return _enemies(game_ctx, params, dmg, inv_id)
+		&"enemy", &"enemies", &"subjects", &"among_candidates":
+			return _among_subjects(game_ctx, params, dmg, hor, inv_id)
 		&"each_at_controller_location", &"each_at_source_location":
 			return _each_at_location(
 				game_ctx, params, dmg, hor, direct_dmg, direct_hor, target
@@ -80,49 +81,99 @@ static func _investigator_take(
 	return result
 
 
-static func _enemies(
+## 在候选主体间分配 damage（默认全量归 primary）；horror 仅落可承恐主体。
+## candidates / primary 可为敌人、场上卡、调查员混装。
+static func _among_subjects(
 	game_ctx: GameContext,
 	params: Dictionary,
 	damage_amt: int,
+	horror_amt: int,
 	controller_id: StringName
 ) -> Dictionary:
-	if damage_amt <= 0:
-		return {"ok": false, "amount": 0, "error": "horror_not_supported_for_enemy"}
 	var primary: StringName = params.get(
 		"primary_id", params.get("enemy_id", params.get("card_id", &""))
 	)
 	var candidates: Array = params.get("candidates", [])
-	if primary == &"" and not candidates.is_empty():
-		primary = candidates[0] as StringName
-	if primary == &"":
+	var subject_ids: Array[StringName] = _normalize_subjects(primary, candidates)
+	if subject_ids.is_empty():
 		return {"ok": false, "amount": 0, "error": "missing_primary"}
-	var legs: Array = [{"id": primary, "amount": damage_amt}]
-	var applied := 0
-	for raw in legs:
+	var d_legs := _default_among(game_ctx, subject_ids, damage_amt, controller_id)
+	var h_legs: Array = []
+	if horror_amt > 0:
+		## 恐惧：仅落到可承恐的卡/调查员（敌人跳过）。
+		var horror_subjects: Array[StringName] = []
+		for sid in subject_ids:
+			var kind := DealSubject.classify(game_ctx, sid)
+			if kind == DealSubject.KIND_CARD or kind == DealSubject.KIND_INVESTIGATOR:
+				horror_subjects.append(sid)
+		if not horror_subjects.is_empty():
+			h_legs = _default_among(game_ctx, horror_subjects, horror_amt, controller_id)
+	var applied_d := 0
+	var applied_h := 0
+	for raw in d_legs:
 		if not (raw is Dictionary):
 			continue
-		var eid: StringName = (raw as Dictionary).get("id", &"")
+		var sid: StringName = (raw as Dictionary).get("id", &"")
 		var amt := int((raw as Dictionary).get("amount", 0))
-		if eid == &"" or amt <= 0:
+		applied_d += DealSubject.apply(game_ctx, &"damage", sid, amt)
+	for raw2 in h_legs:
+		if not (raw2 is Dictionary):
 			continue
-		if game_ctx.state.registry.get_enemy(eid) == null:
-			continue
-		var one := EnemyDefeatResolver.deal_damage(game_ctx, eid, amt)
-		if bool(one.get("ok", false)):
-			applied += amt
+		var sid2: StringName = (raw2 as Dictionary).get("id", &"")
+		var amt2 := int((raw2 as Dictionary).get("amount", 0))
+		applied_h += DealSubject.apply(game_ctx, &"horror", sid2, amt2)
 	var result := {
-		"ok": applied > 0,
-		"amount": applied,
-		"damage": applied,
-		"horror": 0,
-		"kind": &"damage",
-		"target": &"enemy",
-		"legs": legs,
+		"ok": applied_d > 0 or applied_h > 0,
+		"amount": applied_d + applied_h,
+		"damage": applied_d,
+		"horror": applied_h,
+		"kind": &"damage" if applied_d > 0 else &"horror",
+		"target": &"subjects",
+		"legs": d_legs,
+		"legs_horror": h_legs,
 		"assignable": true,
 		"controller_id": controller_id,
+		"simultaneous": damage_amt > 0 and horror_amt > 0,
 	}
 	_log(game_ctx, result, params)
 	return result
+
+
+static func _normalize_subjects(
+	primary: StringName, candidates: Array
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	var seen: Dictionary = {}
+	if primary != &"":
+		out.append(primary)
+		seen[primary] = true
+	for raw in candidates:
+		var sid: StringName = &""
+		if raw is StringName or raw is String:
+			sid = StringName(str(raw))
+		elif raw is Dictionary:
+			sid = (raw as Dictionary).get(
+				"id", (raw as Dictionary).get("enemy_id", (raw as Dictionary).get("card_id", &""))
+			)
+		if sid == &"" or seen.has(sid):
+			continue
+		seen[sid] = true
+		out.append(sid)
+	return out
+
+
+## 默认分配（Gate 待接）：全量归 primary（首个合格主体）。
+static func _default_among(
+	_game_ctx: GameContext,
+	subjects: Array[StringName],
+	amount: int,
+	_controller_id: StringName
+) -> Array:
+	var total := maxi(amount, 0)
+	var empty: Array = []
+	if total <= 0 or subjects.is_empty():
+		return empty
+	return [{"id": subjects[0], "amount": total}]
 
 
 static func _each_at_location(

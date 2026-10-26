@@ -223,8 +223,8 @@
 | `seq.defeat.leave_play` | 击败后退场 | nest from defeat；敌人路由 / 调查员淘汰清理 |
 | `seq.engage` | 交战内核（auto / effect） | `EngageFlow`；行动外壳 nest effect |
 | `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅；多地 = `legs[]`（仍一帧；L0 逐地） |
-| `seq.effect.deal.assignable` | **待分配**造成伤害/恐惧 | `damage`+`horror` 可同入参；Assign 后 **同时** Apply；禁止伤/恐各开一条 |
-| `seq.effect.deal` | **无分配**造成伤害/恐惧（已定） | `legs[]` / 单点；伤+恐已定用 Simultaneous 修饰；**无** Assign |
+| `seq.effect.deal.assignable` | **待分配**造成伤害/恐惧 | `damage`+`horror` 可同入参；Assign 后 **同时** Apply；候选不限卡种（生命/神智或 `GRANT_CAPACITY`）；禁止伤/恐各开一条 |
+| `seq.effect.deal` | **无分配**造成伤害/恐惧（已定） | `legs[]` / 单点；腿可混装敌/卡/调查员；伤+恐已定用 Simultaneous 修饰；**无** Assign |
 | `seq.effect.lose_resources` | 失去资源（含全部：`all: true`） | 卡面；CREATED = 实际扣到 |
 | `seq.effect.heal` | 治疗伤害或恐惧（`kind` 参数） | 卡面 |
 | `seq.effect.lose_action` | 失去行动 | 卡面 |
@@ -329,6 +329,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.32 | §5：deal 多目标混装敌/卡/调查员；Assign `GRANT_CAPACITY` |
 | 2026-10-26 | v0.4.31 | §5：更名 `deal`/`deal.assignable`；伤+恐同条待分配、同时 Apply |
 | 2026-10-26 | v0.4.30 | §5：明示 `kind`=damage\|horror 同两条手续（描述常略写） |
 | 2026-10-26 | v0.4.29 | §5：拆 `damage.assignable`（有分配）与 `damage`（无分配已定） |

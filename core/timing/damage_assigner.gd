@@ -240,52 +240,101 @@ static func _capacity_map(
 	is_direct: bool
 ) -> Dictionary:
 	## key -> remaining capacity；不含调查员卡（无限）。
+	## 候选不限卡种：凡 play 区有印刷 health/sanity，或 GRANT_CAPACITY Buff。
 	var caps: Dictionary = {}
 	var constraints := _active_constraints(game_ctx, inv_id, kind, is_direct)
 	if is_direct:
-		## direct：默认无资产；ALLOW_DIRECT / INCLUDE self_deals+DIRECT|BOTH 加入。
+		## direct：默认无卡；INCLUDE self_deals / GRANT 加入。
 		for c in constraints:
-			if c.assign_op != AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE:
-				continue
-			if c.assign_expand_scope == &"other_at_location":
-				continue
-			var cap := _asset_remaining(game_ctx, c.subject_id, kind)
-			if cap > 0:
-				caps[_card_key(c.subject_id)] = cap
+			if c.assign_op == AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE:
+				if c.assign_expand_scope == &"other_at_location":
+					continue
+				_put_cap(caps, game_ctx, c.subject_id, kind, constraints)
+			elif c.assign_op == AhcEnums.AssignConstraintOp.GRANT_CAPACITY:
+				_put_cap(caps, game_ctx, c.subject_id, kind, constraints)
 		return caps
-	## non-direct：己方可分摊伤/恐的资产 + INCLUDE。
+	## non-direct：己方 play 可承伤/恐卡 + INCLUDE + GRANT。
 	var inv := game_ctx.state.registry.get_investigator(inv_id)
 	if inv != null:
 		for card_id in inv.play_area:
-			var cap2 := _asset_remaining(game_ctx, card_id, kind)
-			if cap2 > 0:
-				caps[_card_key(card_id)] = cap2
+			_put_cap(caps, game_ctx, card_id, kind, constraints)
 	for c in constraints:
-		if c.assign_op != AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE:
-			continue
-		if c.assign_expand_scope == &"other_at_location":
-			if not _same_location(game_ctx, c.drawer_id, inv_id):
-				continue
-			var cap3 := _asset_remaining(game_ctx, c.subject_id, kind)
-			if cap3 > 0:
-				caps[_card_key(c.subject_id)] = cap3
+		if c.assign_op == AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE:
+			if c.assign_expand_scope == &"other_at_location":
+				if not _same_location(game_ctx, c.drawer_id, inv_id):
+					continue
+				_put_cap(caps, game_ctx, c.subject_id, kind, constraints)
+		elif c.assign_op == AhcEnums.AssignConstraintOp.GRANT_CAPACITY:
+			## GRANT 可将无印刷生命/神智的卡纳入候选。
+			_put_cap(caps, game_ctx, c.subject_id, kind, constraints)
 	return caps
 
 
-static func _asset_remaining(game_ctx: GameContext, card_id: StringName, kind: StringName) -> int:
-	var card := game_ctx.state.registry.get_card(card_id)
-	if card == null or card.zone != AhcEnums.Zone.PLAY_AREA:
+static func _put_cap(
+	caps: Dictionary,
+	game_ctx: GameContext,
+	card_id: StringName,
+	kind: StringName,
+	constraints: Array[RestrictionPayload]
+) -> void:
+	var cap := card_remaining_with_grants(game_ctx, card_id, kind, constraints)
+	if cap > 0:
+		caps[_card_key(card_id)] = cap
+
+
+## 场上卡剩余分摊容量 = 印刷 + 生效 GRANT − 已有标记。不限 cardtype。
+static func card_remaining(
+	game_ctx: GameContext,
+	card_id: StringName,
+	kind: StringName,
+	dealt_inv_id: StringName = &"",
+	is_direct: bool = false
+) -> int:
+	var constraints: Array[RestrictionPayload] = []
+	if dealt_inv_id != &"":
+		constraints = _active_constraints(game_ctx, dealt_inv_id, kind, is_direct)
+	return card_remaining_with_grants(game_ctx, card_id, kind, constraints)
+
+
+static func card_remaining_with_grants(
+	game_ctx: GameContext,
+	card_id: StringName,
+	kind: StringName,
+	constraints: Array[RestrictionPayload]
+) -> int:
+	var card := game_ctx.state.registry.get_card(card_id) if game_ctx != null else null
+	if card == null:
+		return 0
+	if (
+		card.zone != AhcEnums.Zone.PLAY_AREA
+		and card.zone != AhcEnums.Zone.THREAT_AREA
+		and card.zone != AhcEnums.Zone.ATTACHED
+	):
 		return 0
 	var def := card.id.definition_id
+	var printed := 0
+	var tokens := 0
 	if kind == &"horror":
-		var sanity := CardRegistry.printed_sanity(def)
-		if sanity <= 0:
-			return 0
-		return maxi(sanity - card.tokens.horror, 0)
-	var health := CardRegistry.printed_health(def)
-	if health <= 0:
+		printed = CardRegistry.printed_sanity(def)
+		tokens = card.tokens.horror
+	else:
+		printed = CardRegistry.printed_health(def)
+		tokens = card.tokens.damage
+	var grant := 0
+	for c in constraints:
+		if c.assign_op != AhcEnums.AssignConstraintOp.GRANT_CAPACITY:
+			continue
+		if c.subject_id != card_id:
+			continue
+		grant += maxi(c.assign_amount, 0)
+	if printed <= 0 and grant <= 0:
 		return 0
-	return maxi(health - card.tokens.damage, 0)
+	return maxi(maxi(printed, 0) + grant - tokens, 0)
+
+
+static func _asset_remaining(game_ctx: GameContext, card_id: StringName, kind: StringName) -> int:
+	## 兼容旧名；新路径用 card_remaining。
+	return card_remaining(game_ctx, card_id, kind, &"", false)
 
 
 static func _affliction_matches(mask: StringName, kind: StringName) -> bool:

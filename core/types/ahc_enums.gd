@@ -330,6 +330,8 @@ enum AssignConstraintOp {
 	MIN_TO_SUBJECT,
 	## 匹配集合计至多 N 点（60232 trait:Miskatonic）。
 	MAX_TO_MATCH,
+	## 赋分摊容量：无印刷 health/sanity 亦可摊；有印刷则叠加（特殊 Buff）。
+	GRANT_CAPACITY,
 }
 
 

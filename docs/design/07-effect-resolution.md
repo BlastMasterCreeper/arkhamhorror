@@ -236,6 +236,9 @@ Grimoire p.8：
 | `PRIOR_FILL` | 先填满本卡容量，才可摊调查员卡 | 03109 |
 | `MIN_TO_SUBJECT` | 至少 N 点到本卡（`if_able`） | 09007 |
 | `MAX_TO_MATCH` | 匹配特质合计 ≤ N | 60232 Miskatonic |
+| `GRANT_CAPACITY` | 赋分摊容量：无印刷 health/sanity 亦可摊；有印刷则叠加 | 特殊 Buff（无印刷生命仍可扛） |
+
+**容量**：场上卡（不限 cardtype）= 印刷 health/sanity + 生效 `GRANT_CAPACITY` − 已有标记；无印刷且无 GRANT → 不可摊。
 
 **不是**本表：03315 Key of Ys = WOULD 改分配（`reassign_pending_legs`）；07189 Armor = AFTER 再分配（`MarkerTransferBatch`）；04305 Flamethrower = 敌人侧 Assign PI。
 
@@ -244,6 +247,7 @@ Grimoire p.8：
 ### Step 2 Apply（**唯一结算砖**）
 
 - 按腿同时放置 tokens（调查员 / 支援：`transfer_marker` 自 ∞ 池；支援经 `DefeatFlow.deal_*_to_asset`）
+- **多目标 legs**（`seq.effect.deal` / `deal.assignable` among）：主体混装敌人 · 场上可承伤卡 · 调查员；`DealSubject` 按 id 归类后逐腿 L0（仍单目标原语）
 - 若未 apply 任何 → 未 successfully dealt
 - 检查 defeat：investigator / enemy / asset
 
@@ -848,6 +852,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.6.14 | §4：`GRANT_CAPACITY`；deal legs 混装敌/卡/调查员（`DealSubject`） |
 | 2026-10-25 | v0.6.13 | §4：落地 `increase_pending` + `assign_delta`/`merge_legs`（TIM-DMG-03/04）；Gate 仍待接 |
 | 2026-10-24 | v0.6.12 | §4 PreImpact 加量：保留已确认 N 腿；仅增量 K 在合法全合格集上 Assign（02221） |
 | 2026-10-23 | v0.6.11 | §4：Assign 交互 = 静态 PI 会话（候选+约束→增减至耗尽→确认；期间重算可分配性） |

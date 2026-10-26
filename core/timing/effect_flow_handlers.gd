@@ -113,7 +113,12 @@ static func _damage_legs(
 		var sid: StringName = d.get(
 			"id", d.get("enemy_id", d.get("card_id", d.get("subject_id", &"")))
 		)
-		var one := _damage_one(game_ctx, params, kind, target, inv_id, is_direct, amt, sid)
+		## 有 id 时按运行时归类落点（敌/卡/调查员混装）；不限 target 卡种标签。
+		var one := 0
+		if sid != &"" and DealSubject.classify(game_ctx, sid) != &"":
+			one = DealSubject.apply(game_ctx, kind, sid, amt)
+		else:
+			one = _damage_one(game_ctx, params, kind, target, inv_id, is_direct, amt, sid)
 		leg_results.append({"id": sid, "amount": one})
 		if one > 0:
 			applied += one
@@ -161,28 +166,18 @@ static func _damage_one(
 			if kind != &"damage":
 				return 0
 			return _deal_non_elite_with_health_at_attached(game_ctx, params, amount)
-		&"enemy":
-			if kind != &"damage":
-				return 0
-			var enemy_id: StringName = override_id
-			if enemy_id == &"":
-				enemy_id = params.get("enemy_id", params.get("card_id", &""))
-			if game_ctx.state.registry.get_enemy(enemy_id) == null:
-				return 0
-			var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
-			return amount if bool(result.get("ok", false)) else 0
+		&"enemy", &"enemies", &"subjects", &"among_candidates":
+			var sid: StringName = override_id
+			if sid == &"":
+				sid = params.get(
+					"enemy_id", params.get("card_id", params.get("primary_id", &""))
+				)
+			return DealSubject.apply(game_ctx, kind, sid, amount)
 		&"asset", &"card":
 			var asset_id: StringName = override_id
 			if asset_id == &"":
 				asset_id = params.get("card_id", params.get("asset_id", &""))
-			if game_ctx.state.registry.get_card(asset_id) == null:
-				return 0
-			var asset_res: Dictionary
-			if kind == &"horror":
-				asset_res = DefeatFlow.deal_horror_to_asset(game_ctx, asset_id, amount)
-			else:
-				asset_res = DefeatFlow.deal_damage_to_asset(game_ctx, asset_id, amount)
-			return amount if bool(asset_res.get("ok", false)) else 0
+			return DealSubject.apply(game_ctx, kind, asset_id, amount)
 		_:
 			## 调查员承伤无 legs = 待分配，无分配帧不写。
 			return 0

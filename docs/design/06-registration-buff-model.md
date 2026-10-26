@@ -1227,7 +1227,7 @@ Grimoire 条文 / 卡面效果
   └─ 4. settle：ASSIGN → nest `seq.effect.deal.assignable`；DETERMINED → nest `seq.effect.deal` + `legs[]`
 ```
 
-**造成伤害/恐惧两条 seq（已裁决）**：`deal.assignable` = 待分配（伤+恐可同入参，Assign 后 **同时** Apply）；`deal` = 无分配已定。禁止伤/恐各开一条 assignable。翻译已定双写用 Simultaneous。发现线索仍一条 + `legs[]`。
+**造成伤害/恐惧两条 seq（已裁决）**：`deal.assignable` = 待分配（伤+恐可同入参，Assign 后 **同时** Apply）；`deal` = 无分配已定。禁止伤/恐各开一条 assignable。翻译已定双写用 Simultaneous。发现线索仍一条 + `legs[]`。多目标 **不限单卡种**：凡有生命/神智（或 `GRANT_CAPACITY` Buff）的场上卡 ∪ 敌人 ∪ 调查员；`DealSubject` 按 id 归类落点，L0 仍单目标。
 
 ##### `AmountEffectShape`
 
@@ -1332,7 +1332,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
 | —（原流程分支） | 借机不跑 | `SKIP_AOO` | 「This action does not provoke…」 | REST-E-AOO：`read_skip_aoo` | **已实现** · 翻译叶见 [20 §4](20-card-translation-schema.md) |
 | —（原流程分支） | 自动交战不跑 | `SUPPRESS_AUTO_ENGAGE` | 「移入后 engages you」（明示交战，非 Prey/Lead；冷漠/横置仍靠 mode=effect） | REST-E-AUTO-ENGAGE：`read_suppress_auto_engage` | **已实现** · 理由见 [20 §4.2.1](20-card-translation-schema.md) |
-| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include | REST-E-ASSIGN：`DamageAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
+| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include · GRANT_CAPACITY | REST-E-ASSIGN：`DamageAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
 | —（状态查询） | 成对交战状态 | `ENGAGEMENT` | 真实交战 / 视为交战（威胁区是区划检测，不是本 Buff） | `EngagementStatus` / `has_engagement` | **已实现** · [08 §3.1.1](08-enemy-engagement.md) |
 | `DISCOVER_CLUE` | 发现线索 | `FORBID_DISCOVER_CLUE` | 「While engaged… cannot discover…」（01121b） | REST-E-EFFECT：`DiscoverClueFlow` | **已实现** · 与 ENGAGEMENT 同 Register，脱离卸 |
 | `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
@@ -1494,6 +1494,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.48 | `GRANT_CAPACITY`；deal legs 混装主体（敌/卡/调查员） |
 | 2026-10-26 | v0.4.47 | 更名 `deal`；伤+恐同条 assignable、同时 Apply |
 | 2026-10-26 | v0.4.46 | 明示 horror 与 damage 同两条 seq（`kind`） |
 | 2026-10-26 | v0.4.45 | 伤害拆 `damage.assignable` / `damage`；ASSIGN settle → assignable |

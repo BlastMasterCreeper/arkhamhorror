@@ -87,6 +87,8 @@ func _initialize() -> void:
 	_run_test("MOD-14 discover multi-leg settle one seq", _test_mod_discover_multi_leg_settle_one_seq)
 	_run_test("MOD-15 multi-leg damage AFTER fires once", _test_mod_multi_leg_damage_after_once)
 	_run_test("MOD-16 deal.assignable damage+horror one seq", _test_mod_deal_assignable_bundle_one_seq)
+	_run_test("MOD-17 deal mixed enemy+card legs", _test_mod_deal_mixed_subject_legs)
+	_run_test("MOD-18 deal.assignable among card subject", _test_mod_deal_assignable_card_subject)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -382,6 +384,7 @@ func _initialize() -> void:
 	_run_test("ASN-04 INCLUDE direct allows asset assign", _test_asn_include_direct)
 	_run_test("ASN-05 INCLUDE Bodyguard other at location", _test_asn_include_bodyguard)
 	_run_test("ASN-06 pipeline apply PRIOR_FILL legs", _test_asn_pipeline_prior_fill)
+	_run_test("ASN-07 GRANT_CAPACITY without printed health", _test_asn_grant_capacity)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -2088,6 +2091,70 @@ func _test_mod_deal_assignable_bundle_one_seq() -> bool:
 		and after_n["n"] == 1
 		and inv.damage_taken == 2
 		and inv.horror_taken == 1
+	)
+
+
+func _test_mod_deal_mixed_subject_legs() -> bool:
+	## MOD-17：已定 deal legs 混装敌人 + 有生命场上卡；一条 seq，L0 分路由。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_mix", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_mix").health = 10
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_deal_mix", {"health": 3, "sanity": 0}
+	)
+	var nest_res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"damage",
+			"target": &"subjects",
+			"legs": [
+				{"id": &"enemy_mix", "amount": 2},
+				{"id": card_id, "amount": 1},
+			],
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_mix")
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		nest_res is Dictionary
+		and bool((nest_res as Dictionary).get("multi", false))
+		and int((nest_res as Dictionary).get("amount", 0)) == 3
+		and enemy.damage == 2
+		and card != null
+		and card.tokens.damage == 1
+	)
+
+
+func _test_mod_deal_assignable_card_subject() -> bool:
+	## MOD-18：assignable among 场上卡（非仅敌人）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_deal_asn_card", {"health": 4, "sanity": 0}
+	)
+	var res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{
+			"controller_id": &"inv_1",
+			"target": &"subjects",
+			"damage": 2,
+			"primary_id": card_id,
+			"candidates": [card_id],
+		}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		res is Dictionary
+		and bool((res as Dictionary).get("ok", false))
+		and int((res as Dictionary).get("damage", 0)) == 2
+		and card != null
+		and card.tokens.damage == 2
 	)
 
 
@@ -8572,6 +8639,43 @@ func _test_asn_pipeline_prior_fill() -> bool:
 		and card != null
 		and card.tokens.horror == 2
 		and inv.horror_taken == 1
+	)
+
+
+func _test_asn_grant_capacity() -> bool:
+	## ASN-07：无印刷 health 时 GRANT_CAPACITY 才可摊；超量拒；落地写入。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_grant", {"health": 0, "sanity": 0}
+	)
+	var bare := [{"bearer": &"card", "id": card_id, "amount": 1}]
+	if DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
+		return false
+	h.ctx.registrations.register(
+		RegistrationTemplate.assign_constraint_while_in_play(
+			RestrictionPayload.assign_grant_capacity(card_id, &"inv_1", 2, &"damage")
+		)
+	)
+	if not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
+		return false
+	var over := [{"bearer": &"card", "id": card_id, "amount": 3}]
+	if DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, over):
+		return false
+	var applied := DamagePipeline.apply_investigator_legs(
+		h.ctx,
+		&"inv_1",
+		&"damage",
+		2,
+		false,
+		[{"bearer": &"card", "id": card_id, "amount": 2}]
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		bool(applied.get("ok", false))
+		and int(applied.get("amount", 0)) == 2
+		and card != null
+		and card.tokens.damage == 2
+		and DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) == 0
 	)
 
 
