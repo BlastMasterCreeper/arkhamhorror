@@ -1,8 +1,8 @@
 class_name AmountPlan
 extends RefCounted
 
-## 06 §6 / §16.3.2 · 域 B 效果量计划（伤 / 发现 / 恐惧… 同构）。
-## 修正消费式选一 leg；多候选 PI。Plan 是应用宿主，不是 Buff 来源。
+## 06 §6 / §16.3.2 · 域 B 效果量计划（伤 / 发现 同构）。
+## 攻击伤：bonus_routing 决定修正如何进 Plan；发现：消费式选一腿。
 
 
 class AmountLeg extends RefCounted:
@@ -22,10 +22,51 @@ var kind: AhcEnums.ModifierPlanKind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
 var legs: Array = [] ## Array[AmountLeg]
 var tags: Array[StringName] = []
 var primary_subject_id: StringName = &""
+## 攻击伤专用；发现忽略（仍走选腿）。
+var bonus_routing: AhcEnums.AmountBonusRouting = AhcEnums.AmountBonusRouting.PIN_PRIMARY
+## ADD_TO_POOL：尚未 Assign 进腿的可分配总量（基础 + 已应用修正）。
+var pool_amount: int = 0
+## ADD_TO_POOL Assign 候选（敌 id）；空则默认仅 primary。
+var candidate_ids: Array[StringName] = []
 
 
 static func attack_damage_single(enemy_id: StringName, amount: int = 1) -> AmountPlan:
-	return _single(AhcEnums.ModifierPlanKind.ATTACK_DAMAGE, enemy_id, amount)
+	var plan := _single(AhcEnums.ModifierPlanKind.ATTACK_DAMAGE, enemy_id, amount)
+	plan.bonus_routing = AhcEnums.AmountBonusRouting.PIN_PRIMARY
+	return plan
+
+
+## 多敌落点、未写分配（03153）：修正钉主目标。
+static func attack_damage_pin_primary(
+	primary_id: StringName,
+	leg_amounts: Dictionary
+) -> AmountPlan:
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
+	plan.bonus_routing = AhcEnums.AmountBonusRouting.PIN_PRIMARY
+	plan.primary_subject_id = primary_id
+	for sid in leg_amounts.keys():
+		plan.legs.append(AmountLeg.make(sid as StringName, int(leg_amounts[sid])))
+	if plan.find_leg_index(primary_id) < 0 and primary_id != &"":
+		plan.legs.append(AmountLeg.make(primary_id, 0))
+	return plan
+
+
+## 写明分配（04305）：总量进 pool，修正先加 pool，再 Assign。
+static func attack_damage_assign_pool(
+	total: int,
+	primary_id: StringName,
+	candidates: Array[StringName] = []
+) -> AmountPlan:
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
+	plan.bonus_routing = AhcEnums.AmountBonusRouting.ADD_TO_POOL
+	plan.primary_subject_id = primary_id
+	plan.pool_amount = maxi(total, 0)
+	plan.candidate_ids = candidates.duplicate()
+	if plan.candidate_ids.is_empty() and primary_id != &"":
+		plan.candidate_ids.append(primary_id)
+	return plan
 
 
 static func discover_single(location_id: StringName, amount: int = 1) -> AmountPlan:
@@ -57,6 +98,45 @@ func leg_at(index: int) -> AmountLeg:
 	if index < 0 or index >= legs.size():
 		return null
 	return legs[index] as AmountLeg
+
+
+func find_leg_index(subject_id: StringName) -> int:
+	if subject_id == &"":
+		return -1
+	for i in legs.size():
+		var leg: AmountLeg = legs[i]
+		if leg != null and leg.subject_id == subject_id:
+			return i
+	return -1
+
+
+## 把 amount 加到指定 subject 腿；无则新建。
+func add_to_subject(subject_id: StringName, amount: int) -> void:
+	if subject_id == &"" or amount == 0:
+		return
+	var idx := find_leg_index(subject_id)
+	if idx < 0:
+		legs.append(AmountLeg.make(subject_id, amount))
+		return
+	var leg := leg_at(idx)
+	if leg != null:
+		leg.amount += amount
+
+
+## Headless / 逾期默认：整池摊到 primary（Gate Assign 后补）。
+func assign_pool_default() -> void:
+	if bonus_routing != AhcEnums.AmountBonusRouting.ADD_TO_POOL:
+		return
+	var rem := pool_amount
+	if rem <= 0:
+		return
+	var target := primary_subject_id
+	if target == &"" and not candidate_ids.is_empty():
+		target = candidate_ids[0]
+	if target == &"":
+		return
+	add_to_subject(target, rem)
+	pool_amount = 0
 
 
 func pi_prompt_id() -> StringName:

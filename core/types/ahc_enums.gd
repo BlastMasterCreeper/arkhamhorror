@@ -382,8 +382,19 @@ enum ModifierPlanKind {
 	DISCOVER,
 }
 
-## Plan 量修正默认消费式选一腿；标量走 SCALAR（ModifierEngine.compute）。
+## Plan 量修正：标量 SCALAR；域 B 效果量 Buff 仍标记 CONSUME_*（每条用一次）。
+## 攻击伤落到哪条腿 **不**由本枚举决定 → 见 AmountBonusRouting（Plan 侧）。
 enum ModifierApplyMode {
 	SCALAR,
+	## 发现等多宿主：消费式选一腿（多候选可 PI）。攻击伤改走 Plan.bonus_routing。
 	CONSUME_CHOOSE_ONE_LEG,
+}
+
+## 对敌攻击伤害：修正 +N 如何进入 AmountPlan（卡面写死；非 Buff 自带）。
+## 与调查员承伤 Assign / increase_pending 无关。
+enum AmountBonusRouting {
+	## 未写分配（03153）：+N 钉 primary_subject_id（攻击目标），无选腿 PI。
+	PIN_PRIMARY,
+	## 写明分配（04305）：+N 并入 pool_amount，再 Assign 总可分配量。
+	ADD_TO_POOL,
 }

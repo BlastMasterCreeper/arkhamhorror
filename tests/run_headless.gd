@@ -73,8 +73,9 @@ func _initialize() -> void:
 	_run_test("C-04 register applies modifier", _test_register_modifier)
 	_run_test("MOD-01 SKILL_ANY matches any skill query", _test_mod_skill_any)
 	_run_test("MOD-02 attack damage bonus single leg", _test_mod_attack_damage_single_leg)
-	_run_test("MOD-03 attack damage bonus chooses one of many legs", _test_mod_attack_damage_multi_leg_pi)
-	_run_test("MOD-04 zero-amount legs skip bonus and settle", _test_mod_attack_damage_zero_leg_skips)
+	_run_test("MOD-03 PIN_PRIMARY pins bonus to attack target", _test_mod_attack_damage_pin_primary)
+	_run_test("MOD-04 PIN_PRIMARY bumps zero primary leg", _test_mod_attack_damage_pin_primary_from_zero)
+	_run_test("MOD-05 ADD_TO_POOL bonus then default assign", _test_mod_attack_damage_add_to_pool)
 	_run_test("MOD-05 discover bonus single leg investigate", _test_mod_discover_bonus_single_leg)
 	_run_test("MOD-06 discover bonus chooses one of many legs", _test_mod_discover_multi_leg_pi)
 	_run_test("MOD-07 zero-amount discover legs skip bonus and settle", _test_mod_discover_zero_leg_skips)
@@ -1754,7 +1755,8 @@ func _test_mod_attack_damage_single_leg() -> bool:
 	return res.ok and res.success and enemy != null and enemy.damage == 2
 
 
-func _test_mod_attack_damage_multi_leg_pi() -> bool:
+func _test_mod_attack_damage_pin_primary() -> bool:
+	## MOD-03 · 03153：未写分配 → +N 钉主目标，旁路腿不变；无选腿 PI。
 	var h := RuleTestHarness.new(42)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
 		{"prompt_id": &"mod.attack_damage_leg", "pick": &"enemy_b"},
@@ -1763,37 +1765,64 @@ func _test_mod_attack_damage_multi_leg_pi() -> bool:
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := AmountPlan.new()
-	plan.kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
-	plan.primary_subject_id = &"enemy_a"
-	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_a", 1))
-	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_b", 1))
+	var plan := AmountPlan.attack_damage_pin_primary(
+		&"enemy_a", {&"enemy_a": 1, &"enemy_b": 1}
+	)
 	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
-	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
-	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
 	return (
-		leg_a.amount == 1
-		and leg_b.amount == 2
-		and not h.ctx.interaction.last_used_default
+		plan.find_leg_index(&"enemy_a") >= 0
+		and plan.leg_at(plan.find_leg_index(&"enemy_a")).amount == 2
+		and plan.leg_at(plan.find_leg_index(&"enemy_b")).amount == 1
 	)
 
 
-func _test_mod_attack_damage_zero_leg_skips() -> bool:
+func _test_mod_attack_damage_pin_primary_from_zero() -> bool:
+	## MOD-04：主目标腿为 0 仍可被 PIN_PRIMARY 加成；旁路仍为 0。
 	var h := RuleTestHarness.new(42)
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionNode.register(
 		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
 	))
-	var plan := AmountPlan.new()
-	plan.kind = AhcEnums.ModifierPlanKind.ATTACK_DAMAGE
-	plan.primary_subject_id = &"enemy_a"
-	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_a", 0))
-	plan.legs.append(AmountPlan.AmountLeg.make(&"enemy_b", 0))
+	var plan := AmountPlan.attack_damage_pin_primary(
+		&"enemy_a", {&"enemy_a": 0, &"enemy_b": 0}
+	)
 	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
-	var leg_a: AmountPlan.AmountLeg = plan.legs[0]
-	var leg_b: AmountPlan.AmountLeg = plan.legs[1]
+	return (
+		plan.leg_at(plan.find_leg_index(&"enemy_a")).amount == 1
+		and plan.leg_at(plan.find_leg_index(&"enemy_b")).amount == 0
+	)
+
+
+func _test_mod_attack_damage_add_to_pool() -> bool:
+	## MOD-05 · 04305：写明分配 → +N 进 pool；settle 默认整池→primary。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	var ea := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var eb := h.ctx.state.registry.get_enemy(&"enemy_b")
+	ea.health = 10
+	eb.health = 10
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.attack_damage_assign_pool(
+		4, &"enemy_a", [&"enemy_a", &"enemy_b"] as Array[StringName]
+	)
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	if plan.pool_amount != 5:
+		return false
 	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan)
-	return leg_a.amount == 0 and leg_b.amount == 0 and int(settled.get("settled", -1)) == 0
+	ea = h.ctx.state.registry.get_enemy(&"enemy_a")
+	eb = h.ctx.state.registry.get_enemy(&"enemy_b")
+	return (
+		int(settled.get("settled", 0)) == 5
+		and plan.pool_amount == 0
+		and ea.damage == 5
+		and eb.damage == 0
+	)
 
 
 func _test_mod_discover_bonus_single_leg() -> bool:
