@@ -27,12 +27,9 @@ func perform_attack(attack: EnemyAttack) -> void:
 	var inv := _state.registry.get_investigator(attack.target_investigator)
 	if inv == null:
 		return
-	## 伤/恐均经 seq.effect.damage.assignable（kind 区分；Assign+Apply 同帧）。
-	if _game_ctx != null:
-		if attack.damage > 0:
-			_deal_via_seq(&"damage", attack.damage, attack)
-		if attack.horror > 0:
-			_deal_via_seq(&"horror", attack.horror, attack)
+	## 伤+恐同一条 seq.effect.deal.assignable（禁止各 nest 一次）。
+	if _game_ctx != null and (attack.damage > 0 or attack.horror > 0):
+		_deal_via_seq(attack)
 	else:
 		inv.damage_taken += attack.damage
 		inv.horror_taken += attack.horror
@@ -71,13 +68,22 @@ func perform_attack(attack: EnemyAttack) -> void:
 		ElusiveResolver.try_flee_after_enemy_attack(_game_ctx, attack.enemy_id)
 
 
-func _deal_via_seq(kind: StringName, amount: int, attack: EnemyAttack) -> void:
+func _deal_via_seq(attack: EnemyAttack) -> void:
 	var params := {
 		"controller_id": attack.target_investigator,
-		"kind": kind,
-		"amount": amount,
+		"damage": attack.damage,
+		"horror": attack.horror,
 		"source": attack.enemy_id,
+		"target": &"controller",
 	}
+	if (
+		_game_ctx.sequence_catalog != null
+		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.deal.assignable")
+	):
+		_game_ctx.sequence_catalog.nest(
+			_game_ctx, &"seq.effect.deal.assignable", params
+		)
+		return
 	if (
 		_game_ctx.sequence_catalog != null
 		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.damage.assignable")
@@ -86,6 +92,11 @@ func _deal_via_seq(kind: StringName, amount: int, attack: EnemyAttack) -> void:
 			_game_ctx, &"seq.effect.damage.assignable", params
 		)
 		return
-	DamagePipeline.deal_investigator(
-		_game_ctx, attack.target_investigator, kind, amount, false
+	DamagePipeline.deal_investigator_bundle(
+		_game_ctx,
+		attack.target_investigator,
+		attack.damage,
+		attack.horror,
+		false,
+		false
 	)

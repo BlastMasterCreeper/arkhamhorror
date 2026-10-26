@@ -126,12 +126,11 @@ static func _settle_attack_assignable(game_ctx: GameContext, plan: AmountPlan) -
 	if game_ctx != null and game_ctx.sequence_catalog != null:
 		var nest_res: Variant = game_ctx.sequence_catalog.nest(
 			game_ctx,
-			&"seq.effect.damage.assignable",
+			&"seq.effect.deal.assignable",
 			{
 				"controller_id": plan.primary_subject_id,
-				"kind": &"damage",
 				"target": &"enemy",
-				"amount": amount,
+				"damage": amount,
 				"primary_id": plan.primary_subject_id,
 				"candidates": plan.candidate_ids,
 			}
@@ -178,11 +177,11 @@ static func _settle_attack_determined(game_ctx: GameContext, plan: AmountPlan) -
 			"amount_remaining": plan.amount,
 		}
 	var settled := 0
-	## 无分配：一条 seq.effect.damage + legs。
+	## 无分配：一条 seq.effect.deal + legs。
 	if game_ctx != null and game_ctx.sequence_catalog != null:
 		var nest_res: Variant = game_ctx.sequence_catalog.nest(
 			game_ctx,
-			&"seq.effect.damage",
+			&"seq.effect.deal",
 			{
 				"controller_id": plan.primary_subject_id,
 				"kind": &"damage",

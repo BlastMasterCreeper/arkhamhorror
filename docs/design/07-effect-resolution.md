@@ -205,8 +205,8 @@ Grimoire p.8：
 **已裁决（2026-10-22 · 约束参数化 2026-10-23 · 交互形态 2026-10-23）**：
 
 - Assign = **静态 PI**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`）：**不是** 独立时点砖，**不**单独成 seq。
-- **有分配手续** = `seq.effect.damage.assignable`：Assign PI + Apply **封为一条**（同帧；`kind`=damage\|horror；TC.kind 仍 `damage`）。
-- **无分配手续** = `seq.effect.damage`：已定 `legs[]` / 单点，**无** Assign（`kind` 同上）。描述常略写「伤害」，恐惧同路。
+- **有分配手续** = `seq.effect.deal.assignable`：伤与恐可 **同入参**；Assign 后 **同时** Apply（同帧封死；TC.kind 仍 `damage`）。禁止伤/恐各 nest 一条。
+- **无分配手续** = `seq.effect.deal`：已定 `legs[]` / 单点，**无** Assign；伤+恐已定用 Simultaneous。
 - lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
 - 逾期 / headless 未确认 → `DamageAssigner.default_assignment`（见下）。
 
@@ -294,7 +294,7 @@ API 示意：`DamagePipeline.increase_pending(inv_id, by)` → 更新总量 → 
 
 ### 4.1 Moving / 再分配 damage / horror（已裁决 OQ-07-02 · 包装修正 2026-10-23）
 
-卡面 **Move** / **再分配**（牌上已有标记挪到别处）**不算 heal**，也 **不** 走 `seq.effect.damage` 的 Assign/WOULD take。
+卡面 **Move** / **再分配**（牌上已有标记挪到别处）**不算 heal**，也 **不** 走 `seq.effect.deal` 的 Assign/WOULD take。
 
 | | `HEAL` | Move / 再分配 |
 |---|---|---|

@@ -15,11 +15,11 @@
 
 ### 1.1 命名与粒度（已裁决 2026-09-22）
 
-1. **按魔典章节 / 词条分类** `flow_id` 前缀（`seq.skill_test`、`seq.draw.*`、`seq.framework.*`、`seq.effect.damage` …），勿把无关手续平铺成一串同级 `seq.effect.*` 而不标明词条归属。
+1. **按魔典章节 / 词条分类** `flow_id` 前缀（`seq.skill_test`、`seq.draw.*`、`seq.framework.*`、`seq.effect.deal` …），勿把无关手续平铺成一串同级 `seq.effect.*` 而不标明词条归属。
 2. **`seq.*` 只做时点切分**（WOULD/WHEN/RESOLVE/AFTER 与因果 nest）。**禁止**把条件写进 `flow_id`（技能类型、目标过滤、Elite、pile、amount=all 等）。
 3. **条件 / 视角差异 → `params`**（及 Eligibility / Scope / 目标解析）。例：
    - `seq.skill_test` + `params.skill`（勿 `seq.skill_test.willpower|…`）
-   - **造成伤害/恐惧**：待分配 `seq.effect.damage.assignable`；无分配已定 `seq.effect.damage`；纸面 take/deal 同词条、按是否分配分两条
+   - **造成伤害/恐惧**：待分配 `seq.effect.deal.assignable`（伤+恐可同入参、同帧同时 Apply）；无分配 `seq.effect.deal`；旧 `damage*` 别名
    - `seq.effect.lose_resources` + `all: true`（勿另开 `lose_all_resources`）
 4. Forced 订阅 **时点 seq 的 kind**；「是不是附着地点上的非 Elite」等过滤留在 params / 解析器，不铸造 `seq.fire_damage`。
 5. **敏感度**：并得越宽，订该 `sequence_id` 的能力被枚举越频；差异必须进 **params / tags / ApplicationContext** 供 Eligibility 拦截。过滤贵过再铸一条、或订阅语义必须靠不同 `sequence_id` → **拆**。
@@ -223,8 +223,8 @@
 | `seq.defeat.leave_play` | 击败后退场 | nest from defeat；敌人路由 / 调查员淘汰清理 |
 | `seq.engage` | 交战内核（auto / effect） | `EngageFlow`；行动外壳 nest effect |
 | `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅；多地 = `legs[]`（仍一帧；L0 逐地） |
-| `seq.effect.damage.assignable` | **待分配**造成伤害/恐惧 | `kind`=damage\|horror；Assign+Apply 同帧；调查员承伤 / 04305 |
-| `seq.effect.damage` | **无分配**造成伤害/恐惧（已定） | `kind` 同上；已定 `legs[]` / 敌·支援单点；**无** Assign |
+| `seq.effect.deal.assignable` | **待分配**造成伤害/恐惧 | `damage`+`horror` 可同入参；Assign 后 **同时** Apply；禁止伤/恐各开一条 |
+| `seq.effect.deal` | **无分配**造成伤害/恐惧（已定） | `legs[]` / 单点；伤+恐已定用 Simultaneous 修饰；**无** Assign |
 | `seq.effect.lose_resources` | 失去资源（含全部：`all: true`） | 卡面；CREATED = 实际扣到 |
 | `seq.effect.heal` | 治疗伤害或恐惧（`kind` 参数） | 卡面 |
 | `seq.effect.lose_action` | 失去行动 | 卡面 |
@@ -243,7 +243,7 @@
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 
-**已移除（并入 params）**：`seq.effect.take_horror` / `take_damage` / `deal_damage` → 待分配走 `damage.assignable`（`kind`），已定走 `damage`；`seq.effect.lose_all_resources` → `lose_resources`+`all`；`seq.skill_test.{willpower,intellect,combat,agility}` → `seq.skill_test`。
+**已移除 / 更名**：`take_horror`/`take_damage`/`deal_damage`/`damage*` → `seq.effect.deal.assignable` / `seq.effect.deal`（`damage*` 暂别名）；`lose_all_resources` → `lose_resources`+`all`；技能检定四条 → `seq.skill_test`。
 
 ---
 
@@ -329,6 +329,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.31 | §5：更名 `deal`/`deal.assignable`；伤+恐同条待分配、同时 Apply |
 | 2026-10-26 | v0.4.30 | §5：明示 `kind`=damage\|horror 同两条手续（描述常略写） |
 | 2026-10-26 | v0.4.29 | §5：拆 `damage.assignable`（有分配）与 `damage`（无分配已定） |
 | 2026-10-26 | v0.4.28 | §5：`seq.effect.damage` / `discover_clue` 支持 `legs[]` 多目标；一帧；L0 仍单目标 |

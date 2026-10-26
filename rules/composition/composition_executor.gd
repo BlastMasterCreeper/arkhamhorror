@@ -482,7 +482,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_move_marker_to(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
-		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
+		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage", &"nest_deal_assignable":
 			return _execute_nest_damage(node)
 		&"nest_lose_resources":
 			return _execute_nest_lose_resources(node)
@@ -1693,24 +1693,27 @@ func _execute_nest_damage(node: CompositionNode) -> bool:
 		or target == &"each_at_source_location"
 	)
 	var flow_id: StringName = node.nest_flow_id
-	## 待分配目标：强制 assignable（兼容旧 JSON 仍写 seq.effect.damage）。
+	## 待分配目标：强制 deal.assignable（兼容旧 JSON damage*）。
 	if needs_assign:
-		flow_id = &"seq.effect.damage.assignable"
-	elif flow_id == &"":
-		flow_id = &"seq.effect.damage"
-	var result := _nest_or_direct(
-		flow_id,
-		{
-			"controller_id": inv_id,
-			"kind": kind,
-			"amount": amount,
-			"direct": node.is_direct,
-			"target": target if target != &"" else &"controller",
-			"source": node.card_id,
-			"card_id": node.card_id,
-			"enemy_id": enemy_id,
-		}
-	)
+		flow_id = &"seq.effect.deal.assignable"
+	elif flow_id == &"" or flow_id == &"seq.effect.damage":
+		flow_id = &"seq.effect.deal"
+	var nest_params := {
+		"controller_id": inv_id,
+		"direct": node.is_direct,
+		"target": target if target != &"" else &"controller",
+		"source": node.card_id,
+		"card_id": node.card_id,
+		"enemy_id": enemy_id,
+	}
+	## bundle：伤+恐同条；否则单 kind+amount。
+	if node.atom_name == &"nest_deal_assignable" or node.definition_id == &"deal_bundle":
+		nest_params["damage"] = maxi(node.marker_delta, 0)
+		nest_params["horror"] = maxi(node.amount, 0)
+	else:
+		nest_params["kind"] = kind
+		nest_params["amount"] = amount
+	var result := _nest_or_direct(flow_id, nest_params)
 	if result.is_empty() and _mutator != null and target == &"controller":
 		var marker := (
 			AhcEnums.MarkerKind.HORROR_TAKEN if kind == &"horror" else AhcEnums.MarkerKind.DAMAGE

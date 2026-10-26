@@ -5,8 +5,9 @@ extends RefCounted
 ## L0 写入只出现在这里，不出现在卡面 Composition 树当效果本身。
 
 
-## 无分配造成伤害/恐惧（seq.effect.damage）：已定 legs / 敌·支援单点；**不含** Assign。
-## params.kind = damage | horror。调查员承伤 / 待摊 → `seq.effect.damage.assignable`。
+## 无分配造成伤害/恐惧（seq.effect.deal）：已定 legs / 敌·支援单点；**不含** Assign。
+## 单 kind 用 params.kind；伤+恐已定且需同时写 → legs_damage + legs_horror（翻译 Simultaneous）。
+## 待分配 → `seq.effect.deal.assignable`。
 static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var kind := StringName(str(params.get("kind", "damage")))
 	var target := StringName(str(params.get("target", "controller")))
@@ -32,7 +33,7 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return {
 			"ok": false,
 			"amount": 0,
-			"error": "use_seq.effect.damage.assignable",
+			"error": "use_seq.effect.deal.assignable",
 			"kind": kind,
 			"target": target,
 		}

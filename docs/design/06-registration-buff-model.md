@@ -1224,10 +1224,10 @@ Grimoire 条文 / 卡面效果
   │      DETERMINED：+= primary（攻击伤害线）
   │      ASSIGN：+= amount（攻击伤害数值）
   │
-  └─ 4. settle：ASSIGN → nest `seq.effect.damage.assignable`；DETERMINED → nest `seq.effect.damage` + `legs[]`
+  └─ 4. settle：ASSIGN → nest `seq.effect.deal.assignable`；DETERMINED → nest `seq.effect.deal` + `legs[]`
 ```
 
-**造成伤害/恐惧两条 seq（已裁决）**：`damage.assignable` = Assign+Apply 同帧；`damage` = 无分配已定。均用 `kind`=damage\|horror（话术常略写 damage）。发现线索仍一条 + `legs[]`。L0 仍单目标。
+**造成伤害/恐惧两条 seq（已裁决）**：`deal.assignable` = 待分配（伤+恐可同入参，Assign 后 **同时** Apply）；`deal` = 无分配已定。禁止伤/恐各开一条 assignable。翻译已定双写用 Simultaneous。发现线索仍一条 + `legs[]`。
 
 ##### `AmountEffectShape`
 
@@ -1494,6 +1494,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.47 | 更名 `deal`；伤+恐同条 assignable、同时 Apply |
 | 2026-10-26 | v0.4.46 | 明示 horror 与 damage 同两条 seq（`kind`） |
 | 2026-10-26 | v0.4.45 | 伤害拆 `damage.assignable` / `damage`；ASSIGN settle → assignable |
 | 2026-10-26 | v0.4.44 | settle 多目标：一条 seq + `legs[]`；L0 仍单目标（MOD-13/14/15） |

@@ -176,23 +176,40 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return DiscoverClueFlow.run_params(game_ctx, params)
 	)
+	## 造成伤害/恐惧：待分配 / 无分配。旧 flow_id damage* 作别名。
+	var deal_assignable := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return DealAssignableFlow.run(game_ctx, params)
+	var deal_determined := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return EffectFlowHandlers.damage(game_ctx, params)
+	var deal_tc := func(params: Dictionary) -> TriggeringCondition:
+		return TriggeringCondition.damage_from_params(params)
+	catalog.register_run(
+		&"seq.effect.deal.assignable",
+		deal_tc,
+		deal_assignable,
+		false,
+		true ## 伤/恐可同入参；Assign 后同时 Apply；信封无槽
+	)
+	catalog.register_run(
+		&"seq.effect.deal",
+		deal_tc,
+		deal_determined,
+		false,
+		true ## 无分配已定 legs/单点
+	)
 	catalog.register_run(
 		&"seq.effect.damage.assignable",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.damage_from_params(params),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return DamageAssignableFlow.run(game_ctx, params),
+		deal_tc,
+		deal_assignable,
 		false,
-		true ## Assign PI + Apply 同帧；信封无槽，Apply 前 offer WOULD/WHEN
+		true
 	)
 	catalog.register_run(
 		&"seq.effect.damage",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.damage_from_params(params),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.damage(game_ctx, params),
+		deal_tc,
+		deal_determined,
 		false,
-		true ## 无分配：已定 legs/单点；信封无槽，Apply 前 offer WOULD/WHEN（承伤腿）
+		true
 	)
 	catalog.register_run(
 		&"seq.effect.lose_resources",

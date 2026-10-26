@@ -86,6 +86,7 @@ func _initialize() -> void:
 	_run_test("MOD-13 attack multi-leg settle one seq", _test_mod_attack_multi_leg_settle_one_seq)
 	_run_test("MOD-14 discover multi-leg settle one seq", _test_mod_discover_multi_leg_settle_one_seq)
 	_run_test("MOD-15 multi-leg damage AFTER fires once", _test_mod_multi_leg_damage_after_once)
+	_run_test("MOD-16 deal.assignable damage+horror one seq", _test_mod_deal_assignable_bundle_one_seq)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -1966,7 +1967,7 @@ func _test_mod_discover_named_bonus() -> bool:
 
 
 func _test_mod_attack_multi_leg_settle_one_seq() -> bool:
-	## MOD-13 · 03153 形：多敌 DETERMINED settle → 一条 seq.effect.damage + legs；L0 仍单目标。
+	## MOD-13 · 03153 形：多敌 DETERMINED settle → 一条 seq.effect.deal + legs；L0 仍单目标。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
@@ -2035,7 +2036,7 @@ func _test_mod_multi_leg_damage_after_once() -> bool:
 	h.ctx.sequences.register_handler(after_h)
 	var nest_res: Variant = h.ctx.sequence_catalog.nest(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.deal",
 		{
 			"controller_id": &"inv_1",
 			"kind": &"damage",
@@ -2055,6 +2056,38 @@ func _test_mod_multi_leg_damage_after_once() -> bool:
 		and after_n["n"] == 1
 		and ea.damage == 1
 		and eb.damage == 1
+	)
+
+
+func _test_mod_deal_assignable_bundle_one_seq() -> bool:
+	## 伤+恐同条 deal.assignable；AFTER(damage) 只一次（非各开一条）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var after_n := {"n": 0}
+	var after_h := SequenceHandler.after_forced(&"damage", func() -> void: pass)
+	after_h.callback = func() -> void:
+		after_n["n"] = int(after_n["n"]) + 1
+	h.ctx.sequences.register_handler(after_h)
+	var res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{
+			"controller_id": &"inv_1",
+			"damage": 2,
+			"horror": 1,
+			"target": &"controller",
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res is Dictionary
+		and bool((res as Dictionary).get("simultaneous", false))
+		and int((res as Dictionary).get("damage", 0)) == 2
+		and int((res as Dictionary).get("horror", 0)) == 1
+		and after_n["n"] == 1
+		and inv.damage_taken == 2
+		and inv.horror_taken == 1
 	)
 
 
@@ -3453,10 +3486,10 @@ func _test_adb_12145_reaction_declined() -> bool:
 
 func _test_seq_eff_nest_take_horror() -> bool:
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.damage.assignable"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.deal.assignable"):
 		return false
 	var node := CompositionNode.nest_take_horror(&"inv_1", 2)
-	if node.nest_flow_id != &"seq.effect.damage.assignable":
+	if node.nest_flow_id != &"seq.effect.deal.assignable":
 		return false
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(node)
@@ -3579,7 +3612,7 @@ func _test_seq_eff_attach_controller_location() -> bool:
 
 func _test_seq_eff_deal_damage_at_location() -> bool:
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.damage"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.deal"):
 		return false
 	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -4759,7 +4792,7 @@ func _test_seq_eff_deal_damage_attached() -> bool:
 	enemy.health = 3
 	var result := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.deal",
 		{
 			"controller_id": &"inv_1",
 			"source": fire_id,
@@ -7577,7 +7610,7 @@ func _test_g5_investigator_horror_cap() -> bool:
 	inv.horror_taken = 0
 	var applied := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage.assignable",
+		&"seq.effect.deal.assignable",
 		{
 			"controller_id": &"inv_1",
 			"kind": &"horror",
@@ -8245,7 +8278,7 @@ func _test_tim_dmg_apply_slots() -> bool:
 	)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage.assignable",
+		&"seq.effect.deal.assignable",
 		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
 	)
 	var trace := h.ctx.memory.phase_trace
@@ -8299,7 +8332,7 @@ func _test_tim_dmg_prevent() -> bool:
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage.assignable",
+		&"seq.effect.deal.assignable",
 		{"controller_id": &"inv_1", "kind": &"horror", "amount": 2}
 	)
 	return (
@@ -8322,7 +8355,7 @@ func _test_tim_dmg_increase_pending() -> bool:
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage.assignable",
+		&"seq.effect.deal.assignable",
 		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
 	)
 	return (
@@ -8362,7 +8395,7 @@ func _test_tim_dmg_increase_keeps_legs() -> bool:
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage.assignable",
+		&"seq.effect.deal.assignable",
 		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
 	)
 	var card := h.ctx.state.registry.get_card(card_id)

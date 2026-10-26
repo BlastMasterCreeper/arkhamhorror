@@ -38,7 +38,7 @@
 | `seq.skill_test` | Skill Test Timing | 一条 + `params.skill` |
 | `seq.action.*` | 基本/指定行动 **外壳**（耗 action、AOO） | `seq.action.fight` |
 | `seq.enemy.*` | 敌人手续（移动 / 攻击 / 击败…） | `seq.enemy.attack` |
-| `seq.effect.*` | 纸面无名但可解释的效果种类 | `seq.effect.damage` |
+| `seq.effect.*` | 纸面无名但可解释的效果种类 | `seq.effect.deal` |
 | `seq.keyword.*` | 关键词 **开火**（非创建） | `seq.keyword.surge` |
 | `seq.interrupt.*` / `seq.replace.*` | Cancel / Ignore / Instead | 共享 |
 | `seq.ability.resolve` | Initiation 装载帧（禁真空） | — |
@@ -81,8 +81,8 @@
 
 | flow_id | Grimoire 词条 | 粒度裁决（草案） |
 |---|---|---|
-| `seq.effect.damage.assignable` | Dealing Damage/Horror（待分配） | `kind`；Assign+Apply 同帧；与无分配 **分开** |
-| `seq.effect.damage` | Dealing Damage/Horror（无分配） | `kind`；`legs[]` / 单点；**无** Assign |
+| `seq.effect.deal.assignable` | Dealing Damage/Horror（待分配） | 伤+恐可同入参；Assign 后同时 Apply |
+| `seq.effect.deal` | Dealing Damage/Horror（无分配） | 已定；伤+恐用 Simultaneous；**无** Assign |
 | `seq.effect.heal` | Heal | **保留** |
 | `seq.effect.lose_resources` | （失去资源） | **保留**；`all` 参数 |
 | `seq.effect.lose_action` | （失去行动） | **保留** |
