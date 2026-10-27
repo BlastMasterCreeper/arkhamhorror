@@ -477,22 +477,6 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if sim.state == null or node.from_zone == &"":
 				return false
 			return true
-		&"nest_evade", &"automatically_evade":
-			## 躲避效果：敌存在即可 CREATED（横置 + 可能解除交战）。
-			var evade_id := _resolve_sim_enemy_spec(node, sim)
-			if evade_id == &"" or sim.state == null:
-				return false
-			var evade_enemy := sim.state.registry.get_enemy(evade_id)
-			if evade_enemy == null:
-				return false
-			evade_enemy.exhausted = true
-			if evade_enemy.engaged_with != &"":
-				var evade_holder := sim.state.registry.get_investigator(evade_enemy.engaged_with)
-				if evade_holder != null:
-					evade_holder.threat_area.erase(evade_id)
-				evade_enemy.engaged_with = &""
-			sim.last_step_enemy_id = evade_id
-			return true
 		&"exhaust_card", &"ready_card":
 			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
 			if exh == null:
@@ -545,6 +529,27 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				holder.threat_area.erase(dis_enemy_id)
 			dis_enemy.engaged_with = &""
 			sim.last_step_enemy_id = dis_enemy_id
+			return true
+		&"nest_evade", &"automatically_evade":
+			## 镜像 `seq.effect.evade` 同时组：横置或脱离任一 CREATED。
+			var evade_enemy_id := _resolve_sim_enemy_spec(node, sim)
+			if evade_enemy_id == &"" or sim.state == null:
+				return false
+			var evade_enemy := sim.state.registry.get_enemy(evade_enemy_id)
+			if evade_enemy == null or evade_enemy.location_tag == &"":
+				return false
+			var exhaust_changed := not evade_enemy.exhausted
+			var disengaged := evade_enemy.engaged_with != &""
+			if not exhaust_changed and not disengaged:
+				return false
+			if exhaust_changed:
+				evade_enemy.exhausted = true
+			if disengaged:
+				var evade_holder := sim.state.registry.get_investigator(evade_enemy.engaged_with)
+				if evade_holder != null:
+					evade_holder.threat_area.erase(evade_enemy_id)
+				evade_enemy.engaged_with = &""
+			sim.last_step_enemy_id = evade_enemy_id
 			return true
 		&"no_provoke_aoo":
 			## 镜像 `seq.effect.register` CREATED（dry-run 不压栈；行动开始挂载等价）。

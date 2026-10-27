@@ -391,7 +391,7 @@ bind:
 | `pick_target` 经 Enumerator（preset + 对象 filter） | ✅ |
 | Gate `ask_selection` + Memory bind 形状 | ✅ 骨架 |
 | **N** 数值 `preds` + field/StatQuery | ✅ 骨架：`CandidatePreds`（field 投影 + `clues_on_location_ge` / `turn_action_spend_count_ge`） |
-| **V** 候选级 dry-run（含 Restriction；目标须能被改变） | ✅ 骨架：`CandidateViability` + SEQ 兄弟/`viability_tail`；`exhaust_enemy` 已横置无 CREATED |
+| **V** 候选级 dry-run（含 Restriction；目标须能被改变） | ✅ 骨架：`CandidateViability` + SEQ 兄弟/`viability_tail`；隐式 evade 尾 = `nest_evade`；已横置且未交战 → 无 CREATED |
 | `for_intent` 预筛 | 可选优化；不得与 V 分叉 |
 | **隐式目标** Fight/Evade/Investigate（§3.2） | ✅ 基础行动：`ImplicitActionTargets` + preset filter + V（Investigate 仅所在地预检） |
 | `pick_multi` + `for_each_memory` | ✅ `PICK_MULTI` 基数/默认前 N；`entity_list` bind；`memory:key[]` 遍历；特性·关键词·横置仍增量扩 filter |

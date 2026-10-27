@@ -262,7 +262,7 @@
 | ID | 词条 / 语义 | 现状 | 建议 |
 |---|---|---|---|
 | G1 | **狭义 Move** | **`seq.effect.move`**（investigator/enemy/attachment/marker） | **已统一**；`seq.enemy.move` 别名；广义转移与地点交换 **不**入此 seq |
-| G2 | **Exhaust / Ready** | **已铸** `seq.effect.exhaust` / `seq.effect.ready` | 平放区卡牌 + 在场敌人；`target_kind` card\|enemy；费用 exhaust 仍走 Cost |
+| G2 | **Exhaust / Ready / Evade effect** | **已铸** `seq.effect.exhaust` / `ready` / **`evade`** | 横置/重整；躲避效果核 = **横置∥脱离同时组**；费用 exhaust 仍走 Cost |
 | G3 | **Search** | **已铸** `seq.effect.search` | 单条；`area`/`scope`/`amount`/`filter`/`take_count`；搜牌库须洗（整库/顶 N）；≠ look/find |
 | G4 | **Put into play / Enter play** | 区划事实（场外→场上） | **不铸** `seq.effect.enter_play` — **不是效果**；见下「进场」 |
 | G5 | **Defeat**（击败） | **已铸** `seq.effect.defeat`；敌人别名 `seq.enemy.defeat`；退场 nest `seq.defeat.leave_play` | 伤/恐上限常态检测；Cancel → 无退场；卡面 `cause=effect` |
@@ -331,8 +331,8 @@
 3. ~~**M4**~~：**已落地** — `seq.effect.gain_resource`（旧 id 别名）  
 4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
-6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线  
-6b. ~~**躲避效果**~~：**已落地** — `seq.effect.evade`（attempt / automatic）；卡面执行=自动躲避；≠ `seq.action.evade`  
+6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 攻击后横置 / Elusive 接线  
+6b. ~~**躲避效果**~~：**已落地** — `seq.effect.evade`（attempt / automatic；横置∥脱离**同时组**）；卡面执行=自动躲避；≠ `seq.action.evade`；四层见术语表 / 03 §6.7  
 
 
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
@@ -379,6 +379,7 @@
 | 2026-10-12 | G4 补：听进场 = 听广义移动 + 场外→场上过滤；`ENTER_PLAY` 是别名非第二通道 |
 | 2026-10-20 | G5 表述：击败=大信封；退场是效果体（nest），非信封外后续 |
 | 2026-10-20 | G5 去向表：玩家弃牌 / 无主剧情→REMOVED（FAQ · Lita 01117）/ 遭遇弃牌；Victory·复仇指示；敌人-地点后议 |
+| 2026-10-20 | 铸造 `seq.effect.evade`：躲避效果核；横置∥脱离**同时组**（非 nest→内联）；`mode=attempt\|automatic` |
 | 2026-10-12 | G5：击败是效果；退场 nest 不内联；伤/恐上限常态检测（Cancel 可再触） |
 | 2026-10-12 | G5 落地：`DefeatFlow`；`seq.effect.defeat` / `seq.enemy.defeat`；nest `seq.defeat.leave_play` |
 | 2026-10-12 | G5：支援资产 `subject=asset`；退场 L0 进弃牌堆，不走 discard 效果包装 |

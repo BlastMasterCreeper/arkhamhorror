@@ -215,6 +215,7 @@
 | `seq.effect.move` | 狭义移动（四主体） | `MoveFlow`；行动 / 卡面 / Hunter·Patrol·Elusive nest |
 | `seq.effect.exhaust` | 横置 | `ExhaustReadyFlow`；平放区卡 / 在场敌 |
 | `seq.effect.ready` | 重整 | 同上；Upkeep 4.3 batch |
+| `seq.effect.evade` | 躲避效果（横置∥解除交战同时组） | `EvadeFlow`；成功尝试 / 自动躲避入口；≠ `seq.action.evade`；组内不 nest exhaust |
 | `seq.effect.search` | 搜寻 | `SearchFlow`；区域/顶 N/过滤/取出；搜牌库须洗；≠ look/find |
 | `seq.effect.evade` | 躲避效果 | `EvadeFlow`；横置+解除交战；`mode` attempt\|automatic；卡面执行=自动躲避；≠ 行动外壳 |
 | `seq.zone.move` | 广义区划迁移（**信息**；进场/离场 = 过滤别名） | L0 `move_card` 成功后 `ZoneMoveFlow`；非 `seq.effect.move` |

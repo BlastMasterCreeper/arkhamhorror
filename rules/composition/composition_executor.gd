@@ -906,35 +906,6 @@ func _execute_nest_search(node: CompositionNode) -> bool:
 	return ok
 
 
-func _execute_nest_evade(node: CompositionNode) -> bool:
-	if _game_ctx == null:
-		return false
-	var inv_id := _ability_controller(_resolve_inv(node))
-	var enemy_id := _resolve_enemy_spec(node, inv_id)
-	if enemy_id == &"":
-		return false
-	var mode := EvadeFlow.normalize_mode(node.engage_mode)
-	if node.atom_name == &"automatically_evade":
-		mode = EvadeFlow.MODE_AUTOMATIC
-	var result := EvadeFlow.nest_or_run(
-		_game_ctx,
-		{
-			"enemy_id": enemy_id,
-			"investigator_id": inv_id,
-			"mode": mode,
-		}
-	)
-	var ok := bool(result.get("ok", false))
-	if ok:
-		_last_step_enemy_id = enemy_id
-		_log.log(
-			AhcEnums.LogCategory.CARD,
-			"composition:nest_evade",
-			{"enemy": enemy_id, "inv": inv_id, "mode": mode, "flow": EvadeFlow.FLOW}
-		)
-	return ok
-
-
 func _execute_exhaust_card(node: CompositionNode) -> bool:
 	if _game_ctx == null or node.card_id == &"":
 		return false
@@ -1066,6 +1037,37 @@ func _execute_disengage_enemy(node: CompositionNode) -> bool:
 			AhcEnums.LogCategory.CARD,
 			"composition:disengage_enemy",
 			{"enemy": enemy_id, "inv": inv_id}
+		)
+	return ok
+
+
+## nest `seq.effect.evade`（躲避效果；自动躲避同核）。
+func _execute_nest_evade(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var mode := node.evade_mode
+	if node.atom_name == &"automatically_evade":
+		mode = EvadeFlow.MODE_AUTOMATIC
+	mode = EvadeFlow.normalize_mode(mode)
+	var result := EvadeFlow.nest_or_run(
+		_game_ctx,
+		{
+			"enemy_id": enemy_id,
+			"investigator_id": inv_id,
+			"mode": mode,
+		}
+	)
+	var ok := bool(result.get("ok", false)) and bool(result.get("created", false))
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:nest_evade",
+			{"enemy": enemy_id, "inv": inv_id, "mode": mode, "flow": EvadeFlow.FLOW}
 		)
 	return ok
 
