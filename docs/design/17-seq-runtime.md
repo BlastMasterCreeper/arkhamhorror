@@ -329,6 +329,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-27 | v0.4.35 | §4.4：取消/additional 钉 WOULD；WHEN take 预留无生产卡 |
 | 2026-10-26 | v0.4.34 | §5：deal 双通道腿；AFTER 伤/恐/和或条件；GRANT 无印刷不设上限 |
 | 2026-10-26 | v0.4.33 | §4.4：外向/已定 deal 腿 PreImpact（`DealPreImpact`） |
 | 2026-10-26 | v0.4.32 | §5：deal 多目标混装敌/卡/调查员；Assign `GRANT_CAPACITY` |
