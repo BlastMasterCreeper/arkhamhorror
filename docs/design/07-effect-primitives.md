@@ -366,12 +366,15 @@ class AtomTransferMarker:
     var sub_key: StringName = &""    # USES 时两边一致
 ```
 
-**做什么**：`from` 减 `amount`，`to` 加 `amount`；**总量守恒**（池 ↔ 卡 ↔ 地点 ↔ 调查员之间搬运）。
+**做什么**：`from` 减 `amount`，`to` 加 `amount`；**总量守恒**（池 ↔ 卡 ↔ 地点 ↔ 调查员之间搬运）。  
+**粒度硬约束**：**仅 1 源 → 1 目标**。禁止在单次 L0 内吞多源多目标（伪原子会被嵌套窗打断）。
+
+**多来源 / 多目标**：包装层 `MarkerTransferBatch`（`core/domain/marker_transfer_batch.gd`）把 N:M **展开**为若干条本原子，再逐腿 `StateMutator.transfer_marker`。再分配 / Move 伤恐共用此包装；**不**改本原语，**不**另铸 `seq.effect.transfer_*`。
 
 **典型语义**：
 
 - Discover clue：`CLUES_ON_LOCATION` → `CLUES_ON_INVESTIGATOR`
-- Move 1 damage：`CARD.damage` → `CARD.damage`（另一张卡）
+- Move 1 damage：`CARD.damage` → `CARD.damage`（另一张卡）→ 单腿本原子；多卡再摊 → Batch 展开
 - Place clue from pool：`POOL_CLUE` → `CLUES_ON_LOCATION`
 
 **不做什么**：
@@ -582,7 +585,7 @@ CompositionExecutor.run(tree)
 | DRAW_CARDS | `Repeat(n, MoveCard deck→hand)` |
 | GAIN_RESOURCE | `AdjustMarker(RESOURCE, +n)` |
 | HEAL | `AdjustMarker(DAMAGE\|HORROR, -n, clamp_min=0)` + semantic heal |
-| TRANSFER_AFFLICTION | `TransferMarker(DAMAGE\|HORROR, n, A, B)` |
+| TRANSFER_AFFLICTION | `MarkerTransferBatch` → 若干 `TransferMarker`（每腿 1:1） |
 | DEAL_DAMAGE | `DamageWrapper` → Assign → 若干 `AdjustMarker` |
 | DISCOVER_CLUE | `TransferMarker(CLUES_ON_LOCATION, n, loc, inv)` |
 | EXHAUST / READY | `SetFlag(EXHAUSTED, true/false)` |
