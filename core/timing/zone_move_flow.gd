@@ -186,25 +186,32 @@ static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> voi
 	_discard_attachments_on_leave(game_ctx, card)
 
 
-## 卡上 damage/horror/clue → global TokenPool；doom/uses 清零（池无 doom/uses 槽）。
+## 卡上桌面标记 → 无穷 TokenPool（`give` 湮入；本栈尚无 CARD `MarkerSlot`，不经 transfer_marker）。
+## uses 非桌面池槽，仅清零；sealed 由 `SealFlow.release_on_leave_play` 先释回袋，再清空域计数。
 static func _return_tokens_to_pool(game_ctx: GameContext, card: CardInstance) -> void:
-	if card == null:
+	if card == null or game_ctx == null or game_ctx.state == null:
 		return
-	var pool: TokenPool = game_ctx.state.token_pool if game_ctx != null and game_ctx.state != null else null
+	var pool: TokenPool = game_ctx.state.token_pool
 	var damage := maxi(card.tokens.damage, 0)
 	var horror := maxi(card.tokens.horror, 0)
 	var clue := maxi(card.tokens.clue, 0)
+	var doom := maxi(card.tokens.doom, 0)
 	if pool != null:
-		pool.damage_available += damage
-		pool.horror_available += horror
-		pool.clue_available += clue
+		if damage > 0:
+			pool.give(AhcEnums.MarkerKind.DAMAGE, damage)
+		if horror > 0:
+			pool.give(AhcEnums.MarkerKind.HORROR, horror)
+		if clue > 0:
+			pool.give(AhcEnums.MarkerKind.CLUE, clue)
+		if doom > 0:
+			pool.give(AhcEnums.MarkerKind.DOOM, doom)
 	card.tokens.damage = 0
 	card.tokens.horror = 0
 	card.tokens.clue = 0
 	card.tokens.doom = 0
 	card.tokens.uses.clear()
 	card.tokens.sealed.clear()
-	if game_ctx != null and game_ctx.log != null and (damage + horror + clue) > 0:
+	if game_ctx.log != null and (damage + horror + clue + doom) > 0:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.CARD,
 			"leave_play:tokens_to_pool",
@@ -213,6 +220,7 @@ static func _return_tokens_to_pool(game_ctx: GameContext, card: CardInstance) ->
 				"damage": damage,
 				"horror": horror,
 				"clue": clue,
+				"doom": doom,
 			}
 		)
 

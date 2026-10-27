@@ -347,6 +347,7 @@ func _initialize() -> void:
 	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
 	_run_test("ZM-04 leave play returns tokens to pool", _test_zm_leave_play_tokens_to_pool)
 	_run_test("ZM-05 leave play discards attachments", _test_zm_leave_play_discards_attachments)
+	_run_test("ZM-06 defeat asset leave cleans tokens+attachments", _test_zm_defeat_asset_leave_cleanup)
 	_run_test("G6-01 phase boundary catalog", _test_g6_phase_boundary_catalog)
 	_run_test("G6-02 framework emits phase boundary seq", _test_g6_framework_emits)
 	_run_test("ACT-13 draw from deck", _test_act_draw_from_deck)
@@ -7964,7 +7965,7 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 
 
 func _test_zm_leave_play_tokens_to_pool() -> bool:
-	## 01 §5.2 / Grimoire Leaves Play：离场卡上标记归还 token pool。
+	## 01 §5.2 / Grimoire Leaves Play：离场卡上标记归还无穷 token pool（卡面剥光；池不计库存）。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
 		h.ctx, &"inv_1", &"ally_zm_tokens", {"health": 3, "sanity": 3}
@@ -7977,10 +7978,6 @@ func _test_zm_leave_play_tokens_to_pool() -> bool:
 	card.tokens.clue = 3
 	card.tokens.doom = 1
 	card.tokens.uses[&"ammo"] = 4
-	var pool := h.ctx.state.token_pool
-	var d0 := pool.damage_available
-	var h0 := pool.horror_available
-	var c0 := pool.clue_available
 	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
 	return (
 		moved
@@ -7989,9 +7986,6 @@ func _test_zm_leave_play_tokens_to_pool() -> bool:
 		and card.tokens.clue == 0
 		and card.tokens.doom == 0
 		and card.tokens.uses.is_empty()
-		and pool.damage_available == d0 + 2
-		and pool.horror_available == h0 + 1
-		and pool.clue_available == c0 + 3
 	)
 
 
@@ -8014,9 +8008,8 @@ func _test_zm_leave_play_discards_attachments() -> bool:
 	fire.zone = AhcEnums.Zone.ATTACHED
 	fire.attached_to = host.id
 	host.attachments.append(fire.id)
-	## 附属上亦有标记，弃置时应归池。
+	## 附属上亦有标记，弃置（ATTACHED leave）时应剥光。
 	fire.tokens.damage = 1
-	var pool_d0 := h.ctx.state.token_pool.damage_available
 	var moved := h.ctx.mutator.move_card(host_id, CardSlot.discard_top(&"inv_1"))
 	var fire_after := h.ctx.state.registry.get_card(fire_id)
 	return (
@@ -8027,7 +8020,45 @@ func _test_zm_leave_play_discards_attachments() -> bool:
 		and fire_after.zone == AhcEnums.Zone.DISCARD
 		and h.ctx.state.encounter_discard.has(fire_id)
 		and fire_after.tokens.damage == 0
-		and h.ctx.state.token_pool.damage_available == pool_d0 + 1
+	)
+
+
+func _test_zm_defeat_asset_leave_cleanup() -> bool:
+	## 击败 nest 退场：宿主标记剥光 + 附属弃置（同 LEAVE_PLAY 捆绑）。
+	var h := RuleTestHarness.new(42)
+	var host_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"asset_zm_defeat_host", {"health": 2}
+	)
+	var host := h.ctx.state.registry.get_card(host_id)
+	if host == null:
+		return false
+	host.tokens.damage = 2
+	host.tokens.clue = 1
+	host.tokens.uses[&"ammo"] = 2
+	var fire_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_zm_defeat_attach", [])
+	var fire := h.ctx.state.registry.get_card(fire_id)
+	if fire == null:
+		return false
+	h.ctx.state.encounter_deck.erase(fire_id)
+	fire.zone = AhcEnums.Zone.ATTACHED
+	fire.attached_to = host.id
+	host.attachments.append(fire.id)
+	fire.tokens.horror = 1
+	var res := DefeatFlow.check_asset_caps(h.ctx, host_id)
+	var fire_after := h.ctx.state.registry.get_card(fire_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("defeated", false))
+		and host.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(host_id)
+		and host.tokens.damage == 0
+		and host.tokens.clue == 0
+		and host.tokens.uses.is_empty()
+		and host.attachments.is_empty()
+		and fire_after != null
+		and fire_after.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.encounter_discard.has(fire_id)
+		and fire_after.tokens.horror == 0
 	)
 
 
