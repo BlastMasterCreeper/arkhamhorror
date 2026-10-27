@@ -429,6 +429,7 @@ func _initialize() -> void:
 	_run_test("ACT-15 draw empty piles defeated", _test_act_draw_defeated)
 	_run_test("ACT-CAT-01 action seq catalog registered", _test_act_catalog_registered)
 	_run_test("ACT-CAT-02 action gain fires after_gain_resource", _test_act_catalog_gain_after_listener)
+	_run_test("SEQ-AUDIT-01 full catalog inventory", _test_seq_audit_catalog_inventory)
 	_run_test("VIS-01 draw reveal before hand", _test_vis_draw_reveal_before_hand)
 	_run_test("VIS-02 draw face known to controller only", _test_vis_draw_controller_only)
 	_run_test("DRAW-02 draw two simultaneous", _test_draw_two_simultaneous)
@@ -10048,6 +10049,110 @@ func _test_act_catalog_registered() -> bool:
 		if not catalog.has_flow(flow_id):
 			return false
 	return h.ctx.action_sequences != null
+
+
+## 22 / bootstrap 全量对照：必有 66 条；已废 / 刻意不铸不得注册。
+func _test_seq_audit_catalog_inventory() -> bool:
+	var h := RuleTestHarness.new(42)
+	var catalog := h.ctx.sequence_catalog
+	var required: Array[StringName] = [
+		&"seq.ability.resolve",
+		&"seq.act.advance",
+		&"seq.act_agenda.resolve_back",
+		&"seq.action.draw",
+		&"seq.action.engage",
+		&"seq.action.evade",
+		&"seq.action.fight",
+		&"seq.action.gain_resource",
+		&"seq.action.investigate",
+		&"seq.action.move",
+		&"seq.agenda.advance",
+		&"seq.chaos.reveal",
+		&"seq.defeat.leave_play",
+		&"seq.draw.empty_piles_defeated",
+		&"seq.draw.encounter",
+		&"seq.draw.investigator",
+		&"seq.effect.attach",
+		&"seq.effect.damage",
+		&"seq.effect.damage.assignable",
+		&"seq.effect.deal",
+		&"seq.effect.deal.assignable",
+		&"seq.effect.defeat",
+		&"seq.effect.discard_card",
+		&"seq.effect.discover_clue",
+		&"seq.effect.evade",
+		&"seq.effect.exhaust",
+		&"seq.effect.gain_resource",
+		&"seq.effect.heal",
+		&"seq.effect.lose_action",
+		&"seq.effect.lose_resources",
+		&"seq.effect.move",
+		&"seq.effect.place_clue",
+		&"seq.effect.place_doom",
+		&"seq.effect.ready",
+		&"seq.effect.register",
+		&"seq.effect.release_seal",
+		&"seq.effect.resign",
+		&"seq.effect.reveal_location",
+		&"seq.effect.seal",
+		&"seq.effect.search",
+		&"seq.effect.unregister",
+		&"seq.encounter.resolve_card",
+		&"seq.encounter.revelation",
+		&"seq.encounter.spawn",
+		&"seq.enemy.3_2",
+		&"seq.enemy.attack",
+		&"seq.enemy.defeat",
+		&"seq.enemy.move",
+		&"seq.enemy.phase_attacks",
+		&"seq.enemy.resolve_location",
+		&"seq.engage",
+		&"seq.enter_hand",
+		&"seq.framework.investigation_phase_ends",
+		&"seq.framework.phase_boundary",
+		&"seq.gain_resource",
+		&"seq.interrupt.cancel",
+		&"seq.interrupt.ignore",
+		&"seq.keyword.hunter",
+		&"seq.keyword.massive",
+		&"seq.keyword.patrol",
+		&"seq.keyword.surge",
+		&"seq.mythos.check_doom_threshold",
+		&"seq.mythos.place_doom",
+		&"seq.replace.instead",
+		&"seq.skill_test",
+		&"seq.zone.move",
+	]
+	var forbidden: Array[StringName] = [
+		&"seq.effect.discard_from_hand",
+		&"seq.enemy.massive_phase_attacks",
+		&"seq.enemy.3_2_hunter_patrol",
+		&"seq.enemy.3_2_patrol",
+		&"seq.draw.encounter.resolve_bound",
+		&"seq.effect.enter_play",
+		&"seq.effect.spend_token",
+		&"seq.aoo",
+		&"seq.play",
+		&"seq.commit",
+		&"seq.spend",
+		&"seq.peril.check",
+		&"seq.skill_test.intellect",
+		&"seq.skill_test.combat",
+		&"seq.skill_test.agility",
+		&"seq.setup",
+	]
+	if required.size() != 66:
+		return false
+	for flow_id in required:
+		if not catalog.has_flow(flow_id):
+			return false
+	for flow_id in forbidden:
+		if catalog.has_flow(flow_id):
+			return false
+	var registered := catalog.registered_flow_ids()
+	if registered.size() != required.size():
+		return false
+	return true
 
 
 func _test_act_catalog_gain_after_listener() -> bool:

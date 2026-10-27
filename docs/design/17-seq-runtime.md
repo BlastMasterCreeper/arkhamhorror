@@ -203,48 +203,28 @@
 
 ## 5. 当前已注册 flow（代码）
 
-| flow_id | 用途 | 入口 |
-|---|---|---|
-| `seq.draw.investigator` | 调查员抽牌 D* | `DrawInvestigatorService`、`ActionSystem` DRAW、`Composition` draw |
-| `seq.draw.encounter` | 遭遇抽牌（抽取步骤 + 卡牌结算；不含涌动） | `DrawEncounterService`、Mythos 1.4 `ScenarioSystem` |
-| `seq.encounter.resolve_card` | 已持有实例 → 遭遇侧能力体系 | setup / 弃牌再结算 / 调查员库抽出的 enemy·treachery；**非**来源重定向 |
-| `seq.keyword.surge` | 涌动 LISTENER 开火：卸标记并 nest 新的遭遇抽牌 | `KeywordConsumer` @ `seq.draw.encounter` AFTER；06 §3.2.6 |
-| `seq.draw.empty_piles_defeated` | 两堆空 defeated（因果 nest） | nest from D1 内联 collect |
-| `seq.enter_hand` | 显现 batch | nest from investigator |
-| `seq.effect.gain_resource` | 获资源 + MODIFIER | `ResourceGainService`、可框架；旧 `seq.gain_resource` 别名 |
-| `seq.effect.move` | 狭义移动（四主体） | `MoveFlow`；行动 / 卡面 / Hunter·Patrol·Elusive nest |
-| `seq.effect.exhaust` | 横置 | `ExhaustReadyFlow`；平放区卡 / 在场敌 |
-| `seq.effect.ready` | 重整 | 同上；Upkeep 4.3 batch |
-| `seq.effect.evade` | 躲避效果（横置∥解除交战同时组） | `EvadeFlow`；成功尝试 / 自动躲避入口；≠ `seq.action.evade`；组内不 nest exhaust |
-| `seq.effect.search` | 搜寻 | `SearchFlow`；区域/顶 N/过滤/取出；搜牌库须洗；≠ look/find |
-| `seq.effect.evade` | 躲避效果 | `EvadeFlow`；横置+解除交战；`mode` attempt\|automatic；卡面执行=自动躲避；≠ 行动外壳 |
-| `seq.zone.move` | 广义区划迁移（**信息**；进场/离场 = 过滤别名） | L0 `move_card` 成功后 `ZoneMoveFlow`；非 `seq.effect.move` |
-| `seq.effect.defeat` | 击败 | `DefeatFlow`；成功 nest `seq.defeat.leave_play`；Cancel 无退场 |
-| `seq.enemy.defeat` | 击败（敌人别名） | 同核；TC `enemy_defeated` |
-| `seq.defeat.leave_play` | 击败后退场 | nest from defeat；敌人路由 / 调查员淘汰清理 |
-| `seq.engage` | 交战内核（auto / effect） | `EngageFlow`；行动外壳 nest effect |
-| `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅；多地 = `legs[]`（仍一帧；L0 逐地） |
-| `seq.effect.deal.assignable` | **待分配**造成伤害/恐惧 | `damage`+`horror` 可同入参（可单边 0）；Assign 后 **同时** Apply；候选不限卡种（印刷生命/神智或无印刷+`GRANT_CAPACITY`）；禁止伤/恐各开一条 |
-| `seq.effect.deal` | **无分配**造成伤害/恐惧（已定） | `legs[]` / `legs_damage`+`legs_horror`（可单边空）/ 单点；腿可混装敌/卡/调查员；**无** Assign |
-| `seq.effect.lose_resources` | 失去资源（含全部：`all: true`） | 卡面；CREATED = 实际扣到 |
-| `seq.effect.heal` | 治疗伤害或恐惧（`kind` 参数） | 卡面 |
-| `seq.effect.lose_action` | 失去行动 | 卡面 |
-| `seq.effect.place_doom` | 卡面放置毁灭（敌人 / 来源；**不是** `seq.mythos.place_doom`） | 显现 / Forced nest |
-| `seq.effect.place_clue` | 把调查员线索放到地点 | 检定 fail-by 等 |
-| `seq.effect.register` | **创建 Buff / Registration** | 卡面 lasting、gains surge、Cannot；参数 = template |
-| `seq.effect.unregister` | 卸 Buff | 与创建对称；不是 `on_card_leave_play` 那种管线注销场合 |
-| `seq.effect.discard_card` | 统一弃牌：指定 `card_id` / 寻址过滤，或 `from=hand` + `amount`/`mode` | 弱点自弃、弃手、成功弃附着 |
-| （完整对照 / 合并·缺漏） | 见 [22](22-seq-granularity.md) | 待确认后再改 Catalog |
-| `seq.effect.attach` | limbo 附着地点（最近无同名 / 本地点） | Fire! / Flash Flood / Arcane Lock 显现 |
-| `seq.effect.resign` | 撤退（线索留地点 + resigned + eliminate） | 12112；nest 自 Composition |
-| `seq.ability.resolve` | Initiation / Forced 效果体装载帧 | 禁真空：树在此 RESOLVE 内解释 |
-| `seq.skill_test` | Skill Test Timing（**一条**；`params.skill`） | 显现内检定、行动检定 nest |
-| `seq.framework.phase_boundary` | 阶段 begins/ends（G6 · 单条） | `phase`+`boundary`；TC.kind=`{phase}_phase_{boundary}` |
-| `seq.framework.investigation_phase_ends` | 上条别名（调查结束） | Fire! / 地点 Forced |
+**权威清单与审计**：[22 §9](22-seq-granularity.md#9-catalog-全量审计2026-10-27)（**66** 条，含别名；`SEQ-AUDIT-01`）。粒度 / 合并 / 刻意不铸见 [22](22-seq-granularity.md)。
+
+要点（非穷尽）：
+
+| 族 | 代表 flow_id |
+|---|---|
+| 抽牌 / 入手 / 显现 | `seq.draw.*` · `seq.enter_hand` · `seq.encounter.*` · `seq.keyword.surge` |
+| 检定 / 混乱 | `seq.skill_test` · `seq.chaos.reveal` |
+| 行动外壳 | `seq.action.{draw,gain_resource,move,investigate,fight,engage,evade}` |
+| 效果核 | `seq.effect.deal`(/`.assignable`) · `move` · `exhaust`/`ready` · `evade` · `search` · `defeat` · `register`/`unregister` · `discard_card` · `seal`/`release_seal` · `reveal_location` · … |
+| 敌人 / 交战 | `seq.enemy.{3_2,phase_attacks,attack,resolve_location}` · `seq.engage` · `seq.keyword.{hunter,patrol,massive}` |
+| 框架 / 法令 | `seq.framework.phase_boundary` · `seq.mythos.*` · `seq.agenda/act.advance` · `seq.act_agenda.resolve_back` |
+| 中断 | `seq.interrupt.cancel`/`ignore` · `seq.replace.instead` |
+| 工程帧 | `seq.ability.resolve` · `seq.zone.move` · `seq.defeat.leave_play` |
+
+**别名**（同核）：`seq.gain_resource`；`seq.enemy.move`；`seq.effect.damage`(/`.assignable`)；`seq.enemy.defeat`；`seq.framework.investigation_phase_ends`。
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 
-**已移除 / 更名**：`take_horror`/`take_damage`/`deal_damage`/`damage*` → `seq.effect.deal.assignable` / `seq.effect.deal`（`damage*` 暂别名）；`lose_all_resources` → `lose_resources`+`all`；技能检定四条 → `seq.skill_test`。
+**已移除 / 更名**：`take_horror`/`take_damage`/`deal_damage` → `deal`(/`.assignable`)（`damage*` 暂别名）；`lose_all_resources` → `lose_resources`+`all`；技能检定四条 → `seq.skill_test`；`discard_from_hand` → `discard_card`+`from`；`massive_phase_attacks` → Massive REPLACE @ `seq.enemy.attack`。
+
+**刻意不铸**：`seq.setup`（开局 Framework · 关键词锚）；Spend / AOO / Play / Commit / Peril check / enter_play — 见 [22 §9.3](22-seq-granularity.md#93-刻意不铸非缺漏)。
 
 ---
 

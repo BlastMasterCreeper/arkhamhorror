@@ -83,6 +83,7 @@
 |---|---|---|
 | `seq.effect.deal.assignable` | Dealing Damage/Horror（待分配） | 伤+恐可同入参；Assign 后同时 Apply |
 | `seq.effect.deal` | Dealing Damage/Horror（无分配） | 已定；伤+恐用 Simultaneous；**无** Assign |
+| ~~`seq.effect.damage` / `damage.assignable`~~ | （旧 id） | **别名** → 同核 `deal` / `deal.assignable`；编译 JSON 仍可写 `damage*`，executor 重映射 |
 | `seq.effect.heal` | Heal | **保留** |
 | `seq.effect.lose_resources` | （失去资源） | **保留**；`all` 参数 |
 | `seq.effect.lose_action` | （失去行动） | **保留** |
@@ -99,6 +100,8 @@
 | `seq.effect.exhaust` / `ready` | Exhaust / Ready | **已铸**；见 G2 |
 | `seq.effect.move` | Move（狭义） | **已铸**；见 G1 |
 | `seq.effect.defeat` | Defeat | **已铸**；见 G5 |
+| `seq.effect.reveal_location` | Reveal location + 首次放线索 | **已铸**；进入未揭示地点 nest（`LocationEnterRules`） |
+| `seq.effect.seal` / `release_seal` | Seal Domain | **已铸**；混乱袋封印 / 释放（见 [05](05-chaos-bag.md)） |
 
 ### 3.4 敌军阶段 / 敌人 / 交战
 
@@ -227,6 +230,7 @@
 | `seq.agenda.advance` / `seq.act.advance` | Agenda/Act advance | **保留** |
 | `seq.act_agenda.resolve_back` | 背面结算 | **保留** |
 | `seq.framework.phase_boundary` | 各阶段 begins/ends | **已铸**（G6 · **一条**）；`phase`+`boundary` params；TC.kind 仍细分；旧 `investigation_phase_ends` 别名 |
+| `seq.chaos.reveal` | Chaos bag reveal（ST.3） | **已铸**；WHEN 窗收集替换 → RESOLVE 离袋（[05](05-chaos-bag.md)） |
 | `seq.interrupt.cancel` / `ignore` | Cancel / Ignore | **保留** |
 | `seq.replace.instead` | Instead / Would | **保留** |
 | `seq.ability.resolve` | Initiation 装载 | **保留**（工程帧，非词条） |
@@ -390,3 +394,44 @@
 | 2026-10-13 | 落地 `seq.effect.evade`（躲避效果核；automatic = 自动躲避） |
 | 2026-10-13 | 裁决：卡面「evade」效果措辞→时点；执行→自动躲避（无独立 effect mode） |
 | 2026-10-13 | I2 真空抽查 → [23-vacuum-audit](23-vacuum-audit.md)；铸造清单已收口，下一刀偏结构性硬门槛 |
+| 2026-10-27 | §9 Catalog 全量审计：66 条已注册；别名 / 刻意不铸 / 文档补 `chaos.reveal`·`seal`·`reveal_location`；`SEQ-AUDIT-01` |
+
+---
+
+## 9. Catalog 全量审计（2026-10-27）
+
+对照 `bootstrap/sequence_catalog_bootstrap.gd` + 代码引用（不含 conversation-export 历史噪音）。
+
+### 9.1 结论
+
+| 档 | 结论 |
+|---|---|
+| **G1–G11 / M1–M5** | **无铸造缺漏**；已废 id 测试断言不存在（`discard_from_hand`、`massive_phase_attacks`、`resolve_bound`、Hunter/Patrol 误铸） |
+| **运行时调用** | `.gd` / 现网 JSON **无** nest/run 未注册 `flow_id` |
+| **注册总数** | **66**（含别名）；`SEQ-AUDIT-01` 锁清单 |
+
+### 9.2 别名（同核双 id · 保留兼容）
+
+| 正式 | 别名 |
+|---|---|
+| `seq.effect.gain_resource` | `seq.gain_resource` |
+| `seq.effect.move` | `seq.enemy.move`（resolve 强制 `subject=enemy`） |
+| `seq.effect.deal` / `deal.assignable` | `seq.effect.damage` / `damage.assignable` |
+| `seq.effect.defeat` | `seq.enemy.defeat` |
+| `seq.framework.phase_boundary` | `seq.framework.investigation_phase_ends`（固定调查 ends params） |
+
+订阅靠 TC.`kind` / tags，不靠 flow_id 字符串相等；编译叶仍可写 `damage*`，executor 重映射到 `deal*`。
+
+### 9.3 刻意不铸（非缺漏）
+
+| id | 理由 |
+|---|---|
+| `seq.setup` | KeywordProfile 挂载锚（Starting / Permanent / Bonded）；开局仍走 `FrameworkStep` / `ScenarioSetupFlow`；[17 §6.4](17-seq-runtime.md) 后置 |
+| `seq.effect.spend_token` | **Spend = Cost**，不另铸效果 seq（G10）；Uses 扣减走 Initiation 付费 / L0 |
+| `seq.aoo` / `seq.play` / `seq.commit` / `seq.spend` / `seq.peril.check` / `seq.effect.enter_play` | G7–G11 / G4：过滤已有通道 |
+| `seq.skill_test.{intellect,combat,agility}` | 已并 → 单条 `seq.skill_test` + `params.skill`（handler 遗留 `skill_type_for_flow` 仅兼容、无注册） |
+
+### 9.4 文档债（本轮已收）
+
+- §3.3 / §3.5 补 `reveal_location`、`seal` / `release_seal`、`chaos.reveal`、`damage*` 别名说明
+- [17 §5](17-seq-runtime.md) 改为指向本清单 + 别名表，去掉重复 evade 行
