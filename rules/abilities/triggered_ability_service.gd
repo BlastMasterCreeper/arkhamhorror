@@ -329,6 +329,9 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 	handler.ability_id = descriptor.id
 	handler.player_initiated = descriptor.is_player_initiated()
 	handler.collect_condition = descriptor.collect_condition
+	if descriptor.affliction_filter != &"":
+		handler.affliction_filter = descriptor.affliction_filter
+	handler.take_self = descriptor.take_self
 	match descriptor.ability_kind:
 		TriggeredAbilityDescriptor.AbilityKind.FORCED:
 			handler.tier = SequenceHandler.Tier.FORCED
@@ -369,6 +372,14 @@ func _trigger_applies(descriptor: TriggeredAbilityDescriptor) -> bool:
 	if descriptor.match_kind == &"enemy_attack":
 		var attacker_id: StringName = trigger.payload.get("enemy_id", &"") as StringName
 		return attacker_id != &"" and attacker_id == descriptor.source_id
+	## you take：承伤主体 = 能力控制者（嵌套击败完成后父 deal AFTER 再开火）。
+	if descriptor.match_kind == &"damage" and descriptor.take_self:
+		if (
+			trigger.controller_id != &""
+			and descriptor.controller_id != &""
+			and trigger.controller_id != descriptor.controller_id
+		):
+			return false
 	if CardRegistry.card_type(descriptor.definition_id) != &"location":
 		return true
 	var loc: StringName = trigger.payload.get("location_id", &"") as StringName

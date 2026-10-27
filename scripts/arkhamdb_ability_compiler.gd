@@ -541,7 +541,9 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			bool(entry.get("optional", false)),
 			&"",
 			_action_types_from_entry(entry),
-			null
+			null,
+			StringName(str(entry.get("affliction_filter", ""))),
+			bool(entry.get("take_self", false))
 		)
 		return true
 	return false
@@ -591,6 +593,8 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"match_kind",
 		"phase",
 		"timing",
+		"affliction_filter",
+		"take_self",
 		"trait",
 		"at",
 		"card_id",

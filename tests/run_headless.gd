@@ -143,6 +143,8 @@ func _initialize() -> void:
 	_run_test("ADB-30 compile 12145 reaction discover resource", _test_adb_compile_12145_reaction)
 	_run_test("ADB-31 12145 reaction after discover", _test_adb_12145_reaction_discover)
 	_run_test("ADB-32 12145 reaction declined", _test_adb_12145_reaction_declined)
+	_run_test("ADB-73 compile 12060 Jim after take", _test_adb_compile_12060_jim_take)
+	_run_test("ADB-74 12060 Jim after take draws", _test_adb_12060_jim_after_take)
 	_run_test("SEQ-EFF-01 nest take_horror", _test_seq_eff_nest_take_horror)
 	_run_test("SEQ-EFF-02 nest register unregister", _test_seq_eff_register_unregister)
 	_run_test("SEQ-EFF-03 lose resources fizzle", _test_seq_eff_lose_resources_fizzle)
@@ -391,6 +393,7 @@ func _initialize() -> void:
 	_run_test("ASN-08 Assign Gate scripted legs", _test_asn_gate_scripted)
 	_run_test("ASN-09 Assign Gate among subjects", _test_asn_gate_among)
 	_run_test("TIM-DMG-07 AFTER affliction filters", _test_tim_dmg_after_affliction_filters)
+	_run_test("TIM-DMG-08 AFTER take after nested defeat", _test_tim_dmg_after_take_after_defeat)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -3616,6 +3619,67 @@ func _test_adb_12145_reaction_declined() -> bool:
 	var pool_before := inv.resource_pool
 	var res := h.investigate_action()
 	return res.ok and res.success and inv.resource_pool == pool_before
+
+
+func _test_adb_compile_12060_jim_take() -> bool:
+	## ADB-73：Jim Culver after take damage and/or horror → damage + either + take_self。
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var compiled := CardRegistry.compiled_abilities(&"12060")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	var steps: Variant = entry.get("steps", [])
+	if not steps is Array or (steps as Array).size() != 2:
+		return false
+	var step0: Dictionary = steps[0]
+	var step1: Dictionary = steps[1]
+	return (
+		CardRegistry.has_triggered(&"12060")
+		and entry.get("register_as", "") == "reaction"
+		and entry.get("status", "") == "full"
+		and entry.get("match_kind", "") == "damage"
+		and str(entry.get("phase", "")).to_upper() == "AFTER"
+		and entry.get("affliction_filter", "") == "either"
+		and bool(entry.get("take_self", false))
+		and step0.get("template", "") == "exhaust_source"
+		and step1.get("template", "") == "draw"
+		and int(step1.get("amount", 0)) == 1
+	)
+
+
+func _test_adb_12060_jim_after_take() -> bool:
+	## ADB-74：承伤 AFTER → exhaust Jim + draw（经注册路径，非手写 handler）。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"12060", {"health": 2, "sanity": 2}
+	)
+	h.ctx.triggered_abilities.install_card(&"inv_1", card_id)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new(
+		[{"prompt_id": &"willingness:join", "pick": true}]
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var hand_before := inv.hand.size()
+	## 保证有牌可抽。
+	var deck_card := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"filler_jim_draw")
+	if deck_card == &"":
+		return false
+	var res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "damage": 1, "horror": 0}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		res is Dictionary
+		and bool((res as Dictionary).get("ok", false))
+		and card != null
+		and card.exhausted
+		and inv.hand.size() == hand_before + 1
+		and inv.damage_taken == 1
+	)
 
 
 func _test_seq_eff_nest_take_horror() -> bool:
@@ -8680,6 +8744,39 @@ func _test_tim_dmg_after_affliction_filters() -> bool:
 		{"controller_id": &"inv_1", "damage": 1, "horror": 1}
 	)
 	return counts["dmg"] == 2 and counts["hor"] == 2 and counts["either"] == 3
+
+
+func _test_tim_dmg_after_take_after_defeat() -> bool:
+	## TIM-DMG-08：致命承伤 → 击败 nest AFTER 先于父 deal AFTER take。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.health = 2
+	inv.damage_taken = 0
+	var order: Array = []
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_forced(
+			&"defeat",
+			func() -> void: order.append(&"defeat")
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_take_damage(
+			func() -> void: order.append(&"take")
+		)
+	)
+	h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "damage": 2, "horror": 0}
+	)
+	return (
+		order.size() >= 2
+		and order[0] == &"defeat"
+		and order[order.size() - 1] == &"take"
+		and inv.eliminated
+	)
 
 
 func _test_asn_prior_fill() -> bool:

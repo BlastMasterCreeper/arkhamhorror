@@ -1953,10 +1953,24 @@
         "register_as": "reaction",
         "ability_id": "reaction:0",
         "ability_kind": "reaction",
-        "status": "effect_only",
-        "trigger": "After you take damage and/or horror, exhaust Jim Culver",
-        "template": "draw",
-        "amount": 1
+        "status": "full",
+        "trigger": "After you take damage and/or horror",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "exhaust_source"
+          },
+          {
+            "template": "draw",
+            "amount": 1
+          }
+        ],
+        "match_kind": "damage",
+        "phase": "AFTER",
+        "timing": "after_damage",
+        "affliction_filter": "either",
+        "take_self": true
       }
     ]
   },
