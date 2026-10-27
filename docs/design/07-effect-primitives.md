@@ -239,6 +239,8 @@ CardScript / YAML  →  L2 Wrapper/Macro  →  L1 CompositionTree  →  L0 Atoms
 
 **TimingBus**（Cancel / Replacement / After）挂在 **L1 执行框架** 与 **L2 PendingResolution**，不属于 L0。
 
+**同原子、异包装**（[22 通则](22-seq-granularity.md)）：花费/失去资源、受到/放置伤恐、治愈/移除、抽取/加入手牌等 —— **L0 可相同**；时点与可响应性由 **命名流程 / 语义包装** 区分。响应订包装，不订裸原子；禁止为近义词再铸平行写核。
+
 ---
 
 ## 4. 地址类型
@@ -827,6 +829,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-27 | v0.3.29 | §3：同原子异包装通则（链 22）；花费/失去、伤恐、治愈/移除、抽/入手 |
 | 2026-10-24 | v0.3.28 | Register 只写 Buff；Gain 创建可衍生行为 Buff / 能力挂载 |
 | 2026-10-24 | v0.3.27 | Gain 分档：只读特征 vs 文本能力（注册+初始化，同印刷挂载） |
 | 2026-10-24 | v0.3.26 | Gain 可含 Forced/触发/Constant/关键词等几乎全部能力类型 |

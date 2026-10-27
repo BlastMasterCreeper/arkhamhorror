@@ -6,8 +6,6 @@ extends RefCounted
 ## TC.kind 仍为 `{phase}_phase_{boundary}`，供 Forced match_kind 过滤（如 Fire!）。
 
 const FLOW := &"seq.framework.phase_boundary"
-## 旧 id 别名（调查结束）；仍转发到本条 + 固定 params。
-const FLOW_INVESTIGATION_ENDS_ALIAS := &"seq.framework.investigation_phase_ends"
 
 const PHASE_MYTHOS := &"mythos"
 const PHASE_INVESTIGATION := &"investigation"
