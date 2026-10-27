@@ -22,6 +22,8 @@ var enabled: bool = true
 var collect_condition: Condition = null
 ## COLLECT L5：剩余次数；`< 0` = 无限；`0` = 耗尽不出候选。
 var limit_remaining: int = -1
+## deal / 受到伤恐：同一时点的条件过滤。`damage` | `horror` | `either`（空=either）。
+var affliction_filter: StringName = &"either"
 
 
 static func when_forced(kind: StringName, fn: Callable) -> SequenceHandler:
@@ -48,6 +50,27 @@ static func after_forced(kind: StringName, fn: Callable) -> SequenceHandler:
 	h.phase = AhcEnums.SequencePhase.AFTER
 	h.tier = Tier.FORCED
 	h.callback = fn
+	return h
+
+
+## 受到伤害后（须 damage>0）。
+static func after_take_damage(fn: Callable) -> SequenceHandler:
+	var h := after_forced(&"damage", fn)
+	h.affliction_filter = &"damage"
+	return h
+
+
+## 受到恐惧后（须 horror>0）。
+static func after_take_horror(fn: Callable) -> SequenceHandler:
+	var h := after_forced(&"damage", fn)
+	h.affliction_filter = &"horror"
+	return h
+
+
+## 受到伤害和/或恐惧后（至少一种 >0）。
+static func after_take_damage_or_horror(fn: Callable) -> SequenceHandler:
+	var h := after_forced(&"damage", fn)
+	h.affliction_filter = &"either"
 	return h
 
 
@@ -82,6 +105,22 @@ static func when_revelation(kind: StringName, fn: Callable) -> SequenceHandler:
 
 
 func matches(trigger: TriggeringCondition) -> bool:
-	if match_kind == &"":
-		return true
-	return trigger.kind == match_kind
+	if match_kind != &"" and (trigger == null or trigger.kind != match_kind):
+		return false
+	if match_kind == &"damage" and not _affliction_filter_ok(trigger):
+		return false
+	return true
+
+
+func _affliction_filter_ok(trigger: TriggeringCondition) -> bool:
+	var filt := affliction_filter if affliction_filter != &"" else &"either"
+	var amounts := TriggeringCondition.affliction_amounts(trigger)
+	var dmg := int(amounts.get("damage", 0))
+	var hor := int(amounts.get("horror", 0))
+	match filt:
+		&"damage":
+			return dmg > 0
+		&"horror":
+			return hor > 0
+		_:
+			return dmg > 0 or hor > 0

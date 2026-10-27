@@ -197,8 +197,13 @@ static func _set_card(
 			"exhausted": to_exhausted,
 			"target_kind": TARGET_CARD,
 		}
-	card.exhausted = to_exhausted
-	_mirror_exhausted(game_ctx, card, to_exhausted)
+	## 物理状态原语 ③：经 StateMutator.set_exhausted（Domain + 物理 orientation）。
+	if game_ctx.mutator != null:
+		if not game_ctx.mutator.set_exhausted(card_id, to_exhausted):
+			return {"ok": false, "error": "set_exhausted_failed", "card_id": card_id}
+	else:
+		card.exhausted = to_exhausted
+		_mirror_exhausted(game_ctx, card, to_exhausted)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.CARD,

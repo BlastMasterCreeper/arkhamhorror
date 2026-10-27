@@ -210,24 +210,47 @@ func pop_deck_top(inv_id: StringName) -> StringName:
 	return card_id
 
 
-## L0 · AtomRevealCard：信息层仍写 FaceAudience；物理层镜像为翻面（CardFace）。
+## 信息层 Reveal（FaceAudience）——不是物理状态原语。
+## 惯例：Reveal 时常伴随物理 ③ 翻到 A（可见性与面向仍正交；hide 不翻面）。
 func reveal_to_controller(card_id: StringName, controller_id: StringName) -> bool:
 	if not _information.reveal_to_controller(card_id, controller_id):
 		return false
-	_mirror_flip(card_id, AhcEnums.CardFace.A)
+	flip_card(card_id, AhcEnums.CardFace.A)
 	return true
 
 
 func reveal_to_all(card_id: StringName) -> bool:
 	if not _information.reveal_to_all(card_id):
 		return false
-	_mirror_flip(card_id, AhcEnums.CardFace.A)
+	flip_card(card_id, AhcEnums.CardFace.A)
 	return true
 
 
 func hide_from_all(card_id: StringName) -> bool:
 	## 仅信息层可见性；不翻面。
 	return _information.hide_from_all(card_id)
+
+
+## 物理状态原语 ③ · 翻面（CardFace）。
+func flip_card(card_id: StringName, face: AhcEnums.CardFace) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.face = face
+	_mirror_flip(card_id, face)
+	return true
+
+
+## 物理状态原语 ③ · 横置 / 重整（orientation）。
+func set_exhausted(card_id: StringName, exhausted: bool) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.exhausted = exhausted
+	if _binding != null:
+		_binding.ensure_physical_card(card)
+		_binding.mirror_exhausted(card_id, exhausted)
+	return true
 
 
 ## 隐私（Hidden）遭遇 · E4 秘密入手显现（drawer CONTROLLER + is_hidden）。

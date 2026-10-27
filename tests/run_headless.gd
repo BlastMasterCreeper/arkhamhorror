@@ -71,6 +71,25 @@ func _initialize() -> void:
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
 	_run_test("C-04 register applies modifier", _test_register_modifier)
+	_run_test("MOD-01 SKILL_ANY matches any skill query", _test_mod_skill_any)
+	_run_test("MOD-02 attack damage bonus single leg", _test_mod_attack_damage_single_leg)
+	_run_test("MOD-03 DETERMINED bonus bumps attack damage on primary", _test_mod_attack_damage_determined)
+	_run_test("MOD-04 DETERMINED bumps zero primary attack damage", _test_mod_attack_damage_determined_from_zero)
+	_run_test("MOD-05 ASSIGN mods attack amount then materialize", _test_mod_attack_damage_assign)
+	_run_test("MOD-06 discover bonus single leg investigate", _test_mod_discover_bonus_single_leg)
+	_run_test("MOD-07 discover anon bonus pins primary location", _test_mod_discover_determined_multi)
+	_run_test("MOD-08 zero-amount discover primary still gets anon bonus", _test_mod_discover_zero_primary_bonus)
+	_run_test("MOD-09 shroud modifier lowers investigate difficulty", _test_mod_shroud_investigate)
+	_run_test("MOD-10 enemy ENEMY_DAMAGE then DamagePipeline", _test_mod_enemy_damage_then_pipeline)
+	_run_test("MOD-11 enemy attack WHEN increase_pending", _test_mod_enemy_attack_increase_pending)
+	_run_test("MOD-12 discover named bonus other location", _test_mod_discover_named_bonus)
+	_run_test("MOD-13 attack multi-leg settle one seq", _test_mod_attack_multi_leg_settle_one_seq)
+	_run_test("MOD-14 discover multi-leg settle one seq", _test_mod_discover_multi_leg_settle_one_seq)
+	_run_test("MOD-15 multi-leg damage AFTER fires once", _test_mod_multi_leg_damage_after_once)
+	_run_test("MOD-16 deal.assignable damage+horror one seq", _test_mod_deal_assignable_bundle_one_seq)
+	_run_test("MOD-17 deal mixed enemy+card legs", _test_mod_deal_mixed_subject_legs)
+	_run_test("MOD-18 deal.assignable among card subject", _test_mod_deal_assignable_card_subject)
+	_run_test("MOD-19 deal legs_damage/legs_horror empty side", _test_mod_deal_dual_legs_empty_side)
 	_run_test("C-05 restriction blocks draw dry-run", _test_restriction_blocks_draw)
 	_run_test("C-06 listener draws on timing", _test_listener_draw_on_timing)
 	_run_test("C-07 until_fired listener removes self", _test_until_fired_listener)
@@ -358,12 +377,20 @@ func _initialize() -> void:
 	_run_test("TIM-02 draw encounter SPLIT zones", _test_tim_draw_encounter_split)
 	_run_test("TIM-DMG-01 WOULD then WHEN before Apply", _test_tim_dmg_apply_slots)
 	_run_test("TIM-DMG-02 WOULD reduce_pending before Apply", _test_tim_dmg_prevent)
+	_run_test("TIM-DMG-03 WHEN increase_pending adds delta K", _test_tim_dmg_increase_pending)
+	_run_test("TIM-DMG-04 increase_pending keeps reserved legs", _test_tim_dmg_increase_keeps_legs)
+	_run_test("TIM-DMG-05 outbound WOULD before Apply", _test_tim_dmg_outbound_preimpact)
+	_run_test("TIM-DMG-06 outbound reduce_pending", _test_tim_dmg_outbound_reduce)
 	_run_test("ASN-01 PRIOR_FILL horror to asset first", _test_asn_prior_fill)
 	_run_test("ASN-02 MIN_TO_SUBJECT damage if able", _test_asn_min_to_subject)
 	_run_test("ASN-03 MAX_TO_MATCH trait cap", _test_asn_max_to_match)
 	_run_test("ASN-04 INCLUDE direct allows asset assign", _test_asn_include_direct)
 	_run_test("ASN-05 INCLUDE Bodyguard other at location", _test_asn_include_bodyguard)
 	_run_test("ASN-06 pipeline apply PRIOR_FILL legs", _test_asn_pipeline_prior_fill)
+	_run_test("ASN-07 GRANT_CAPACITY without printed health", _test_asn_grant_capacity)
+	_run_test("ASN-08 Assign Gate scripted legs", _test_asn_gate_scripted)
+	_run_test("ASN-09 Assign Gate among subjects", _test_asn_gate_among)
+	_run_test("TIM-DMG-07 AFTER affliction filters", _test_tim_dmg_after_affliction_filters)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -1703,6 +1730,499 @@ func _test_register_modifier() -> bool:
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionTestHelper.lasting_willpower_turn(&"inv_1", 1))
 	return c.modifier_willpower(3, &"inv_1") == 4
+
+
+func _test_mod_skill_any() -> bool:
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	var payload := ModifierPayload.add_skill_any(2)
+	c.execute(CompositionNode.register(RegistrationTemplate.lasting_modifier(
+		&"inv_1", AhcEnums.DurationAnchorKind.THIS_TURN, payload
+	)))
+	var q_will := ModifierQuery.new()
+	q_will.controller_id = &"inv_1"
+	q_will.stat = AhcEnums.StatRef.SKILL_WILLPOWER
+	var q_combat := ModifierQuery.new()
+	q_combat.controller_id = &"inv_1"
+	q_combat.stat = AhcEnums.StatRef.SKILL_COMBAT
+	var q_res := ModifierQuery.new()
+	q_res.controller_id = &"inv_1"
+	q_res.stat = AhcEnums.StatRef.RESOURCE_GAIN_AMOUNT
+	return (
+		h.ctx.modifiers.compute(3, q_will) == 5
+		and h.ctx.modifiers.compute(1, q_combat) == 3
+		and h.ctx.modifiers.compute(1, q_res) == 1
+	)
+
+
+func _test_mod_attack_damage_single_leg() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_1")
+	enemy.health = 5
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
+	))
+	var res := h.fight_action({"enemy_id": &"enemy_1"})
+	enemy = h.ctx.state.registry.get_enemy(&"enemy_1")
+	return res.ok and res.success and enemy != null and enemy.damage == 2
+
+
+func _test_mod_attack_damage_determined() -> bool:
+	## MOD-03 · 03153：效果/目标已定；无名 +N 改攻击伤害（primary），旁路不变。
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.attack_damage_determined(
+		&"enemy_a", {&"enemy_a": 1, &"enemy_b": 1}
+	)
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	return (
+		plan.effect_shape == AhcEnums.AmountEffectShape.DETERMINED
+		and plan.leg_at(plan.find_leg_index(&"enemy_a")).amount == 2
+		and plan.leg_at(plan.find_leg_index(&"enemy_b")).amount == 1
+		and plan.amount == 2
+	)
+
+
+func _test_mod_attack_damage_determined_from_zero() -> bool:
+	## MOD-04：primary 攻击伤害为 0 仍可被无名修正；旁路仍为 0。
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.attack_damage_determined(
+		&"enemy_a", {&"enemy_a": 0, &"enemy_b": 0}
+	)
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	return (
+		plan.leg_at(plan.find_leg_index(&"enemy_a")).amount == 1
+		and plan.leg_at(plan.find_leg_index(&"enemy_b")).amount == 0
+	)
+
+
+func _test_mod_attack_damage_assign() -> bool:
+	## MOD-05 · 04305：先定效果；+N 改攻击伤害 amount；settle 再 Assign（默认→primary）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	var ea := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var eb := h.ctx.state.registry.get_enemy(&"enemy_b")
+	ea.health = 10
+	eb.health = 10
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.attack_damage_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.attack_damage_assign(
+		4, &"enemy_a", [&"enemy_a", &"enemy_b"] as Array[StringName]
+	)
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	if plan.amount != 5 or not plan.legs.is_empty():
+		return false
+	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan)
+	ea = h.ctx.state.registry.get_enemy(&"enemy_a")
+	eb = h.ctx.state.registry.get_enemy(&"enemy_b")
+	return (
+		int(settled.get("settled", 0)) == 5
+		and plan.amount == 0
+		and ea.damage == 5
+		and eb.damage == 0
+	)
+
+
+func _test_mod_discover_bonus_single_leg() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.clues = 3
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var res := h.investigate_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and res.success
+		and loc.clues == 1
+		and inv.clues_on_card == 2
+	)
+
+
+func _test_mod_discover_determined_multi() -> bool:
+	## MOD-07：多地已定；无名发现修正不含目标 → 只加 primary（调查地）。
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.effect_shape = AhcEnums.AmountEffectShape.DETERMINED
+	plan.primary_subject_id = &"loc_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 1))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 1))
+	plan.amount = 1
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	return (
+		plan.leg_at(plan.find_leg_index(&"loc_a")).amount == 2
+		and plan.leg_at(plan.find_leg_index(&"loc_b")).amount == 1
+	)
+
+
+func _test_mod_discover_zero_primary_bonus() -> bool:
+	## MOD-08：primary 发现量为 0 时无名修正仍加在 primary。
+	var h := RuleTestHarness.new(42)
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.discover_bonus_this_test(&"inv_1", 1)
+	))
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.effect_shape = AhcEnums.AmountEffectShape.DETERMINED
+	plan.primary_subject_id = &"loc_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 0))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 0))
+	plan = h.ctx.modifiers.apply_to_amount_plan(plan, &"inv_1", h.ctx)
+	return (
+		plan.leg_at(plan.find_leg_index(&"loc_a")).amount == 1
+		and plan.leg_at(plan.find_leg_index(&"loc_b")).amount == 0
+	)
+
+
+func _test_mod_shroud_investigate() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	loc.shroud = 4
+	loc.clues = 2
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.reduce_shroud_this_turn(&"inv_1", 3)
+	))
+	var q := ModifierQuery.new()
+	q.controller_id = &"inv_1"
+	q.stat = AhcEnums.StatRef.SHROUD
+	if h.ctx.modifiers.compute(4, q) != 1:
+		return false
+	## 印刷 shroud 4、−3 → 难度 1；默认混沌袋易成功并发现线索。
+	var res := h.investigate_action()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return res.ok and res.success and loc.clues == 1 and inv.clues_on_card == 1
+
+
+func _test_mod_enemy_damage_then_pipeline() -> bool:
+	## MOD-10：先修敌人攻击伤害量 → DamagePipeline 承伤。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ed", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_ed")
+	enemy.attack_damage = 3
+	enemy.attack_horror = 0
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.register(
+		RegistrationTemplate.reduce_enemy_damage_this_turn(&"inv_1", 1)
+	))
+	var strike := EnemyAttack.build_from_enemy(
+		h.ctx, &"enemy_ed", &"inv_1", false, AhcEnums.AttackKind.PHASE
+	)
+	if strike.damage != 2:
+		return false
+	h.ctx.combat.perform_attack(strike)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv.damage_taken == 2
+
+
+func _test_mod_enemy_attack_increase_pending() -> bool:
+	## MOD-11：敌人攻击进 DamagePipeline；WHEN 可 increase_pending（02221 同路）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ip", &"test_loc", 2, 2)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_ip")
+	enemy.attack_damage = 2
+	enemy.attack_horror = 0
+	var when_n := {"n": -1}
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
+		when_n["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_h)
+	var strike := EnemyAttack.build_from_enemy(
+		h.ctx, &"enemy_ip", &"inv_1", false, AhcEnums.AttackKind.PHASE
+	)
+	h.ctx.combat.perform_attack(strike)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return when_n["n"] == 4 and inv.damage_taken == 4
+
+
+func _test_mod_discover_named_bonus() -> bool:
+	## MOD-12 · 09059 形：效果步指名在另一地点加发现（非无名 Buff 选腿）。
+	var h := RuleTestHarness.new(42)
+	var plan := AmountPlan.discover_single(&"loc_a", 1)
+	plan.add_named_bonus(&"loc_enemy", 1)
+	return (
+		plan.leg_at(plan.find_leg_index(&"loc_a")).amount == 1
+		and plan.leg_at(plan.find_leg_index(&"loc_enemy")).amount == 1
+	)
+
+
+func _test_mod_attack_multi_leg_settle_one_seq() -> bool:
+	## MOD-13 · 03153 形：多敌 DETERMINED settle → 一条 seq.effect.deal + legs；L0 仍单目标。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	var ea := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var eb := h.ctx.state.registry.get_enemy(&"enemy_b")
+	ea.health = 10
+	eb.health = 10
+	var plan := AmountPlan.attack_damage_determined(
+		&"enemy_a", {&"enemy_a": 2, &"enemy_b": 1}
+	)
+	var settled := ModifierEngine.settle_amount_plan(h.ctx, plan)
+	ea = h.ctx.state.registry.get_enemy(&"enemy_a")
+	eb = h.ctx.state.registry.get_enemy(&"enemy_b")
+	return (
+		bool(settled.get("multi", false))
+		and int(settled.get("settled", 0)) == 3
+		and ea.damage == 2
+		and eb.damage == 1
+	)
+
+
+func _test_mod_discover_multi_leg_settle_one_seq() -> bool:
+	## MOD-14：多地 DISCOVER settle → 一条 seq.effect.discover_clue + legs；原语逐地。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a", 2, 3)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b", 2, 3)
+	var plan := AmountPlan.new()
+	plan.kind = AhcEnums.ModifierPlanKind.DISCOVER
+	plan.effect_shape = AhcEnums.AmountEffectShape.DETERMINED
+	plan.primary_subject_id = &"loc_a"
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_a", 2))
+	plan.legs.append(AmountPlan.AmountLeg.make(&"loc_b", 1))
+	plan.amount = 2
+	var settled := ModifierEngine.settle_amount_plan(
+		h.ctx, plan, {"inv_id": &"inv_1"}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var la := h.ctx.state.registry.get_location(&"loc_a")
+	var lb := h.ctx.state.registry.get_location(&"loc_b")
+	return (
+		bool(settled.get("multi", false))
+		and int(settled.get("settled", 0)) == 3
+		and inv.clues_on_card == 3
+		and la.clues == 1
+		and lb.clues == 2
+	)
+
+
+func _test_mod_multi_leg_damage_after_once() -> bool:
+	## MOD-15：legs 多目标仍一条 damage 帧 → AFTER 只响一次。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_b", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_a").health = 10
+	h.ctx.state.registry.get_enemy(&"enemy_b").health = 10
+	var after_n := {"n": 0}
+	var after_h := SequenceHandler.after_forced(&"damage", func() -> void: pass)
+	after_h.callback = func() -> void:
+		after_n["n"] = int(after_n["n"]) + 1
+	h.ctx.sequences.register_handler(after_h)
+	var nest_res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"damage",
+			"target": &"enemy",
+			"legs": [
+				{"id": &"enemy_a", "amount": 1},
+				{"id": &"enemy_b", "amount": 1},
+			],
+		}
+	)
+	var ea := h.ctx.state.registry.get_enemy(&"enemy_a")
+	var eb := h.ctx.state.registry.get_enemy(&"enemy_b")
+	return (
+		nest_res is Dictionary
+		and bool((nest_res as Dictionary).get("multi", false))
+		and int((nest_res as Dictionary).get("amount", 0)) == 2
+		and after_n["n"] == 1
+		and ea.damage == 1
+		and eb.damage == 1
+	)
+
+
+func _test_mod_deal_assignable_bundle_one_seq() -> bool:
+	## 伤+恐同条 deal.assignable；AFTER(damage) 只一次（非各开一条）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var after_n := {"n": 0}
+	var after_h := SequenceHandler.after_forced(&"damage", func() -> void: pass)
+	after_h.callback = func() -> void:
+		after_n["n"] = int(after_n["n"]) + 1
+	h.ctx.sequences.register_handler(after_h)
+	var res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{
+			"controller_id": &"inv_1",
+			"damage": 2,
+			"horror": 1,
+			"target": &"controller",
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res is Dictionary
+		and bool((res as Dictionary).get("simultaneous", false))
+		and int((res as Dictionary).get("damage", 0)) == 2
+		and int((res as Dictionary).get("horror", 0)) == 1
+		and after_n["n"] == 1
+		and inv.damage_taken == 2
+		and inv.horror_taken == 1
+	)
+
+
+func _test_mod_deal_mixed_subject_legs() -> bool:
+	## MOD-17：已定 deal legs 混装敌人 + 有生命场上卡；一条 seq，L0 分路由。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_mix", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_mix").health = 10
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_deal_mix", {"health": 3, "sanity": 0}
+	)
+	var nest_res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"damage",
+			"target": &"subjects",
+			"legs": [
+				{"id": &"enemy_mix", "amount": 2},
+				{"id": card_id, "amount": 1},
+			],
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_mix")
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		nest_res is Dictionary
+		and bool((nest_res as Dictionary).get("multi", false))
+		and int((nest_res as Dictionary).get("amount", 0)) == 3
+		and enemy.damage == 2
+		and card != null
+		and card.tokens.damage == 1
+	)
+
+
+func _test_mod_deal_assignable_card_subject() -> bool:
+	## MOD-18：assignable among 场上卡（非仅敌人）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_deal_asn_card", {"health": 4, "sanity": 0}
+	)
+	var res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{
+			"controller_id": &"inv_1",
+			"target": &"subjects",
+			"damage": 2,
+			"primary_id": card_id,
+			"candidates": [card_id],
+		}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		res is Dictionary
+		and bool((res as Dictionary).get("ok", false))
+		and int((res as Dictionary).get("damage", 0)) == 2
+		and card != null
+		and card.tokens.damage == 2
+	)
+
+
+func _test_mod_deal_dual_legs_empty_side() -> bool:
+	## MOD-19：seq.effect.deal 支持 legs_damage/legs_horror；单边空载兼容单类型。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_dual", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_dual").health = 10
+	var only_dmg: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"target": &"subjects",
+			"legs_damage": [{"id": &"enemy_dual", "amount": 2}],
+			"legs_horror": [],
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_dual")
+	if (
+		not (only_dmg is Dictionary)
+		or int((only_dmg as Dictionary).get("damage", 0)) != 2
+		or int((only_dmg as Dictionary).get("horror", 0)) != 0
+		or enemy.damage != 2
+	):
+		return false
+	var only_hor: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"target": &"controller",
+			"assign_format": &"pipeline",
+			"legs_damage": [],
+			"legs_horror": [{"bearer": &"investigator", "id": &"inv_1", "amount": 1}],
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var both: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"target": &"controller",
+			"assign_format": &"pipeline",
+			"legs_damage": [{"bearer": &"investigator", "id": &"inv_1", "amount": 1}],
+			"legs_horror": [{"bearer": &"investigator", "id": &"inv_1", "amount": 1}],
+		}
+	)
+	return (
+		only_hor is Dictionary
+		and int((only_hor as Dictionary).get("horror", 0)) == 1
+		and int((only_hor as Dictionary).get("damage", 0)) == 0
+		and both is Dictionary
+		and bool((both as Dictionary).get("simultaneous", false))
+		and int((both as Dictionary).get("damage", 0)) == 1
+		and int((both as Dictionary).get("horror", 0)) == 1
+		and inv.damage_taken == 1
+		and inv.horror_taken == 2
+	)
 
 
 func _test_restriction_blocks_draw() -> bool:
@@ -3100,10 +3620,10 @@ func _test_adb_12145_reaction_declined() -> bool:
 
 func _test_seq_eff_nest_take_horror() -> bool:
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.damage"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.deal.assignable"):
 		return false
 	var node := CompositionNode.nest_take_horror(&"inv_1", 2)
-	if node.nest_flow_id != &"seq.effect.damage":
+	if node.nest_flow_id != &"seq.effect.deal.assignable":
 		return false
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(node)
@@ -3226,7 +3746,7 @@ func _test_seq_eff_attach_controller_location() -> bool:
 
 func _test_seq_eff_deal_damage_at_location() -> bool:
 	var h := RuleTestHarness.new(42)
-	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.damage"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.deal"):
 		return false
 	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -4406,7 +4926,7 @@ func _test_seq_eff_deal_damage_attached() -> bool:
 	enemy.health = 3
 	var result := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.deal",
 		{
 			"controller_id": &"inv_1",
 			"source": fire_id,
@@ -7224,7 +7744,7 @@ func _test_g5_investigator_horror_cap() -> bool:
 	inv.horror_taken = 0
 	var applied := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.deal.assignable",
 		{
 			"controller_id": &"inv_1",
 			"kind": &"horror",
@@ -7892,7 +8412,7 @@ func _test_tim_dmg_apply_slots() -> bool:
 	)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.deal.assignable",
 		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
 	)
 	var trace := h.ctx.memory.phase_trace
@@ -7946,7 +8466,7 @@ func _test_tim_dmg_prevent() -> bool:
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
-		&"seq.effect.damage",
+		&"seq.effect.deal.assignable",
 		{"controller_id": &"inv_1", "kind": &"horror", "amount": 2}
 	)
 	return (
@@ -7954,6 +8474,75 @@ func _test_tim_dmg_prevent() -> bool:
 		and int(res.get("amount", 0)) == 1
 		and when_pending["n"] == 1
 		and inv.horror_taken == 1
+	)
+
+
+func _test_tim_dmg_increase_pending() -> bool:
+	## TIM-DMG-03：WHEN 内 increase_pending(+2)（02221）；同实例量 2→4，Apply 写入 4。
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var when_pending := {"n": -1}
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
+		when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_h)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
+	)
+	return (
+		bool(res.get("ok", false))
+		and int(res.get("amount", 0)) == 4
+		and when_pending["n"] == 4
+		and inv.damage_taken == 4
+	)
+
+
+func _test_tim_dmg_increase_keeps_legs() -> bool:
+	## TIM-DMG-04：已确认 N 腿（资产+调查员）保留；K 默认进调查员；不推翻资产腿。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_inc_dmg", {"health": 3, "sanity": 0}
+	)
+	var snap := {"asset_n": -1, "inv_n": -1, "pending": -1}
+	var would_h := SequenceHandler.would_forced(&"damage", func() -> void: pass)
+	would_h.callback = func() -> void:
+		## 模拟已确认 Assign：1 资产 + 1 调查员。
+		DamagePipeline.reassign_pending_legs(
+			h.ctx,
+			&"inv_1",
+			[
+				{"bearer": &"card", "id": card_id, "amount": 1},
+				{"bearer": &"investigator", "id": &"inv_1", "amount": 1},
+			]
+		)
+	h.ctx.sequences.register_handler(would_h)
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
+		var legs := DamagePipeline.pending_legs(h.ctx, &"inv_1")
+		snap["asset_n"] = _asn_leg_amount(legs, &"card", card_id)
+		snap["inv_n"] = _asn_leg_amount(legs, &"investigator", &"inv_1")
+		snap["pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(when_h)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and int(res.get("amount", 0)) == 4
+		and snap["pending"] == 4
+		and snap["asset_n"] == 1
+		and snap["inv_n"] == 3
+		and card != null
+		and card.tokens.damage == 1
+		and inv.damage_taken == 3
 	)
 
 
@@ -7968,6 +8557,129 @@ func _asn_leg_amount(legs: Array, bearer: StringName, id: StringName) -> int:
 			continue
 		total += int((leg as Dictionary).get("amount", 0))
 	return total
+
+
+func _test_tim_dmg_outbound_preimpact() -> bool:
+	## TIM-DMG-05：已定敌腿 WOULD→WHEN 在 Apply 前（pending 未写入）。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_pre", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_pre").health = 10
+	h.ctx.memory.clear_trace()
+	var snap := {"would_dmg": -1, "would_pending": -1, "when_dmg": -1, "after_dmg": -1}
+	var would_h := SequenceHandler.would_forced(&"damage", func() -> void: pass)
+	would_h.callback = func() -> void:
+		snap["would_dmg"] = h.ctx.state.registry.get_enemy(&"enemy_pre").damage
+		snap["would_pending"] = DealPreImpact.pending_amount(h.ctx, &"inv_1")
+	h.ctx.sequences.register_handler(would_h)
+	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
+	when_h.callback = func() -> void:
+		snap["when_dmg"] = h.ctx.state.registry.get_enemy(&"enemy_pre").damage
+	h.ctx.sequences.register_handler(when_h)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_forced(
+			&"damage",
+			func() -> void: snap["after_dmg"] = h.ctx.state.registry.get_enemy(&"enemy_pre").damage
+		)
+	)
+	var nest_res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"damage",
+			"target": &"subjects",
+			"legs": [{"id": &"enemy_pre", "amount": 2}],
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_pre")
+	return (
+		nest_res is Dictionary
+		and int((nest_res as Dictionary).get("amount", 0)) == 2
+		and snap["would_dmg"] == 0
+		and snap["would_pending"] == 2
+		and snap["when_dmg"] == 0
+		and snap["after_dmg"] == 2
+		and enemy.damage == 2
+	)
+
+
+func _test_tim_dmg_outbound_reduce() -> bool:
+	## TIM-DMG-06：外向 WOULD reduce_pending → Apply 量减少。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_red", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_red").health = 10
+	h.ctx.sequences.register_handler(
+		SequenceHandler.would_forced(
+			&"damage",
+			func() -> void: DealPreImpact.reduce_pending(h.ctx, &"inv_1", 1)
+		)
+	)
+	var nest_res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal",
+		{
+			"controller_id": &"inv_1",
+			"kind": &"damage",
+			"target": &"subjects",
+			"legs": [{"id": &"enemy_red", "amount": 3}],
+		}
+	)
+	var enemy := h.ctx.state.registry.get_enemy(&"enemy_red")
+	return (
+		nest_res is Dictionary
+		and int((nest_res as Dictionary).get("amount", 0)) == 2
+		and enemy.damage == 2
+	)
+
+
+func _test_tim_dmg_after_affliction_filters() -> bool:
+	## TIM-DMG-07：受到伤害后 / 恐惧后 / 伤害和或恐惧后 = 同一 AFTER 时点、不同条件。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	var counts := {"dmg": 0, "hor": 0, "either": 0}
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_take_damage(
+			func() -> void: counts["dmg"] = int(counts["dmg"]) + 1
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_take_horror(
+			func() -> void: counts["hor"] = int(counts["hor"]) + 1
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_take_damage_or_horror(
+			func() -> void: counts["either"] = int(counts["either"]) + 1
+		)
+	)
+	## 仅伤害 → dmg+either；恐不触发。
+	h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "damage": 1, "horror": 0}
+	)
+	if counts["dmg"] != 1 or counts["hor"] != 0 or counts["either"] != 1:
+		return false
+	## 仅恐惧 → hor+either；伤条件不触发。
+	h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "damage": 0, "horror": 1}
+	)
+	if counts["dmg"] != 1 or counts["hor"] != 1 or counts["either"] != 2:
+		return false
+	## 伤+恐同帧 → 三者各 +1（仍一条 AFTER）。
+	h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "damage": 1, "horror": 1}
+	)
+	return counts["dmg"] == 2 and counts["hor"] == 2 and counts["either"] == 3
 
 
 func _test_asn_prior_fill() -> bool:
@@ -8117,6 +8829,119 @@ func _test_asn_pipeline_prior_fill() -> bool:
 		and card != null
 		and card.tokens.horror == 2
 		and inv.horror_taken == 1
+	)
+
+
+func _test_asn_grant_capacity() -> bool:
+	## ASN-07：无印刷 + GRANT → 开候选且不设上限；无 GRANT 拒；落任意量后仍 -1。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_grant", {"health": 0, "sanity": 0}
+	)
+	var bare := [{"bearer": &"card", "id": card_id, "amount": 1}]
+	if DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
+		return false
+	h.ctx.registrations.register(
+		RegistrationTemplate.assign_constraint_while_in_play(
+			RestrictionPayload.assign_grant_capacity(card_id, &"inv_1", 2, &"damage")
+		)
+	)
+	if not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
+		return false
+	## 无印刷不设上限：超量（相对 GRANT amount 参数）仍合法。
+	var over := [{"bearer": &"card", "id": card_id, "amount": 3}]
+	if not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, over):
+		return false
+	if DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) != -1:
+		return false
+	var applied := DamagePipeline.apply_investigator_legs(
+		h.ctx,
+		&"inv_1",
+		&"damage",
+		2,
+		false,
+		[{"bearer": &"card", "id": card_id, "amount": 2}]
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		bool(applied.get("ok", false))
+		and int(applied.get("amount", 0)) == 2
+		and card != null
+		and card.tokens.damage == 2
+		and DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) == -1
+		and DealSubject.damage_capacity(h.ctx, &"inv_1") == -1
+	)
+
+
+func _test_asn_gate_scripted() -> bool:
+	## ASN-08：Assign Gate 显式确认腿表（非默认全归调查员）。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_gate", {"health": 3, "sanity": 0}
+	)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new(
+		[
+			{
+				"prompt_id": &"assign:damage",
+				"pick": [{"bearer": &"card", "id": card_id, "amount": 2}],
+			}
+		]
+	)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{"controller_id": &"inv_1", "kind": &"damage", "amount": 2}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and not h.ctx.interaction.last_used_default
+		and card != null
+		and card.tokens.damage == 2
+		and inv.damage_taken == 0
+	)
+
+
+func _test_asn_gate_among() -> bool:
+	## ASN-09：外向 among 经 Gate 拆到两敌。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_g0", &"test_loc", 2, 2)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_g1", &"test_loc", 2, 2)
+	h.ctx.state.registry.get_enemy(&"enemy_g0").health = 10
+	h.ctx.state.registry.get_enemy(&"enemy_g1").health = 10
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new(
+		[
+			{
+				"prompt_id": &"assign:among:damage",
+				"pick": [
+					{"id": &"enemy_g0", "amount": 1},
+					{"id": &"enemy_g1", "amount": 1},
+				],
+			}
+		]
+	)
+	var res: Variant = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.deal.assignable",
+		{
+			"controller_id": &"inv_1",
+			"target": &"subjects",
+			"damage": 2,
+			"primary_id": &"enemy_g0",
+			"candidates": [&"enemy_g0", &"enemy_g1"],
+		}
+	)
+	var e0 := h.ctx.state.registry.get_enemy(&"enemy_g0")
+	var e1 := h.ctx.state.registry.get_enemy(&"enemy_g1")
+	return (
+		res is Dictionary
+		and bool((res as Dictionary).get("ok", false))
+		and not h.ctx.interaction.last_used_default
+		and e0.damage == 1
+		and e1.damage == 1
 	)
 
 

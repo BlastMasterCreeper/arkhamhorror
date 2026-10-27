@@ -58,7 +58,8 @@ static func _compute_registration_order(request: ChoiceRequest) -> Variant:
 			return _pick_single(request)
 		AhcEnums.ChoiceKind.TIE_BREAK, AhcEnums.ChoiceKind.SILVER_RULE:
 			return _pick_single(request)
-		AhcEnums.ChoiceKind.ASSIGN_DAMAGE:
+		AhcEnums.ChoiceKind.ASSIGN_DAMAGE, AhcEnums.ChoiceKind.ASSIGN_HORROR:
+			## options = 默认腿表（已合法）；逾期 / headless 原样确认。
 			return request.options.duplicate() if not request.options.is_empty() else []
 		AhcEnums.ChoiceKind.ORDER_CARDS:
 			if not request.options.is_empty() and request.options[0] is Array:
@@ -103,7 +104,8 @@ static func _compute_random(
 				cards = request.options.duplicate()
 			_shuffle_inplace(cards, r)
 			return cards
-		AhcEnums.ChoiceKind.ASSIGN_DAMAGE:
+		AhcEnums.ChoiceKind.ASSIGN_DAMAGE, AhcEnums.ChoiceKind.ASSIGN_HORROR:
+			## RANDOM：打乱腿序仍保持各腿 amount（非重摊；真随机重摊后补）。
 			var assigns: Array = request.options.duplicate()
 			_shuffle_inplace(assigns, r)
 			return assigns

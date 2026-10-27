@@ -5,54 +5,66 @@ extends RefCounted
 ## L0 写入只出现在这里，不出现在卡面 Composition 树当效果本身。
 
 
-## 造成伤害/恐惧（Dealing Damage/Horror）· take/deal 同 seq；用 kind + source + target。
+## 无分配造成伤害/恐惧（seq.effect.deal）：已定 legs / 敌·支援单点；**不含** Assign。
+## 单 kind 用 params.kind + legs；伤+恐 → legs_damage + legs_horror（可单边空）。
+## 待分配 → `seq.effect.deal.assignable`。
 static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var kind := StringName(str(params.get("kind", "damage")))
-	var amount := maxi(int(params.get("amount", 1)), 1)
 	var target := StringName(str(params.get("target", "controller")))
 	var inv_id := _controller_id(game_ctx, params)
 	if game_ctx == null or game_ctx.mutator == null:
 		return {"ok": false, "amount": 0}
-	var applied := 0
 	var is_direct := bool(params.get("direct", false))
-	match target:
-		&"each_at_controller_location", &"each_at_source_location":
-			var loc_id := _location_for_target(game_ctx, params, target)
-			if loc_id == &"":
-				return {"ok": false, "amount": 0}
-			for other_id in game_ctx.state.registry.all_investigator_ids():
-				var other := game_ctx.state.registry.get_investigator(other_id)
-				if other == null or other.eliminated or other.resigned:
-					continue
-				if other.location_tag != loc_id:
-					continue
-				applied += _apply_to_investigator(game_ctx, other_id, kind, amount, is_direct)
-		&"non_elite_with_health_at_attached_location":
-			if kind != &"damage":
-				return {"ok": false, "amount": 0, "error": "horror_not_supported_for_target"}
-			applied = _deal_non_elite_with_health_at_attached(game_ctx, params, amount)
-		&"enemy":
-			if kind != &"damage":
-				return {"ok": false, "amount": 0, "error": "horror_not_supported_for_enemy"}
-			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
-			if game_ctx.state.registry.get_enemy(enemy_id) == null:
-				return {"ok": false, "amount": 0}
-			var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
-			applied = amount if bool(result.get("ok", false)) else 0
-		&"asset", &"card":
-			var asset_id: StringName = params.get("card_id", params.get("asset_id", &""))
-			if game_ctx.state.registry.get_card(asset_id) == null:
-				return {"ok": false, "amount": 0, "error": "unknown_asset"}
-			var asset_res: Dictionary
-			if kind == &"horror":
-				asset_res = DefeatFlow.deal_horror_to_asset(game_ctx, asset_id, amount)
-			else:
-				asset_res = DefeatFlow.deal_damage_to_asset(game_ctx, asset_id, amount)
-			applied = amount if bool(asset_res.get("ok", false)) else 0
-		_:
-			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
-				return {"ok": false, "amount": 0, "error": "unknown_investigator"}
-			applied = _apply_to_investigator(game_ctx, inv_id, kind, amount, is_direct)
+	var raw_ld: Variant = params.get("legs_damage", null)
+	var raw_lh: Variant = params.get("legs_horror", null)
+	if raw_ld is Array or raw_lh is Array:
+		var d_legs: Array = raw_ld as Array if raw_ld is Array else []
+		var h_legs: Array = raw_lh as Array if raw_lh is Array else []
+		return _damage_determined_bundle(
+			game_ctx, params, target, inv_id, is_direct, d_legs, h_legs
+		)
+	var raw_legs: Variant = params.get("legs", null)
+	if raw_legs is Array and not (raw_legs as Array).is_empty():
+		var legs_arr := raw_legs as Array
+		if target == &"controller" or params.get("assign_format", &"") == &"pipeline":
+			return _damage_investigator_determined_legs(
+				game_ctx, params, kind, inv_id, is_direct, legs_arr
+			)
+		return _damage_legs(game_ctx, params, kind, target, inv_id, is_direct, legs_arr)
+	## 无 legs 的调查员承伤 / 地点广播 = 待分配 → 拒（须走 assignable）。
+	if (
+		target == &"controller"
+		or target == &""
+		or target == &"each_at_controller_location"
+		or target == &"each_at_source_location"
+	):
+		return {
+			"ok": false,
+			"amount": 0,
+			"error": "use_seq.effect.deal.assignable",
+			"kind": kind,
+			"target": target,
+		}
+	var amount := maxi(int(params.get("amount", 1)), 1)
+	## 单点已定：若可归类为主体 id，走 PreImpact；否则旧扫场路径。
+	var override_id: StringName = params.get(
+		"enemy_id", params.get("card_id", params.get("primary_id", &""))
+	)
+	if (
+		override_id != &""
+		and DealSubject.classify(game_ctx, override_id) != &""
+		and target != &"non_elite_with_health_at_attached_location"
+	):
+		return _damage_legs(
+			game_ctx,
+			params,
+			kind,
+			target,
+			inv_id,
+			is_direct,
+			[{"id": override_id, "amount": amount}]
+		)
+	var applied := _damage_one(game_ctx, params, kind, target, inv_id, is_direct, amount, &"")
 	_log(
 		game_ctx,
 		"effect:damage",
@@ -61,10 +73,189 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			"target": target,
 			"amount": applied,
 			"source": params.get("source", params.get("card_id", &"")),
-			"direct": bool(params.get("direct", false)),
+			"direct": is_direct,
 		}
 	)
 	return {"ok": applied > 0, "amount": applied, "kind": kind, "target": target}
+
+
+static func _damage_determined_bundle(
+	game_ctx: GameContext,
+	params: Dictionary,
+	target: StringName,
+	inv_id: StringName,
+	is_direct: bool,
+	damage_legs: Array,
+	horror_legs: Array
+) -> Dictionary:
+	## 单边空载兼容单类型；两侧皆空 → 拒。
+	var d_sum := 0
+	var h_sum := 0
+	for leg in damage_legs:
+		if leg is Dictionary:
+			d_sum += maxi(int((leg as Dictionary).get("amount", 0)), 0)
+	for leg2 in horror_legs:
+		if leg2 is Dictionary:
+			h_sum += maxi(int((leg2 as Dictionary).get("amount", 0)), 0)
+	if d_sum <= 0 and h_sum <= 0:
+		return {"ok": false, "amount": 0, "damage": 0, "horror": 0, "error": "empty_legs"}
+	var use_pipeline: bool = (
+		target == &"controller"
+		or target == &""
+		or params.get("assign_format", &"") == &"pipeline"
+	)
+	var result: Dictionary
+	if use_pipeline:
+		result = DamagePipeline.apply_investigator_bundle_legs(
+			game_ctx,
+			inv_id,
+			damage_legs,
+			horror_legs,
+			bool(params.get("direct_damage", is_direct)),
+			bool(params.get("direct_horror", is_direct))
+		)
+		result["target"] = &"controller"
+	else:
+		var scope: StringName = inv_id if inv_id != &"" else &"deal_out"
+		result = DealPreImpact.apply_bundle(game_ctx, damage_legs, horror_legs, scope)
+		result["target"] = target
+		result["multi"] = true
+	var applied := int(result.get("amount", 0))
+	_log(
+		game_ctx,
+		"effect:damage",
+		{
+			"kind": &"damage" if d_sum > 0 else &"horror",
+			"target": result.get("target", target),
+			"amount": applied,
+			"damage": int(result.get("damage", 0)),
+			"horror": int(result.get("horror", 0)),
+			"determined_bundle": true,
+			"source": params.get("source", params.get("card_id", &"")),
+			"direct": is_direct,
+		}
+	)
+	result["ok"] = applied > 0
+	return result
+
+
+static func _damage_investigator_determined_legs(
+	game_ctx: GameContext,
+	params: Dictionary,
+	kind: StringName,
+	inv_id: StringName,
+	is_direct: bool,
+	legs: Array
+) -> Dictionary:
+	var result := DamagePipeline.apply_investigator_legs(
+		game_ctx, inv_id, kind, 0, is_direct, legs
+	)
+	var applied := int(result.get("amount", 0))
+	_log(
+		game_ctx,
+		"effect:damage",
+		{
+			"kind": kind,
+			"target": &"controller",
+			"amount": applied,
+			"determined_legs": true,
+			"source": params.get("source", params.get("card_id", &"")),
+			"direct": is_direct,
+		}
+	)
+	return {
+		"ok": applied > 0,
+		"amount": applied,
+		"kind": kind,
+		"target": &"controller",
+		"legs": result.get("legs", []),
+		"legs_damage": result.get("legs_damage", []),
+		"legs_horror": result.get("legs_horror", []),
+		"damage": int(result.get("damage", 0)),
+		"horror": int(result.get("horror", 0)),
+		"prevented": bool(result.get("prevented", false)),
+	}
+
+
+static func _damage_legs(
+	game_ctx: GameContext,
+	params: Dictionary,
+	kind: StringName,
+	target: StringName,
+	inv_id: StringName,
+	is_direct: bool,
+	legs: Array
+) -> Dictionary:
+	## 已定主体腿：PreImpact WOULD→WHEN→Apply（与承伤对称）。
+	var scope: StringName = inv_id if inv_id != &"" else &"deal_out"
+	var pre := DealPreImpact.apply_legs(game_ctx, kind, legs, scope)
+	var applied := int(pre.get("amount", 0))
+	var final_legs: Array = pre.get("legs", []) as Array
+	var subjects: Array[StringName] = []
+	for raw in final_legs:
+		if raw is Dictionary:
+			var sid: StringName = (raw as Dictionary).get("id", &"")
+			if sid != &"":
+				subjects.append(sid)
+	_log(
+		game_ctx,
+		"effect:damage",
+		{
+			"kind": kind,
+			"target": target,
+			"amount": applied,
+			"multi": true,
+			"subjects": subjects,
+			"source": params.get("source", params.get("card_id", &"")),
+			"direct": is_direct,
+			"preimpact": true,
+		}
+	)
+	return {
+		"ok": applied > 0,
+		"amount": applied,
+		"kind": kind,
+		"target": target,
+		"subjects": subjects,
+		"legs": final_legs,
+		"multi": true,
+		"prevented": bool(pre.get("prevented", false)),
+	}
+
+
+static func _damage_one(
+	game_ctx: GameContext,
+	params: Dictionary,
+	kind: StringName,
+	target: StringName,
+	inv_id: StringName,
+	is_direct: bool,
+	amount: int,
+	override_id: StringName
+) -> int:
+	match target:
+		&"each_at_controller_location", &"each_at_source_location":
+			## 地点广播属待分配 → 无分配帧拒；走 assignable。
+			return 0
+		&"non_elite_with_health_at_attached_location":
+			if kind != &"damage":
+				return 0
+			return _deal_non_elite_with_health_at_attached(game_ctx, params, amount)
+		&"enemy", &"enemies", &"subjects", &"among_candidates":
+			var sid: StringName = override_id
+			if sid == &"":
+				sid = params.get(
+					"enemy_id", params.get("card_id", params.get("primary_id", &""))
+				)
+			return DealSubject.apply(game_ctx, kind, sid, amount)
+		&"asset", &"card":
+			var asset_id: StringName = override_id
+			if asset_id == &"":
+				asset_id = params.get("card_id", params.get("asset_id", &""))
+			return DealSubject.apply(game_ctx, kind, asset_id, amount)
+		_:
+			## 调查员承伤无 legs = 待分配，无分配帧不写。
+			return 0
 
 
 static func take_horror(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -436,7 +627,7 @@ static func _apply_to_investigator(
 	amount: int,
 	is_direct: bool = false
 ) -> int:
-	## Assign → WOULD（prevent）→ WHEN → Apply（07 §4）；敌/支援路径不经此。
+	## 仅 non_elite 等已定扫场回退；规范承伤走 damage.assignable。
 	var result := DamagePipeline.deal_investigator(
 		game_ctx,
 		inv_id,

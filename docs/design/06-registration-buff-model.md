@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.21 · 2026-10-10 — 庞大 REPLACE @ seq.enemy.attack
+> **状态**：v0.4.43 · 2026-10-26 — additional 全路径：攻击/发现 Plan · 敌伤标量 · 承伤 pipeline
 
 ---
 
@@ -37,12 +37,92 @@ class BuffSpec:
     var tags: Array[StringName]
 ```
 
-| 原语 | 含义 |
+| 词 | 含义 |
 |---|---|
-| **Register** | `RegistrationStore.register(reg)` |
-| **Unregister** | id / filter / lifetime tick |
-| **Buff** | `BuffSpec` + payload |
+| **Register** | 结算动作：`RegistrationStore.register(reg)`（信息原语） |
+| **Unregister** | 结算动作：按 id / filter / lifetime tick 卸下 |
+| **Registration** | Store 里的一条记录（含 lifetime · scope · `buffs`） |
+| **Buff** | `BuffSpec` + payload——登记的 **载荷**，不是另一套结算动词 |
 | **Context** | `ApplicationContext`（§9） |
+
+### 2.1 Register 与 Buff（关系 · 已对齐）
+
+```text
+Register（结算 · 不可见）
+  只能创建 → Registration
+              └─ 内含 1..n 个 BuffSpec（见下 · 载荷族）
+
+Unregister（结算）→ 记录消失 → 其 Buff（含衍生）一并卸下
+```
+
+> **硬约束（已对齐）**：信息原语 Register **只能**写出 Buff（或你不愿全称 buff 时：Store 里的 Registration 载荷）。  
+> **禁止** Register 旁路直接挂裸 `AbilitySpec` / 真空订时点。能力管线吃的是 **Gain 特征 Buff 衍生出的挂载**，不是第二套结算入口。
+
+| | **Register** | **Buff（载荷）** |
+|---|---|---|
+| 词性 | **动词**（结算叶） | **名词**（Registration 内形状） |
+| 做什么 | 把 lasting / 延时 / **Gain 特征** **写进/卸出** Store | 行为修正 **或** 特征授予（§3 / §3.2） |
+| dry-run | 插入成功 → **CREATED** | 不单独 CREATED；随 Registration |
+| 不是 | — | 不是第四层原语 |
+
+**Buff 两族（同壳，非两种原语）**：
+
+| 族 | 成员 | 角色 |
+|---|---|---|
+| **行为** | `MODIFIER` · `RESTRICTION` · `LISTENER` | 直接改数值 / 禁允 / 听时点跑 Composition |
+| **Gain 特征** | `KEYWORD` · `TRAIT` · `ICON` · `ABILITY` | Grimoire *gains a characteristic*；**拥有**记录 |
+
+**衍生（核心）**：Gain 特征 Buff **创建时**可按 profile **再 Register / 挂载衍生行为 Buff**（或能力管线挂载）。卸 Gain 壳 → 对称拆衍生。见 §2.3 / §3.2.1a。
+
+与 [07 §5.4.2](07-effect-primitives.md) 对齐：信息原语 **主量** = Register/Unregister；Buff = 唯一可注册物。日志∪记住 = 薄 **Chronicle**。
+
+### 2.2 原语语境：Register 不按 Buff 再拆结算
+
+```text
+信息原语结算面     ≈  Register / Unregister
+Registration 壳    =  lifetime · scope · source（参数，非原语）
+Buff 形态          =  行为三型 | Gain 特征族
+衍生               =  Gain 创建 → 再挂行为 Buff / 能力挂载（仍经 Register 或同壳子载荷）
+```
+
+- **不要**为每种 BuffType 各造一个结算原语。  
+- **不要**为持续/延时各造一套 Store（§4）。  
+- **不要**「Register AbilitySpec」绕过 Buff——Ability 是 Gain.`ABILITY` 的 payload，初始化是 **衍生**。  
+- 复杂度增长点：新 payload / RestrictionKind / Listener timing / Gain kind，不是新 Register 动词。
+
+**包装**：唯一结算入口 `seq.effect.register` / `unregister`，参数 = `RegistrationTemplate`（壳 + `buffs[]`）。详 [07 §5.4.2b](07-effect-primitives.md)。
+
+### 2.3 印刷能力 ≠ Buff；Gain 能力 = 特征 Buff → 衍生
+
+> **已对齐**：纸面 **印刷** Forced / 触发 / Constant / Revelation / 关键词 = **能力 / characteristic**，进场挂载，**不是** Register 出来的 Buff。  
+> **效果 gains …** = Register **Gain 特征 Buff**；该 Buff **会创建衍生**（行为 Buff 和/或能力管线挂载）。仍 **不是**把 Forced 改叫 `LISTENER`。
+
+| | **印刷能力** | **Gain 特征 Buff** | **行为 Buff** |
+|---|---|---|---|
+| 从哪来 | 卡面定义 · 进场 | 效果 `gains …` → Register | 效果直接「until…」**或** Gain **衍生** |
+| Store | 否（定义侧） | **是**（KEYWORD/TRAIT/ICON/ABILITY） | **是**（三型） |
+| 运行 | AbilityKind 管线 | `effective_*`；创建时 **衍生** | Modifier / Eligibility / LISTENER fire |
+
+```text
+gains surge / Retaliate / Forced – …
+  → Register Gain 特征 Buff（KEYWORD 或 ABILITY + payload）
+  → 衍生：
+       KEYWORD profile → 再挂 LISTENER / RESTRICTION / MODIFIER（拥有 ≠ 行为）
+       ABILITY payload → 能力 Lifecycle mount（订时点 / COLLECT / Forced 槽 / Limit）
+                       → Constant 数值句可再衍生 MODIFIER
+  → Unregister Gain 壳 → 卸全部衍生
+```
+
+**LISTENER Buff 的合法例子**（行为族，可直接 Register 或由 Gain 衍生）：
+
+- Event：*Until end of your turn, after you successfully evade, draw 1.*（效果直接造 LISTENER）  
+- 延时：*At the beginning of the next mythos phase…*  
+- `gains surge` **衍生**出的延时再抽 LISTENER（Gain 是 KEYWORD 标记；LISTENER 是衍生）
+
+**不要举例成「Forced = LISTENER Buff」**：
+
+- 支援 **印刷** *Forced – After you fight: draw 1.* → 印刷能力  
+- *效果* *… gains “Forced – After you fight: draw 1.”* → **Gain.`ABILITY` Buff** → 衍生 Forced 挂载（实现可与 LISTENER **同形订阅**，分类仍是能力挂载，不是把 Gain 改叫 LISTENER）
 
 ---
 
@@ -52,17 +132,18 @@ class BuffSpec:
 enum BuffType {
     MODIFIER,       # 被动改数值
     RESTRICTION,    # 被动禁止/允许；编译卡面 "cannot …"；Grimoire：cannot 绝对，不得 countermand（07 §3.2）
-    LISTENER,       # timing 到点跑 Composition
+    LISTENER,       # lasting/延时：timing 到点跑 Composition（≠ 印刷 Forced/reaction 能力）
 }
 ```
 
-| 非 Buff 机制 | 实现方式 |
+| 非 Buff（勿混入） | 实现方式 |
 |---|---|
+| **Forced / `[reaction]` / `[action]` / Constant / Revelation** | **`AbilitySpec`** + Initiation / COLLECT（§2.3）；**不是** LISTENER Buff |
 | Surge（**印刷**） | `CardDefinition.keywords` 含 `surge` |
-| Surge（**动态** `gains surge`） | G3 内 Register **KEYWORD 标记** · `WHILE_DRAWN_CARD_RESOLVING(card_id)`；G5 与印刷合并 evaluate，**不叠加**（见 §3.1、[15 §17.4.5](15-timing-entry-catalog.md)） |
-| Peril、Aloof、Massive 等其它 **关键词** | `CardDefinition.keywords` + 编译为 MODIFIER/RESTRICTION/LISTENER |
-| Cancel / Replacement | [07-composition](07-composition.md) 的 `CancelPending` / `ReplacePending` 节点 |
-| Skill Test / Encounter 帧 | `SkillTestContext` 字段 + 子系统读 Context |
+| Surge（**动态** `gains surge`） | Register **KEYWORD 标记** + 延时消费（§3.1） |
+| Peril、Aloof、Massive 等关键词行为 | keywords + 编译 MODIFIER/RESTRICTION/LISTENER（关键词 ≠ 能力类型） |
+| Cancel / Replacement | Composition Interrupt / Replace 节点 |
+| Skill Test / Encounter 帧 | Context + 子系统 |
 
 ### 3.1 涌动（Surge）· 已裁决
 
@@ -90,22 +171,22 @@ enum BuffType {
 
 1. **Grant / Revoke 入口统一** — Composition L0 `EffectOp.GRANT_CHARACTERISTIC` / `REVOKE_CHARACTERISTIC`（或等价 Register 节点），带 `LifetimeSpec` + `source`。
 2. **存储按 kind 分路由** — 不合并 handler；Surge 仍走抽取并结算后的延时、Retaliate 仍 fight 后、Initiation 仍 COLLECT 能力。
-3. **查询统一** — `EffectiveCharacteristicQuery`（或 RegistrationStore 门面）：`has_effective_keyword` / `has_effective_trait` / `effective_abilities` / `effective_skill_icons` = **印刷 ∪ gained**（按 kind 叠加规则）。
+3. **查询统一** — `EffectiveCharacteristicQuery`（或 RegistrationStore 门面）：`has_effective_keyword` / `has_effective_trait` / `effective_abilities` / `effective_skill_icons` = **（印刷 − blank）∪ gained**（按 kind 叠加；**blank 不抹 gained**，见 RR / [07 §5.4](07-effect-primitives.md)）。
 
 ```text
-EffectOp.GRANT_CHARACTERISTIC
-  target: card_id | investigator_id
+seq.effect.register · Grant 特征 Buff
   kind: KEYWORD | TRAIT | ICON | ABILITY
-  payload: &"surge" | trait_id | icon | AbilitySpec ref
-  lifetime: WHILE_DRAWN_CARD_RESOLVING | DURATION(THIS_TURN) | …
+  payload: &"surge" | trait_id | icon | AbilitySpec
+  lifetime: …
         │
-        ├─ KEYWORD  → KEYWORD 标记 Register（无 Composition；§3.1 Surge 为首例）
-        ├─ TRAIT    → TRAIT 标记 Register 或 CardInstance overlay
-        ├─ ICON     → MODIFIER Register（常为 THIS_SKILL_TEST）或 ICON 标记
-        └─ ABILITY  → LISTENER Register + AbilitySpec（until end of turn 等）
+        ├─ 写出 Gain Buff（CREATED）
+        └─ 衍生（CharacteristicDeriver）：
+             KEYWORD → Profile 再挂 LISTENER / RESTRICTION / MODIFIER
+             ABILITY → Lifecycle mount（Forced/触发/…）；Constant 可再衍生 MODIFIER
+             TRAIT/ICON → 多只读；ICON 可衍生 MODIFIER
         │
         ▼
-Effective* 查询 @ 各 consumer（G5 / Initiation / SkillTest / Target）
+Effective* / COLLECT / 行为三型 consumer
 ```
 
 #### 3.2.1 Kind 路由与叠加
@@ -113,12 +194,63 @@ Effective* 查询 @ 各 consumer（G5 / Initiation / SkillTest / Target）
 | Kind | 典型卡面 | 存储 | 生命周期常见 | 叠加 |
 |---|---|---|---|---|
 | **KEYWORD** | gains surge / gains Retaliate | KEYWORD 标记 Register | `WHILE_DRAWN_CARD_RESOLVING` 或 `WHILE_IN_PLAY` | **按 keyword 定**（Surge **不叠加**，§3.1） |
-| **ABILITY** | gains: `[action]` … until end of turn | `LISTENER` + `AbilitySpec` | `DURATION(THIS_TURN)` / `THIS_PHASE` | 多条并存；各 Limit 独立 |
-| **TRAIT** | gains the [[Cultist]] trait | TRAIT 标记 Register | 与 granting 效果同 lifetime | trait 集合 **union** |
-| **ICON** | gains [wild]（检定中） | MODIFIER 或 ICON 标记 | `THIS_SKILL_TEST` | 与印刷图标 union |
-| **数值** | gets +1 fight | 现有 **MODIFIER** Register | turn / phase / test | ModifierEngine 合并 |
+| **ABILITY** | gains **任意能力类型**（见下） | **AbilitySpec** + lifetime 挂 Store | 与 granting 同 lifetime | 多条并存；Limit 各算 |
+| **TRAIT** | gains the [[Cultist]] trait | TRAIT 标记 Register | 同上 | trait **union** |
+| **ICON** | gains [wild] | MODIFIER 或 ICON 标记 | `THIS_SKILL_TEST` 等 | 与印刷 union |
+| **数值** | gets +1 fight | **MODIFIER** | turn / phase / test | ModifierEngine |
 
-**非本表（非 characteristic）**：`gain N resource` / `gain an action` = 资源/行动 **状态原语**，不走 Gained characteristics。
+**可获得 ≈ 几乎全部能力类型**（含关键词）。但 **读特征** 与 **文本能力** 落地重量不同：
+
+#### 3.2.1a Gain Buff：只读 vs 文本能力（衍生）
+
+> Register **只**写出 Buff。Gain = **特征族 Buff**；文本能力档在创建时 **衍生**行为 Buff / 能力挂载（§2.1 / §2.3）。
+
+| 档 | Gain Buff 载荷 | 衍生？ | 消费 |
+|---|---|---|---|
+| **A. 只读特征** | TRAIT / ICON / 部分 KEYWORD「拥有」 | 通常 **无**（或仅 ICON→MODIFIER） | `effective_*` 并集 |
+| **B. 文本能力 / 有行为的 keyword** | `ABILITY`（内嵌与印刷同构的 AbilitySpec）或 KEYWORD | **有** | 衍生挂载后走能力管线 / 行为三型 |
+
+```text
+gains 只读
+  → Register Gain Buff（标记）
+  → 查询并集；少衍生
+
+gains 文本能力 / 行为 keyword
+  → 编译 AbilitySpec 或 KeywordProfile 键
+  → Register Gain Buff（壳 + 载荷）          ← 唯一 CREATED 结算
+  → 【衍生】mount：
+       · KeywordProfile → 再 Register LISTENER / RESTRICTION / MODIFIER
+       · AbilitySpec    → Lifecycle（订时点 / COLLECT / Forced / Limit）
+       · Constant 数值  → 可再衍生 MODIFIER
+  → 之后与印刷能力 / 印刷 keyword **同 consumer**
+  → Unregister Gain → 级联卸衍生
+```
+
+| 文本能力类型 | 衍生须做什么 |
+|---|---|
+| **Forced** | 订触发时点；窗到 **自动** 发起 |
+| **`[reaction]` / `[free]`** | 订槽；进响应候选 |
+| **`[action]`** | Activate 可发现 |
+| **Constant** | Constant 查询集；数值可衍生 MODIFIER |
+| **Revelation** | 仅显现入口解释 |
+| **Keyword** | 标记已由 Gain 写出；**再**按 Profile 衍生行为 Buff |
+
+> **禁止**：绕过 Gain Buff 真空挂 AbilitySpec；把 Forced **改叫** LISTENER；省略衍生只靠「effective 读到有这句话」。  
+> **印刷** Forced = 能力，不经 Register。**效果 gains Forced** = Register Gain.`ABILITY` → **衍生** Forced 挂载。
+
+**实现建议（薄）**：
+
+```gdscript
+# Template：一次 Register，buffs 含 Gain；衍生在 Store.on_register 回调
+RegistrationTemplate.grant_characteristic(card_id, kind, payload, lifetime)
+# on_register(gain_buff):
+#   for derived in CharacteristicDeriver.expand(gain_buff):
+#       register_child(derived)   # 行为 Buff，lifetime 绑父 Gain
+#   if gain_buff.kind == ABILITY:
+#       AbilityLifecycle.mount(gain_buff.ability_spec, bind)
+```
+
+**非本表**：`gain N resource` / `gain an action` = 状态原语，不走 Gain 特征。
 
 #### 3.2.2 查询 API（目标 · P0 竖切）
 
@@ -139,8 +271,8 @@ class EffectiveCharacteristicQuery:
 
 **P0 竖切**：`has_effective_keyword` + Surge KEYWORD Register/UnRegister · **`draw_encounter_flow` G5** ✅（`EffectiveCharacteristicQuery` · `EncounterGainedKeyword` · ENC-SURGE-02/03 · GAIN-01）
 
-**P1**：until end of turn 的 `[action]` / `[reaction]` → `GRANT ABILITY` + LISTENER。  
-**P2**：trait / icon / 其它 keyword（Retaliate、Aloof…）按扩展包卡面增量。
+**P1**：until-EOT `[reaction]` / Forced → Register Gain.`ABILITY` → 衍生 Lifecycle mount（**不是**改叫 LISTENER）。  
+**P2**：trait / icon / 其它 keyword（Retaliate…）→ Gain 标记 + Profile **衍生**行为 Buff。
 
 #### 3.2.3 Core 2026 卡面统计
 
@@ -569,9 +701,13 @@ mount（进场 / G2 / …）
 
 卡面把「获得持续/延时/Cannot/涌动」当效果写出来时，创建本身走命名流程 **`seq.effect.register`**（参数 = `RegistrationTemplate`）；CREATED = 插入成功。管线里为父手续挂载的 Register（G2 险境、进场 Hunter）仍是该父 seq 的砖，不另开 `PERIL_CHECK`。见 [07-composition §1.3.3](07-composition.md#133-catalog-必须覆盖一切可解释效果纸面可以无名)。
 
-### 4.1 合法性（dry-run）
+### 4.1 合法性（dry-run）· 为何 Register 是原语
 
-创建 Registration **即** 直接影响（见 [07-composition §4](07-composition.md)）。  
+创建 Registration **即** 直接影响 / **CREATED**（见 [07-composition §4](07-composition.md)、[07-primitives §0](07-effect-primitives.md)）。
+
+发起有效性与原语同一判据：**必须干了点什么**。若效果体 **既** 无任何物理原语能结算，**又** 无任何 Register 插入，则为 **空结算**，**禁止发起**。  
+故「直到回合结束 +1」「获得 cannot」「挂上延时 LISTENER」等 **只靠 Register** 的效果体，必须把 Register 算作结算原语，否则合法挂 Buff 会被误判为空。
+
 **不**检查创建后 Buff 是否退化、Listener 是否会触发。
 
 ---
@@ -651,34 +787,128 @@ Registration {
 | Listener 触发次数 | 寿命内 **可多次** | 通常 **一次**（整段 Unregister） |
 | 典型文本 | until end of **turn/phase** | at start of **next** …（一次） |
 
-### 5.6 与 Constant 对比
+### 5.6 与印刷能力对比（勿称 Buff）
 
-Asset：**After you fight, draw 1**（Constant）
+Asset 印刷 *Forced – After you fight: draw 1* / *After you fight, draw 1*（Constant/Forced）→ **`AbilitySpec`**，**不是**本条 LISTENER Buff 示例。
 
-```text
-Registration {
-  lifetime: WHILE_IN_PLAY,
-  buffs: [ Listener(AFTER_YOU_FIGHT, Draw(1)) ],
-}
-```
-
-与 Event「until end of **your turn**…」结构相同；仅 Lifetime 为 `THIS_TURN` vs `WHILE_IN_PLAY`。
+若实现把「在场订 `AFTER_YOU_FIGHT`」做成与 §5.1 **同形**挂载，lifetime 像 `WHILE_IN_PLAY`——那是机械复用；**概念上仍是能力**（§2.3）。  
+真正的 LISTENER Buff 对照物：Event *Until end of your turn, after you fight, draw 1*（§5.1）——**效果创造**的持续壳 + Listener。
 
 ---
 
-## 6. MODIFIER
+## 6. MODIFIER（数值修正 · 统一模型 · 已对齐）
 
-在 **ModifierQuery** 时改数值（技能、shroud、伤害量、cost…）。Constant 与 Lasting **相同 Payload**，仅 Lifetime 不同。
+> **定义**：Modifier = 对 **某个数值** 的修正。数值广泛存在；**不要**为每类数值各造一套引擎。  
+> **实现面**：同一 `ModifierEngine` + `ModifierPayload` + `ModifierQuery`；差在 **数值域 / 值键 / 应用模式 / 查询站何时调用**。
 
-```gdscript
-class ModifierPayload:
-    var stat: StatRef
-    var op: ModOp
-    var value: int
-    var stacking: StackingGroup
+### 6.1 三数值域（ValueRealm）
+
+| 域 | 是什么 | 例子 | 典型消费时机 |
+|---|---|---|---|
+| **A. 印刷/特征量** | 卡面或实体上的印刷（及 gained）数值的 **有效读** | 玩家牌费用；地点 **隐藏值（shroud）**；调查员/支援生命·神智；调查员技能；敌人攻击/生命/躲避… | 读 effective 时 / 发起前算 cost / 建检定难度前读 shroud |
+| **B. 效果量** | 即将 **结算** 的效果数量（可进 Plan） | 造成/治愈伤害·恐惧；发现/放置线索；获得/失去资源… | 效果 Plan 明确后、落点前 |
+| **C. 序列标量** | **不是**效果结算，但是命名流程步上的比较/中间量 | **检定难度**；**检定技能值**（仅 ST 比较用）；**混乱标记**对本次检定的修正 | 命名流程砖内（如 ST.5 / 设 difficulty） |
+
+**勿混**：
+
+| | **印刷技能修正**（域 A） | **检定技能值**（域 C） |
+|---|---|---|
+| 含义 | 「你的战斗 +1」等，改实体有效技能 | 本次检定拿去 **和难度比较** 的那个数 |
+| 组成 | 印刷 ∪ gained − blank 上的 MODIFIER | 常 = 有效技能 + 投入图标 + **序列修正**（含混乱） |
+| 混乱标记 | **不**改域 A 印刷技能 | **属于**域 C（本次比较值或难度，按标记） |
+
+### 6.2 统一构件（来源 · 载荷 · 查询 · 计算 · 寿命）
+
+> **已对齐**：**修正的来源不全是 Buff。**  
+> Buff（Register MODIFIER）只是来源之一。引擎改的是 **数值**；贡献可来自 Store、检定帧、投入组装等。  
+> **禁止**把混乱标记、投入图标等一律 Register 成 Buff。
+
+```text
+数值修正系统（计算面 · 唯一）
+  compute / apply_to_amount_plan
+  叠加律共用（+/− → ×÷ → ceil → floor 0）
+        ▲
+        │ 汇入（按查询站收集）
+        │
+来源 Source（可多类并存）
+  ├─ Buff · Registration MODIFIER     ← seq.effect.register；Constant 同 Payload
+  ├─ 检定帧短暂贡献                   ← 混乱标记修正等（SkillTestContext；非 Buff）
+  ├─ 投入组装                         ← commit 图标加成（常并入比较值底座；非 Buff）
+  └─ （可扩展）其它非 Buff 贡献         ← 仍禁止为省事而假 Register
 ```
 
-叠加：加算/减算 → 乘除 → ceil → 下限 0（Grimoire Modifiers）。
+| 来源 | 是 Buff？ | 寿命 | 例子 |
+|---|---|---|---|
+| Registration / Constant MODIFIER | **是** | `LifetimeSpec` / WHILE_IN_PLAY | until… +1 fight；费用 −1；攻击伤 +1 |
+| 检定帧 | **否** | 本次检定 | **混乱标记**对比较值/难度的修正 |
+| 投入组装 | **否** | 本次检定（已 commit） | 技能图标点数 |
+| 印刷底座 | **否** | 实体上 | 未修正的 shroud / 技能印刷值（compute 的 `base`） |
+
+```text
+Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
+  value_key · op/value · match · apply_mode · plan_kind…
+
+查询 ModifierQuery
+  value_key + controller/subject + 上下文（test_id · location · skill · plan…）
+
+引擎 ModifierEngine（唯一计算入口）
+  compute(base, query)              → 汇入：匹配的 Buff +（若站需要）帧上短暂贡献
+  apply_to_amount_plan(plan, …)   → 域 B：无名 +N 改已定效果的量（无目标）
+```
+
+**寿命**：Buff → Registration；混乱/投入 → 检定帧；**不**为每个 value_key 另造寿命系统。
+
+**Buff 创建**：仍经 `seq.effect.register`；禁止真空 Store。dry-run：Register → CREATED。  
+**非 Buff 来源**：揭示混乱、commit 步骤写入上下文——**不是**信息原语 Register。
+
+### 6.3 应用模式（与域的关系）
+
+| apply_mode | 用于 | 行为 |
+|---|---|---|
+| **SCALAR** | 域 A 读值；域 C 序列量；单点效果量 | `compute(base, query)` |
+| **CONSUME_CHOOSE_ONE_LEG** | 域 B Buff（每条用一次） | 无名 +N → `plan.apply_amount_bonus`；**修正不含目标** |
+
+**主序（已裁决）**：**先确认目标 / 定效果** → **再**无名数值修正（只落在已定效果的量上）→ 物化/执行。
+
+| `AmountEffectShape` | 卡面 | 定效果后 | 无名修正 | 执行 |
+|---|---|---|---|---|
+| **`DETERMINED`** | 单敌 / 03153 | 腿已定；攻击伤害 = primary | `+=` primary（攻击伤害量） | settle 腿 |
+| **`ASSIGN`** | 04305 | 候选集已定；`amount` = 攻击伤害 | `+= amount` | Assign → legs → settle |
+
+**禁止**：修正里带宿主；默认每腿 +1；把对敌量修混进调查员承伤 `DamagePipeline`。
+
+### 6.4 值键增长规则
+
+新增一种可修正数值时：
+
+1. 归入域 A / B / C（上表）。  
+2. 增加 **一个** `value_key`（或复用已有 Plan kind），**不要**新 Engine。  
+3. 在 **有限查询站**（§16.3）挂一次 `compute` / `apply_to_amount_plan`。  
+4. 多目标效果量 → AmountPlan + `effect_shape`（§16.3.2）。
+
+```gdscript
+## 示意 · 与实现 StatRef 对齐并扩展
+enum ValueRealm { PRINTED, EFFECT_AMOUNT, SEQUENCE_SCALAR }
+
+## 域 A 例：CARD_COST, SHROUD, HEALTH, SANITY, SKILL_*, ENEMY_FIGHT, ENEMY_EVADE…
+## 域 B 例：plan_kind ATTACK_DAMAGE | DISCOVER；单点效果量亦可 SCALAR（资源等）
+## 域 C 例：ST_DIFFICULTY, ST_SKILL_VALUE（比较用；含混乱贡献）
+```
+
+### 6.5 与现实现对照（迁移方向）
+
+| 已有 | 域 | 备注 |
+|---|---|---|
+| `SKILL_*` / `SKILL_ANY` @ ST.5 | A→参与 C 组装 | 印刷维修正；ST.5 读有效技能后再加投入/混乱 |
+| `SHROUD` @ Investigate | A | 读地点隐藏值 |
+| `INITIATION_*_COST` | A | 费用 |
+| `RESOURCE_GAIN_AMOUNT` | B | 单点效果量 |
+| `AmountPlan`（仅 `ATTACK_DAMAGE` / `DISCOVER`） | B | 有消费式多腿场景才用 Plan；不为恐惧对称预留 |
+| `chaos_modifier` on test ctx | C | **非 Buff** 来源；与 Store 修正同一叠加律，挂检定帧 |
+
+**目标态 ST.5**：`ST_SKILL_VALUE = compute/assemble(有效技能, 投入, 域 C 修正含混乱)`；难度侧可 `ST_DIFFICULTY` 与域 A shroud 读分离（调查：先 A 读 shroud，再可叠加 C 的「本次难度」）。
+
+详查询站与 Plan：§16.3。
 
 ---
 
@@ -936,18 +1166,125 @@ Grimoire 条文 / 卡面效果
 
 ### 16.3 MODIFIER · 查询站清单
 
-**模式**：Register MODIFIER → 在 **下列站点** 调用 `ModifierEngine.compute(base, query, app_ctx)`；`Condition.matches(app_ctx)` 过滤场合。
+> **总纲**见 [§6](#6-modifier数值修正--统一模型--已对齐)：Modifier = 对数值的修正；三域（印刷量 / 效果量 / 序列标量）；**一个** Engine；查询站只决定 **何时** 调用。
 
-| 查询站 ID | 何时调用 | `StatRef` | 典型 `ApplicationContext` | 状态 |
+**模式**：
+
+| 模式 | API | 域 |
+|---|---|---|
+| 标量 | `ModifierEngine.compute(base, query)` | A 读值 · C 序列量 · B 单点 |
+| 效果 Plan | `apply_to_amount_plan` | B：先定效果；无名 +N 改量（`effect_shape`） |
+
+**禁止**：每类数值新 Engine；扁全球 `DAMAGE_AMOUNT` 冒充「本次攻击」；多腿效果量对每腿广播。
+
+| 查询站 ID | 域 | 何时调用 | 键 | 状态 |
 |---|---|---|---|---|
-| **MOD-Q-SKILL** | 检定 ST.5 算 modified value | `SKILL_WILLPOWER` … `SKILL_AGILITY` | `skill_test` 填充 | **已实现**（`SkillTestEngine.step_calculate_modified_value`） |
-| **MOD-Q-GAIN-RES** | `seq.effect.gain_resource` 落 resource 前 | `RESOURCE_GAIN_AMOUNT` | `framework_step` + `tags`（如 `gain_resource`） | **已实现**（`SequenceCatalogBootstrap._resolve_gain_resource`；旧 id 别名） |
-| **MOD-Q-SHROUD** | 地点 investigate 算 difficulty | `SHROUD`（待 enum） | location + tags | 待实现 |
-| **MOD-Q-DAMAGE-AMT** | Deal damage Assign 前定 amount | `DAMAGE_AMOUNT`（待 enum） | source、target tags | 待实现 |
-| **MOD-Q-HORROR-AMT** | Deal horror Assign 前 | `HORROR_AMOUNT`（待 enum） | 同上 | 待实现 |
-| **MOD-Q-COST** | Initiation L6 前 | `ACTION_COST` / resource cost（待 enum） | `initiation` | 待实现 |
+| **MOD-Q-SKILL** | A（喂 C） | 检定 ST.5 组装比较值 | `SKILL_*` / `SKILL_ANY` | **已实现** |
+| **MOD-Q-ST-SKILL** | C | ST.5 比较用技能值（含混乱等序列贡献） | `ST_SKILL_VALUE` | 部分（混乱仍在 ctx；待收编） |
+| **MOD-Q-ST-DIFF** | C | 设/改本次检定难度 | `ST_DIFFICULTY` | 待（与 shroud 读分离） |
+| **MOD-Q-SHROUD** | A | 读地点隐藏值（常作调查难度底座） | `SHROUD` | **已实现** |
+| **MOD-Q-COST** | A | Initiation 付费前 | resource/action cost | **已实现** |
+| **MOD-Q-GAIN-RES** | B | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
+| **MOD-Q-ATTACK-DAMAGE** | B | 攻击成功后、伤害落点前 | **AmountPlan** `ATTACK_DAMAGE` | **已实现** |
+| **MOD-Q-DISCOVER** | B | 调查成功后、发现落点前 | **AmountPlan** `DISCOVER` | **已实现** |
+| **MOD-Q-ENEMY-DAMAGE** | A | 敌人攻击造成前 | `ENEMY_DAMAGE` | **已实现** |
+| **MOD-Q-ENEMY-HORROR** | A | 敌人攻击造成前 | `ENEMY_HORROR` | **已实现** |
+| **MOD-Q-PRINTED-*** | A | 生命/神智/敌 fight·evade·health… | 对应 value_key | 待按卡增量 |
 
-**新增 MODIFIER 卡面**：先在本表 **登记查询站**（或复用已有站 + `Condition`），再扩 `StatRef`；**不要**在 `seq.*` handler 内散落 `if card_id`.
+#### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
+
+| Payload.stat | ST.5 匹配 |
+|---|---|
+| `SKILL_COMBAT` 等 | 仅当本次检定技能相同 |
+| **`SKILL_ANY`** | **任意**技能检定（纸面「+1 skill value」无指定维、类 wild） |
+
+`compute`：标量载荷中 `stat == 本次技能 OR stat == SKILL_ANY`；`plan_kind != NONE` 的载荷 **不进** 标量 `compute`。
+
+#### 16.3.2 攻击伤害 / 发现线索：Plan + 修正（重点）
+
+基础 Fight →「对目标造成 1 伤害」；基础 Investigate →「在本地点发现 1 线索」。  
+卡面常 **替换** 该效果（多目标伤、多地点发现等）。无名修正（致命打击、推理）必须作用在 **已定效果** 的量上。
+
+**主序（已裁决 2026-10-26）**
+
+1. **先确认目标 / 定效果**（单敌、多腿、或 ASSIGN 候选集）  
+2. **再**无名数值修正——修正 **不含目标**，只改「本次攻击伤害 / 发现量」  
+3. **再**物化（仅 `ASSIGN`：把已修正的攻击伤害 Assign 成腿）与 settle  
+
+挂钩点是 **攻击/发现数值**，不是效果执行步，也不是 Assign 本身。04305 上「先修量再分」与「先分再修」若合格集相同则结果等价；规范仍用先修攻击伤害量。
+
+**对敌造成 ≠ 调查员受到**：承伤量在「受到」才钉 → 先 Assign 再 `increase_pending`（[07 §4](07-effect-resolution.md)）。敌人承伤单主体、无 Assign。
+
+```text
+成功（Fight / Investigate / 指定行动）
+  │
+  ├─ 1–2. 定效果 → AmountPlan（kind + effect_shape + primary/candidates/legs）
+  │
+  ├─ 3. apply_to_amount_plan：无名 Buff 消费一次 → apply_amount_bonus
+  │      DETERMINED：+= primary（攻击伤害线）
+  │      ASSIGN：+= amount（攻击伤害数值）
+  │
+  └─ 4. settle：ASSIGN → nest `seq.effect.deal.assignable`；DETERMINED → nest `seq.effect.deal` + `legs[]`
+```
+
+**造成伤害/恐惧两条 seq（已裁决）**：`deal.assignable` = 待分配（伤+恐可同入参，可单边 0，Assign 后 **同时** Apply）；`deal` = 无分配已定（`legs_damage`/`legs_horror` 可单边空）。禁止伤/恐各开一条 assignable。发现线索仍一条 + `legs[]`。多目标 **不限单卡种**：凡有印刷生命/神智、或无印刷+`GRANT_CAPACITY` 的场上卡 ∪ 敌人 ∪ 调查员；无印刷+GRANT **不设可分配上限**；调查员伤/恐与敌人伤害分配无限。`DealSubject` 按 id 归类落点，L0 仍单目标。AFTER「受到伤害/恐惧/伤害和或恐惧」= 同一 `damage` 时点 + `affliction_filter`。
+
+##### `AmountEffectShape`
+
+| 形态 | 锚 | 定效果 | 无名 +N | 执行 |
+|---|---|---|---|---|
+| **`DETERMINED`** | 单敌 · 03153 | 腿已定 | 改 primary 攻击伤害 | settle |
+| **`ASSIGN`** | 04305 | 候选已定；`amount`=攻击伤害 | 改 `amount` | Assign → settle |
+
+```text
+# DETERMINED（03153）
+legs=[主:1, 旁:1] + 致命打击+1
+  → [主:2, 旁:1]          ## 修正无目标；加在攻击伤害（主）上
+
+# ASSIGN（04305）
+amount=4, candidates=同地敌 + 致命打击+1
+  → amount=5              ## 仍是攻击伤害数值
+  → Assign(5) → legs      ## Gate ask_assign_among；逾期默认→primary
+```
+
+##### 发现线索
+
+无名推理类同构：`DETERMINED` 下 += primary（调查地）。  
+**指名落点**（09059 敌所在地、09108 任选地）由能力/事件 **效果步** 写入已定发现效果或另建腿——不是给无名 Buff 补宿主。
+
+```gdscript
+class AmountPlan:
+    var kind: ModifierPlanKind
+    var effect_shape: AmountEffectShape   # DETERMINED | ASSIGN
+    var amount: int                       # ASSIGN=攻击伤害量；DETERMINED 与 primary 同步
+    var legs: Array[AmountLeg]
+    var primary_subject_id: StringName
+    var candidate_ids: Array[StringName]
+```
+
+| 例子 | 行为 |
+|---|---|
+| 致命打击 @ 单敌/03153 | 改攻击伤害（primary） |
+| 致命打击 @ 04305 | 改 `amount`；执行再 Assign |
+| 推理 | 改调查地发现量 |
+| 09059 / 09108 | 效果指名定发现对象；非无名 Buff 选腿 |
+| Brand 替换 | 步骤 1–2 重写 Plan；再 apply |
+
+**禁止**：`PER_EACH_LEG`；修正自带目标；用选腿冒充 04305 Assign；为恐惧对称预留 Plan kind。  
+**Register**：`plan_kind` + `CONSUME_*`（用一次）；量变经 `apply_amount_bonus`。
+
+##### additional 全路径（已对齐落地）
+
+| 路径 | 序 | 入口 | 状态 |
+|---|---|---|---|
+| 玩家攻击伤害 | 定效果 → 无名改量 → settle | Fight ST.7 `AmountPlan` | ✅ |
+| 发现线索 | 同上；指名 `add_named_bonus` | Investigate ST.7 / 效果步 | ✅ |
+| 敌人攻击伤害/恐惧 | 定攻击 → 修印刷量 → **造成** | `EnemyAttack.build_from_enemy` → `DamagePipeline` | ✅ |
+| 调查员承伤 +K | 先 Assign(N) → `increase_pending` | `DamagePipeline`（含敌人攻击） | ✅ |
+| 04305 ASSIGN 物化 | 改 `amount` → Assign | `effect_shape=ASSIGN` | ✅ API + Gate（`ask_assign_among`） |
+| 09059/09108 指名发现 | 效果步 `add_named_bonus` | Composition / 能力成功句 | ✅ API（MOD-12） |
+
+**调查员承伤 additional（02221）≠ AmountPlan**：见 [07 §4](07-effect-resolution.md)。敌人攻击已并入同一承伤管线。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -995,7 +1332,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
 | —（原流程分支） | 借机不跑 | `SKIP_AOO` | 「This action does not provoke…」 | REST-E-AOO：`read_skip_aoo` | **已实现** · 翻译叶见 [20 §4](20-card-translation-schema.md) |
 | —（原流程分支） | 自动交战不跑 | `SUPPRESS_AUTO_ENGAGE` | 「移入后 engages you」（明示交战，非 Prey/Lead；冷漠/横置仍靠 mode=effect） | REST-E-AUTO-ENGAGE：`read_suppress_auto_engage` | **已实现** · 理由见 [20 §4.2.1](20-card-translation-schema.md) |
-| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include | REST-E-ASSIGN：`DamageAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
+| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include · GRANT_CAPACITY | REST-E-ASSIGN：`DamageAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
 | —（状态查询） | 成对交战状态 | `ENGAGEMENT` | 真实交战 / 视为交战（威胁区是区划检测，不是本 Buff） | `EngagementStatus` / `has_engagement` | **已实现** · [08 §3.1.1](08-enemy-engagement.md) |
 | `DISCOVER_CLUE` | 发现线索 | `FORBID_DISCOVER_CLUE` | 「While engaged… cannot discover…」（01121b） | REST-E-EFFECT：`DiscoverClueFlow` | **已实现** · 与 ENGAGEMENT 同 Register，脱离卸 |
 | `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
@@ -1157,6 +1494,31 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.49 | Assign Gate：`ask_assign_*` / among（04305） |
+| 2026-10-26 | v0.4.49 | GRANT 无印刷不设上限；deal 双通道腿；AFTER 伤/恐/和或条件 |
+| 2026-10-26 | v0.4.48 | `GRANT_CAPACITY`；deal legs 混装主体（敌/卡/调查员） |
+| 2026-10-26 | v0.4.47 | 更名 `deal`；伤+恐同条 assignable、同时 Apply |
+| 2026-10-26 | v0.4.46 | 明示 horror 与 damage 同两条 seq（`kind`） |
+| 2026-10-26 | v0.4.45 | 伤害拆 `damage.assignable` / `damage`；ASSIGN settle → assignable |
+| 2026-10-26 | v0.4.44 | settle 多目标：一条 seq + `legs[]`；L0 仍单目标（MOD-13/14/15） |
+| 2026-10-26 | v0.4.43 | additional 全路径：敌伤 `ENEMY_DAMAGE` + 攻击进 `DamagePipeline`；指名 `add_named_bonus` |
+| 2026-10-26 | v0.4.42 | §16.3.2：先定效果；无名 additional 只改攻击/发现量；`DETERMINED`/`ASSIGN` |
+| 2026-10-26 | v0.4.41 | §16.3.2：对敌伤 `PIN_PRIMARY` / `ADD_TO_POOL`（由 v0.4.42 收成 effect_shape） |
+| 2026-10-24 | v0.4.40 | incoming additional（02221）：保留 N 腿，仅增量 K @ 合法全合格集 |
+| 2026-10-24 | v0.4.39 | 撤 AmountPlan HORROR kind/payload/settle 预留（无消费式多腿场景） |
+| 2026-10-24 | v0.4.38 | 域 B：Attack/Discover Plan 收成 AmountPlan；统一 apply/settle |
+| 2026-10-24 | v0.4.37 | 修正来源不全是 Buff：混乱/投入=检定帧贡献；Buff 只是来源之一 |
+| 2026-10-24 | v0.4.36 | §6：Modifier=数值修正；三域印刷/效果量/序列标量；统一来源·计算·寿命·apply |
+| 2026-10-24 | v0.4.35 | MOD-Q-SHROUD：StatRef.SHROUD + 基础 Investigate 算难度 |
+| 2026-10-24 | v0.4.34 | DiscoverPlan 接线 Investigate；消费式发现修正 + PI；zero amount 不结算 |
+| 2026-10-24 | v0.4.33 | MODIFIER 落地：SKILL_ANY；AttackDamagePlan 消费式+PI；基础 Fight 接线 |
+| 2026-10-24 | v0.4.32 | Register 只写 Buff；Gain 特征族可衍生行为 Buff / 能力挂载；禁旁路 AbilitySpec |
+| 2026-10-24 | v0.4.31 | 攻击/发现量修正消费式选一 leg；多候选触发 PI；禁对每个目标广播 |
+| 2026-10-24 | v0.4.30 | §16.3：无类型技能 SKILL_ANY；AttackDamagePlan/DiscoverPlan 替代扁 DAMAGE/DISCOVER 量 |
+| 2026-10-24 | v0.4.29 | §3.2.1a：gains 只读特征 vs 文本能力（须注册/初始化，同印刷挂载） |
+| 2026-10-24 | v0.4.28 | §2.3：Forced/reaction/Constant = 能力 ≠ LISTENER Buff；修正 §5.6 举例 |
+| 2026-10-24 | v0.4.27 | §2.2：结算面不按 BuffType/lasting 拆；控制等优先 Buff；Chronicle 外置 |
+| 2026-10-24 | v0.4.26 | §2.1：Register（结算动词）与 Buff（Registration 载荷）；对齐 07 §5.4.2 |
 | 2026-10-23 | v0.4.25 | 框架称呼：`SoakAssigner` → `DamageAssigner`（正式 Assign，弃用 soak） |
 | 2026-10-23 | v0.4.24 | `ASSIGN_CONSTRAINT` 四算子；REST-E-ASSIGN / DamageAssigner；§16.4.2/§16.4.4 |
 | 2026-10-20 | v0.4.23 | 冷漠 `FORBID_ATTACK`：进场 Register；Fight 入口读 Evaluator；§16.4.2/§16.4.4 标已实现；竖切 50026 Narôgath |
