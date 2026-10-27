@@ -28,6 +28,9 @@ func spawn_from_encounter_draw(
 	var aloof := CardRegistry.is_aloof(def_id)
 	if spec.mode == SpawnInstructionSpec.Mode.FRAMEWORK_DEFAULT:
 		return spawn_default_from_draw(game_ctx, card_id, drawer_id, aloof, def_id)
+	## Spawn – Engaged with Prey：全体调查员中按 Prey 选 WHO，再 spawn_engaged。
+	if spec.selector_kind == SpawnInstructionSpec.SelectorKind.ENGAGED_WITH_PREY:
+		return _spawn_engaged_with_prey(game_ctx, card_id, drawer_id, def_id)
 	var location_tag := SpawnLocationResolver.resolve(spec, drawer_id, game_ctx)
 	if location_tag == &"":
 		return discard_spawn_failed(game_ctx, card_id)
@@ -40,6 +43,29 @@ func spawn_from_encounter_draw(
 		else:
 			EngageFlow.nest_after_area_change(game_ctx, location_tag, card_id)
 	return {"ok": true, "enemy_id": card_id, "location_tag": location_tag}
+
+
+func _spawn_engaged_with_prey(
+	game_ctx: GameContext,
+	card_id: StringName,
+	drawer_id: StringName,
+	def_id: StringName
+) -> Dictionary:
+	var candidates: Array[StringName] = []
+	for inv_id in _state.registry.all_investigator_ids():
+		var inv := _state.registry.get_investigator(inv_id)
+		if inv != null and not inv.eliminated:
+			candidates.append(inv_id)
+	var prey := CardRegistry.prey_spec(def_id)
+	## source = 即将进场的实例 id（此时可能尚未 materialize；排除自引用）。
+	var target := PreyResolver.best_match(prey, game_ctx, candidates, card_id)
+	if target == &"":
+		target = drawer_id
+	if target == &"":
+		target = game_ctx.lead_investigator_id if game_ctx != null else &""
+	if target == &"":
+		return discard_spawn_failed(game_ctx, card_id)
+	return spawn_engaged(game_ctx, card_id, target)
 
 
 func spawn_default_from_draw(
@@ -74,7 +100,7 @@ func spawn_engaged(game_ctx: GameContext, card_id: StringName, drawer_id: String
 	if loc == &"":
 		return discard_spawn_failed(game_ctx, card_id)
 	var def_id := _definition_id(card_id)
-	var materialize := _materialize_enemy(card_id, def_id, loc)
+	var materialize := _materialize_enemy(game_ctx, card_id, def_id, loc)
 	if not materialize.get("ok", false):
 		return materialize
 	var enemy := _state.registry.get_enemy(card_id)
@@ -105,7 +131,7 @@ func spawn_at_location(
 		def_id = _definition_id(card_id)
 	if location_tag == &"" or _state.registry.get_location(location_tag) == null:
 		return {"ok": false, "error": "invalid_location"}
-	var materialize := _materialize_enemy(card_id, def_id, location_tag)
+	var materialize := _materialize_enemy(game_ctx, card_id, def_id, location_tag)
 	if not materialize.get("ok", false):
 		return materialize
 	_mark_card_in_play(game_ctx, card_id)
@@ -146,7 +172,7 @@ func auto_engage_at_location(
 	var candidates := _investigators_at_location(location_tag)
 	if candidates.is_empty():
 		return {"ok": true, "skipped": true}
-	var target := _pick_engage_target(game_ctx, candidates, def_id)
+	var target := _pick_engage_target(game_ctx, candidates, def_id, enemy_id)
 	_apply_engage(game_ctx, enemy_id, target, true)
 	return {"ok": true, "enemy_id": enemy_id, "investigator_id": target}
 
@@ -182,6 +208,7 @@ func resolve_phase_attacks_for(investigator_id: StringName) -> void:
 
 
 func _materialize_enemy(
+	game_ctx: GameContext,
 	card_id: StringName,
 	def_id: StringName,
 	location_tag: StringName
@@ -194,12 +221,23 @@ func _materialize_enemy(
 	enemy.location_tag = location_tag
 	enemy.fight = int(stats.get("fight", 2))
 	enemy.evade = int(stats.get("evade", 2))
-	enemy.health = int(stats.get("health", 1))
+	var base_health := int(stats.get("health", 1))
+	if bool(stats.get("health_per_investigator", false)):
+		enemy.health = PerInvestigatorScale.scale(_state, base_health)
+	else:
+		var bonus_per := int(stats.get("health_bonus_per_investigator", 0))
+		if bonus_per > 0:
+			enemy.health = base_health + bonus_per * PerInvestigatorScale.count(_state)
+		else:
+			enemy.health = base_health
 	enemy.attack_damage = int(stats.get("damage", stats.get("attack_damage", 1)))
 	enemy.attack_horror = int(stats.get("horror", stats.get("attack_horror", 0)))
 	enemy.aloof = CardRegistry.is_aloof(def_id)
 	enemy.massive = CardRegistry.has_keyword(def_id, &"massive") or bool(stats.get("massive", false))
 	_state.registry.register_enemy(enemy)
+	## 冷漠：Domain 拥有 + FORBID_ATTACK Register（Fight 入口读）。
+	if enemy.aloof:
+		AloofStatus.ensure_forbid_attack(game_ctx, card_id)
 	return {"ok": true}
 
 
@@ -241,18 +279,17 @@ func _investigators_at_location(location_tag: StringName) -> Array[StringName]:
 func _pick_engage_target(
 	game_ctx: GameContext,
 	candidates: Array[StringName],
-	def_id: StringName
+	def_id: StringName,
+	source_enemy_id: StringName = &""
 ) -> StringName:
 	if candidates.size() == 1:
 		return candidates[0]
 	var prey := CardRegistry.prey_spec(def_id)
-	var pick := PreyResolver.best_match(prey, game_ctx, candidates)
+	var pick := PreyResolver.best_match(prey, game_ctx, candidates, source_enemy_id)
 	if pick != &"":
 		return pick
-	var lead := game_ctx.lead_investigator_id
-	if lead != &"" and candidates.has(lead):
-		return lead
-	return candidates[0]
+	## 无 Prey / 过滤空集：并列仍开 Lead 选择窗（不静默把 Lead 当目标）。
+	return PreyResolver.lead_pick(game_ctx, candidates, &"pick:engage_tie")
 
 
 func apply_engage(

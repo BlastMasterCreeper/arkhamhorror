@@ -106,7 +106,7 @@ Hunter 移动 / 选最近调查员时：
 
 1. 计算每位调查员的 **最短路径步数**，取 **等距（equidistant）** 子集
 2. **在等距子集内** 按 **Prey** 过滤 / 比较（Prey 不可选非等距调查员）
-3. Prey 仍有多选或等距内无 Prey 匹配 → **Lead Investigator** 在等距子集中选择
+3. Prey 仍有多选或等距内无 Prey 匹配 → **Lead Investigator** 经 **`PlayerInteractionGate.ask_pick_target`** 在子集中选择（有限期确认；逾期默认 first）
 
 ```gdscript
 func choose_hunter_target(enemy: EntityId) -> EntityId:
@@ -120,6 +120,8 @@ func choose_hunter_target(enemy: EntityId) -> EntityId:
 ```
 
 Prey 示例：`Prey (lowest [agility])` — 在 **等距** 或 **同地点** 候选子集内比较；**never** 跨距离选非等距调查员。
+
+`Prey – Nearest to another [[Cultist]] enemy`（50026b）：在**当前候选子集**内，按调查员地点到「另一带该特性的在场敌人」的 **`EnemyPathfinding` 最短路径**取最小；**过滤后仍多目标 → Lead 开 `PICK_TARGET` 窗**（`pick:prey_tie`；headless 默认 first_option）。`exclude_self` 排除源敌人实例。无锚点 / 皆不可达 → 不筛，同样走 Lead 窗。**不** nest；**禁止**静默把 Lead 本人当成猎物。
 
 **禁止**：`PreyPolicy`；Prey 独立 timing / nest；把 Prey 编译为 LISTENER（Hunter **移动** 才编译 LISTENER，Prey 只是 handler 内 Resolver 调用）。
 

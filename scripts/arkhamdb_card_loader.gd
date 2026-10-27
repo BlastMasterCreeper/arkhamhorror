@@ -66,6 +66,14 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 		"text": str(src.get("text", "")),
 		"keywords": kw_out,
 	}
+	## Act/Agenda linked 遭遇背面（如 01121a → 01121b）。
+	var back_ctype := str(src.get("back_card_type", ""))
+	if back_ctype != "":
+		out["back_card_type"] = StringName(back_ctype)
+	if src.has("back_definition_id") and str(src.get("back_definition_id", "")) != "":
+		out["back_definition_id"] = StringName(str(src.get("back_definition_id")))
+	if bool(src.get("forbid_clues_while_engaged", false)):
+		out["forbid_clues_while_engaged"] = true
 	## 卡背类型：仅背面图案/牌库外观；显式优先，否则按定义推断写入（与正面 card_type 分列）。
 	var back_raw := str(src.get("card_back", ""))
 	if back_raw == "player" or back_raw == "encounter":

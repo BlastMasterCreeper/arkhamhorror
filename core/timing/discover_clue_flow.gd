@@ -18,6 +18,18 @@ static func run(
 		return {"ok": false, "error": "unknown_investigator"}
 	if loc == null:
 		return {"ok": false, "error": "unknown_location"}
+	## REST-E-EFFECT：交战期间 FORBID_DISCOVER_CLUE（01121b 等）。
+	if (
+		game_ctx.registrations != null
+		and RestrictionEvaluator.blocks_discover_clue(inv_id, game_ctx.registrations)
+	):
+		return {
+			"ok": false,
+			"error": "restriction_forbid_discover_clue",
+			"amount": 0,
+			"location_id": location_id,
+			"inv_id": inv_id,
+		}
 	var moved := 0
 	var n := maxi(amount, 1)
 	while moved < n and loc.clues > 0:

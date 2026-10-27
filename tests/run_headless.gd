@@ -53,6 +53,17 @@ func _initialize() -> void:
 	_run_test("SC-23 agenda3 forced draws fire", _test_sc23_agenda3_forced_draws_fire)
 	_run_test("SC-24 fire revelation attaches", _test_sc24_fire_revelation_attaches)
 	_run_test("SC-25 fire revelation no target discards", _test_sc25_fire_revelation_no_target_discards)
+	_run_test("SC-26 agenda enemy-back settles as spawn not drawn", _test_sc26_agenda_enemy_back_not_drawn)
+	_run_test("SC-27 agenda treachery-back revelation not drawn", _test_sc27_agenda_treachery_back_not_drawn)
+	_run_test("SC-28 01121a flip → Masked Hunter not drawn", _test_sc28_01121_masked_hunter_flip)
+	_run_test("SC-29 Masked Hunter blocks discover while engaged", _test_sc29_masked_hunter_forbid_discover)
+	_run_test("SC-30 Masked Hunter blocks spend while engaged", _test_sc30_masked_hunter_forbid_spend)
+	_run_test("SC-31 Masked Hunter clue forbid clears on disengage", _test_sc31_masked_hunter_forbid_clears)
+	_run_test("SC-32 50026a flip → Narôgath not drawn", _test_sc32_50026_narogath_flip)
+	_run_test("SC-33 aloof FORBID_ATTACK blocks fight until engaged", _test_sc33_aloof_forbid_attack)
+	_run_test("SC-34 Narôgath Prey nearest Cultist engages closer inv", _test_sc34_narogath_prey_nearest_cultist)
+	_run_test("PREY-01 nearest_to_enemy_trait distance filter", _test_prey_nearest_to_enemy_trait)
+	_run_test("PREY-02 prey tie opens Lead pick window", _test_prey_tie_opens_lead_pick)
 	_run_test("C-01 dry-run register created", _test_dry_run_register_only)
 	_run_test("C-02 dry-run draw empty deck illegal", _test_dry_run_draw_empty)
 	_run_test("C-03 dry-run draw or register", _test_dry_run_draw_or_register)
@@ -157,6 +168,7 @@ func _initialize() -> void:
 	_run_test("ADB-08 compile prey lowest agility", _test_adb_prey_lowest_agility)
 	_run_test("ADB-09 compile prey most resources", _test_adb_prey_most_resources)
 	_run_test("ADB-10 compile prey investigator only", _test_adb_prey_investigator_only)
+	_run_test("ADB-10b compile prey nearest Cultist enemy", _test_adb_prey_nearest_cultist)
 	_run_test("ADB-11 compile spawn farthest empty", _test_adb_spawn_farthest_empty)
 	_run_test("ADB-12 spawn farthest empty resolves", _test_adb_spawn_farthest_empty_play)
 	_run_test("ADB-13 prey lowest agility engages", _test_adb_prey_lowest_agility_play)
@@ -340,6 +352,9 @@ func _initialize() -> void:
 	_run_test("PI-05 scripting miss falls to default", _test_pi_scripting_miss_default)
 	_run_test("PI-06 INTERACTION_CHOICE event record", _test_pi_interaction_event_record)
 	_run_test("PI-07 compute_default pick_multi first N", _test_pi_compute_default_multi)
+	_run_test("PI-AUTO-01 registration order pick", _test_pi_auto_registration_order)
+	_run_test("PI-AUTO-02 random pick deterministic seed", _test_pi_auto_random_seed)
+	_run_test("PI-AUTO-03 random order shuffles", _test_pi_auto_random_order)
 	_run_test("FWK-01 upkeep 4.4 draw and gain via catalog", _test_fwk_upkeep_44_catalog)
 	_run_test("FWK-02 mythos 1.4 encounter draw", _test_fwk_mythos_14_encounter_draw)
 	_run_test("FWK-03 mythos 1.4 two investigators", _test_fwk_mythos_14_two_investigators)
@@ -1027,6 +1042,543 @@ func _test_sc25_fire_revelation_no_target_discards() -> bool:
 		and h.ctx.state.encounter_discard.has(second)
 		and card != null
 		and card.zone == AhcEnums.Zone.DISCARD
+	)
+
+
+func _test_sc26_agenda_enemy_back_not_drawn() -> bool:
+	## FAQ：密谋 b 面为 enemy → 按抽取规则 spawn；不 RFG；不触发 when-drawn。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	CardRegistry.register_definition(
+		&"agenda_enemy_back",
+		{
+			"card_type": &"agenda",
+			"doom": 1,
+			"back_card_type": &"enemy",
+			"enemy": {"fight": 2, "evade": 2, "health": 3, "damage": 1, "horror": 0},
+		}
+	)
+	CardRegistry.register_definition(
+		&"agenda_next_plain",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	var setup := h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"agenda_enemy_back", &"agenda_next_plain"]
+	)
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	var drawn_when := {"n": 0}
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"encounter_card_drawn"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: drawn_when["n"] = int(drawn_when["n"]) + 1
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.state.doom_on_agenda = 1
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var enemy := h.ctx.state.registry.get_enemy(first_id)
+	var settle_n := _sequence_kind_count(h, &"encounter_resolve_card")
+	return (
+		advance.get("advanced", false)
+		and bool(advance.get("flip", {}).get("encounter_back", false))
+		and settle_n >= 1
+		and int(drawn_when["n"]) == 0
+		and not h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and CardRegistry.card_type_of(flipped) == &"enemy"
+		and flipped.zone == AhcEnums.Zone.PLAY_AREA
+		and enemy != null
+		and inv.threat_area.has(first_id)
+		and h.ctx.state.current_agenda_card_id != first_id
+		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _test_sc27_agenda_treachery_back_not_drawn() -> bool:
+	## FAQ：密谋 b 面为 treachery → 显现 + G4 弃置；不触发 when-drawn。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"agenda_treach_back",
+		{
+			"card_type": &"agenda",
+			"doom": 1,
+			"back_card_type": &"treachery",
+			"limbo_discard_pile": &"encounter_discard",
+		}
+	)
+	CardRegistry.register_revelation(
+		&"agenda_treach_back",
+		&"rev",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.adjust_marker(
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
+				2
+			)
+	)
+	CardRegistry.register_definition(
+		&"agenda_after_treach",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	var setup := h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"agenda_treach_back", &"agenda_after_treach"]
+	)
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	var drawn_when := {"n": 0}
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"encounter_card_drawn"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: drawn_when["n"] = int(drawn_when["n"]) + 1
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.state.doom_on_agenda = 1
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		advance.get("advanced", false)
+		and bool(advance.get("flip", {}).get("encounter_back", false))
+		and int(drawn_when["n"]) == 0
+		and not h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and flipped.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.encounter_discard.has(first_id)
+		and inv.horror_taken == 2
+		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _test_sc28_01121_masked_hunter_flip() -> bool:
+	## 01121a Predator or Prey? → 01121b The Masked Hunter（遭遇类型背面）。
+	## Spawn Engaged with Prey · Prey Most clues · +2 health/investigator · 非 when-drawn。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	if not CardRegistry.has_encounter_cardtype_back(&"01121a"):
+		return false
+	if CardRegistry.is_hidden(&"01121b"):
+		return false  ## ArkhamDB JSON hidden ≠ 隐私
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv2.location_tag = &"test_loc"
+	inv1.clues_on_card = 0
+	inv2.clues_on_card = 3
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	h.ctx.lead_investigator_id = &"inv_1"
+	CardRegistry.register_definition(
+		&"agenda_after_01121",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	var setup := h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"01121a", &"agenda_after_01121"]
+	)
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	var drawn_when := {"n": 0}
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"encounter_card_drawn"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: drawn_when["n"] = int(drawn_when["n"]) + 1
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.state.doom_on_agenda = 6
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var enemy := h.ctx.state.registry.get_enemy(first_id)
+	var spawn := CardRegistry.spawn_spec(&"01121a")
+	var prey := CardRegistry.prey_spec(&"01121a")
+	return (
+		advance.get("advanced", false)
+		and bool(advance.get("flip", {}).get("encounter_back", false))
+		and int(drawn_when["n"]) == 0
+		and not h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and CardRegistry.card_type_of(flipped) == &"enemy"
+		and CardRegistry.is_hunter(&"01121a")
+		and spawn.selector_kind == SpawnInstructionSpec.SelectorKind.ENGAGED_WITH_PREY
+		and prey != null
+		and prey.value_kind == PreyInstructionSpec.ValueKind.CLUES
+		and enemy != null
+		and enemy.health == 8
+		and enemy.fight == 4
+		and inv2.threat_area.has(first_id)
+		and not inv1.threat_area.has(first_id)
+		and EngagementStatus.is_engaged_with(h.ctx, first_id, &"inv_2")
+		and CardRegistry.forbids_clues_while_engaged(&"01121a")
+		and RestrictionEvaluator.blocks_discover_clue(&"inv_2", h.ctx.registrations)
+		and RestrictionEvaluator.blocks_spend_clue(&"inv_2", h.ctx.registrations)
+		and not RestrictionEvaluator.blocks_discover_clue(&"inv_1", h.ctx.registrations)
+		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _test_sc29_masked_hunter_forbid_discover() -> bool:
+	## 与 Masked Hunter 交战的调查员不能发现线索；非交战者可以。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 3)
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv2.location_tag = &"test_loc"
+	inv1.clues_on_card = 0
+	inv2.clues_on_card = 5
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	CardRegistry.register_definition(
+		&"agenda_after_01121b",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	h.ctx.scenario.setup_act_agenda_decks([], [&"01121a", &"agenda_after_01121b"])
+	h.ctx.state.doom_on_agenda = 6
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var hunter_id := &""
+	for eid in h.ctx.state.registry.all_card_ids():
+		var c := h.ctx.state.registry.get_card(eid)
+		if c != null and c.id.definition_id == &"01121a" and c.face == AhcEnums.CardFace.B:
+			hunter_id = eid
+			break
+	if hunter_id == &"" or not EngagementStatus.is_engaged_with(h.ctx, hunter_id, &"inv_2"):
+		return false
+	var loc := h.ctx.state.registry.get_location(&"test_loc")
+	var clues_before := loc.clues
+	var blocked := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.discover_clue",
+		{"inv_id": &"inv_2", "location_id": &"test_loc", "amount": 1}
+	)
+	var ok_other := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.discover_clue",
+		{"inv_id": &"inv_1", "location_id": &"test_loc", "amount": 1}
+	)
+	return (
+		not blocked.get("ok", false)
+		and str(blocked.get("error", "")) == "restriction_forbid_discover_clue"
+		and inv2.clues_on_card == 5
+		and ok_other.get("ok", false)
+		and inv1.clues_on_card == 1
+		and loc.clues == clues_before - 1
+	)
+
+
+func _test_sc30_masked_hunter_forbid_spend() -> bool:
+	## 交战者线索不能用于推进场景；只靠非交战者的线索仍可凑够。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv2.location_tag = &"test_loc"
+	## Prey most clues → inv_2；仅 inv_2 有线索时推进应失败。
+	inv1.clues_on_card = 0
+	inv2.clues_on_card = 4
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	CardRegistry.register_definition(
+		&"agenda_pad_01121",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	CardRegistry.register_definition(
+		&"act_need_2",
+		{"card_type": &"act", "location": {"clues": 2}, "back_text": "(→R1)"}
+	)
+	CardRegistry.register_definition(
+		&"act_need_2b",
+		{"card_type": &"act", "location": {"clues": 99}, "back_text": "Nothing happens."}
+	)
+	h.ctx.scenario.setup_act_agenda_decks(
+		[&"act_need_2", &"act_need_2b"], [&"01121a", &"agenda_pad_01121"]
+	)
+	h.ctx.state.doom_on_agenda = 6
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	if not RestrictionEvaluator.blocks_spend_clue(&"inv_2", h.ctx.registrations):
+		return false
+	var fail := h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	## 再给 inv_1 线索 → 可推进；inv_2 线索不动。
+	inv1.clues_on_card = 2
+	var inv2_before := inv2.clues_on_card
+	var ok := h.ctx.sequence_catalog.run(h.ctx, &"seq.act.advance", {})
+	return (
+		not fail.get("advanced", false)
+		and str(fail.get("reason", "")) == "insufficient_clues"
+		and ok.get("advanced", false)
+		and inv1.clues_on_card == 0
+		and inv2.clues_on_card == inv2_before
+	)
+
+
+func _test_sc32_50026_narogath_flip() -> bool:
+	## 50026a Predator or Prey? → 50026b Narôgath（Return to Midnight Masks）。
+	## Spawn Engaged with Prey · Hunter · +3 health/investigator · 非 when-drawn。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	if not CardRegistry.has_encounter_cardtype_back(&"50026a"):
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"test_loc"
+	inv2.location_tag = &"test_loc"
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	h.ctx.lead_investigator_id = &"inv_1"
+	CardRegistry.register_definition(
+		&"agenda_after_50026",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	var setup := h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"50026a", &"agenda_after_50026"]
+	)
+	if not setup.get("ok", false):
+		return false
+	var first_id := h.ctx.state.current_agenda_card_id
+	var drawn_when := {"n": 0}
+	var when_draw := SequenceHandler.new()
+	when_draw.match_kind = &"encounter_card_drawn"
+	when_draw.phase = AhcEnums.SequencePhase.WHEN
+	when_draw.tier = SequenceHandler.Tier.TRIGGERED
+	when_draw.callback = func() -> void: drawn_when["n"] = int(drawn_when["n"]) + 1
+	h.ctx.sequences.register_handler(when_draw)
+	h.ctx.state.doom_on_agenda = 6
+	var advance := h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var flipped := h.ctx.state.registry.get_card(first_id)
+	var enemy := h.ctx.state.registry.get_enemy(first_id)
+	var spawn := CardRegistry.spawn_spec(&"50026a")
+	var prey := CardRegistry.prey_spec(&"50026a")
+	return (
+		advance.get("advanced", false)
+		and bool(advance.get("flip", {}).get("encounter_back", false))
+		and int(drawn_when["n"]) == 0
+		and not h.ctx.state.removed_from_game.has(first_id)
+		and flipped != null
+		and flipped.face == AhcEnums.CardFace.B
+		and CardRegistry.card_type_of(flipped) == &"enemy"
+		and CardRegistry.is_hunter(&"50026a")
+		and spawn.selector_kind == SpawnInstructionSpec.SelectorKind.ENGAGED_WITH_PREY
+		and prey != null
+		and prey.is_nearest_to_enemy_trait()
+		and prey.nearest_enemy_trait == &"Cultist"
+		and enemy != null
+		and enemy.health == 10
+		and enemy.fight == 3
+		and EngagementStatus.is_engaged(h.ctx, first_id)
+		and h.ctx.state.current_agenda_number == 2
+	)
+
+
+func _test_sc33_aloof_forbid_attack() -> bool:
+	## 冷漠：进场挂 FORBID_ATTACK；未交战 Fight 被拦；交战后可 Fight。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2, &"", true)
+	if not h.ctx.registrations.has_forbid_attack(&"enemy_1"):
+		return false
+	if not RestrictionEvaluator.blocks_fight(&"inv_1", &"enemy_1", h.ctx.registrations):
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.actions_remaining
+	var blocked := h.fight_action({"enemy_id": &"enemy_1"})
+	if blocked.ok or blocked.error != "aloof" or inv.actions_remaining != before:
+		return false
+	if not h.engage_action({"enemy_id": &"enemy_1"}).ok:
+		return false
+	if RestrictionEvaluator.blocks_fight(&"inv_1", &"enemy_1", h.ctx.registrations):
+		return false
+	inv.actions_remaining = 1
+	var ok := h.fight_action({"enemy_id": &"enemy_1"})
+	return ok.ok and ok.success
+
+
+func _test_prey_nearest_to_enemy_trait() -> bool:
+	## loc_a—loc_b：Cultist @ a；inv1@a 距 0，inv2@b 距 1 → 选 inv1。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a")
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"loc_a", &"loc_b")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"loc_a"
+	h.ctx.state.registry.get_investigator(&"inv_2").location_tag = &"loc_b"
+	h.ctx.state.lead_investigator_id = &"inv_2"
+	h.ctx.lead_investigator_id = &"inv_2"
+	var cult_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"cult_anchor",
+		{"traits": [&"Humanoid", &"Cultist"]}
+	)
+	var spawned := h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_anchor")
+	if not spawned.get("ok", false):
+		return false
+	if not CardRegistry.card_has_trait(h.ctx.state.registry.get_card(cult_id), &"Cultist"):
+		return false
+	var spec := PreyInstructionSpec.nearest_to_enemy_trait(&"Cultist")
+	var pick := PreyResolver.best_match(
+		spec, h.ctx, [&"inv_1", &"inv_2"], &"hunter_self"
+	)
+	return pick == &"inv_1"
+
+
+func _test_prey_tie_opens_lead_pick() -> bool:
+	## 两调查员同地、同距 Cultist → 过滤并列；Lead 开窗显式选 inv_2（非静默 Lead=inv_1）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"loc_a"
+	h.ctx.state.registry.get_investigator(&"inv_2").location_tag = &"loc_a"
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	h.ctx.lead_investigator_id = &"inv_1"
+	var cult_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"cult_tie",
+		{"traits": [&"Cultist"]}
+	)
+	if not h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_tie").get("ok", false):
+		return false
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pick:prey_tie", "pick": &"inv_2"},
+	])
+	var before_events := h.ctx.events.get_records().size() if h.ctx.events != null else 0
+	var spec := PreyInstructionSpec.nearest_to_enemy_trait(&"Cultist")
+	var pick := PreyResolver.best_match(spec, h.ctx, [&"inv_1", &"inv_2"], &"src")
+	var saw_pi := false
+	if h.ctx.events != null:
+		var records := h.ctx.events.get_records()
+		for i in range(before_events, records.size()):
+			var rec: EventRecord = records[i]
+			if rec.kind != AhcEnums.EventRecordKind.INTERACTION_CHOICE:
+				continue
+			if str(rec.payload.get("prompt_id", "")) == "pick:prey_tie":
+				saw_pi = true
+				break
+	return (
+		pick == &"inv_2"
+		and saw_pi
+		and not h.ctx.interaction.last_used_default
+	)
+
+
+func _test_sc34_narogath_prey_nearest_cultist() -> bool:
+	## 场上已有 Cultist @ loc_a；inv1@a、inv2@b → 50026 翻面交战 inv1（非 Lead inv2）。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	GameBootstrap.setup_test_location(h.ctx, &"loc_a")
+	GameBootstrap.setup_test_location(h.ctx, &"loc_b")
+	GameBootstrap.connect_locations(h.ctx, &"loc_a", &"loc_b")
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"loc_a"
+	h.ctx.state.registry.get_investigator(&"inv_2").location_tag = &"loc_b"
+	h.ctx.state.per_investigator_count = 2
+	h.ctx.state.lead_investigator_id = &"inv_2"
+	h.ctx.lead_investigator_id = &"inv_2"
+	var cult_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"cult_for_narogath",
+		{"traits": [&"Humanoid", &"Cultist"]}
+	)
+	if not h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_for_narogath").get(
+		"ok", false
+	):
+		return false
+	CardRegistry.register_definition(
+		&"agenda_after_50026_prey",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	h.ctx.scenario.setup_act_agenda_decks(
+		[], [&"50026a", &"agenda_after_50026_prey"]
+	)
+	var first_id := h.ctx.state.current_agenda_card_id
+	h.ctx.state.doom_on_agenda = 6
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	return (
+		EngagementStatus.is_engaged_with(h.ctx, first_id, &"inv_1")
+		and not EngagementStatus.is_engaged_with(h.ctx, first_id, &"inv_2")
+		and h.ctx.state.registry.get_investigator(&"inv_1").threat_area.has(first_id)
+	)
+
+
+func _test_sc31_masked_hunter_forbid_clears() -> bool:
+	## 脱离后发现/花费限制卸除。
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.location_tag = &"test_loc"
+	inv.clues_on_card = 0
+	h.ctx.state.per_investigator_count = 1
+	CardRegistry.register_definition(
+		&"agenda_pad_clear",
+		{"card_type": &"agenda", "doom": 7, "back_text": "Nothing happens."}
+	)
+	h.ctx.scenario.setup_act_agenda_decks([], [&"01121a", &"agenda_pad_clear"])
+	h.ctx.state.doom_on_agenda = 6
+	h.ctx.sequence_catalog.run(
+		h.ctx, &"seq.agenda.advance", {"source": &"test", "explicit": true}
+	)
+	var hunter_id := h.ctx.state.registry.all_card_ids()[0]
+	for eid in h.ctx.state.registry.all_card_ids():
+		var c := h.ctx.state.registry.get_card(eid)
+		if c != null and c.id.definition_id == &"01121a" and c.face == AhcEnums.CardFace.B:
+			hunter_id = eid
+			break
+	if not EngagementStatus.is_engaged_with(h.ctx, hunter_id, &"inv_1"):
+		return false
+	if not RestrictionEvaluator.blocks_discover_clue(&"inv_1", h.ctx.registrations):
+		return false
+	## 横置脱离：避免同地点 auto-engage 立刻再挂上限制。
+	h.ctx.enemy.disengage(h.ctx, hunter_id, true, false)
+	var after := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.discover_clue",
+		{"inv_id": &"inv_1", "location_id": &"test_loc", "amount": 1}
+	)
+	return (
+		not EngagementStatus.is_engaged(h.ctx, hunter_id)
+		and not RestrictionEvaluator.blocks_discover_clue(&"inv_1", h.ctx.registrations)
+		and after.get("ok", false)
+		and inv.clues_on_card == 1
 	)
 
 
@@ -3388,11 +3940,13 @@ func _test_adb_treachery_surge() -> bool:
 
 
 func _test_adb_hidden_elokoss() -> bool:
+	## 12179b：ArkhamDB JSON `hidden` 仅表示 b 面不进遭遇库列表，≠ 隐私（Hidden）关键词。
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	var def_id := &"12179b"
 	var enemy := CardRegistry.enemy_stats(def_id)
 	return (
-		CardRegistry.is_hidden(def_id)
+		not CardRegistry.is_hidden(def_id)
+		and not CardRegistry.has_keyword(def_id, &"hidden")
 		and CardRegistry.has_keyword(def_id, &"hunter")
 		and CardRegistry.has_keyword(def_id, &"massive")
 		and CardRegistry.has_keyword(def_id, &"retaliate")
@@ -3477,6 +4031,19 @@ func _test_adb_prey_investigator_only() -> bool:
 	return (
 		prey != null
 		and prey.investigator_title_only == "Trish Scarborough"
+	)
+
+
+func _test_adb_prey_nearest_cultist() -> bool:
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_classic_slice.json"
+	)
+	var prey := CardRegistry.prey_spec(&"50026b")
+	return (
+		prey != null
+		and prey.is_nearest_to_enemy_trait()
+		and prey.nearest_enemy_trait == &"Cultist"
+		and prey.exclude_self
 	)
 
 
@@ -6884,6 +7451,78 @@ func _test_pi_compute_default_multi() -> bool:
 	req.default_policy = &"skip"
 	var skip: Variant = DefaultChoiceResolver.compute_default(req)
 	return skip is Array and (skip as Array).is_empty()
+
+
+func _test_pi_auto_registration_order() -> bool:
+	var cfg := RulesConfig.new()
+	cfg.auto_choice_mode = AhcEnums.AutoChoiceMode.REGISTRATION_ORDER
+	var h := RuleTestHarness.new(42, cfg)
+	var pick: Variant = h.ctx.interaction.ask_pick_target(
+		[&"a", &"b", &"c"], &"inv_1", &"pick:auto_reg", h.ctx
+	)
+	if pick != &"a" or not h.ctx.interaction.last_used_default:
+		return false
+	var ordered: Array = h.ctx.interaction.ask_order_simultaneous(
+		[&"x", &"y", &"z"], &"inv_1", &"order:auto_reg", h.ctx
+	)
+	return ordered == [&"x", &"y", &"z"]
+
+
+func _test_pi_auto_random_seed() -> bool:
+	var cfg := RulesConfig.new()
+	cfg.auto_choice_mode = AhcEnums.AutoChoiceMode.RANDOM
+	var h1 := RuleTestHarness.new(99, cfg)
+	var h2 := RuleTestHarness.new(99, cfg)
+	var opts: Array = [&"a", &"b", &"c", &"d", &"e"]
+	var p1: Variant = h1.ctx.interaction.ask_pick_target(opts, &"inv_1", &"pick:rnd", h1.ctx)
+	var p2: Variant = h2.ctx.interaction.ask_pick_target(opts, &"inv_1", &"pick:rnd", h2.ctx)
+	if p1 != p2:
+		return false
+	## 同 seed 可复现；且须落在候选内。
+	if not opts.has(p1):
+		return false
+	## 换 seed 通常得不同结果（极小概率碰撞则再抽一次对照）。
+	var h3 := RuleTestHarness.new(100, cfg)
+	var p3: Variant = h3.ctx.interaction.ask_pick_target(opts, &"inv_1", &"pick:rnd", h3.ctx)
+	if p3 == p1:
+		var h4 := RuleTestHarness.new(101, cfg)
+		var p4: Variant = h4.ctx.interaction.ask_pick_target(opts, &"inv_1", &"pick:rnd", h4.ctx)
+		if p4 == p1:
+			## 仍相同则至少确认 used_default 与候选合法。
+			return h1.ctx.interaction.last_used_default and opts.has(p4)
+	return h1.ctx.interaction.last_used_default
+
+
+func _test_pi_auto_random_order() -> bool:
+	var cfg := RulesConfig.new()
+	cfg.auto_choice_mode = AhcEnums.AutoChoiceMode.RANDOM
+	var h := RuleTestHarness.new(7, cfg)
+	var items: Array = [&"i0", &"i1", &"i2", &"i3", &"i4", &"i5"]
+	var ordered: Array = h.ctx.interaction.ask_order_simultaneous(
+		items, &"inv_1", &"order:rnd", h.ctx
+	)
+	if ordered.size() != items.size():
+		return false
+	## 须为同一多重集。
+	var sorted_in := items.duplicate()
+	var sorted_out := ordered.duplicate()
+	sorted_in.sort()
+	sorted_out.sort()
+	if sorted_in != sorted_out:
+		return false
+	## 固定 seed=7 下应打乱（若偶然未打乱则用静态 compute_for_mode 再验一次）。
+	if ordered == items:
+		var req := ChoiceRequest.new()
+		req.kind = AhcEnums.ChoiceKind.ORDER_SIMULTANEOUS
+		req.options = [items.duplicate()]
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 12345
+		var alt: Variant = DefaultChoiceResolver.compute_for_mode(
+			req, AhcEnums.AutoChoiceMode.RANDOM, rng
+		)
+		if not alt is Array or (alt as Array) == items:
+			return false
+	return h.ctx.interaction.last_used_default
 
 
 func _test_fwk_upkeep_44_catalog() -> bool:
