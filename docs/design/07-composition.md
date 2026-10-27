@@ -2,18 +2,18 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.6 · 2026-09-28 — 硬门槛：禁真空 / 三分法 / 应展尽展
+> **状态**：v0.9.11 · 2026-10-24 — 空效果体 = EmptySettle（锚 09125；完备性非门特例）
 
 ---
 
 ## 1. 目标
 
-定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**状态原语** L0 Atom + **Register**，或指向已铸造 `seq.effect.*`）；枝干是顺序 / 同时 / 条件。运行时 **只能** 在某条已压栈命名流程的 RESOLVE 砖内 `execute`（**禁止真空**）。玩家选择走 Gate，不进「内联/nest」二分。
+定义 **效果组合（Composition）**：**卡牌正文** 的译法——「这段效果怎么做」的可执行树。叶子是 **效果**（**物理状态原语** + **信息原语 / 不可见结算**（Register · 日志 · 记住 · Audience…），或指向已铸造 `seq.effect.*`）；枝干是顺序 / 同时 / 条件。运行时 **只能** 在某条已压栈命名流程的 RESOLVE 砖内 `execute`（**禁止真空**）。玩家选择走 Gate，不进「内联/nest」二分。
 
 **英文（代码）**：`Composition` / `CompositionNode` / `CompositionExecutor` / `CompositionDryRunner`  
 **中文（文档）**：效果组合 / 组合节点
 
-**揭示（Reveal）卡牌** 经 L0 **`AtomRevealCard`** 写入 Domain，**参与** §4 dry-run **CREATED** — 见 [07-effect-primitives §5.3](07-effect-primitives.md)、[01 §3.6](01-game-state-zones.md)。
+**牌面可见性**（`FaceAudience` / `reveal_to_*`）是 **权限/信息管理**，**不是**结算原语，**不**单独计 dry-run **CREATED**（[07 §5.4.1](07-effect-primitives.md)）。形态翻面/横置仍是物理 ③。
 
 ### 1.0 翻译硬门槛（DoD · 已裁决 2026-09-28）
 
@@ -47,7 +47,7 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 
 ### 1.2 与命名流程对照
 
-两边最后都落到 **状态原语 + Register**（那才是效果）。差别在 **管什么**，不是两套互不相干的写入引擎。
+两边最后都落到 **两层结算叶**（物理状态原语 + 信息原语/不可见结算，含 Register）。差别在 **管什么**，不是两套互不相干的写入引擎。
 
 | | **命名流程（named flow / `seq.*`）** | **效果组合（Composition）** |
 |---|---|---|
@@ -233,7 +233,7 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 
 - 某张卡的段落（12160 整段仍是树：nest 放毁灭 + If + nest 涌动）。
 - 控制流节点本身。
-- seq 内部的 L0 碎步（`seq.effect.take_horror` 的 handler 里 `AdjustMarker` 仍内联，不升格成 `seq.atom.adjust`）。
+- seq 内部的 L0 碎步（`seq.effect.take_horror` 的 handler 里 `transfer_marker` 仍内联，不升格成 `seq.atom.transfer`）。
 - 管线里 **为父手续服务** 的 Register 砖（遭遇抽牌 G2 险境、ENTER_PLAY 挂 Hunter）：算该父 `seq.*` 已覆盖；**不要**另开 `PERIL_CHECK`。只有卡面「获得持续/延时/涌动」这种 **当效果写出来的创建** 才 nest `seq.effect.register`。
 
 ```text
@@ -352,14 +352,14 @@ seq.encounter.revelation          ← 信封：显现手续（有 When/After）
 
 ## 2. 游戏结算的两类「直接影响」（= 效果）
 
-几乎 **全部卡面效果 resolve** 对局面/规则的 **可 CREATED 写入** 只做两件事之一：
+几乎 **全部卡面效果 resolve** 对局面/规则的 **可 CREATED 写入** 只落两层：
 
 | 类型 | 改什么 | 组合节点 | 是否效果 |
 |---|---|---|---|
-| **状态变更** | `GameStateStore` | L0 **Atom**（**状态原语** 三类；含 **Reveal**） | **是** |
-| **规则变更** | `RegistrationStore`（Buff） | L2 **Register** / **Unregister** | **是** |
+| **物理结算** | 桌面摆子 | **状态原语**三类：区/序·标记·形态 | **是** |
+| **不可见结算（信息原语）** | RegistrationStore / log·记忆 | Register · Log · Remember… | **是** |
 
-Grimoire **Reveal 卡牌** = L0 **`reveal_to_*`**（③ 揭示状态），**不是** Register 之外的第三类机制；命名流程 D2/E2 的 reveal 步 **是效果施加**。
+**可见性**（`FaceAudience`）**不是**上表第三行：权限同步，**不计** CREATED。D2/E2 的 reveal 步 = 手续内政策，不是效果叶。
 
 Cancel / Replacement、Draw、DealDamage 等 **不是** 第四类 CREATED 机制：前者是 L2 组合节点；后者是 **命名流程 / L3 宏** 展开。
 
@@ -394,7 +394,7 @@ flowchart TB
 
 | 层 | kind | 说明 |
 |---|---|---|
-| L0 | `Atom` | [07-effect-primitives §5](07-effect-primitives.md) **三类状态原语** |
+| L0 | `Atom`（物理） | [07-effect-primitives §5](07-effect-primitives.md) **三类状态原语**（区/序·标记·形态） |
 | L2 | `Register` | 插入 `Registration` |
 | L2 | `Unregister` | 移除 Registration |
 | L2 | `Interrupt` | 统一 Cancel / Ignore（nest `seq.interrupt.*` 或 `CompositionNode.interrupt_*`） |
@@ -563,22 +563,62 @@ tie     : nearest 等距 → 当前交互玩家 PICK_TARGET
 
 ### 4.1 原则（已裁决）
 
-**有效性检测只关注「效果是否被创建」这一直接影响。**
+**有效性 = 与原语相同的尺子：必须干了点什么。**  
+dry-run 只问效果体能否 **CREATED** 至少一项直接影响（[07-primitives §0](07-effect-primitives.md)）。
 
-- **Register**：`RegistrationStore` 中 **成功插入一条 Registration** → 该节点 **CREATED**（**Buff 写入是效果**）
-- **Atom**（含 **`reveal_to_*`**、SetFlag/SetRef）：`StateMutator` 在 fork 上 **执行成功** → **CREATED**（**状态原语**）
-- **Interrupt / Replace / ResolvePending**：pending 存在且操作成功 → **CREATED**
+| 计 CREATED | 不计 CREATED |
+|---|---|
+| **物理 Atom** 结算成功 | 仅改 **FaceAudience** |
+| **Register** 插入 Registration（创建了 Buff/标记） | 纯控制流 / 条件未进任何叶 |
+| **Chronicle** 记事写入 | 只读查询、印刷 Spec |
+| Interrupt / Replace / ResolvePending 成功 | Buff **日后**是否开火 / 是否退化 |
 
-**Presentation** 只 **读** Domain 揭示状态渲染 UI；**不** 单独维护「谁看到了什么」。
+**创建之后** Listener 会不会触发、MODIFIER 会不会被问到、牌堆会否变空 — **一律不查**。Register 插入成功即够。
 
-**创建之后** Buff 是否退化、Listener 将来能否触发、MODIFIER 是否用到、牌堆是否会在未来变空 — **一律不查**。
+**空结算**：物理原语皆无法结算 **且** 无任何 Register 创建 Buff（亦无其它 CREATED）→ 整树 FIZZLE → **不允许发起**。
+
+#### 4.1.1 有效性只看「自身效果体」（已对齐）
+
+dry-run **CREATED** 的对象是 **卡牌/能力自己的效果组合**，不是整次打出手续里人人都有的框架步。
+
+| 计入有效性 | **不**计入 |
+|---|---|
+| 效果体里的物理原语、Register、Chronicle… | 事件打出后 **固定弃置**（每张事件都有 → 若计入则检测无意义） |
+| | 付费、借机攻击、仅改可见性、纯控制流 |
+
+#### 4.1.2 空效果体 · `EmptySettle`（框架完备 · 已裁决）
+
+**锚例**：[09125 Quantum Paradox](https://arkhamdb.com/card/09125)（Scarlet Keys #125；勿与 09124 Lurker 混淆）。
+
+| 印刷 | 引擎归属 |
+|---|---|
+| 额外费用：弃 4 张其它手牌 | **成本**（不计「改变局面」有效性） |
+| *Forced –* 若回合结束仍在手：揭示并受 1 恐惧 | **在手能力**（`AbilitySpec`），**不是**打出效果体 |
+| **无任何打出后效果句** | 效果体 = **空** |
+
+普通规则：事件效果体须有 potential to change the game state → 空树无法发起。  
+FAQ 1.27 承认这是设计失误补丁；**引擎正解不是在发起门上开特例**（破坏「效果体非空」完备性），而是让 **空效果体仍是合法 Composition 形状**：
+
+```text
+效果体 := EmptySettle     # 无游戏性结算叶：不写物理 / 不 Register / 不记事
+```
+
+| | **`EmptySettle`** |
+|---|---|
+| 是什么 | 效果叶：表示「本效果体故意为空，但仍算一次可发起的结算」 |
+| 发起 / L7 | **CREATED**（效果体非空门通过） |
+| 局面 | **不写**（故 must-choose「须能改局面」、after_step「上一步是否真写入」等 **不**把它当成功写入） |
+| ≠ | 框架弃置；发起门 if-tag 例外；假 Atom 冒充伤害/抽牌 |
+
+**完备性**：凡「只有费用 / 在手能力、打出无正文」的事件，编译器 **一律**产出含 `EmptySettle` 的效果体；不靠 FAQ 卡表白名单绕过 dry-run。FAQ 1.27 只解释纸面为何允许打出；框架侧用同一叶收口。
 
 ### 4.2 发起合法条件
 
 ```text
 initiation 合法  ⟺  play restrictions 过
-                AND  cost 可付
-                AND  simulate(composition).has_any_created == true
+                AND  cost 可付   // 含 09125 弃 4 张等；成本成败另检
+                AND  simulate(效果体).has_any_created_for_initiate == true
+                     // 真结算叶 ∪ EmptySettle；写入类消费另用 has_any_created（不含 EmptySettle）
 ```
 
 ```gdscript

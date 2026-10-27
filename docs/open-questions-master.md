@@ -29,7 +29,7 @@
 |---|---|---|---|
 | OQ-00-06 | [00-architecture](00-architecture-overview.md) | 单进程 headless 规则服务器 vs 嵌入式 Godot Node：是否需支持无 UI 批量回归？ | **需要。** v1 即支持 headless；Rules/Domain 与 UI 解耦；CI 用 `godot --headless -s tests/run_headless.gd` + 固定 seed 回归。见架构 §5.5。 |
 | OQ-01-02 | [01-state](design/01-game-state-zones.md) | 同名 Unique 遭遇与玩家卡同时进场 discard 的**精确同时性**：是否需要 `SimultaneousBatch` 原语？ | **需要通用「同时效果」语义，非 Unique 专用 hardcode。** 「同时」= 同一时点触发/开始结算；组内全部 resolve 完毕后，`after` 类触发才形成。适用于 Unique 冲突、「效果 A and 效果 B」等。引擎原语：`SimultaneousEffectGroup`。见 01 §5.3、07 §7.5。 |
-| OQ-02-01 | [02-framework](design/02-framework-flow.md) | Setup step 9 回溯：除 step 8 外是否还可能回溯 6/7/10？需 campaign 数据驱动还是硬编码？ | **数据驱动 `rewind_to(step)`。** 卡牌效果/战役设置可影响 **6（混沌袋）、7（资源）、8（起手牌）** 并触发重入；**10（scenario setup）一般固定**，不作 intro 回溯默认路径。 |
+| OQ-02-01 | [02-framework](design/02-framework-flow.md) | Setup step 9 回溯：除 step 8 外是否还可能回溯 6/7/10？需 campaign 数据驱动还是硬编码？ | **数据驱动 `rewind_to(step)`。** 卡牌效果/剧本设置可影响 **6（混沌袋）、7（资源）、8（起手牌）** 并触发重入；**10（scenario setup）一般固定**，不作 intro 回溯默认路径。 |
 | OQ-02-02 | [02-framework](design/02-framework-flow.md) | Act flip 期间 a 面 **Reaction** 能否响应 b 面结算中产生的事件？ | **不能。** Flip 后 a 面不在场，a 面一切能力不可触发（含 Reaction/Forced）。**例外**：a 面已创建的 **Delayed 延时效果**继续生效。Agenda 同则。见 02 §7。 |
 | OQ-03-01 | [03-action](design/03-action-system.md) | Rulebook p.17 写 Fight「engaged enemy」，Grimoire Fight Action 允许同地点 unengaged — **以 Grimoire 为准是否确认**？ | **以 Grimoire 为准。** 基础 Fight 目标 = 调查员当前**地点**上的敌人（unengaged、自己 threat 区、同地点他人 engaged）。卡牌能力可扩展至地点外。见 03 §6.8。 |
 | OQ-03-02 | [03-action](design/03-action-system.md) / [08-enemy](design/08-enemy-engagement.md) | AOO、Alert、Retaliate 是否统一为 `EnemyAttack` + `AttackKind`？ | **攻击效果层统一** `EnemyAttack` + `AttackKind`；**触发条件 + 时点 + 攻击效果** 三层结构，前两层各 kind 独立 Resolver，第三层共用 `perform_attack()`。均属 enemy attack。见 08 §6.1。 |
@@ -83,18 +83,18 @@
 | OQ-08-01 | [08-enemy](design/08-enemy-engagement.md) | Hunter 等距 + Prey？ | **等距子集 → Prey 过滤 → Lead 选**；Prey 不可选非等距。见 08 §4。 |
 | OQ-03-06 | [03-action](design/03-action-system.md) | Play asset 时 slot 弃置：玩家选顺序还是引擎默认最旧 asset？ | |
 | OQ-04-03 | [04-skill-test](design/04-skill-test-engine.md) | Symbol 效果在 ST.4 发起 fight 嵌套检定，父检定 ST.5 是否等待子检定完成？ | **否。** 子检定入队；父 ST.5→ST.8 不等待；父 ST.8 后执行。 |
-| OQ-04-04 | [04-skill-test](design/04-skill-test-engine.md) | Cancel 整个 skill test vs Cancel 单个 chaos token：状态回滚深度？ | |
+| OQ-04-04 | [04-skill-test](design/04-skill-test-engine.md) | ~~Cancel 整个 skill test vs Cancel 单个 chaos token？~~ | **无整次检定 Cancel。** 发动后尽量走完；Cancel token / 失败效果 / 投入图标 ≠ 取消检定。见 [04 §3.0](design/04-skill-test-engine.md)。 |
 | OQ-04-06 | [04-skill-test](design/04-skill-test-engine.md) | Committed 的 skill 在 ST.7 前被 discard 的 edge case（Limbo 保护）？ | |
-| OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | 2026 Core 各冒险参考卡 **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ | |
+| OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | ~~冒险参考卡 JSON vs ScenarioScript？~~ → **JSON-first**（SF 竖切） | 2026-10-19 |
 | OQ-05-02 | [05-chaos-bag](design/05-chaos-bag.md) | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ | |
-| OQ-05-05 | [05-chaos-bag](design/05-chaos-bag.md) | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ | |
+| OQ-05-05 | [05-chaos-bag](design/05-chaos-bag.md) | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ | **Cancel=从未抽到；Ignore=仍揭示但不 resolve。** 延时门槛 / ST.4–5 查 **resolved**；Candles 式听揭示用 `revealed_*`。见 [05 §4.1.1](design/05-chaos-bag.md)。 |
 | OQ-06-04 | [06-ability](design/06-ability-initiation.md) | Forced [reaction] 是否存在？（通常无，但 scenario 卡） | |
 | OQ-06-06 | [06-ability](design/06-ability-initiation.md) | Ignore 效果仍计 Limit — 触发时 record 还是 resolve 后 record？ | |
 | OQ-07-01 | [07-effect](design/07-effect-resolution.md) | 伤害分配 UI：何时必须玩家选 vs AI 默认（最保护 investigator？）？ | |
 | OQ-07-03 | [07-effect](design/07-effect-resolution.md) | Assign 阶段 prevent 部分 damage：剩余是否 re-assign 还是 fizzle？ | |
 | OQ-07-05 | [07-effect](design/07-effect-resolution.md) | 「As much as possible resolve」— partial target invalid 时 DAG 如何剪枝？ | |
 | OQ-08-05 | [08-enemy](design/08-enemy-engagement.md) | Engage 抢怪：同时 disengage 原调查员是否触发「leaves engagement」类能力？ | |
-| OQ-09-01 | [09-location](design/09-location-graph.md) | Setup 放置 vs Move enter：是否统一 `enter_location()` 单入口？ | |
+| OQ-09-01 | [09-location](design/09-location-graph.md) | ~~Setup vs Move enter 单入口？~~ → **`LocationEnterRules` / `seq.effect.reveal_location`** | 2026-10-19 |
 | OQ-09-03 | [09-location](design/09-location-graph.md) | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ | |
 | OQ-09-05 | [09-location](design/09-location-graph.md) | Your Friend's Room `[action]` Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） | |
 | OQ-10-02 | [10-scenario](design/10-scenario-encounter.md) | Objective must advance 无 window — 自动 advance 还是暂停提示？ | |
@@ -115,15 +115,16 @@
 
 | ID | 来源 | 问题 | 裁决 |
 |---|---|---|---|
-| OQ-00-03 | [00-architecture](00-architecture-overview.md) | `EventRecord` 是否需持久化到磁盘以支持战役中断恢复？ | |
+| OQ-00-03 | [00-architecture](00-architecture-overview.md) | `EventRecord` 是否需持久化到磁盘以支持剧本中断恢复？ | |
 | OQ-00-05 | [00-architecture](00-architecture-overview.md) | AI 控制同伴调查员时，Hidden/Peril 信息隔离是否在 Presentation 层模拟「不读牌名」？ | |
 | OQ-IDX-03 | [00-framework-step-index](design/00-framework-step-index.md) | Encounter draw 1.4 内 surge 递归是否单独子步骤 ID？ | |
 | OQ-01-04 | [01-state](design/01-game-state-zones.md) | `SET_ASIDE` 与 `REMOVED_FROM_GAME` 是否需子类型（campaign 指定 area）？ | |
 | OQ-01-06 | [01-state](design/01-game-state-zones.md) | Attachment 链（A attach B attach C）leave play 时 discard 顺序是否由 owner 选？ | |
 | OQ-02-05 | [02-framework](design/02-framework-flow.md) | Framework 与嵌套 Skill Test 的 EventRecord 层级如何缩进展示？ | |
 | OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），经 `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 |
-| OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | |
-| OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ | |
+| OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | **一次 ST.3 + 意图规划**（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](design/05-chaos-bag.md)。 |
+| OQ-04-07 | [04-skill-test](design/04-skill-test-engine.md) | ST.3/ST.4 与参考卡符号文本如何统一？ | **隐式符号能力**融合：揭示→发起（modifier+效果）；回溯以该能力为锚。见 04 §3.3–3.4。 |
+| OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | ~~Bless/Curse 仅预留？~~ → **实现**检定内 +2/−2·再揭·归 pool；见 05 §8.1 | 2026-10-19 |
 | OQ-05-06 | [05-chaos-bag](design/05-chaos-bag.md) | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ | |
 | OQ-06-05 | [06-ability](design/06-ability-initiation.md) | Constant ability 在 out-of-play 被引用（少数卡）— 如何标记 `references_out_of_play`？ | |
 | OQ-07-04 | [07-effect](design/07-effect-resolution.md) | Simultaneous discard 多张：owner 选顺序是否影响后续 search？ | |
@@ -156,7 +157,7 @@
 | 08 敌人 | 1 | 3 | 2 | 6 |
 | 09 地点 | 0 | 3 | 3 | 6 |
 | 10 场景 | 1 | 3 | 2 | 6 |
-| 11 战役 | 0 | 4 | 2 | 6 |
+| 11 剧本 | 0 | 4 | 2 | 6 |
 | 12 API | 1 | 4 | 1 | 6 |
 | **合计** | **16** | **43** | **22** | **81** |
 
@@ -192,7 +193,7 @@
 4. ~~**OQ-04-01**~~ / ~~**OQ-05-03**~~ — 混沌链与 fail by 时点
 5. ~~**OQ-12-01**~~ / ~~**OQ-12-06**~~ — 数据驱动 vs 脚本边界
 6. ~~**OQ-IDX-01**~~ / ~~**OQ-IDX-02**~~ — SkillTestStep 与 EventRecord
-7. 其余 P1 按 Spreading Flames 战役经验优先
+7. 其余 P1 按 Spreading Flames 剧本经验优先
 
 ---
 

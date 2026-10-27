@@ -285,6 +285,43 @@ static func build_composition(
 			return CompositionNode.nest_gain_resource(
 				bind.controller_id, int(params.get("amount", 1))
 			)
+		"spend_use":
+			var spend_card := bind.card_id
+			var spend_raw := str(params.get("card_id", "source"))
+			if spend_raw != "" and spend_raw != "source":
+				spend_card = StringName(spend_raw)
+			return CompositionNode.spend_use(
+				spend_card,
+				StringName(str(params.get("use_type", "charges"))),
+				int(params.get("amount", 1)),
+				bind.controller_id
+			)
+		"chaos_reveal_replace", "queue_chaos_reveal_replace":
+			var replace_aid := str(params.get("ability_id", ""))
+			if replace_aid == "" or replace_aid == "source":
+				replace_aid = str(bind.card_id)
+			return CompositionNode.queue_chaos_reveal_replace(
+				bind.controller_id,
+				StringName(replace_aid),
+				int(params.get("reveal_count", 2)),
+				int(params.get("resolve_count", -1)),
+				bind.card_id
+			)
+		"after_reveal_if_resolved_symbol":
+			var body_raw: Variant = params.get("body", params.get("then", {}))
+			var then_node: CompositionNode = null
+			if body_raw is Dictionary:
+				var body_dict: Dictionary = body_raw
+				then_node = build_composition(
+					str(body_dict.get("template", "")),
+					body_dict,
+					bind
+				)
+			if then_node == null:
+				return null
+			return CompositionNode.after_reveal_if_resolved_symbol(
+				then_node, bind.controller_id, bind.card_id
+			)
 	return null
 
 
@@ -393,6 +430,9 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 	var difficulty := int(params.get("difficulty", 0))
 	var difficulty_source := StringName(str(params.get("difficulty_source", "")))
 	var plan := _build_st7_plan(params, bind)
+	var if_specs := SkillTestIfRevealed.specs_from_compile(
+		params, bind, Callable(ArkhamDbAbilityCompiler, "build_composition")
+	)
 	var choices: Variant = params.get("skill_choices", [])
 	## skill_choices：PI 只选技能类型 → 单次 skill_test（体不重复）。
 	if choices is Array and not (choices as Array).is_empty():
@@ -412,7 +452,8 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 			bind.card_id,
 			plan,
 			difficulty_source,
-			StringName("memory:%s" % str(mem_key))
+			StringName("memory:%s" % str(mem_key)),
+			if_specs
 		)
 		return CompositionNode.seq([pick, test])
 	var skill_raw := str(params.get("skill", "willpower"))
@@ -421,7 +462,14 @@ static func _build_skill_test(params: Dictionary, bind: AbilityBindContext) -> C
 		skill_spec = StringName(skill_raw)
 	var skill := _skill_from_compile_id(skill_raw)
 	return CompositionNode.nest_skill_test(
-		bind.controller_id, skill, difficulty, bind.card_id, plan, difficulty_source, skill_spec
+		bind.controller_id,
+		skill,
+		difficulty,
+		bind.card_id,
+		plan,
+		difficulty_source,
+		skill_spec,
+		if_specs
 	)
 
 
@@ -541,7 +589,9 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			bool(entry.get("optional", false)),
 			&"",
 			_action_types_from_entry(entry),
-			null
+			null,
+			StringName(str(entry.get("affliction_filter", ""))),
+			bool(entry.get("take_self", false))
 		)
 		return true
 	return false
@@ -579,6 +629,8 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"difficulty_source",
 		"st7_fail_by",
 		"st7",
+		"if_revealed",
+		"kinds",
 		"window",
 		"trait_exclude",
 		"target",
@@ -591,6 +643,8 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"match_kind",
 		"phase",
 		"timing",
+		"affliction_filter",
+		"take_self",
 		"trait",
 		"at",
 		"card_id",
@@ -606,6 +660,11 @@ static func _params_from_entry(entry: Dictionary) -> Dictionary:
 		"value",
 		"flow_id",
 		"mode",
+		"reveal_count",
+		"resolve_count",
+		"use_type",
+		"ability_id",
+		"body",
 	]:
 		if entry.has(key):
 			params[key] = entry[key]

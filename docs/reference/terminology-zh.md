@@ -47,6 +47,7 @@
 | **Act** | **场景** | Act 牌库 / 当前场景卡；≠ 冒险 |
 | **Agenda** | **密谋** | Agenda 牌库 / 当前密谋卡；≠ 场景 |
 | **Campaign** | **剧本** | 多场冒险；`CampaignState` / `CampaignLog`；≠ 单场冒险；勿译「战役」 |
+| **Symbol ability**（隐式） | **符号能力** | ST.3 揭示后 ST.4 发起；载荷 = modifier + 效果；源多为冒险参考卡。≠ 玩家触发能力 |
 | **Story asset** | **剧情支援** | 有遭遇组；正面仍是玩家 cardtype；背面可为遭遇卡背 |
 | **Scenario card**（引擎） | **冒险卡牌** | 有遭遇组的卡；≠「遭遇 cardtype」；≠ **Scenario**（冒险）本身 |
 | **Encounter cardtype** | **遭遇卡牌类型** | enemy / treachery / location |

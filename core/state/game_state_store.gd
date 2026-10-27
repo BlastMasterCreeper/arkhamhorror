@@ -27,13 +27,25 @@ var scenario_resolution: int = -1
 var per_investigator_count: int = 1
 var set_aside: Array[StringName] = []
 var scenario_reference_card_id: StringName = &""
+## 当前冒险参考卡定义（ST.4 符号效果）；setup 时装载。
+var scenario_reference: ScenarioReferenceDefinition = null
 var scenario_layout_installed: bool = false
 var setup_game_begins_resolved: bool = false
 var deferred_setup_revelations: Array[StringName] = []
 
+## 物理层桌面；信息层 L0 经 StateMutator 镜像写入。
+var physical: PhysicalStore = PhysicalStore.new()
+var physical_ops: PhysicalOps = null
+var physical_binding: PhysicalBinding = null
+
 
 func _init() -> void:
 	zones = ZoneManager.new(registry)
+	physical_ops = PhysicalOps.new(physical)
+	physical_binding = PhysicalBinding.new(physical_ops)
+	physical_binding.bind_domain(self)
+	physical_binding.install_table()
+	chaos_bag.bind_physical(physical_binding)
 
 
 func doom_in_play() -> int:

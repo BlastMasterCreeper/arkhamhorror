@@ -13,9 +13,18 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.memory = RulesMemory.new()
 	ctx.timing = TimingBus.new(ctx.log)
 	ctx.sequences = ResolutionSequenceStack.new(ctx.log, ctx.events, ctx.memory)
-	ctx.choices = DefaultChoiceResolver.new()
+	var defaults := DefaultChoiceResolver.new()
+	defaults.mode = ctx.config.auto_choice_mode
+	if p_seed != 0:
+		defaults.rng.seed = p_seed
+	else:
+		defaults.rng.randomize()
+	ctx.choices = defaults
 	ctx.interaction = PlayerInteractionGate.new()
 	ctx.interaction.resolver = ctx.choices
+	ctx.ability_response_prefs = AbilityResponsePreferences.new()
+	ctx.player_window_intents = PlayerWindowIntentPool.new()
+	ctx.player_window_intents.bind_game_context(ctx)
 	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)
 	ctx.registrations = RegistrationStore.new()
 	ctx.stat_projections = StatProjectionStore.new()
@@ -129,6 +138,8 @@ static func add_asset_to_play(
 		data["health"] = int(opts.get("health", 0))
 	if opts.has("sanity"):
 		data["sanity"] = int(opts.get("sanity", 0))
+	if opts.has("traits"):
+		data["traits"] = opts.get("traits", [])
 	if not data.has("card_type"):
 		data["card_type"] = &"asset"
 	CardRegistry.register_definition(definition_id, data)
@@ -205,6 +216,8 @@ static func setup_investigator_at_location(
 	var inv := InvestigatorState.new()
 	inv.id = inv_id
 	inv.definition_id = StringName("def_%s" % inv_id)
+	if skills.has("definition_id"):
+		inv.definition_id = skills.get("definition_id") as StringName
 	inv.location_tag = location_tag
 	inv.skill_willpower = int(skills.get("willpower", 3))
 	inv.skill_intellect = int(skills.get("intellect", 3))
@@ -213,7 +226,12 @@ static func setup_investigator_at_location(
 	## 可选；未传则 0 = 伤恐不自动击败（测试按需设）。
 	inv.health = int(skills.get("health", 0))
 	inv.sanity = int(skills.get("sanity", 0))
+	if skills.has("display_name"):
+		inv.display_name = str(skills.get("display_name", ""))
 	ctx.state.registry.register_investigator(inv)
+	## 有定义则装载印刷 Elder Sign。
+	if inv.definition_id != &"" and not str(inv.definition_id).begins_with("def_"):
+		ElderSignBinder.bind_investigator(ctx, inv_id)
 
 
 static func setup_minimal_investigator(ctx: GameContext, inv_id: StringName) -> void:
@@ -222,11 +240,22 @@ static func setup_minimal_investigator(ctx: GameContext, inv_id: StringName) -> 
 	var inv := ctx.state.registry.get_investigator(inv_id)
 	if inv:
 		inv.actions_remaining = 3
-		inv.resource_pool = 5
+		inv.resource_pool = 0
 	ctx.lead_investigator_id = inv_id
 	ctx.active_investigator_id = inv_id
 	ctx.state.lead_investigator_id = inv_id
 	ctx.state.active_investigator_id = inv_id
+	if ctx.state.physical_binding != null:
+		ctx.state.physical_binding.ensure_player(inv_id)
+	if ctx.mutator != null:
+		ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.RESOURCE,
+			5,
+			MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.RESOURCE)
+		)
+	elif inv != null:
+		inv.resource_pool = 5
 
 
 static func _skill_icon_key(skill: AhcEnums.SkillType) -> StringName:
@@ -257,6 +286,8 @@ static func add_encounter_card_to_deck(
 	card.zone = AhcEnums.Zone.DECK
 	ctx.state.registry.register_card(card)
 	ctx.state.encounter_deck.append(instance_id)
+	if ctx.state.physical_binding != null:
+		ctx.state.physical_binding.ensure_physical_card(card)
 	var def_data: Dictionary = {
 		"card_type": &"treachery",
 		"limbo_discard_pile": &"encounter_discard",
@@ -326,6 +357,13 @@ static func add_encounter_enemy_to_deck(
 		extra["traits"] = opts.get("traits")
 	if opts.has("victory"):
 		extra["victory"] = int(opts.get("victory", 0))
+	if opts.has("vengeance"):
+		extra["vengeance"] = int(opts.get("vengeance", 0))
+	if opts.has("health"):
+		var enemy_block: Dictionary = extra.get("enemy", {}) as Dictionary
+		enemy_block = enemy_block.duplicate()
+		enemy_block["health"] = int(opts.get("health", 1))
+		extra["enemy"] = enemy_block
 	return add_encounter_card_to_deck(ctx, definition_id, keywords, extra)
 
 
@@ -357,13 +395,28 @@ static func setup_test_location(
 	ctx: GameContext,
 	location_id: StringName,
 	shroud: int = 2,
-	clues: int = 1
+	clues: int = 1,
+	revealed: bool = true,
+	printed_clues: int = -1
 ) -> void:
 	var loc := LocationState.new()
 	loc.id = location_id
 	loc.shroud = shroud
-	loc.clues = clues
+	loc.revealed = revealed
+	## 未揭示：线索待首次进入放置；印刷值优先 printed_clues，否则用 clues 作印刷基数。
+	## 逻辑计数经 transfer_marker（物理层）；未揭示不放线索。
+	loc.clues = 0
+	loc.printed_clues = printed_clues if printed_clues >= 0 else clues
 	ctx.state.registry.register_location(loc)
+	if revealed and clues > 0 and ctx.mutator != null:
+		ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.CLUE,
+			clues,
+			MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
+			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE)
+		)
+	elif revealed and clues > 0:
+		loc.clues = clues
 
 
 static func connect_locations(
@@ -399,6 +452,57 @@ static func setup_test_enemy(
 	enemy.aloof = aloof
 	enemy.massive = massive
 	ctx.state.registry.register_enemy(enemy)
+	if aloof:
+		AloofStatus.ensure_forbid_attack(ctx, enemy_id)
+
+
+## 01017《体能训练》式免费触发：花 1 资源 → 本次检定 +1 战（批打白名单锚）。
+static func register_physical_training_01017() -> void:
+	CardRegistry.register_definition(
+		&"01017",
+		{"card_type": &"asset", "traits": [&"Talent"], "title": "Physical Training"}
+	)
+
+
+static func install_physical_training_01017(
+	ctx: GameContext,
+	controller_id: StringName,
+	card_id: StringName = &""
+) -> TriggeredAbilityDescriptor:
+	register_physical_training_01017()
+	var instance_id := card_id
+	if instance_id == &"":
+		instance_id = ctx.state.registry.allocate_instance_id(&"card")
+		var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, instance_id, &"01017")
+		var card := CardInstance.new()
+		card.id = eid
+		card.owner_id = controller_id
+		card.controller_id = controller_id
+		card.zone = AhcEnums.Zone.PLAY_AREA
+		ctx.state.registry.register_card(card)
+		var inv := ctx.state.registry.get_investigator(controller_id)
+		if inv != null:
+			inv.play_area.append(instance_id)
+	var payload := ModifierPayload.add_skill(AhcEnums.StatRef.SKILL_COMBAT, 1)
+	var template := RegistrationTemplate.lasting_modifier(
+		controller_id, AhcEnums.DurationAnchorKind.THIS_SKILL_TEST, payload
+	)
+	var composition := CompositionNode.seq([
+		CompositionNode.nest_lose_resources(controller_id, 1),
+		CompositionNode.register(template),
+	])
+	var desc := TriggeredAbilityDescriptor.free_triggered(
+		controller_id,
+		composition,
+		&"any_player_window",
+		instance_id,
+		&"01017"
+	)
+	desc.id = &"01017:physical_training"
+	desc.pw_intent_batch = true
+	desc.max_batch = 10
+	ctx.triggered_abilities.register(desc)
+	return desc
 
 
 static func config_spreading_flames() -> RulesConfig:

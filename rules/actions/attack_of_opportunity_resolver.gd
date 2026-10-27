@@ -46,12 +46,16 @@ func resolve_for_types(
 		return {"ok": true, "attacks": 0, "restricted_by_skip_aoo": true}
 	var enemies := get_ready_engaged_enemies(investigator_id)
 	var count := 0
+	var ctx: GameContext = _combat.game_context() if _combat != null else null
 	for enemy_id in enemies:
-		var enemy := _state.registry.get_enemy(enemy_id)
-		if enemy == null:
+		if _state.registry.get_enemy(enemy_id) == null:
 			continue
-		var attack := EnemyAttack.opportunity(
-			enemy_id, investigator_id, enemy.attack_damage, enemy.attack_horror
+		var attack := EnemyAttack.build_from_enemy(
+			ctx,
+			enemy_id,
+			investigator_id,
+			false,
+			AhcEnums.AttackKind.OPPORTUNITY
 		)
 		_combat.perform_attack(attack)
 		count += 1

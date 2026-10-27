@@ -28,7 +28,7 @@ func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
 	if ctx == null:
 		return
-	_cost = InitiationCostPipeline.new(ctx.state, ctx.modifiers)
+	_cost = InitiationCostPipeline.new(ctx.state, ctx.modifiers, ctx.mutator)
 	if ctx.combat:
 		_aoo = AttackOfOpportunityResolver.new(ctx.state, ctx.combat)
 
@@ -244,11 +244,12 @@ func _commence_play(intent: InitiationIntent, ctx: GameContext) -> bool:
 	var card_type := CardRegistry.card_type(card.id.definition_id)
 	if card_type == &"event":
 		return ctx.mutator.enter_limbo(intent.card_id, intent.controller_id)
+	var from_zone := card.zone
 	inv.hand.erase(intent.card_id)
 	inv.play_area.append(intent.card_id)
 	card.zone = AhcEnums.Zone.PLAY_AREA
-	if ctx.triggered_abilities != null:
-		ctx.triggered_abilities.install_card(intent.controller_id, intent.card_id)
+	## 走区划通道：Uses / Seal 关键词进场 Domain + 触发装载。
+	ZoneMoveFlow.notify_zone_set(ctx, intent.card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
 	return true
 
 

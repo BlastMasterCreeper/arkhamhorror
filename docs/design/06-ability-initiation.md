@@ -216,9 +216,12 @@ apply_cost_modifiers(intent)
   → ExhaustCostEvaluator
   → DiscardCostEvaluator
   → MarkerCostEvaluator（doom、线索…）
+  → SealKeywordCost（袋内有 SealSpec 候选；支付在进场序列）
   → CustomCostEvaluator（卡脚本）
   → 全部 can_pay → pay
 ```
+
+**Seal 关键词**：L6 只做门槛（`SealFlow.can_satisfy`）；真正搜袋封印在 ENTER_PLAY（`SealFlow.pay_keyword_on_enter` → nest `seq.effect.seal`）。见 [05 §2](05-chaos-bag.md)、[06-buff §3.2.5 B](06-registration-buff-model.md)。
 
 ### 5.6 能力形态 · 过哪些关
 
@@ -247,17 +250,19 @@ apply_cost_modifiers(intent)
 **EligibilityPipeline** 只回答客观问题：「这条能力 eligible 吗？Initiation 能过 L6–L7 吗？」  
 **ResponseWindow** 处理玩家 / 流程主观决策 — **不计入 L0–L7**。
 
+**已裁决（2026-10-22）**：时点响应窗用 **粘性响应池**（`ResponsePool`；详 [16 §7.1](16-player-interaction.md)）。玩家时间段窗（`PlayerWindow`）用 **发起池 + 倒计时**（`InitiationPool`；[16 §7.3](16-player-interaction.md)），二者勿混。代码标识符待重命名。
+
 ```text
 COLLECT（L0–L5）→ eligible 集合
         │
         ▼
-ResponseWindow
-  ├─ Forced：eligible → 自动 PRE_INITIATE（L6–L7）→ resolve
-  ├─ [reaction]：控制者对每条 eligible **选用 / 不选用**
-  │      · 选用 → 必须 Initiation（L6–L7）→ resolve
-  │      · 不选用 → 不发起（非 gate fail）
-  ├─ ≥2 条 [reaction] 均选用 → **队长**排顺序 → 逐条 Initiation
-  └─ **关闭时点 / 结束本轮响应** → 结束当前 response_round
+ResponseWindow（时点响应窗）
+  ├─ Forced：eligible → 自动 PRE_INITIATE（L6–L7）→ resolve（不进响应池）
+  ├─ 可选 [reaction] / 有时点快速等 → 控制者决定是否加入响应池
+  │      · 入池后可撤回（锁池结算前）
+  │      · 池非空 → 队长每次选 1 条 → Initiation → nest
+  │      · nest 返回 → 再 COLLECT 未入池者；非法自动出池
+  └─ 终止：无人新加入 且 池空
         │
         ▼
 窗口仍 open → refresh → 再 COLLECT（nest 后新 eligible）
@@ -265,15 +270,15 @@ ResponseWindow
 
 | 行为 | 层 | 说明 |
 |---|---|---|
-| 控制者选用 [reaction] | ResponseWindow | 授权发起，不是门槛 |
-| 控制者不选用某 [reaction] | ResponseWindow | 仅不发起 |
-| 关闭时点（本轮不再响应） | ResponseWindow | 结束轮次，非某能力 L3 失败 |
+| 控制者加入响应池 | ResponseWindow | 授权发起，不是门槛 |
+| 控制者拒绝入池 / 撤回 | ResponseWindow | 不发起（非 gate fail） |
+| 队长从池中放行 1 条 | ResponseWindow | **不**整批锁死总序 |
 | 「May」跳过整条强制 | ResponseWindow | 可选强制的不发起 |
-| eligible 但 L6 失败 | Eligibility | Initiation 中止 |
+| eligible 但 L6 失败 | Eligibility | Initiation 中止；出池 |
 
-队长 **不**替其他调查员决定用不用 [reaction]；只排 **均已选用** 的多条顺序。见 [14-nested-sequences §5](14-nested-sequences.md)。
+队长 **不**替其他调查员决定进不进池；只在池内 **每次选 1 条** 放行。见 [14 §5](14-nested-sequences.md)、[16 §7.1](16-player-interaction.md)。
 
-Presentation：`ResponsePrompt`（`core/timing/response_prompt.gd`）为单次 **USE_ABILITY** 轻量 DTO；完整交互见 **[16-player-interaction.md](16-player-interaction.md)**（`ChoiceRequest` + `PlayerInteractionGate`）。
+Presentation：`ResponsePrompt`（`core/timing/response_prompt.gd`）为单次选用轻量 DTO；完整交互见 **[16-player-interaction.md](16-player-interaction.md)**（`ChoiceRequest` + `PlayerInteractionGate`）。
 
 ---
 
@@ -503,9 +508,13 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | B-04 | Pay cost fail mid-initiate | L6 失败；无 cost 已付 |
 | B-05 | Then 链 vs After draw | Then 段优先 |
 | B-06 | Card leaves play during initiate | 效果仍 resolve |
-| ELIG-01 | COLLECT 不跑 dry_run | 仅 L1–L5 |
+| ELIG-01 | COLLECT 不跑 dry_run | 仅 L1–L5（无 composition / dry_run 调用） |
 | ELIG-02 | [reaction] 选用后进 L6–L7 | 选用非 gate |
 | ELIG-03 | 关闭时点 vs 不选用 | 轮次结束 vs 单条跳过 |
+| ELIG-L3-01 | collect_condition 标签不匹配 | 不出响应池 |
+| ELIG-L3-02 | collect_condition 标签匹配 | 可入池结算 |
+| ELIG-L4-01 | 险境 FORBID_TRIGGER 挡队友反应 | COLLECT 即筛掉（不经 Initiation） |
+| ELIG-L5-01 | limit_remaining=0 | 不出候选 |
 
 ---
 
@@ -548,6 +557,9 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
+| 2026-10-22 | v0.4.18 | **§6** `ActivationPool` → `InitiationPool` / 发起池（避 Activate） |
+| 2026-10-22 | v0.4.17 | **§6** 术语对齐 16 §7.0：响应池 / 发起池 |
+| 2026-10-22 | v0.4.16 | **§6** 时点响应窗改意愿池（链 16 §7.1）；与 PlayerWindow 意图池（16 §7.3）分立 |
 | 2026-09-21 | v0.4.15 | §4：卡牌正文 = Composition；hook 只订阅已有 seq 槽，不建 `seq.card…` |
 | 2026-09-21 | v0.4.14 | **§4.2** 打出始终 `PLAY_CARD`（不是能力）；Fast 只改窗口/花费。**§8.4** Then = 内联 Seq |
 | 2026-09-21 | v0.4.13 | **§4.2** 快速：打出与触发对称；无 Fast≈激活、无时点 Fast≈免费、有时点 Fast≈反应 |

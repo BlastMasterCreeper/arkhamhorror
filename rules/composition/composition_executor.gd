@@ -244,16 +244,21 @@ func _execute_atom(node: CompositionNode) -> bool:
 				_log.log(AhcEnums.LogCategory.CARD, "composition:move_card", {"card": node.card_id})
 				return true
 			return false
-		&"adjust_marker":
-			if node.marker_slot != null:
-				_mutator.adjust_marker(node.marker_slot, node.marker_delta)
-				_log.log(
-					AhcEnums.LogCategory.CARD,
-					"composition:adjust_marker",
-					{"delta": node.marker_delta}
-				)
-				return true
-			return false
+		&"transfer_marker":
+			if node.marker_from == null or node.marker_to == null:
+				return false
+			var xfer_amt := maxi(node.amount, node.marker_delta)
+			if xfer_amt <= 0:
+				xfer_amt = 1
+			var ok := _mutator.transfer_marker(
+				node.marker_kind, xfer_amt, node.marker_from, node.marker_to
+			)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:transfer_marker",
+				{"kind": node.marker_kind, "amount": xfer_amt, "ok": ok}
+			)
+			return ok
 		&"set_flag":
 			_mutator.set_flag(node.inv_id, node.flag_field, node.flag_value)
 			_log.log(AhcEnums.LogCategory.CARD, "composition:set_flag", {"bearer": node.inv_id})
@@ -399,6 +404,18 @@ func _execute_atom(node: CompositionNode) -> bool:
 				)
 				return true
 			return false
+		&"spend_use":
+			return _execute_spend_use(node)
+		&"nest_seal":
+			return _execute_nest_seal(node)
+		&"nest_release_seal":
+			return _execute_nest_release_seal(node)
+		&"queue_chaos_reveal_replace":
+			return _execute_queue_chaos_reveal_replace(node)
+		&"queue_sealed_reveal_instead":
+			return _execute_queue_sealed_reveal_instead(node)
+		&"after_reveal_if_resolved_symbol":
+			return _execute_after_reveal_if_resolved_symbol(node)
 		&"resolve_pending":
 			if _game_ctx != null and _game_ctx.effects != null:
 				_game_ctx.effects.resolve_pending(node.pending_id)
@@ -477,7 +494,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_move_marker_to(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
-		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
+		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage", &"nest_deal_assignable":
 			return _execute_nest_damage(node)
 		&"nest_lose_resources":
 			return _execute_nest_lose_resources(node)
@@ -722,6 +739,7 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 			"difficulty": difficulty,
 			"card_id": node.card_id,
 			"st7_plan": node.st7_plan,
+			"if_revealed_specs": node.if_revealed_specs,
 		}
 	)
 	_last_skill_test_fail_by = int(result.get("fail_by", 0))
@@ -888,35 +906,6 @@ func _execute_nest_search(node: CompositionNode) -> bool:
 	return ok
 
 
-func _execute_nest_evade(node: CompositionNode) -> bool:
-	if _game_ctx == null:
-		return false
-	var inv_id := _ability_controller(_resolve_inv(node))
-	var enemy_id := _resolve_enemy_spec(node, inv_id)
-	if enemy_id == &"":
-		return false
-	var mode := EvadeFlow.normalize_mode(node.engage_mode)
-	if node.atom_name == &"automatically_evade":
-		mode = EvadeFlow.MODE_AUTOMATIC
-	var result := EvadeFlow.nest_or_run(
-		_game_ctx,
-		{
-			"enemy_id": enemy_id,
-			"investigator_id": inv_id,
-			"mode": mode,
-		}
-	)
-	var ok := bool(result.get("ok", false))
-	if ok:
-		_last_step_enemy_id = enemy_id
-		_log.log(
-			AhcEnums.LogCategory.CARD,
-			"composition:nest_evade",
-			{"enemy": enemy_id, "inv": inv_id, "mode": mode, "flow": EvadeFlow.FLOW}
-		)
-	return ok
-
-
 func _execute_exhaust_card(node: CompositionNode) -> bool:
 	if _game_ctx == null or node.card_id == &"":
 		return false
@@ -1048,6 +1037,37 @@ func _execute_disengage_enemy(node: CompositionNode) -> bool:
 			AhcEnums.LogCategory.CARD,
 			"composition:disengage_enemy",
 			{"enemy": enemy_id, "inv": inv_id}
+		)
+	return ok
+
+
+## nest `seq.effect.evade`（躲避效果；自动躲避同核）。
+func _execute_nest_evade(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var mode := node.evade_mode
+	if node.atom_name == &"automatically_evade":
+		mode = EvadeFlow.MODE_AUTOMATIC
+	mode = EvadeFlow.normalize_mode(mode)
+	var result := EvadeFlow.nest_or_run(
+		_game_ctx,
+		{
+			"enemy_id": enemy_id,
+			"investigator_id": inv_id,
+			"mode": mode,
+		}
+	)
+	var ok := bool(result.get("ok", false)) and bool(result.get("created", false))
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:nest_evade",
+			{"enemy": enemy_id, "inv": inv_id, "mode": mode, "flow": EvadeFlow.FLOW}
 		)
 	return ok
 
@@ -1491,6 +1511,11 @@ func _execute_spend_clues_group(node: CompositionNode) -> bool:
 		var inv := _state.registry.get_investigator(inv_id)
 		if inv == null or inv.eliminated or inv.resigned or inv.clues_on_card <= 0:
 			continue
+		if (
+			_registrations != null
+			and RestrictionEvaluator.blocks_spend_clue(inv_id, _registrations)
+		):
+			continue
 		var take := mini(1, mini(inv.clues_on_card, need - spent))
 		inv.clues_on_card -= take
 		spent += take
@@ -1657,6 +1682,144 @@ func _execute_nest_gain_resource(node: CompositionNode) -> bool:
 	return int(result.get("amount", 0)) > 0 or amount > 0
 
 
+func _execute_spend_use(node: CompositionNode) -> bool:
+	if _state == null:
+		return false
+	var card := _state.registry.get_card(node.card_id)
+	if card == null:
+		return false
+	var use_type := node.use_type
+	if use_type == &"":
+		use_type = &"charges"
+	var need := maxi(node.amount, 1)
+	var have := int(card.tokens.uses.get(use_type, 0))
+	if have < need:
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:spend_use_failed",
+			{"card": node.card_id, "use_type": use_type, "need": need, "have": have}
+		)
+		return false
+	card.tokens.uses[use_type] = have - need
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:spend_use",
+		{"card": node.card_id, "use_type": use_type, "amount": need}
+	)
+	return true
+
+
+func _execute_nest_seal(node: CompositionNode) -> bool:
+	var host := node.card_id
+	if host == &"":
+		return false
+	var mode := node.engage_mode if node.engage_mode != &"" else &"random"
+	var params := {
+		"host_card_id": host,
+		"card_id": host,
+		"mode": mode,
+		"controller_id": _ability_controller(_resolve_inv(node)),
+	}
+	if mode == &"kind" and node.amount >= 0:
+		params["kind"] = node.amount
+	var result := _nest_or_direct(&"seq.effect.seal", params)
+	return bool(result.get("ok", false))
+
+
+func _execute_nest_release_seal(node: CompositionNode) -> bool:
+	var host := node.card_id
+	if host == &"":
+		return false
+	var result := _nest_or_direct(
+		&"seq.effect.release_seal",
+		{"host_card_id": host, "card_id": host}
+	)
+	return bool(result.get("ok", false))
+
+
+func _execute_queue_chaos_reveal_replace(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.skill_tests == null:
+		return false
+	var ctx := _game_ctx.skill_tests.current_context()
+	if ctx == null:
+		return false
+	var controller := _ability_controller(_resolve_inv(node))
+	if controller == &"":
+		controller = ctx.performing_investigator
+	var ability_id := node.source_ability_id
+	if ability_id == &"":
+		ability_id = node.card_id
+	var ab := ChaosRevealReplaceAbility.create(
+		ability_id,
+		controller,
+		maxi(node.draw_amount, 1),
+		node.amount
+	)
+	ctx.pending_reveal_replace.append(ab)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:queue_chaos_reveal_replace",
+		{
+			"ability": ability_id,
+			"reveal_count": ab.reveal_count,
+			"resolve_count": ab.resolve_count,
+		}
+	)
+	return true
+
+
+func _execute_queue_sealed_reveal_instead(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.skill_tests == null:
+		return false
+	var ctx := _game_ctx.skill_tests.current_context()
+	if ctx == null:
+		return false
+	var host := node.card_id
+	if host == &"":
+		return false
+	var controller := _ability_controller(_resolve_inv(node))
+	if controller == &"":
+		controller = ctx.performing_investigator
+	var ability_id := node.source_ability_id
+	if ability_id == &"":
+		ability_id = host
+	var count := maxi(node.draw_amount, 1)
+	if _game_ctx.state != null:
+		var live := SealFlow.sealed_count(_game_ctx, host)
+		if live > 0:
+			count = live
+	var ab := ChaosRevealReplaceAbility.create_sealed_instead(
+		ability_id, controller, host, count
+	)
+	ctx.pending_reveal_replace.append(ab)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:queue_sealed_reveal_instead",
+		{"ability": ability_id, "host": host, "reveal_count": ab.reveal_count}
+	)
+	return true
+
+
+func _execute_after_reveal_if_resolved_symbol(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.skill_tests == null:
+		return false
+	var ctx := _game_ctx.skill_tests.current_context()
+	if ctx == null or node.then_branch == null:
+		return false
+	ctx.after_reveal_hooks.append(
+		{
+			"require_symbol": true,
+			"composition": node.then_branch,
+		}
+	)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:after_reveal_if_resolved_symbol",
+		{"card": node.card_id}
+	)
+	return true
+
+
 func _execute_nest_damage(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" and node.location_target == &"":
@@ -1676,27 +1839,44 @@ func _execute_nest_damage(node: CompositionNode) -> bool:
 	if target == &"enemy_at_controller_location" and enemy_id == &"":
 		enemy_id = _pick_enemy_at_controller_location(inv_id)
 		target = &"enemy"
-	var result := _nest_or_direct(
-		&"seq.effect.damage",
-		{
-			"controller_id": inv_id,
-			"kind": kind,
-			"amount": amount,
-			"direct": node.is_direct,
-			"target": target,
-			"source": node.card_id,
-			"card_id": node.card_id,
-			"enemy_id": enemy_id,
-		}
+	var needs_assign := (
+		target == &"controller"
+		or target == &""
+		or target == &"each_at_controller_location"
+		or target == &"each_at_source_location"
 	)
+	var flow_id: StringName = node.nest_flow_id
+	## 待分配目标：强制 deal.assignable（兼容旧 JSON damage*）。
+	if needs_assign:
+		flow_id = &"seq.effect.deal.assignable"
+	elif flow_id == &"" or flow_id == &"seq.effect.damage":
+		flow_id = &"seq.effect.deal"
+	var nest_params := {
+		"controller_id": inv_id,
+		"direct": node.is_direct,
+		"target": target if target != &"" else &"controller",
+		"source": node.card_id,
+		"card_id": node.card_id,
+		"enemy_id": enemy_id,
+	}
+	## bundle：伤+恐同条；否则单 kind+amount。
+	if node.atom_name == &"nest_deal_assignable" or node.definition_id == &"deal_bundle":
+		nest_params["damage"] = maxi(node.marker_delta, 0)
+		nest_params["horror"] = maxi(node.amount, 0)
+	else:
+		nest_params["kind"] = kind
+		nest_params["amount"] = amount
+	var result := _nest_or_direct(flow_id, nest_params)
 	if result.is_empty() and _mutator != null and target == &"controller":
-		if kind == &"horror":
-			_mutator.take_horror(inv_id, amount)
-		else:
-			_mutator.adjust_marker(
-				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
-				amount
-			)
+		var marker := (
+			AhcEnums.MarkerKind.HORROR_TAKEN if kind == &"horror" else AhcEnums.MarkerKind.DAMAGE
+		)
+		_mutator.transfer_marker(
+			marker,
+			amount,
+			MarkerSlot.supply(marker),
+			MarkerSlot.investigator(inv_id, marker)
+		)
 		## 无 catalog 回退时仍跑伤/恐常态击败检测。
 		if _game_ctx != null:
 			DefeatFlow.check_investigator_caps(_game_ctx, inv_id)

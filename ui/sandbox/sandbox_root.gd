@@ -177,6 +177,7 @@ func _add_action(grid: GridContainer, text: String, cb: Callable) -> void:
 
 func _load_lab(index: int) -> void:
 	_ctx = SandboxLabs.create_context(index)
+	_choice_resolver.configure_from_context(_ctx)
 	_ctx.interaction.resolver = _choice_resolver
 	_choice_resolver.bind_modal(_choice_modal)
 	_status_label.text = "Lab：%s" % SandboxLabs.lab_names()[index]
@@ -347,7 +348,7 @@ func _refresh_board_list() -> void:
 	_add_row("密谋", st.current_agenda_card_id, false)
 	_add_row("场景", st.current_act_card_id, false)
 	if st.scenario_reference_card_id != &"":
-		_add_row("场景参考", st.scenario_reference_card_id, false)
+		_add_row("冒险参考", st.scenario_reference_card_id, false)
 	for loc_id in st.registry.all_location_ids():
 		var card := st.registry.get_card(loc_id)
 		if card != null and card.zone == AhcEnums.Zone.LOCATION_AREA:

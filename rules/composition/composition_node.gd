@@ -16,6 +16,9 @@ var flag_field: AhcEnums.FlagField = AhcEnums.FlagField.ELIMINATED
 var flag_value: Variant = true
 var to_slot: CardSlot = null
 var marker_slot: MarkerSlot = null
+## L0 Transfer：源 / 目标地址（与 marker_slot 并存；Transfer 优先用 from/to）。
+var marker_from: MarkerSlot = null
+var marker_to: MarkerSlot = null
 var register_template: RegistrationTemplate = null
 var provenance: AbilityUnitRef = null
 var pending_id: StringName = &""
@@ -37,6 +40,8 @@ var test_difficulty: int = 0
 ## 动态难度：空=用 test_difficulty；`hand_count` = 调查员手牌张数（12127）。
 var test_difficulty_source: StringName = &""
 var st7_plan: SkillTestSt7Plan = null
+## nest skill_test：*If … is revealed* 规格（见 SkillTestIfRevealed）。
+var if_revealed_specs: Array = []
 var repeat_count_source: StringName = &""
 var repeat_count_fixed: int = 0
 var may_advance_agenda: bool = false
@@ -65,10 +70,14 @@ var engage_mode: StringName = &"effect"
 ## seq.engage placement：`enter_threat`（默认，常移入威胁区）或 `grant`（仅交战 Buff，可不要求同地点）。
 var engage_placement: StringName = &"enter_threat"
 var auto_engage: bool = true
+## nest_evade / automatically_evade 的 mode（`automatic` / `attempt`）。
+var evade_mode: StringName = &"automatic"
 ## 弃牌来源区：空=指定/寻址单张；`hand` = 从手牌按 amount/mode。
 var from_zone: StringName = &""
 ## 数量载荷（标记移动等）。
 var amount: int = 1
+## Uses 种类（charges / ammo / secrets…）；`spend_use`。
+var use_type: StringName = &""
 ## 地点标记种类（nest_move_marker_to）。
 var marker_kind: AhcEnums.MarkerKind = AhcEnums.MarkerKind.CLUE
 
@@ -98,14 +107,22 @@ static func move_card(card_id: StringName, to: CardSlot) -> CompositionNode:
 	return n
 
 
-## L0 · AtomAdjustMarker
-static func adjust_marker(at: MarkerSlot, delta: int) -> CompositionNode:
+## L0 · AtomTransferMarker（桌面标记唯一变更原子）。
+static func transfer_marker(
+	kind: AhcEnums.MarkerKind,
+	amount: int,
+	from: MarkerSlot,
+	to: MarkerSlot
+) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_op = AhcEnums.AtomOp.ADJUST_MARKER
-	n.atom_name = &"adjust_marker"
-	n.marker_slot = at
-	n.marker_delta = delta
+	n.atom_op = AhcEnums.AtomOp.TRANSFER_MARKER
+	n.atom_name = &"transfer_marker"
+	n.marker_kind = kind
+	n.amount = maxi(amount, 1)
+	n.marker_delta = n.amount
+	n.marker_from = from
+	n.marker_to = to
 	return n
 
 
@@ -121,7 +138,7 @@ static func set_flag(bearer_id: StringName, field: AhcEnums.FlagField, value: Va
 	return n
 
 
-## L0 · AtomRevealCard（Grimoire Reveal 揭示卡牌；写 FaceAudience）
+## 信息层 Reveal（FaceAudience）；不是物理状态原语。执行时常伴随 flip→A。
 static func reveal_to_controller(card_id: StringName, controller_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -306,7 +323,8 @@ static func nest_skill_test(
 	card_id: StringName = &"",
 	st7_plan: SkillTestSt7Plan = null,
 	difficulty_source: StringName = &"",
-	skill_spec: StringName = &""
+	skill_spec: StringName = &"",
+	if_revealed_specs: Array = []
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -318,6 +336,7 @@ static func nest_skill_test(
 	n.test_difficulty = maxi(difficulty, 0)
 	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
+	n.if_revealed_specs = if_revealed_specs
 	return n
 
 
@@ -468,8 +487,22 @@ static func deal_damage_enemy(
 	return n
 
 
-## nest `seq.effect.evade`（引擎内用；卡面**执行**体请用 `automatically_evade`）。
-## mode：attempt（成功尝试后）| automatic（默认；卡面执行 = 自动躲避）。
+## L0 · 敌人脱离交战（单独脱离；躲避效果请用 nest_evade）。
+static func disengage_enemy(
+	controller_id: StringName,
+	enemy_spec: StringName = &"memory:picked_enemy",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"disengage_enemy"
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	n.enemy_ref_id = enemy_spec
+	return n
+
+
+## nest `seq.effect.evade`（躲避效果核：横置 + 解除交战）。
 static func nest_evade(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
@@ -483,35 +516,19 @@ static func nest_evade(
 	n.inv_id = controller_id
 	n.card_id = source_card_id
 	n.enemy_ref_id = enemy_spec
-	n.engage_mode = EvadeFlow.normalize_mode(mode)
+	n.evade_mode = EvadeFlow.normalize_mode(mode)
 	return n
 
 
-## 卡面「automatically evade」执行体 → 同核 `mode=automatic`（无检定）。
-## 「evade」作效果措辞多用于时点描述，不另开执行 mode。
+## 自动躲避：包装 nest_evade（mode=automatic；无检定）。
 static func automatically_evade(
 	controller_id: StringName,
 	enemy_spec: StringName = &"memory:picked_enemy",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
-	var n := nest_evade(controller_id, enemy_spec, EvadeFlow.MODE_AUTOMATIC, source_card_id)
-	n.atom_name = &"automatically_evade"
-	return n
-
-
-## L0 · 仅解除交战（非整躲避效果；完整躲避效果用 automatically_evade / nest_evade）。
-static func disengage_enemy(
-	controller_id: StringName,
-	enemy_spec: StringName = &"memory:picked_enemy",
-	source_card_id: StringName = &""
-) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"disengage_enemy"
-	n.inv_id = controller_id
-	n.card_id = source_card_id
-	n.enemy_ref_id = enemy_spec
-	return n
+	return nest_evade(
+		controller_id, enemy_spec, EvadeFlow.MODE_AUTOMATIC, source_card_id
+	)
 
 
 ## L1 · **移动**（遵守连接）到指定地点（nest `seq.effect.move` move_kind=move）。
@@ -662,6 +679,104 @@ static func ignore_pending(pending_id: StringName) -> CompositionNode:
 	return interrupt_ignore(InterruptTarget.pending_impact(pending_id))
 
 
+## 将要揭示替换：挂入当前检定 `pending_reveal_replace`（ST.3 / seq.chaos.reveal 消费）。
+## draw_amount = 展开叶数；amount = resolve 数（-1 = 全 resolve）。
+static func queue_chaos_reveal_replace(
+	controller_id: StringName,
+	ability_id: StringName,
+	reveal_count: int,
+	resolve_count: int = -1,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"queue_chaos_reveal_replace"
+	n.inv_id = controller_id
+	n.source_ability_id = ability_id
+	n.card_id = source_card_id
+	n.draw_amount = maxi(reveal_count, 1)
+	n.amount = resolve_count
+	return n
+
+
+## 扣 Uses（charges 等）；不足则失败。
+static func spend_use(
+	card_id: StringName,
+	use_type: StringName,
+	amount: int = 1,
+	controller_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"spend_use"
+	n.card_id = card_id
+	n.use_type = use_type
+	n.amount = maxi(amount, 1)
+	n.inv_id = controller_id
+	return n
+
+
+## nest `seq.effect.seal`（mode=random|kind|choice；kind 经 definition_id 字面或 amount 枚举）。
+static func nest_seal(
+	host_card_id: StringName,
+	mode: StringName = &"random",
+	controller_id: StringName = &"",
+	kind: int = -1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_seal"
+	n.nest_flow_id = &"seq.effect.seal"
+	n.card_id = host_card_id
+	n.engage_mode = mode
+	n.inv_id = controller_id
+	n.amount = kind
+	return n
+
+
+## nest `seq.effect.release_seal`（释放 host 上全部封印，或单枚见 executor token 指称）。
+static func nest_release_seal(host_card_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_release_seal"
+	n.nest_flow_id = &"seq.effect.release_seal"
+	n.card_id = host_card_id
+	return n
+
+
+## Premonition 式：将要揭示时改为结算封印在此的标记（挂 pending_reveal_replace）。
+static func queue_sealed_reveal_instead(
+	controller_id: StringName,
+	ability_id: StringName,
+	host_card_id: StringName,
+	sealed_count: int = 1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"queue_sealed_reveal_instead"
+	n.inv_id = controller_id
+	n.source_ability_id = ability_id
+	n.card_id = host_card_id
+	n.draw_amount = maxi(sealed_count, 1)
+	n.amount = -1
+	return n
+
+
+## 本批揭示 resolve 后：若任一 resolved 为符号标记，执行 then（Mask 式 horror）。
+static func after_reveal_if_resolved_symbol(
+	then_node: CompositionNode,
+	controller_id: StringName = &"",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"after_reveal_if_resolved_symbol"
+	n.then_branch = then_node
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	return n
+
+
 ## L2 · 统一 Instead 节点（07 §7.0：nest seq.replace.instead 或本节点）。
 static func replace_instead(
 	target: ReplacementTarget,
@@ -798,12 +913,12 @@ static func for_each_memory(
 	return n
 
 
-## 调查员受到 horror · nest `seq.effect.damage`（kind=horror）。
+## 调查员受到 horror · nest `seq.effect.deal.assignable`（horror=amount）。
 static func take_horror(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_horror(inv_id, amount, is_direct)
 
 
-## 调查员受到 damage · nest `seq.effect.damage`（kind=damage）。
+## 调查员受到 damage · nest `seq.effect.deal.assignable`（damage=amount）。
 static func take_damage(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_damage(inv_id, amount, is_direct)
 
@@ -816,7 +931,7 @@ static func _nest_leaf(atom_name: StringName, flow_id: StringName) -> Compositio
 	return n
 
 
-## 造成伤害/恐惧（Dealing Damage/Horror）· take/deal 同 seq。
+## 造成伤害/恐惧。controller / 广播 → deal.assignable；已定敌·支援 → deal。
 static func nest_damage(
 	controller_id: StringName,
 	kind: StringName = &"damage",
@@ -825,13 +940,41 @@ static func nest_damage(
 	target: StringName = &"controller",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
-	var n := _nest_leaf(&"nest_damage", &"seq.effect.damage")
+	var needs_assign := (
+		target == &"controller"
+		or target == &""
+		or target == &"each_at_controller_location"
+		or target == &"each_at_source_location"
+	)
+	var flow := (
+		&"seq.effect.deal.assignable" if needs_assign else &"seq.effect.deal"
+	)
+	var n := _nest_leaf(&"nest_damage", flow)
 	n.inv_id = controller_id
 	n.marker_delta = maxi(amount, 1)
 	n.is_direct = is_direct
 	n.location_target = target
 	n.card_id = source_card_id
 	n.definition_id = kind
+	return n
+
+
+## 伤+恐同条待分配（翻译：一条 nest，非两条；Apply 侧 Simultaneous）。
+static func nest_deal_assignable(
+	controller_id: StringName,
+	damage_amt: int = 0,
+	horror_amt: int = 0,
+	is_direct: bool = false,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_deal_assignable", &"seq.effect.deal.assignable")
+	n.inv_id = controller_id
+	n.marker_delta = maxi(damage_amt, 0)
+	n.amount = maxi(horror_amt, 0) ## horror 量
+	n.is_direct = is_direct
+	n.location_target = &"controller"
+	n.card_id = source_card_id
+	n.definition_id = &"deal_bundle"
 	return n
 
 

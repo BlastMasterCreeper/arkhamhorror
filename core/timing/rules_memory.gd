@@ -87,6 +87,8 @@ func duplicate_referents() -> Dictionary:
 
 func phase_label(phase: AhcEnums.SequencePhase) -> String:
 	match phase:
+		AhcEnums.SequencePhase.WOULD:
+			return "WOULD"
 		AhcEnums.SequencePhase.WHEN:
 			return "WHEN"
 		AhcEnums.SequencePhase.RESOLVE:

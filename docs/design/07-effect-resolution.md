@@ -194,7 +194,7 @@ func check_cannot(req: EffectRequest, ctx: ApplicationContext) -> bool:
 
 Grimoire p.8：
 
-### Step 1 Assign
+### Step 1 Assign（**玩家选择，不是结算砖**）
 
 - 确定 amount
 - Investigator 可分配到 eligible assets（有 health/sanity）
@@ -202,52 +202,124 @@ Grimoire p.8：
 - 剩余 → investigator 卡
 - Direct：必须 investigator 卡
 
-**Between 1 and 2**：prevent / reduce / reassign 能力
+**已裁决（2026-10-22 · 约束参数化 2026-10-23 · 交互形态 2026-10-23）**：
 
-### Step 2 Apply
+- Assign = **静态 PI**（`ASSIGN_DAMAGE` / `ASSIGN_HORROR`）：**不是** 独立时点砖，**不**单独成 seq。
+- **有分配手续** = `seq.effect.deal.assignable`：伤与恐可 **同入参**；Assign 后 **同时** Apply（同帧封死；TC.kind 仍 `damage`）。禁止伤/恐各 nest 一条。
+- **无分配手续** = `seq.effect.deal`：已定 `legs[]` / 单点，**无** Assign；伤+恐已定用 `legs_damage` + `legs_horror`（**可单边空**，兼容单类型）。
+- lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
+- 逾期 / headless 未确认 → `DamageAssigner.default_assignment`（见下）。
 
-- 同时放置 tokens
+#### Assign 交互（前端会话 · 已裁决）
+
+引擎在 Gate 打开时向交互层提供 **快照**（非时点窗）：
+
+| 载荷 | 含义 |
+|---|---|
+| `pending_total` | 待分摊标记总数（本次 deal 的 amount） |
+| `candidates[]` | 可分配目标：调查员卡 ∪ 合格支援（含容量上限、当前已摊点数） |
+| `constraints[]` | 生效中的 `ASSIGN_CONSTRAINT` 算子摘要（供 UI 解释 / 禁用非法增减） |
+
+玩家在会话内对目标 **增减** 分配量，直到「已分配合计 = `pending_total`」，再 **确认**。  
+交互期间引擎按当前临时表 **重算可分配性**（容量、PRIOR_FILL、MIN、MAX_TO_MATCH 等）：某目标满额 / 违约束 → 该方向增减禁用或自动回退；不是另开 nest，也不是 LISTENER。
+
+确认后腿表写入 pending → 才进 WOULD/WHEN。  
+**禁止**：把增减做成多条 nest seq；禁止前端自算规则绕过 `DamageAssigner.validate`。
+
+#### 分摊约束（`AssignConstraintOp`）
+
+挂 `RestrictionKind.ASSIGN_CONSTRAINT`（WHILE_IN_PLAY）；`DamageAssigner` @ Assign 读取。轴：`assign_affliction`（damage|horror|either）× `AssignDirectScope`（NON_DIRECT|DIRECT|BOTH）。
+
+| Op | 语义 | 锚例 |
+|---|---|---|
+| `INCLUDE_CANDIDATE` | 扩大候选：`self_deals`（04015 允许 direct 摊本卡）/ `other_at_location`（Bodyguard） | 04015 · Bodyguard |
+| `PRIOR_FILL` | 先填满本卡容量，才可摊调查员卡 | 03109 |
+| `MIN_TO_SUBJECT` | 至少 N 点到本卡（`if_able`） | 09007 |
+| `MAX_TO_MATCH` | 匹配特质合计 ≤ N | 60232 Miskatonic |
+| `GRANT_CAPACITY` | 无印刷 health/sanity 时 **开候选**（不设可分配上限）；有印刷容量仍走印刷−标记 | 特殊 Buff（无印刷生命仍可扛） |
+
+**容量**：
+- **调查员**：伤害/恐惧分配均不设上限（−1）。
+- **敌人**：伤害分配不设上限；通常无恐惧通道。
+- **场上卡**（不限 cardtype）：有印刷 → 印刷 − 已有标记；**无印刷 + GRANT** → −1（不设上限）；无印刷且无 GRANT → 不可摊。
+
+**不是**本表：03315 Key of Ys = WOULD 改分配（`reassign_pending_legs`）；07189 Armor = AFTER 再分配（`MarkerTransferBatch`）；04305 Flamethrower = 敌人侧 Assign PI。
+
+默认算法（逾期 / headless）：PRIOR_FILL → MIN_TO_SUBJECT → 剩余归调查员卡；再 `validate`。交互路径以玩家确认为准，引擎只保证合法性与容量。
+
+### Step 2 Apply（**唯一结算砖**）
+
+- 按腿同时放置 tokens（调查员 / 支援：`transfer_marker` 自 ∞ 池；支援经 `DefeatFlow.deal_*_to_asset`）
+- **多目标 legs**（`seq.effect.deal` / `deal.assignable` among）：主体混装敌人 · 场上可承伤卡 · 调查员；`DealSubject` 按 id 归类后逐腿 L0（仍单目标原语）
 - 若未 apply 任何 → 未 successfully dealt
 - 检查 defeat：investigator / enemy / asset
 
-```gdscript
-class DamagePipeline:
-    func deal(dealt: DamageDealt) -> void:
-        var assignment := assign(dealt)      # 可插入 prevent
-        apply(assignment)                     # 同时 apply
-        check_defeat(assignment.affected)
-```
+**WOULD / WHEN 均在 Apply 之前**（栈 PreImpact）。不挂信封，也不挂 Assign：
 
-### 4.1 Moving damage / horror（已裁决 OQ-07-02）
-
-卡牌文本 **Move / Move 1 damage / Move 1 horror**（从 A 转移到 B）使用独立原语 **`EffectOp.TRANSFER_AFFLICTION`**，**不算 heal**。
-
-| | `HEAL` | `TRANSFER_AFFLICTION` |
+| 槽 | 时刻 | 卡面钉法 |
 |---|---|---|
-| 语义 | 移除 affliction（治疗） | 在实体间 **移动** 已有 token |
-| 触发「After heal」等 | 是 | **否** |
-| 走 DamagePipeline assign | 否 | 否（源减、目标加，原子操作） |
-| defeat 检查 | 视 heal 规则 | 转移后双方检查 |
+| **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配 / additional 改量**（02221）；早期误印 *when* 的防伤对策编译收此；`reduce_pending` / `reassign_pending_legs` / `increase_pending` |
+| **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take*（无 would）= 非取消「将承伤」；**栈会 `offer_slot`，当前无生产卡消费者**（取消类一律不进此槽） |
+| **AFTER** | Apply + **defeat nest 完成**后 / seq pop | *after you take…*：**同一时点**；条件分「受到伤害后」（damage>0）/「受到恐惧后」（horror>0）/「受到伤害和/或恐惧后」（至少一种）。TC.kind 仍 `damage`；payload 恒带 `damage`/`horror`（可一侧为 0）；`SequenceHandler.affliction_filter` + `take_self`。编译：`TRIGGER` take 短语 → `match_kind=damage` + filter；**禁止**把 cap 检测挪到父 AFTER 之后（击败须在 RESOLVE 内 nest，父 AFTER 才能看见已击败局面） |
 
 ```gdscript
-enum AfflictionKind { DAMAGE, HORROR }
-
-class TransferAfflictionRequest:
-    var from: EntityId
-    var to: EntityId
-    var kind: AfflictionKind
-    var amount: int
-
-func execute_transfer(req: TransferAfflictionRequest) -> void:
-    remove_tokens(req.from, req.kind, req.amount)
-    add_tokens(req.to, req.kind, req.amount)
-    check_defeat([req.from, req.to])
-    timing_bus.emit("affliction_transferred", req)   # 非 "healed"
+# Assign = PI（非时点）→ pending legs
+offer_slot(WOULD)   # prevent / cancel / reduce / reassign / additional(02221)
+offer_slot(WHEN)    # 预留：非取消 when-take（现无生产卡）
+apply legs          # 每腿 L0 / DefeatFlow
+check_defeat
+# AFTER on pop
 ```
 
+#### PreImpact 加量（additional · 已裁决 2026-10-24）
+
+> 锚：**02221 Psychopomp's Song**（*When you would take 1 or more damage: Take 2 additional damage…*）。  
+> FAQ：额外 **修改同一次**尚未写入的受伤量（可与原量一次取消）；≠ *After you take…: Take 2* 的第二实例。  
+> **钉 WOULD**（文面 *would take*），**不**进 WHEN。
+
+在 **已确认 Assign 之后** Forced/效果使 pending 量 +K 时：
+
+| | 裁决 |
+|---|---|
+| 实例 | 仍同一次 deal；`pending_amount := N+K` |
+| **已确认的 N 腿** | **保留**（禁止全量推翻重分 / 策略反悔） |
+| **增量 K** | 另开一轮 Assign PI：只分配这 K 点 |
+| K 的候选 | 本次「你受到」的 **合法全合格集**（己方可承受支援 ∪ 调查员 ∪ 生效中的 `INCLUDE_CANDIDATE` 等）——**不**限于已选 subject |
+| 禁止 | 把 K 当成第二次 `deal`；把非本次合格卡塞进候选；用加量窗口重写已钉死的 N |
+
+```text
+Assign(N) 已确认
+  → WOULD：02221 → increase_pending(+K)
+  → Assign_delta(K)  @ 合法全合格集   ## 仅增量
+  → legs' = legs_N ∪ legs_K
+  → Apply
+```
+
+API 示意：`DamagePipeline.increase_pending(inv_id, by)` → 更新总量 → `DamageAssigner.assign_delta(…, by)`（Gate；逾期默认算法只摊 K）。  
+与 `reduce_pending`（降量后按剩余总量重建默认腿）**不对称**：加量走增量分配，避免撤销已承受。
+
+**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `PlayerInteractionGate.ask_assign_*`；`increase_pending` + `assign_delta` / `merge_legs`（增量 K 亦经 Gate）。**外向/已定腿**同构 PreImpact：`DealPreImpact`（`seq.effect.deal` legs / `deal.assignable` among）。测例 TIM-DMG-03–06 · ASN-08/09。
+
+### 4.1 Moving / 再分配 damage / horror（已裁决 OQ-07-02 · 包装修正 2026-10-23）
+
+卡面 **Move** / **再分配**（牌上已有标记挪到别处）**不算 heal**，也 **不** 走 `seq.effect.deal` 的 Assign/WOULD take。
+
+| | `HEAL` | Move / 再分配 |
+|---|---|---|
+| 语义 | 移除 affliction | 已有 token 在槽位间搬运 |
+| 触发「After heal」等 | 是 | **否** |
+| 落地 | 承载者 → 池 | L0 **`transfer_marker`（1:1 原子）** |
+| 多源多目标 | — | 包装 **`MarkerTransferBatch`** 展开为多条原子腿 |
+| 走 DamagePipeline | 否 | 否 |
+
+**禁止**：把 N:M 做进单次 L0（伪原子、嵌套窗错位）；禁止另铸 `seq.effect.transfer_affliction`。
+
 ```gdscript
-EffectBuilder.transfer_damage(1).from(asset_a).to(asset_b).submit(ctx)
-EffectBuilder.transfer_horror(1).from(inv).to(enemy).submit(ctx)
+# 单腿（Move 1 from A to B）
+mutator.transfer_marker(DAMAGE, 1, slot_a, slot_b)
+
+# 多源多目标（再分配等）——包装展开，每腿仍是原子 transfer_marker
+MarkerTransferBatch.execute(mutator, DAMAGE, sources, targets)
 ```
 
 ---
@@ -748,7 +820,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | ID | 场景 | 预期 |
 |---|---|---|
-| E-01 | 3 damage, Bodyguard soak 2 | 1 on investigator |
+| E-01 | 3 damage, Bodyguard assign 2 | 1 on investigator |
 | E-02 | Direct horror 1 | 必须 investigator |
 | E-03 | Cancel revelation | treachery 未 resolve |
 | E-04 | Then draw then horror | horror before After draw |
@@ -784,6 +856,17 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-27 | v0.6.19 | §4：明示取消/additional 钉 WOULD；WHEN take 预留、现无生产卡 |
+| 2026-10-27 | v0.6.18 | §4：编译接线 would/when/after take + `affliction_filter`/`take_self`；AFTER 在击败 nest 之后 |
+| 2026-10-26 | v0.6.17 | §4：无印刷+GRANT 不设上限；inv/敌伤害无限；`legs_damage`/`legs_horror`；AFTER 伤/恐/和或条件 |
+| 2026-10-26 | v0.6.16 | §4：外向/已定腿 PreImpact（`DealPreImpact` WOULD→WHEN→Apply） |
+| 2026-10-26 | v0.6.15 | §4：Assign Gate（`ask_assign_*` / among）；逾期默认腿表 |
+| 2026-10-26 | v0.6.14 | §4：`GRANT_CAPACITY`；deal legs 混装敌/卡/调查员（`DealSubject`） |
+| 2026-10-25 | v0.6.13 | §4：落地 `increase_pending` + `assign_delta`/`merge_legs`（TIM-DMG-03/04）；Gate 仍待接 |
+| 2026-10-24 | v0.6.12 | §4 PreImpact 加量：保留已确认 N 腿；仅增量 K 在合法全合格集上 Assign（02221） |
+| 2026-10-23 | v0.6.11 | §4：Assign 交互 = 静态 PI 会话（候选+约束→增减至耗尽→确认；期间重算可分配性） |
+| 2026-10-23 | v0.6.10 | 框架称呼：`SoakAssigner` → `DamageAssigner`（弃用 soak） |
+| 2026-10-23 | v0.6.9 | §4：`ASSIGN_CONSTRAINT` 四算子 + DamageAssigner；pending legs；03315/07189/04305 不进约束表 |
 | 2026-09-21 | v0.6.8 | §6.0 / §7.0：卡面译 Composition，Cancel/Instead 节点 nest 共享 seq |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-06-01：Replacement 最近一条（对齐 Grimoire Instead） |

@@ -49,7 +49,7 @@
 | `enemy` / `investigator` / `location` / `target` / `card_id` | **指称规格**（见 §6） | B、C、D |
 | `amount` / `skill` / `difficulty` / `difficulty_source` / `kind` / `direct` / `mode` / `per_investigator` / `from` | 字面效果参数；`from=hand` 等来源区；`difficulty_source=hand_count` 等动态难度 | D、部分 C |
 | `if_kind` / `evaluate` / `condition` / `then` / `else` | 控制流 | 控制流叶 |
-| `options` / `steps` / `st7` / `on_success` / `on_fail*` | 子树 / 检定计划 | 控制流、skill_test |
+| `options` / `steps` / `st7` / `on_success` / `on_fail*` / `if_revealed` | 子树 / 检定计划 / 紧贴揭示 | 控制流、skill_test |
 | `field` / `value` | 仅 L0 `set_flag` 等离散原子 | 内联 L0（少用；优先进信封 handler） |
 
 **禁止**（非白名单即非法，除非本表增行并同步编译器）：
@@ -284,6 +284,8 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | `register_as` | `action` / `free` / `forced` / `revelation` / `reaction` |
 | `action_types` | 行动类型全集（含 designator）；**借机类型层**由此判定 |
 | `action_cost` / `resource_cost` / `window` / `match_kind` / `phase` | 装载与 Eligibility |
+| `affliction_filter` | 受到伤/恐条件：`damage` \| `horror` \| `either`（TC.kind 仍 `damage`） |
+| `take_self` | `true` = 「you take」：仅调查员承伤帧；外向 among/敌腿不匹配 |
 | `translation` | `full_expand` 等审计标记 |
 | `status` | `full` / `partial` |
 

@@ -32,10 +32,9 @@ static func put_location_into_play(
 	if loc == null:
 		return {"ok": false, "reason": &"unknown_location"}
 	if reveal and not loc.revealed:
-		loc.revealed = true
-		var printed := CardRegistry.location_printed_clues(location_id)
-		if printed >= 0:
-			loc.clues = PerInvestigatorScale.place_location_clues(game_ctx.state, printed)
+		LocationEnterRules.reveal_and_place_clues(
+			game_ctx, {"location_id": location_id}
+		)
 	var card := game_ctx.state.registry.get_card(location_id)
 	if card == null:
 		ScenarioLayoutSetup.materialize_card(

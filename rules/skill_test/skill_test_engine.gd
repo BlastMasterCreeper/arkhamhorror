@@ -38,6 +38,9 @@ func begin_test(ctx: SkillTestContext, game_ctx: GameContext = null) -> SkillTes
 		ctx.id = StringName("skill_test_%d" % _next_id)
 	_stack.append(ctx)
 	_sync_stack(game_ctx)
+	_state.chaos_bag.begin_reveal_scope(ctx.id)
+	## 紧贴 resolved 揭示：袋在 disposition 定案时回调。
+	_state.chaos_bag.on_resolved_reveal = _on_bag_resolved_reveal
 	ctx.current_step = AhcEnums.SkillTestStep.ST_1_BEGIN
 	_advance_step(AhcEnums.SkillTestStep.ST_1_BEGIN, ctx)
 	if _timing:
@@ -105,27 +108,130 @@ func resolve_reveal_chain(ctx: SkillTestContext) -> void:
 		var reveal_again := step_apply_symbol_effects(ctx)
 		if not reveal_again:
 			break
+	## ST.4 链结束 → PW_AFTER_REVEAL（窗内能力揭示仍走 on_resolved_reveal）→ ST.5。
+	## *If revealed* 已在各次 resolved 结算时 eager 触发，不再固定时点读账本。
 	_open_player_window(ctx, AhcEnums.PlayerWindow.PW_SKILL_TEST_AFTER_REVEAL)
+
+
+func continue_after_reveal_window(ctx: SkillTestContext) -> void:
+	_snapshot_if_revealed(ctx)
 	step_calculate_modified_value(ctx)
 	step_determine_success(ctx)
 
 
+## 一枚 token 已定案为 resolved：驱动 if_revealed_watchers（紧贴揭示）。
+func notify_resolved_reveal(ctx: SkillTestContext, token: ChaosToken) -> void:
+	if ctx == null or token == null:
+		return
+	_dispatch_if_revealed(ctx, token.kind)
+
+
+func _on_bag_resolved_reveal(token: ChaosToken, _rec: ChaosRevealRecord) -> void:
+	var ctx := current_context()
+	if ctx == null:
+		return
+	notify_resolved_reveal(ctx, token)
+
+
+func _dispatch_if_revealed(ctx: SkillTestContext, kind: AhcEnums.ChaosTokenKind) -> void:
+	var kind_i := int(kind)
+	for entry in ctx.if_revealed_watchers:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		if not _watcher_matches_kind(entry, kind_i):
+			continue
+		var cb: Variant = entry.get("on_match")
+		if typeof(cb) != TYPE_CALLABLE or not (cb as Callable).is_valid():
+			continue
+		var mode: StringName = entry.get("mode", &"any")
+		if mode == &"each":
+			## for-each：每枚 resolved 一次，不自肃。
+			(cb as Callable).call(ctx, kind_i, 1)
+			continue
+		## any / binary：自肃 — 本检定至多一次。
+		if bool(entry.get("fired", false)):
+			continue
+		entry["fired"] = true
+		(cb as Callable).call(ctx, kind_i, 1)
+	if _timing:
+		_timing.emit_timing(
+			&"skill_test_if_revealed",
+			{"test_id": ctx.id, "kind": kind_i}
+		)
+
+
+func _watcher_matches_kind(entry: Dictionary, kind_i: int) -> bool:
+	var kinds_raw: Variant = entry.get("kinds", null)
+	if kinds_raw is Array:
+		for k in kinds_raw as Array:
+			if int(k) == kind_i:
+				return true
+		return false
+	return int(entry.get("kind", -1)) == kind_i
+
+
+func _snapshot_if_revealed(ctx: SkillTestContext) -> void:
+	var bag := _state.chaos_bag
+	ctx.if_revealed_snapshot = {
+		"scope_id": bag.reveal_scope_id,
+		"resolved": bag.resolved_records().duplicate(),
+		"revealed": bag.revealed_records().duplicate(),
+		"uncanceled": bag.revealed_records().duplicate(),
+	}
+
+
 func step_reveal_token(ctx: SkillTestContext) -> ChaosToken:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_3_REVEAL
-	var token := _state.chaos_bag.draw_random()
-	if token:
-		ctx.revealed_tokens.append(token)
+	ctx.reveal_batch_start = ctx.revealed_tokens.size()
+	if _game_ctx != null and _game_ctx.sequence_catalog != null:
+		## WHEN：将要揭示反应挂 pending；RESOLVE：意图规划并离袋。
+		_game_ctx.sequence_catalog.run(
+			_game_ctx,
+			&"seq.chaos.reveal",
+			{
+				"inv_id": ctx.performing_investigator,
+				"test_id": ctx.id,
+				"skill_test_ctx": ctx,
+			}
+		)
+	else:
+		var abilities: Array = ctx.pending_reveal_replace.duplicate()
+		ctx.pending_reveal_replace.clear()
+		var gate: PlayerInteractionGate = _game_ctx.interaction if _game_ctx != null else null
+		var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+			_state.chaos_bag,
+			1,
+			abilities,
+			gate,
+			_game_ctx,
+			ctx.performing_investigator,
+			&"skill_test"
+		)
+		ctx.last_reveal_intent = plan
+		var resolved_fb: Array = plan.get("resolved", [])
+		for item in resolved_fb:
+			if item is ChaosToken:
+				ctx.revealed_tokens.append(item as ChaosToken)
+		_state.chaos_bag.notify_resolved_tokens(resolved_fb)
 	_advance_step(AhcEnums.SkillTestStep.ST_3_REVEAL, ctx)
-	return token
+	if ctx.revealed_tokens.is_empty():
+		return null
+	return ctx.revealed_tokens[ctx.revealed_tokens.size() - 1]
 
 
 func step_apply_symbol_effects(ctx: SkillTestContext) -> bool:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_4_SYMBOL
-	var token := ctx.revealed_tokens[ctx.revealed_tokens.size() - 1] if not ctx.revealed_tokens.is_empty() else null
-	if token:
+	var again := false
+	var start := clampi(ctx.reveal_batch_start, 0, ctx.revealed_tokens.size())
+	for i in range(start, ctx.revealed_tokens.size()):
+		var token: ChaosToken = ctx.revealed_tokens[i]
+		if token == null:
+			continue
 		_apply_token_effect(ctx, token)
+		if token.reveal_another:
+			again = true
 	_advance_step(AhcEnums.SkillTestStep.ST_4_SYMBOL, ctx)
-	return token != null and token.reveal_another
+	return again
 
 
 func step_calculate_modified_value(ctx: SkillTestContext) -> int:
@@ -187,8 +293,12 @@ func step_end(ctx: SkillTestContext, game_ctx: GameContext = null) -> void:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_8_END
 	_discard_committed(ctx)
 	_state.chaos_bag.return_all_revealed()
+	_state.chaos_bag.end_reveal_scope()
 	if _stack.size() > 0 and _stack[_stack.size() - 1] == ctx:
 		_stack.pop_back()
+	## 嵌套检定可能仍在栈上；仅栈空时卸回调。
+	if _stack.is_empty():
+		_state.chaos_bag.on_resolved_reveal = Callable()
 	_sync_stack(game_ctx)
 	_advance_step(AhcEnums.SkillTestStep.ST_8_END, ctx)
 	if _timing:
@@ -204,6 +314,7 @@ func run_full_test(ctx: SkillTestContext, game_ctx: GameContext = null, commits:
 	close_player_window(ctx)
 	resolve_reveal_chain(ctx)
 	close_player_window(ctx)
+	continue_after_reveal_window(ctx)
 	step_apply_results(ctx)
 	if game_ctx != null:
 		RetaliateAlertResolver.resolve_post_st7(game_ctx, ctx)
@@ -264,17 +375,11 @@ func _discard_committed(ctx: SkillTestContext) -> void:
 
 
 func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:
-	match token.kind:
-		AhcEnums.ChaosTokenKind.NUMERIC:
-			ctx.chaos_modifier += token.modifier
-		AhcEnums.ChaosTokenKind.AUTO_FAIL:
-			ctx.auto_fail = true
-		AhcEnums.ChaosTokenKind.AUTO_SUCCESS:
-			ctx.auto_success = true
-		AhcEnums.ChaosTokenKind.SKULL:
-			ctx.chaos_modifier -= _state.current_act_number
-		_:
-			ctx.chaos_modifier += token.modifier
+	## ST.4：规则自带 Bless/Curse 先于参考卡 / Elder Sign。
+	if BlessCurseRules.try_apply(ctx, token):
+		return
+	## 参考卡隐式符号能力（空白则跳过印刷条）；Elder Sign 走调查员印刷。
+	ScenarioReferenceApplier.apply_token(_game_ctx, ctx, token, _state)
 
 
 func _matching_icon_bonus(card: CardInstance, skill: AhcEnums.SkillType) -> int:
@@ -296,6 +401,8 @@ func _count_committed_by_definition(ctx: SkillTestContext, definition_id: String
 func _open_player_window(ctx: SkillTestContext, window: AhcEnums.PlayerWindow) -> void:
 	ctx.waiting_player_window = true
 	ctx.pending_player_window = window
+	if _game_ctx != null and _game_ctx.player_window_intents != null:
+		_game_ctx.player_window_intents.begin_window()
 
 
 func _advance_step(step: AhcEnums.SkillTestStep, ctx: SkillTestContext) -> void:

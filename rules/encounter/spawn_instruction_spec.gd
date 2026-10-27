@@ -3,7 +3,14 @@ extends RefCounted
 
 enum Mode { FRAMEWORK_DEFAULT, INSTRUCTION }
 
-enum SelectorKind { DRAWER_LOCATION, NAMED_LOCATION, NEAREST_EMPTY, FARTHEST_EMPTY }
+enum SelectorKind {
+	DRAWER_LOCATION,
+	NAMED_LOCATION,
+	NEAREST_EMPTY,
+	FARTHEST_EMPTY,
+	## Spawn – Engaged with Prey · 与 Prey 选定调查员交战进场（01121b）。
+	ENGAGED_WITH_PREY,
+}
 
 
 var mode: Mode = Mode.FRAMEWORK_DEFAULT
@@ -41,4 +48,11 @@ static func farthest_empty() -> SpawnInstructionSpec:
 	var spec := SpawnInstructionSpec.new()
 	spec.mode = Mode.INSTRUCTION
 	spec.selector_kind = SelectorKind.FARTHEST_EMPTY
+	return spec
+
+
+static func engaged_with_prey() -> SpawnInstructionSpec:
+	var spec := SpawnInstructionSpec.new()
+	spec.mode = Mode.INSTRUCTION
+	spec.selector_kind = SelectorKind.ENGAGED_WITH_PREY
 	return spec

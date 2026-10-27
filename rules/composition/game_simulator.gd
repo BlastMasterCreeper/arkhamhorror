@@ -87,6 +87,7 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 	copy.per_investigator_count = src.per_investigator_count
 	copy.set_aside = src.set_aside.duplicate()
 	copy.scenario_reference_card_id = src.scenario_reference_card_id
+	copy.scenario_reference = src.scenario_reference
 	copy.scenario_layout_installed = src.scenario_layout_installed
 	copy.setup_game_begins_resolved = src.setup_game_begins_resolved
 	copy.deferred_setup_revelations = src.deferred_setup_revelations.duplicate()
@@ -133,6 +134,8 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		card.zone = card_src.zone
 		card.zone_index = card_src.zone_index
 		card.exhausted = card_src.exhausted
+		card.text_box_blank = card_src.text_box_blank
+		card.symbol_abilities = card_src.symbol_abilities.duplicate()
 		copy.registry.register_card(card)
 	for loc_id in src.registry.all_location_ids():
 		var loc_src := src.registry.get_location(loc_id)

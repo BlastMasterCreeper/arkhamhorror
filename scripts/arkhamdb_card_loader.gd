@@ -66,6 +66,14 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 		"text": str(src.get("text", "")),
 		"keywords": kw_out,
 	}
+	## Act/Agenda linked 遭遇背面（如 01121a → 01121b）。
+	var back_ctype := str(src.get("back_card_type", ""))
+	if back_ctype != "":
+		out["back_card_type"] = StringName(back_ctype)
+	if src.has("back_definition_id") and str(src.get("back_definition_id", "")) != "":
+		out["back_definition_id"] = StringName(str(src.get("back_definition_id")))
+	if bool(src.get("forbid_clues_while_engaged", false)):
+		out["forbid_clues_while_engaged"] = true
 	## 卡背类型：仅背面图案/牌库外观；显式优先，否则按定义推断写入（与正面 card_type 分列）。
 	var back_raw := str(src.get("card_back", ""))
 	if back_raw == "player" or back_raw == "encounter":
@@ -101,6 +109,17 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 	var compiled: Variant = src.get("compiled_abilities", [])
 	if compiled is Array:
 		out["compiled_abilities"] = compiled.duplicate(true)
+	## Uses (X type)：显式字段或从正文解析；进场 Domain 放 token。
+	var uses_raw: Variant = src.get("uses", {})
+	if uses_raw is Dictionary and not (uses_raw as Dictionary).is_empty():
+		out["uses"] = (uses_raw as Dictionary).duplicate()
+	else:
+		var parsed_uses := CardRegistry.parse_uses_from_text(str(src.get("text", "")))
+		if not parsed_uses.is_empty():
+			out["uses"] = parsed_uses
+			if not kw_out.has(&"uses"):
+				kw_out.append(&"uses")
+				out["keywords"] = kw_out
 	ArkhamDbInstructionCompiler.apply_instructions(out, src)
 	_AbilityCompiler.apply_to_registry(definition_id, src)
 	return out

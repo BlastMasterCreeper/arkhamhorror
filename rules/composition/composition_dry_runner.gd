@@ -325,10 +325,15 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if node.to_slot == null:
 				return false
 			return sim.mutator.move_card(node.card_id, node.to_slot)
-		&"adjust_marker":
-			if node.marker_slot == null:
+		&"transfer_marker":
+			if node.marker_from == null or node.marker_to == null:
 				return false
-			return sim.mutator.adjust_marker(node.marker_slot, node.marker_delta)
+			var xfer_amt := maxi(node.amount, node.marker_delta)
+			if xfer_amt <= 0:
+				xfer_amt = 1
+			return sim.mutator.transfer_marker(
+				node.marker_kind, xfer_amt, node.marker_from, node.marker_to
+			)
 		&"set_flag":
 			return sim.mutator.set_flag(node.inv_id, node.flag_field, node.flag_value)
 		&"reveal_to_controller":
@@ -374,6 +379,23 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return node.pending_id != &"" and node.effect_request != null
 		&"replace_instead":
 			return node.replace_target != null and node.effect_request != null
+		&"spend_use":
+			var spend_card := sim.state.registry.get_card(node.card_id)
+			if spend_card == null:
+				return false
+			var have := int(spend_card.tokens.uses.get(node.use_type, 0))
+			return have >= maxi(node.amount, 1)
+		&"nest_seal":
+			return node.card_id != &"" and sim.state != null and sim.state.chaos_bag != null
+		&"nest_release_seal":
+			return node.card_id != &""
+		&"queue_chaos_reveal_replace":
+			## 仅挂意图；不依赖袋内张数。
+			return node.draw_amount >= 1
+		&"queue_sealed_reveal_instead":
+			return node.card_id != &"" and node.draw_amount >= 1
+		&"after_reveal_if_resolved_symbol":
+			return node.then_branch != null
 		&"resolve_pending":
 			return node.pending_id != &""
 		&"place_doom_nearest_enemy_without_doom", &"nest_place_doom":
@@ -455,22 +477,6 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if sim.state == null or node.from_zone == &"":
 				return false
 			return true
-		&"nest_evade", &"automatically_evade":
-			## 躲避效果：敌存在即可 CREATED（横置 + 可能解除交战）。
-			var evade_id := _resolve_sim_enemy_spec(node, sim)
-			if evade_id == &"" or sim.state == null:
-				return false
-			var evade_enemy := sim.state.registry.get_enemy(evade_id)
-			if evade_enemy == null:
-				return false
-			evade_enemy.exhausted = true
-			if evade_enemy.engaged_with != &"":
-				var evade_holder := sim.state.registry.get_investigator(evade_enemy.engaged_with)
-				if evade_holder != null:
-					evade_holder.threat_area.erase(evade_id)
-				evade_enemy.engaged_with = &""
-			sim.last_step_enemy_id = evade_id
-			return true
 		&"exhaust_card", &"ready_card":
 			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
 			if exh == null:
@@ -523,6 +529,27 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				holder.threat_area.erase(dis_enemy_id)
 			dis_enemy.engaged_with = &""
 			sim.last_step_enemy_id = dis_enemy_id
+			return true
+		&"nest_evade", &"automatically_evade":
+			## 镜像 `seq.effect.evade` 同时组：横置或脱离任一 CREATED。
+			var evade_enemy_id := _resolve_sim_enemy_spec(node, sim)
+			if evade_enemy_id == &"" or sim.state == null:
+				return false
+			var evade_enemy := sim.state.registry.get_enemy(evade_enemy_id)
+			if evade_enemy == null or evade_enemy.location_tag == &"":
+				return false
+			var exhaust_changed := not evade_enemy.exhausted
+			var disengaged := evade_enemy.engaged_with != &""
+			if not exhaust_changed and not disengaged:
+				return false
+			if exhaust_changed:
+				evade_enemy.exhausted = true
+			if disengaged:
+				var evade_holder := sim.state.registry.get_investigator(evade_enemy.engaged_with)
+				if evade_holder != null:
+					evade_holder.threat_area.erase(evade_enemy_id)
+				evade_enemy.engaged_with = &""
+			sim.last_step_enemy_id = evade_enemy_id
 			return true
 		&"no_provoke_aoo":
 			## 镜像 `seq.effect.register` CREATED（dry-run 不压栈；行动开始挂载等价）。

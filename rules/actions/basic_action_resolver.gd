@@ -24,22 +24,22 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
 	test.skill = AhcEnums.SkillType.INTELLECT
-	test.difficulty = loc.shroud
+	## MOD-Q-SHROUD：印刷 shroud 经 ModifierEngine 后再作难度（下限 0）。
+	var shroud := loc.shroud
+	if game_ctx != null and game_ctx.modifiers != null:
+		var shroud_q := ModifierQuery.new()
+		shroud_q.controller_id = inv_id
+		shroud_q.stat = AhcEnums.StatRef.SHROUD
+		shroud = game_ctx.modifiers.compute(loc.shroud, shroud_q)
+	test.difficulty = shroud
 	var location_id_copy := location_id
 	var inv_copy := inv_id
+	## ST.7：AmountPlan(DISCOVER) → 消费式修正 → 仅 amount>0 落点（06 §6 / §16.3.2）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		if game_ctx != null and game_ctx.sequence_catalog != null:
-			game_ctx.sequence_catalog.nest(
-				game_ctx,
-				&"seq.effect.discover_clue",
-				{
-					"inv_id": inv_copy,
-					"location_id": location_id_copy,
-					"amount": 1,
-				}
-			)
-		else:
-			_apply_discover_clue(location_id_copy, inv_copy)
+		var plan := AmountPlan.discover_single(location_id_copy, 1)
+		if game_ctx != null and game_ctx.modifiers != null:
+			plan = game_ctx.modifiers.apply_to_amount_plan(plan, inv_copy, game_ctx)
+		ModifierEngine.settle_amount_plan(game_ctx, plan, {"inv_id": inv_copy})
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
@@ -64,7 +64,7 @@ func engage(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Di
 	return {"ok": true, "enemy_id": enemy_id}
 
 
-func move(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
+func move(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null:
 		return {"ok": false, "error": "unknown_investigator"}
@@ -78,10 +78,14 @@ func move(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	if not _is_connected(current, dest_id):
 		return {"ok": false, "error": "not_connected"}
 	inv.location_tag = dest_id
-	if not dest.revealed:
-		dest.revealed = true
-		dest.clues = maxi(dest.clues, 1)
-	return {"ok": true, "destination_id": dest_id}
+	## 无 Catalog 旁路：仍走规则自带进入揭示。
+	var enter := LocationEnterRules.on_investigator_enter(game_ctx, dest_id)
+	var out := {"ok": true, "destination_id": dest_id}
+	if not enter.is_empty():
+		out["location_enter"] = enter
+		out["location_revealed"] = bool(enter.get("revealed", false))
+		out["clues_placed"] = int(enter.get("clues_placed", 0))
+	return out
 
 
 func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
@@ -92,7 +96,7 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	var enemy := _state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
-	var target_err := _validate_fight_target(inv, enemy)
+	var target_err := _validate_fight_target(game_ctx, inv, enemy)
 	if target_err != "":
 		return {"ok": false, "error": target_err}
 	var commits := _commits_from_extra(extra)
@@ -103,8 +107,12 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	test.difficulty = enemy.fight
 	var enemy_id_copy := enemy_id
 	var inv_copy := inv_id
+	## ST.7：AmountPlan(ATTACK_DAMAGE) → 消费式修正 → 仅 amount>0 落点（06 §6 / §16.3.2）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		EnemyDefeatResolver.deal_damage(game_ctx, enemy_id_copy, 1)
+		var plan := AmountPlan.attack_damage_single(enemy_id_copy, 1)
+		if game_ctx != null and game_ctx.modifiers != null:
+			plan = game_ctx.modifiers.apply_to_amount_plan(plan, inv_copy, game_ctx)
+		ModifierEngine.settle_amount_plan(game_ctx, plan)
 	test.on_fail = func(_ctx: SkillTestContext) -> void:
 		var fight_damage: int = int(extra.get("fight_damage", 1))
 		FightFailRedirectResolver.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
@@ -135,16 +143,9 @@ func evade(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	test.difficulty = enemy.evade
 	var enemy_id_copy := enemy_id
 	var inv_copy := inv_id
-	## ST.7：成功 → nest 躲避效果（横置+解除交战）；非 pop 后父 Seq。
+	## ST.7：成功 → nest 躲避效果核（非 pop 后父 Seq；非真空 disengage+exhaust）。
 	test.on_success = func(_ctx: SkillTestContext) -> void:
-		EvadeFlow.nest_or_run(
-			game_ctx,
-			{
-				"enemy_id": enemy_id_copy,
-				"investigator_id": inv_copy,
-				"mode": EvadeFlow.MODE_ATTEMPT,
-			}
-		)
+		EvadeFlow.after_attempt_success(game_ctx, enemy_id_copy, inv_copy)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
@@ -154,10 +155,22 @@ func evade(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	}
 
 
-func _validate_fight_target(inv: InvestigatorState, enemy: EnemyState) -> String:
+func _validate_fight_target(
+	game_ctx: GameContext,
+	inv: InvestigatorState,
+	enemy: EnemyState
+) -> String:
 	if not enemy.is_at_location(inv.location_tag):
 		return "wrong_location"
-	if enemy.aloof and enemy.engaged_with == &"":
+	## REST-E-ACTION：冷漠 FORBID_ATTACK（未交战）；已交战 Evaluator 放行。
+	if (
+		game_ctx != null
+		and game_ctx.registrations != null
+		and RestrictionEvaluator.blocks_fight(inv.id, enemy.id, game_ctx.registrations)
+	):
+		return "aloof"
+	## 拥有已标 aloof、尚未挂 Register 时的兜底（测试 Domain-only）。
+	if enemy.aloof and not EngagementStatus.is_engaged(game_ctx, enemy.id):
 		return "aloof"
 	return ""
 
@@ -199,13 +212,3 @@ func _commits_from_extra(extra: Dictionary) -> Array[CommittedCard]:
 			out.append(item)
 	return out
 
-
-func _apply_discover_clue(location_id: StringName, inv_id: StringName) -> void:
-	var loc := _state.registry.get_location(location_id)
-	var inv := _state.registry.get_investigator(inv_id)
-	if loc == null or inv == null:
-		return
-	if loc.clues <= 0:
-		return
-	loc.clues -= 1
-	inv.clues_on_card += 1

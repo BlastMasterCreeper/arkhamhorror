@@ -128,14 +128,76 @@ enum Zone {
 
 **Limbo 语义**：Event/Treachery **显现结算中**时进 LIMBO；Limbo 中卡**不算 In-Play**（Grimoire Limbo）。**已 commit 的 Skill** 不进 LIMBO — 见 `SkillTestContext.committed`，zone 暂留 HAND 直至 ST.8（OQ-01-03）。
 
+### 3.5.1 放置关系（Placement · 已裁决 2026-10-24）
+
+> **问题**：旁置、附着、垫下（可背面）、牌库、特殊区域「是否在场」常被揉成 `ATTACHED` / `SET_ASIDE` 一种。  
+> **裁决**：物理层用 **放置关系** 区分地址；场上/场外是 **规则谓词**（可被卡面改写）；可见性仍正交。
+
+#### 放置种类（物理地址 · 状态原语 ①）
+
+| Kind | 物理像什么 | 与宿主关系 | 典型 |
+|---|---|---|---|
+| **FREE** | 独立区（play / threat / location_area…） | 无宿主叠放 | 场上支援、威胁区敌人 |
+| **BESIDE** | 宿主实体**旁**的独立 flat 区 | `beside_host_id`；**不**叠在宿主下 | 旁置地点/密谋/行动/场景实体的指示物牌、探索辅堆等 |
+| **ATTACHED** | 叠在宿主上并重叠（Grimoire *attach*） | `attached_to`；宿主离场默认带走弃置 | 附着地点的 treachery、武器附着等 |
+| **UNDER** | 垫在宿主**之下**（可正面/背面） | `under_host_id` + 序；**不是** attach | 蜂拥垫牌、部分「放这张卡下」 |
+| **DECK_ORDERED** | 有序牌堆（Shape.DECK） | 库/弃的序 | 调查员库、遭遇库、部分特殊有序堆 |
+
+```text
+禁止混用：
+  ATTACHED ≠ UNDER     （规则：附着 vs 垫下；离场默认不同）
+  UNDER ≠ DECK_ORDERED （垫下通常可知「是哪张/有几张」；牌库默认不知内容）
+  BESIDE ≠ SET_ASIDE   （旁置有宿主座位；set-aside 是全局场外区，可再亚型）
+```
+
+物理区 id 建议：`beside_<host>` / `under_<host>` / 既有 `threat_*` / `deck_*`；Domain 可咽喉双写 `attached_to` / `under_host_id` / `beside_host_id`（派生索引，非信息原语）。
+
+#### 场上 / 场外（规则谓词 · 非单纯 zone）
+
+- **默认表**：play / threat / location_area / attached / under（若卡面未另说）/ current act·agenda / scenario reference → 常 **in play**；deck / hand / discard / set-aside / RFG / victory / limbo → **out of play**。  
+- **特殊区域**：卡面或区域规格可写明 *in play* / *out of play*（或「视为在场」）。该声明 **覆盖默认表**。  
+- **互动范围**：Eligibility 默认用 in-play 筛玩家可触发/可选目标；**不是**铁律——卡面写「即使场外也可」「仅手牌」等时放宽或收紧。  
+- **实现注意**：`ZoneMoveFlow.zone_is_in_play` 过窄（仅 PLAY/THREAT）须升到与本表 + 区域规格一致；进场/离场别名钩听 **谓词变迁**，不听「zone 字符串集合」硬编码。
+
+#### 离场默认捆绑 vs 保留（§5.2 细则）
+
+默认（宿主 **离开 in-play** 时，与 Move 同事务）：
+
+1. 宿主标记回 ∞ 池（Transfer）  
+2. **ATTACHED** → 各 owner 弃牌堆  
+3. **UNDER** → 默认随规则：常见弃置或回遭遇库底（蜂拥等另规）；**不**自动当 attachment 弃  
+4. `WHILE_IN_PLAY` Register 卸除  
+
+**卡面可改写**（`LeavePlayPolicy` / 命名流程参数）：
+
+| 旗 | 含义 |
+|---|---|
+| `retain_tokens` | 离场不剥标记（交换宿主、部分放逐例外等） |
+| `retain_attachments` | 附着不弃，随宿主或改挂 |
+| `retain_under` | 垫下牌不散，随宿主迁移 |
+| `attachments_to_victory` | Victory 附着进胜利区（FAQ 类） |
+
+禁止把「默认剥光」写成唯一实现且无视卡面保留句。
+
+#### 垫下背面 vs 牌库（可见性）
+
+| | **UNDER + 背面** | **DECK_ORDERED** |
+|---|---|---|
+| 物理形态 | `CardFace` 背 / exhausted 无关 | 牌库形区 + 序 |
+| 默认 `FaceAudience` | 常 **ALL 或 CONTROLLER**（玩家**知道是哪张/可知身份**；「背面」只是朝向） | **HIDDEN_ALL**（不知内容） |
+| 信息层 | 身份通常已在生效特征查询里可知 | 未 reveal 前观察者不知 `definition_id`（规则层仍持有） |
+
+> 背面 ≠ 不可知。垫下背面是 **形态**；牌库隐藏是 **可见性**。二者正交（§3.6）。
+
 ### 3.6 牌面可见性（按观察者）
 
 **牌面可见性是针对玩家（调查员观察者）的**，与 **zone** 正交。  
 Rules / headless **始终保留完整 `definition_id`**；可见性决定 **某观察者是否知晓牌面**，以及 Presentation 如何渲染。
 
-> **已裁决 · Reveal（揭示）是 L0 状态原语**  
-> Grimoire **Reveal 卡牌** 写入 `FaceAudience`（经 `StateMutator.reveal_to_*` / `AtomRevealCard`），**是效果施加**：改 Domain 揭示状态，Presentation 据此向用户 **公开牌面**；**参与** Composition dry-run **CREATED**。  
-> Headless 规则层始终保留完整 `definition_id`；与 UI 的差异仅在 **谁被视作已知牌面**。抽牌 **D2** = 规则 Reveal 步（zone 仍未 HAND）；**WHEN draw** 在 D3 入手之后，牌在 **HAND**。见 [15 §3.1](15-timing-entry-catalog.md)、[07-effect-primitives §5.3](07-effect-primitives.md)。
+> **已裁决 · 可见性是权限/信息管理，不是结算原语**（[07 §5.4.1](07-effect-primitives.md)）  
+> 写 `FaceAudience`（`reveal_to_*` / `hide_from_all`）= **谁被允许知道牌面**；手续可同步，**本身不算结算**，dry-run **不**单独 **CREATED**。  
+> **物理 ③** 只管翻面与横置/重整；可见性与面向正交（面朝下仍可可知）。  
+> Headless 始终保留完整 `definition_id`。抽牌 **D2** = 权限同步（zone 仍未 HAND）；**WHEN draw** 在 D3。见 [15 §3.1](15-timing-entry-catalog.md)。
 
 #### 3.6.1 三档受众（FaceAudience）
 
@@ -178,17 +240,17 @@ class CardFaceVisibility:
 
 **禁止**用 zone 推导牌面可见性（例如「还在 deck 则无人可见」仅作 **默认策略**，D2 reveal 后可为 CONTROLLER 而 zone 仍为 deck/Limbo）。
 
-#### 3.6.3 信息更新（非效果）与「非进场揭示」
+#### 3.6.3 权限同步（非结算）与「非进场可知」
 
-| 操作 | 改什么 | 是否效果 | 是否改 zone |
+| 操作 | 改什么 | 是否结算/效果 | 是否改 zone |
 |---|---|---|---|
-| **抽牌 D2**（[15 §16](15-timing-entry-catalog.md)） | `audience → CONTROLLER` | **是**（**AtomRevealCard**） | 否（D3 才 HAND） |
-| **遭遇抽 E2**（[15 §17](15-timing-entry-catalog.md)） | 默认 `audience → ALL`；**隐私（Hidden）** 跳过公开 | **是**（Reveal） | G1 pop 已 **LIMBO**；G4 才落场/弃 |
-| **窥探牌库/弃牌堆顶** | `audience → CONTROLLER` 或 **ALL** | **是**（Reveal） | 否 |
-| **Search 展示** | 按文本设 audience | **是**（Reveal） | 视后续是否 MoveCard |
-| **ENTER_HAND** | zone 变更 | **是**（MoveCard） | 是 |
+| **抽牌 D2** | `audience → CONTROLLER` | **否**（权限同步；可另伴物理翻面） | 否（D3 才 HAND） |
+| **遭遇抽 E2** | 默认 `ALL`；隐私常对控制者 | **否**（权限同步） | G1 已 LIMBO；G4 才落场/弃 |
+| **窥探牌库/弃牌堆顶** | CONTROLLER 或 ALL | **否**（权限；结束常 hide） | 否 |
+| **Search 展示** | 按文本设 audience | **否**（权限） | 视后续 MoveCard（取牌才结算） |
+| **ENTER_HAND** | zone 变更 | **是**（MoveCard · 物理 ①） | 是 |
 
-「揭示非在场牌」= **Reveal 原语**（写 `FaceAudience`），**不**等价于 enter play；与 **MoveCard** 分步（如 D2 reveal、D3 入手）。
+写 `FaceAudience` **≠** enter play，**≠** 物理翻面，**≠** CREATED；与 MoveCard 分步（D2 权限 → D3 入手）。
 
 #### 3.6.4 Presentation 分流
 
@@ -219,7 +281,7 @@ class TokenBag:
     var uses: Dictionary[StringName, int]  # "ammo", "charges", ...
 ```
 
-全局 `TokenPool`（table 上 token pool）与卡上/调查员上 token 分开管理。
+全局 `TokenPool`（table 上 token **无穷供给池**）与卡上/调查员上 token 分开管理：取出不尽、回池不记账；桌面标记变更一律经 Transfer（见 [07-effect-primitives §5.2](07-effect-primitives.md)）。
 
 ---
 
@@ -266,25 +328,36 @@ class GameStateStore:
 - 若能力指定「以非默认状态进场」，**无过渡动画式状态**，直接处于该状态。
 - 触发：`TimingBus.emit("enters_play", payload)`。
 
-### 5.2 Leaves Play（Grimoire p.14）
+### 5.2 Leaves Play（Grimoire p.14 · 保留例外见 §3.5.1）
 
-**同时**发生：
+**时点 / 条件（勿混）**：
 
-1. 卡上所有 token 归还 `global_token_pool`
-2. 所有 attachments 弃置（进各自 owner discard）
-3. 影响该卡的 lasting / delayed effects 对该卡过期
+| | 是什么 |
+|---|---|
+| **时点** | 卡牌 **从场上区域移动到场外区域**（广义移动 · `seq.zone.move`） |
+| **条件** | 该移动满足 **离场**（`LEAVE_PLAY`：was in-play ∧ now out）——「leaves play」是过滤名，不是第二套时点 |
 
-然后卡迁入目标 Out-of-Play 区域。
+**默认**与迁出 **同事务**发生（可用 `LeavePlayPolicy` 改写；实现落点 `ZoneMoveFlow._apply_leave_play`）：
+
+1. 卡上 token → ∞ 供给池（`transfer_marker`；damage/horror/clue；doom/uses 清零；Seal 经 `SealFlow` 回袋；`retain_tokens` 则跳过）
+2. **ATTACHED** → 各 owner discard（`retain_attachments` / 改挂 / 进胜利区则例外；附属自身再走场上→场外移动）
+3. **UNDER** 按垫下规则处理（默认不与 attachment 混用同一弃置例程）
+4. 影响该卡且绑 `WHILE_IN_PLAY` 的 Register 卸除（`on_card_leave_play`；其它 lasting 见 06 OQ-BUFF-04）
+
+然后卡迁入目标区域；目标区的 **in-play 谓词** 由 §3.5.1 决定（特殊区可仍算在场）。
+
+**「同时」**：上列效果与该移动在**同一时间**发生；**全部发生完毕**后，才轮到 **After**（见 §5.3）。不是「内联」的同义词；When/After「leaves play」= 听上述移动时点再套离场条件（[15 §4.0.5](15-timing-entry-catalog.md)）。
 
 ### 5.3 同时效果（已裁决 OQ-01-02）
 
-Grimoire 中「simultaneously / 同时」的电子化语义（资深玩家裁定）：
+Grimoire「simultaneously / 同时」：
 
-1. **目的**：保证被「同时」统领的状态变更不会在场上共存（如 Unique 冲突：遭遇版与玩家版同名卡不能同时在场）。
-2. **时点**：「同时」= 这些效果在**同一 timing point** 触发或**开始结算**；不是简单的「按代码顺序一行行执行」。
-3. **与 after 的关系**：所有 `after` 类触发必须等该**同时效果组全部结算完毕**后才可形成；组内不得插入 `after` 响应。
-4. **泛化**：同样适用于「效果 A and 效果 B」—— A 与 B 视为同一同时组内的并列效果。
-5. **频率**：Unique 遭遇/玩家同名冲突等情形**极少**，但机制应通用，不做 Unique 专用 hardcode。
+1. **感性**：被「同时」统领的那一列效果 = **同一时刻发生**；这一列**全部发生完毕**，才轮到 After。
+2. **实现推论**：组内执行期间 After **不得 nest 插入**；`SimultaneousEffectGroup.commit()` 后才释放 After。
+3. **目的**：组内状态变更不与 After 响应在场上交错（如 Unique：遭遇版进场与玩家版弃置）。
+4. **泛化**：「效果 A and 效果 B」同此。
+5. **频率**：Unique 等极少，机制通用，不做专用 hardcode。
+6. **不是**：Composition 内联 then；也不是「按代码一行行」的借口去插入 After。
 
 ```gdscript
 class SimultaneousEffectGroup:
@@ -371,7 +444,6 @@ class LocationState:
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-01-04 | P2 | `SET_ASIDE` 与 `REMOVED_FROM_GAME` 是否需子类型（campaign 指定 area）？ |
 | OQ-01-05 | P1 | 多 copy 同 title 非 exceptional 卡 in play：instance_id 与 definition_id 在 Target 解析中的优先级？ |
 | OQ-01-06 | P2 | Attachment 链（A attach B attach C）leave play 时 discard 顺序是否由 owner 选？ |
 
@@ -382,6 +454,8 @@ class LocationState:
 | OQ-01-02 | 通用「同时效果组」语义：同一 timing point 开始结算；组完成后才触发 `after`；适用于 Unique 冲突与「A and B」。原语 `SimultaneousEffectGroup`。 | 2026-05-25 |
 | OQ-01-01 | **Domain** `CardInstance.is_hidden`；**Presentation** 对非 owner 隐藏牌名。见 §3.6。 | 2026-05-25 |
 | OQ-01-03 | **B**：`SkillTestContext.committed` 追踪；zone **仍为 HAND** 至 ST.8；**不进 LIMBO**。见 §3.5 Limbo 说明、04 §4。 | 2026-05-25 |
+| OQ-01-04 | **亚型可建**：set-aside / RFG / 旁置特殊区用区域规格（`play_membership` + PlacementKind）；不单靠一个扁平 SET_ASIDE。见 §3.5.1。 | 2026-10-24 |
+| OQ-01-07 | **ATTACHED ≠ UNDER ≠ DECK**：垫下背面默认可知身份；牌库默认 HIDDEN_ALL。离场保留用 `LeavePlayPolicy`。见 §3.5.1 / §5.2。 | 2026-10-24 |
 
 ---
 
@@ -389,7 +463,11 @@ class LocationState:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.5 | §3.5.1 放置关系；场上谓词可覆盖；离场保留；垫下 vs 牌库可见性 |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-01-02 裁决：SimultaneousEffectGroup 同时效果语义 |
 | 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |
 | 2026-09-20 | v0.4.1 | 抽牌 When 时调查员 HAND、遭遇 LIMBO；Would 时仍 DECK（15 §3.1） |
+| 2026-10-20 | v0.4.2 | §5.2 落地：`ZoneMoveFlow` 离场 token→pool + 弃置附属；`ATTACHED` 计入 in-play（ZM-04/05） |
+| 2026-10-20 | v0.4.3 | §5.2/§5.3：「同时」= 同一时间发生，全部完才 After；勿与内联混用 |
+| 2026-10-20 | v0.4.4 | §5.2：时点=场上→场外移动；离场=`LEAVE_PLAY` 条件；清理为同时组 |

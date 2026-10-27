@@ -44,8 +44,53 @@ static func traits(definition_id: StringName) -> Array:
 	var data := definition_data(definition_id)
 	var tr: Variant = data.get("traits", [])
 	if tr is Array:
-		return tr.duplicate()
+		return (tr as Array).duplicate()
 	return []
+
+
+## 卡牌实例有效特性：B 面优先 back_traits（agenda/act 遭遇背）；否则正面 traits。
+static func traits_of_card(card: CardInstance) -> Array:
+	if card == null:
+		return []
+	var data := definition_data(card.id.definition_id)
+	if card.face == AhcEnums.CardFace.B:
+		var back: Variant = data.get("back_traits", [])
+		if back is Array and not (back as Array).is_empty():
+			return (back as Array).duplicate()
+	var front: Variant = data.get("traits", [])
+	if front is Array and not (front as Array).is_empty():
+		return (front as Array).duplicate()
+	## 遭遇背合并在正面 definition、实例已是敌人但 face 未翻时的回退。
+	var back_fallback: Variant = data.get("back_traits", [])
+	if back_fallback is Array:
+		return (back_fallback as Array).duplicate()
+	return []
+
+
+static func has_trait(definition_id: StringName, trait_name: StringName) -> bool:
+	if definition_id == &"" or trait_name == &"":
+		return false
+	var want := String(trait_name).to_lower()
+	for t in traits(definition_id):
+		if str(t).to_lower() == want:
+			return true
+	var data := definition_data(definition_id)
+	var back: Variant = data.get("back_traits", [])
+	if back is Array:
+		for t in back as Array:
+			if str(t).to_lower() == want:
+				return true
+	return false
+
+
+static func card_has_trait(card: CardInstance, trait_name: StringName) -> bool:
+	if card == null or trait_name == &"":
+		return false
+	var want := String(trait_name).to_lower()
+	for t in traits_of_card(card):
+		if str(t).to_lower() == want:
+			return true
+	return false
 
 
 static func ability_segments(definition_id: StringName) -> Array:
@@ -62,6 +107,134 @@ static func compiled_abilities(definition_id: StringName) -> Array:
 	if compiled is Array:
 		return compiled.duplicate(true)
 	return []
+
+
+## Uses (X type) · Domain 进场规格；空 = 无 Uses。
+static func uses_spec(definition_id: StringName) -> Dictionary:
+	var data := definition_data(definition_id)
+	var raw: Variant = data.get("uses", {})
+	if raw is Dictionary and not (raw as Dictionary).is_empty():
+		var d: Dictionary = (raw as Dictionary).duplicate()
+		if not d.has("type"):
+			d["type"] = &"charges"
+		if not d.has("count"):
+			d["count"] = 0
+		d["type"] = StringName(str(d.get("type", "charges")))
+		d["count"] = int(d.get("count", 0))
+		return d
+	return parse_uses_from_text(str(data.get("text", "")))
+
+
+## Seal 关键词规格；null = 无 Seal 打出额外费用。
+## 来源：定义 `seal` 字段 · keywords 含 seal + 正文 `Seal (…)` · 或正文印刷 `Seal (…)`。
+## 「seal a random…」效果句（无括号种类）不匹配，不走打出费用。
+static func seal_spec(definition_id: StringName) -> SealSpec:
+	var data := definition_data(definition_id)
+	if data.has("seal"):
+		var raw: Variant = data.get("seal")
+		if raw is SealSpec:
+			return raw as SealSpec
+		if raw is Dictionary:
+			return SealSpec.from_dictionary(raw as Dictionary)
+		if raw is String or raw is StringName:
+			var from_str := SealSpec.from_dictionary({"kind": str(raw)})
+			if from_str != null:
+				return from_str
+	var from_text := SealSpec.parse_from_text(str(data.get("text", "")))
+	if from_text != null:
+		return from_text
+	if has_keyword(definition_id, &"seal"):
+		## 仅标 seal、无括号：视为随机封印（极少）。
+		return SealSpec.random_any()
+	return null
+
+
+static func has_seal_play_cost(definition_id: StringName) -> bool:
+	var spec := seal_spec(definition_id)
+	return spec != null and spec.as_play_cost
+
+
+## 调查员 `[elder_sign] effect` 规格字典；空 = 无印刷旧印能力。
+static func elder_sign_effect(definition_id: StringName) -> Dictionary:
+	var data := definition_data(definition_id)
+	var raw: Variant = data.get("elder_sign", {})
+	if raw is Dictionary and not (raw as Dictionary).is_empty():
+		return (raw as Dictionary).duplicate(true)
+	return parse_elder_sign_from_text(str(data.get("text", "")))
+
+
+## 从正文解析常见 Core 旧印句（竖切够用；复杂句靠 JSON `elder_sign`）。
+static func parse_elder_sign_from_text(text: String) -> Dictionary:
+	if text.is_empty():
+		return {}
+	var re := RegEx.new()
+	if re.compile("(?i)\\[elder_sign\\]\\s*effect:\\s*([^\\n]+)") != OK:
+		return {}
+	var m := re.search(text)
+	if m == null:
+		return {}
+	var line := m.get_string(1).strip_edges()
+	var out := {}
+	var mod_re := RegEx.new()
+	if mod_re.compile("^([+-]?\\d+)") == OK:
+		var mm := mod_re.search(line)
+		if mm != null:
+			out["modifier"] = int(mm.get_string(1))
+	## If you succeed, draw N card and gain M resource
+	var succ_re := RegEx.new()
+	if (
+		succ_re.compile(
+			"(?i)If you succeed,?\\s*draw\\s+(\\d+)\\s+cards?(?:\\s+and\\s+gain\\s+(\\d+)\\s+resources?)?"
+		)
+		== OK
+	):
+		var sm := succ_re.search(line)
+		if sm != null:
+			var steps: Array = [
+				{"template": "draw", "amount": int(sm.get_string(1))}
+			]
+			if sm.get_string(2) != "":
+				steps.append(
+					{"template": "gain_resources", "amount": int(sm.get_string(2))}
+				)
+			out["on_success"] = {"template": "seq", "steps": steps}
+			return out
+	## If you succeed, heal N horror
+	var heal_re := RegEx.new()
+	if heal_re.compile("(?i)If you succeed,?\\s*heal\\s+(\\d+)\\s+horror") == OK:
+		var hm := heal_re.search(line)
+		if hm != null:
+			out["on_success"] = {
+				"template": "heal",
+				"kind": "horror",
+				"amount": int(hm.get_string(1)),
+			}
+			return out
+	return out
+
+
+static func parse_uses_from_text(text: String) -> Dictionary:
+	if text.is_empty():
+		return {}
+	var re := RegEx.new()
+	## Uses (3 charges) / Uses (4 ammo) …
+	if re.compile("(?i)Uses\\s*\\((\\d+)\\s+([A-Za-z]+)\\)") != OK:
+		return {}
+	var m := re.search(text)
+	if m == null:
+		return {}
+	var count := int(m.get_string(1))
+	var raw_type := m.get_string(2).to_lower()
+	var use_type := raw_type
+	if raw_type.begins_with("charge"):
+		use_type = "charges"
+	elif raw_type.begins_with("ammo"):
+		use_type = "ammo"
+	elif raw_type.begins_with("secret"):
+		use_type = "secrets"
+	elif raw_type.begins_with("suppl"):
+		use_type = "supplies"
+	return {"count": count, "type": StringName(use_type)}
 
 
 ## builder: Callable(AbilityBindContext) -> CompositionNode
@@ -156,7 +329,9 @@ static func register_triggered(
 	optional: bool = false,
 	window: StringName = &"",
 	action_types: Array = [],
-	provokes_aoo: Variant = null
+	provokes_aoo: Variant = null,
+	affliction_filter: StringName = &"",
+	take_self: bool = false
 ) -> void:
 	if not _triggered.has(definition_id):
 		_triggered[definition_id] = []
@@ -171,6 +346,8 @@ static func register_triggered(
 		"window": window,
 		"action_types": action_types.duplicate(),
 		"builder": builder,
+		"affliction_filter": affliction_filter,
+		"take_self": take_self,
 	}
 	if provokes_aoo != null:
 		unit["provokes_aoo"] = bool(provokes_aoo)
@@ -192,13 +369,16 @@ static func enter_hand_zone(definition_id: StringName) -> AhcEnums.Zone:
 
 
 ## 显现后仍在 limbo 时弃入的牌堆：`owner_discard` | `encounter_discard`。
-static func limbo_discard_pile(definition_id: StringName) -> StringName:
+static func limbo_discard_pile(
+	definition_id: StringName,
+	face: AhcEnums.CardFace = AhcEnums.CardFace.A
+) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	if data.has("limbo_discard_pile"):
 		return data.get("limbo_discard_pile") as StringName
-	## 遭遇 treachery / enemy 默认进遭遇弃牌堆。
-	var card_type: StringName = data.get("card_type", &"") as StringName
-	if card_type == &"treachery" or card_type == &"enemy":
+	## 遭遇 treachery / enemy 默认进遭遇弃牌堆（含 act/agenda 翻到遭遇类型背面）。
+	var ctype := effective_card_type(definition_id, face)
+	if ctype == &"treachery" or ctype == &"enemy":
 		return &"encounter_discard"
 	return &"owner_discard"
 
@@ -272,6 +452,17 @@ static func is_doomed(definition_id: StringName) -> bool:
 static func victory_points(definition_id: StringName) -> int:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	return int(data.get("victory", 0))
+
+
+## 复仇点数（Vengeance X · 去向指示同 Victory → 胜利区）。
+static func vengeance_points(definition_id: StringName) -> int:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return int(data.get("vengeance", 0))
+
+
+## 击败退场是否进胜利区（Victory / 复仇指示）。
+static func routes_to_victory_display(definition_id: StringName) -> bool:
+	return victory_points(definition_id) > 0 or vengeance_points(definition_id) > 0
 
 
 ## 印刷生命（支援等）；0 = 无生命 / 不因伤害自动击败。
@@ -382,6 +573,40 @@ static func card_type(definition_id: StringName) -> StringName:
 	return data.get("card_type", &"treachery") as StringName
 
 
+## Act/Agenda 等双面定义上，印刷「b」面的遭遇 cardtype（enemy / treachery / location）。
+## 空 = 背面仍是同类型指令面（走 back_text Composition），不是遭遇类型背面。
+static func back_card_type(definition_id: StringName) -> StringName:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return data.get("back_card_type", &"") as StringName
+
+
+static func is_encounter_cardtype(ctype: StringName) -> bool:
+	return ctype == &"enemy" or ctype == &"treachery" or ctype == &"location"
+
+
+## 当前朝上面对应的 cardtype：Face B 且声明了 `back_card_type` 时用背面类型。
+static func effective_card_type(
+	definition_id: StringName,
+	face: AhcEnums.CardFace = AhcEnums.CardFace.A
+) -> StringName:
+	if face == AhcEnums.CardFace.B:
+		var back := back_card_type(definition_id)
+		if back != &"":
+			return back
+	return card_type(definition_id)
+
+
+static func card_type_of(card: CardInstance) -> StringName:
+	if card == null:
+		return &""
+	return effective_card_type(card.id.definition_id, card.face)
+
+
+## 翻面后 b 面为遭遇 cardtype → 按抽取流程结算进场/显现（FAQ；非「已抽取」）。
+static func has_encounter_cardtype_back(definition_id: StringName) -> bool:
+	return is_encounter_cardtype(back_card_type(definition_id))
+
+
 ## 卡背类型：`player` | `encounter`。只描述无文本背面；与正面 cardtype / CardFace 正交。
 static func card_back(definition_id: StringName) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
@@ -438,6 +663,12 @@ static func is_aloof(definition_id: StringName) -> bool:
 	if data.get("aloof", false):
 		return true
 	return has_keyword(definition_id, &"aloof")
+
+
+## 交战期间禁止发现/花费线索（01121b Masked Hunter 等）。
+static func forbids_clues_while_engaged(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return bool(data.get("forbid_clues_while_engaged", false))
 
 
 static func is_hidden(definition_id: StringName) -> bool:

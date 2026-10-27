@@ -38,7 +38,7 @@
 | `seq.skill_test` | Skill Test Timing | 一条 + `params.skill` |
 | `seq.action.*` | 基本/指定行动 **外壳**（耗 action、AOO） | `seq.action.fight` |
 | `seq.enemy.*` | 敌人手续（移动 / 攻击 / 击败…） | `seq.enemy.attack` |
-| `seq.effect.*` | 纸面无名但可解释的效果种类 | `seq.effect.damage` |
+| `seq.effect.*` | 纸面无名但可解释的效果种类 | `seq.effect.deal` |
 | `seq.keyword.*` | 关键词 **开火**（非创建） | `seq.keyword.surge` |
 | `seq.interrupt.*` / `seq.replace.*` | Cancel / Ignore / Instead | 共享 |
 | `seq.ability.resolve` | Initiation 装载帧（禁真空） | — |
@@ -81,11 +81,12 @@
 
 | flow_id | Grimoire 词条 | 粒度裁决（草案） |
 |---|---|---|
-| `seq.effect.damage` | Dealing Damage/Horror | **已统一** take/deal；`kind`+`target`+`source` |
+| `seq.effect.deal.assignable` | Dealing Damage/Horror（待分配） | 伤+恐可同入参；Assign 后同时 Apply |
+| `seq.effect.deal` | Dealing Damage/Horror（无分配） | 已定；伤+恐用 Simultaneous；**无** Assign |
 | `seq.effect.heal` | Heal | **保留** |
 | `seq.effect.lose_resources` | （失去资源） | **保留**；`all` 参数 |
 | `seq.effect.lose_action` | （失去行动） | **保留** |
-| `seq.effect.discover_clue` | Clues / discover | **保留** |
+| `seq.effect.discover_clue` | Clues / discover | **保留**；多地 `legs[]`（一帧；L0 单目标） |
 | `seq.effect.place_clue` | 线索放到地点 | **保留**（与 discover 因果不同） |
 | `seq.effect.place_doom` | Doom（卡面放置） | **保留**；**勿**并入 mythos |
 | `seq.effect.discard_card` | Discard | **已统一**；`from=hand` / `card_id` / 寻址 |
@@ -172,19 +173,33 @@
 
 | | |
 |---|---|
-| **是什么** | **明确的效果**（可 Cancel / 可被听到）；入口含敌人 `seq.enemy.defeat`、调查员淘汰路径等，宜收束为可 nest 的击败核 |
-| **不是什么** | 不是区划信息本身；**退场**（场上→场外的广义移动）是击败 **之后** 的后续，不是击败的同义词 |
+| **是什么** | **明确的效果**（可 Cancel / 可被听到）——**大信封**：击败效果体 **包含** 退场（区划转移），不是「空壳再另起后续」 |
+| **不是什么** | 不是「仅宣告、无内容」；也不是把退场误当成与击败无关的第二套效果。退场 **是** 击败信封内的主体结算，经 **nest** 打开场上→场外移动时点 |
 | **产生途径** | ① **伤害 / 恐惧** 达到该卡生命 / 神智上限（**常态检测**，同交战一类）；② 卡面 / 效果直接 **击败** |
 | **主体** | 敌人 / 调查员 / **支援资产**（`subject=asset`） |
-| **后续** | 击败 resolve 成功后 **nest** 退场处理（广义移动 · 离场过滤）。**禁止内联**退场于击败叶内 |
-| **支援退场** | L0 `move_card` → 拥有者弃牌堆（与敌人路由弃牌同类）；**不是** `seq.effect.discard_card` / discard 包装 |
-| **Cancel** | 击败效果被 Cancel → **不**做退场后续。① 伤害/恐惧路径：上限条件仍成立则常态检测会 **再次** 触发（同交战）；② 纯效果击败被 Cancel → 无后续、不自动重触 |
+| **效果体** | resolve 成功 → **nest** `seq.defeat.leave_play`（广义移动 · 离场条件 · 去向指示）。**禁止**把退场内联进击败叶 |
+| **可被击败** | 有生命/神智的主体：调查员、支援、敌人（**敌人-地点** 后议） |
+| **退场去向** | 见下表；Victory/复仇 = **去向指示**（同 Spawn），优先于默认堆 |
+| **Cancel** | Cancel **整封击败** → 信封内退场不执行。① 伤/恐路径可再触；② 纯效果击败不自动重触 |
+
+**击败退场去向（默认；指示可改）**
+
+| 主体 | 默认去向 | 备注 |
+|---|---|---|
+| 调查员 | 淘汰（退场 / elimination） | 信封内走 `InvestigatorElimination` |
+| 玩家支援 | **所有者弃牌堆** | ≠ `seq.effect.discard_card` |
+| 无主剧情支援 | **从游戏中移除**（REMOVED） | FAQ · Lita Chantler（01117）：临时控制、非牌组成员时离场 → remove from the game；≠ 置一边 |
+| 弱点敌人 | **所有者弃牌堆** | owner = bearer |
+| 遭遇敌人 | **遭遇弃牌堆** | |
+| 任一有 Victory/复仇 | **胜利区** | 指示优先 |
+
+（敌人-地点等特殊主体：后议。）
 
 ```text
-伤害/恐惧写入 → 常态检测 → nest/run 击败效果
-卡面击败效果 ──────────────→ nest/run 击败效果
-                                ├─ Cancel → 停；无退场
-                                └─ resolve → nest 退场（广义移动 场上→场外）
+伤害/恐惧写入 → 常态检测 → nest/run 击败效果（大信封）
+卡面击败效果 ──────────────→ nest/run 击败效果（大信封）
+                                ├─ Cancel 信封 → 停；退场不跑
+                                └─ resolve → nest 退场（效果体 · 场上→场外移动）
 ```
 
 **交战 `seq.engage`（两条路径 · 非改名前缀）**
@@ -247,7 +262,7 @@
 | ID | 词条 / 语义 | 现状 | 建议 |
 |---|---|---|---|
 | G1 | **狭义 Move** | **`seq.effect.move`**（investigator/enemy/attachment/marker） | **已统一**；`seq.enemy.move` 别名；广义转移与地点交换 **不**入此 seq |
-| G2 | **Exhaust / Ready** | **已铸** `seq.effect.exhaust` / `seq.effect.ready` | 平放区卡牌 + 在场敌人；`target_kind` card\|enemy；费用 exhaust 仍走 Cost |
+| G2 | **Exhaust / Ready / Evade effect** | **已铸** `seq.effect.exhaust` / `ready` / **`evade`** | 横置/重整；躲避效果核 = **横置∥脱离同时组**；费用 exhaust 仍走 Cost |
 | G3 | **Search** | **已铸** `seq.effect.search` | 单条；`area`/`scope`/`amount`/`filter`/`take_count`；搜牌库须洗（整库/顶 N）；≠ look/find |
 | G4 | **Put into play / Enter play** | 区划事实（场外→场上） | **不铸** `seq.effect.enter_play` — **不是效果**；见下「进场」 |
 | G5 | **Defeat**（击败） | **已铸** `seq.effect.defeat`；敌人别名 `seq.enemy.defeat`；退场 nest `seq.defeat.leave_play` | 伤/恐上限常态检测；Cancel → 无退场；卡面 `cause=effect` |
@@ -316,8 +331,8 @@
 3. ~~**M4**~~：**已落地** — `seq.effect.gain_resource`（旧 id 别名）  
 4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
-6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 躲避效果与攻击后横置 / Elusive 接线  
-6b. ~~**躲避效果**~~：**已落地** — `seq.effect.evade`（attempt / automatic）；卡面执行=自动躲避；≠ `seq.action.evade`  
+6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 攻击后横置 / Elusive 接线  
+6b. ~~**躲避效果**~~：**已落地** — `seq.effect.evade`（attempt / automatic；横置∥脱离**同时组**）；卡面执行=自动躲避；≠ `seq.action.evade`；四层见术语表 / 03 §6.7  
 
 
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
@@ -362,6 +377,9 @@
 | 2026-10-12 | G3 纠正：洗牌条件是「搜了牌库」，不是「仅整库」 |
 | 2026-10-12 | G4：进场 = 场外→场上区划信息，非效果；不铸 `seq.effect.enter_play` |
 | 2026-10-12 | G4 补：听进场 = 听广义移动 + 场外→场上过滤；`ENTER_PLAY` 是别名非第二通道 |
+| 2026-10-20 | G5 表述：击败=大信封；退场是效果体（nest），非信封外后续 |
+| 2026-10-20 | G5 去向表：玩家弃牌 / 无主剧情→REMOVED（FAQ · Lita 01117）/ 遭遇弃牌；Victory·复仇指示；敌人-地点后议 |
+| 2026-10-20 | 铸造 `seq.effect.evade`：躲避效果核；横置∥脱离**同时组**（非 nest→内联）；`mode=attempt\|automatic` |
 | 2026-10-12 | G5：击败是效果；退场 nest 不内联；伤/恐上限常态检测（Cancel 可再触） |
 | 2026-10-12 | G5 落地：`DefeatFlow`；`seq.effect.defeat` / `seq.enemy.defeat`；nest `seq.defeat.leave_play` |
 | 2026-10-12 | G5：支援资产 `subject=asset`；退场 L0 进弃牌堆，不走 discard 效果包装 |

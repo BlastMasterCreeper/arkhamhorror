@@ -19,7 +19,14 @@ static func grant(
 		return &""
 	## 一对一：先卸该敌旧对。
 	game_ctx.registrations.clear_engagement(enemy_id)
-	var template := RegistrationTemplate.engagement_pair(enemy_id, investigator_id)
+	var forbid_clues := false
+	if game_ctx.state != null:
+		var card := game_ctx.state.registry.get_card(enemy_id)
+		if card != null:
+			forbid_clues = CardRegistry.forbids_clues_while_engaged(card.id.definition_id)
+	var template := RegistrationTemplate.engagement_pair(
+		enemy_id, investigator_id, forbid_clues
+	)
 	if (
 		game_ctx.sequence_catalog == null
 		or not game_ctx.sequence_catalog.has_flow(&"seq.effect.register")

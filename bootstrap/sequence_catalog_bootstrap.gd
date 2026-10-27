@@ -36,9 +36,11 @@ static func _register_flows(
 			return TriggeringCondition.draw_encounter(drawer_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var drawer_id: StringName = params.get("drawer_id", &"")
-			return DrawEncounterFlow.run(game_ctx, drawer_id)
+			return DrawEncounterFlow.run(game_ctx, drawer_id),
+		true ## SPLIT：WOULD/WHEN 在抽取砖块边界 emit（15 §3.1）
 	)
 	## 已持有实例 → 遭遇侧能力体系（与抽库后卡面结算同体；非来源重定向）。
+	## `as_drawn=false`：Act/Agenda 遭遇类型背面等 — 进场/显现，不触发 when-drawn。
 	catalog.register_run(
 		&"seq.encounter.resolve_card",
 		func(params: Dictionary) -> TriggeringCondition:
@@ -48,7 +50,8 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			var card_id: StringName = params.get("card_id", &"")
-			return DrawEncounterFlow.resolve_card(game_ctx, drawer_id, card_id)
+			var as_drawn: bool = bool(params.get("as_drawn", true))
+			return DrawEncounterFlow.resolve_card(game_ctx, drawer_id, card_id, as_drawn)
 	)
 	catalog.register_run(
 		&"seq.encounter.revelation",
@@ -80,7 +83,8 @@ static func _register_flows(
 				tags.append(tag as StringName)
 			return TriggeringCondition.draw_investigator(inv_id, amount, tags),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return _resolve_draw_investigator(game_ctx, params, mutator, catalog)
+			return _resolve_draw_investigator(game_ctx, params, mutator, catalog),
+		true ## SPLIT：WOULD/WHEN 在抽取砖块边界 emit（15 §3.1）
 	)
 	## M4：正式 id = seq.effect.gain_resource；旧 id 保留为别名。
 	var gain_build := func(params: Dictionary) -> TriggeringCondition:
@@ -99,6 +103,7 @@ static func _register_flows(
 	_register_replace_flows(catalog)
 	_register_action_flows(catalog)
 	_register_skill_test_flows(catalog)
+	_register_chaos_flows(catalog)
 	_register_mythos_flows(catalog)
 	_register_act_agenda_back_flows(catalog)
 	_register_enemy_flows(catalog)
@@ -122,14 +127,6 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return SearchFlow.run(game_ctx, params)
 	)
-	## 躲避效果核（成功尝试 / 自动躲避 / 卡面）；≠ 行动外壳 seq.action.evade。
-	catalog.register_run(
-		&"seq.effect.evade",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.evade_effect(params),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EvadeFlow.run(game_ctx, params)
-	)
 	## G2：横置 / 重整（平放区卡牌与在场敌人）。
 	catalog.register_run(
 		&"seq.effect.exhaust",
@@ -145,12 +142,43 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return ExhaustReadyFlow.ready(game_ctx, params)
 	)
+	## 躲避效果核（横置∥脱离同时组）；≠ 行动外壳 seq.action.evade。
+	catalog.register_run(
+		&"seq.effect.evade",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.evade_effect(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EvadeFlow.resolve(game_ctx, params)
+	)
+	## 封印 / 释放混乱标记（Domain；Premonition 等）。
+	catalog.register_run(
+		&"seq.effect.seal",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.seal(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SealFlow.seal(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.release_seal",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.release_seal(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SealFlow.release(game_ctx, params)
+	)
 	## 狭义移动核：调查员 / 敌人 / 地点附属 / 地点标记；行动与卡面 nest 共用。
 	var move_build := func(params: Dictionary) -> TriggeringCondition:
 		return TriggeringCondition.move(params)
 	var move_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return MoveFlow.run(game_ctx, params)
 	catalog.register_run(&"seq.effect.move", move_build, move_resolve)
+	## 规则自带：揭示地点 + 首次放线索（调查员进入未揭示时 nest）。
+	catalog.register_run(
+		&"seq.effect.reveal_location",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.reveal_location(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return LocationEnterRules.reveal_and_place_clues(game_ctx, params)
+	)
 	## 旧 id 别名（敌人卡面 nest）；resolve 强制 subject=enemy。
 	catalog.register_run(
 		&"seq.enemy.move",
@@ -168,31 +196,44 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
 		&"seq.effect.discover_clue",
 		func(params: Dictionary) -> TriggeringCondition:
-			var inv_id: StringName = params.get("inv_id", &"")
-			var location_id: StringName = params.get("location_id", &"")
-			var amount: int = int(params.get("amount", 1))
-			return TriggeringCondition.discover_clue(inv_id, location_id, amount),
+			return TriggeringCondition.discover_clue_from_params(params),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return DiscoverClueFlow.run(
-				game_ctx,
-				params.get("inv_id", &"") as StringName,
-				params.get("location_id", &"") as StringName,
-				int(params.get("amount", 1))
-			)
+			return DiscoverClueFlow.run_params(game_ctx, params)
+	)
+	## 造成伤害/恐惧：待分配 / 无分配。旧 flow_id damage* 作别名。
+	var deal_assignable := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return DealAssignableFlow.run(game_ctx, params)
+	var deal_determined := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+		return EffectFlowHandlers.damage(game_ctx, params)
+	var deal_tc := func(params: Dictionary) -> TriggeringCondition:
+		return TriggeringCondition.damage_from_params(params)
+	catalog.register_run(
+		&"seq.effect.deal.assignable",
+		deal_tc,
+		deal_assignable,
+		false,
+		true ## 伤/恐可同入参；Assign 后同时 Apply；信封无槽
+	)
+	catalog.register_run(
+		&"seq.effect.deal",
+		deal_tc,
+		deal_determined,
+		false,
+		true ## 无分配已定 legs/单点
+	)
+	catalog.register_run(
+		&"seq.effect.damage.assignable",
+		deal_tc,
+		deal_assignable,
+		false,
+		true
 	)
 	catalog.register_run(
 		&"seq.effect.damage",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.damage(
-				params.get("controller_id", params.get("inv_id", &"")) as StringName,
-				StringName(str(params.get("kind", "damage"))),
-				int(params.get("amount", 1)),
-				bool(params.get("direct", false)),
-				StringName(str(params.get("target", "controller"))),
-				params.get("source", params.get("card_id", &"")) as StringName
-			),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.damage(game_ctx, params)
+		deal_tc,
+		deal_determined,
+		false,
+		true
 	)
 	catalog.register_run(
 		&"seq.effect.lose_resources",
@@ -482,6 +523,19 @@ static func _register_skill_test_flows(catalog: SequenceCatalog) -> void:
 	)
 
 
+static func _register_chaos_flows(catalog: SequenceCatalog) -> void:
+	## ST.3：WHEN = 将要揭示（反应挂 pending）；RESOLVE = 意图规划并离袋。
+	catalog.register_run(
+		&"seq.chaos.reveal",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", params.get("controller_id", &""))
+			var test_id: StringName = params.get("test_id", &"")
+			return TriggeringCondition.reveal_chaos_token(inv_id, test_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ChaosRevealFlow.run(game_ctx, params)
+	)
+
+
 static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
 		&"seq.keyword.surge",
@@ -747,10 +801,13 @@ static func _resolve_gain_resource(
 		q.controller_id = controller_id
 		q.stat = AhcEnums.StatRef.RESOURCE_GAIN_AMOUNT
 		amount = game_ctx.modifiers.compute(base_amount, q, app_ctx)
-	mutator.adjust_marker(
-		MarkerSlot.investigator(controller_id, AhcEnums.MarkerKind.RESOURCE),
-		amount
-	)
+	if amount > 0:
+		mutator.transfer_marker(
+			AhcEnums.MarkerKind.RESOURCE,
+			amount,
+			MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+			MarkerSlot.investigator(controller_id, AhcEnums.MarkerKind.RESOURCE)
+		)
 	if game_ctx != null and game_ctx.memory != null:
 		game_ctx.memory.set_referent(controller_id, &"last_gain_amount", amount)
 	return {"amount": amount}

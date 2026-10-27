@@ -81,10 +81,11 @@ func setup_step_14_game_begins() -> void:
 6. 若 (→R#) → scenario_resolution
 ```
 
-**b 面效果 = 效果序列**（[07-composition](07-composition.md) · [effect-translation](../.cursor/rules/effect-translation.mdc)）：
+**b 面效果**（[07-composition](07-composition.md) · [effect-translation](../.cursor/rules/effect-translation.mdc)）：
 
-- 翻面步骤 2 经 `seq.act_agenda.resolve_back` 结算；`CardRegistry.back_effects` 由 `ActAgendaBackCompiler` 编译为 **Composition 树**（冒险域 L0 原子 + L1 Seq/If + `nest_skill_test` 等）。
-- **能用已有原子拼接则拼接**；入口仅保留 `seq.act_agenda.resolve_back`，RESOLVE 内 `composition.execute`。
+- 翻面步骤 2–3 经 `seq.act_agenda.resolve_back` 结算。
+- **指令面**（无 `back_card_type`）：`CardRegistry.back_effects` / `back_text` 由 `ActAgendaBackCompiler` 编译为 **Composition 树**；RESOLVE 内 execute；结算后 advancing 卡 RFG。
+- **遭遇 cardtype 背面**（`back_card_type` ∈ enemy / treachery / location）：nest `seq.encounter.resolve_card`（`as_drawn=false`）— 按该类型抽取规则 **进场 + 显现**；**不**触发 when-drawn（FAQ · Ward 等不可 Cancel）；卡**不** RFG（由 spawn / discard / 地点进场安置）。
 - 实现：`ActAgendaBackFlow` / `ActAgendaBackCompiler` · 数据 patch：`ScenarioDeckSetup.patch_spreading_flames_definitions`。
 
 ### 3.3 Spend clues advance

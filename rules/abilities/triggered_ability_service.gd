@@ -64,16 +64,37 @@ func list_free_abilities(controller_id: StringName) -> Array[TriggeredAbilityDes
 
 
 func is_free_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
-	if descriptor == null or _ctx == null or _ctx.framework == null or _ctx.state == null:
+	if descriptor == null or _ctx == null or _ctx.state == null:
 		return false
 	if descriptor.ability_kind != TriggeredAbilityDescriptor.AbilityKind.FREE_TRIGGERED:
 		return false
-	if not _ctx.framework.waiting_player_window:
+	if not _has_open_free_window():
 		return false
-	var window: AhcEnums.PlayerWindow = _ctx.framework.pending_player_window
+	var window: AhcEnums.PlayerWindow = _current_free_window()
 	if not _window_allows(descriptor, window):
 		return false
 	return _source_playable(descriptor)
+
+
+func _has_open_free_window() -> bool:
+	if _ctx.framework != null and _ctx.framework.waiting_player_window:
+		return true
+	if not _ctx.skill_test_stack.is_empty():
+		var st: SkillTestContext = _ctx.skill_test_stack[_ctx.skill_test_stack.size() - 1]
+		if st != null and st.waiting_player_window:
+			return true
+	return false
+
+
+## 框架 PlayerWindow 或当前检定窗（调用前须 _has_open_free_window）。
+func _current_free_window() -> AhcEnums.PlayerWindow:
+	if _ctx.framework != null and _ctx.framework.waiting_player_window:
+		return _ctx.framework.pending_player_window
+	if not _ctx.skill_test_stack.is_empty():
+		var st: SkillTestContext = _ctx.skill_test_stack[_ctx.skill_test_stack.size() - 1]
+		if st != null and st.waiting_player_window:
+			return st.pending_player_window
+	return AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION
 
 
 func is_action_eligible(descriptor: TriggeredAbilityDescriptor) -> bool:
@@ -206,12 +227,16 @@ func _rebind_descriptor(
 	return descriptor
 
 
-func resolve(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
+## skip_use_prompt：时点窗意愿池已 ask join 后由 stack 回调执行时为 true。
+func resolve(
+	descriptor: TriggeredAbilityDescriptor,
+	skip_use_prompt: bool = false
+) -> Dictionary:
 	if descriptor == null or _ctx == null:
 		return {"ok": false, "error": "no_context"}
 	if not _trigger_applies(descriptor):
 		return {"ok": false, "error": "not_eligible"}
-	if not _should_use(descriptor):
+	if not skip_use_prompt and not _should_use(descriptor):
 		return {"ok": false, "error": "declined"}
 	if descriptor.composition == null:
 		return {"ok": false, "error": "invalid_intent"}
@@ -300,7 +325,13 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 	handler.phase = descriptor.phase
 	handler.source_id = descriptor.source_id
 	handler.controller_id = descriptor.controller_id
+	handler.definition_id = descriptor.definition_id
+	handler.ability_id = descriptor.id
 	handler.player_initiated = descriptor.is_player_initiated()
+	handler.collect_condition = descriptor.collect_condition
+	if descriptor.affliction_filter != &"":
+		handler.affliction_filter = descriptor.affliction_filter
+	handler.take_self = descriptor.take_self
 	match descriptor.ability_kind:
 		TriggeredAbilityDescriptor.AbilityKind.FORCED:
 			handler.tier = SequenceHandler.Tier.FORCED
@@ -310,7 +341,8 @@ func _install_handler(descriptor: TriggeredAbilityDescriptor) -> void:
 	handler.callback = func() -> void:
 		if not _trigger_applies(desc):
 			return
-		resolve(desc)
+		## player_initiated：join 已由 stack 意愿池确认；此处跳过二次 ask。
+		resolve(desc, desc.is_player_initiated())
 	_ctx.sequences.register_handler(handler)
 
 
@@ -340,6 +372,14 @@ func _trigger_applies(descriptor: TriggeredAbilityDescriptor) -> bool:
 	if descriptor.match_kind == &"enemy_attack":
 		var attacker_id: StringName = trigger.payload.get("enemy_id", &"") as StringName
 		return attacker_id != &"" and attacker_id == descriptor.source_id
+	## you take：承伤主体 = 能力控制者（嵌套击败完成后父 deal AFTER 再开火）。
+	if descriptor.match_kind == &"damage" and descriptor.take_self:
+		if (
+			trigger.controller_id != &""
+			and descriptor.controller_id != &""
+			and trigger.controller_id != descriptor.controller_id
+		):
+			return false
 	if CardRegistry.card_type(descriptor.definition_id) != &"location":
 		return true
 	var loc: StringName = trigger.payload.get("location_id", &"") as StringName
@@ -348,11 +388,15 @@ func _trigger_applies(descriptor: TriggeredAbilityDescriptor) -> bool:
 	return loc == descriptor.definition_id or loc == descriptor.source_id
 
 
-func _find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
+func find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
 	for desc in _descriptors:
 		if desc != null and desc.id == ability_id:
 			return desc
 	return null
+
+
+func _find_by_id(ability_id: StringName) -> TriggeredAbilityDescriptor:
+	return find_by_id(ability_id)
 
 
 func _window_allows(
