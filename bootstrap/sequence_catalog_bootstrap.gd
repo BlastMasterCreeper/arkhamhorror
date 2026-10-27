@@ -127,14 +127,6 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return SearchFlow.run(game_ctx, params)
 	)
-	## 躲避效果核（成功尝试 / 自动躲避 / 卡面）；≠ 行动外壳 seq.action.evade。
-	catalog.register_run(
-		&"seq.effect.evade",
-		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.evade_effect(params),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EvadeFlow.run(game_ctx, params)
-	)
 	## G2：横置 / 重整（平放区卡牌与在场敌人）。
 	catalog.register_run(
 		&"seq.effect.exhaust",
@@ -150,11 +142,11 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return ExhaustReadyFlow.ready(game_ctx, params)
 	)
-	## 躲避效果核：横置 + 解除交战；行动成功 / 自动躲避共用。
+	## 躲避效果核（横置∥脱离同时组）；≠ 行动外壳 seq.action.evade。
 	catalog.register_run(
 		&"seq.effect.evade",
 		func(params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.evade(params),
+			return TriggeringCondition.evade_effect(params),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EvadeFlow.resolve(game_ctx, params)
 	)

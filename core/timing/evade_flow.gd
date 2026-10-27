@@ -145,6 +145,7 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		"disengaged": disengaged,
 		"created": created,
 		"simultaneous": true,
+		"automatic": mode == MODE_AUTOMATIC,
 	}
 
 
@@ -159,7 +160,8 @@ static func _normalize_params(params: Dictionary) -> Dictionary:
 		return {}
 	out["enemy_id"] = enemy_id
 	var inv_id: StringName = out.get(
-		"investigator_id", out.get("inv_id", &"")
+		"investigator_id",
+		out.get("inv_id", out.get("controller_id", &""))
 	) as StringName
 	out["investigator_id"] = inv_id
 	## 兼容历史 `cause` 键。
