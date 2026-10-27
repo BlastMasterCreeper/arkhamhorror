@@ -70,7 +70,8 @@ static func after_take_damage_or_horror(fn: Callable) -> SequenceHandler:
 	return _take_handler(AhcEnums.SequencePhase.AFTER, &"either", fn)
 
 
-## 将受到伤害时（WHEN · 非取消；additional 等）。
+## 将受到伤害时（WHEN · 非取消「when you take」）。
+## 栈会 offer WHEN；**现无生产卡消费者**——取消/防止/additional 一律走 would_take_*。
 static func when_take_damage(fn: Callable) -> SequenceHandler:
 	return _take_handler(AhcEnums.SequencePhase.WHEN, &"damage", fn)
 
@@ -83,7 +84,7 @@ static func when_take_damage_or_horror(fn: Callable) -> SequenceHandler:
 	return _take_handler(AhcEnums.SequencePhase.WHEN, &"either", fn)
 
 
-## 将要受到伤害时（WOULD · prevent / reduce / additional 改量）。
+## 将要受到伤害时（WOULD · cancel / prevent / reduce / additional 改量）。
 static func would_take_damage(fn: Callable) -> SequenceHandler:
 	return _take_handler(AhcEnums.SequencePhase.WOULD, &"damage", fn)
 
