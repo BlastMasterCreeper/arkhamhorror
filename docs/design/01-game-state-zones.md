@@ -330,24 +330,34 @@ class GameStateStore:
 
 ### 5.2 Leaves Play（Grimoire p.14 · 保留例外见 §3.5.1）
 
-**默认**与迁出 **同事务**发生（可用 `LeavePlayPolicy` 改写）：
+**时点 / 条件（勿混）**：
 
-1. 卡上 token → ∞ 供给池（`transfer_marker`；`retain_tokens` 则跳过）  
-2. **ATTACHED** → 各 owner discard（`retain_attachments` / 改挂 / 进胜利区则例外）  
-3. **UNDER** 按垫下规则处理（默认不与 attachment 混用同一弃置例程）  
-4. 影响该卡且绑 `WHILE_IN_PLAY` 的 Register 卸除（其它 lasting 见 06 OQ-BUFF-04）
+| | 是什么 |
+|---|---|
+| **时点** | 卡牌 **从场上区域移动到场外区域**（广义移动 · `seq.zone.move`） |
+| **条件** | 该移动满足 **离场**（`LEAVE_PLAY`：was in-play ∧ now out）——「leaves play」是过滤名，不是第二套时点 |
+
+**默认**与迁出 **同事务**发生（可用 `LeavePlayPolicy` 改写；实现落点 `ZoneMoveFlow._apply_leave_play`）：
+
+1. 卡上 token → ∞ 供给池（`transfer_marker`；damage/horror/clue；doom/uses 清零；Seal 经 `SealFlow` 回袋；`retain_tokens` 则跳过）
+2. **ATTACHED** → 各 owner discard（`retain_attachments` / 改挂 / 进胜利区则例外；附属自身再走场上→场外移动）
+3. **UNDER** 按垫下规则处理（默认不与 attachment 混用同一弃置例程）
+4. 影响该卡且绑 `WHILE_IN_PLAY` 的 Register 卸除（`on_card_leave_play`；其它 lasting 见 06 OQ-BUFF-04）
 
 然后卡迁入目标区域；目标区的 **in-play 谓词** 由 §3.5.1 决定（特殊区可仍算在场）。
 
+**「同时」**：上列效果与该移动在**同一时间**发生；**全部发生完毕**后，才轮到 **After**（见 §5.3）。不是「内联」的同义词；When/After「leaves play」= 听上述移动时点再套离场条件（[15 §4.0.5](15-timing-entry-catalog.md)）。
+
 ### 5.3 同时效果（已裁决 OQ-01-02）
 
-Grimoire 中「simultaneously / 同时」的电子化语义（资深玩家裁定）：
+Grimoire「simultaneously / 同时」：
 
-1. **目的**：保证被「同时」统领的状态变更不会在场上共存（如 Unique 冲突：遭遇版与玩家版同名卡不能同时在场）。
-2. **时点**：「同时」= 这些效果在**同一 timing point** 触发或**开始结算**；不是简单的「按代码顺序一行行执行」。
-3. **与 after 的关系**：所有 `after` 类触发必须等该**同时效果组全部结算完毕**后才可形成；组内不得插入 `after` 响应。
-4. **泛化**：同样适用于「效果 A and 效果 B」—— A 与 B 视为同一同时组内的并列效果。
-5. **频率**：Unique 遭遇/玩家同名冲突等情形**极少**，但机制应通用，不做 Unique 专用 hardcode。
+1. **感性**：被「同时」统领的那一列效果 = **同一时刻发生**；这一列**全部发生完毕**，才轮到 After。
+2. **实现推论**：组内执行期间 After **不得 nest 插入**；`SimultaneousEffectGroup.commit()` 后才释放 After。
+3. **目的**：组内状态变更不与 After 响应在场上交错（如 Unique：遭遇版进场与玩家版弃置）。
+4. **泛化**：「效果 A and 效果 B」同此。
+5. **频率**：Unique 等极少，机制通用，不做专用 hardcode。
+6. **不是**：Composition 内联 then；也不是「按代码一行行」的借口去插入 After。
 
 ```gdscript
 class SimultaneousEffectGroup:
@@ -458,3 +468,6 @@ class LocationState:
 | 2026-05-25 | v0.2 | OQ-01-02 裁决：SimultaneousEffectGroup 同时效果语义 |
 | 2026-05-25 | v0.4 | §3.6 牌面可见性三档（HIDDEN_ALL / CONTROLLER / ALL）；与 zone 正交 |
 | 2026-09-20 | v0.4.1 | 抽牌 When 时调查员 HAND、遭遇 LIMBO；Would 时仍 DECK（15 §3.1） |
+| 2026-10-20 | v0.4.2 | §5.2 落地：`ZoneMoveFlow` 离场 token→pool + 弃置附属；`ATTACHED` 计入 in-play（ZM-04/05） |
+| 2026-10-20 | v0.4.3 | §5.2/§5.3：「同时」= 同一时间发生，全部完才 After；勿与内联混用 |
+| 2026-10-20 | v0.4.4 | §5.2：时点=场上→场外移动；离场=`LEAVE_PLAY` 条件；清理为同时组 |

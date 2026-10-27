@@ -78,19 +78,14 @@ func move(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dicti
 	if not _is_connected(current, dest_id):
 		return {"ok": false, "error": "not_connected"}
 	inv.location_tag = dest_id
-	if not dest.revealed:
-		dest.revealed = true
-		if dest.clues < 1:
-			if game_ctx != null and game_ctx.mutator != null:
-				game_ctx.mutator.transfer_marker(
-					AhcEnums.MarkerKind.CLUE,
-					1,
-					MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
-					MarkerSlot.location(dest_id, AhcEnums.MarkerKind.CLUE)
-				)
-			else:
-				dest.clues = 1
-	return {"ok": true, "destination_id": dest_id}
+	## 无 Catalog 旁路：仍走规则自带进入揭示。
+	var enter := LocationEnterRules.on_investigator_enter(game_ctx, dest_id)
+	var out := {"ok": true, "destination_id": dest_id}
+	if not enter.is_empty():
+		out["location_enter"] = enter
+		out["location_revealed"] = bool(enter.get("revealed", false))
+		out["clues_placed"] = int(enter.get("clues_placed", 0))
+	return out
 
 
 func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:

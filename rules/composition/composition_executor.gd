@@ -404,6 +404,18 @@ func _execute_atom(node: CompositionNode) -> bool:
 				)
 				return true
 			return false
+		&"spend_use":
+			return _execute_spend_use(node)
+		&"nest_seal":
+			return _execute_nest_seal(node)
+		&"nest_release_seal":
+			return _execute_nest_release_seal(node)
+		&"queue_chaos_reveal_replace":
+			return _execute_queue_chaos_reveal_replace(node)
+		&"queue_sealed_reveal_instead":
+			return _execute_queue_sealed_reveal_instead(node)
+		&"after_reveal_if_resolved_symbol":
+			return _execute_after_reveal_if_resolved_symbol(node)
 		&"resolve_pending":
 			if _game_ctx != null and _game_ctx.effects != null:
 				_game_ctx.effects.resolve_pending(node.pending_id)
@@ -727,6 +739,7 @@ func _execute_nest_skill_test(node: CompositionNode) -> bool:
 			"difficulty": difficulty,
 			"card_id": node.card_id,
 			"st7_plan": node.st7_plan,
+			"if_revealed_specs": node.if_revealed_specs,
 		}
 	)
 	_last_skill_test_fail_by = int(result.get("fail_by", 0))
@@ -1665,6 +1678,144 @@ func _execute_nest_gain_resource(node: CompositionNode) -> bool:
 		{"inv": inv_id, "amount": int(result.get("amount", amount))}
 	)
 	return int(result.get("amount", 0)) > 0 or amount > 0
+
+
+func _execute_spend_use(node: CompositionNode) -> bool:
+	if _state == null:
+		return false
+	var card := _state.registry.get_card(node.card_id)
+	if card == null:
+		return false
+	var use_type := node.use_type
+	if use_type == &"":
+		use_type = &"charges"
+	var need := maxi(node.amount, 1)
+	var have := int(card.tokens.uses.get(use_type, 0))
+	if have < need:
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:spend_use_failed",
+			{"card": node.card_id, "use_type": use_type, "need": need, "have": have}
+		)
+		return false
+	card.tokens.uses[use_type] = have - need
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:spend_use",
+		{"card": node.card_id, "use_type": use_type, "amount": need}
+	)
+	return true
+
+
+func _execute_nest_seal(node: CompositionNode) -> bool:
+	var host := node.card_id
+	if host == &"":
+		return false
+	var mode := node.engage_mode if node.engage_mode != &"" else &"random"
+	var params := {
+		"host_card_id": host,
+		"card_id": host,
+		"mode": mode,
+		"controller_id": _ability_controller(_resolve_inv(node)),
+	}
+	if mode == &"kind" and node.amount >= 0:
+		params["kind"] = node.amount
+	var result := _nest_or_direct(&"seq.effect.seal", params)
+	return bool(result.get("ok", false))
+
+
+func _execute_nest_release_seal(node: CompositionNode) -> bool:
+	var host := node.card_id
+	if host == &"":
+		return false
+	var result := _nest_or_direct(
+		&"seq.effect.release_seal",
+		{"host_card_id": host, "card_id": host}
+	)
+	return bool(result.get("ok", false))
+
+
+func _execute_queue_chaos_reveal_replace(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.skill_tests == null:
+		return false
+	var ctx := _game_ctx.skill_tests.current_context()
+	if ctx == null:
+		return false
+	var controller := _ability_controller(_resolve_inv(node))
+	if controller == &"":
+		controller = ctx.performing_investigator
+	var ability_id := node.source_ability_id
+	if ability_id == &"":
+		ability_id = node.card_id
+	var ab := ChaosRevealReplaceAbility.create(
+		ability_id,
+		controller,
+		maxi(node.draw_amount, 1),
+		node.amount
+	)
+	ctx.pending_reveal_replace.append(ab)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:queue_chaos_reveal_replace",
+		{
+			"ability": ability_id,
+			"reveal_count": ab.reveal_count,
+			"resolve_count": ab.resolve_count,
+		}
+	)
+	return true
+
+
+func _execute_queue_sealed_reveal_instead(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.skill_tests == null:
+		return false
+	var ctx := _game_ctx.skill_tests.current_context()
+	if ctx == null:
+		return false
+	var host := node.card_id
+	if host == &"":
+		return false
+	var controller := _ability_controller(_resolve_inv(node))
+	if controller == &"":
+		controller = ctx.performing_investigator
+	var ability_id := node.source_ability_id
+	if ability_id == &"":
+		ability_id = host
+	var count := maxi(node.draw_amount, 1)
+	if _game_ctx.state != null:
+		var live := SealFlow.sealed_count(_game_ctx, host)
+		if live > 0:
+			count = live
+	var ab := ChaosRevealReplaceAbility.create_sealed_instead(
+		ability_id, controller, host, count
+	)
+	ctx.pending_reveal_replace.append(ab)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:queue_sealed_reveal_instead",
+		{"ability": ability_id, "host": host, "reveal_count": ab.reveal_count}
+	)
+	return true
+
+
+func _execute_after_reveal_if_resolved_symbol(node: CompositionNode) -> bool:
+	if _game_ctx == null or _game_ctx.skill_tests == null:
+		return false
+	var ctx := _game_ctx.skill_tests.current_context()
+	if ctx == null or node.then_branch == null:
+		return false
+	ctx.after_reveal_hooks.append(
+		{
+			"require_symbol": true,
+			"composition": node.then_branch,
+		}
+	)
+	_log.log(
+		AhcEnums.LogCategory.CARD,
+		"composition:after_reveal_if_resolved_symbol",
+		{"card": node.card_id}
+	)
+	return true
 
 
 func _execute_nest_damage(node: CompositionNode) -> bool:

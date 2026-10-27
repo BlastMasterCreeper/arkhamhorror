@@ -13,3 +13,5 @@ var setup_scenario_id: StringName = &""
 ## 显式 definition_id 列表（deck 自上而下顺序）；setup_scenario_id 非空时被忽略。
 var setup_act_definition_ids: Array = []
 var setup_agenda_definition_ids: Array = []
+## 冒险参考卡难度带：`easy_standard` | `hard_expert`。
+var chaos_difficulty: StringName = &"easy_standard"

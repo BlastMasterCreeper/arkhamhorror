@@ -335,20 +335,9 @@ static func _put_drawn_location_into_play(
 		loc.shroud = CardRegistry.location_shroud(def_id)
 		game_ctx.state.registry.register_location(loc)
 	if not loc.revealed:
-		loc.revealed = true
-		var printed := CardRegistry.location_printed_clues(def_id)
-		if printed >= 0:
-			var want := PerInvestigatorScale.place_location_clues(game_ctx.state, printed)
-			var need := maxi(want - loc.clues, 0)
-			if need > 0 and game_ctx.mutator != null:
-				game_ctx.mutator.transfer_marker(
-					AhcEnums.MarkerKind.CLUE,
-					need,
-					MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
-					MarkerSlot.location(def_id, AhcEnums.MarkerKind.CLUE)
-				)
-			elif need > 0:
-				loc.clues = want
+		LocationEnterRules.reveal_and_place_clues(
+			game_ctx, {"location_id": def_id}
+		)
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card != null:
 		card.zone = AhcEnums.Zone.LOCATION_AREA

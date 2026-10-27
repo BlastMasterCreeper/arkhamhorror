@@ -42,6 +42,7 @@
 | **Exhaust** | **横置** | 改平放区卡牌/在场敌人 `exhausted`；`seq.effect.exhaust`；≠ 费用中的 exhaust |
 | **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
 | **Doom** | **毁灭** | doom 标记；密谋推进 |
+| **Symbol ability**（隐式） | **符号能力** | ST.3 揭示后 ST.4 发起；载荷 = modifier + 效果；源多为冒险参考卡。≠ 玩家触发能力 |
 | **Story asset** | **剧情支援** | 有遭遇组；正面仍是玩家 cardtype；背面可为遭遇卡背 |
 | **Scenario card**（引擎） | **冒险卡牌** | 有遭遇组的卡；≠「遭遇 cardtype」 |
 | **Encounter cardtype** | **遭遇卡牌类型** | enemy / treachery / location |

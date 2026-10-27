@@ -103,6 +103,7 @@ static func _register_flows(
 	_register_replace_flows(catalog)
 	_register_action_flows(catalog)
 	_register_skill_test_flows(catalog)
+	_register_chaos_flows(catalog)
 	_register_mythos_flows(catalog)
 	_register_act_agenda_back_flows(catalog)
 	_register_enemy_flows(catalog)
@@ -149,12 +150,35 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return ExhaustReadyFlow.ready(game_ctx, params)
 	)
+	## 封印 / 释放混乱标记（Domain；Premonition 等）。
+	catalog.register_run(
+		&"seq.effect.seal",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.seal(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SealFlow.seal(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.release_seal",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.release_seal(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SealFlow.release(game_ctx, params)
+	)
 	## 狭义移动核：调查员 / 敌人 / 地点附属 / 地点标记；行动与卡面 nest 共用。
 	var move_build := func(params: Dictionary) -> TriggeringCondition:
 		return TriggeringCondition.move(params)
 	var move_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return MoveFlow.run(game_ctx, params)
 	catalog.register_run(&"seq.effect.move", move_build, move_resolve)
+	## 规则自带：揭示地点 + 首次放线索（调查员进入未揭示时 nest）。
+	catalog.register_run(
+		&"seq.effect.reveal_location",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.reveal_location(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return LocationEnterRules.reveal_and_place_clues(game_ctx, params)
+	)
 	## 旧 id 别名（敌人卡面 nest）；resolve 强制 subject=enemy。
 	catalog.register_run(
 		&"seq.enemy.move",
@@ -496,6 +520,19 @@ static func _register_skill_test_flows(catalog: SequenceCatalog) -> void:
 			return TriggeringCondition.skill_test_revelation(inv_id, skill, difficulty, card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return SkillTestFlowHandlers.run_revelation_test(game_ctx, params)
+	)
+
+
+static func _register_chaos_flows(catalog: SequenceCatalog) -> void:
+	## ST.3：WHEN = 将要揭示（反应挂 pending）；RESOLVE = 意图规划并离袋。
+	catalog.register_run(
+		&"seq.chaos.reveal",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", params.get("controller_id", &""))
+			var test_id: StringName = params.get("test_id", &"")
+			return TriggeringCondition.reveal_chaos_token(inv_id, test_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ChaosRevealFlow.run(game_ctx, params)
 	)
 
 

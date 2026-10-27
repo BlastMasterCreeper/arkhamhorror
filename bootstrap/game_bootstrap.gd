@@ -216,6 +216,8 @@ static func setup_investigator_at_location(
 	var inv := InvestigatorState.new()
 	inv.id = inv_id
 	inv.definition_id = StringName("def_%s" % inv_id)
+	if skills.has("definition_id"):
+		inv.definition_id = skills.get("definition_id") as StringName
 	inv.location_tag = location_tag
 	inv.skill_willpower = int(skills.get("willpower", 3))
 	inv.skill_intellect = int(skills.get("intellect", 3))
@@ -224,7 +226,12 @@ static func setup_investigator_at_location(
 	## 可选；未传则 0 = 伤恐不自动击败（测试按需设）。
 	inv.health = int(skills.get("health", 0))
 	inv.sanity = int(skills.get("sanity", 0))
+	if skills.has("display_name"):
+		inv.display_name = str(skills.get("display_name", ""))
 	ctx.state.registry.register_investigator(inv)
+	## 有定义则装载印刷 Elder Sign。
+	if inv.definition_id != &"" and not str(inv.definition_id).begins_with("def_"):
+		ElderSignBinder.bind_investigator(ctx, inv_id)
 
 
 static func setup_minimal_investigator(ctx: GameContext, inv_id: StringName) -> void:
@@ -350,6 +357,13 @@ static func add_encounter_enemy_to_deck(
 		extra["traits"] = opts.get("traits")
 	if opts.has("victory"):
 		extra["victory"] = int(opts.get("victory", 0))
+	if opts.has("vengeance"):
+		extra["vengeance"] = int(opts.get("vengeance", 0))
+	if opts.has("health"):
+		var enemy_block: Dictionary = extra.get("enemy", {}) as Dictionary
+		enemy_block = enemy_block.duplicate()
+		enemy_block["health"] = int(opts.get("health", 1))
+		extra["enemy"] = enemy_block
 	return add_encounter_card_to_deck(ctx, definition_id, keywords, extra)
 
 
@@ -381,21 +395,27 @@ static func setup_test_location(
 	ctx: GameContext,
 	location_id: StringName,
 	shroud: int = 2,
-	clues: int = 1
+	clues: int = 1,
+	revealed: bool = true,
+	printed_clues: int = -1
 ) -> void:
 	var loc := LocationState.new()
 	loc.id = location_id
 	loc.shroud = shroud
+	loc.revealed = revealed
+	## 未揭示：线索待首次进入放置；印刷值优先 printed_clues，否则用 clues 作印刷基数。
+	## 逻辑计数经 transfer_marker（物理层）；未揭示不放线索。
 	loc.clues = 0
+	loc.printed_clues = printed_clues if printed_clues >= 0 else clues
 	ctx.state.registry.register_location(loc)
-	if clues > 0 and ctx.mutator != null:
+	if revealed and clues > 0 and ctx.mutator != null:
 		ctx.mutator.transfer_marker(
 			AhcEnums.MarkerKind.CLUE,
 			clues,
 			MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
 			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE)
 		)
-	elif clues > 0:
+	elif revealed and clues > 0:
 		loc.clues = clues
 
 

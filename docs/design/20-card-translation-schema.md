@@ -49,7 +49,7 @@
 | `enemy` / `investigator` / `location` / `target` / `card_id` | **指称规格**（见 §6） | B、C、D |
 | `amount` / `skill` / `difficulty` / `difficulty_source` / `kind` / `direct` / `mode` / `per_investigator` / `from` | 字面效果参数；`from=hand` 等来源区；`difficulty_source=hand_count` 等动态难度 | D、部分 C |
 | `if_kind` / `evaluate` / `condition` / `then` / `else` | 控制流 | 控制流叶 |
-| `options` / `steps` / `st7` / `on_success` / `on_fail*` | 子树 / 检定计划 | 控制流、skill_test |
+| `options` / `steps` / `st7` / `on_success` / `on_fail*` / `if_revealed` | 子树 / 检定计划 / 紧贴揭示 | 控制流、skill_test |
 | `field` / `value` | 仅 L0 `set_flag` 等离散原子 | 内联 L0（少用；优先进信封 handler） |
 
 **禁止**（非白名单即非法，除非本表增行并同步编译器）：

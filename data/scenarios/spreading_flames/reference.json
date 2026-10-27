@@ -1,0 +1,52 @@
+{
+  "scenario_id": "spreading_flames",
+  "reference_card": "12105",
+  "title": "Spreading Flames",
+  "difficulties": {
+    "easy_standard": {
+      "skull": {
+        "modifier": { "expr": "neg_act" }
+      },
+      "tablet": {
+        "modifier": -1,
+        "reveal_another": true,
+        "on_fail": {
+          "template": "take_damage",
+          "amount": 1,
+          "target": "controller"
+        }
+      },
+      "elder_thing": {
+        "modifier": -3,
+        "on_fail_by": {
+          "threshold": 2,
+          "body": {
+            "template": "lead_draw_topmost_encounter_discard_copy",
+            "definition_id": "12129"
+          }
+        }
+      }
+    },
+    "hard_expert": {
+      "skull": {
+        "modifier": { "expr": "neg_act_plus_1" }
+      },
+      "tablet": {
+        "modifier": -2,
+        "reveal_another": true,
+        "on_fail": {
+          "template": "take_damage",
+          "amount": 1,
+          "target": "controller"
+        }
+      },
+      "elder_thing": {
+        "modifier": -4,
+        "on_fail": {
+          "template": "lead_draw_topmost_encounter_discard_copy",
+          "definition_id": "12129"
+        }
+      }
+    }
+  }
+}

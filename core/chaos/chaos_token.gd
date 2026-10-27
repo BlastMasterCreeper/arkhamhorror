@@ -4,7 +4,12 @@ extends RefCounted
 var kind: AhcEnums.ChaosTokenKind = AhcEnums.ChaosTokenKind.NUMERIC
 var modifier: int = 0
 var reveal_another: bool = false
+## ST.4 祝福/诅咒能力：ST.8 归 **token pool** 而非混沌袋。
+var return_to_pool: bool = false
 var instance_id: StringName = &""
+## 封印（Seal）：不在袋内，不可从袋揭示；挂在 host 卡上。
+var sealed: bool = false
+var sealed_on: StringName = &""
 
 
 static func numeric(value: int, instance_id: StringName = &"") -> ChaosToken:
@@ -28,3 +33,20 @@ static func with_reveal_another(kind: AhcEnums.ChaosTokenKind, modifier: int = 0
 	t.modifier = modifier
 	t.reveal_another = true
 	return t
+
+
+static func symbol(
+	kind: AhcEnums.ChaosTokenKind,
+	modifier: int = 0,
+	instance_id: StringName = &""
+) -> ChaosToken:
+	var t := ChaosToken.new()
+	t.kind = kind
+	t.modifier = modifier
+	t.instance_id = instance_id
+	return t
+
+
+## 卡面「token with a symbol」= 非数字标记（含 auto-fail / elder sign / curse…）。
+func is_symbol_token() -> bool:
+	return kind != AhcEnums.ChaosTokenKind.NUMERIC
