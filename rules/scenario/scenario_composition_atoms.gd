@@ -273,10 +273,26 @@ static func place_clues_on_location(
 	var loc := game_ctx.state.registry.get_location(location_id)
 	if loc == null:
 		return false
-	loc.clues = PerInvestigatorScale.place_location_clues(
-		game_ctx.state, printed_clues
+	var want := PerInvestigatorScale.place_location_clues(game_ctx.state, printed_clues)
+	var need := want - loc.clues
+	if need == 0:
+		return true
+	if game_ctx.mutator == null:
+		loc.clues = want
+		return true
+	if need > 0:
+		return game_ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.CLUE,
+			need,
+			MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
+			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE)
+		)
+	return game_ctx.mutator.transfer_marker(
+		AhcEnums.MarkerKind.CLUE,
+		-need,
+		MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE),
+		MarkerSlot.supply(AhcEnums.MarkerKind.CLUE)
 	)
-	return true
 
 
 static func lead_search_draw_encounter_copies(

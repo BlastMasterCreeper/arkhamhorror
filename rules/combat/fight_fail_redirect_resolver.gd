@@ -27,7 +27,15 @@ static func try_redirect(
 	var holder := game_ctx.state.registry.get_investigator(holder_id)
 	if holder == null or holder.eliminated:
 		return {"ok": true, "redirected": false}
-	holder.damage_taken += fight_damage
+	if game_ctx.mutator != null:
+		game_ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.DAMAGE,
+			fight_damage,
+			MarkerSlot.supply(AhcEnums.MarkerKind.DAMAGE),
+			MarkerSlot.investigator(holder_id, AhcEnums.MarkerKind.DAMAGE)
+		)
+	else:
+		holder.damage_taken += fight_damage
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.DAMAGE,

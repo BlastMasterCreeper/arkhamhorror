@@ -2,7 +2,7 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.10 · 2026-09-21 — L2 宏 → seq.effect.*（纸面可无名）
+> **状态**：v0.3.11 · 2026-10-23 — 桌面标记仅 Transfer + 无穷供给池
 
 ---
 
@@ -19,7 +19,7 @@
 效果（可 CREATED）
   ├─ 状态原语（StateMutator → GameState）
   │    ├─ ① 卡牌地址（MoveCard）
-  │    ├─ ② 标记/计数（Transfer / Adjust）
+  │    ├─ ② 标记/计数（Transfer；∞ 供给池）
   │    └─ ③ 揭示与离散（AtomRevealCard；SetFlag / SetRef）
   └─ Register（→ RegistrationStore / Buff）
 
@@ -182,7 +182,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 - 物理 token（damage、horror、doom、clue、uses/charges/ammo…）
 - 非 token 计数（`resource_pool`、`actions_remaining`、`clues_on_location`…）
 
-二者统一用 **MarkerSlot** 寻址，用 **Transfer** / **Adjust** 变更。
+二者统一用 **MarkerSlot** 寻址，用 **Transfer**（∞ 供给池）变更；**禁止 Adjust**。
 
 ---
 
@@ -311,7 +311,7 @@ enum RefField {
 | 类（L0） | 改什么 | 实现子操作（代码） |
 |---|---|---|
 | **① 卡牌地址** | `CardSlot`、顺序、zone | `AtomMoveCard` |
-| **② 标记/计数地址** | `MarkerSlot` 间搬运或相对 pool 增减 | `AtomTransferMarker`；`AtomAdjustMarker` |
+| **② 标记/计数地址** | `MarkerSlot` 间搬运（含 ∞ 供给池） | **`AtomTransferMarker` only**（Adjust 废止为桌面 L0） |
 | **③ 揭示与离散** | 牌面可见性；布尔/枚举/引用（非 pile 顺序） | **`AtomRevealCard`** → `reveal_to_*`；`AtomSetFlag`；`AtomSetRef` |
 
 **另：** **Register** 写 `RegistrationStore`（Buff），**是效果**，经 Composition L2，**不是** L0 状态原语。
@@ -351,9 +351,15 @@ class AtomMoveCard:
 
 ---
 
-### 5.2 ② 标记/计数地址 — `AtomTransferMarker` / `AtomAdjustMarker`
+### 5.2 ② 标记/计数地址 — `AtomTransferMarker`（已裁决 · 无穷池 2026-10-23）
 
-**类职责**：`MarkerSlot` 上的 token/计数变更。守恒搬运用 **Transfer**；单端增减（含 `POOL_*` 端点）用 **Adjust**。桌游语义上 heal/take horror 等优先表为 **Transfer**（bearer ↔ pool），见 OQ-07-02。
+**类职责**：`MarkerSlot` 上桌面 token 的变更。**唯一** L0 = **`AtomTransferMarker`**（1 源 → 1 目标）。
+
+**无穷供给池（physical `supply` / Domain `TokenPool`）**：
+
+- damage / horror / clue / resource / doom 等桌面标记 **始终**有来源或去向 = 供给池。
+- 池 **无穷**：取出永不因库存失败；回池 **不累加**库存计数（湮入供给）。
+- **禁止**从虚无创造 / 向虚无湮灭的单端 Adjust 作为桌面标记原语。
 
 #### `AtomTransferMarker`
 
@@ -366,59 +372,26 @@ class AtomTransferMarker:
     var sub_key: StringName = &""    # USES 时两边一致
 ```
 
-**做什么**：`from` 减 `amount`，`to` 加 `amount`；**总量守恒**（池 ↔ 卡 ↔ 地点 ↔ 调查员之间搬运）。  
-**粒度硬约束**：**仅 1 源 → 1 目标**。禁止在单次 L0 内吞多源多目标（伪原子会被嵌套窗打断）。
+**做什么**：`from` 减 `amount`，`to` 加 `amount`。池端按无穷模型；承载者端改 Domain 计数并镜像物理层。  
+**粒度硬约束**：**仅 1 源 → 1 目标**。禁止在单次 L0 内吞多源多目标。
 
-**多来源 / 多目标**：包装层 `MarkerTransferBatch`（`core/domain/marker_transfer_batch.gd`）把 N:M **展开**为若干条本原子，再逐腿 `StateMutator.transfer_marker`。再分配 / Move 伤恐共用此包装；**不**改本原语，**不**另铸 `seq.effect.transfer_*`。
+**多来源 / 多目标**：包装层 `MarkerTransferBatch` 展开为若干条本原子。再分配 / Move 伤恐共用；**不**另铸 `seq.effect.transfer_*`。
 
-**典型语义**：
-
-- Discover clue：`CLUES_ON_LOCATION` → `CLUES_ON_INVESTIGATOR`
-- Move 1 damage：`CARD.damage` → `CARD.damage`（另一张卡）→ 单腿本原子；多卡再摊 → Batch 展开
-- Place clue from pool：`POOL_CLUE` → `CLUES_ON_LOCATION`
-
-**不做什么**：
-
-- 不 heal（那是 Adjust 负 delta，见下）
-- 不 deal damage（Wrapper 在 Assign 后用 Adjust 或 Transfer from pool）
-- 不检查 defeat（Wrapper `CheckDefeat`）
-
-**约束**：
-
-- `from` 当前值 `< amount` → 原子 **失败**，整棵组合树中止（除非 Wrapper 声明 partial OK）
-- `USES` 必须指定 `sub_key`
-
----
-
-#### `AtomAdjustMarker`
-
-```gdscript
-class AtomAdjustMarker:
-    var kind: MarkerKind
-    var delta: int                   # 可正可负
-    var at: MarkerSlot
-    var clamp_min: int = 0
-    var clamp_max: int = 2147483647
-```
-
-**做什么**：单点 `at` 增减；**不与另一槽位配对**（创造/消灭标记）。
-
-**典型语义**：
-
-- Heal 2 damage：`delta = -2`, `at = card.DAMAGE`, `clamp_min = 0`
-- Gain 1 resource：`delta = +1`, `at = inv.RESOURCE`
-- Place doom on agenda：`delta = +1`, `at = DOOM_ON_AGENDA`
-- Take horror：`delta = +1`, `at = inv 或 card.HORROR`
-
-**与 Transfer 的边界（已裁决 OQ-07-02）**：
-
-| 操作 | 原子 |
+| 语义 | Transfer |
 |---|---|
-| Heal / 移除 affliction | **Adjust** 负 delta |
-| Move damage/horror A→B | **Transfer** |
-| Deal from 「虚无」 | **Adjust** 正 delta（或 POOL → 卡 用 Transfer） |
+| Deal / place affliction | `POOL_*` → bearer |
+| Heal / 回池 | bearer → `POOL_*` |
+| Move / 再分配 | bearer A → bearer B |
+| Discover clue | location → investigator（或经池，视地址模型） |
+| Gain resource | `POOL_RESOURCE` → investigator |
 
-**不触发** heal 相关 [reaction] 的判定：由 TimingBus 看 **语义标签**（Wrapper 在 Adjust 前标记 `semantic=heal`），非原子自身。
+**禁止** `adjust_marker` / 虚无 delta 糖：调用方必须显式写 `transfer_marker(kind, n, from, to)`（含 `MarkerSlot.supply(kind)` 池端点）。  
+**不检查** defeat（上层 `CheckDefeat`）。  
+heal 相关 [reaction]：TimingBus 看语义标签，非原子自身。
+
+#### ~~`AtomAdjustMarker`~~（废止）
+
+已删除。桌面标记只经 `AtomTransferMarker`。
 
 ---
 
@@ -502,7 +475,7 @@ Spawn 敌人/Asset = `Create` + `AtomMoveCard`（Wrapper 或 Simultaneous 组）
 |---|---|---|
 | **选择/搜索** | search top 5, choose card | L1 `Choice` + 查询 API；选中后 `MoveCard` |
 | **洗牌** | shuffle deck | Domain 工具 `PileOps.shuffle`；宏 `Shuffle(deck)` 调用之 |
-| **伤害 Assign** | soak、direct、prevent | `DamageWrapper` 步骤；输出多个 Adjust/Transfer |
+| **伤害 Assign** | assign、direct、prevent | `DamageWrapper` 步骤；输出多个 Adjust/Transfer |
 | **检定** | ST.1–ST.8 | `SkillTestEngine` |
 | **Initiation** | pay cost, AOO | `AbilityInitiationPipeline` |
 | **Timing** | Cancel, Replacement, After | `TimingBus` |
@@ -547,7 +520,7 @@ Draw(1) := Choice? + MoveCard(deck.TOP → hand.BOTTOM)
 ```gdscript
 class AtomicRecord:
     var seq: int
-    var atom_kind: StringName    # move_card | reveal_card | transfer_marker | adjust_marker | set_flag | set_ref
+    var atom_kind: StringName    # move_card | reveal_card | transfer_marker | set_flag | set_ref
     var payload: Dictionary      # 地址 + 数值 + card_id
     var state_hash: String
 ```
@@ -583,10 +556,10 @@ CompositionExecutor.run(tree)
 | 旧 EffectOp | 展开 |
 |---|---|
 | DRAW_CARDS | `Repeat(n, MoveCard deck→hand)` |
-| GAIN_RESOURCE | `AdjustMarker(RESOURCE, +n)` |
-| HEAL | `AdjustMarker(DAMAGE\|HORROR, -n, clamp_min=0)` + semantic heal |
+| GAIN_RESOURCE | `TransferMarker(POOL_RESOURCE → inv.RESOURCE, n)` |
+| HEAL | `TransferMarker(bearer → POOL_*, n)` + semantic heal |
 | TRANSFER_AFFLICTION | `MarkerTransferBatch` → 若干 `TransferMarker`（每腿 1:1） |
-| DEAL_DAMAGE | `DamageWrapper` → Assign → 若干 `AdjustMarker` |
+| DEAL_DAMAGE | `DamagePipeline` → Assign → 若干 `TransferMarker(POOL → bearer)` |
 | DISCOVER_CLUE | `TransferMarker(CLUES_ON_LOCATION, n, loc, inv)` |
 | EXHAUST / READY | `SetFlag(EXHAUSTED, true/false)` |
 | MOVE_INVESTIGATOR | `SetRef(LOCATION, loc)` + enter Wrapper 可选 |
@@ -612,7 +585,7 @@ CompositionExecutor.run(tree)
 | ID | 问题 | 建议默认 |
 |---|---|---|
 | OQ-PRIM-01 | Leave play 时 attachment discard 顺序是否可见 | 否；Simultaneous 组内原子，无顺序依赖 |
-| OQ-PRIM-02 | `AdjustMarker` heal 是否允许超过当前 damage（浪费） | 允许；clamp 在 0，多余 delta 丢弃 |
+| OQ-PRIM-02 | heal 超过当前 damage（浪费） | Transfer 量夹到当前值；多余不取 |
 | OQ-PRIM-03 | Engage 是否一个 `SetRef` 还是 Ref+MoveCard 两个原子 | **两个原子** Seq；Wrapper `Engage` 保证顺序 |
 | OQ-PRIM-04 | 调查员 defeated 时 clues 归地点 | Wrapper：`TransferMarker` CLUES_ON_INVESTIGATOR → CLUES_ON_LOCATION |
 
@@ -622,6 +595,7 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-23 | v0.3.11 | §5.2：桌面标记仅 Transfer；供给池无穷；废止 Adjust 为桌面 L0 |
 | 2026-09-21 | v0.3.10 | §3：L2 宏展开为 `seq.effect.*`（纸面无名也铸造）；07-composition §1.3.3 |
 | 2026-09-21 | v0.3.9 | Fast 只改打出窗口/花费；种类始终 `PLAY_CARD`，不是能力 |
 | 2026-09-21 | v0.3.8 | Fast 打出与触发对称；不新增 BuffType |

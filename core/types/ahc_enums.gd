@@ -284,9 +284,9 @@ enum MarkerKind {
 	POOL_RESOURCE,
 }
 
-enum BearerKind { CARD, INVESTIGATOR, GLOBAL }
+enum BearerKind { CARD, INVESTIGATOR, LOCATION, AGENDA, GLOBAL }
 
-enum AtomOp { MOVE_CARD, TRANSFER_MARKER, ADJUST_MARKER, REVEAL_CARD, SET_FLAG, SET_REF }
+enum AtomOp { MOVE_CARD, TRANSFER_MARKER, REVEAL_CARD, SET_FLAG, SET_REF }
 
 enum FlagField { ELIMINATED, RESIGNED }
 
@@ -314,6 +314,30 @@ enum RestrictionKind {
 	## 冷漠（Aloof）：未交战时不能被 Fight。挂 WHILE_IN_PLAY；已交战则 Evaluator 放行。
 	## 禁自动交战仍由 spawn / auto-engage 读拥有（Domain/keyword），不经本 Kind。
 	FORBID_ATTACK,
+	## 伤害/恐惧 Assign（分摊）约束：原流程（DamageAssigner）读取；非 LISTENER / Cancel。
+	## payload 见 RestrictionPayload.assign_* + AssignConstraintOp。
+	ASSIGN_CONSTRAINT,
+}
+
+
+## 分摊约束算子（挂在 RestrictionKind.ASSIGN_CONSTRAINT 上，可多条并存）。
+enum AssignConstraintOp {
+	## 扩大候选：04015 direct 可摊本卡；Bodyguard 可摊他人伤害。
+	INCLUDE_CANDIDATE,
+	## 优先填满本卡，才可摊到调查员卡（03109）。
+	PRIOR_FILL,
+	## 至少 N 点摊到本卡（09007；if_able）。
+	MIN_TO_SUBJECT,
+	## 匹配集合计至多 N 点（60232 trait:Miskatonic）。
+	MAX_TO_MATCH,
+}
+
+
+## 分摊约束适用的 direct 范围。
+enum AssignDirectScope {
+	NON_DIRECT,
+	DIRECT,
+	BOTH,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }

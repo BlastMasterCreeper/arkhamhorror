@@ -54,12 +54,13 @@ func destroy_card_region(region_id: StringName) -> bool:
 
 # --- 标记区 ---
 
-func create_marker_region(region_id: StringName = &"") -> StringName:
+func create_marker_region(region_id: StringName = &"", infinite: bool = false) -> StringName:
 	var id := region_id
 	if id == &"":
 		id = store.alloc_region_id(&"marker_region")
 	var region := MarkerRegion.new()
 	region.id = id
+	region.infinite = infinite
 	store.marker_regions[id] = region
 	return id
 
@@ -248,6 +249,10 @@ func _counts_of(locus: MarkerLocus) -> Dictionary:
 func _take(locus: MarkerLocus, key: StringName, amount: int) -> bool:
 	if not _has_locus(locus):
 		return false
+	if locus.kind == MarkerLocus.Kind.REGION:
+		var region := store.get_marker_region(locus.id)
+		if region != null and region.infinite:
+			return amount > 0
 	var counts: Dictionary = _counts_of(locus)
 	var have := int(counts.get(key, 0))
 	if have < amount:
@@ -263,5 +268,9 @@ func _take(locus: MarkerLocus, key: StringName, amount: int) -> bool:
 func _give(locus: MarkerLocus, key: StringName, amount: int) -> void:
 	if not _has_locus(locus):
 		return
+	if locus.kind == MarkerLocus.Kind.REGION:
+		var region := store.get_marker_region(locus.id)
+		if region != null and region.infinite:
+			return
 	var counts: Dictionary = _counts_of(locus)
 	counts[key] = int(counts.get(key, 0)) + amount

@@ -138,6 +138,8 @@ static func add_asset_to_play(
 		data["health"] = int(opts.get("health", 0))
 	if opts.has("sanity"):
 		data["sanity"] = int(opts.get("sanity", 0))
+	if opts.has("traits"):
+		data["traits"] = opts.get("traits", [])
 	if not data.has("card_type"):
 		data["card_type"] = &"asset"
 	CardRegistry.register_definition(definition_id, data)
@@ -231,17 +233,22 @@ static func setup_minimal_investigator(ctx: GameContext, inv_id: StringName) -> 
 	var inv := ctx.state.registry.get_investigator(inv_id)
 	if inv:
 		inv.actions_remaining = 3
-		inv.resource_pool = 5
+		inv.resource_pool = 0
 	ctx.lead_investigator_id = inv_id
 	ctx.active_investigator_id = inv_id
 	ctx.state.lead_investigator_id = inv_id
 	ctx.state.active_investigator_id = inv_id
 	if ctx.state.physical_binding != null:
 		ctx.state.physical_binding.ensure_player(inv_id)
-		ctx.state.physical_binding.mirror_adjust_marker(
-			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.RESOURCE),
-			5
+	if ctx.mutator != null:
+		ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.RESOURCE,
+			5,
+			MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.RESOURCE)
 		)
+	elif inv != null:
+		inv.resource_pool = 5
 
 
 static func _skill_icon_key(skill: AhcEnums.SkillType) -> StringName:
@@ -379,8 +386,17 @@ static func setup_test_location(
 	var loc := LocationState.new()
 	loc.id = location_id
 	loc.shroud = shroud
-	loc.clues = clues
+	loc.clues = 0
 	ctx.state.registry.register_location(loc)
+	if clues > 0 and ctx.mutator != null:
+		ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.CLUE,
+			clues,
+			MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
+			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE)
+		)
+	elif clues > 0:
+		loc.clues = clues
 
 
 static func connect_locations(

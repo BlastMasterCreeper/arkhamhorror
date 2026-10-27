@@ -358,6 +358,12 @@ func _initialize() -> void:
 	_run_test("TIM-02 draw encounter SPLIT zones", _test_tim_draw_encounter_split)
 	_run_test("TIM-DMG-01 WOULD then WHEN before Apply", _test_tim_dmg_apply_slots)
 	_run_test("TIM-DMG-02 WOULD reduce_pending before Apply", _test_tim_dmg_prevent)
+	_run_test("ASN-01 PRIOR_FILL horror to asset first", _test_asn_prior_fill)
+	_run_test("ASN-02 MIN_TO_SUBJECT damage if able", _test_asn_min_to_subject)
+	_run_test("ASN-03 MAX_TO_MATCH trait cap", _test_asn_max_to_match)
+	_run_test("ASN-04 INCLUDE direct allows asset assign", _test_asn_include_direct)
+	_run_test("ASN-05 INCLUDE Bodyguard other at location", _test_asn_include_bodyguard)
+	_run_test("ASN-06 pipeline apply PRIOR_FILL legs", _test_asn_pipeline_prior_fill)
 	_run_test("TIMING-REV-01 revelation own priority class", _test_revelation_own_priority_class)
 	_run_test("REG-01 turn end ticks duration", _test_reg_turn_end_tick)
 	_run_test("NS-01 nested sequence LIFO", _test_ns_lifo_nest)
@@ -452,6 +458,7 @@ func _test_mtb_expand_legs() -> bool:
 
 
 func _test_mtb_execute_resources() -> bool:
+	## 1→2：包装展开为两条原子 transfer_marker（2+1）。
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -464,10 +471,10 @@ func _test_mtb_execute_resources() -> bool:
 		[{"slot": MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), "amount": 3}],
 		[
 			{"slot": MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), "amount": 2},
-			{"slot": MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), "amount": 1},
+			{"slot": MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), "amount": 1},
 		]
 	)
-	return ok and inv1.resource_pool == 2 and inv2.resource_pool == 2
+	return ok and inv1.resource_pool == 2 and inv2.resource_pool == 3
 
 
 func _test_mtb_sum_mismatch() -> bool:
@@ -1187,9 +1194,11 @@ func _test_sc27_agenda_treachery_back_not_drawn() -> bool:
 		&"agenda_treach_back",
 		&"rev",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				2
+			return CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				2,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN)
 			)
 	)
 	CardRegistry.register_definition(
@@ -1761,10 +1770,12 @@ func _test_initiation_dry_run_gate() -> bool:
 
 
 func _must_choice_horror(amount: int = 1) -> CompositionNode:
-	return CompositionNode.adjust_marker(
-		MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.HORROR_TAKEN),
-		amount
-	)
+	return CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				amount,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.HORROR_TAKEN)
+			)
 
 
 func _make_fail_by_st7_plan() -> SkillTestSt7Plan:
@@ -2002,7 +2013,7 @@ func _test_enc_st7_fail_by_timing() -> bool:
 		if rec.kind == AhcEnums.EventRecordKind.COMPOSITION_STEP:
 			var atom := str(rec.payload.get("atom", ""))
 			if (
-				atom == "adjust_marker"
+				atom == "transfer_marker"
 				or atom == "nest_damage"
 				or atom == "nest_take_horror"
 				or atom == "take_horror"
@@ -2225,9 +2236,12 @@ func _test_initiation_action_aoo() -> bool:
 	inv.actions_remaining = 2
 	var intent := InitiationIntent.action_ability(
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			)
 	)
 	var res := h.ctx.initiation.initiate(intent, h.ctx)
 	return (
@@ -2246,8 +2260,11 @@ func _test_initiation_on_play() -> bool:
 		&"ev_on_play",
 		&"on_play:0",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.RESOURCE), 2
+			return CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				2,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.RESOURCE)
 			)
 	)
 	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
@@ -2277,9 +2294,12 @@ func _test_initiation_post_aoo_refund() -> bool:
 	inv.resource_pool = 4
 	var intent := InitiationIntent.ability(
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), -3
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				3,
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE)
+			)
 	)
 	intent.resource_cost = 2
 	var res := h.ctx.initiation.initiate(intent, h.ctx)
@@ -2292,9 +2312,12 @@ func _test_trig_forced_after_gain() -> bool:
 		&"gain_resource",
 		AhcEnums.SequencePhase.AFTER,
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			)
 	)
 	h.ctx.triggered_abilities.register(desc)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -2311,9 +2334,12 @@ func _test_trig_reaction_declined() -> bool:
 		&"gain_resource",
 		AhcEnums.SequencePhase.AFTER,
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 5
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				5,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			)
 	)
 	h.ctx.triggered_abilities.register(desc)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -2331,9 +2357,12 @@ func _test_trig_reaction_accepted() -> bool:
 		&"gain_resource",
 		AhcEnums.SequencePhase.AFTER,
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 2
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				2,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			)
 	)
 	h.ctx.triggered_abilities.register(desc)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -2350,9 +2379,12 @@ func _test_trig_peril_blocks() -> bool:
 		&"gain_resource",
 		AhcEnums.SequencePhase.AFTER,
 		&"inv_2",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), 3
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				3,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE)
+			)
 	)
 	h.ctx.triggered_abilities.register(desc)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
@@ -2607,9 +2639,12 @@ func _pw_register_free_resource(h: RuleTestHarness, ability_id: StringName, amou
 	inv.play_area.append(card_id)
 	var desc := TriggeredAbilityDescriptor.free_triggered(
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), amount
-		),
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				amount,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			),
 		&"during_your_turn",
 		card_id,
 		&"pw_free_asset"
@@ -2663,9 +2698,12 @@ func _test_pw_intent_contention() -> bool:
 	h.ctx.state.registry.get_investigator(&"inv_1").play_area.append(card_a)
 	var desc_a := TriggeredAbilityDescriptor.free_triggered(
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
-		),
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			),
 		&"any_player_window",
 		card_a,
 		&"pw_a"
@@ -2684,9 +2722,12 @@ func _test_pw_intent_contention() -> bool:
 	h.ctx.state.registry.get_investigator(&"inv_2").play_area.append(card_b)
 	var desc_b := TriggeredAbilityDescriptor.free_triggered(
 		&"inv_2",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), 3
-		),
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				3,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE)
+			),
 		&"any_player_window",
 		card_b,
 		&"pw_b"
@@ -2768,8 +2809,11 @@ func _test_trig_install_on_play() -> bool:
 		AhcEnums.SequencePhase.AFTER,
 		&"forced",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.RESOURCE), 1
+			return CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.RESOURCE)
 			)
 	)
 	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
@@ -2807,9 +2851,12 @@ func _test_trig_free_listed_in_window() -> bool:
 	inv.play_area.append(card_id)
 	var desc := TriggeredAbilityDescriptor.free_triggered(
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
-		),
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			),
 		&"during_your_turn",
 		card_id,
 		&"free_asset"
@@ -3453,9 +3500,12 @@ func _test_adb_parley_skips_aoo() -> bool:
 	inv.damage_taken = 0
 	var intent := InitiationIntent.action_ability(
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
-		),
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			),
 		1,
 		AhcEnums.ActionType.ACTIVATE,
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.PARLEY]
@@ -3606,9 +3656,12 @@ func _test_adb_engage_types_provoke_aoo() -> bool:
 	inv.damage_taken = 0
 	var intent := InitiationIntent.action_ability(
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
-		),
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			),
 		1,
 		AhcEnums.ActionType.ACTIVATE,
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
@@ -3994,9 +4047,12 @@ func _test_adb_skip_aoo_buff_consume() -> bool:
 	inv.damage_taken = 0
 	var body := CompositionNode.seq([
 		CompositionNode.no_provoke_aoo(&"inv_1"),
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
-		),
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			),
 	])
 	var intent := InitiationIntent.action_ability(
 		&"inv_1",
@@ -4740,9 +4796,11 @@ func _test_can_enc_ward_cancel_revelation() -> bool:
 		&"enc_ward_treach",
 		&"rev",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				3
+			return CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				3,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN)
 			)
 	)
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_ward_treach")
@@ -4760,10 +4818,12 @@ func _test_can_enc_ward_cancel_revelation() -> bool:
 		return false
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.HORROR_TAKEN),
-			1
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.HORROR_TAKEN)
+			)
 	)
 	DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
 	h.ctx.memory.pop_encounter_frame()
@@ -5610,9 +5670,11 @@ func _test_enc_revelation_nest() -> bool:
 		&"enc_rev_horror",
 		&"revelation:0",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				1
+			return CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN)
 			)
 	)
 	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_rev_horror", [])
@@ -5943,9 +6005,11 @@ func _test_wkn_asset_weakness_investigator_draw() -> bool:
 		&"wkn_asset_rev",
 		&"revelation:0",
 		func(bind: AbilityBindContext) -> CompositionNode:
-			return CompositionNode.adjust_marker(
-				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				1
+			return CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(bind.controller_id, AhcEnums.MarkerKind.HORROR_TAKEN)
 			)
 	)
 	var card_id := GameBootstrap.add_investigator_weakness_to_deck(
@@ -6264,9 +6328,12 @@ func _test_peril_blocks_teammate_trigger() -> bool:
 	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_trig")
 	var intent := InitiationIntent.create(
 		&"inv_2",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), 1
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE)
+			)
 	)
 	if h.ctx.initiation.can_initiate(intent, h.ctx):
 		return false
@@ -6285,9 +6352,12 @@ func _test_peril_drawer_play_trigger_ok() -> bool:
 		return false
 	var intent := InitiationIntent.create(
 		&"inv_1",
-		CompositionNode.adjust_marker(
-			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
-		)
+		CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE)
+			)
 	)
 	return h.ctx.initiation.can_initiate(intent, h.ctx) and h.ctx.initiation.initiate(intent, h.ctx).ok
 
@@ -7883,6 +7953,169 @@ func _test_tim_dmg_prevent() -> bool:
 		bool(res.get("ok", false))
 		and int(res.get("amount", 0)) == 1
 		and when_pending["n"] == 1
+		and inv.horror_taken == 1
+	)
+
+
+func _asn_leg_amount(legs: Array, bearer: StringName, id: StringName) -> int:
+	var total := 0
+	for leg in legs:
+		if not (leg is Dictionary):
+			continue
+		if (leg as Dictionary).get("bearer", &"") != bearer:
+			continue
+		if (leg as Dictionary).get("id", &"") != id:
+			continue
+		total += int((leg as Dictionary).get("amount", 0))
+	return total
+
+
+func _test_asn_prior_fill() -> bool:
+	## ASN-01 · 03109：PRIOR_FILL horror → 先填满资产神智，剩余归调查员。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_prior", {"health": 0, "sanity": 2}
+	)
+	h.ctx.registrations.register(
+		RegistrationTemplate.assign_constraint_while_in_play(
+			RestrictionPayload.assign_prior_fill(card_id, &"inv_1", &"horror")
+		)
+	)
+	var legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"horror", 3, false)
+	return (
+		_asn_leg_amount(legs, &"card", card_id) == 2
+		and _asn_leg_amount(legs, &"investigator", &"inv_1") == 1
+		and DamageAssigner.validate(h.ctx, &"inv_1", &"horror", false, 3, legs)
+	)
+
+
+func _test_asn_min_to_subject() -> bool:
+	## ASN-02 · 09007：MIN_TO_SUBJECT damage 1 if_able。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_min", {"health": 2, "sanity": 0}
+	)
+	h.ctx.registrations.register(
+		RegistrationTemplate.assign_constraint_while_in_play(
+			RestrictionPayload.assign_min_to_subject(card_id, &"inv_1", 1, &"damage")
+		)
+	)
+	var legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
+	var bad_all_inv := [{"bearer": &"investigator", "id": &"inv_1", "amount": 3}]
+	return (
+		_asn_leg_amount(legs, &"card", card_id) == 1
+		and _asn_leg_amount(legs, &"investigator", &"inv_1") == 2
+		and DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, legs)
+		and not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_all_inv)
+	)
+
+
+func _test_asn_max_to_match() -> bool:
+	## ASN-03 · 60232：MAX_TO_MATCH trait Miskatonic ≤ 1。
+	var h := RuleTestHarness.new(42)
+	var a := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_misk_a",
+		{"health": 3, "sanity": 0, "traits": [&"Miskatonic"]}
+	)
+	var b := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_misk_b",
+		{"health": 3, "sanity": 0, "traits": [&"Miskatonic"]}
+	)
+	h.ctx.registrations.register(
+		RegistrationTemplate.assign_constraint_while_in_play(
+			RestrictionPayload.assign_max_to_match(&"inv_1", &"Miskatonic", 1, &"either")
+		)
+	)
+	var ok_one := [
+		{"bearer": &"card", "id": a, "amount": 1},
+		{"bearer": &"investigator", "id": &"inv_1", "amount": 2},
+	]
+	var bad_two := [
+		{"bearer": &"card", "id": a, "amount": 1},
+		{"bearer": &"card", "id": b, "amount": 1},
+		{"bearer": &"investigator", "id": &"inv_1", "amount": 1},
+	]
+	var default_legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
+	return (
+		DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, ok_one)
+		and not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_two)
+		and _asn_leg_amount(default_legs, &"investigator", &"inv_1") == 3
+	)
+
+
+func _test_asn_include_direct() -> bool:
+	## ASN-04 · 04015：INCLUDE + DIRECT 才允许 direct 摊资产；无 INCLUDE 则拒。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_direct", {"health": 2, "sanity": 2}
+	)
+	var assign_only := [{"bearer": &"card", "id": card_id, "amount": 1}]
+	if DamageAssigner.validate(h.ctx, &"inv_1", &"damage", true, 1, assign_only):
+		return false
+	h.ctx.registrations.register(
+		RegistrationTemplate.assign_constraint_while_in_play(
+			RestrictionPayload.assign_include_candidate(
+				card_id,
+				&"inv_1",
+				&"either",
+				AhcEnums.AssignDirectScope.DIRECT,
+				&"self_deals"
+			)
+		)
+	)
+	return DamageAssigner.validate(h.ctx, &"inv_1", &"damage", true, 1, assign_only)
+
+
+func _test_asn_include_bodyguard() -> bool:
+	## ASN-05 · Bodyguard：other_at_location 扩他人伤害候选。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_minimal_investigator(h.ctx, &"inv_2")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.location_tag = &"sa_loc"
+	inv2.location_tag = &"sa_loc"
+	var guard_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_guard", {"health": 2, "sanity": 0}
+	)
+	h.ctx.registrations.register(
+		RegistrationTemplate.assign_constraint_while_in_play(
+			RestrictionPayload.assign_include_candidate(
+				guard_id,
+				&"inv_1",
+				&"damage",
+				AhcEnums.AssignDirectScope.NON_DIRECT,
+				&"other_at_location"
+			)
+		)
+	)
+	var assign_guard := [{"bearer": &"card", "id": guard_id, "amount": 1}]
+	var far := false
+	inv2.location_tag = &"elsewhere"
+	far = DamageAssigner.validate(h.ctx, &"inv_2", &"damage", false, 1, assign_guard)
+	inv2.location_tag = &"sa_loc"
+	var near := DamageAssigner.validate(h.ctx, &"inv_2", &"damage", false, 1, assign_guard)
+	return near and not far
+
+
+func _test_asn_pipeline_prior_fill() -> bool:
+	## ASN-06：pipeline Apply 按 PRIOR_FILL 腿写入资产 + 调查员。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_asn_pipe", {"health": 0, "sanity": 2}
+	)
+	h.ctx.registrations.register(
+		RegistrationTemplate.assign_constraint_while_in_play(
+			RestrictionPayload.assign_prior_fill(card_id, &"inv_1", &"horror")
+		)
+	)
+	var res := DamagePipeline.deal_investigator(h.ctx, &"inv_1", &"horror", 3, false)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and int(res.get("amount", 0)) == 3
+		and card != null
+		and card.tokens.horror == 2
 		and inv.horror_taken == 1
 	)
 

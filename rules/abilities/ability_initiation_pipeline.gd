@@ -28,7 +28,7 @@ func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
 	if ctx == null:
 		return
-	_cost = InitiationCostPipeline.new(ctx.state, ctx.modifiers)
+	_cost = InitiationCostPipeline.new(ctx.state, ctx.modifiers, ctx.mutator)
 	if ctx.combat:
 		_aoo = AttackOfOpportunityResolver.new(ctx.state, ctx.combat)
 

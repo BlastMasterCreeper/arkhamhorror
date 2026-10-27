@@ -311,9 +311,17 @@ func _resolve_upkeep_draw_and_resource() -> void:
 			_game_ctx.resource_gain.gain(_game_ctx, inv_id, 1, tags)
 		return
 	for inv_id in player_order:
-		var up_inv := _state.registry.get_investigator(inv_id)
-		if up_inv:
-			up_inv.resource_pool += 1
+		if _game_ctx != null and _game_ctx.mutator != null:
+			_game_ctx.mutator.transfer_marker(
+				AhcEnums.MarkerKind.RESOURCE,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.RESOURCE)
+			)
+		else:
+			var up_inv := _state.registry.get_investigator(inv_id)
+			if up_inv:
+				up_inv.resource_pool += 1
 
 
 func _tick_duration(anchor: AhcEnums.DurationAnchorKind) -> void:

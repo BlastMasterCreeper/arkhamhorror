@@ -244,16 +244,21 @@ func _execute_atom(node: CompositionNode) -> bool:
 				_log.log(AhcEnums.LogCategory.CARD, "composition:move_card", {"card": node.card_id})
 				return true
 			return false
-		&"adjust_marker":
-			if node.marker_slot != null:
-				_mutator.adjust_marker(node.marker_slot, node.marker_delta)
-				_log.log(
-					AhcEnums.LogCategory.CARD,
-					"composition:adjust_marker",
-					{"delta": node.marker_delta}
-				)
-				return true
-			return false
+		&"transfer_marker":
+			if node.marker_from == null or node.marker_to == null:
+				return false
+			var xfer_amt := maxi(node.amount, node.marker_delta)
+			if xfer_amt <= 0:
+				xfer_amt = 1
+			var ok := _mutator.transfer_marker(
+				node.marker_kind, xfer_amt, node.marker_from, node.marker_to
+			)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:transfer_marker",
+				{"kind": node.marker_kind, "amount": xfer_amt, "ok": ok}
+			)
+			return ok
 		&"set_flag":
 			_mutator.set_flag(node.inv_id, node.flag_field, node.flag_value)
 			_log.log(AhcEnums.LogCategory.CARD, "composition:set_flag", {"bearer": node.inv_id})
@@ -1695,13 +1700,15 @@ func _execute_nest_damage(node: CompositionNode) -> bool:
 		}
 	)
 	if result.is_empty() and _mutator != null and target == &"controller":
-		if kind == &"horror":
-			_mutator.take_horror(inv_id, amount)
-		else:
-			_mutator.adjust_marker(
-				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
-				amount
-			)
+		var marker := (
+			AhcEnums.MarkerKind.HORROR_TAKEN if kind == &"horror" else AhcEnums.MarkerKind.DAMAGE
+		)
+		_mutator.transfer_marker(
+			marker,
+			amount,
+			MarkerSlot.supply(marker),
+			MarkerSlot.investigator(inv_id, marker)
+		)
 		## 无 catalog 回退时仍跑伤/恐常态击败检测。
 		if _game_ctx != null:
 			DefeatFlow.check_investigator_caps(_game_ctx, inv_id)
