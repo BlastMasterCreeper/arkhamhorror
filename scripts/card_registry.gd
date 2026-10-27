@@ -44,8 +44,53 @@ static func traits(definition_id: StringName) -> Array:
 	var data := definition_data(definition_id)
 	var tr: Variant = data.get("traits", [])
 	if tr is Array:
-		return tr.duplicate()
+		return (tr as Array).duplicate()
 	return []
+
+
+## 卡牌实例有效特性：B 面优先 back_traits（agenda/act 遭遇背）；否则正面 traits。
+static func traits_of_card(card: CardInstance) -> Array:
+	if card == null:
+		return []
+	var data := definition_data(card.id.definition_id)
+	if card.face == AhcEnums.CardFace.B:
+		var back: Variant = data.get("back_traits", [])
+		if back is Array and not (back as Array).is_empty():
+			return (back as Array).duplicate()
+	var front: Variant = data.get("traits", [])
+	if front is Array and not (front as Array).is_empty():
+		return (front as Array).duplicate()
+	## 遭遇背合并在正面 definition、实例已是敌人但 face 未翻时的回退。
+	var back_fallback: Variant = data.get("back_traits", [])
+	if back_fallback is Array:
+		return (back_fallback as Array).duplicate()
+	return []
+
+
+static func has_trait(definition_id: StringName, trait_name: StringName) -> bool:
+	if definition_id == &"" or trait_name == &"":
+		return false
+	var want := String(trait_name).to_lower()
+	for t in traits(definition_id):
+		if str(t).to_lower() == want:
+			return true
+	var data := definition_data(definition_id)
+	var back: Variant = data.get("back_traits", [])
+	if back is Array:
+		for t in back as Array:
+			if str(t).to_lower() == want:
+				return true
+	return false
+
+
+static func card_has_trait(card: CardInstance, trait_name: StringName) -> bool:
+	if card == null or trait_name == &"":
+		return false
+	var want := String(trait_name).to_lower()
+	for t in traits_of_card(card):
+		if str(t).to_lower() == want:
+			return true
+	return false
 
 
 static func ability_segments(definition_id: StringName) -> Array:
@@ -192,13 +237,16 @@ static func enter_hand_zone(definition_id: StringName) -> AhcEnums.Zone:
 
 
 ## 显现后仍在 limbo 时弃入的牌堆：`owner_discard` | `encounter_discard`。
-static func limbo_discard_pile(definition_id: StringName) -> StringName:
+static func limbo_discard_pile(
+	definition_id: StringName,
+	face: AhcEnums.CardFace = AhcEnums.CardFace.A
+) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	if data.has("limbo_discard_pile"):
 		return data.get("limbo_discard_pile") as StringName
-	## 遭遇 treachery / enemy 默认进遭遇弃牌堆。
-	var card_type: StringName = data.get("card_type", &"") as StringName
-	if card_type == &"treachery" or card_type == &"enemy":
+	## 遭遇 treachery / enemy 默认进遭遇弃牌堆（含 act/agenda 翻到遭遇类型背面）。
+	var ctype := effective_card_type(definition_id, face)
+	if ctype == &"treachery" or ctype == &"enemy":
 		return &"encounter_discard"
 	return &"owner_discard"
 
@@ -382,6 +430,40 @@ static func card_type(definition_id: StringName) -> StringName:
 	return data.get("card_type", &"treachery") as StringName
 
 
+## Act/Agenda 等双面定义上，印刷「b」面的遭遇 cardtype（enemy / treachery / location）。
+## 空 = 背面仍是同类型指令面（走 back_text Composition），不是遭遇类型背面。
+static func back_card_type(definition_id: StringName) -> StringName:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return data.get("back_card_type", &"") as StringName
+
+
+static func is_encounter_cardtype(ctype: StringName) -> bool:
+	return ctype == &"enemy" or ctype == &"treachery" or ctype == &"location"
+
+
+## 当前朝上面对应的 cardtype：Face B 且声明了 `back_card_type` 时用背面类型。
+static func effective_card_type(
+	definition_id: StringName,
+	face: AhcEnums.CardFace = AhcEnums.CardFace.A
+) -> StringName:
+	if face == AhcEnums.CardFace.B:
+		var back := back_card_type(definition_id)
+		if back != &"":
+			return back
+	return card_type(definition_id)
+
+
+static func card_type_of(card: CardInstance) -> StringName:
+	if card == null:
+		return &""
+	return effective_card_type(card.id.definition_id, card.face)
+
+
+## 翻面后 b 面为遭遇 cardtype → 按抽取流程结算进场/显现（FAQ；非「已抽取」）。
+static func has_encounter_cardtype_back(definition_id: StringName) -> bool:
+	return is_encounter_cardtype(back_card_type(definition_id))
+
+
 ## 卡背类型：`player` | `encounter`。只描述无文本背面；与正面 cardtype / CardFace 正交。
 static func card_back(definition_id: StringName) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
@@ -438,6 +520,12 @@ static func is_aloof(definition_id: StringName) -> bool:
 	if data.get("aloof", false):
 		return true
 	return has_keyword(definition_id, &"aloof")
+
+
+## 交战期间禁止发现/花费线索（01121b Masked Hunter 等）。
+static func forbids_clues_while_engaged(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	return bool(data.get("forbid_clues_while_engaged", false))
 
 
 static func is_hidden(definition_id: StringName) -> bool:

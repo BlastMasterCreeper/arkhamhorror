@@ -203,6 +203,21 @@ func engaged_enemies_for(investigator_id: StringName) -> Array[StringName]:
 	return out
 
 
+## 是否已挂该敌人的冷漠 FORBID_ATTACK（WHILE_IN_PLAY）。
+func has_forbid_attack(enemy_id: StringName) -> bool:
+	if enemy_id == &"":
+		return false
+	for reg in _entries:
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+				continue
+			if buff.restriction.kind != AhcEnums.RestrictionKind.FORBID_ATTACK:
+				continue
+			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+				return true
+	return false
+
+
 ## 卸掉该敌人全部交战状态 Buff（脱离 / 抢怪前）。
 func clear_engagement(enemy_id: StringName) -> void:
 	if enemy_id == &"":

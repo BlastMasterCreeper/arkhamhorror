@@ -222,6 +222,20 @@ enum FaceAudience { HIDDEN_ALL, CONTROLLER, ALL }
 
 enum GrimRuleMode { AUTO_WORST, PAUSE_FOR_RULING, DISABLED }
 
+## 电子版同级选择自动决策（16 §3.2）。FAVOR/DISFAVOR 价值评估后补。
+enum AutoChoiceMode {
+	ASK,
+	REGISTRATION_ORDER,
+	RANDOM,
+}
+
+## 可选响应入池偏好（16 §7.1.3）；Forced 不受影响。
+enum AbilityResponseMode {
+	ASK,
+	AUTO_JOIN,
+	AUTO_DECLINE,
+}
+
 enum EventRecordKind {
 	FRAMEWORK_STEP,
 	INITIATION_STEP,
@@ -246,7 +260,8 @@ enum StatKey {
 
 enum StatCompareOp { EQ, GE, LE }
 
-enum SequencePhase { WHEN, RESOLVE, AFTER }
+## WOULD 在 WHEN 前（SPLIT 抽牌等）；ALIAS 流程可跳过 WOULD。
+enum SequencePhase { WOULD, WHEN, RESOLVE, AFTER }
 
 enum PileKind {
 	INV_DECK,
@@ -292,6 +307,13 @@ enum RestrictionKind {
 	## 交战状态（成对）：与威胁区场面脱钩。真实交战与「视为交战」均 Register 本 Buff。
 	## 查询入口读本 Kind；**不是** Intent 拦截，也不是 LISTENER。
 	ENGAGEMENT,
+	## 交战期间不能发现线索（01121b Masked Hunter）。挂在 ENGAGEMENT 同 Register，脱离时卸。
+	FORBID_DISCOVER_CLUE,
+	## 交战期间不能花费线索（同上）。
+	FORBID_SPEND_CLUE,
+	## 冷漠（Aloof）：未交战时不能被 Fight。挂 WHILE_IN_PLAY；已交战则 Evaluator 放行。
+	## 禁自动交战仍由 spawn / auto-engage 读拥有（Domain/keyword），不经本 Kind。
+	FORBID_ATTACK,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }

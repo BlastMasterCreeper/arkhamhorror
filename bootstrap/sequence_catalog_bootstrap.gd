@@ -36,9 +36,11 @@ static func _register_flows(
 			return TriggeringCondition.draw_encounter(drawer_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var drawer_id: StringName = params.get("drawer_id", &"")
-			return DrawEncounterFlow.run(game_ctx, drawer_id)
+			return DrawEncounterFlow.run(game_ctx, drawer_id),
+		true ## SPLIT：WOULD/WHEN 在抽取砖块边界 emit（15 §3.1）
 	)
 	## 已持有实例 → 遭遇侧能力体系（与抽库后卡面结算同体；非来源重定向）。
+	## `as_drawn=false`：Act/Agenda 遭遇类型背面等 — 进场/显现，不触发 when-drawn。
 	catalog.register_run(
 		&"seq.encounter.resolve_card",
 		func(params: Dictionary) -> TriggeringCondition:
@@ -48,7 +50,8 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			var card_id: StringName = params.get("card_id", &"")
-			return DrawEncounterFlow.resolve_card(game_ctx, drawer_id, card_id)
+			var as_drawn: bool = bool(params.get("as_drawn", true))
+			return DrawEncounterFlow.resolve_card(game_ctx, drawer_id, card_id, as_drawn)
 	)
 	catalog.register_run(
 		&"seq.encounter.revelation",
@@ -80,7 +83,8 @@ static func _register_flows(
 				tags.append(tag as StringName)
 			return TriggeringCondition.draw_investigator(inv_id, amount, tags),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return _resolve_draw_investigator(game_ctx, params, mutator, catalog)
+			return _resolve_draw_investigator(game_ctx, params, mutator, catalog),
+		true ## SPLIT：WOULD/WHEN 在抽取砖块边界 emit（15 §3.1）
 	)
 	## M4：正式 id = seq.effect.gain_resource；旧 id 保留为别名。
 	var gain_build := func(params: Dictionary) -> TriggeringCondition:
@@ -192,7 +196,9 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 				params.get("source", params.get("card_id", &"")) as StringName
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return EffectFlowHandlers.damage(game_ctx, params)
+			return EffectFlowHandlers.damage(game_ctx, params),
+		false,
+		true ## 信封无槽；Assign=PI 后 Apply 前 WOULD→WHEN（prevent / when-take）
 	)
 	catalog.register_run(
 		&"seq.effect.lose_resources",

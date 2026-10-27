@@ -1491,6 +1491,11 @@ func _execute_spend_clues_group(node: CompositionNode) -> bool:
 		var inv := _state.registry.get_investigator(inv_id)
 		if inv == null or inv.eliminated or inv.resigned or inv.clues_on_card <= 0:
 			continue
+		if (
+			_registrations != null
+			and RestrictionEvaluator.blocks_spend_clue(inv_id, _registrations)
+		):
+			continue
 		var take := mini(1, mini(inv.clues_on_card, need - spent))
 		inv.clues_on_card -= take
 		spent += take

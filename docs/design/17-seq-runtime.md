@@ -64,7 +64,7 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| T1 | **WOULD** | 该次流程 PreImpact（抽牌：这条指令尚未发生；任何一张 pop 前牌在 **DECK**） |
+| T1 | **WOULD** | 该次流程 PreImpact（抽牌：这条指令尚未发生；任何一张 pop 前牌在 **DECK**）— **`seq.draw.*` SPLIT 已接** |
 | T2 | **WHEN** | 发起 impact 之后的打断槽（抽牌：抽取步骤；同一指令的 N 张已同时抽到，不覆盖显现 / G4） |
 | T3 | **AFTER** | 该次流程整段结算完毕（抽牌：同时抽出组的显现 / G4 都完。涌动是之后的延时，另开指令） |
 | T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)`；抽牌按卡面转译钉语义；**v1 未实现** |
@@ -84,9 +84,9 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| W1 | Eligibility L0–L5 COLLECT | 订阅 `(sequence_id, slot)` + L3 Condition（历史谓词 → [06c](06c-stat-projections.md) StatProjection）— **未实现 Pipeline** |
+| W1 | Eligibility L0–L5 COLLECT | `EligibilityPipeline.passes_collect`：L3 Condition + L4 RESTRICTION + L5 limit；接栈 COLLECT / 池 prune（[06 §5](06-ability-initiation.md)） |
 | W2 | Tier 批处理 | FORCED → TRIGGERED → …（14 §5.2） |
-| W3 | ResponseWindow | USE_ABILITY、ORDER_SIMULTANEOUS — **stack 现 fire 全部 handler** |
+| W3 | ResponseWindow | 响应池 + 队长每次放行 1 条（[16 §7.1](16-player-interaction.md)）— **`player_initiated` TRIGGERED 已接；Forced 仍 auto 批** |
 | W4 | nest 后 refresh | TimingWindow 仍 open 则再 COLLECT |
 | W5 | 能力 resolution 范围 | `begin/end_ability_resolution` 禁自响应 |
 
@@ -104,7 +104,7 @@
 |---|---|---|
 | I1 | Forced / [reaction] | eligible → Initiation L6–L7 → resolve **落在已压栈手续** 内解释（§4.0.5 为「是」才 nest 子帧） |
 | I2 | **禁止真空执行（硬门槛 · 2026-09-28）** | Composition **只能**在已压栈 `seq.*` RESOLVE 内 `execute`。裸 `composition.execute`（含 Initiation / LISTENER 绕栈）= **DoD 失败**，不是「待收缺口」。见 effect-translation DoD §1、07 §1.3；抽查纪要 [23](23-vacuum-audit.md) |
-| I3 | PlayerWindow | Framework / ST 开窗 → 窗口内走 W1–W3 |
+| I3 | PlayerWindow | Framework / ST 开窗 → 发起池 + 主表倒计时（[16 §7.3](16-player-interaction.md)）；**勿**与时点响应池混用 |
 
 ### 3.7 测试
 
@@ -176,7 +176,8 @@
 
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
-| **父 Would / When** | 卡面 draw 转译：Would = 这次抽取 PreImpact；When = 抽取步骤（15 §3） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
+| **父 Would / When** | 卡面 draw 转译：Would = 整段 PreImpact（信封头）；When = 抽取步骤砖块后（15 §3） | ✅ `split_timing`：信封 WOULD + 中段 `offer_slot(WHEN)`（TIM-01/02） |
+| **伤害 PreImpact 槽** | Assign = **PI**；**WOULD→WHEN 均在 Apply 前**（防伤钉 WOULD；07 §4） | ✅ `no_envelope_slot` + Apply 前双 `offer_slot`（TIM-DMG-01/02） |
 | **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |
@@ -288,7 +289,7 @@
 ```text
 1. 框架接线（Upkeep gain/draw → catalog）     ← 证明「回合里 seq 被调用」
 2. seq.draw.encounter 竖切（E1–E5 + peril）   ← 神话阶段可玩
-3. Eligibility + ResponseWindow 最小版       ← 一条 Forced + 一条 [reaction] 走通
+3. Eligibility + 意愿池最小版               ← 1 Forced + 2 [reaction]（一条 nest 后才 eligible）
 4. draw SPLIT：卡面 draw 转译 WHEN=抽取步骤、WOULD=这次抽取 PreImpact  ← 与 15 §3.1 一致
 5. Initiation nest stack                     ← 卡面能力不再绕 stack
 6. seq.action.* + RESTRICTION 入口         ← 行动与 cannot 统一
@@ -327,6 +328,9 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-22 | v0.4.26 | I3：`InitiationPool` / 发起池（替 ActivationPool） |
+| 2026-10-22 | v0.4.25 | W1 竖切 Eligibility COLLECT；W3/I3 术语对齐响应池 / 发起池 |
+| 2026-10-22 | v0.4.24 | W3/I3/§7：意愿池与 PlayerWindow 意图池（链 16 §7.1 / §7.3） |
 | 2026-09-28 | v0.4.23 | I2 升硬门槛；OQ-SEQ-03 修订（禁真空；nest 仅 §4.0.5；PI≠nest） |
 | 2026-09-22 | v0.4.22 | §1.1：时点 vs 条件；统一 `seq.effect.damage` / `seq.skill_test` / `lose_resources`+`all` |
 | 2026-09-21 | v0.4.21 | §5：`seq.framework.investigation_phase_ends`；deal_damage 附着地点非 Elite |

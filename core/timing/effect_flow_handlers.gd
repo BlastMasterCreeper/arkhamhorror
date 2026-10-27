@@ -14,6 +14,7 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null or game_ctx.mutator == null:
 		return {"ok": false, "amount": 0}
 	var applied := 0
+	var is_direct := bool(params.get("direct", false))
 	match target:
 		&"each_at_controller_location", &"each_at_source_location":
 			var loc_id := _location_for_target(game_ctx, params, target)
@@ -25,7 +26,7 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 					continue
 				if other.location_tag != loc_id:
 					continue
-				applied += _apply_to_investigator(game_ctx, other_id, kind, amount)
+				applied += _apply_to_investigator(game_ctx, other_id, kind, amount, is_direct)
 		&"non_elite_with_health_at_attached_location":
 			if kind != &"damage":
 				return {"ok": false, "amount": 0, "error": "horror_not_supported_for_target"}
@@ -51,7 +52,7 @@ static func damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		_:
 			if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
 				return {"ok": false, "amount": 0, "error": "unknown_investigator"}
-			applied = _apply_to_investigator(game_ctx, inv_id, kind, amount)
+			applied = _apply_to_investigator(game_ctx, inv_id, kind, amount, is_direct)
 	_log(
 		game_ctx,
 		"effect:damage",
@@ -425,18 +426,18 @@ static func _apply_to_investigator(
 	game_ctx: GameContext,
 	inv_id: StringName,
 	kind: StringName,
-	amount: int
+	amount: int,
+	is_direct: bool = false
 ) -> int:
-	if kind == &"horror":
-		game_ctx.mutator.take_horror(inv_id, amount)
-	else:
-		game_ctx.mutator.adjust_marker(
-			MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
-			amount
-		)
-	## 伤/恐常态检测 → 可能 nest 击败。
-	DefeatFlow.check_investigator_caps(game_ctx, inv_id)
-	return amount
+	## Assign → WOULD（prevent）→ WHEN → Apply（07 §4）；敌/支援路径不经此。
+	var result := DamagePipeline.deal_investigator(
+		game_ctx,
+		inv_id,
+		kind,
+		amount,
+		is_direct
+	)
+	return int(result.get("amount", 0))
 
 
 static func _deal_non_elite_with_health_at_attached(

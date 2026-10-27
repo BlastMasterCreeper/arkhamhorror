@@ -708,13 +708,13 @@ nest_batch seq.enter_hand                                  ← 结算剩余（�
 | 步骤 | 内联/嵌套 | 因果 vs 连续 | 应 emit 的 TimingEntry | 典型能力 | 实现 |
 |---|---|---|---|---|---|
 | D0 push | 根 `run` | 整段 draw **开始** | — | — | ✅ |
-| **WOULD** | — | 这次抽取 PreImpact | 父 **WOULD** | would draw · 牌在 **DECK** | ⚠️ 未 emit |
-| D1 collect ×N | **内联** | **连续**（发起 impact 离库） | — | — | ✅ pop 过早于 Would（缺口） |
+| **WOULD** | — | 这次抽取 PreImpact（= 整段第一块前） | 父 **WOULD** | would draw · 牌在 **DECK** | ✅ 信封头（`split_timing`；TIM-01） |
+| D1 collect ×N | **内联** | **连续**（发起 impact 离库） | — | — | ✅ 在 WOULD 之后 |
 | D1 两堆空 | **nest** | **因果**：空库 **导致** defeated | （abort；无父 AFTER） | — | ✅ |
-| D2 reveal | **内联** | **连续**：发起 impact | — | — | ❌ |
-| D3 物理入手 | **内联** | **连续**：抽取步骤完成 → **HAND** | 父 **WHEN** | when you draw | ❌ |
+| D2 reveal | **内联** | **连续**：发起 impact | — | — | ✅ |
+| D3 物理入手 | **内联** | **连续**：抽取步骤完成 → **HAND** | 父 **WHEN** | when you draw | ✅ `offer_slot` 在入手后、显现前 |
 | D3 显现 | **nest** | **因果**：入手 **触发** Revelation | 子 `(enter_hand, slot)` | Revelation | ✅ nest |
-| D5 pop | 父 pop | 该次抽取结算完毕 | 父 **AFTER** | after you draw | ✅ pop；❌ offer |
+| D5 pop | 父 pop | 该次抽取结算完毕 | 父 **AFTER** | after you draw | ✅ |
 
 **结构决策（因果优先）**：
 
@@ -1429,7 +1429,7 @@ seq.draw.investigator RESOLVE (D1 collect_one_step):
 | Mythos 1.4（每位调查员） | `ScenarioSystem.resolve_encounter_draw(inv)` → `catalog.run(seq.draw.encounter, {drawer_id, amount: 1})` |
 | 卡牌效果「draw N encounter cards」 | 同上，`amount = N` |
 | Setup 14 game begins | 仅结算 **deferred** 显现；Setup 1–13 **不**进入本管线（OQ-10-01） |
-| Act/Agenda b 面 encounter | 按 encounter cardtype 规则；可 nest 同一 `seq.encounter.*` 子 flow |
+| Act/Agenda b 面 encounter | nest `seq.encounter.resolve_card`（`as_drawn=false`）：进场+显现同抽取规则；**不** emit/nest `encounter_card_drawn`；无 surge when-drawn 槽 |
 
 `ScenarioSystem` **不** proliferate 逐步逻辑；只做 framework 步进与 `catalog.run` 委托（对齐 [10 §2](10-scenario-encounter.md)）。
 

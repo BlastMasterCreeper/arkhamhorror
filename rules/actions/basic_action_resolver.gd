@@ -92,7 +92,7 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	var enemy := _state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
-	var target_err := _validate_fight_target(inv, enemy)
+	var target_err := _validate_fight_target(game_ctx, inv, enemy)
 	if target_err != "":
 		return {"ok": false, "error": target_err}
 	var commits := _commits_from_extra(extra)
@@ -154,10 +154,22 @@ func evade(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	}
 
 
-func _validate_fight_target(inv: InvestigatorState, enemy: EnemyState) -> String:
+func _validate_fight_target(
+	game_ctx: GameContext,
+	inv: InvestigatorState,
+	enemy: EnemyState
+) -> String:
 	if not enemy.is_at_location(inv.location_tag):
 		return "wrong_location"
-	if enemy.aloof and enemy.engaged_with == &"":
+	## REST-E-ACTION：冷漠 FORBID_ATTACK（未交战）；已交战 Evaluator 放行。
+	if (
+		game_ctx != null
+		and game_ctx.registrations != null
+		and RestrictionEvaluator.blocks_fight(inv.id, enemy.id, game_ctx.registrations)
+	):
+		return "aloof"
+	## 拥有已标 aloof、尚未挂 Register 时的兜底（测试 Domain-only）。
+	if enemy.aloof and not EngagementStatus.is_engaged(game_ctx, enemy.id):
 		return "aloof"
 	return ""
 
