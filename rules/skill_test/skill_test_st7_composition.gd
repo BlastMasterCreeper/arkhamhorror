@@ -16,15 +16,19 @@ static func register_plan(
 		return
 	if plan.on_success != null:
 		var success_body := plan.on_success
-		test.on_success = func(_ctx: SkillTestContext) -> void:
-			game_ctx.composition.execute(success_body)
+		test.on_success = func(ctx: SkillTestContext) -> void:
+			CompositionMount.resolve_ability(
+				game_ctx, success_body, ctx.performing_investigator
+			)
 	if plan.on_fail != null:
 		var fail_body := plan.on_fail
 		var prior_fail := test.on_fail
 		test.on_fail = func(ctx: SkillTestContext) -> void:
 			if prior_fail.is_valid():
 				prior_fail.call(ctx)
-			game_ctx.composition.execute(fail_body)
+			CompositionMount.resolve_ability(
+				game_ctx, fail_body, ctx.performing_investigator
+			)
 	if plan.on_fail_by_each != null:
 		var each_body := plan.on_fail_by_each
 		test.st7_fail_by_effects.append(
@@ -32,7 +36,9 @@ static func register_plan(
 				if ctx.success or ctx.fail_by <= 0:
 					return
 				for _i in ctx.fail_by:
-					game_ctx.composition.execute(each_body)
+					CompositionMount.resolve_ability(
+						game_ctx, each_body, ctx.performing_investigator
+					)
 		)
 
 

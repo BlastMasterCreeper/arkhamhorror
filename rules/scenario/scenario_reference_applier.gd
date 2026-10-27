@@ -220,7 +220,9 @@ static func _execute_immediate(
 		return
 	var node := _build_body(imm_raw as Dictionary, game_ctx, ctx, ability)
 	if node != null:
-		game_ctx.composition.execute(node)
+		CompositionMount.resolve_ability(
+			game_ctx, node, ctx.performing_investigator if ctx != null else &""
+		)
 
 
 static func _register_st7(
@@ -240,7 +242,9 @@ static func _register_st7(
 			ctx.on_success = func(st: SkillTestContext) -> void:
 				if prior_ok.is_valid():
 					prior_ok.call(st)
-				game_ctx.composition.execute(body_ok)
+				CompositionMount.resolve_ability(
+					game_ctx, body_ok, st.performing_investigator
+				)
 	var on_fail_raw: Variant = effect.get("on_fail", {})
 	if on_fail_raw is Dictionary and not (on_fail_raw as Dictionary).is_empty():
 		var fail_node := _build_body(on_fail_raw as Dictionary, game_ctx, ctx, ability)
@@ -250,7 +254,9 @@ static func _register_st7(
 			ctx.on_fail = func(st: SkillTestContext) -> void:
 				if prior.is_valid():
 					prior.call(st)
-				game_ctx.composition.execute(body)
+				CompositionMount.resolve_ability(
+					game_ctx, body, st.performing_investigator
+				)
 	var fail_by_raw: Variant = effect.get("on_fail_by", {})
 	if fail_by_raw is Dictionary and not (fail_by_raw as Dictionary).is_empty():
 		var fb: Dictionary = fail_by_raw
@@ -265,7 +271,9 @@ static func _register_st7(
 					func(st: SkillTestContext) -> void:
 						if st.success or st.fail_by < thr:
 							return
-						game_ctx.composition.execute(body2)
+						CompositionMount.resolve_ability(
+							game_ctx, body2, st.performing_investigator
+						)
 				)
 
 

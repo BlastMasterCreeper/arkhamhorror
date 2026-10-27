@@ -8128,8 +8128,9 @@ func _test_bag_wire_12068_vertical() -> bool:
 	var card := h.ctx.state.registry.get_card(card_id)
 	## Uses Domain：进场即 3 charges；勿手写。
 	var charges_enter := int(card.tokens.uses.get(&"charges", -1))
+	## 意愿池 join（16 §7.1）；非二次 reaction:use。
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"reaction:use", "pick": true},
+		{"prompt_id": &"willingness:join", "pick": true},
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var horror_before := inv.horror_taken
@@ -8173,7 +8174,7 @@ func _test_bag_wire_12068_symbol_horror() -> bool:
 	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
 	var card := h.ctx.state.registry.get_card(card_id)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"reaction:use", "pick": true},
+		{"prompt_id": &"willingness:join", "pick": true},
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var horror_before := inv.horror_taken
@@ -10728,7 +10729,7 @@ func _test_asn_include_bodyguard() -> bool:
 
 
 func _test_asn_pipeline_prior_fill() -> bool:
-	## ASN-06：pipeline Apply 按 PRIOR_FILL 腿写入资产 + 调查员。
+	## ASN-06：pipeline Apply 按 PRIOR_FILL 腿写入；达神智上限则击败退场清标记。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
 		h.ctx, &"inv_1", &"ally_asn_pipe", {"health": 0, "sanity": 2}
@@ -10741,12 +10742,16 @@ func _test_asn_pipeline_prior_fill() -> bool:
 	var res := DamagePipeline.deal_investigator(h.ctx, &"inv_1", &"horror", 3, false)
 	var card := h.ctx.state.registry.get_card(card_id)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_legs: Array = res.get("legs_horror", [])
 	return (
 		bool(res.get("ok", false))
 		and int(res.get("amount", 0)) == 3
-		and card != null
-		and card.tokens.horror == 2
+		and _asn_leg_amount(horror_legs, &"card", card_id) == 2
+		and _asn_leg_amount(horror_legs, &"investigator", &"inv_1") == 1
 		and inv.horror_taken == 1
+		and card != null
+		and card.zone == AhcEnums.Zone.DISCARD
+		and card.tokens.horror == 0
 	)
 
 

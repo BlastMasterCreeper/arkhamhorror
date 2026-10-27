@@ -38,10 +38,11 @@ static func register_specs(
 
 
 static func _make_callback(game_ctx: GameContext, body: CompositionNode) -> Callable:
-	return func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
-		if game_ctx == null or game_ctx.composition == null or body == null:
+	return func(ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		if game_ctx == null or body == null:
 			return
-		game_ctx.composition.execute(body)
+		var inv := ctx.performing_investigator if ctx != null else &""
+		CompositionMount.resolve_ability(game_ctx, body, inv)
 
 
 static func kind_from_token_key(key: String) -> int:
