@@ -4555,7 +4555,7 @@ func _test_adb_compile_12130_skill_choice() -> bool:
 		and test.get("skill", "") == "memory:picked_skill"
 		and int(test.get("difficulty", 0)) == 3
 		and each.get("template", "") == "take_damage"
-		and each.get("flow_id", "") == "seq.effect.damage"
+		and each.get("flow_id", "") == "seq.effect.deal.assignable"
 		and each.get("kind", "") == "damage"
 		and each.get("target", "") == "controller"
 		and test.get("investigator", "") == "controller"
@@ -4591,7 +4591,8 @@ func _test_adb_compile_12127() -> bool:
 		and test.get("investigator", "") == "controller"
 		and fail_steps is Array
 		and (fail_steps as Array).size() == 2
-		and ((fail_steps as Array)[0] as Dictionary).get("flow_id", "") == "seq.effect.damage"
+		and ((fail_steps as Array)[0] as Dictionary).get("flow_id", "")
+			== "seq.effect.deal.assignable"
 		and ((fail_steps as Array)[0] as Dictionary).get("kind", "") == "damage"
 		and ((fail_steps as Array)[0] as Dictionary).get("target", "") == "controller"
 		and ((fail_steps as Array)[1] as Dictionary).get("flow_id", "")
@@ -5484,7 +5485,7 @@ func _test_adb_12132_defeat_horror() -> bool:
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
 	if not h.prepare_action_phase():
 		return false
-	if not h.ctx.sequence_catalog.has_flow(&"seq.enemy.defeat"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.defeat"):
 		return false
 	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -5639,7 +5640,7 @@ func _test_adb_12102_activate_action_discard() -> bool:
 func _test_adb_12129_fire_forced_phase_ends() -> bool:
 	var h := RuleTestHarness.new(42)
 	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
-	if not h.ctx.sequence_catalog.has_flow(&"seq.framework.investigation_phase_ends"):
+	if not h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW):
 		return false
 	GameBootstrap.setup_test_location(h.ctx, &"test_loc")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -5660,7 +5661,12 @@ func _test_adb_12129_fire_forced_phase_ends() -> bool:
 	var horror_before := inv.horror_taken
 	var dmg_before := inv.damage_taken
 	var result := h.ctx.sequence_catalog.run(
-		h.ctx, &"seq.framework.investigation_phase_ends", {}
+		h.ctx,
+		PhaseBoundaryFlow.FLOW,
+		{
+			"phase": PhaseBoundaryFlow.PHASE_INVESTIGATION,
+			"boundary": PhaseBoundaryFlow.BOUNDARY_ENDS,
+		}
 	)
 	return (
 		bool(result.get("ok", false))
@@ -8786,8 +8792,8 @@ func _test_m4_gain_resource_rename() -> bool:
 		return false
 	if not catalog.has_flow(&"seq.effect.gain_resource"):
 		return false
-	## 旧 id 仍为别名。
-	if not catalog.has_flow(&"seq.gain_resource"):
+	## 旧根 id 已废。
+	if catalog.has_flow(&"seq.gain_resource"):
 		return false
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var before := inv.resource_pool
@@ -8926,7 +8932,8 @@ func _test_g1_effect_move_enemy() -> bool:
 		and bool(res.get("moved", false))
 		and enemy.location_tag == &"loc_b"
 		and res.get("move_kind", &"") == MoveFlow.KIND_MOVE
-		and h.ctx.sequence_catalog.has_flow(&"seq.enemy.move")
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.move")
+		and not h.ctx.sequence_catalog.has_flow(&"seq.enemy.move")
 	)
 
 
@@ -9447,7 +9454,7 @@ func _test_g5_defeat_cancel_no_leave() -> bool:
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	enemy.damage = enemy.health
 	h.ctx.memory.cancel_sequence(
-		&"seq.enemy.defeat",
+		&"seq.effect.defeat",
 		{"card_id": enemy_id}
 	)
 	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
@@ -9471,7 +9478,7 @@ func _test_g5_damage_cap_retriggers() -> bool:
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	enemy.damage = enemy.health
 	h.ctx.memory.cancel_sequence(
-		&"seq.enemy.defeat",
+		&"seq.effect.defeat",
 		{"card_id": enemy_id}
 	)
 	var cancelled := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
@@ -9533,7 +9540,7 @@ func _test_g5_defeat_catalog() -> bool:
 	var h := RuleTestHarness.new(42)
 	return (
 		h.ctx.sequence_catalog.has_flow(&"seq.effect.defeat")
-		and h.ctx.sequence_catalog.has_flow(&"seq.enemy.defeat")
+		and not h.ctx.sequence_catalog.has_flow(&"seq.enemy.defeat")
 		and h.ctx.sequence_catalog.has_flow(&"seq.defeat.leave_play")
 	)
 
@@ -9832,7 +9839,9 @@ func _test_g6_phase_boundary_catalog() -> bool:
 	)
 	return (
 		h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW)
-		and h.ctx.sequence_catalog.has_flow(PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS_ALIAS)
+		and not h.ctx.sequence_catalog.has_flow(
+			&"seq.framework.investigation_phase_ends"
+		)
 		and mythos_begins.get("phase", &"") == PhaseBoundaryFlow.PHASE_MYTHOS
 		and mythos_begins.get("boundary", &"") == PhaseBoundaryFlow.BOUNDARY_BEGINS
 		and inv_ends.get("phase", &"") == PhaseBoundaryFlow.PHASE_INVESTIGATION
@@ -10034,7 +10043,6 @@ func _test_act_catalog_registered() -> bool:
 		&"seq.effect.ready",
 		&"seq.effect.search",
 		&"seq.effect.defeat",
-		&"seq.enemy.defeat",
 		&"seq.defeat.leave_play",
 		&"seq.zone.move",
 		&"seq.action.investigate",
@@ -10051,7 +10059,7 @@ func _test_act_catalog_registered() -> bool:
 	return h.ctx.action_sequences != null
 
 
-## 22 / bootstrap 全量对照：必有 66 条；已废 / 刻意不铸不得注册。
+## 22 / bootstrap 全量对照：必有 60 条正式 id；别名 / 已废 / 刻意不铸不得注册。
 func _test_seq_audit_catalog_inventory() -> bool:
 	var h := RuleTestHarness.new(42)
 	var catalog := h.ctx.sequence_catalog
@@ -10073,8 +10081,6 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.draw.encounter",
 		&"seq.draw.investigator",
 		&"seq.effect.attach",
-		&"seq.effect.damage",
-		&"seq.effect.damage.assignable",
 		&"seq.effect.deal",
 		&"seq.effect.deal.assignable",
 		&"seq.effect.defeat",
@@ -10102,15 +10108,11 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.encounter.spawn",
 		&"seq.enemy.3_2",
 		&"seq.enemy.attack",
-		&"seq.enemy.defeat",
-		&"seq.enemy.move",
 		&"seq.enemy.phase_attacks",
 		&"seq.enemy.resolve_location",
 		&"seq.engage",
 		&"seq.enter_hand",
-		&"seq.framework.investigation_phase_ends",
 		&"seq.framework.phase_boundary",
-		&"seq.gain_resource",
 		&"seq.interrupt.cancel",
 		&"seq.interrupt.ignore",
 		&"seq.keyword.hunter",
@@ -10125,12 +10127,18 @@ func _test_seq_audit_catalog_inventory() -> bool:
 	]
 	var forbidden: Array[StringName] = [
 		&"seq.effect.discard_from_hand",
+		&"seq.effect.damage",
+		&"seq.effect.damage.assignable",
+		&"seq.enemy.defeat",
+		&"seq.enemy.move",
 		&"seq.enemy.massive_phase_attacks",
 		&"seq.enemy.3_2_hunter_patrol",
 		&"seq.enemy.3_2_patrol",
 		&"seq.draw.encounter.resolve_bound",
 		&"seq.effect.enter_play",
 		&"seq.effect.spend_token",
+		&"seq.framework.investigation_phase_ends",
+		&"seq.gain_resource",
 		&"seq.aoo",
 		&"seq.play",
 		&"seq.commit",
@@ -10141,7 +10149,7 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.skill_test.agility",
 		&"seq.setup",
 	]
-	if required.size() != 66:
+	if required.size() != 60:
 		return false
 	for flow_id in required:
 		if not catalog.has_flow(flow_id):

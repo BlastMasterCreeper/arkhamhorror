@@ -1,7 +1,7 @@
 class_name DefeatFlow
 extends RefCounted
 
-## 击败内核 · `seq.effect.defeat`（敌人别名 `seq.enemy.defeat`）。
+## 击败内核 · `seq.effect.defeat`（敌人主体 TC.kind = `enemy_defeated`）。
 ## 大信封：退场（nest `seq.defeat.leave_play`）是击败效果体的一部分，不是信封外另起后续。
 ## Cancel 整封击败 → 退场不跑。伤/恐达上限 = 常态检测；卡面击败 = cause=effect。
 ## 支援：退场经 L0 `move_card` → 拥有者弃牌堆；**不**走 `seq.effect.discard_card`。
@@ -15,7 +15,6 @@ const CAUSE_HORROR_CAP := &"horror_cap"
 const CAUSE_EFFECT := &"effect"
 
 const FLOW_DEFEAT := &"seq.effect.defeat"
-const FLOW_ENEMY_DEFEAT := &"seq.enemy.defeat"
 const FLOW_LEAVE := &"seq.defeat.leave_play"
 
 
@@ -200,7 +199,7 @@ static func defeat_asset_effect(game_ctx: GameContext, card_id: StringName) -> D
 	)
 
 
-## Catalog handler（`seq.effect.defeat` / `seq.enemy.defeat`）：Cancel 则停；否则 nest 退场。
+## Catalog handler（`seq.effect.defeat`）：Cancel 则停；否则 nest 退场。
 static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var p := _normalize_params(game_ctx, params)
 	if p.is_empty():
@@ -210,14 +209,10 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if (
 		game_ctx != null
 		and game_ctx.memory != null
-		and (
-			game_ctx.memory.is_sequence_cancelled(FLOW_DEFEAT, bind)
-			or game_ctx.memory.is_sequence_cancelled(FLOW_ENEMY_DEFEAT, bind)
-		)
+		and game_ctx.memory.is_sequence_cancelled(FLOW_DEFEAT, bind)
 	):
 		## 消费本次 Cancel：伤/恐常态检测之后仍可再触发。
 		game_ctx.memory.clear_sequence_cancel(FLOW_DEFEAT, bind)
-		game_ctx.memory.clear_sequence_cancel(FLOW_ENEMY_DEFEAT, bind)
 		return {
 			"ok": false,
 			"defeated": false,
@@ -246,15 +241,7 @@ static func leave_play(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	return {"ok": false, "defeated": false, "error": "unknown_subject"}
 
 
-static func _entry_flow_id(game_ctx: GameContext, params: Dictionary) -> StringName:
-	var subject: StringName = params.get("subject", &"") as StringName
-	if (
-		subject == SUBJECT_ENEMY
-		and game_ctx != null
-		and game_ctx.sequence_catalog != null
-		and game_ctx.sequence_catalog.has_flow(FLOW_ENEMY_DEFEAT)
-	):
-		return FLOW_ENEMY_DEFEAT
+static func _entry_flow_id(_game_ctx: GameContext, _params: Dictionary) -> StringName:
 	return FLOW_DEFEAT
 
 

@@ -203,7 +203,7 @@
 
 ## 5. 当前已注册 flow（代码）
 
-**权威清单与审计**：[22 §9](22-seq-granularity.md#9-catalog-全量审计2026-10-27)（**66** 条，含别名；`SEQ-AUDIT-01`）。粒度 / 合并 / 刻意不铸见 [22](22-seq-granularity.md)。
+**权威清单与审计**：[22 §9](22-seq-granularity.md#9-catalog-全量审计2026-10-27)（**60** 条正式 id，无别名；`SEQ-AUDIT-01`）。粒度 / 合并 / 刻意不铸见 [22](22-seq-granularity.md)。
 
 要点（非穷尽）：
 
@@ -218,11 +218,9 @@
 | 中断 | `seq.interrupt.cancel`/`ignore` · `seq.replace.instead` |
 | 工程帧 | `seq.ability.resolve` · `seq.zone.move` · `seq.defeat.leave_play` |
 
-**别名**（同核）：`seq.gain_resource`；`seq.enemy.move`；`seq.effect.damage`(/`.assignable`)；`seq.enemy.defeat`；`seq.framework.investigation_phase_ends`。
-
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 
-**已移除 / 更名**：`take_horror`/`take_damage`/`deal_damage` → `deal`(/`.assignable`)（`damage*` 暂别名）；`lose_all_resources` → `lose_resources`+`all`；技能检定四条 → `seq.skill_test`；`discard_from_hand` → `discard_card`+`from`；`massive_phase_attacks` → Massive REPLACE @ `seq.enemy.attack`。
+**已移除 / 更名**：`take_horror`/`take_damage`/`deal_damage`/`damage*` → `deal`(/`.assignable`)；`lose_all_resources` → `lose_resources`+`all`；技能检定四条 → `seq.skill_test`；`discard_from_hand` → `discard_card`+`from`；`massive_phase_attacks` → Massive REPLACE @ `seq.enemy.attack`；`seq.gain_resource` / `seq.enemy.move` / `seq.enemy.defeat` / `seq.framework.investigation_phase_ends` → 正式 id（别名已删）。
 
 **刻意不铸**：`seq.setup`（开局 Framework · 关键词锚）；Spend / AOO / Play / Commit / Peril check / enter_play — 见 [22 §9.3](22-seq-granularity.md#93-刻意不铸非缺漏)。
 
@@ -310,6 +308,8 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-27 | v0.4.37 | §5：去 flow 别名（60 条正式）；`damage*`/`gain_resource`/`enemy.move|defeat`/`investigation_phase_ends` 已删 |
+| 2026-10-27 | v0.4.36 | §5：指向 [22 §9](22-seq-granularity.md) 全量审计（66 条）；去重 evade；别名/刻意不铸 |
 | 2026-10-27 | v0.4.35 | §4.4：取消/additional 钉 WOULD；WHEN take 预留无生产卡 |
 | 2026-10-26 | v0.4.34 | §5：deal 双通道腿；AFTER 伤/恐/和或条件；GRANT 无印刷不设上限 |
 | 2026-10-26 | v0.4.33 | §4.4：外向/已定 deal 腿 PreImpact（`DealPreImpact`） |

@@ -18,7 +18,7 @@ const FLOW_KEYWORD_PATROL: StringName = &"seq.keyword.patrol"
 const FLOW_KEYWORD_MASSIVE: StringName = &"seq.keyword.massive"
 const FLOW_ENEMY_3_2: StringName = &"seq.enemy.3_2"
 const FLOW_ENEMY_ATTACK: StringName = &"seq.enemy.attack"
-const FLOW_ENEMY_DEFEAT: StringName = &"seq.enemy.defeat"
+const FLOW_ENEMY_DEFEAT: StringName = &"seq.effect.defeat"
 const FLOW_PHASE_ATTACKS: StringName = &"seq.enemy.phase_attacks"
 const FLOW_SKILL_TEST: StringName = &"seq.skill_test"
 
