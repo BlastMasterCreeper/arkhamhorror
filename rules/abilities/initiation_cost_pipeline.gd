@@ -44,6 +44,9 @@ func can_pay(intent: InitiationIntent) -> bool:
 		return false
 	if inv.actions_remaining < intent.modified_action_cost:
 		return false
+	## Seal 关键词：额外费用门槛（袋内须有指定标记）；支付在进场序列。
+	if not _can_pay_seal_keyword(intent):
+		return false
 	return true
 
 
@@ -63,7 +66,22 @@ func pay(intent: InitiationIntent) -> bool:
 		):
 			return false
 	inv.actions_remaining -= intent.modified_action_cost
+	## Seal 关键词不在 L6 扣袋：进场后 `SealFlow.pay_keyword_on_enter`。
 	return true
+
+
+func _can_pay_seal_keyword(intent: InitiationIntent) -> bool:
+	if intent == null or intent.kind != InitiationIntent.Kind.PLAY_CARD:
+		return true
+	if intent.card_id == &"" or _state == null:
+		return true
+	var card := _state.registry.get_card(intent.card_id)
+	if card == null:
+		return true
+	var spec: SealSpec = CardRegistry.seal_spec(card.id.definition_id)
+	if spec == null or not spec.as_play_cost:
+		return true
+	return SealFlow.can_satisfy(_state.chaos_bag, spec)
 
 
 func refund(intent: InitiationIntent) -> void:

@@ -76,13 +76,14 @@ static func deal_investigator_bundle(
 		final_h = pending_horror_amount(game_ctx, inv_id)
 		final_h_legs = pending_horror_legs(game_ctx, inv_id)
 	_clear_pending_bundle(game_ctx, inv_id)
-	## 同时 Apply（无再开第二条 deal）。
+	## 同时 Apply：先写完所有腿，再常态检测（避免中途退场清掉刚写入的标记）。
+	var touched_assets: Array[StringName] = []
 	if final_d > 0:
-		_apply_legs(game_ctx, inv_id, &"damage", final_d_legs)
+		_apply_legs(game_ctx, inv_id, &"damage", final_d_legs, touched_assets)
 	if final_h > 0:
-		_apply_legs(game_ctx, inv_id, &"horror", final_h_legs)
+		_apply_legs(game_ctx, inv_id, &"horror", final_h_legs, touched_assets)
 	if final_d > 0 or final_h > 0:
-		DefeatFlow.check_investigator_caps(game_ctx, inv_id)
+		_check_caps_after_apply(game_ctx, inv_id, touched_assets)
 	DealAfflictionReport.patch_current(game_ctx, final_d, final_h)
 	return {
 		"ok": final_d > 0 or final_h > 0,
@@ -159,12 +160,13 @@ static func apply_investigator_bundle_legs(
 		final_h = pending_horror_amount(game_ctx, inv_id)
 		final_h_legs = pending_horror_legs(game_ctx, inv_id)
 	_clear_pending_bundle(game_ctx, inv_id)
+	var touched_assets: Array[StringName] = []
 	if final_d > 0:
-		_apply_legs(game_ctx, inv_id, &"damage", final_d_legs)
+		_apply_legs(game_ctx, inv_id, &"damage", final_d_legs, touched_assets)
 	if final_h > 0:
-		_apply_legs(game_ctx, inv_id, &"horror", final_h_legs)
+		_apply_legs(game_ctx, inv_id, &"horror", final_h_legs, touched_assets)
 	if final_d > 0 or final_h > 0:
-		DefeatFlow.check_investigator_caps(game_ctx, inv_id)
+		_check_caps_after_apply(game_ctx, inv_id, touched_assets)
 	DealAfflictionReport.patch_current(game_ctx, final_d, final_h)
 	return {
 		"ok": final_d > 0 or final_h > 0,
@@ -406,7 +408,8 @@ static func _apply_legs(
 	game_ctx: GameContext,
 	inv_id: StringName,
 	kind: StringName,
-	legs: Array
+	legs: Array,
+	touched_assets: Array[StringName] = []
 ) -> void:
 	for leg in legs:
 		if not (leg is Dictionary):
@@ -428,7 +431,25 @@ static func _apply_legs(
 				MarkerSlot.investigator(target_id, marker)
 			)
 		elif bearer == &"card":
-			if kind == &"horror":
-				DefeatFlow.deal_horror_to_asset(game_ctx, id, amt)
-			else:
-				DefeatFlow.deal_damage_to_asset(game_ctx, id, amt)
+			## 只 Transfer；cap/退场延后到整批 Apply 之后（同时 Apply）。
+			var card_marker := (
+				AhcEnums.MarkerKind.HORROR if kind == &"horror" else AhcEnums.MarkerKind.DAMAGE
+			)
+			if game_ctx.mutator.transfer_marker(
+				card_marker,
+				amt,
+				MarkerSlot.supply(card_marker),
+				MarkerSlot.card(id, card_marker)
+			):
+				if id != &"" and not touched_assets.has(id):
+					touched_assets.append(id)
+
+
+static func _check_caps_after_apply(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	touched_assets: Array[StringName]
+) -> void:
+	for card_id in touched_assets:
+		DefeatFlow.check_asset_caps(game_ctx, card_id)
+	DefeatFlow.check_investigator_caps(game_ctx, inv_id)

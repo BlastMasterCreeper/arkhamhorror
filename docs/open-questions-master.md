@@ -83,18 +83,18 @@
 | OQ-08-01 | [08-enemy](design/08-enemy-engagement.md) | Hunter 等距 + Prey？ | **等距子集 → Prey 过滤 → Lead 选**；Prey 不可选非等距。见 08 §4。 |
 | OQ-03-06 | [03-action](design/03-action-system.md) | Play asset 时 slot 弃置：玩家选顺序还是引擎默认最旧 asset？ | |
 | OQ-04-03 | [04-skill-test](design/04-skill-test-engine.md) | Symbol 效果在 ST.4 发起 fight 嵌套检定，父检定 ST.5 是否等待子检定完成？ | **否。** 子检定入队；父 ST.5→ST.8 不等待；父 ST.8 后执行。 |
-| OQ-04-04 | [04-skill-test](design/04-skill-test-engine.md) | Cancel 整个 skill test vs Cancel 单个 chaos token：状态回滚深度？ | |
+| OQ-04-04 | [04-skill-test](design/04-skill-test-engine.md) | ~~Cancel 整个 skill test vs Cancel 单个 chaos token？~~ | **无整次检定 Cancel。** 发动后尽量走完；Cancel token / 失败效果 / 投入图标 ≠ 取消检定。见 [04 §3.0](design/04-skill-test-engine.md)。 |
 | OQ-04-06 | [04-skill-test](design/04-skill-test-engine.md) | Committed 的 skill 在 ST.7 前被 discard 的 edge case（Limbo 保护）？ | |
-| OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | 2026 Core 各场景 reference **全部 JSON 化** vs 部分 `ScenarioScript` — 你的偏好？ | |
+| OQ-05-01 | [05-chaos-bag](design/05-chaos-bag.md) | ~~冒险参考卡 JSON vs ScenarioScript？~~ → **JSON-first**（SF 竖切） | 2026-10-19 |
 | OQ-05-02 | [05-chaos-bag](design/05-chaos-bag.md) | Campaign-specific symbol（guide 指引）插件接口：`CampaignScript` 还是 `ScenarioScript`？ | |
-| OQ-05-05 | [05-chaos-bag](design/05-chaos-bag.md) | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ | |
+| OQ-05-05 | [05-chaos-bag](design/05-chaos-bag.md) | Ignore vs Cancel chaos token 在 bag 中 token 是否仍算「revealed this test」？ | **Cancel=从未抽到；Ignore=仍揭示但不 resolve。** 延时门槛 / ST.4–5 查 **resolved**；Candles 式听揭示用 `revealed_*`。见 [05 §4.1.1](design/05-chaos-bag.md)。 |
 | OQ-06-04 | [06-ability](design/06-ability-initiation.md) | Forced [reaction] 是否存在？（通常无，但 scenario 卡） | |
 | OQ-06-06 | [06-ability](design/06-ability-initiation.md) | Ignore 效果仍计 Limit — 触发时 record 还是 resolve 后 record？ | |
 | OQ-07-01 | [07-effect](design/07-effect-resolution.md) | 伤害分配 UI：何时必须玩家选 vs AI 默认（最保护 investigator？）？ | |
 | OQ-07-03 | [07-effect](design/07-effect-resolution.md) | Assign 阶段 prevent 部分 damage：剩余是否 re-assign 还是 fizzle？ | |
 | OQ-07-05 | [07-effect](design/07-effect-resolution.md) | 「As much as possible resolve」— partial target invalid 时 DAG 如何剪枝？ | |
 | OQ-08-05 | [08-enemy](design/08-enemy-engagement.md) | Engage 抢怪：同时 disengage 原调查员是否触发「leaves engagement」类能力？ | |
-| OQ-09-01 | [09-location](design/09-location-graph.md) | Setup 放置 vs Move enter：是否统一 `enter_location()` 单入口？ | |
+| OQ-09-01 | [09-location](design/09-location-graph.md) | ~~Setup vs Move enter 单入口？~~ → **`LocationEnterRules` / `seq.effect.reveal_location`** | 2026-10-19 |
 | OQ-09-03 | [09-location](design/09-location-graph.md) | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ | |
 | OQ-09-05 | [09-location](design/09-location-graph.md) | Your Friend's Room `[action]` Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） | |
 | OQ-10-02 | [10-scenario](design/10-scenario-encounter.md) | Objective must advance 无 window — 自动 advance 还是暂停提示？ | |
@@ -122,8 +122,9 @@
 | OQ-01-06 | [01-state](design/01-game-state-zones.md) | Attachment 链（A attach B attach C）leave play 时 discard 顺序是否由 owner 选？ | |
 | OQ-02-05 | [02-framework](design/02-framework-flow.md) | Framework 与嵌套 Skill Test 的 EventRecord 层级如何缩进展示？ | |
 | OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），经 `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 |
-| OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | |
-| OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | Bless/Curse 在 Core 2026 是否需实现还是仅预留 enum？ | |
+| OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | **一次 ST.3 + 意图规划**（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](design/05-chaos-bag.md)。 |
+| OQ-04-07 | [04-skill-test](design/04-skill-test-engine.md) | ST.3/ST.4 与参考卡符号文本如何统一？ | **隐式符号能力**融合：揭示→发起（modifier+效果）；回溯以该能力为锚。见 04 §3.3–3.4。 |
+| OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | ~~Bless/Curse 仅预留？~~ → **实现**检定内 +2/−2·再揭·归 pool；见 05 §8.1 | 2026-10-19 |
 | OQ-05-06 | [05-chaos-bag](design/05-chaos-bag.md) | 多 difficulty 切换 standalone：bag 是否在 setup 完全 rebuild？ | |
 | OQ-06-05 | [06-ability](design/06-ability-initiation.md) | Constant ability 在 out-of-play 被引用（少数卡）— 如何标记 `references_out_of_play`？ | |
 | OQ-07-04 | [07-effect](design/07-effect-resolution.md) | Simultaneous discard 多张：owner 选顺序是否影响后续 search？ | |

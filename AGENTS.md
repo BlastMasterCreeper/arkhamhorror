@@ -43,3 +43,10 @@ behavior is exercised through the headless GDScript test suite.
 - If `python` is missing, point the user to manual install (python.org, tick
   **Add to PATH**); only run `python tools/*.py` when `python --version` already
   works in the shell.
+
+### Card translation / 实卡落地
+- **只更新已翻译卡牌**：改 `compiled_abilities` / 竖切测时，范围限于 imported JSON
+  里**已有** `compiled_abilities`（或等价已译条目）的卡。不要顺手新开未翻译卡，
+  除非用户明确点名。
+- **实卡落地一次做完**：对上述已译卡做机制接通或重译时，同一趟完成编译更新 +
+  headless 竖切测；不要只交引擎外壳、把「真卡编译」留到下一轮。

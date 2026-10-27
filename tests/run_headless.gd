@@ -41,6 +41,29 @@ func _initialize() -> void:
 	_run_test("SC-08 setup wires act agenda decks", _test_sc08_setup_wires_act_agenda_decks)
 	_run_test("SC-09 setup scenario layout", _test_sc09_setup_scenario_layout)
 	_run_test("SC-10 setup scenario reference", _test_sc10_setup_scenario_reference)
+	_run_test("REF-01 SF loads reference JSON", _test_ref01_sf_loads_reference_json)
+	_run_test("REF-02 SF skull modifier neg act", _test_ref02_sf_skull_neg_act)
+	_run_test("REF-03 SF tablet reveal another + fail damage", _test_ref03_sf_tablet_fail_damage)
+	_run_test("REF-04 SF elder_thing fail-by draws Fire", _test_ref04_sf_elder_thing_fail_by_fire)
+	_run_test("REF-05 SF hard skull neg act+1", _test_ref05_sf_hard_skull)
+	_run_test("REF-06 blank skips printed symbol ability", _test_ref06_blank_skips_printed_symbol)
+	_run_test("REF-07 blank skips tablet ST.7", _test_ref07_blank_skips_tablet_st7)
+	_run_test("ES-01 Joe elder_sign spec loads", _test_es01_joe_elder_sign_spec)
+	_run_test("ES-02 elder_sign +1 modifier at ST.4", _test_es02_modifier)
+	_run_test("ES-03 Joe succeed draws and gains resource", _test_es03_joe_succeed)
+	_run_test("ES-04 blank skips elder_sign", _test_es04_blank_skips)
+	_run_test("ES-05 Joe fail skips on_success", _test_es05_joe_fail_no_success)
+	_run_test("BC-01 bless +2 reveal_another return_to_pool", _test_bc01_bless_st4)
+	_run_test("BC-02 curse -2 reveal_another return_to_pool", _test_bc02_curse_st4)
+	_run_test("BC-03 bless chain then ST.8 to pool", _test_bc03_bless_chain_pool)
+	_run_test("BC-04 ability curse finalize returns to bag", _test_bc04_ability_curse_bag)
+	_run_test("BC-05 ignored bless returns to bag", _test_bc05_ignored_bless_bag)
+	_run_test("SHRIV-01 compile if_revealed on skill_test", _test_shriv01_compile_if_revealed)
+	_run_test("SHRIV-02 skull take horror at ST.3 before ST.4", _test_shriv02_horror_before_symbol)
+	_run_test("SHRIV-03 self-limit one horror despite two skulls", _test_shriv03_self_limit)
+	_run_test("CF-01 compile 12059 if_revealed skull", _test_cf01_compile_12059)
+	_run_test("CF-02 12059 skull removes charge", _test_cf02_skull_removes_charge)
+	_run_test("CF-03 12059 skull no charge damage discard", _test_cf03_skull_no_charge_discard)
 	_run_test("SC-11 investigate after sf setup", _test_sc11_investigate_after_sf_setup)
 	_run_test("SC-12 setup game begins timing", _test_sc12_setup_game_begins_timing)
 	_run_test("SC-13 act1 flip spawns layout", _test_sc13_act1_flip_spawns_layout)
@@ -298,6 +321,33 @@ func _initialize() -> void:
 	_run_test("PERIL-07 peril registers via seq.effect.register", _test_peril_register_no_vacuum)
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
+	_run_test("BAG-LEDGER-01 skill reveal ledger clears at ST.8", _test_bag_ledger_skill_reveal)
+	_run_test("BAG-LEDGER-02 ability curse if-revealed binary eager", _test_bag_ledger_ability_curse_gate)
+	_run_test("BAG-LEDGER-03 cancel excludes from if-revealed", _test_bag_ledger_cancel_excludes)
+	_run_test("BAG-LEDGER-04 if-revealed self-limits once per test", _test_bag_ledger_self_limit)
+	_run_test("BAG-LEDGER-04b for-each fires per curse no self-limit", _test_bag_ledger_each_mode)
+	_run_test("BAG-LEDGER-05 ST.3 eager before ST.4 no double", _test_bag_ledger_st3_eager_before_st4)
+	_run_test("BAG-INTENT-01 no replace equals single draw", _test_bag_intent_no_replace)
+	_run_test("BAG-INTENT-02 Olive reveal3 resolve2", _test_bag_intent_olive_alone)
+	_run_test("BAG-INTENT-03 Olive then Statue order+slot", _test_bag_intent_olive_then_statue)
+	_run_test("BAG-INTENT-04 Statue then Olive order", _test_bag_intent_statue_then_olive)
+	_run_test("BAG-INTENT-05 ST.3 multi resolved modifiers", _test_bag_intent_st3_multi_modifiers)
+	_run_test("BAG-IGNORE-01 olive ignore still revealed not resolved", _test_bag_ignore_olive_revealed)
+	_run_test("BAG-IGNORE-02 cancel excludes revealed and resolved", _test_bag_ignore_cancel_excludes_both)
+	_run_test("BAG-IGNORE-03 if-revealed uses resolved not ignored", _test_bag_ignore_gate_skips_ignored)
+	_run_test("BAG-WIRE-01 compile 12068 mask silenus", _test_bag_wire_compile_12068)
+	_run_test("BAG-WIRE-02 12068 would-reveal queues replace", _test_bag_wire_12068_vertical)
+	_run_test("BAG-WIRE-03 12068 resolved symbol takes horror", _test_bag_wire_12068_symbol_horror)
+	_run_test("BAG-USES-01 enter play places Uses charges", _test_bag_uses_enter_play)
+	_run_test("BAG-SEAL-01 seal_random leaves bag", _test_bag_seal_random)
+	_run_test("BAG-SEAL-02 seal_kind missing fails", _test_bag_seal_kind_missing)
+	_run_test("BAG-SEAL-03 leave play releases", _test_bag_seal_leave_play_release)
+	_run_test("BAG-SEAL-04 seq.effect.seal nest", _test_bag_seal_catalog_nest)
+	_run_test("BAG-SEAL-05 sealed reveal instead", _test_bag_seal_reveal_instead)
+	_run_test("BAG-SEAL-06 keyword cost gate blocks play", _test_bag_seal_keyword_cost_gate)
+	_run_test("BAG-SEAL-07 keyword play seals on enter", _test_bag_seal_keyword_play_enter)
+	_run_test("BAG-SEAL-08 keyword choice seals one", _test_bag_seal_keyword_choice)
+	_run_test("BAG-SEAL-09 put into play seals via zone", _test_bag_seal_keyword_zone_enter)
 	_run_test("ACT-01 investigate discovers clue", _test_act_investigate_success)
 	_run_test("ACT-02 investigate fail no clue", _test_act_investigate_fail)
 	_run_test("ACT-03 fight deals damage", _test_act_fight_success)
@@ -333,6 +383,10 @@ func _initialize() -> void:
 	_run_test("G1-06 elusive flee nests move", _test_g1_elusive_flee_nests_move)
 	_run_test("G1-07 move rejects disconnected", _test_g1_move_rejects_disconnected)
 	_run_test("G1-08 move_to ignores connections", _test_g1_move_to_ignores_connections)
+	_run_test("L-01 per_investigator clues on reveal", _test_l01_per_investigator_clues)
+	_run_test("L-02 move to unrevealed reveals and places clues", _test_l02_move_unrevealed)
+	_run_test("L-02b re-enter revealed does not place clues again", _test_l02b_reenter_no_reclues)
+	_run_test("L-02c enemy move does not reveal location", _test_l02c_enemy_move_no_reveal)
 	_run_test("G2-01 seq.effect.exhaust enemy", _test_g2_exhaust_enemy)
 	_run_test("G2-02 seq.effect.ready enemy engages", _test_g2_ready_enemy_engages)
 	_run_test("G2-03 seq.effect.exhaust card in play", _test_g2_exhaust_card_in_play)
@@ -350,9 +404,15 @@ func _initialize() -> void:
 	_run_test("G5-07 asset damage cap leave to discard not discard effect", _test_g5_asset_damage_cap)
 	_run_test("G5-08 asset effect defeat to discard", _test_g5_asset_effect_defeat)
 	_run_test("G5-09 asset defeat cancel skips leave", _test_g5_asset_cancel_no_leave)
+	_run_test("G5-10 unowned story asset defeat to REMOVED", _test_g5_unowned_story_asset_removed)
+	_run_test("G5-11 weakness enemy defeat to owner discard", _test_g5_weakness_enemy_owner_discard)
+	_run_test("G5-12 vengeance enemy defeat to victory display", _test_g5_vengeance_to_victory_display)
 	_run_test("ZM-01 seq.zone.move catalog", _test_zm_catalog)
 	_run_test("ZM-02 leave play on discard from play", _test_zm_leave_play_discard_asset)
 	_run_test("ZM-03 enemy discard-from-play leave play", _test_zm_enemy_discard_leave_play)
+	_run_test("ZM-04 leave play returns tokens to pool", _test_zm_leave_play_tokens_to_pool)
+	_run_test("ZM-05 leave play discards attachments", _test_zm_leave_play_discards_attachments)
+	_run_test("ZM-06 defeat asset leave cleans tokens+attachments", _test_zm_defeat_asset_leave_cleanup)
 	_run_test("G6-01 phase boundary catalog", _test_g6_phase_boundary_catalog)
 	_run_test("G6-02 framework emits phase boundary seq", _test_g6_framework_emits)
 	_run_test("EV-01 seq.effect.evade catalog", _test_ev_catalog)
@@ -738,6 +798,640 @@ func _test_sc10_setup_scenario_reference() -> bool:
 		ref != null
 		and ref.id.definition_id == &"12105"
 		and ref.zone == AhcEnums.Zone.PLAY_AREA
+		and h.ctx.state.scenario_reference != null
+		and ref.symbol_abilities.size() == 3
+		and not ref.text_box_blank
+	)
+
+
+func _test_ref01_sf_loads_reference_json() -> bool:
+	ScenarioReferenceCatalog.clear_cache()
+	var def := ScenarioReferenceCatalog.load_for_scenario(&"spreading_flames")
+	if def == null or def.reference_card != &"12105":
+		return false
+	var easy_skull := def.effect_for(&"easy_standard", AhcEnums.ChaosTokenKind.SKULL)
+	var hard_skull := def.effect_for(&"hard_expert", AhcEnums.ChaosTokenKind.SKULL)
+	var tablet := def.effect_for(&"easy_standard", AhcEnums.ChaosTokenKind.TABLET)
+	return (
+		not easy_skull.is_empty()
+		and not hard_skull.is_empty()
+		and bool(tablet.get("reveal_another", false))
+		and str((easy_skull.get("modifier", {}) as Dictionary).get("expr", "")) == "neg_act"
+		and str((hard_skull.get("modifier", {}) as Dictionary).get("expr", "")) == "neg_act_plus_1"
+	)
+
+
+func _test_ref02_sf_skull_neg_act() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	h.ctx.state.current_act_number = 2
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_ref"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var ok := test.chaos_modifier == -2
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_ref03_sf_tablet_fail_damage() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var dmg_before := inv.damage_taken
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 9)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	## 直接注入 tablet，避免 draw_random 次序抖动。
+	var tab := ChaosToken.symbol(AhcEnums.ChaosTokenKind.TABLET, 0, &"tab_ref")
+	test.revealed_tokens.append(tab)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	test.success = false
+	test.fail_by = 5
+	h.ctx.skill_tests.step_apply_results(test)
+	var ok := (
+		test.chaos_modifier == -1
+		and tab.reveal_another
+		and inv.damage_taken == dmg_before + 1
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_ref04_sf_elder_thing_fail_by_fire() -> bool:
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	## 从 set-aside 挪一张 Fire! 进遭遇弃牌堆供参考卡抽取。
+	var fire_id := &""
+	for cid in h.ctx.state.set_aside:
+		var c := h.ctx.state.registry.get_card(cid)
+		if c != null and c.id.definition_id == &"12129":
+			fire_id = cid
+			break
+	if fire_id == &"":
+		return false
+	h.ctx.state.set_aside.erase(fire_id)
+	h.ctx.state.encounter_discard.append(fire_id)
+	var fire_card := h.ctx.state.registry.get_card(fire_id)
+	fire_card.zone = AhcEnums.Zone.DISCARD
+	var discard_before := _encounter_discard_count(h, &"12129")
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 9)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var et := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_THING, 0, &"et_ref")
+	test.revealed_tokens.append(et)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	test.success = false
+	test.fail_by = 3
+	h.ctx.skill_tests.step_apply_results(test)
+	var discard_after := _encounter_discard_count(h, &"12129")
+	var ok := (
+		test.chaos_modifier == -3
+		and discard_before >= 1
+		and discard_after == discard_before - 1
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_ref05_sf_hard_skull() -> bool:
+	var cfg := GameBootstrap.config_spreading_flames()
+	cfg.chaos_difficulty = &"hard_expert"
+	var h := RuleTestHarness.new(42, cfg)
+	h.run_setup()
+	h.ctx.state.current_act_number = 2
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_hard"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	## Hard：-(act+1) = -3。
+	var ok := test.chaos_modifier == -3
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_ref06_blank_skips_printed_symbol() -> bool:
+	## 文本框空白：印刷符号能力不发起；不清零回退 –act。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	h.ctx.state.current_act_number = 2
+	var ref_id := h.ctx.state.scenario_reference_card_id
+	var ref := h.ctx.state.registry.get_card(ref_id)
+	if ref == null or ref.symbol_abilities.is_empty():
+		return false
+	TextBoxBlank.set_blank_by_id(h.ctx, ref_id, true)
+	if ref.active_symbol_ability(AhcEnums.ChaosTokenKind.SKULL) != null:
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_blank"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var ok_blank := test.chaos_modifier == 0
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	## 解除空白后应恢复印刷能力。
+	TextBoxBlank.set_blank_by_id(h.ctx, ref_id, false)
+	if ref.active_symbol_ability(AhcEnums.ChaosTokenKind.SKULL) == null:
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_unblank"),
+	])
+	var test2 := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test2, h.ctx)
+	h.ctx.skill_tests.step_commit(test2, [])
+	h.ctx.skill_tests.close_player_window(test2)
+	h.ctx.skill_tests.resolve_reveal_chain(test2)
+	h.ctx.skill_tests.close_player_window(test2)
+	h.ctx.skill_tests.continue_after_reveal_window(test2)
+	var ok_restore := test2.chaos_modifier == -2
+	h.ctx.skill_tests.step_apply_results(test2)
+	h.ctx.skill_tests.step_end(test2, h.ctx)
+	return ok_blank and ok_restore
+
+
+func _test_ref07_blank_skips_tablet_st7() -> bool:
+	## 空白时 tablet 不施加 reveal_another / on_fail 伤害。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var dmg_before := inv.damage_taken
+	TextBoxBlank.set_blank_by_id(h.ctx, h.ctx.state.scenario_reference_card_id, true)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 9)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var tab := ChaosToken.symbol(AhcEnums.ChaosTokenKind.TABLET, 0, &"tab_blank")
+	test.revealed_tokens.append(tab)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	test.success = false
+	test.fail_by = 5
+	h.ctx.skill_tests.step_apply_results(test)
+	var ok := (
+		test.chaos_modifier == 0
+		and not tab.reveal_another
+		and inv.damage_taken == dmg_before
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _es_bind_joe(h: RuleTestHarness) -> InvestigatorState:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.definition_id = &"12004"
+	inv.display_name = "Joe Diamond"
+	ElderSignBinder.bind_investigator(h.ctx, &"inv_1")
+	return inv
+
+
+func _test_es01_joe_elder_sign_spec() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var effect: Dictionary = CardRegistry.elder_sign_effect(&"12004")
+	var on_ok: Dictionary = effect.get("on_success", {})
+	var steps: Array = on_ok.get("steps", [])
+	return (
+		int(effect.get("modifier", -99)) == 1
+		and str(on_ok.get("template", "")) == "seq"
+		and steps.size() == 2
+		and str((steps[0] as Dictionary).get("template", "")) == "draw"
+		and str((steps[1] as Dictionary).get("template", "")) == "gain_resources"
+	)
+
+
+func _test_es02_modifier() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := _es_bind_joe(h)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var es := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es_mod")
+	test.revealed_tokens.append(es)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var ok := test.chaos_modifier == 1 and inv.active_symbol_ability(
+		AhcEnums.ChaosTokenKind.ELDER_SIGN
+	) != null
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_es03_joe_succeed() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := _es_bind_joe(h)
+	## 抽牌需要牌库有牌。
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"es_deck_card")
+	var hand_before := inv.hand.size()
+	var res_before := inv.resource_pool
+	var st := SkillTestHelper.new(h.ctx)
+	## 难度 0 + elder_sign +1 → 成功。
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var es := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es_ok")
+	test.revealed_tokens.append(es)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_determine_success(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	var ok := (
+		test.success
+		and test.chaos_modifier == 1
+		and inv.hand.size() == hand_before + 1
+		and inv.resource_pool == res_before + 1
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_es04_blank_skips() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := _es_bind_joe(h)
+	inv.text_box_blank = true
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var es := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es_blank")
+	test.revealed_tokens.append(es)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var ok := test.chaos_modifier == 0
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_es05_joe_fail_no_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := _es_bind_joe(h)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"es_deck_fail")
+	var hand_before := inv.hand.size()
+	var res_before := inv.resource_pool
+	var st := SkillTestHelper.new(h.ctx)
+	## 难度很高 → 失败；on_success 不应开火。
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 99)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var es := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es_fail")
+	test.revealed_tokens.append(es)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_determine_success(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	var ok := (
+		not test.success
+		and test.chaos_modifier == 1
+		and inv.hand.size() == hand_before
+		and inv.resource_pool == res_before
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bc01_bless_st4() -> bool:
+	var h := RuleTestHarness.new(42)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var bless := ChaosToken.symbol(AhcEnums.ChaosTokenKind.BLESS, 0, &"bc_bless")
+	test.revealed_tokens.append(bless)
+	test.reveal_batch_start = 0
+	var again := h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var ok := (
+		again
+		and test.chaos_modifier == 2
+		and bless.reveal_another
+		and bless.return_to_pool
+		and bless.modifier == 2
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bc02_curse_st4() -> bool:
+	var h := RuleTestHarness.new(42)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, 0, &"bc_curse")
+	test.revealed_tokens.append(curse)
+	test.reveal_batch_start = 0
+	var again := h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var ok := (
+		again
+		and test.chaos_modifier == -2
+		and curse.reveal_another
+		and curse.return_to_pool
+		and curse.modifier == -2
+	)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bc03_bless_chain_pool() -> bool:
+	## bless → reveal another（numeric +1）→ ST.8：bless 进 pool，numeric 回袋。
+	var h := RuleTestHarness.new(42)
+	var bless := ChaosToken.symbol(AhcEnums.ChaosTokenKind.BLESS, 0, &"bc_chain_b")
+	var num := ChaosToken.numeric(1, &"bc_chain_n")
+	GameBootstrap.setup_chaos_bag(h.ctx, [bless, num])
+	var bag := h.ctx.state.chaos_bag
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	## 注入 bless 为已揭示；再跑 ST.4 → 触发再揭 → 袋中只剩 numeric。
+	bag.tokens.erase(bless)
+	if not bag.revealed_this_test.has(bless):
+		bag.revealed_this_test.append(bless)
+	test.revealed_tokens.append(bless)
+	test.reveal_batch_start = 0
+	var again := h.ctx.skill_tests.step_apply_symbol_effects(test)
+	if not again:
+		h.ctx.skill_tests.step_end(test, h.ctx)
+		return false
+	## 模拟 reveal_another 链：再揭 numeric 并 apply。
+	h.ctx.skill_tests.step_reveal_token(test)
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_determine_success(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var pool_has_bless := false
+	for t in bag.chaos_token_pool:
+		var tok: ChaosToken = t as ChaosToken
+		if tok != null and tok.kind == AhcEnums.ChaosTokenKind.BLESS:
+			pool_has_bless = true
+			break
+	var bag_has_bless := false
+	var bag_has_num := false
+	for t2 in bag.tokens:
+		var tok2: ChaosToken = t2 as ChaosToken
+		if tok2 == null:
+			continue
+		if tok2.kind == AhcEnums.ChaosTokenKind.BLESS:
+			bag_has_bless = true
+		if tok2.kind == AhcEnums.ChaosTokenKind.NUMERIC and tok2.modifier == 1:
+			bag_has_num = true
+	return (
+		test.chaos_modifier == 3
+		and pool_has_bless
+		and not bag_has_bless
+		and bag_has_num
+		and bag.revealed_this_test.is_empty()
+	)
+
+
+func _test_bc04_ability_curse_bag() -> bool:
+	## 能力揭示 curse：finalize 回袋，不进 pool（无 ST.4 符号能力）。
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"bc_abil_c")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var bag := h.ctx.state.chaos_bag
+	bag.begin_reveal_scope(&"bc_abil")
+	var pulled := bag.reveal_for_ability(1)
+	bag.finalize_ability_reveal(pulled)
+	bag.end_reveal_scope()
+	return (
+		pulled.size() == 1
+		and bag.tokens.has(curse)
+		and bag.chaos_token_pool.is_empty()
+		and not curse.return_to_pool
+		and bag.revealed_this_test.is_empty()
+	)
+
+
+func _test_bc05_ignored_bless_bag() -> bool:
+	## Ignore 后不发起 ST.4 → 无 return_to_pool → ST.8 回袋。
+	var h := RuleTestHarness.new(42)
+	var bless := ChaosToken.symbol(AhcEnums.ChaosTokenKind.BLESS, 0, &"bc_ign_b")
+	GameBootstrap.setup_chaos_bag(h.ctx, [bless])
+	var bag := h.ctx.state.chaos_bag
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var drawn := bag.draw_random(&"skill_test")
+	bag.ignore_reveal(drawn)
+	## 被 Ignore：不入 resolved / 不跑 ST.4。
+	h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_determine_success(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		drawn == bless
+		and test.chaos_modifier == 0
+		and not bless.return_to_pool
+		and bag.tokens.has(bless)
+		and bag.chaos_token_pool.is_empty()
+	)
+
+
+func _test_shriv01_compile_if_revealed() -> bool:
+	## 皱缩术式：skill_test.if_revealed kinds + take_horror。
+	var bind := AbilityBindContext.new()
+	bind.controller_id = &"inv_1"
+	bind.card_id = &"shriv_test"
+	var node := ArkhamDbAbilityCompiler.build_composition(
+		"skill_test",
+		{
+			"skill": "willpower",
+			"difficulty": 0,
+			"if_revealed": {
+				"kinds": ["skull", "cultist", "tablet", "elder_thing", "auto_fail"],
+				"mode": "any",
+				"then": {"template": "take_horror", "amount": 2},
+			},
+		},
+		bind
+	)
+	return (
+		node != null
+		and node.atom_name == &"nest_skill_test"
+		and node.if_revealed_specs.size() == 1
+		and (node.if_revealed_specs[0] as Dictionary).get("kinds", []).size() == 5
+		and (node.if_revealed_specs[0] as Dictionary).get("mode", &"") == &"any"
+		and (node.if_revealed_specs[0] as Dictionary).get("body") is CompositionNode
+	)
+
+
+func _test_shriv02_horror_before_symbol() -> bool:
+	## FAQ：揭示 skull 当下 take horror（ST.3），早于参考卡符号能力（ST.4）。
+	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
+	h.run_setup()
+	h.ctx.state.current_act_number = 2
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_shriv"),
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_before := inv.horror_taken
+	var body := CompositionNode.take_horror(&"inv_1", 2)
+	var specs: Array = [{
+		"kinds": SkillTestIfRevealed.shrivelling_kinds(),
+		"mode": &"any",
+		"body": body,
+	}]
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	SkillTestIfRevealed.register_specs(test, h.ctx, specs)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.step_reveal_token(test)
+	var horror_after_reveal := inv.horror_taken
+	var mod_before_symbol := test.chaos_modifier
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var mod_after_symbol := test.chaos_modifier
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		horror_after_reveal == horror_before + 2
+		and mod_before_symbol == 0
+		and mod_after_symbol == -2
+		and inv.horror_taken == horror_before + 2
+	)
+
+
+func _test_shriv03_self_limit() -> bool:
+	## 自肃：同检定两枚 skull resolved → take horror 仍只一次。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_a"),
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"sk_b"),
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_before := inv.horror_taken
+	var body := CompositionNode.take_horror(&"inv_1", 2)
+	var specs: Array = [{
+		"kinds": SkillTestIfRevealed.shrivelling_kinds(),
+		"mode": &"any",
+		"body": body,
+	}]
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 9)
+	SkillTestIfRevealed.register_specs(test, h.ctx, specs)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	## 能力揭示两枚 skull（均 resolved）→ 自肃只伤一次。
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(2)
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n_shriv"))
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		pulled.size() == 2
+		and inv.horror_taken == horror_before + 2
+	)
+
+
+func _test_cf01_compile_12059() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var compiled := CardRegistry.compiled_abilities(&"12059")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	var if_rev: Variant = entry.get("if_revealed", {})
+	if not if_rev is Dictionary:
+		return false
+	var types: Variant = entry.get("action_types", [])
+	var then_body: Dictionary = (if_rev as Dictionary).get("then", {})
+	return (
+		CardRegistry.has_triggered(&"12059")
+		and str(entry.get("register_as", "")) == "action"
+		and str(entry.get("template", "")) == "skill_test"
+		and str(entry.get("skill", "")) == "willpower"
+		and str((if_rev as Dictionary).get("kind", "")) == "skull"
+		and str(then_body.get("template", "")) == "if_else"
+		and str(then_body.get("condition", "")) == "source_has_use"
+		and types is Array
+		and (types as Array).has("activate")
+		and (types as Array).has("fight")
+		and CardRegistry.compiled_abilities(&"12071").size() == 1
+	)
+
+
+func _test_cf02_skull_removes_charge() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"cf_sk"),
+	])
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12059")
+	ScenarioDeckSetup.install_triggered_abilities(h.ctx, card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var charges_enter := int(card.tokens.uses.get(&"charges", -1))
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.actions_remaining = 1
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	var charges_left := int(card.tokens.uses.get(&"charges", -1))
+	return (
+		charges_enter == 3
+		and bool(result.get("ok", false))
+		and charges_left == 2
+		and card.zone == AhcEnums.Zone.PLAY_AREA
+		and inv.damage_taken == 0
+	)
+
+
+func _test_cf03_skull_no_charge_discard() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, 0, &"cf_sk0"),
+	])
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12059")
+	ScenarioDeckSetup.install_triggered_abilities(h.ctx, card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.tokens.uses[&"charges"] = 0
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var dmg_before := inv.damage_taken
+	inv.actions_remaining = 1
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var listed := h.ctx.triggered_abilities.list_action_abilities(&"inv_1")
+	if listed.is_empty():
+		return false
+	var result := h.ctx.triggered_abilities.activate_action(listed[0].id)
+	return (
+		bool(result.get("ok", false))
+		and inv.damage_taken == dmg_before + 1
+		and card.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(card_id)
 	)
 
 
@@ -6978,6 +7672,836 @@ func _test_st_end_cleanup() -> bool:
 		and card.zone == AhcEnums.Zone.DISCARD
 		and h.ctx.state.chaos_bag.tokens.size() == 1
 		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
+		and h.ctx.state.chaos_bag.reveal_ledger.is_empty()
+		and h.ctx.state.chaos_bag.reveal_scope_id == &""
+	)
+
+
+func _test_bag_ledger_skill_reveal() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0, &"n0")])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	st.run(test)
+	return (
+		h.ctx.state.chaos_bag.tokens.size() == 1
+		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
+		and h.ctx.state.chaos_bag.reveal_ledger.is_empty()
+	)
+
+
+func _test_bag_ledger_ability_curse_gate() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"curse_1")
+	## 先只放 curse，保证能力揭示确定性；ST.3 前再补 numeric。
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.if_revealed_watchers = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	## Rod 式：finalize 定案即 eager 触发（不必等 ST.4 后门槛）。
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	var fires_after_rod: int = int(flags.fires)
+	## 能力揭示 curse 须回袋（非 pool）；ST.3 改用 numeric，避免检定再揭 curse 走符号能力。
+	var bag_after_rod: bool = (
+		h.ctx.state.chaos_bag.tokens.has(curse)
+		and h.ctx.state.chaos_bag.chaos_token_pool.is_empty()
+	)
+	h.ctx.state.chaos_bag.tokens.clear()
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n0"))
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		fires_after_rod == 1
+		and flags.fires == 1
+		and bag_after_rod
+		and pulled.size() == 1
+		and pulled[0].kind == AhcEnums.ChaosTokenKind.CURSE
+		and h.ctx.state.chaos_bag.tokens.size() == 1
+		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
+		and h.ctx.state.chaos_bag.reveal_ledger.is_empty()
+	)
+
+
+func _test_bag_ledger_cancel_excludes() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"curse_x")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.if_revealed_watchers = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.cancel_reveal(pulled[0])
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	## 撤出袋外，避免 ST.3 再次抽到同一枚形成「新揭示」账本行。
+	h.ctx.state.chaos_bag.tokens.clear()
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(1, &"n1"))
+	var saw_curse_before_gate := h.ctx.state.chaos_bag.has_uncanceled_kind(
+		AhcEnums.ChaosTokenKind.CURSE
+	)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		not saw_curse_before_gate
+		and flags.fires == 0
+		and h.ctx.state.chaos_bag.tokens.size() == 1
+	)
+
+
+func _test_bag_ledger_self_limit() -> bool:
+	## any 自肃：Rod 揭 2 枚 curse → 只触发一次；后续 ST.3 再揭同 kind 也不再发。
+	var h := RuleTestHarness.new(42)
+	var c1 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c1")
+	var c2 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c2")
+	var c3 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c3")
+	GameBootstrap.setup_chaos_bag(h.ctx, [c1, c2])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.if_revealed_watchers = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"any", "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(2)
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	var fires_after_rod: int = int(flags.fires)
+	h.ctx.state.chaos_bag.add_token(c3)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		fires_after_rod == 1
+		and flags.fires == 1
+		and pulled.size() == 2
+		and bool(test.if_revealed_watchers[0].get("fired", false))
+	)
+
+
+func _test_bag_ledger_each_mode() -> bool:
+	## each：Rod 揭 2 枚 curse → 触发两次；不自肃。
+	var h := RuleTestHarness.new(42)
+	var c1 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"ce1")
+	var c2 := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"ce2")
+	GameBootstrap.setup_chaos_bag(h.ctx, [c1, c2])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.if_revealed_watchers = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "mode": &"each", "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(2)
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n_each"))
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return flags.fires == 2 and pulled.size() == 2
+
+
+func _test_bag_ledger_st3_eager_before_st4() -> bool:
+	## ST.3 resolved curse → if_revealed 在符号能力前触发；窗后不再连发。
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_st3")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	var flags := {"fires": 0, "at_step": -1}
+	var on_match := func(ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+		flags.at_step = int(ctx.current_step)
+	test.if_revealed_watchers = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	var fires_after_chain: int = int(flags.fires)
+	var step_at_fire: int = int(flags.at_step)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		fires_after_chain == 1
+		and flags.fires == 1
+		and step_at_fire == int(AhcEnums.SkillTestStep.ST_3_REVEAL)
+		and test.chaos_modifier == -2
+	)
+
+
+func _test_bag_intent_no_replace() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"n0"),
+		ChaosToken.numeric(1, &"n1"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_none")
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	return (
+		int(plan.get("leaf_count", 0)) == 1
+		and (plan.get("resolved") as Array).size() == 1
+		and (plan.get("ignored") as Array).is_empty()
+		and (plan.get("tokens") as Array).size() == 1
+	)
+
+
+func _test_bag_intent_olive_alone() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"a"),
+		ChaosToken.numeric(1, &"b"),
+		ChaosToken.numeric(2, &"c"),
+		ChaosToken.numeric(3, &"d"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_olive")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	return (
+		int(plan.get("leaf_count", 0)) == 3
+		and (plan.get("tokens") as Array).size() == 3
+		and (plan.get("resolved") as Array).size() == 2
+		and (plan.get("ignored") as Array).size() == 1
+		and h.ctx.state.chaos_bag.revealed_this_test.size() == 3
+		and h.ctx.state.chaos_bag.count_revealed_kind(AhcEnums.ChaosTokenKind.NUMERIC) == 3
+		and h.ctx.state.chaos_bag.count_resolved_kind(AhcEnums.ChaosTokenKind.NUMERIC) == 2
+	)
+
+
+func _test_bag_intent_olive_then_statue() -> bool:
+	var h := RuleTestHarness.new(7)
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"t0"),
+		ChaosToken.numeric(1, &"t1"),
+		ChaosToken.numeric(2, &"t2"),
+		ChaosToken.numeric(3, &"t3"),
+		ChaosToken.numeric(4, &"t4"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_olive_statue")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var statue := ChaosRevealReplaceAbility.create(&"statue", &"inv_1", 2, 1)
+	## Olive 先 → 3 叶；Statue 作用 Olive 的第一叶（默认 id 序列展开后的首叶）→ 总叶 4。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"chaos:reveal_replace_order", "pick": [&"olive", &"statue"]},
+		{"prompt_id": &"chaos:reveal_replace_target:statue", "pick": 1},
+	])
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive, statue], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var order: Array = plan.get("order", [])
+	var slots: Dictionary = plan.get("slot_targets", {})
+	return (
+		order.size() == 2
+		and order[0] == &"olive"
+		and order[1] == &"statue"
+		and int(slots.get(&"statue", -1)) == 1
+		and int(plan.get("leaf_count", 0)) == 4
+		and (plan.get("tokens") as Array).size() == 4
+		and (plan.get("resolved") as Array).size() == 3
+		and (plan.get("ignored") as Array).size() == 1
+	)
+
+
+func _test_bag_intent_statue_then_olive() -> bool:
+	var h := RuleTestHarness.new(11)
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"s0"),
+		ChaosToken.numeric(1, &"s1"),
+		ChaosToken.numeric(2, &"s2"),
+		ChaosToken.numeric(3, &"s3"),
+		ChaosToken.numeric(4, &"s4"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"intent_statue_olive")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var statue := ChaosRevealReplaceAbility.create(&"statue", &"inv_1", 2, 1)
+	## Statue 先：1→2；Olive 作用 Statue 的一叶（默认取头叶 id）→ 该叶再变 3 → 总叶 4。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"chaos:reveal_replace_order", "pick": [&"statue", &"olive"]},
+	])
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive, statue], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var order: Array = plan.get("order", [])
+	return (
+		order.size() == 2
+		and order[0] == &"statue"
+		and order[1] == &"olive"
+		and int(plan.get("leaf_count", 0)) == 4
+		and (plan.get("tokens") as Array).size() == 4
+	)
+
+
+func _test_bag_intent_st3_multi_modifiers() -> bool:
+	var h := RuleTestHarness.new(42)
+	## 固定两枚 +1，Olive 揭 2 解 2 → chaos_modifier 累加为 2。
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(1, &"m1"),
+		ChaosToken.numeric(1, &"m2"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	test.pending_reveal_replace = [
+		ChaosRevealReplaceAbility.create(&"double", &"inv_1", 2, 2)
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var ok := (
+		test.revealed_tokens.size() == 2
+		and test.chaos_modifier == 2
+		and int(intent.get("leaf_count", 0)) == 2
+		and (intent.get("resolved") as Array).size() == 2
+		and test.pending_reveal_replace.is_empty()
+	)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bag_ignore_olive_revealed() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(0, &"n0"),
+		ChaosToken.numeric(1, &"n1"),
+		ChaosToken.numeric(2, &"n2"),
+		ChaosToken.numeric(3, &"n3"),
+	])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"ignore_olive")
+	var olive := ChaosRevealReplaceAbility.create(&"olive", &"inv_1", 3, 2)
+	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
+		h.ctx.state.chaos_bag, 1, [olive], h.ctx.interaction, h.ctx, &"inv_1"
+	)
+	var ignored: Array = plan.get("ignored", [])
+	if ignored.is_empty():
+		return false
+	var ig: ChaosToken = ignored[0] as ChaosToken
+	var ig_row_ok := false
+	for r in h.ctx.state.chaos_bag.reveal_ledger:
+		if r.token != ig:
+			continue
+		ig_row_ok = r.ignored and r.was_revealed() and not r.was_resolved()
+		break
+	return (
+		ig_row_ok
+		and h.ctx.state.chaos_bag.revealed_records().size() == 3
+		and h.ctx.state.chaos_bag.resolved_records().size() == 2
+	)
+
+
+func _test_bag_ignore_cancel_excludes_both() -> bool:
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_cancel")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	h.ctx.state.chaos_bag.begin_reveal_scope(&"cancel_scope")
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.cancel_reveal(pulled[0])
+	return (
+		not h.ctx.state.chaos_bag.has_revealed_kind(AhcEnums.ChaosTokenKind.CURSE)
+		and not h.ctx.state.chaos_bag.has_resolved_kind(AhcEnums.ChaosTokenKind.CURSE)
+		and h.ctx.state.chaos_bag.revealed_records().is_empty()
+		and h.ctx.state.chaos_bag.resolved_records().is_empty()
+	)
+
+
+func _test_bag_ignore_gate_skips_ignored() -> bool:
+	## 能力揭示 curse 后 Ignore → finalize 时非 resolved，if_revealed 不开火；revealed 仍可见。
+	var h := RuleTestHarness.new(42)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, -2, &"c_gate")
+	GameBootstrap.setup_chaos_bag(h.ctx, [curse])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	var flags := {"fires": 0}
+	var on_match := func(_ctx: SkillTestContext, _kind: int, _n: int) -> void:
+		flags.fires += 1
+	test.if_revealed_watchers = [
+		{"kind": AhcEnums.ChaosTokenKind.CURSE, "on_match": on_match}
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var pulled: Array[ChaosToken] = h.ctx.state.chaos_bag.reveal_for_ability(1)
+	h.ctx.state.chaos_bag.ignore_reveal(pulled[0])
+	h.ctx.state.chaos_bag.finalize_ability_reveal(pulled)
+	h.ctx.state.chaos_bag.tokens.clear()
+	h.ctx.state.chaos_bag.add_token(ChaosToken.numeric(0, &"n_gate"))
+	var saw_revealed := h.ctx.state.chaos_bag.has_revealed_kind(AhcEnums.ChaosTokenKind.CURSE)
+	var saw_resolved := h.ctx.state.chaos_bag.has_resolved_kind(AhcEnums.ChaosTokenKind.CURSE)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return saw_revealed and not saw_resolved and flags.fires == 0
+
+
+func _test_bag_wire_compile_12068() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var compiled := CardRegistry.compiled_abilities(&"12068")
+	if compiled.size() != 1:
+		return false
+	var entry: Dictionary = compiled[0]
+	if str(entry.get("match_kind", "")) != "reveal_chaos_token":
+		return false
+	if str(entry.get("phase", "")).to_upper() != "WHEN":
+		return false
+	if str(entry.get("template", "")) != "seq":
+		return false
+	if str(entry.get("status", "")) != "full":
+		return false
+	var steps: Array = entry.get("steps", [])
+	if steps.size() != 3:
+		return false
+	var spend: Dictionary = steps[0]
+	var replace: Dictionary = steps[1]
+	var symbol_hook: Dictionary = steps[2]
+	var uses := CardRegistry.uses_spec(&"12068")
+	return (
+		CardRegistry.has_triggered(&"12068")
+		and str(spend.get("template", "")) == "spend_use"
+		and str(replace.get("template", "")) == "chaos_reveal_replace"
+		and int(replace.get("reveal_count", 0)) == 2
+		and int(replace.get("resolve_count", 0)) == 1
+		and str(symbol_hook.get("template", "")) == "after_reveal_if_resolved_symbol"
+		and int(uses.get("count", 0)) == 3
+		and String(uses.get("type", &"")) == "charges"
+		and h.ctx.sequence_catalog.has_flow(&"seq.chaos.reveal")
+	)
+
+
+func _test_bag_wire_12068_vertical() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.ctx.sequence_catalog.has_flow(&"seq.chaos.reveal"):
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(1, &"w0"),
+		ChaosToken.numeric(1, &"w1"),
+		ChaosToken.numeric(0, &"w2"),
+	])
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var card := h.ctx.state.registry.get_card(card_id)
+	## Uses Domain：进场即 3 charges；勿手写。
+	var charges_enter := int(card.tokens.uses.get(&"charges", -1))
+	## 意愿池 join（16 §7.1）；非二次 reaction:use。
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_before := inv.horror_taken
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var charges_left := int(card.tokens.uses.get(&"charges", -1))
+	var resolved_arr: Array = intent.get("resolved", [])
+	var expected_mod := 0
+	if resolved_arr.size() == 1 and resolved_arr[0] is ChaosToken:
+		expected_mod = (resolved_arr[0] as ChaosToken).modifier
+	var ok := (
+		charges_enter == 3
+		and int(intent.get("leaf_count", 0)) == 2
+		and resolved_arr.size() == 1
+		and (intent.get("ignored") as Array).size() == 1
+		and test.revealed_tokens.size() == 1
+		and test.chaos_modifier == expected_mod
+		and charges_left == 2
+		and inv.horror_taken == horror_before
+	)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bag_wire_12068_symbol_horror() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	## 两枚符号：揭 2 解 1 → 必有 resolved 符号 → take 1 horror。
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, -1, &"sk0"),
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.CULTIST, -1, &"cu0"),
+	])
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var card := h.ctx.state.registry.get_card(card_id)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_before := inv.horror_taken
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var resolved_arr: Array = intent.get("resolved", [])
+	var resolved_is_symbol := false
+	if resolved_arr.size() == 1 and resolved_arr[0] is ChaosToken:
+		resolved_is_symbol = (resolved_arr[0] as ChaosToken).is_symbol_token()
+	var ok := (
+		int(card.tokens.uses.get(&"charges", -1)) == 2
+		and resolved_arr.size() == 1
+		and resolved_is_symbol
+		and inv.horror_taken == horror_before + 1
+	)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return ok
+
+
+func _test_bag_uses_enter_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null or int(card.tokens.uses.get(&"charges", -1)) != 3:
+		return false
+	## 离场清 Uses token。
+	h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	return card.tokens.uses.is_empty()
+
+
+func _test_bag_seal_random() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var skull := ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, -1, &"sk1")
+	var plus := ChaosToken.numeric(1, &"n1")
+	GameBootstrap.setup_chaos_bag(h.ctx, [skull, plus])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var bag_before := h.ctx.state.chaos_bag.tokens.size()
+	var res: Dictionary = SealFlow.seal(
+		h.ctx, {"host_card_id": host, "mode": SealFlow.MODE_RANDOM}
+	)
+	if not bool(res.get("ok", false)):
+		return false
+	var card := h.ctx.state.registry.get_card(host)
+	var sealed_tok: ChaosToken = res.get("token") as ChaosToken
+	return (
+		h.ctx.state.chaos_bag.tokens.size() == bag_before - 1
+		and h.ctx.state.chaos_bag.sealed_tokens.size() == 1
+		and sealed_tok != null
+		and sealed_tok.sealed
+		and sealed_tok.sealed_on == host
+		and card != null
+		and card.tokens.sealed.size() == 1
+		and not h.ctx.state.chaos_bag.tokens.has(sealed_tok)
+	)
+
+
+func _test_bag_seal_kind_missing() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0, &"n0")])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var bag_n := h.ctx.state.chaos_bag.tokens.size()
+	var res: Dictionary = SealFlow.seal(
+		h.ctx,
+		{
+			"host_card_id": host,
+			"mode": SealFlow.MODE_KIND,
+			"kind": AhcEnums.ChaosTokenKind.SKULL,
+		}
+	)
+	return (
+		not bool(res.get("ok", false))
+		and h.ctx.state.chaos_bag.tokens.size() == bag_n
+		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+	)
+
+
+func _test_bag_seal_leave_play_release() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var skull := ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, -2, &"sk_leave")
+	GameBootstrap.setup_chaos_bag(h.ctx, [skull, ChaosToken.numeric(1, &"n_leave")])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var seal_res: Dictionary = SealFlow.seal(
+		h.ctx,
+		{
+			"host_card_id": host,
+			"mode": SealFlow.MODE_KIND,
+			"kind": AhcEnums.ChaosTokenKind.SKULL,
+		}
+	)
+	if not bool(seal_res.get("ok", false)):
+		return false
+	var bag_mid := h.ctx.state.chaos_bag.tokens.size()
+	h.ctx.mutator.move_card(host, CardSlot.discard_top(&"inv_1"))
+	var card := h.ctx.state.registry.get_card(host)
+	return (
+		h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+		and h.ctx.state.chaos_bag.tokens.size() == bag_mid + 1
+		and h.ctx.state.chaos_bag.tokens.has(skull)
+		and not skull.sealed
+		and skull.sealed_on == &""
+		and (card == null or card.tokens.sealed.is_empty())
+	)
+
+
+func _test_bag_seal_catalog_nest() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.seal"):
+		return false
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.release_seal"):
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.symbol(AhcEnums.ChaosTokenKind.CULTIST, -1, &"cu1"),
+		ChaosToken.numeric(0, &"n_nest"),
+	])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var seal_res: Dictionary = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.seal",
+		{
+			"host_card_id": host,
+			"mode": SealFlow.MODE_KIND,
+			"kind": AhcEnums.ChaosTokenKind.CULTIST,
+		}
+	)
+	if not bool(seal_res.get("ok", false)):
+		return false
+	var rel: Dictionary = h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.release_seal",
+		{"host_card_id": host}
+	)
+	return (
+		bool(rel.get("ok", false))
+		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+		and h.ctx.state.chaos_bag.tokens.size() == 2
+	)
+
+
+func _test_bag_seal_reveal_instead() -> bool:
+	var h := RuleTestHarness.new(42)
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	var sealed_num := ChaosToken.numeric(-3, &"sealed_m3")
+	var bag_only := ChaosToken.numeric(9, &"bag_9")
+	GameBootstrap.setup_chaos_bag(h.ctx, [sealed_num, bag_only])
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"12068")
+	var seal_res: Dictionary = SealFlow.seal(
+		h.ctx,
+		{"host_card_id": host, "mode": SealFlow.MODE_TOKEN, "token": sealed_num}
+	)
+	if not bool(seal_res.get("ok", false)):
+		return false
+	var bag_n := h.ctx.state.chaos_bag.tokens.size()
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	test.pending_reveal_replace = [
+		ChaosRevealReplaceAbility.create_sealed_instead(
+			&"premonition", &"inv_1", host, 1
+		)
+	]
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	var intent: Dictionary = test.last_reveal_intent
+	var resolved: Array = intent.get("resolved", [])
+	var ok: bool = (
+		resolved.size() == 1
+		and resolved[0] == sealed_num
+		and test.chaos_modifier == -3
+		and h.ctx.state.chaos_bag.tokens.size() == bag_n
+		and h.ctx.state.chaos_bag.tokens.has(bag_only)
+		and not h.ctx.state.chaos_bag.tokens.has(sealed_num)
+		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+		and h.ctx.state.chaos_bag.revealed_this_test.has(sealed_num)
+	)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	## ST.8 归袋后 sealed 标记应回袋（曾作揭示）。
+	ok = ok and h.ctx.state.chaos_bag.tokens.has(sealed_num)
+	return ok
+
+
+func _test_bag_seal_keyword_cost_gate() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"seal_skull_asset",
+		{
+			"card_type": &"asset",
+			"resource_cost": 0,
+			"keywords": [&"seal"],
+			"seal": {"kind": "skull"},
+			"text": "Seal (Skull).",
+		}
+	)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0, &"n0")])
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"seal_skull_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	inv.resource_pool = 5
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	return (
+		not res.ok
+		and res.error == "cannot_pay"
+		and inv.hand.has(card_id)
+		and card.zone == AhcEnums.Zone.HAND
+		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()
+	)
+
+
+func _test_bag_seal_keyword_play_enter() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"seal_elder_asset",
+		{
+			"card_type": &"asset",
+			"resource_cost": 0,
+			"keywords": [&"seal"],
+			"seal": {"kind": "elder_sign"},
+			"text": "Seal (Elder Sign).",
+		}
+	)
+	var elder := ChaosToken.symbol(AhcEnums.ChaosTokenKind.ELDER_SIGN, 0, &"es1")
+	GameBootstrap.setup_chaos_bag(h.ctx, [elder, ChaosToken.numeric(1, &"n1")])
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"seal_elder_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	card = h.ctx.state.registry.get_card(card_id)
+	return (
+		res.ok
+		and card != null
+		and card.zone == AhcEnums.Zone.PLAY_AREA
+		and elder.sealed
+		and elder.sealed_on == card_id
+		and card.tokens.sealed.size() == 1
+		and not h.ctx.state.chaos_bag.tokens.has(elder)
+	)
+
+
+func _test_bag_seal_keyword_choice() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"seal_choice_asset",
+		{
+			"card_type": &"asset",
+			"resource_cost": 0,
+			"keywords": [&"seal"],
+			"seal": {"kinds": ["cultist", "tablet"]},
+			"text": "Seal ([cultist] or [tablet]).",
+		}
+	)
+	var cultist := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CULTIST, -1, &"cu_s")
+	var tablet := ChaosToken.symbol(AhcEnums.ChaosTokenKind.TABLET, -1, &"tab_s")
+	GameBootstrap.setup_chaos_bag(h.ctx, [cultist, tablet, ChaosToken.numeric(0, &"n_c")])
+	## 默认 Gate 取候选 head → cultist。
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"seal_choice_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	h.ctx.state.registry.get_investigator(&"inv_1").hand.append(card_id)
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	card = h.ctx.state.registry.get_card(card_id)
+	var sealed_ok := cultist.sealed or tablet.sealed
+	var one_sealed := int(cultist.sealed) + int(tablet.sealed) == 1
+	return (
+		res.ok
+		and sealed_ok
+		and one_sealed
+		and card != null
+		and card.tokens.sealed.size() == 1
+	)
+
+
+func _test_bag_seal_keyword_zone_enter() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"seal_zone_asset",
+		{
+			"card_type": &"asset",
+			"keywords": [&"seal"],
+			"seal": {"kind": "skull"},
+			"text": "Seal (Skull).",
+		}
+	)
+	var skull := ChaosToken.symbol(AhcEnums.ChaosTokenKind.SKULL, -1, &"sk_z")
+	GameBootstrap.setup_chaos_bag(h.ctx, [skull])
+	## put into play（非打出 Initiation）仍走进场 Domain。
+	var host := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"seal_zone_asset")
+	var card := h.ctx.state.registry.get_card(host)
+	return (
+		skull.sealed
+		and skull.sealed_on == host
+		and card != null
+		and card.tokens.sealed.size() == 1
 	)
 
 
@@ -7562,6 +9086,135 @@ func _test_g1_move_to_ignores_connections() -> bool:
 	)
 
 
+func _test_l01_per_investigator_clues() -> bool:
+	## 印刷 2 × 开局调查员数 2 → 放 4 线索。
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.per_investigator_count = 2
+	GameBootstrap.setup_test_location(
+		h.ctx, &"loc_pi", 3, 2, false, 2
+	)
+	var reveal := LocationEnterRules.reveal_and_place_clues(
+		h.ctx, {"location_id": &"loc_pi"}
+	)
+	var loc := h.ctx.state.registry.get_location(&"loc_pi")
+	return (
+		bool(reveal.get("ok", false))
+		and bool(reveal.get("revealed", false))
+		and int(reveal.get("clues_placed", 0)) == 4
+		and loc.revealed
+		and loc.clues == 4
+	)
+
+
+func _test_l02_move_unrevealed() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.per_investigator_count = 1
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 0)
+	GameBootstrap.setup_test_location(
+		h.ctx, &"loc_dark", 4, 3, false, 3
+	)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_dark")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_dark",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var loc := h.ctx.state.registry.get_location(&"loc_dark")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and inv.location_tag == &"loc_dark"
+		and loc.revealed
+		and loc.clues == 3
+		and bool(res.get("location_revealed", false))
+		and int(res.get("clues_placed", 0)) == 3
+		and h.ctx.sequence_catalog.has_flow(&"seq.effect.reveal_location")
+	)
+
+
+func _test_l02b_reenter_no_reclues() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 0)
+	GameBootstrap.setup_test_location(
+		h.ctx, &"loc_once", 2, 2, false, 2
+	)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_once")
+	h.ctx.state.registry.get_investigator(&"inv_1").location_tag = &"test_loc"
+	h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_once",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var loc := h.ctx.state.registry.get_location(&"loc_once")
+	loc.clues = 1
+	## 走回再进：已揭示，线索保持 1。
+	h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"test_loc",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var res2 := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_1",
+			"destination_id": &"loc_once",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	return (
+		loc.revealed
+		and loc.clues == 1
+		and not bool(res2.get("location_revealed", false))
+		and int(res2.get("clues_placed", 0)) == 0
+	)
+
+
+func _test_l02c_enemy_move_no_reveal() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 0)
+	GameBootstrap.setup_test_location(
+		h.ctx, &"loc_enemy", 2, 2, false, 2
+	)
+	GameBootstrap.connect_locations(h.ctx, &"test_loc", &"loc_enemy")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": &"enemy_1",
+			"destination_id": &"loc_enemy",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"steps": 1,
+			"auto_engage": false,
+		}
+	)
+	var loc := h.ctx.state.registry.get_location(&"loc_enemy")
+	return not loc.revealed and loc.clues == 0
+
+
 func _test_g2_exhaust_enemy() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
@@ -7902,6 +9555,77 @@ func _test_g5_asset_cancel_no_leave() -> bool:
 	)
 
 
+func _test_g5_unowned_story_asset_removed() -> bool:
+	## 无玩家所有者的剧情支援击败 → 从游戏中移除（FAQ · Lita Chantler 01117）。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"story_asset_g5",
+		{"card_type": &"asset", "health": 1, "encounter_code": &"story"}
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"story_asset_g5")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &""
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(card)
+	var res := DefeatFlow.defeat_asset_effect(h.ctx, card_id)
+	return (
+		bool(res.get("defeated", false))
+		and res.get("dest", &"") == &"removed_from_game"
+		and card.zone == AhcEnums.Zone.REMOVED_FROM_GAME
+		and h.ctx.state.removed_from_game.has(card_id)
+		and not h.ctx.state.set_aside.has(card_id)
+	)
+
+
+func _test_g5_weakness_enemy_owner_discard() -> bool:
+	## 弱点敌人击败 → 所有者弃牌堆（非遭遇弃牌）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx, &"weak_enemy_g5", {"health": 1}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	card.owner_id = &"inv_1"
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var res := DefeatFlow.defeat_enemy_effect(h.ctx, card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("defeated", false))
+		and not bool(res.get("victory_display", false))
+		and inv.discard.has(card_id)
+		and not h.ctx.state.encounter_discard.has(card_id)
+	)
+
+
+func _test_g5_vengeance_to_victory_display() -> bool:
+	## 复仇指示 → 胜利区（同 Victory）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 0, 0)
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
+		h.ctx,
+		&"en_vengeance_g5",
+		{"health": 1, "vengeance": 2}
+	)
+	CardRegistry.patch_definition(&"en_vengeance_g5", {"vengeance": 2, "health": 1})
+	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	if not spawn.get("ok", false):
+		return false
+	var res := DefeatFlow.defeat_enemy_effect(h.ctx, card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	return (
+		bool(res.get("defeated", false))
+		and bool(res.get("victory_display", false))
+		and h.ctx.state.victory_display.has(card_id)
+		and card != null
+		and card.zone == AhcEnums.Zone.VICTORY_DISPLAY
+	)
+
+
 func _test_zm_catalog() -> bool:
 	var h := RuleTestHarness.new(42)
 	return h.ctx.sequence_catalog.has_flow(&"seq.zone.move")
@@ -7944,6 +9668,104 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 		bool(res.get("ok", false))
 		and store.count() == 0
 		and h.ctx.state.registry.get_enemy(card_id) == null
+	)
+
+
+func _test_zm_leave_play_tokens_to_pool() -> bool:
+	## 01 §5.2 / Grimoire Leaves Play：离场卡上标记经 transfer_marker 归还无穷池（卡面剥光）。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"ally_zm_tokens", {"health": 3, "sanity": 3}
+	)
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	card.tokens.damage = 2
+	card.tokens.horror = 1
+	card.tokens.clue = 3
+	card.tokens.doom = 1
+	card.tokens.uses[&"ammo"] = 4
+	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	return (
+		moved
+		and card.tokens.damage == 0
+		and card.tokens.horror == 0
+		and card.tokens.clue == 0
+		and card.tokens.doom == 0
+		and card.tokens.uses.is_empty()
+	)
+
+
+func _test_zm_leave_play_discards_attachments() -> bool:
+	## 宿主离场 → 附属同时弃置（遭遇附属进遭遇弃牌堆）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"test_loc", 2, 1)
+	var host_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"asset_zm_host", {"health": 1}
+	)
+	var host := h.ctx.state.registry.get_card(host_id)
+	if host == null:
+		return false
+	var fire_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_zm_attach_fire", [])
+	## 直接挂到支援上（跳过 limbo→地点路径）。
+	var fire := h.ctx.state.registry.get_card(fire_id)
+	if fire == null:
+		return false
+	h.ctx.state.encounter_deck.erase(fire_id)
+	fire.zone = AhcEnums.Zone.ATTACHED
+	fire.attached_to = host.id
+	host.attachments.append(fire.id)
+	## 附属上亦有标记，弃置（ATTACHED leave）时应剥光。
+	fire.tokens.damage = 1
+	var moved := h.ctx.mutator.move_card(host_id, CardSlot.discard_top(&"inv_1"))
+	var fire_after := h.ctx.state.registry.get_card(fire_id)
+	return (
+		moved
+		and host.attachments.is_empty()
+		and fire_after != null
+		and fire_after.attached_to == null
+		and fire_after.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.encounter_discard.has(fire_id)
+		and fire_after.tokens.damage == 0
+	)
+
+
+func _test_zm_defeat_asset_leave_cleanup() -> bool:
+	## 击败 nest 退场：宿主标记剥光 + 附属弃置（同 LEAVE_PLAY 捆绑）。
+	var h := RuleTestHarness.new(42)
+	var host_id := GameBootstrap.add_asset_to_play(
+		h.ctx, &"inv_1", &"asset_zm_defeat_host", {"health": 2}
+	)
+	var host := h.ctx.state.registry.get_card(host_id)
+	if host == null:
+		return false
+	host.tokens.damage = 2
+	host.tokens.clue = 1
+	host.tokens.uses[&"ammo"] = 2
+	var fire_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_zm_defeat_attach", [])
+	var fire := h.ctx.state.registry.get_card(fire_id)
+	if fire == null:
+		return false
+	h.ctx.state.encounter_deck.erase(fire_id)
+	fire.zone = AhcEnums.Zone.ATTACHED
+	fire.attached_to = host.id
+	host.attachments.append(fire.id)
+	fire.tokens.horror = 1
+	var res := DefeatFlow.check_asset_caps(h.ctx, host_id)
+	var fire_after := h.ctx.state.registry.get_card(fire_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("defeated", false))
+		and host.zone == AhcEnums.Zone.DISCARD
+		and inv.discard.has(host_id)
+		and host.tokens.damage == 0
+		and host.tokens.clue == 0
+		and host.tokens.uses.is_empty()
+		and host.attachments.is_empty()
+		and fire_after != null
+		and fire_after.zone == AhcEnums.Zone.DISCARD
+		and h.ctx.state.encounter_discard.has(fire_id)
+		and fire_after.tokens.horror == 0
 	)
 
 
@@ -8907,7 +10729,7 @@ func _test_asn_include_bodyguard() -> bool:
 
 
 func _test_asn_pipeline_prior_fill() -> bool:
-	## ASN-06：pipeline Apply 按 PRIOR_FILL 腿写入资产 + 调查员。
+	## ASN-06：pipeline Apply 按 PRIOR_FILL 腿写入；达神智上限则击败退场清标记。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
 		h.ctx, &"inv_1", &"ally_asn_pipe", {"health": 0, "sanity": 2}
@@ -8920,12 +10742,16 @@ func _test_asn_pipeline_prior_fill() -> bool:
 	var res := DamagePipeline.deal_investigator(h.ctx, &"inv_1", &"horror", 3, false)
 	var card := h.ctx.state.registry.get_card(card_id)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var horror_legs: Array = res.get("legs_horror", [])
 	return (
 		bool(res.get("ok", false))
 		and int(res.get("amount", 0)) == 3
-		and card != null
-		and card.tokens.horror == 2
+		and _asn_leg_amount(horror_legs, &"card", card_id) == 2
+		and _asn_leg_amount(horror_legs, &"investigator", &"inv_1") == 1
 		and inv.horror_taken == 1
+		and card != null
+		and card.zone == AhcEnums.Zone.DISCARD
+		and card.tokens.horror == 0
 	)
 
 

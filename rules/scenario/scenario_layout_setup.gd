@@ -49,13 +49,26 @@ static func install_reference_card(game_ctx: GameContext, definition_id: StringN
 		game_ctx, definition_id, AhcEnums.Zone.PLAY_AREA, &"scenario_ref"
 	)
 	game_ctx.state.scenario_reference_card_id = card_id
+	## 装载 JSON 定义，并把符号条绑成卡上印刷隐式符号能力（空白可卸）。
+	if game_ctx.config != null and game_ctx.config.setup_scenario_id != &"":
+		game_ctx.state.scenario_reference = ScenarioReferenceCatalog.load_for_scenario(
+			game_ctx.config.setup_scenario_id
+		)
+	var bound := ScenarioReferenceBinder.bind_to_card(
+		game_ctx, card_id, game_ctx.state.scenario_reference
+	)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
 			"setup:scenario_reference",
-			{"definition_id": definition_id, "card_id": card_id}
+			{
+				"definition_id": definition_id,
+				"card_id": card_id,
+				"has_effects": game_ctx.state.scenario_reference != null,
+				"symbol_abilities": bound,
+			}
 		)
-	return {"ok": true, "card_id": card_id, "definition_id": definition_id}
+	return {"ok": true, "card_id": card_id, "definition_id": definition_id, "symbol_abilities": bound}
 
 
 static func _sync_per_investigator_count(game_ctx: GameContext) -> void:
@@ -119,23 +132,15 @@ static func _register_location(
 	var loc := LocationState.new()
 	loc.id = definition_id
 	loc.shroud = CardRegistry.location_shroud(definition_id)
-	loc.revealed = in_play and reveal
+	loc.printed_clues = CardRegistry.location_printed_clues(definition_id)
+	loc.revealed = false
 	loc.clues = 0
 	game_ctx.state.registry.register_location(loc)
-	if reveal:
-		var want := PerInvestigatorScale.place_location_clues(
-			game_ctx.state,
-			CardRegistry.location_printed_clues(definition_id)
+	## 开局已揭示的地点（如 starting）：立刻翻开并放线索（经 transfer_marker）。
+	if in_play and reveal:
+		LocationEnterRules.reveal_and_place_clues(
+			game_ctx, {"location_id": definition_id}
 		)
-		if want > 0 and game_ctx.mutator != null:
-			game_ctx.mutator.transfer_marker(
-				AhcEnums.MarkerKind.CLUE,
-				want,
-				MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
-				MarkerSlot.location(definition_id, AhcEnums.MarkerKind.CLUE)
-			)
-		elif want > 0:
-			loc.clues = want
 	if in_play:
 		var card_id := materialize_card(
 			game_ctx,

@@ -40,6 +40,8 @@ var test_difficulty: int = 0
 ## 动态难度：空=用 test_difficulty；`hand_count` = 调查员手牌张数（12127）。
 var test_difficulty_source: StringName = &""
 var st7_plan: SkillTestSt7Plan = null
+## nest skill_test：*If … is revealed* 规格（见 SkillTestIfRevealed）。
+var if_revealed_specs: Array = []
 var repeat_count_source: StringName = &""
 var repeat_count_fixed: int = 0
 var may_advance_agenda: bool = false
@@ -72,6 +74,8 @@ var auto_engage: bool = true
 var from_zone: StringName = &""
 ## 数量载荷（标记移动等）。
 var amount: int = 1
+## Uses 种类（charges / ammo / secrets…）；`spend_use`。
+var use_type: StringName = &""
 ## 地点标记种类（nest_move_marker_to）。
 var marker_kind: AhcEnums.MarkerKind = AhcEnums.MarkerKind.CLUE
 
@@ -317,7 +321,8 @@ static func nest_skill_test(
 	card_id: StringName = &"",
 	st7_plan: SkillTestSt7Plan = null,
 	difficulty_source: StringName = &"",
-	skill_spec: StringName = &""
+	skill_spec: StringName = &"",
+	if_revealed_specs: Array = []
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
@@ -329,6 +334,7 @@ static func nest_skill_test(
 	n.test_difficulty = maxi(difficulty, 0)
 	n.test_difficulty_source = difficulty_source
 	n.st7_plan = st7_plan
+	n.if_revealed_specs = if_revealed_specs
 	return n
 
 
@@ -671,6 +677,104 @@ static func cancel_pending(pending_id: StringName) -> CompositionNode:
 ## 竖切占位：等价 interrupt_ignore(InterruptTarget.pending_impact(...))。
 static func ignore_pending(pending_id: StringName) -> CompositionNode:
 	return interrupt_ignore(InterruptTarget.pending_impact(pending_id))
+
+
+## 将要揭示替换：挂入当前检定 `pending_reveal_replace`（ST.3 / seq.chaos.reveal 消费）。
+## draw_amount = 展开叶数；amount = resolve 数（-1 = 全 resolve）。
+static func queue_chaos_reveal_replace(
+	controller_id: StringName,
+	ability_id: StringName,
+	reveal_count: int,
+	resolve_count: int = -1,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"queue_chaos_reveal_replace"
+	n.inv_id = controller_id
+	n.source_ability_id = ability_id
+	n.card_id = source_card_id
+	n.draw_amount = maxi(reveal_count, 1)
+	n.amount = resolve_count
+	return n
+
+
+## 扣 Uses（charges 等）；不足则失败。
+static func spend_use(
+	card_id: StringName,
+	use_type: StringName,
+	amount: int = 1,
+	controller_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"spend_use"
+	n.card_id = card_id
+	n.use_type = use_type
+	n.amount = maxi(amount, 1)
+	n.inv_id = controller_id
+	return n
+
+
+## nest `seq.effect.seal`（mode=random|kind|choice；kind 经 definition_id 字面或 amount 枚举）。
+static func nest_seal(
+	host_card_id: StringName,
+	mode: StringName = &"random",
+	controller_id: StringName = &"",
+	kind: int = -1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_seal"
+	n.nest_flow_id = &"seq.effect.seal"
+	n.card_id = host_card_id
+	n.engage_mode = mode
+	n.inv_id = controller_id
+	n.amount = kind
+	return n
+
+
+## nest `seq.effect.release_seal`（释放 host 上全部封印，或单枚见 executor token 指称）。
+static func nest_release_seal(host_card_id: StringName) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"nest_release_seal"
+	n.nest_flow_id = &"seq.effect.release_seal"
+	n.card_id = host_card_id
+	return n
+
+
+## Premonition 式：将要揭示时改为结算封印在此的标记（挂 pending_reveal_replace）。
+static func queue_sealed_reveal_instead(
+	controller_id: StringName,
+	ability_id: StringName,
+	host_card_id: StringName,
+	sealed_count: int = 1
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"queue_sealed_reveal_instead"
+	n.inv_id = controller_id
+	n.source_ability_id = ability_id
+	n.card_id = host_card_id
+	n.draw_amount = maxi(sealed_count, 1)
+	n.amount = -1
+	return n
+
+
+## 本批揭示 resolve 后：若任一 resolved 为符号标记，执行 then（Mask 式 horror）。
+static func after_reveal_if_resolved_symbol(
+	then_node: CompositionNode,
+	controller_id: StringName = &"",
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := CompositionNode.new()
+	n.kind = AhcEnums.CompositionNodeKind.ATOM
+	n.atom_name = &"after_reveal_if_resolved_symbol"
+	n.then_branch = then_node
+	n.inv_id = controller_id
+	n.card_id = source_card_id
+	return n
 
 
 ## L2 · 统一 Instead 节点（07 §7.0：nest seq.replace.instead 或本节点）。

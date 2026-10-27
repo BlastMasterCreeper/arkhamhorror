@@ -7,6 +7,8 @@ enum DomainPredicate {
 	PREVIOUS_STEP_NOT_CREATED,
 	PREVIOUS_STEP_ENGAGED,
 	LAST_SKILL_TEST_FAILED,
+	## 来源卡 Uses 足够（Cosmic Flame「若无法移除 charge」）。
+	SOURCE_HAS_USE,
 }
 
 var tags_all: Array[StringName] = []
@@ -18,6 +20,8 @@ var domain_predicate: DomainPredicate = DomainPredicate.NONE
 var domain_inv_id: StringName = &""
 var domain_card_id: StringName = &""
 var domain_eq: int = 0
+var domain_use_type: StringName = &"charges"
+var domain_use_amount: int = 1
 
 
 static func with_tags(required: Array[StringName]) -> Condition:
@@ -78,6 +82,20 @@ static func previous_step_engaged_investigator(_inv_id: StringName, _card_id: St
 	return c
 
 
+## L3 · 来源卡 typed Uses ≥ amount（默认 charges×1）。
+static func source_has_use(
+	card_id: StringName,
+	use_type: StringName = &"charges",
+	amount: int = 1
+) -> Condition:
+	var c := Condition.new()
+	c.domain_predicate = DomainPredicate.SOURCE_HAS_USE
+	c.domain_card_id = card_id
+	c.domain_use_type = use_type if use_type != &"" else &"charges"
+	c.domain_use_amount = maxi(amount, 1)
+	return c
+
+
 static func from_compile_id(
 	condition_id: String,
 	inv_id: StringName,
@@ -90,6 +108,8 @@ static func from_compile_id(
 			return previous_step_not_created(inv_id, card_id)
 		"previous_step_engaged_investigator":
 			return previous_step_engaged_investigator(inv_id, card_id)
+		"source_has_use", "source_has_charges":
+			return source_has_use(card_id, &"charges", 1)
 	return null
 
 
@@ -142,6 +162,12 @@ func matches_domain(game_ctx: GameContext, fallback_inv_id: StringName) -> bool:
 			if game_ctx.composition != null:
 				return game_ctx.composition.last_skill_test_fail_by() > 0
 			return false
+		DomainPredicate.SOURCE_HAS_USE:
+			var card := game_ctx.state.registry.get_card(domain_card_id)
+			if card == null:
+				return false
+			var use_type := domain_use_type if domain_use_type != &"" else &"charges"
+			return int(card.tokens.uses.get(use_type, 0)) >= domain_use_amount
 	return true
 
 
@@ -159,4 +185,10 @@ func matches_domain_sim(sim: GameSimulator, fallback_inv_id: StringName) -> bool
 			return sim.last_step_engaged_investigator != &""
 		DomainPredicate.LAST_SKILL_TEST_FAILED:
 			return sim.last_skill_test_fail_by > 0
+		DomainPredicate.SOURCE_HAS_USE:
+			var card := sim.state.registry.get_card(domain_card_id)
+			if card == null:
+				return false
+			var use_type := domain_use_type if domain_use_type != &"" else &"charges"
+			return int(card.tokens.uses.get(use_type, 0)) >= domain_use_amount
 	return true
