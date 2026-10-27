@@ -19,3 +19,11 @@ static func investigator(inv_id: StringName, kind: AhcEnums.MarkerKind) -> Marke
 	s.bearer_kind = AhcEnums.BearerKind.INVESTIGATOR
 	s.bearer_id = inv_id
 	return s
+
+
+static func card(card_id: StringName, kind: AhcEnums.MarkerKind) -> MarkerSlot:
+	var s := MarkerSlot.new()
+	s.kind = kind
+	s.bearer_kind = AhcEnums.BearerKind.CARD
+	s.bearer_id = card_id
+	return s

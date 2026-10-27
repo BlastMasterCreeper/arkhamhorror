@@ -143,6 +143,7 @@ static func _set_enemy(
 	var card := game_ctx.state.registry.get_card(enemy_id)
 	if card != null and _is_flat_zone(card.zone):
 		card.exhausted = to_exhausted
+		_mirror_exhausted(game_ctx, card, to_exhausted)
 	var out := {
 		"ok": true,
 		"changed": true,
@@ -197,6 +198,7 @@ static func _set_card(
 			"target_kind": TARGET_CARD,
 		}
 	card.exhausted = to_exhausted
+	_mirror_exhausted(game_ctx, card, to_exhausted)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.CARD,
@@ -212,6 +214,18 @@ static func _set_card(
 		"from_exhausted": was,
 		"to_exhausted": to_exhausted,
 	}
+
+
+static func _mirror_exhausted(
+	game_ctx: GameContext,
+	card: CardInstance,
+	to_exhausted: bool
+) -> void:
+	if game_ctx.state == null or game_ctx.state.physical_binding == null:
+		return
+	var binding: PhysicalBinding = game_ctx.state.physical_binding
+	binding.ensure_physical_card(card)
+	binding.mirror_exhausted(card.id.instance_id, to_exhausted)
 
 
 static func _is_flat_zone(zone: AhcEnums.Zone) -> bool:

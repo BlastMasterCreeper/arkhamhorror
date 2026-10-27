@@ -19,6 +19,8 @@ static func place_on_current_agenda(
 		placed = bool(result.get("ok", false))
 	else:
 		game_ctx.state.doom_on_agenda += 1
+		if game_ctx.state.physical_binding != null:
+			game_ctx.state.physical_binding.mirror_agenda_doom_delta(game_ctx.state, 1)
 		placed = true
 	if game_ctx.log != null:
 		game_ctx.log.log(

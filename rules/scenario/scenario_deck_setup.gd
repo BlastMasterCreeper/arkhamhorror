@@ -36,7 +36,10 @@ static func install_decks(
 		_set_current(game_ctx, first_agenda, true)
 		game_ctx.state.current_agenda_number = 1
 		game_ctx.state.doom_on_agenda = 0
+		if game_ctx.state.physical_binding != null:
+			game_ctx.state.physical_binding.mirror_agenda_doom_set(game_ctx.state, 0)
 		sync_agenda_threshold(game_ctx.state, first_agenda)
+
 		result["current_agenda"] = first_agenda
 		result["agenda_remaining"] = game_ctx.state.agenda_deck.size()
 		installed = true
@@ -85,6 +88,8 @@ static func _materialize_deck(
 		card.controller_id = &"encounter"
 		card.zone = AhcEnums.Zone.SET_ASIDE
 		game_ctx.state.registry.register_card(card)
+		if game_ctx.state.physical_binding != null:
+			game_ctx.state.physical_binding.ensure_physical_card(card)
 		out.append(instance_id)
 	return out
 
@@ -100,6 +105,13 @@ static func _set_current(game_ctx: GameContext, card_id: StringName, is_agenda: 
 	else:
 		card.zone = AhcEnums.Zone.CURRENT_ACT
 		game_ctx.state.current_act_card_id = card_id
+	if game_ctx.state.physical_binding != null:
+		var zone := (
+			AhcEnums.Zone.CURRENT_AGENDA if is_agenda else AhcEnums.Zone.CURRENT_ACT
+		)
+		game_ctx.state.physical_binding.ensure_physical_card(card)
+		game_ctx.state.physical_binding.mirror_flip(card_id, AhcEnums.CardFace.A)
+		game_ctx.state.physical_binding.mirror_move_to_zone(card, zone, &"")
 	install_triggered_abilities(game_ctx, card_id)
 
 

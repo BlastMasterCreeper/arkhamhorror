@@ -47,7 +47,14 @@ static func notify_zone_set(
 	from_zone: AhcEnums.Zone,
 	to_zone: AhcEnums.Zone
 ) -> void:
-	## L0 直接写 zone（未走 move_card）时补发同一通道。
+	## L0 直接写 zone（未走 move_card）时补发同一通道，并镜像物理区。
+	if game_ctx != null and game_ctx.state != null and game_ctx.state.physical_binding != null:
+		var card := game_ctx.state.registry.get_card(card_id)
+		if card != null:
+			var owner := card.owner_id
+			if owner == &"":
+				owner = card.controller_id
+			game_ctx.state.physical_binding.mirror_move_to_zone(card, to_zone, owner)
 	after_l0_move(game_ctx, card_id, from_zone, to_zone)
 
 
