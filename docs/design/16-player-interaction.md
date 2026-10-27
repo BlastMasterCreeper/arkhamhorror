@@ -592,7 +592,7 @@ seq.encounter.revelation
 | P2 | 标识符重命名 `willingness_*`→`ResponsePool`、`PlayerWindowIntentPool`→`InitiationPool` | 待接（语义以 §7.0 为准） |
 | P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
 | P2 | `PAY_COST` / `PAY_X` 接 CostPipeline | 待接 |
-| P2 | Damage：`ASSIGN_*` / `CHOOSE_TRAUMA` | 待接 |
+| P2 | Damage：**Assign = PI 始终有**（对卡候选={该卡}；`ASSIGN_*`）/ `CHOOSE_TRAUMA` | 待接；防伤钉 WOULD，见 07 §4 |
 | P2 | `TIE_BREAK` / `ORDER_ATTACKS` / Hunter spawn | 待接 |
 | P3 | `SEARCH_TAKE` / `SETUP_CHOICE` / `CAMPAIGN_DECISION` | 待接 |
 | P3 | `INTERACTION_CHOICE` EventRecord（含 `used_default`） | ✅ Gate.ask 写入 |
