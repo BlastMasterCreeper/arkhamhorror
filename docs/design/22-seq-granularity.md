@@ -270,40 +270,37 @@
 | G4 | **Put into play / Enter play** | 区划事实（场外→场上） | **不铸** `seq.effect.enter_play` — **不是效果**；见下「进场」 |
 | G5 | **Defeat**（击败） | **已铸** `seq.effect.defeat`；退场 nest `seq.defeat.leave_play`；敌主体 TC=`enemy_defeated` | 伤/恐上限常态检测；Cancel → 无退场；卡面 `cause=effect` |
 | G6 | **Phase begins/ends** | **已铸** 单条 `seq.framework.phase_boundary` | params：`phase` × `boundary`；框架步进进入时 `run`；订阅靠 TC.kind |
-| G7 | **Attack of opportunity** | **不另铸**；落在敌人攻击通道 | 见下「不另铸但可听」 |
-| G8 | **Play（打出）** | **不另铸**；`PLAY_CARD` Initiation | 同上 |
-| G9 | **Commit** | **不另铸**；落在 `seq.skill_test` / ST.2 | 同上 |
-| G10 | **Spend**（费用） | **不另铸**；Initiation 付费场合 | 与失去资源 **同 L0**；见下 |
-| G11 | **Peril / Hidden 限制** | **不另铸**；父帧 Register RESTRICTION | 同上；不另开 check seq |
+| G7 | **Attack of opportunity** | **不另铸**；仍是攻击 | 嵌套来源辨认；见下 |
+| G8 | **Play（打出）** | **要对 Initiation 加打出包装** | 完整流程 + 可响应时点；见下（**改裁**） |
+| G9 | **Commit（投入）** | **待议** | 疑点多；暂不锁「仅 ST.2 / 不铸」 |
+| G10 | **Cost / Spend（费用）** | **不另铸** Spend seq | 费用 = 效果属性；见下（**改裁**） |
+| G11 | **Peril（险境）** | **不另铸**；无物理层序列 | Buff / 信息层；见下 |
 
-**不另铸但可听（G7–G11 · 已裁决）** — 与进场同构：信息在更泛用通道上，时点用 **过滤 / 栈溯源 / Initiation 场合** 听见，不新开 `seq.*`。
+**G7 · 借机攻击（已确认）**
 
-| 信息 | 落在哪条泛用通道 | 怎么听（别名 / 过滤） |
-|---|---|---|
-| **借机攻击（AOO）** | 敌人攻击（`seq.enemy.attack` / `perform_attack`） | **多轴可辨**（见下）；**不是** `seq.aoo` |
-| **打出（Play）** | `PLAY_CARD` Initiation（进场区划 + 效果体 Composition） | 订 Initiation / 打出窗；进场结果仍听 `seq.zone.move` 场外→场上；**不** `seq.play` |
-| **投入（Commit）** | `seq.skill_test` 的 ST.2 | 订检定窗 / ST 步；卡面「投入时」挂在检定通道，**不** `seq.commit` |
-| **支付费用（Spend）** | Initiation / Cost 付费 | 与 `seq.effect.lose_resources` **结算同核**（见下）；**不**另铸 Spend seq |
-| **险境 / 隐私限制** | 父遭遇帧 / 入手上的 **RESTRICTION Register** | 听限制是否成立（Eligibility / Intent）；注销跟父帧 G4 或 leave-hand，**不** `seq.peril.check` |
+借机攻击 **就是** 敌人攻击（`seq.enemy.attack` / `perform_attack`）。**禁止** `seq.aoo`。  
+是否借机 = 看 **攻击嵌套的来源**（挂在 Initiation 付完费用后、主体效果前的 AOO 砖 / 栈溯源）。`AttackKind.OPPORTUNITY` 仍可作叶上快捷过滤，不是唯一辨识轴。
 
-**AOO 怎么辨（不必只靠 AttackKind）**
+**G8 · 打出（改裁 · 2026-10-27）**
 
-| 轴 | 含义 | 用途 |
-|---|---|---|
-| **场合 / 栈** | 发生在 Initiation **付完费用后、主体效果前**（`INIT_2B`）；攻击帧挂在该 Initiation 之下 | 「借机」= 溯源父手续；听攻击时看栈是否在 AOO 砖 |
-| **资格集合** | 同地点、未横置、与你交战（等）的敌人各打一次 | 谁打属于 Eligibility，不是第二套攻击 seq |
-| **AttackKind.OPPORTUNITY** | 攻击载荷上的种类标记 | 叶上快捷过滤；与反击/警戒/阶段攻击并列；**可选轴**，不是唯一辨识 |
+打出是 **完整流程**，有可响应时点；**不是**「只靠裸 Initiation 种类名凑合听」。  
+**要**在已有发起手续（`PLAY_CARD` Initiation 七步）外加一层 **打出包装**（命名流程或等价包装帧），使打出窗 / When-you-play 等订在包装上，而不是散落在通用 Initiation。  
+进场区划结果仍听 `seq.zone.move`（场外→场上）。包装的精确 `flow_id` / 与 Initiation 分槽 → 实现时钉（候选如 `seq.play` 包装 nest/委托 Initiation；**禁止**把打出收成 `AbilityKind`）。
 
-「after you are attacked by an attack of opportunity」→ 听**敌人攻击** +（栈在 INIT_2B **或** kind=OPPORTUNITY）。禁止为好听另铸 `seq.aoo`。
+**G9 · 投入（待议）**
 
-**支付资源 vs 失去资源**
+暂缓锁死。现网多挂在 `seq.skill_test` ST.2，但是否足够、要否独立包装/时点，**需另开讨论**。禁止在未裁决前为「好听」另铸 `seq.commit`。
 
-- **结算**：同一次资源池扣减（L0 / 同一写核）；没有两套「扣资源原语」。
-- **差别**：只是**适用场合的描述** — 支付常出现在 **发起 / Initiation 费用**；失去常出现在 **负面效果叶**（`seq.effect.lose_resources`，可被效果时点听到、可 Cancel 等）。
-- **时点**：订「失去资源」效果 → 订效果通道；Initiation 付费默认**不是**该效果的结算（场合过滤），不是因为另有一种 Spend 原子。
-- **禁止**：另铸 `seq.spend`；也禁止把「费用支付」与「效果失去」说成两套不同的状态写入。
+**G10 · 费用（改裁 · 2026-10-27）**
 
-翻译 / 接线时点：先找**已有泛用 seq 或 Initiation**，再写过滤键；禁止为上述词条各铸一条「好听一点」的专属 flow。
+支付费用 **本身也是结算**：这段结算可影响后续效果体能否/如何结算；费用在语义上也可以是效果。  
+**建模**：费用 **只作效果属性**（资源费用 / 能力费用 / 额外费用等），挂在 **已有** `seq.*`（或其效果叶）上，**不**另铸 `seq.spend` / `seq.effect.spend_token`。  
+写核仍与对应状态原语同路（如扣资源与 `lose_resources` 同 L0）；差别是 **属性 = cost**（场合、与主体效果的先后/门闩），不是第二套原子。  
+翻译：Spend Uses 等进 **cost / gates 属性**，不要 nest 一条 Spend 效果 seq。
+
+**G11 · 险境（已确认）**
+
+险境多种效果由 **Buff（RESTRICTION 等）** 实现，属 **信息层**；**没有**物理层序列结算。**禁止** `seq.peril.check`。Eligibility / Intent 读 Buff；生命周期跟遭遇帧等既有注销点。
 
 ---
 
@@ -396,6 +393,7 @@
 | 2026-10-13 | I2 真空抽查 → [23-vacuum-audit](23-vacuum-audit.md)；铸造清单已收口，下一刀偏结构性硬门槛 |
 | 2026-10-27 | §9 Catalog 全量审计：初扫 66（含别名） |
 | 2026-10-27 | §9.2：**去掉全部 flow 别名**；正式 **60** 条；`damage*`/`gain_resource`/`enemy.move`/`enemy.defeat`/`investigation_phase_ends` 已删；`skill_type_for_flow` 死代码已删 |
+| 2026-10-27 | G7–G11 改裁：费用=效果属性；AOO=攻击嵌套来源；**打出要 Initiation 包装**；投入待议；险境=Buff 信息层 |
 
 ---
 
@@ -428,8 +426,11 @@
 | id | 理由 |
 |---|---|
 | `seq.setup` | KeywordProfile 挂载锚（Starting / Permanent / Bonded）；开局仍走 `FrameworkStep` / `ScenarioSetupFlow`；[17 §6.4](17-seq-runtime.md) 后置 |
-| `seq.effect.spend_token` | **Spend = Cost**，不另铸效果 seq（G10）；Uses 扣减走 Initiation 付费 / L0 |
-| `seq.aoo` / `seq.play` / `seq.commit` / `seq.spend` / `seq.peril.check` / `seq.effect.enter_play` | G7–G11 / G4：过滤已有通道 |
+| `seq.effect.spend_token` / `seq.spend` | **费用 = 效果属性**（G10）；挂已有 seq，不另铸 |
+| `seq.aoo` | **就是攻击**（G7）；嵌套来源辨认 |
+| `seq.peril.check` | **纯 Buff / 信息**（G11）；无物理序列 |
+| `seq.effect.enter_play` | **不是效果**（G4）；听 `seq.zone.move` |
+| `seq.commit` | **G9 待议**；未裁决前不铸 |
 | `seq.skill_test.{intellect,combat,agility}` | 已并 → 单条 `seq.skill_test` + `params.skill` |
 
 ### 9.4 文档债（本轮已收）
