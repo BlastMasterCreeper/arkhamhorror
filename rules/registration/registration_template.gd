@@ -23,6 +23,54 @@ static func lasting_modifier(
 	return t
 
 
+## 敌人攻击对你造成的伤害 −N（印刷量先修）。
+static func reduce_enemy_damage_this_turn(
+	controller_id: StringName,
+	amount: int = 1
+) -> RegistrationTemplate:
+	return lasting_modifier(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_TURN,
+		ModifierPayload.reduce_enemy_damage(amount)
+	)
+
+
+## 本次攻击 +N 伤害（无名改量）；常挂 THIS_SKILL_TEST。
+static func attack_damage_bonus_this_test(
+	controller_id: StringName,
+	amount: int = 1
+) -> RegistrationTemplate:
+	return lasting_modifier(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_SKILL_TEST,
+		ModifierPayload.attack_damage_bonus(amount)
+	)
+
+
+## 本次发现 +N 线索（消费式选一 leg）；常挂 THIS_SKILL_TEST（如推理）。
+static func discover_bonus_this_test(
+	controller_id: StringName,
+	amount: int = 1
+) -> RegistrationTemplate:
+	return lasting_modifier(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_SKILL_TEST,
+		ModifierPayload.discover_bonus(amount)
+	)
+
+
+## 调查 shroud −N（标量 MOD-Q-SHROUD）。
+static func reduce_shroud_this_turn(
+	controller_id: StringName,
+	amount: int = 1
+) -> RegistrationTemplate:
+	return lasting_modifier(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_TURN,
+		ModifierPayload.reduce_shroud(amount)
+	)
+
+
 static func lasting_restriction(
 	controller_id: StringName,
 	duration: AhcEnums.DurationAnchorKind,

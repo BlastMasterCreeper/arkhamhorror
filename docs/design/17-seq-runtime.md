@@ -15,11 +15,11 @@
 
 ### 1.1 命名与粒度（已裁决 2026-09-22）
 
-1. **按魔典章节 / 词条分类** `flow_id` 前缀（`seq.skill_test`、`seq.draw.*`、`seq.framework.*`、`seq.effect.damage` …），勿把无关手续平铺成一串同级 `seq.effect.*` 而不标明词条归属。
+1. **按魔典章节 / 词条分类** `flow_id` 前缀（`seq.skill_test`、`seq.draw.*`、`seq.framework.*`、`seq.effect.deal` …），勿把无关手续平铺成一串同级 `seq.effect.*` 而不标明词条归属。
 2. **`seq.*` 只做时点切分**（WOULD/WHEN/RESOLVE/AFTER 与因果 nest）。**禁止**把条件写进 `flow_id`（技能类型、目标过滤、Elite、pile、amount=all 等）。
 3. **条件 / 视角差异 → `params`**（及 Eligibility / Scope / 目标解析）。例：
    - `seq.skill_test` + `params.skill`（勿 `seq.skill_test.willpower|…`）
-   - **造成伤害/恐惧**（Dealing Damage/Horror）：`seq.effect.damage` + `kind` + `source` + `target`；纸面 “take / deal” 只是视角，**同一条 seq**
+   - **造成伤害/恐惧**：待分配 `seq.effect.deal.assignable`（伤+恐可同入参、同帧同时 Apply）；无分配 `seq.effect.deal`；旧 `damage*` 别名
    - `seq.effect.lose_resources` + `all: true`（勿另开 `lose_all_resources`）
 4. Forced 订阅 **时点 seq 的 kind**；「是不是附着地点上的非 Elite」等过滤留在 params / 解析器，不铸造 `seq.fire_damage`。
 5. **敏感度**：并得越宽，订该 `sequence_id` 的能力被枚举越频；差异必须进 **params / tags / ApplicationContext** 供 Eligibility 拦截。过滤贵过再铸一条、或订阅语义必须靠不同 `sequence_id` → **拆**。
@@ -177,7 +177,7 @@
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
 | **父 Would / When** | 卡面 draw 转译：Would = 整段 PreImpact（信封头）；When = 抽取步骤砖块后（15 §3） | ✅ `split_timing`：信封 WOULD + 中段 `offer_slot(WHEN)`（TIM-01/02） |
-| **伤害 PreImpact 槽** | Assign = **PI**；**WOULD→WHEN 均在 Apply 前**（防伤钉 WOULD；07 §4） | ✅ `no_envelope_slot` + Apply 前双 `offer_slot`（TIM-DMG-01/02） |
+| **伤害 PreImpact 槽** | Assign = **PI**；**WOULD→WHEN 均在 Apply 前**（防伤钉 WOULD；07 §4）；additional → `increase_pending`+`assign_delta`；外向/已定腿同构 `DealPreImpact` | ✅ 承伤 pipeline + 外向 `DealPreImpact`（TIM-DMG-01–06） |
 | **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |
@@ -222,8 +222,9 @@
 | `seq.enemy.defeat` | 击败（敌人别名） | 同核；TC `enemy_defeated` |
 | `seq.defeat.leave_play` | 击败后退场 | nest from defeat；敌人路由 / 调查员淘汰清理 |
 | `seq.engage` | 交战内核（auto / effect） | `EngageFlow`；行动外壳 nest effect |
-| `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅 |
-| `seq.effect.damage` | **造成伤害/恐惧**（Dealing Damage/Horror；take/deal 同 seq） | `kind` + `source` + `target`；卡面 / 显现 / Fire! |
+| `seq.effect.discover_clue` | 发现线索（纸面无名，引擎铸造） | 调查成功 nest；Forced AFTER 可订阅；多地 = `legs[]`（仍一帧；L0 逐地） |
+| `seq.effect.deal.assignable` | **待分配**造成伤害/恐惧 | `damage`+`horror` 可同入参（可单边 0）；Assign 后 **同时** Apply；候选不限卡种（印刷生命/神智或无印刷+`GRANT_CAPACITY`）；禁止伤/恐各开一条 |
+| `seq.effect.deal` | **无分配**造成伤害/恐惧（已定） | `legs[]` / `legs_damage`+`legs_horror`（可单边空）/ 单点；腿可混装敌/卡/调查员；**无** Assign |
 | `seq.effect.lose_resources` | 失去资源（含全部：`all: true`） | 卡面；CREATED = 实际扣到 |
 | `seq.effect.heal` | 治疗伤害或恐惧（`kind` 参数） | 卡面 |
 | `seq.effect.lose_action` | 失去行动 | 卡面 |
@@ -242,7 +243,7 @@
 
 **已有横切**：`ResolutionSequenceStack`、`RulesMemory`、`ApplicationContext`（gain）、`TimingBus`+LISTENER、`EnterHandTimingPolicy`（仅 SOURCE_ORDER）。
 
-**已移除（并入 params）**：`seq.effect.take_horror` / `take_damage` / `deal_damage` → `seq.effect.damage`；`seq.effect.lose_all_resources` → `lose_resources`+`all`；`seq.skill_test.{willpower,intellect,combat,agility}` → `seq.skill_test`。
+**已移除 / 更名**：`take_horror`/`take_damage`/`deal_damage`/`damage*` → `seq.effect.deal.assignable` / `seq.effect.deal`（`damage*` 暂别名）；`lose_all_resources` → `lose_resources`+`all`；技能检定四条 → `seq.skill_test`。
 
 ---
 
@@ -328,6 +329,14 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.34 | §5：deal 双通道腿；AFTER 伤/恐/和或条件；GRANT 无印刷不设上限 |
+| 2026-10-26 | v0.4.33 | §4.4：外向/已定 deal 腿 PreImpact（`DealPreImpact`） |
+| 2026-10-26 | v0.4.32 | §5：deal 多目标混装敌/卡/调查员；Assign `GRANT_CAPACITY` |
+| 2026-10-26 | v0.4.31 | §5：更名 `deal`/`deal.assignable`；伤+恐同条待分配、同时 Apply |
+| 2026-10-26 | v0.4.30 | §5：明示 `kind`=damage\|horror 同两条手续（描述常略写） |
+| 2026-10-26 | v0.4.29 | §5：拆 `damage.assignable`（有分配）与 `damage`（无分配已定） |
+| 2026-10-26 | v0.4.28 | §5：`seq.effect.damage` / `discover_clue` 支持 `legs[]` 多目标；一帧；L0 仍单目标 |
+| 2026-10-25 | v0.4.27 | §4.4：伤害 additional → `increase_pending`+`assign_delta`（TIM-DMG-03/04） |
 | 2026-10-22 | v0.4.26 | I3：`InitiationPool` / 发起池（替 ActivationPool） |
 | 2026-10-22 | v0.4.25 | W1 竖切 Eligibility COLLECT；W3/I3 术语对齐响应池 / 发起池 |
 | 2026-10-22 | v0.4.24 | W3/I3/§7：意愿池与 PlayerWindow 意图池（链 16 §7.1 / §7.3） |

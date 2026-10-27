@@ -123,6 +123,15 @@ func offer_slot(phase: AhcEnums.SequencePhase) -> void:
 	frame.phase = previous_phase
 
 
+## 合并写入当前帧 trigger.payload（如 deal 结算后的 damage/horror，供 AFTER 条件读）。
+func patch_trigger_payload(patch: Dictionary) -> void:
+	var t := current_trigger()
+	if t == null or patch.is_empty():
+		return
+	for k in patch.keys():
+		t.payload[k] = patch[k]
+
+
 func _push_frame(trigger: TriggeringCondition) -> void:
 	var frame := ResolutionSequenceFrame.new()
 	frame.trigger = trigger

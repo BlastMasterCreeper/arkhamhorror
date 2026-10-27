@@ -809,12 +809,12 @@ static func for_each_memory(
 	return n
 
 
-## 调查员受到 horror · nest `seq.effect.damage`（kind=horror）。
+## 调查员受到 horror · nest `seq.effect.deal.assignable`（horror=amount）。
 static func take_horror(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_horror(inv_id, amount, is_direct)
 
 
-## 调查员受到 damage · nest `seq.effect.damage`（kind=damage）。
+## 调查员受到 damage · nest `seq.effect.deal.assignable`（damage=amount）。
 static func take_damage(inv_id: StringName, amount: int = 1, is_direct: bool = false) -> CompositionNode:
 	return nest_take_damage(inv_id, amount, is_direct)
 
@@ -827,7 +827,7 @@ static func _nest_leaf(atom_name: StringName, flow_id: StringName) -> Compositio
 	return n
 
 
-## 造成伤害/恐惧（Dealing Damage/Horror）· take/deal 同 seq。
+## 造成伤害/恐惧。controller / 广播 → deal.assignable；已定敌·支援 → deal。
 static func nest_damage(
 	controller_id: StringName,
 	kind: StringName = &"damage",
@@ -836,13 +836,41 @@ static func nest_damage(
 	target: StringName = &"controller",
 	source_card_id: StringName = &""
 ) -> CompositionNode:
-	var n := _nest_leaf(&"nest_damage", &"seq.effect.damage")
+	var needs_assign := (
+		target == &"controller"
+		or target == &""
+		or target == &"each_at_controller_location"
+		or target == &"each_at_source_location"
+	)
+	var flow := (
+		&"seq.effect.deal.assignable" if needs_assign else &"seq.effect.deal"
+	)
+	var n := _nest_leaf(&"nest_damage", flow)
 	n.inv_id = controller_id
 	n.marker_delta = maxi(amount, 1)
 	n.is_direct = is_direct
 	n.location_target = target
 	n.card_id = source_card_id
 	n.definition_id = kind
+	return n
+
+
+## 伤+恐同条待分配（翻译：一条 nest，非两条；Apply 侧 Simultaneous）。
+static func nest_deal_assignable(
+	controller_id: StringName,
+	damage_amt: int = 0,
+	horror_amt: int = 0,
+	is_direct: bool = false,
+	source_card_id: StringName = &""
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_deal_assignable", &"seq.effect.deal.assignable")
+	n.inv_id = controller_id
+	n.marker_delta = maxi(damage_amt, 0)
+	n.amount = maxi(horror_amt, 0) ## horror 量
+	n.is_direct = is_direct
+	n.location_target = &"controller"
+	n.card_id = source_card_id
+	n.definition_id = &"deal_bundle"
 	return n
 
 

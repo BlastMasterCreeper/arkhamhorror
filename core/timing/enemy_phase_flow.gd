@@ -163,11 +163,10 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if target == &"":
 		return {"ok": true, "skipped": true}
 	var exhaust_after: bool = bool(params.get("exhaust_after", false))
-	var strike := EnemyAttack.enemy_strike(
+	var strike := EnemyAttack.build_from_enemy(
+		game_ctx,
 		enemy_id,
 		target,
-		enemy.attack_damage,
-		enemy.attack_horror,
 		exhaust_after,
 		attack_kind as AhcEnums.AttackKind
 	)
@@ -179,8 +178,8 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			{
 				"enemy_id": enemy_id,
 				"target": target,
-				"damage": enemy.attack_damage,
-				"horror": enemy.attack_horror,
+				"damage": strike.damage,
+				"horror": strike.horror,
 				"exhaust_after": exhaust_after,
 				"attack_kind": attack_kind,
 			}

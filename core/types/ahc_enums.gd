@@ -330,6 +330,8 @@ enum AssignConstraintOp {
 	MIN_TO_SUBJECT,
 	## 匹配集合计至多 N 点（60232 trait:Miskatonic）。
 	MAX_TO_MATCH,
+	## 赋分摊容量：无印刷 health/sanity 亦可摊；有印刷则叠加（特殊 Buff）。
+	GRANT_CAPACITY,
 }
 
 
@@ -363,9 +365,41 @@ enum StatRef {
 	SKILL_INTELLECT,
 	SKILL_COMBAT,
 	SKILL_AGILITY,
+	## 无类型技能修正（似 wild）；ST.5 匹配任意技能检定。
+	SKILL_ANY,
+	## 调查难度（地点 shroud）；MOD-Q-SHROUD。
+	SHROUD,
+	## 敌人攻击伤害/恐惧印刷量（先修再造成）；MOD-Q-ENEMY-DAMAGE / HORROR。
+	ENEMY_DAMAGE,
+	ENEMY_HORROR,
 	RESOURCE_GAIN_AMOUNT,
 	INITIATION_RESOURCE_COST,
 	INITIATION_ACTION_COST,
 }
 
 enum ModOp { ADD, SUB, MUL, DOUBLE, HALVE }
+
+## MODIFIER：标量 NONE；域 B 效果量挂 AmountPlan.kind。
+## 仅保留有消费式多腿场景的 kind（伤 / 发现）；不为对称预留 HORROR。
+enum ModifierPlanKind {
+	NONE,
+	ATTACK_DAMAGE,
+	DISCOVER,
+}
+
+## Plan 量修正：标量 SCALAR；域 B 效果量 Buff 标记 CONSUME_*（每条用一次）。
+## 无名攻击/发现修正 **不含目标**；只改已定效果的量。物化见 AmountEffectShape。
+enum ModifierApplyMode {
+	SCALAR,
+	## 域 B：本条修正消费一次。攻击/发现无名 +N → 改 Plan 攻击伤害（或发现）量。
+	CONSUME_CHOOSE_ONE_LEG,
+}
+
+## 已定攻击/发现效果的物化形态（卡面写死；先于无名修正）。
+## 无名 additional 只改「本次攻击伤害/发现量」数值，不带目标、不改 Assign 步骤。
+enum AmountEffectShape {
+	## 目标已定（单敌 / 03153 多腿）：攻击伤害量 = primary 腿；修正 += primary。
+	DETERMINED,
+	## 04305：效果已定（候选集已知）；`amount` = 攻击伤害量；修正 += amount；执行时再 Assign。
+	ASSIGN,
+}

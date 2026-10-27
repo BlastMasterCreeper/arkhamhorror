@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.32 · 2026-10-24 — Register 只写 Buff；Gain 特征可衍生行为 Buff
+> **状态**：v0.4.43 · 2026-10-26 — additional 全路径：攻击/发现 Plan · 敌伤标量 · 承伤 pipeline
 
 ---
 
@@ -174,20 +174,19 @@ enum BuffType {
 3. **查询统一** — `EffectiveCharacteristicQuery`（或 RegistrationStore 门面）：`has_effective_keyword` / `has_effective_trait` / `effective_abilities` / `effective_skill_icons` = **（印刷 − blank）∪ gained**（按 kind 叠加；**blank 不抹 gained**，见 RR / [07 §5.4](07-effect-primitives.md)）。
 
 ```text
-EffectOp.GRANT_CHARACTERISTIC
-  target: card_id | investigator_id
+seq.effect.register · Grant 特征 Buff
   kind: KEYWORD | TRAIT | ICON | ABILITY
-  payload: &"surge" | trait_id | icon | AbilitySpec ref
-  lifetime: WHILE_DRAWN_CARD_RESOLVING | DURATION(THIS_TURN) | …
+  payload: &"surge" | trait_id | icon | AbilitySpec
+  lifetime: …
         │
-        ├─ KEYWORD  → KEYWORD 标记 Register（无 Composition；§3.1 Surge 为首例）
-        ├─ TRAIT    → TRAIT 标记 Register 或 CardInstance overlay
-        ├─ ICON     → MODIFIER Register（常为 THIS_SKILL_TEST）或 ICON 标记
-        └─ ABILITY  → AbilitySpec（Forced / 触发 / Constant / …）挂 Store + lifetime
-                      按 AbilityKind 走既有能力管线；Keyword → 标记 + profile 行为
+        ├─ 写出 Gain Buff（CREATED）
+        └─ 衍生（CharacteristicDeriver）：
+             KEYWORD → Profile 再挂 LISTENER / RESTRICTION / MODIFIER
+             ABILITY → Lifecycle mount（Forced/触发/…）；Constant 可再衍生 MODIFIER
+             TRAIT/ICON → 多只读；ICON 可衍生 MODIFIER
         │
         ▼
-Effective* / COLLECT / Forced 自动发起 @ 各 consumer
+Effective* / COLLECT / 行为三型 consumer
 ```
 
 #### 3.2.1 Kind 路由与叠加
@@ -797,19 +796,119 @@ Asset 印刷 *Forced – After you fight: draw 1* / *After you fight, draw 1*（
 
 ---
 
-## 6. MODIFIER
+## 6. MODIFIER（数值修正 · 统一模型 · 已对齐）
 
-在 **ModifierQuery** 时改数值（技能、shroud、伤害量、cost…）。Constant 与 Lasting **相同 Payload**，仅 Lifetime 不同。
+> **定义**：Modifier = 对 **某个数值** 的修正。数值广泛存在；**不要**为每类数值各造一套引擎。  
+> **实现面**：同一 `ModifierEngine` + `ModifierPayload` + `ModifierQuery`；差在 **数值域 / 值键 / 应用模式 / 查询站何时调用**。
 
-```gdscript
-class ModifierPayload:
-    var stat: StatRef
-    var op: ModOp
-    var value: int
-    var stacking: StackingGroup
+### 6.1 三数值域（ValueRealm）
+
+| 域 | 是什么 | 例子 | 典型消费时机 |
+|---|---|---|---|
+| **A. 印刷/特征量** | 卡面或实体上的印刷（及 gained）数值的 **有效读** | 玩家牌费用；地点 **隐藏值（shroud）**；调查员/支援生命·神智；调查员技能；敌人攻击/生命/躲避… | 读 effective 时 / 发起前算 cost / 建检定难度前读 shroud |
+| **B. 效果量** | 即将 **结算** 的效果数量（可进 Plan） | 造成/治愈伤害·恐惧；发现/放置线索；获得/失去资源… | 效果 Plan 明确后、落点前 |
+| **C. 序列标量** | **不是**效果结算，但是命名流程步上的比较/中间量 | **检定难度**；**检定技能值**（仅 ST 比较用）；**混乱标记**对本次检定的修正 | 命名流程砖内（如 ST.5 / 设 difficulty） |
+
+**勿混**：
+
+| | **印刷技能修正**（域 A） | **检定技能值**（域 C） |
+|---|---|---|
+| 含义 | 「你的战斗 +1」等，改实体有效技能 | 本次检定拿去 **和难度比较** 的那个数 |
+| 组成 | 印刷 ∪ gained − blank 上的 MODIFIER | 常 = 有效技能 + 投入图标 + **序列修正**（含混乱） |
+| 混乱标记 | **不**改域 A 印刷技能 | **属于**域 C（本次比较值或难度，按标记） |
+
+### 6.2 统一构件（来源 · 载荷 · 查询 · 计算 · 寿命）
+
+> **已对齐**：**修正的来源不全是 Buff。**  
+> Buff（Register MODIFIER）只是来源之一。引擎改的是 **数值**；贡献可来自 Store、检定帧、投入组装等。  
+> **禁止**把混乱标记、投入图标等一律 Register 成 Buff。
+
+```text
+数值修正系统（计算面 · 唯一）
+  compute / apply_to_amount_plan
+  叠加律共用（+/− → ×÷ → ceil → floor 0）
+        ▲
+        │ 汇入（按查询站收集）
+        │
+来源 Source（可多类并存）
+  ├─ Buff · Registration MODIFIER     ← seq.effect.register；Constant 同 Payload
+  ├─ 检定帧短暂贡献                   ← 混乱标记修正等（SkillTestContext；非 Buff）
+  ├─ 投入组装                         ← commit 图标加成（常并入比较值底座；非 Buff）
+  └─ （可扩展）其它非 Buff 贡献         ← 仍禁止为省事而假 Register
 ```
 
-叠加：加算/减算 → 乘除 → ceil → 下限 0（Grimoire Modifiers）。
+| 来源 | 是 Buff？ | 寿命 | 例子 |
+|---|---|---|---|
+| Registration / Constant MODIFIER | **是** | `LifetimeSpec` / WHILE_IN_PLAY | until… +1 fight；费用 −1；攻击伤 +1 |
+| 检定帧 | **否** | 本次检定 | **混乱标记**对比较值/难度的修正 |
+| 投入组装 | **否** | 本次检定（已 commit） | 技能图标点数 |
+| 印刷底座 | **否** | 实体上 | 未修正的 shroud / 技能印刷值（compute 的 `base`） |
+
+```text
+Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
+  value_key · op/value · match · apply_mode · plan_kind…
+
+查询 ModifierQuery
+  value_key + controller/subject + 上下文（test_id · location · skill · plan…）
+
+引擎 ModifierEngine（唯一计算入口）
+  compute(base, query)              → 汇入：匹配的 Buff +（若站需要）帧上短暂贡献
+  apply_to_amount_plan(plan, …)   → 域 B：无名 +N 改已定效果的量（无目标）
+```
+
+**寿命**：Buff → Registration；混乱/投入 → 检定帧；**不**为每个 value_key 另造寿命系统。
+
+**Buff 创建**：仍经 `seq.effect.register`；禁止真空 Store。dry-run：Register → CREATED。  
+**非 Buff 来源**：揭示混乱、commit 步骤写入上下文——**不是**信息原语 Register。
+
+### 6.3 应用模式（与域的关系）
+
+| apply_mode | 用于 | 行为 |
+|---|---|---|
+| **SCALAR** | 域 A 读值；域 C 序列量；单点效果量 | `compute(base, query)` |
+| **CONSUME_CHOOSE_ONE_LEG** | 域 B Buff（每条用一次） | 无名 +N → `plan.apply_amount_bonus`；**修正不含目标** |
+
+**主序（已裁决）**：**先确认目标 / 定效果** → **再**无名数值修正（只落在已定效果的量上）→ 物化/执行。
+
+| `AmountEffectShape` | 卡面 | 定效果后 | 无名修正 | 执行 |
+|---|---|---|---|---|
+| **`DETERMINED`** | 单敌 / 03153 | 腿已定；攻击伤害 = primary | `+=` primary（攻击伤害量） | settle 腿 |
+| **`ASSIGN`** | 04305 | 候选集已定；`amount` = 攻击伤害 | `+= amount` | Assign → legs → settle |
+
+**禁止**：修正里带宿主；默认每腿 +1；把对敌量修混进调查员承伤 `DamagePipeline`。
+
+### 6.4 值键增长规则
+
+新增一种可修正数值时：
+
+1. 归入域 A / B / C（上表）。  
+2. 增加 **一个** `value_key`（或复用已有 Plan kind），**不要**新 Engine。  
+3. 在 **有限查询站**（§16.3）挂一次 `compute` / `apply_to_amount_plan`。  
+4. 多目标效果量 → AmountPlan + `effect_shape`（§16.3.2）。
+
+```gdscript
+## 示意 · 与实现 StatRef 对齐并扩展
+enum ValueRealm { PRINTED, EFFECT_AMOUNT, SEQUENCE_SCALAR }
+
+## 域 A 例：CARD_COST, SHROUD, HEALTH, SANITY, SKILL_*, ENEMY_FIGHT, ENEMY_EVADE…
+## 域 B 例：plan_kind ATTACK_DAMAGE | DISCOVER；单点效果量亦可 SCALAR（资源等）
+## 域 C 例：ST_DIFFICULTY, ST_SKILL_VALUE（比较用；含混乱贡献）
+```
+
+### 6.5 与现实现对照（迁移方向）
+
+| 已有 | 域 | 备注 |
+|---|---|---|
+| `SKILL_*` / `SKILL_ANY` @ ST.5 | A→参与 C 组装 | 印刷维修正；ST.5 读有效技能后再加投入/混乱 |
+| `SHROUD` @ Investigate | A | 读地点隐藏值 |
+| `INITIATION_*_COST` | A | 费用 |
+| `RESOURCE_GAIN_AMOUNT` | B | 单点效果量 |
+| `AmountPlan`（仅 `ATTACK_DAMAGE` / `DISCOVER`） | B | 有消费式多腿场景才用 Plan；不为恐惧对称预留 |
+| `chaos_modifier` on test ctx | C | **非 Buff** 来源；与 Store 修正同一叠加律，挂检定帧 |
+
+**目标态 ST.5**：`ST_SKILL_VALUE = compute/assemble(有效技能, 投入, 域 C 修正含混乱)`；难度侧可 `ST_DIFFICULTY` 与域 A shroud 读分离（调查：先 A 读 shroud，再可叠加 C 的「本次难度」）。
+
+详查询站与 Plan：§16.3。
 
 ---
 
@@ -1067,101 +1166,125 @@ Grimoire 条文 / 卡面效果
 
 ### 16.3 MODIFIER · 查询站清单
 
-**模式（标量）**：Register MODIFIER → 站点 `ModifierEngine.compute(base, query, app_ctx)`。  
-**模式（攻击伤害 / 发现线索）**：**不要**只靠单一全局 `DAMAGE_AMOUNT` / `DISCOVER_AMOUNT`——基础 Fight/Investigate 的效果可被卡面 **替换**；修正挂在 **效果计划（Plan）** 上，适配多目标。见 §16.3.1–§16.3.2。
+> **总纲**见 [§6](#6-modifier数值修正--统一模型--已对齐)：Modifier = 对数值的修正；三域（印刷量 / 效果量 / 序列标量）；**一个** Engine；查询站只决定 **何时** 调用。
 
-| 查询站 ID | 何时调用 | 键 | 状态 |
-|---|---|---|---|
-| **MOD-Q-SKILL** | 检定 ST.5 | `SKILL_*` **或** `SKILL_ANY`（无类型，似 wild） | 四维 **已实现**；`SKILL_ANY` **待** |
-| **MOD-Q-GAIN-RES** | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
-| **MOD-Q-COST** | Initiation 付费前 | resource/action cost | **已实现**（enum 名略异） |
-| **MOD-Q-SHROUD** | 调查算 difficulty | `SHROUD` | 待 |
-| **MOD-Q-ATTACK-DAMAGE** | 攻击成功后、伤害落点前 | 见 §16.3.1 **AttackDamagePlan** | **待**（取代扁 `DAMAGE_AMOUNT`） |
-| **MOD-Q-DISCOVER** | 调查成功后、发现落点前 | 见 §16.3.2 **DiscoverPlan** | **待** |
-| **MOD-Q-HORROR-AMT** | 造成恐惧量（若走 Plan 则同构） | Plan 或 `HORROR_AMOUNT` | 待 |
+**模式**：
+
+| 模式 | API | 域 |
+|---|---|---|
+| 标量 | `ModifierEngine.compute(base, query)` | A 读值 · C 序列量 · B 单点 |
+| 效果 Plan | `apply_to_amount_plan` | B：先定效果；无名 +N 改量（`effect_shape`） |
+
+**禁止**：每类数值新 Engine；扁全球 `DAMAGE_AMOUNT` 冒充「本次攻击」；多腿效果量对每腿广播。
+
+| 查询站 ID | 域 | 何时调用 | 键 | 状态 |
+|---|---|---|---|---|
+| **MOD-Q-SKILL** | A（喂 C） | 检定 ST.5 组装比较值 | `SKILL_*` / `SKILL_ANY` | **已实现** |
+| **MOD-Q-ST-SKILL** | C | ST.5 比较用技能值（含混乱等序列贡献） | `ST_SKILL_VALUE` | 部分（混乱仍在 ctx；待收编） |
+| **MOD-Q-ST-DIFF** | C | 设/改本次检定难度 | `ST_DIFFICULTY` | 待（与 shroud 读分离） |
+| **MOD-Q-SHROUD** | A | 读地点隐藏值（常作调查难度底座） | `SHROUD` | **已实现** |
+| **MOD-Q-COST** | A | Initiation 付费前 | resource/action cost | **已实现** |
+| **MOD-Q-GAIN-RES** | B | 获得资源落点前 | `RESOURCE_GAIN_AMOUNT` | **已实现** |
+| **MOD-Q-ATTACK-DAMAGE** | B | 攻击成功后、伤害落点前 | **AmountPlan** `ATTACK_DAMAGE` | **已实现** |
+| **MOD-Q-DISCOVER** | B | 调查成功后、发现落点前 | **AmountPlan** `DISCOVER` | **已实现** |
+| **MOD-Q-ENEMY-DAMAGE** | A | 敌人攻击造成前 | `ENEMY_DAMAGE` | **已实现** |
+| **MOD-Q-ENEMY-HORROR** | A | 敌人攻击造成前 | `ENEMY_HORROR` | **已实现** |
+| **MOD-Q-PRINTED-*** | A | 生命/神智/敌 fight·evade·health… | 对应 value_key | 待按卡增量 |
 
 #### 16.3.1 技能：有类型 vs 无类型（`SKILL_ANY`）
 
 | Payload.stat | ST.5 匹配 |
 |---|---|
 | `SKILL_COMBAT` 等 | 仅当本次检定技能相同 |
-| **`SKILL_ANY`**（待加） | **任意**技能检定（纸面「+1 skill value」无指定维、类 wild） |
+| **`SKILL_ANY`** | **任意**技能检定（纸面「+1 skill value」无指定维、类 wild） |
 
-`compute`：收集 `stat == 本次技能 OR stat == SKILL_ANY`。
+`compute`：标量载荷中 `stat == 本次技能 OR stat == SKILL_ANY`；`plan_kind != NONE` 的载荷 **不进** 标量 `compute`。
 
 #### 16.3.2 攻击伤害 / 发现线索：Plan + 修正（重点）
 
 基础 Fight →「对目标造成 1 伤害」；基础 Investigate →「在本地点发现 1 线索」。  
-卡面常 **替换** 该效果（多目标伤、多地点发现、按充能改伤害等）。修正（致命打击、推理）必须作用在 **替换后的计划** 上，而不是假定「永远单目标 1 点」。
+卡面常 **替换** 该效果（多目标伤、多地点发现等）。无名修正（致命打击、推理）必须作用在 **已定效果** 的量上。
+
+**主序（已裁决 2026-10-26）**
+
+1. **先确认目标 / 定效果**（单敌、多腿、或 ASSIGN 候选集）  
+2. **再**无名数值修正——修正 **不含目标**，只改「本次攻击伤害 / 发现量」  
+3. **再**物化（仅 `ASSIGN`：把已修正的攻击伤害 Assign 成腿）与 settle  
+
+挂钩点是 **攻击/发现数值**，不是效果执行步，也不是 Assign 本身。04305 上「先修量再分」与「先分再修」若合格集相同则结果等价；规范仍用先修攻击伤害量。
+
+**对敌造成 ≠ 调查员受到**：承伤量在「受到」才钉 → 先 Assign 再 `increase_pending`（[07 §4](07-effect-resolution.md)）。敌人承伤单主体、无 Assign。
 
 ```text
 成功（Fight / Investigate / 指定行动）
   │
-  ├─ 1. 建 Plan（默认基础效果）
-  │      AttackDamagePlan.legs[] / DiscoverPlan.legs[]
+  ├─ 1–2. 定效果 → AmountPlan（kind + effect_shape + primary/candidates/legs）
   │
-  ├─ 2. 卡面替换（Instead / 「本攻击改为…」）
-  │      可多 leg（多敌伤、多地发现…）
+  ├─ 3. apply_to_amount_plan：无名 Buff 消费一次 → apply_amount_bonus
+  │      DETERMINED：+= primary（攻击伤害线）
+  │      ASSIGN：+= amount（攻击伤害数值）
   │
-  ├─ 3. 消费式应用攻击/发现 MODIFIER（见下）
-  │      每个修正实例选 **一条** leg 加上去——多候选 → PI
-  │
-  └─ 4. 落点：leg amount>0 才结算（0 不结算；FAQ 谨慎）
+  └─ 4. settle：ASSIGN → nest `seq.effect.deal.assignable`；DETERMINED → nest `seq.effect.deal` + `legs[]`
 ```
 
-#### 消费式修正 + 触发时 PI（已对齐）
+**造成伤害/恐惧两条 seq（已裁决）**：`deal.assignable` = 待分配（伤+恐可同入参，可单边 0，Assign 后 **同时** Apply）；`deal` = 无分配已定（`legs_damage`/`legs_horror` 可单边空）。禁止伤/恐各开一条 assignable。发现线索仍一条 + `legs[]`。多目标 **不限单卡种**：凡有印刷生命/神智、或无印刷+`GRANT_CAPACITY` 的场上卡 ∪ 敌人 ∪ 调查员；无印刷+GRANT **不设可分配上限**；调查员伤/恐与敌人伤害分配无限。`DealSubject` 按 id 归类落点，L0 仍单目标。AFTER「受到伤害/恐惧/伤害和或恐惧」= 同一 `damage` 时点 + `affliction_filter`。
 
-> **禁止**默认「每个目标都 +1」。多 leg 时伤害/发现类量修正必须 **选定一个** 宿主 leg。
+##### `AmountEffectShape`
 
-修正 Buff 在 Plan **已明确**之后、落点之前 **消费式应用**（不是 Register 时选目标；也不是对全体 legs 广播）：
-
-| | 说明 |
-|---|---|
-| **何时** | 结算序列已得出 Plan（含替换后）；进入「应用本次攻击/发现修正」步 |
-| **消费** | 本检定/本攻击上下文里，每条适用的量修正 **用一次**：选 1 条 leg，`amount += N`，该修正实例本轮不再重复加 |
-| **1 条候选 leg** | 无 PI，直接挂上 |
-| **多条候选** | **`PlayerInteractionGate` 有限期确认**选一个目标/地点；逾期用 default（如主目标 / head） |
-| **0 条 / 无法挂** | 修正本轮不生效（与「0 伤不结算」同向，不硬跟宽松 FAQ） |
+| 形态 | 锚 | 定效果 | 无名 +N | 执行 |
+|---|---|---|---|---|
+| **`DETERMINED`** | 单敌 · 03153 | 腿已定 | 改 primary 攻击伤害 | settle |
+| **`ASSIGN`** | 04305 | 候选已定；`amount`=攻击伤害 | 改 `amount` | Assign → settle |
 
 ```text
-Plan.legs = [敌A:1, 敌B:1]          # 例如范围伤替换
-MODIFIER「本次攻击 +1」(消费式)
-  → PI：选 A 或 B
-  → 选 A 后 legs = [A:2, B:1]
-  → 再落点两条伤害
+# DETERMINED（03153）
+legs=[主:1, 旁:1] + 致命打击+1
+  → [主:2, 旁:1]          ## 修正无目标；加在攻击伤害（主）上
+
+# ASSIGN（04305）
+amount=4, candidates=同地敌 + 致命打击+1
+  → amount=5              ## 仍是攻击伤害数值
+  → Assign(5) → legs      ## Gate ask_assign_among；逾期默认→primary
 ```
+
+##### 发现线索
+
+无名推理类同构：`DETERMINED` 下 += primary（调查地）。  
+**指名落点**（09059 敌所在地、09108 任选地）由能力/事件 **效果步** 写入已定发现效果或另建腿——不是给无名 Buff 补宿主。
 
 ```gdscript
-class DamageLeg:
-    var target_id: StringName
-    var amount: int
-
-class AttackDamagePlan:
-    var legs: Array[DamageLeg]
-    var tags: Array[StringName]
-    var primary_target_id: StringName   # default / 单目标暗示
-
-class DiscoverLeg:
-    var location_id: StringName
-    var amount: int
-
-class DiscoverPlan:
-    var legs: Array[DiscoverLeg]
-    var primary_location_id: StringName
+class AmountPlan:
+    var kind: ModifierPlanKind
+    var effect_shape: AmountEffectShape   # DETERMINED | ASSIGN
+    var amount: int                       # ASSIGN=攻击伤害量；DETERMINED 与 primary 同步
+    var legs: Array[AmountLeg]
+    var primary_subject_id: StringName
+    var candidate_ids: Array[StringName]
 ```
 
-| 修正例子 | 行为 |
+| 例子 | 行为 |
 |---|---|
-| 致命打击 +1 | 对 Plan **选一敌** +1（多敌 PI） |
-| 推理 additional clue | 对 Plan **选一地** +1（多地 PI） |
-| Brand 替换 | **步骤 2** 重写 Plan；再进消费式修正 |
+| 致命打击 @ 单敌/03153 | 改攻击伤害（primary） |
+| 致命打击 @ 04305 | 改 `amount`；执行再 Assign |
+| 推理 | 改调查地发现量 |
+| 09059 / 09108 | 效果指名定发现对象；非无名 Buff 选腿 |
+| Brand 替换 | 步骤 1–2 重写 Plan；再 apply |
 
-**PI 规格**：走既有 Gate（[16](16-player-interaction.md) / [21](21-selection-spec.md)）——`ChoiceRequest` + `default_*` + 有限期；**不是** nest `seq.choose.*`，也不是修正 Register 时预选。
+**禁止**：`PER_EACH_LEG`；修正自带目标；用选腿冒充 04305 Assign；为恐惧对称预留 Plan kind。  
+**Register**：`plan_kind` + `CONSUME_*`（用一次）；量变经 `apply_amount_bonus`。
 
-**禁止**：`PER_EACH_LEG` 广播量修正；扁平全局 `DAMAGE_AMOUNT` 冒充「本次攻击」。  
-**Register 侧**：payload 标 `plan_kind: ATTACK_DAMAGE | DISCOVER`，`apply: CONSUME_CHOOSE_ONE_LEG`（默认）。
+##### additional 全路径（已对齐落地）
 
-**落地顺序**：① `SKILL_ANY`；② 单 leg Fight + 致命打击；③ 多 leg + PI 选宿主；④ Discover 同构。
+| 路径 | 序 | 入口 | 状态 |
+|---|---|---|---|
+| 玩家攻击伤害 | 定效果 → 无名改量 → settle | Fight ST.7 `AmountPlan` | ✅ |
+| 发现线索 | 同上；指名 `add_named_bonus` | Investigate ST.7 / 效果步 | ✅ |
+| 敌人攻击伤害/恐惧 | 定攻击 → 修印刷量 → **造成** | `EnemyAttack.build_from_enemy` → `DamagePipeline` | ✅ |
+| 调查员承伤 +K | 先 Assign(N) → `increase_pending` | `DamagePipeline`（含敌人攻击） | ✅ |
+| 04305 ASSIGN 物化 | 改 `amount` → Assign | `effect_shape=ASSIGN` | ✅ API + Gate（`ask_assign_among`） |
+| 09059/09108 指名发现 | 效果步 `add_named_bonus` | Composition / 能力成功句 | ✅ API（MOD-12） |
+
+**调查员承伤 additional（02221）≠ AmountPlan**：见 [07 §4](07-effect-resolution.md)。敌人攻击已并入同一承伤管线。
 
 ### 16.4 RESTRICTION · Intent × 入口主表
 
@@ -1209,7 +1332,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
 | —（原流程分支） | 借机不跑 | `SKIP_AOO` | 「This action does not provoke…」 | REST-E-AOO：`read_skip_aoo` | **已实现** · 翻译叶见 [20 §4](20-card-translation-schema.md) |
 | —（原流程分支） | 自动交战不跑 | `SUPPRESS_AUTO_ENGAGE` | 「移入后 engages you」（明示交战，非 Prey/Lead；冷漠/横置仍靠 mode=effect） | REST-E-AUTO-ENGAGE：`read_suppress_auto_engage` | **已实现** · 理由见 [20 §4.2.1](20-card-translation-schema.md) |
-| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include | REST-E-ASSIGN：`DamageAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
+| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include · GRANT_CAPACITY | REST-E-ASSIGN：`DamageAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
 | —（状态查询） | 成对交战状态 | `ENGAGEMENT` | 真实交战 / 视为交战（威胁区是区划检测，不是本 Buff） | `EngagementStatus` / `has_engagement` | **已实现** · [08 §3.1.1](08-enemy-engagement.md) |
 | `DISCOVER_CLUE` | 发现线索 | `FORBID_DISCOVER_CLUE` | 「While engaged… cannot discover…」（01121b） | REST-E-EFFECT：`DiscoverClueFlow` | **已实现** · 与 ENGAGEMENT 同 Register，脱离卸 |
 | `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
@@ -1371,6 +1494,24 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-26 | v0.4.49 | Assign Gate：`ask_assign_*` / among（04305） |
+| 2026-10-26 | v0.4.49 | GRANT 无印刷不设上限；deal 双通道腿；AFTER 伤/恐/和或条件 |
+| 2026-10-26 | v0.4.48 | `GRANT_CAPACITY`；deal legs 混装主体（敌/卡/调查员） |
+| 2026-10-26 | v0.4.47 | 更名 `deal`；伤+恐同条 assignable、同时 Apply |
+| 2026-10-26 | v0.4.46 | 明示 horror 与 damage 同两条 seq（`kind`） |
+| 2026-10-26 | v0.4.45 | 伤害拆 `damage.assignable` / `damage`；ASSIGN settle → assignable |
+| 2026-10-26 | v0.4.44 | settle 多目标：一条 seq + `legs[]`；L0 仍单目标（MOD-13/14/15） |
+| 2026-10-26 | v0.4.43 | additional 全路径：敌伤 `ENEMY_DAMAGE` + 攻击进 `DamagePipeline`；指名 `add_named_bonus` |
+| 2026-10-26 | v0.4.42 | §16.3.2：先定效果；无名 additional 只改攻击/发现量；`DETERMINED`/`ASSIGN` |
+| 2026-10-26 | v0.4.41 | §16.3.2：对敌伤 `PIN_PRIMARY` / `ADD_TO_POOL`（由 v0.4.42 收成 effect_shape） |
+| 2026-10-24 | v0.4.40 | incoming additional（02221）：保留 N 腿，仅增量 K @ 合法全合格集 |
+| 2026-10-24 | v0.4.39 | 撤 AmountPlan HORROR kind/payload/settle 预留（无消费式多腿场景） |
+| 2026-10-24 | v0.4.38 | 域 B：Attack/Discover Plan 收成 AmountPlan；统一 apply/settle |
+| 2026-10-24 | v0.4.37 | 修正来源不全是 Buff：混乱/投入=检定帧贡献；Buff 只是来源之一 |
+| 2026-10-24 | v0.4.36 | §6：Modifier=数值修正；三域印刷/效果量/序列标量；统一来源·计算·寿命·apply |
+| 2026-10-24 | v0.4.35 | MOD-Q-SHROUD：StatRef.SHROUD + 基础 Investigate 算难度 |
+| 2026-10-24 | v0.4.34 | DiscoverPlan 接线 Investigate；消费式发现修正 + PI；zero amount 不结算 |
+| 2026-10-24 | v0.4.33 | MODIFIER 落地：SKILL_ANY；AttackDamagePlan 消费式+PI；基础 Fight 接线 |
 | 2026-10-24 | v0.4.32 | Register 只写 Buff；Gain 特征族可衍生行为 Buff / 能力挂载；禁旁路 AbilitySpec |
 | 2026-10-24 | v0.4.31 | 攻击/发现量修正消费式选一 leg；多候选触发 PI；禁对每个目标广播 |
 | 2026-10-24 | v0.4.30 | §16.3：无类型技能 SKILL_ANY；AttackDamagePlan/DiscoverPlan 替代扁 DAMAGE/DISCOVER 量 |

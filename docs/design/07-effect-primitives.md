@@ -417,7 +417,8 @@ class AtomTransferMarker:
 **做什么**：`from` 减 `amount`，`to` 加 `amount`。池端按无穷模型；承载者端改 Domain 计数并镜像物理层。  
 **粒度硬约束**：**仅 1 源 → 1 目标**。禁止在单次 L0 内吞多源多目标。
 
-**多来源 / 多目标**：包装层 `MarkerTransferBatch` 展开为若干条本原子。再分配 / Move 伤恐共用；**不**另铸 `seq.effect.transfer_*`。
+**多来源 / 多目标**：包装层 `MarkerTransferBatch` 展开为若干条本原子。再分配 / Move 伤恐共用；**不**另铸 `seq.effect.transfer_*`。  
+命名流程侧：`seq.effect.deal` / `discover_clue` 可一次压栈带 `legs[]`，handler 内仍逐腿调本原子——**seq 多目标 ≠ L0 多目标**。伤+恐待分配走 `deal.assignable` 同帧同时 Apply。
 
 | 语义 | Transfer |
 |---|---|

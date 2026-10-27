@@ -196,3 +196,23 @@ static func assign_max_to_match(
 	p.assign_affliction = affliction
 	p.assign_direct_scope = direct_scope
 	return p
+
+
+## 分摊：无印刷 health/sanity 时 GRANT 仅开候选（不设上限）；`amount` 保留兼容，不设 cap。
+static func assign_grant_capacity(
+	subject_card_id: StringName,
+	controller_id: StringName,
+	amount: int = 1,
+	affliction: StringName = &"either",
+	direct_scope: AhcEnums.AssignDirectScope = AhcEnums.AssignDirectScope.BOTH
+) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.ASSIGN_CONSTRAINT
+	p.assign_op = AhcEnums.AssignConstraintOp.GRANT_CAPACITY
+	p.subject_id = subject_card_id
+	p.drawer_id = controller_id
+	p.drawn_card_id = subject_card_id
+	p.assign_amount = maxi(amount, 0)
+	p.assign_affliction = affliction
+	p.assign_direct_scope = direct_scope
+	return p

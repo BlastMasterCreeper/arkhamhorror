@@ -469,13 +469,29 @@ def compile_lose_or_attack(body: str) -> dict[str, Any] | None:
 
 
 def _leaf_take_damage(amount: int, **extra: Any) -> dict[str, Any]:
-    """D→C：nest `seq.effect.damage`（kind + target + amount；source 由装载 card_id）。"""
+    """D→C：nest `seq.effect.deal.assignable`（待分配；kind+amount）。"""
     out: dict[str, Any] = {
         "template": "take_damage",
-        "flow_id": "seq.effect.damage",
+        "flow_id": "seq.effect.deal.assignable",
         "kind": "damage",
         "amount": amount,
         "target": "controller",
+    }
+    out.update(extra)
+    return out
+
+
+def _leaf_deal_assignable(
+    damage: int = 0, horror: int = 0, **extra: Any
+) -> dict[str, Any]:
+    """伤+恐同条待分配；翻译用 Simultaneous 修饰 Apply 侧（引擎同帧同时写）。"""
+    out: dict[str, Any] = {
+        "template": "deal_assignable",
+        "flow_id": "seq.effect.deal.assignable",
+        "damage": damage,
+        "horror": horror,
+        "target": "controller",
+        "simultaneous": damage > 0 and horror > 0,
     }
     out.update(extra)
     return out

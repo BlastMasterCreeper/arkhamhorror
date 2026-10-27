@@ -17,30 +17,19 @@ func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
 
 
+func game_context() -> GameContext:
+	return _game_ctx
+
+
 func perform_attack(attack: EnemyAttack) -> void:
 	if attack == null:
 		return
 	var inv := _state.registry.get_investigator(attack.target_investigator)
 	if inv == null:
 		return
-	var mutator: StateMutator = _game_ctx.mutator if _game_ctx != null else null
-	if mutator != null:
-		if attack.damage > 0:
-			mutator.transfer_marker(
-				AhcEnums.MarkerKind.DAMAGE,
-				attack.damage,
-				MarkerSlot.supply(AhcEnums.MarkerKind.DAMAGE),
-				MarkerSlot.investigator(attack.target_investigator, AhcEnums.MarkerKind.DAMAGE)
-			)
-		if attack.horror > 0:
-			mutator.transfer_marker(
-				AhcEnums.MarkerKind.HORROR_TAKEN,
-				attack.horror,
-				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
-				MarkerSlot.investigator(
-					attack.target_investigator, AhcEnums.MarkerKind.HORROR_TAKEN
-				)
-			)
+	## 伤+恐同一条 seq.effect.deal.assignable（禁止各 nest 一次）。
+	if _game_ctx != null and (attack.damage > 0 or attack.horror > 0):
+		_deal_via_seq(attack)
 	else:
 		inv.damage_taken += attack.damage
 		inv.horror_taken += attack.horror
@@ -54,7 +43,7 @@ func perform_attack(attack: EnemyAttack) -> void:
 			"horror": attack.horror,
 		}
 	)
-	## 伤/恐常态检测（与 seq.effect.damage 路径对称）。
+	## 伤/恐常态检测（seq 路径内已 check；此处兜底无 catalog 时）。
 	if _game_ctx != null and (attack.damage > 0 or attack.horror > 0):
 		DefeatFlow.check_investigator_caps(_game_ctx, attack.target_investigator)
 	if _timing:
@@ -77,3 +66,37 @@ func perform_attack(attack: EnemyAttack) -> void:
 			enemy.exhausted = true
 	if _game_ctx != null:
 		ElusiveResolver.try_flee_after_enemy_attack(_game_ctx, attack.enemy_id)
+
+
+func _deal_via_seq(attack: EnemyAttack) -> void:
+	var params := {
+		"controller_id": attack.target_investigator,
+		"damage": attack.damage,
+		"horror": attack.horror,
+		"source": attack.enemy_id,
+		"target": &"controller",
+	}
+	if (
+		_game_ctx.sequence_catalog != null
+		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.deal.assignable")
+	):
+		_game_ctx.sequence_catalog.nest(
+			_game_ctx, &"seq.effect.deal.assignable", params
+		)
+		return
+	if (
+		_game_ctx.sequence_catalog != null
+		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.damage.assignable")
+	):
+		_game_ctx.sequence_catalog.nest(
+			_game_ctx, &"seq.effect.damage.assignable", params
+		)
+		return
+	DamagePipeline.deal_investigator_bundle(
+		_game_ctx,
+		attack.target_investigator,
+		attack.damage,
+		attack.horror,
+		false,
+		false
+	)

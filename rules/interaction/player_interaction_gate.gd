@@ -185,6 +185,149 @@ func ask_pick_target(
 	return pick
 
 
+## Assign 伤害：静态会话；确认腿表或逾期用默认（DamageAssigner）。
+func ask_assign_damage(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	amount: int,
+	is_direct: bool = false,
+	reserved_legs: Array = [],
+	prompt_id: StringName = &"assign:damage"
+) -> Array:
+	return _ask_assign_investigator(
+		game_ctx, inv_id, &"damage", amount, is_direct, reserved_legs, prompt_id
+	)
+
+
+## Assign 恐惧：同上。
+func ask_assign_horror(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	amount: int,
+	is_direct: bool = false,
+	reserved_legs: Array = [],
+	prompt_id: StringName = &"assign:horror"
+) -> Array:
+	return _ask_assign_investigator(
+		game_ctx, inv_id, &"horror", amount, is_direct, reserved_legs, prompt_id
+	)
+
+
+## 外向 among（04305 形）：在给定候选 id 间分配 amount；默认全量 primary。
+func ask_assign_among(
+	game_ctx: GameContext,
+	decider_id: StringName,
+	kind: StringName,
+	amount: int,
+	subjects: Array,
+	prompt_id: StringName = &"assign:among"
+) -> Array:
+	var total := maxi(amount, 0)
+	var empty: Array = []
+	if total <= 0 or subjects.is_empty():
+		return empty
+	var defaults: Array = DamageAssigner.default_among(subjects, total)
+	var candidates: Array = []
+	for sid_v in subjects:
+		var sid: StringName = sid_v as StringName
+		var cap := DealSubject.damage_capacity(game_ctx, sid, decider_id)
+		if kind == &"horror" and DealSubject.classify(game_ctx, sid) == DealSubject.KIND_ENEMY:
+			continue
+		candidates.append(
+			{
+				"id": sid,
+				"bearer": DealSubject.classify(game_ctx, sid),
+				"capacity": cap,
+				"amount": 0,
+			}
+		)
+	if candidates.is_empty():
+		return empty
+	var choice_kind := (
+		AhcEnums.ChoiceKind.ASSIGN_HORROR if kind == &"horror" else AhcEnums.ChoiceKind.ASSIGN_DAMAGE
+	)
+	var req := ChoiceRequest.new()
+	req.kind = choice_kind
+	req.decider_id = decider_id
+	req.prompt_id = prompt_id
+	req.options = defaults.duplicate(true)
+	req.context = {
+		"pending_total": total,
+		"candidates": candidates,
+		"constraints": [],
+		"kind": kind,
+		"mode": &"among",
+		"subjects": subjects.duplicate(),
+	}
+	req.default_policy = &"first_option"
+	req.deadline_ms = -1
+	var pick: Variant = ask(req, game_ctx)
+	if pick is Array and DamageAssigner.validate_among(subjects, total, pick as Array):
+		return (pick as Array).duplicate(true)
+	## 非法确认 → 默认腿；记作 used_default。
+	last_used_default = true
+	return defaults.duplicate(true)
+
+
+func _ask_assign_investigator(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	kind: StringName,
+	amount: int,
+	is_direct: bool,
+	reserved_legs: Array,
+	prompt_id: StringName
+) -> Array:
+	var total := maxi(amount, 0)
+	var empty: Array = []
+	if game_ctx == null or inv_id == &"" or total <= 0:
+		return empty
+	var defaults: Array = []
+	if reserved_legs.is_empty():
+		defaults = DamageAssigner.default_assignment(
+			game_ctx, inv_id, kind, total, is_direct
+		)
+	else:
+		defaults = DamageAssigner.assign_delta(
+			game_ctx, inv_id, kind, total, is_direct, reserved_legs
+		)
+	var choice_kind := (
+		AhcEnums.ChoiceKind.ASSIGN_HORROR if kind == &"horror" else AhcEnums.ChoiceKind.ASSIGN_DAMAGE
+	)
+	var req := ChoiceRequest.new()
+	req.kind = choice_kind
+	req.decider_id = inv_id
+	req.prompt_id = prompt_id
+	req.options = defaults.duplicate(true)
+	req.context = {
+		"pending_total": total,
+		"candidates": DamageAssigner.candidate_entries(
+			game_ctx, inv_id, kind, is_direct, reserved_legs
+		),
+		"constraints": DamageAssigner.constraint_summaries(
+			game_ctx, inv_id, kind, is_direct
+		),
+		"kind": kind,
+		"inv_id": inv_id,
+		"direct": is_direct,
+		"reserved_legs": reserved_legs.duplicate(true) if not reserved_legs.is_empty() else [],
+		"mode": &"investigator",
+	}
+	req.default_policy = &"first_option"
+	req.deadline_ms = -1
+	var pick: Variant = ask(req, game_ctx)
+	if (
+		pick is Array
+		and DamageAssigner.validate(
+			game_ctx, inv_id, kind, is_direct, total, pick as Array, reserved_legs
+		)
+	):
+		return (pick as Array).duplicate(true)
+	## 非法确认 → 默认腿；记作 used_default。
+	last_used_default = true
+	return defaults.duplicate(true)
+
+
 ## 通用选择：按 SelectionSpec 建 ChoiceRequest，确认后由调用方 ChoiceBind。
 func ask_selection(
 	spec: SelectionSpec,
