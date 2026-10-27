@@ -254,18 +254,18 @@ Grimoire p.8：
 - 若未 apply 任何 → 未 successfully dealt
 - 检查 defeat：investigator / enemy / asset
 
-**WOULD / WHEN 均在 Apply 之前**（栈 PreImpact；与 would≈when、would 主要为优先级错开一致）。不挂信封，也不挂 Assign：
+**WOULD / WHEN 均在 Apply 之前**（栈 PreImpact）。不挂信封，也不挂 Assign：
 
 | 槽 | 时刻 | 卡面钉法 |
 |---|---|---|
-| **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配**；早期误印 *when* 的防伤对策编译收此；`reduce_pending` / `reassign_pending_legs` |
-| **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take* = **你控制的卡**将承伤；非取消反应/修正；**additional 加量**（下款） |
+| **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配 / additional 改量**（02221）；早期误印 *when* 的防伤对策编译收此；`reduce_pending` / `reassign_pending_legs` / `increase_pending` |
+| **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take*（无 would）= 非取消「将承伤」；**栈会 `offer_slot`，当前无生产卡消费者**（取消类一律不进此槽） |
 | **AFTER** | Apply + **defeat nest 完成**后 / seq pop | *after you take…*：**同一时点**；条件分「受到伤害后」（damage>0）/「受到恐惧后」（horror>0）/「受到伤害和/或恐惧后」（至少一种）。TC.kind 仍 `damage`；payload 恒带 `damage`/`horror`（可一侧为 0）；`SequenceHandler.affliction_filter` + `take_self`。编译：`TRIGGER` take 短语 → `match_kind=damage` + filter；**禁止**把 cap 检测挪到父 AFTER 之后（击败须在 RESOLVE 内 nest，父 AFTER 才能看见已击败局面） |
 
 ```gdscript
 # Assign = PI（非时点）→ pending legs
-offer_slot(WOULD)   # prevent / cancel / reduce / reassign
-offer_slot(WHEN)    # non-cancel when-take；additional → increase_pending
+offer_slot(WOULD)   # prevent / cancel / reduce / reassign / additional(02221)
+offer_slot(WHEN)    # 预留：非取消 when-take（现无生产卡）
 apply legs          # 每腿 L0 / DefeatFlow
 check_defeat
 # AFTER on pop
@@ -274,7 +274,8 @@ check_defeat
 #### PreImpact 加量（additional · 已裁决 2026-10-24）
 
 > 锚：**02221 Psychopomp's Song**（*When you would take 1 or more damage: Take 2 additional damage…*）。  
-> FAQ：额外 **修改同一次**尚未写入的受伤量（可与原量一次取消）；≠ *After you take…: Take 2* 的第二实例。
+> FAQ：额外 **修改同一次**尚未写入的受伤量（可与原量一次取消）；≠ *After you take…: Take 2* 的第二实例。  
+> **钉 WOULD**（文面 *would take*），**不**进 WHEN。
 
 在 **已确认 Assign 之后** Forced/效果使 pending 量 +K 时：
 
@@ -288,7 +289,7 @@ check_defeat
 
 ```text
 Assign(N) 已确认
-  → WOULD/WHEN：02221 → increase_pending(+K)
+  → WOULD：02221 → increase_pending(+K)
   → Assign_delta(K)  @ 合法全合格集   ## 仅增量
   → legs' = legs_N ∪ legs_K
   → Apply
@@ -855,6 +856,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-27 | v0.6.19 | §4：明示取消/additional 钉 WOULD；WHEN take 预留、现无生产卡 |
 | 2026-10-27 | v0.6.18 | §4：编译接线 would/when/after take + `affliction_filter`/`take_self`；AFTER 在击败 nest 之后 |
 | 2026-10-26 | v0.6.17 | §4：无印刷+GRANT 不设上限；inv/敌伤害无限；`legs_damage`/`legs_horror`；AFTER 伤/恐/和或条件 |
 | 2026-10-26 | v0.6.16 | §4：外向/已定腿 PreImpact（`DealPreImpact` WOULD→WHEN→Apply） |

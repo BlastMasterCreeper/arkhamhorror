@@ -58,7 +58,9 @@ TRIGGER_PHRASE_MAP: list[tuple[re.Pattern[str], str, str]] = [
 ]
 
 # 「受到伤/恐」：match_kind 恒 damage；affliction_filter 分条件；take_self=true。
-# 允许 trigger 尾部挂费用（, exhaust X）；would → WOULD；when/after → 对应槽。
+# 允许 trigger 尾部挂费用（, exhaust X）。
+# would take → WOULD（取消/防止/降低/additional 02221 均在此）；
+# when take（无 would）→ WHEN（预留；现无生产卡）；after take → AFTER。
 _TAKE_AFFLICTION = (
     r"(?:damage and/or horror|horror and/or damage|"
     r"damage or horror|horror or damage|"
@@ -299,7 +301,7 @@ def match_take_trigger_phrase(trigger: str) -> dict[str, str] | None:
         return None
     slot = m.group("slot")
     would = bool(m.group("would"))
-    # would take → WOULD；when take → WHEN；after take → AFTER。
+    # would take → WOULD（含 cancel/additional）；裸 when take → WHEN（预留）。
     if would:
         phase = "WOULD"
     elif slot.lower() == "when":
