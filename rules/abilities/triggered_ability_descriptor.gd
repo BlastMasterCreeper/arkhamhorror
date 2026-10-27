@@ -19,8 +19,13 @@ var composition: CompositionNode = null
 var resource_cost: int = 0
 var action_cost: int = 0
 var optional: bool = false
+## COLLECT L3 情景（可空）；装入 SequenceHandler.collect_condition。
+var collect_condition: Condition = null
 ## Free：`during_your_turn` | `any_player_window`（空 = any）。
 var window: StringName = &""
+## 玩家窗意图池是否允许入池次数 n>1（16 §7.3.2）；默认否。
+var pw_intent_batch: bool = false
+var max_batch: int = 1
 ## 行动类型全集（可多选，如 Activate+Parley）；借机攻击按全集判断。
 var action_types: Array = []
 ## 卡面显式覆盖借机（如「不引发借机攻击」）；null = 按 action_types 判定。

@@ -25,6 +25,8 @@ alwaysApply: true
 | **LIMBO**（卡） | **悬置** | 卡牌独立区；手续中抽象所在 |
 | **Augury** | **占兆** | 混乱标记独立区；检定中已揭示标记所在；id `augury`；≠ 卡牌 LIMBO，≠ 卡牌揭示 |
 | **Player Interaction** | **玩家交互** | 能力选用 / Optional / 目标 / 队长排序；`PlayerInteractionGate` |
+| **ResponsePool** | **响应池** | 时点响应窗粘性池（被动）；目标 API；≠ InitiationPool；见 [16 §7.0](docs/design/16-player-interaction.md) |
+| **InitiationPool** | **发起池** | 玩家时间段窗主动发起池；对齐 Initiation；**≠** Activate action / `ActivationPool`（禁）；≠ ResponsePool |
 | **timed confirmation** | **有限期确认** | PI：期内确认目标/分支；逾期用默认选择；≠ nest/内联 |
 | **Evade (action)** | **躲避** | 行动种类（基础/指定）；`seq.action.evade`；≠「闪避」「规避」；≠ 躲避尝试 / 躲避效果 |
 | **Evasion attempt** | **躲避尝试** | 躲避行动（等）衍生的技能检定，通常敏捷 vs 敌人 evade；**≠** 自动躲避 |

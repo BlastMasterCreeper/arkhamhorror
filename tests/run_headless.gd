@@ -96,6 +96,20 @@ func _initialize() -> void:
 	_run_test("TRIG-02 reaction declined by default", _test_trig_reaction_declined)
 	_run_test("TRIG-03 reaction accepted resolves", _test_trig_reaction_accepted)
 	_run_test("TRIG-04 peril blocks teammate triggered", _test_trig_peril_blocks)
+	_run_test("RW-01 willingness pool lead picks one at a time", _test_rw_willingness_pool_order)
+	_run_test("RW-02 forced before willingness reactions", _test_rw_forced_before_reactions)
+	_run_test("RW-03 reaction eligible after nest joins later", _test_rw_reaction_after_nest)
+	_run_test("RW-MODE-01 AUTO_JOIN skips ask", _test_rw_mode_auto_join)
+	_run_test("RW-MODE-02 AUTO_DECLINE skips pool", _test_rw_mode_auto_decline)
+	_run_test("ELIG-L3-01 condition fail skips pool", _test_elig_l3_condition_fail)
+	_run_test("ELIG-L3-02 condition pass joins pool", _test_elig_l3_condition_pass)
+	_run_test("ELIG-L4-01 peril blocks reaction at collect", _test_elig_l4_peril_collect)
+	_run_test("ELIG-L5-01 limit exhausted skips", _test_elig_l5_limit)
+	_run_test("ELIG-01 collect has no dry_run", _test_elig_collect_no_dry_run)
+	_run_test("PW-01 intent pool sole resolves on pulse", _test_pw_intent_sole_pulse)
+	_run_test("PW-02 intent pool contention lead pick", _test_pw_intent_contention)
+	_run_test("PW-03 empty pulse closes window", _test_pw_intent_empty_closes)
+	_run_test("PW-BATCH-01 01017 physical training x3", _test_pw_batch_01017)
 	_run_test("TRIG-05 install triggered on asset play", _test_trig_install_on_play)
 	_run_test("TRIG-06 free listed in player window", _test_trig_free_listed_in_window)
 	_run_test("TRIG-07 free activate exhausts and moves", _test_trig_free_activate_move)
@@ -2255,7 +2269,7 @@ func _test_trig_reaction_declined() -> bool:
 func _test_trig_reaction_accepted() -> bool:
 	var h := RuleTestHarness.new(42)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"reaction:use", "pick": true},
+		{"prompt_id": &"willingness:join", "pick": true},
 	])
 	var desc := TriggeredAbilityDescriptor.reaction(
 		&"gain_resource",
@@ -2286,12 +2300,406 @@ func _test_trig_peril_blocks() -> bool:
 	)
 	h.ctx.triggered_abilities.register(desc)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"reaction:use", "pick": true},
+		{"prompt_id": &"willingness:join", "pick": true},
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_2")
 	var pool_before := inv.resource_pool
 	h.ctx.resource_gain.gain(h.ctx, &"inv_2", 1, [&"resource_action"])
 	return inv.resource_pool == pool_before + 1
+
+
+func _test_rw_willingness_pool_order() -> bool:
+	## 两条 [reaction] 同窗：均入池 → 队长先放行 B → 再放行 A。
+	var h := RuleTestHarness.new(42)
+	var order: Array[String] = []
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+		{"prompt_id": &"willingness:pick", "pick": &"react_b"},
+	])
+	var react_a := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_a",
+		&"inv_1",
+		func() -> void: order.append("a")
+	)
+	var react_b := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_b",
+		&"inv_1",
+		func() -> void: order.append("b")
+	)
+	h.ctx.sequences.register_handler(react_a)
+	h.ctx.sequences.register_handler(react_b)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return order == ["b", "a"]
+
+
+func _test_rw_forced_before_reactions() -> bool:
+	## Forced 自动批先于意愿池；两条反应随后按 pick 序。
+	var h := RuleTestHarness.new(42)
+	var order: Array[String] = []
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+		{"prompt_id": &"willingness:pick", "pick": &"react_1"},
+	])
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_forced(
+			&"gain_resource",
+			func() -> void: order.append("forced")
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_1",
+			&"inv_1",
+			func() -> void: order.append("r1")
+		)
+	)
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_2",
+			&"inv_1",
+			func() -> void: order.append("r2")
+		)
+	)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return order == ["forced", "r1", "r2"]
+
+
+func _test_rw_reaction_after_nest() -> bool:
+	## 第一条反应 nest 后才登记第二条 → 下一轮 COLLECT 再入池。
+	var h := RuleTestHarness.new(42)
+	var order: Array[String] = []
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var react_outer := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_outer",
+		&"inv_1",
+		func() -> void:
+			order.append("outer")
+			var react_inner := SequenceHandler.after_reaction(
+				&"gain_resource",
+				&"react_inner",
+				&"inv_1",
+				func() -> void: order.append("inner")
+			)
+			h.ctx.sequences.register_handler(react_inner)
+	)
+	h.ctx.sequences.register_handler(react_outer)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return order == ["outer", "inner"]
+
+
+func _test_rw_mode_auto_join() -> bool:
+	## AUTO_JOIN：不经 willingness:join ask；默认 resolver 亦会结算。
+	var h := RuleTestHarness.new(42)
+	h.ctx.ability_response_prefs.set_mode(
+		AhcEnums.AbilityResponseMode.AUTO_JOIN, &"", &"", &"react_auto"
+	)
+	var fired := [false]
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_auto",
+			&"inv_1",
+			func() -> void: fired[0] = true
+		)
+	)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return fired[0]
+
+
+func _test_rw_mode_auto_decline() -> bool:
+	## AUTO_DECLINE：即使脚本愿 join 也不入池。
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	h.ctx.ability_response_prefs.set_mode(
+		AhcEnums.AbilityResponseMode.AUTO_DECLINE, &"", &"", &"react_no"
+	)
+	var fired := [false]
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_no",
+			&"inv_1",
+			func() -> void: fired[0] = true
+		)
+	)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return not fired[0]
+
+
+func _test_elig_l3_condition_fail() -> bool:
+	## L3：collect_condition 不满足 → 不进响应池。
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var fired := [false]
+	var react := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_cond_fail",
+		&"inv_1",
+		func() -> void: fired[0] = true
+	)
+	react.collect_condition = Condition.with_tags([&"needs_missing_tag"])
+	h.ctx.sequences.register_handler(react)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return not fired[0]
+
+
+func _test_elig_l3_condition_pass() -> bool:
+	## L3：标签匹配 → 可入池结算。
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var fired := [false]
+	var react := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_cond_ok",
+		&"inv_1",
+		func() -> void: fired[0] = true
+	)
+	react.collect_condition = Condition.with_tags([&"resource_action"])
+	h.ctx.sequences.register_handler(react)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return fired[0]
+
+
+func _test_elig_l4_peril_collect() -> bool:
+	## L4：险境 FORBID_TRIGGER 在 COLLECT 筛掉队友反应（不入池）。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	_setup_peril_for_drawer(h, &"inv_1", &"enc_peril_elig_l4")
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var fired := [false]
+	h.ctx.sequences.register_handler(
+		SequenceHandler.after_reaction(
+			&"gain_resource",
+			&"react_peril_blocked",
+			&"inv_2",
+			func() -> void: fired[0] = true
+		)
+	)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_2", 1, [&"resource_action"])
+	return not fired[0]
+
+
+func _test_elig_l5_limit() -> bool:
+	## L5：次数耗尽不出候选。
+	var h := RuleTestHarness.new(42)
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"willingness:join", "pick": true},
+	])
+	var fired := [false]
+	var react := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_limit",
+		&"inv_1",
+		func() -> void: fired[0] = true
+	)
+	react.limit_remaining = 0
+	h.ctx.sequences.register_handler(react)
+	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	return not fired[0]
+
+
+func _test_elig_collect_no_dry_run() -> bool:
+	## COLLECT 只跑 L1–L5；无 composition 时仍可判定，不依赖 dry_run。
+	var h := RuleTestHarness.new(42)
+	var react := SequenceHandler.after_reaction(
+		&"gain_resource",
+		&"react_dry",
+		&"inv_1",
+		func() -> void: pass
+	)
+	react.collect_condition = Condition.with_tags([&"resource_action"])
+	var app_ctx := ApplicationContext.new()
+	app_ctx.tags = [&"gain_resource", &"resource_action"]
+	var reports: Array = EligibilityPipeline.run_collect(react, h.ctx, app_ctx, false)
+	if reports.size() != 5:
+		return false
+	for r in reports:
+		if r == null or not (r as EligibilityPipeline.GateReport).passed:
+			return false
+		## 关卡号须在 1–5；无 L6/L7。
+		var level: int = (r as EligibilityPipeline.GateReport).level
+		if level < 1 or level > 5:
+			return false
+	return EligibilityPipeline.passes_collect(react, h.ctx, app_ctx, false)
+
+
+func _pw_register_free_resource(h: RuleTestHarness, ability_id: StringName, amount: int = 1) -> StringName:
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eid := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"pw_free_asset")
+	var card := CardInstance.new()
+	card.id = eid
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.play_area.append(card_id)
+	var desc := TriggeredAbilityDescriptor.free_triggered(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), amount
+		),
+		&"during_your_turn",
+		card_id,
+		&"pw_free_asset"
+	)
+	desc.id = ability_id
+	h.ctx.triggered_abilities.register(desc)
+	return ability_id
+
+
+func _test_pw_intent_sole_pulse() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	_pw_register_free_resource(h, &"free_res_1", 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.resource_pool
+	var enq := h.ctx.player_window_intents.enqueue_free(&"free_res_1", &"inv_1")
+	if not bool(enq.get("ok", false)):
+		return false
+	var pulse := h.ctx.player_window_intents.pulse()
+	return (
+		bool(pulse.get("ok", false))
+		and int(pulse.get("resolved", 0)) == 1
+		and inv.resource_pool == before + 2
+		and h.ctx.framework.waiting_player_window
+		and h.ctx.player_window_intents.size() == 0
+	)
+
+
+func _test_pw_intent_contention() -> bool:
+	## 两名调查员各挂一条 → pulse 争议由队长挑 inv_2 的意图。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	h.ctx.state.lead_investigator_id = &"inv_1"
+	h.ctx.lead_investigator_id = &"inv_1"
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	## inv_1 free
+	var card_a := h.ctx.state.registry.allocate_instance_id(&"card")
+	var ea := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_a, &"pw_a")
+	var ca := CardInstance.new()
+	ca.id = ea
+	ca.owner_id = &"inv_1"
+	ca.controller_id = &"inv_1"
+	ca.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(ca)
+	h.ctx.state.registry.get_investigator(&"inv_1").play_area.append(card_a)
+	var desc_a := TriggeredAbilityDescriptor.free_triggered(
+		&"inv_1",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_1", AhcEnums.MarkerKind.RESOURCE), 1
+		),
+		&"any_player_window",
+		card_a,
+		&"pw_a"
+	)
+	desc_a.id = &"free_a"
+	h.ctx.triggered_abilities.register(desc_a)
+	## inv_2 free
+	var card_b := h.ctx.state.registry.allocate_instance_id(&"card")
+	var eb := EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_b, &"pw_b")
+	var cb := CardInstance.new()
+	cb.id = eb
+	cb.owner_id = &"inv_2"
+	cb.controller_id = &"inv_2"
+	cb.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(cb)
+	h.ctx.state.registry.get_investigator(&"inv_2").play_area.append(card_b)
+	var desc_b := TriggeredAbilityDescriptor.free_triggered(
+		&"inv_2",
+		CompositionNode.adjust_marker(
+			MarkerSlot.investigator(&"inv_2", AhcEnums.MarkerKind.RESOURCE), 3
+		),
+		&"any_player_window",
+		card_b,
+		&"pw_b"
+	)
+	desc_b.id = &"free_b"
+	h.ctx.triggered_abilities.register(desc_b)
+	var enq_a := h.ctx.player_window_intents.enqueue_free(&"free_a", &"inv_1")
+	var enq_b := h.ctx.player_window_intents.enqueue_free(&"free_b", &"inv_2")
+	if not bool(enq_a.get("ok", false)) or not bool(enq_b.get("ok", false)):
+		return false
+	var pick_id: StringName = enq_b.get("entry_id", &"") as StringName
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"pw_intent:pick", "pick": pick_id},
+	])
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	var before2 := inv2.resource_pool
+	var pulse := h.ctx.player_window_intents.pulse()
+	return (
+		bool(pulse.get("ok", false))
+		and int(pulse.get("resolved", 0)) == 1
+		and inv2.resource_pool == before2 + 3
+		and h.ctx.player_window_intents.size() == 1
+	)
+
+
+func _test_pw_intent_empty_closes() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	if not h.ctx.framework.waiting_player_window:
+		h.ctx.framework.open_player_window(AhcEnums.PlayerWindow.PW_INV_BEFORE_ACTION)
+	var pulse := h.ctx.player_window_intents.pulse()
+	return bool(pulse.get("ok", false)) and bool(pulse.get("closed", false))
+
+
+func _test_pw_batch_01017() -> bool:
+	## 01017 白名单 ×3：检定窗入池一次 pulse 连花 3 资源并叠 +3 战。
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	GameBootstrap.install_physical_training_01017(h.ctx, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 5
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 2)
+	st.begin(test)
+	var commit_res := h.ctx.skill_tests.step_commit(test, [])
+	if not bool(commit_res.get("ok", false)):
+		return false
+	if not test.waiting_player_window:
+		return false
+	var enq := h.ctx.player_window_intents.enqueue_free(
+		&"01017:physical_training", &"inv_1", 3
+	)
+	if not bool(enq.get("ok", false)):
+		return false
+	if int(enq.get("pool_size", 0)) != 1:
+		return false
+	var before := inv.resource_pool
+	var pulse := h.ctx.player_window_intents.pulse()
+	if not bool(pulse.get("ok", false)) or int(pulse.get("resolved", 0)) != 3:
+		return false
+	if inv.resource_pool != before - 3:
+		return false
+	var q := ModifierQuery.new()
+	q.controller_id = &"inv_1"
+	q.stat = AhcEnums.StatRef.SKILL_COMBAT
+	return h.ctx.modifiers.compute(0, q) == 3
 
 
 func _test_trig_install_on_play() -> bool:
@@ -2560,7 +2968,7 @@ func _test_adb_12145_reaction_discover() -> bool:
 		return false
 	_adb_setup_downtown_location(h)
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
-		{"prompt_id": &"reaction:use", "pick": true},
+		{"prompt_id": &"willingness:join", "pick": true},
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
