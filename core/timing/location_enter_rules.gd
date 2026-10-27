@@ -65,7 +65,17 @@ static func reveal_and_place_clues(
 	var printed := resolve_printed_clues(loc)
 	var placed := PerInvestigatorScale.place_location_clues(game_ctx.state, printed)
 	loc.revealed = true
-	loc.clues = placed
+	## 经 transfer_marker 从供给池落到地点（物理层镜像）；无 mutator 时回退逻辑计数。
+	var need := maxi(placed - loc.clues, 0)
+	if need > 0 and game_ctx.mutator != null:
+		game_ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.CLUE,
+			need,
+			MarkerSlot.supply(AhcEnums.MarkerKind.CLUE),
+			MarkerSlot.location(location_id, AhcEnums.MarkerKind.CLUE)
+		)
+	elif need > 0:
+		loc.clues = placed
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,

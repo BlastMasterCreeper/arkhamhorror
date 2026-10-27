@@ -38,7 +38,7 @@
 | `seq.skill_test` | Skill Test Timing | 一条 + `params.skill` |
 | `seq.action.*` | 基本/指定行动 **外壳**（耗 action、AOO） | `seq.action.fight` |
 | `seq.enemy.*` | 敌人手续（移动 / 攻击 / 击败…） | `seq.enemy.attack` |
-| `seq.effect.*` | 纸面无名但可解释的效果种类 | `seq.effect.damage` |
+| `seq.effect.*` | 纸面无名但可解释的效果种类 | `seq.effect.deal` |
 | `seq.keyword.*` | 关键词 **开火**（非创建） | `seq.keyword.surge` |
 | `seq.interrupt.*` / `seq.replace.*` | Cancel / Ignore / Instead | 共享 |
 | `seq.ability.resolve` | Initiation 装载帧（禁真空） | — |
@@ -81,11 +81,12 @@
 
 | flow_id | Grimoire 词条 | 粒度裁决（草案） |
 |---|---|---|
-| `seq.effect.damage` | Dealing Damage/Horror | **已统一** take/deal；`kind`+`target`+`source` |
+| `seq.effect.deal.assignable` | Dealing Damage/Horror（待分配） | 伤+恐可同入参；Assign 后同时 Apply |
+| `seq.effect.deal` | Dealing Damage/Horror（无分配） | 已定；伤+恐用 Simultaneous；**无** Assign |
 | `seq.effect.heal` | Heal | **保留** |
 | `seq.effect.lose_resources` | （失去资源） | **保留**；`all` 参数 |
 | `seq.effect.lose_action` | （失去行动） | **保留** |
-| `seq.effect.discover_clue` | Clues / discover | **保留** |
+| `seq.effect.discover_clue` | Clues / discover | **保留**；多地 `legs[]`（一帧；L0 单目标） |
 | `seq.effect.place_clue` | 线索放到地点 | **保留**（与 discover 因果不同） |
 | `seq.effect.place_doom` | Doom（卡面放置） | **保留**；**勿**并入 mythos |
 | `seq.effect.discard_card` | Discard | **已统一**；`from=hand` / `card_id` / 寻址 |
@@ -93,6 +94,11 @@
 | `seq.effect.resign` | Resign | **保留** |
 | `seq.effect.register` / `unregister` | lasting / Cannot / keyword 标记创建 | **保留**；勿为每个 keyword 开创建 seq |
 | `seq.effect.gain_resource` | Gain resources | **已迁**；旧 `seq.gain_resource` 别名 |
+| `seq.effect.evade` | Evade（效果） | **已铸**；横置+解除交战；`mode` attempt\|automatic；卡面**执行**=自动躲避；「evade」措辞多用于时点 |
+| `seq.effect.search` | Search | **已铸**；见 G3 |
+| `seq.effect.exhaust` / `ready` | Exhaust / Ready | **已铸**；见 G2 |
+| `seq.effect.move` | Move（狭义） | **已铸**；见 G1 |
+| `seq.effect.defeat` | Defeat | **已铸**；见 G5 |
 
 ### 3.4 敌军阶段 / 敌人 / 交战
 
@@ -325,7 +331,8 @@
 3. ~~**M4**~~：**已落地** — `seq.effect.gain_resource`（旧 id 别名）  
 4. ~~**M5**~~：**已收口** — `seq.engage` 仅 auto/effect；行动=效果交战  
 5. ~~**G1**~~：**已统一** — 狭义移动 = `seq.effect.move`（四主体）；见「移动三分」  
-6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；**`seq.effect.evade`**（躲避效果核：横置∥脱离**同时组**）；躲避四层见术语表 / 03 §6.7  
+6. ~~**G2**~~：**已落地** — `seq.effect.exhaust` / `ready`；4.3 / 卡面 / 攻击后横置 / Elusive 接线  
+6b. ~~**躲避效果**~~：**已落地** — `seq.effect.evade`（attempt / automatic；横置∥脱离**同时组**）；卡面执行=自动躲避；≠ `seq.action.evade`；四层见术语表 / 03 §6.7  
 
 
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
@@ -380,3 +387,6 @@
 | 2026-10-13 | G6 落地：单条 `seq.framework.phase_boundary`；旧 investigation_phase_ends 别名 |
 | 2026-10-13 | G7–G11：不另铸；时点从攻击 / PLAY_CARD / ST / Cost / Register 过滤信息 |
 | 2026-10-13 | AOO 可栈溯源或 AttackKind；Spend/失去资源同 L0、场合不同 |
+| 2026-10-13 | 落地 `seq.effect.evade`（躲避效果核；automatic = 自动躲避） |
+| 2026-10-13 | 裁决：卡面「evade」效果措辞→时点；执行→自动躲避（无独立 effect mode） |
+| 2026-10-13 | I2 真空抽查 → [23-vacuum-audit](23-vacuum-audit.md)；铸造清单已收口，下一刀偏结构性硬门槛 |

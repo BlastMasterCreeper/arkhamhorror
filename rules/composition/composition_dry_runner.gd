@@ -325,10 +325,15 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			if node.to_slot == null:
 				return false
 			return sim.mutator.move_card(node.card_id, node.to_slot)
-		&"adjust_marker":
-			if node.marker_slot == null:
+		&"transfer_marker":
+			if node.marker_from == null or node.marker_to == null:
 				return false
-			return sim.mutator.adjust_marker(node.marker_slot, node.marker_delta)
+			var xfer_amt := maxi(node.amount, node.marker_delta)
+			if xfer_amt <= 0:
+				xfer_amt = 1
+			return sim.mutator.transfer_marker(
+				node.marker_kind, xfer_amt, node.marker_from, node.marker_to
+			)
 		&"set_flag":
 			return sim.mutator.set_flag(node.inv_id, node.flag_field, node.flag_value)
 		&"reveal_to_controller":
@@ -471,6 +476,22 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			## 有可搜寻区域且（无过滤或能命中）→ CREATED。
 			if sim.state == null or node.from_zone == &"":
 				return false
+			return true
+		&"nest_evade", &"automatically_evade":
+			## 躲避效果：敌存在即可 CREATED（横置 + 可能解除交战）。
+			var evade_id := _resolve_sim_enemy_spec(node, sim)
+			if evade_id == &"" or sim.state == null:
+				return false
+			var evade_enemy := sim.state.registry.get_enemy(evade_id)
+			if evade_enemy == null:
+				return false
+			evade_enemy.exhausted = true
+			if evade_enemy.engaged_with != &"":
+				var evade_holder := sim.state.registry.get_investigator(evade_enemy.engaged_with)
+				if evade_holder != null:
+					evade_holder.threat_area.erase(evade_id)
+				evade_enemy.engaged_with = &""
+			sim.last_step_enemy_id = evade_id
 			return true
 		&"exhaust_card", &"ready_card":
 			var exh := sim.state.registry.get_card(node.card_id) if sim.state != null else null
@@ -616,11 +637,8 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 					pool += ginv.clues_on_card
 			return pool >= need
 		&"nest_move_connecting":
-			var move_free_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
-			if move_free_inv == null or move_free_inv.location_tag == &"":
-				return false
-			var from_loc := sim.state.registry.get_location(move_free_inv.location_tag)
-			return from_loc != null and not from_loc.connections.is_empty()
+			## 运行时已废；dry-run 亦拒（工厂已展开为 select+nest_move_to）。
+			return false
 		&"nest_move_to":
 			var move_to_inv := sim.state.registry.get_investigator(_resolve_sim_inv(node, sim))
 			if move_to_inv == null:

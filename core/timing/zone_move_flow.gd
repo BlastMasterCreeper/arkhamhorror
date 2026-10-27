@@ -47,7 +47,14 @@ static func notify_zone_set(
 	from_zone: AhcEnums.Zone,
 	to_zone: AhcEnums.Zone
 ) -> void:
-	## L0 直接写 zone（未走 move_card）时补发同一通道。
+	## L0 直接写 zone（未走 move_card）时补发同一通道，并镜像物理区。
+	if game_ctx != null and game_ctx.state != null and game_ctx.state.physical_binding != null:
+		var card := game_ctx.state.registry.get_card(card_id)
+		if card != null:
+			var owner := card.owner_id
+			if owner == &"":
+				owner = card.controller_id
+			game_ctx.state.physical_binding.mirror_move_to_zone(card, to_zone, owner)
 	after_l0_move(game_ctx, card_id, from_zone, to_zone)
 
 
@@ -186,33 +193,65 @@ static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> voi
 	_discard_attachments_on_leave(game_ctx, card)
 
 
-## 卡上 damage/horror/clue → global TokenPool；doom/uses 清零（池无 doom/uses 槽）。
+## 卡上桌面标记 → 无穷供给池（L0 `transfer_marker` card→supply）。
+## uses 非桌面池槽，仅清零；sealed 由 `SealFlow.release_on_leave_play` 先释回袋，再清空域计数。
 static func _return_tokens_to_pool(game_ctx: GameContext, card: CardInstance) -> void:
-	if card == null:
+	if card == null or game_ctx == null or game_ctx.state == null:
 		return
-	var pool: TokenPool = game_ctx.state.token_pool if game_ctx != null and game_ctx.state != null else null
+	var card_id := card.id.instance_id if card.id != null else &""
+	if card_id == &"":
+		return
 	var damage := maxi(card.tokens.damage, 0)
 	var horror := maxi(card.tokens.horror, 0)
 	var clue := maxi(card.tokens.clue, 0)
-	if pool != null:
-		pool.damage_available += damage
-		pool.horror_available += horror
-		pool.clue_available += clue
-	card.tokens.damage = 0
-	card.tokens.horror = 0
-	card.tokens.clue = 0
-	card.tokens.doom = 0
+	var doom := maxi(card.tokens.doom, 0)
+	var mutator := game_ctx.mutator
+	if mutator != null:
+		if damage > 0:
+			mutator.transfer_marker(
+				AhcEnums.MarkerKind.DAMAGE,
+				damage,
+				MarkerSlot.card(card_id, AhcEnums.MarkerKind.DAMAGE),
+				MarkerSlot.supply(AhcEnums.MarkerKind.DAMAGE)
+			)
+		if horror > 0:
+			mutator.transfer_marker(
+				AhcEnums.MarkerKind.HORROR,
+				horror,
+				MarkerSlot.card(card_id, AhcEnums.MarkerKind.HORROR),
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR)
+			)
+		if clue > 0:
+			mutator.transfer_marker(
+				AhcEnums.MarkerKind.CLUE,
+				clue,
+				MarkerSlot.card(card_id, AhcEnums.MarkerKind.CLUE),
+				MarkerSlot.supply(AhcEnums.MarkerKind.CLUE)
+			)
+		if doom > 0:
+			mutator.transfer_marker(
+				AhcEnums.MarkerKind.DOOM,
+				doom,
+				MarkerSlot.card(card_id, AhcEnums.MarkerKind.DOOM),
+				MarkerSlot.supply(AhcEnums.MarkerKind.DOOM)
+			)
+	else:
+		card.tokens.damage = 0
+		card.tokens.horror = 0
+		card.tokens.clue = 0
+		card.tokens.doom = 0
 	card.tokens.uses.clear()
 	card.tokens.sealed.clear()
-	if game_ctx != null and game_ctx.log != null and (damage + horror + clue) > 0:
+	if game_ctx.log != null and (damage + horror + clue + doom) > 0:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.CARD,
 			"leave_play:tokens_to_pool",
 			{
-				"card": card.id.instance_id if card.id != null else &"",
+				"card": card_id,
 				"damage": damage,
 				"horror": horror,
 				"clue": clue,
+				"doom": doom,
 			}
 		)
 

@@ -2,34 +2,72 @@
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md)  
 > **被依赖**：[07-effect-resolution.md](07-effect-resolution.md)（组合执行、语义包装）、[12-card-script-api.md](12-card-script-api.md)（`CardDefinition` · §0.1 三档译法）  
-> **状态**：v0.3.10 · 2026-09-21 — L2 宏 → seq.effect.*（纸面可无名）
+> **状态**：v0.3.28 · 2026-10-24 — Register 只写 Buff；Gain 衍生行为 / 能力挂载
 
 ---
 
-## 0. 术语：效果 vs 状态原语（已裁决）
+## 0. 术语：效果 · 原语 · 两层结算（已裁决 2026-10-24）
 
-| 术语 | 英文 | 是否 **效果** | 说明 |
-|---|---|---|---|
-| **效果** | effect | — | resolve 可对规则/局面产生 **直接影响**；dry-run 可 **CREATED** 的节点类型 |
-| **状态原语** | state primitive | **是**（子集） | 写 `GameStateStore` 的 L0 **三类**；**旧称「效果原子」易与 Grimoire 原子效果混淆** |
-| **Register（注册）** | Register | **是** | 写 `RegistrationStore` / Buff；见 [07-composition §4.1](07-composition.md) |
-| **揭示（Reveal）卡牌** | Reveal (card) | **是** | Grimoire **明确命名** 的游戏动作；L0 **`AtomRevealCard`** 写 `CardFaceVisibility.audience`；用户交互上公开牌面 |
+### 0.0 什么是「原语」（总判据）
+
+> **原语 = 能对游戏造成影响的结算。** 关键是 **结算**——执行时 **必须做点什么**，dry-run 可标 **CREATED**。  
+> **不是原语**：只读查询、投影、缓存、Eligibility 前段、场合信封、印刷 Spec、步间 `RulesMemory`、**仅改可见性**——**不结算**。
+
+#### 为何 Register 必须是原语（发起有效性）
+
+> **已裁决**：发起有效性与原语结算同一尺子——**必须干了点什么**（[07-composition §4](07-composition.md)）。
 
 ```text
-效果（可 CREATED）
-  ├─ 状态原语（StateMutator → GameState）
-  │    ├─ ① 卡牌地址（MoveCard）
-  │    ├─ ② 标记/计数（Transfer / Adjust）
-  │    └─ ③ 揭示与离散（AtomRevealCard；SetFlag / SetRef）
-  └─ Register（→ RegistrationStore / Buff）
+可发起  ⟺  …成本等过门…
+        AND  dry-run(效果体).has_any_CREATED
 
-Presentation / headless
-  └─ 只读 Domain 揭示状态；headless 始终保留完整 definition_id
+CREATED ∈ {
+  物理原语结算成功,
+  Register 插入 Registration（创建了 Buff/标记）成功,
+  Chronicle 记事写入成功,   # 薄
+  Interrupt/Replace 等成功
+}
+
+空结算 = 没有任何物理原语能结算
+       ∧ 没有任何 Register 创建 Buff
+       ∧ （亦无 Chronicle 等其它 CREATED）
+     → FIZZLE → **禁止发起**
 ```
 
-**Register 是效果**：发起/打出 **合法性检测（dry-run）** 中，成功 Register 即 **CREATED**，与 Atom 并列（[06-ability-initiation §7](06-ability-initiation.md)、[07-composition §4.1](07-composition.md)）。
+只改 `FaceAudience`、只跑控制流、只读查询 → **不够**。  
+把 Register 留在原语外，会导致「纯挂 lasting / cannot / 延时」的合法效果体被判空结算——故 **Register 必须是信息原语结算叶**。
 
-**揭示 vs 地点翻面**：**卡牌** Reveal = ③ **`AtomRevealCard`**。**地点** `Reveal location` = ③ **`AtomSetFlag(REVEALED)`** + Adjust 等，经 L2 `RevealLocationWrapper` 展开。
+**空效果体（锚 09125）**：打出无正文时效果体编译 **`EmptySettle`**（框架完备，非 FAQ 门特例）。L7/发起认 CREATED；不写入局面。见 [07-composition §4.1.2](07-composition.md)。
+
+结算两层 + 权限层（非结算）：
+
+| 层 | 是结算？ | 计入发起 CREATED？ |
+|---|---|---|
+| **物理原语** | **是** | **是** |
+| **Register**（主量信息原语） | **是** | **是**（插入即 CREATED；不查 Buff 日后是否开火） |
+| **Chronicle**（日志∪记住） | **是**（薄） | **是** |
+| **可见性 Audience** | **否** | **否** |
+
+```text
+命名流程 seq.*
+  └─ RESOLVE ↓ 结算叶（可 CREATED）
+
+  ├─ 物理     ①区/序  ②标记  ③形态
+  └─ 不可见   ≈ Register（主量）+ Chronicle（薄）
+
+并行（非结算 · 不计 CREATED）：FaceAudience
+```
+
+**控制权**不单立原语：经 Register Buff。Forced/reaction 是 **能力**，不是 Buff（[06 §2.3](06-registration-buff-model.md)）。
+
+**揭示（纸面 Reveal）vs 翻面 vs 可见性**：
+
+| | **纸面 Reveal 手续** | **Flip** | **FaceAudience** |
+|---|---|---|---|
+| 是什么 | 命名流程/卡面步（常伴翻面或入手） | 状态原语 ③ | 权限写入 |
+| 结算？ | 手续里的 **其它**结算才 CREATED | **是** | **否**（政策同步） |
+
+**地点「揭示」**：物理翻面 + 线索等组合；可见性若变，仍是政策，不是地点旗原语。
 
 ### 0.1 规则参数字段（RuleParameter · 信息型卡面描述）
 
@@ -161,28 +199,26 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 ## 1. 目标
 
-定义规则引擎 **唯一可执行** 的 **状态原语（state primitive，L0 域写入）**。Grimoire 上的局面变更，在 **Composition / 命名流程** 内必须 **归约** 为：
+定义规则引擎可执行的 **结算叶**。Grimoire 局面变更在 **Composition / 命名流程** 内归约为：
 
-1. **状态原语** 的有序/并行组合（含 **揭示状态**）；
-2. **Register**（规则/Buff 写入，**是效果**，但不是状态原语）；
-3. 外加 **语义包装 (Wrapper)** 在步骤之间插入规则步骤（如伤害 Assign）。
+1. **状态原语**（物理，看得见）；
+2. **信息原语**（不可见结算：Register · Log · Remember…）；可见性见 §5.4.1（非结算）；
+3. 外加命名流程 / Wrapper（派生索引随物理维护，见 §5.4）。
 
-**卡牌揭示** 经 `StateMutator.reveal_to_*`（内部 `InformationExecutor`）写入 Domain；**是 L0 状态原语，是效果**。
-
-**卡牌脚本与 YAML 不得直接调用 `GameStateStore` 的可变 API**；状态原语仅经 `StateMutator` 执行。
+**禁止**原语叶子当 Timing 订阅面。卡牌脚本与 YAML **不得**直接调 `GameStateStore` / `PhysicalOps` 可变 API。
 
 ---
 
 ## 2. 核心命题
 
-> 复杂效果 = **卡牌地址变更** + **标记/计数地址变更** + **揭示与离散字段变更**，再经组合与包装。
+> 复杂效果 = **物理结算** + **不可见结算（信息原语）**，经命名流程组合。
 
 「标记」包含：
 
 - 物理 token（damage、horror、doom、clue、uses/charges/ammo…）
 - 非 token 计数（`resource_pool`、`actions_remaining`、`clues_on_location`…）
 
-二者统一用 **MarkerSlot** 寻址，用 **Transfer** / **Adjust** 变更。
+二者统一用 **MarkerSlot** 寻址，用 **Transfer**（∞ 供给池）变更；**禁止 Adjust**。
 
 ---
 
@@ -190,9 +226,12 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 | 层 | 名称 | 职责 | 示例 |
 |---|---|---|---|
-| **L0** | Domain / `StateMutator` | 执行 **状态原语**；维护区域不变量 | `move_card`, `reveal_to_controller`, `transfer_marker` |
-| **L1** | Composition | 状态原语 + Register 组合（Seq / Choice…） | Then draw + horror |
-| **L2** | Semantics / Wrapper | 规则书语义；编译为 nest `seq.effect.*` / 已有 seq（纸面可无名） | DealDamage → `seq.effect.deal_damage`；PlayCard 仍是 Initiation |
+| **物理原语** | `PhysicalOps` / `StateMutator` | **状态原语**三类 | `move_card`, `transfer_marker`, `set_face`, `set_exhausted` |
+| **信息原语** | Register / Log·Remember / `InformationExecutor` | **不可见结算**各族 | `seq.effect.register`；log；remember；`reveal_to_*` |
+| **派生索引** | Domain 缓存 | 随物理维护；非原语 | `location_tag`, threat 成员, `attached_to` |
+| **命名流程** | `SequenceCatalog` + 堆栈 | 组合效果叶 | `seq.effect.take_horror`, `seq.enter_hand` |
+| **L1** | Composition | 原语 + Register 树 | Then draw + horror |
+| **L2** | Semantics / Wrapper | 规则书语义；nest `seq.*` | DealDamage；PlayCard = Initiation |
 
 ```
 CardScript / YAML  →  L2 Wrapper/Macro  →  L1 CompositionTree  →  L0 Atoms  →  GameStateStore
@@ -302,21 +341,22 @@ enum RefField {
 
 ---
 
-## 5. 状态原语（L0）
+## 5. 状态原语（L0 · 仅物理层）
 
-> **已裁决口径（与 §2 一致）**：L0 只有 **三类** `GameStateStore` 写入，称 **状态原语**；`Reveal` / `SetFlag` / `SetRef` 为 ③ 类内 **实现子操作**（`AtomOp` 枚举保留细项）。  
-> Grimoire **Reveal（揭示卡牌）** 对应 ③ **`AtomRevealCard`** — 写入 `FaceAudience`，用户交互上公开牌面；**是效果**，dry-run **CREATED**。  
+> **已裁决（2026-10-23）**：状态原语 **只保留在物理层**——桌面实体的区/序、标记、形态。  
+> **禁止**把信息层（`FaceAudience`、地点指称、淘汰旗、交战引用等）算进状态原语三类。  
+> 信息层最小写入仍可由框架 / Composition 调用，且 Grimoire Reveal **仍是效果**（dry-run **CREATED**），但归属见 §5.4，**不是** L0 ③。  
 > **状态原语 ⊂ 效果**；**Register ⊂ 效果** 但 **⊄ 状态原语**。见 §0。
 
-| 类（L0） | 改什么 | 实现子操作（代码） |
+| 类（L0） | 改什么（物理） | 实现 |
 |---|---|---|
-| **① 卡牌地址** | `CardSlot`、顺序、zone | `AtomMoveCard` |
-| **② 标记/计数地址** | `MarkerSlot` 间搬运或相对 pool 增减 | `AtomTransferMarker`；`AtomAdjustMarker` |
-| **③ 揭示与离散** | 牌面可见性；布尔/枚举/引用（非 pile 顺序） | **`AtomRevealCard`** → `reveal_to_*`；`AtomSetFlag`；`AtomSetRef` |
+| **① 卡牌地址** | 所在区域、次序（牌堆/手牌/场…） | `AtomMoveCard`；洗牌等区序工具 |
+| **② 标记/计数地址** | 标记所在与数量（含 ∞ 供给池） | **`AtomTransferMarker` only** |
+| **③ 卡牌形态** | 正反面；横置 / 重整（约 90°） | `AtomFlipCard`（`CardFace`）；`AtomSetExhausted` |
 
 **另：** **Register** 写 `RegistrationStore`（Buff），**是效果**，经 Composition L2，**不是** L0 状态原语。
 
-共 **3 类状态原语** + **2 个 Domain 工厂**（`Create` / `Destroy`，非效果）。
+共 **3 类状态原语（物理）** + **信息原语（可见性 / 知识，§5.4）** + **Register** + Domain 工厂。命名流程在其上组合。
 
 ### 5.1 ① 卡牌地址 — `AtomMoveCard`
 
@@ -349,11 +389,19 @@ class AtomMoveCard:
 
 **Limbo**：进入/离开 `PileKind.LIMBO` 不触发 enters/leaves play（Grimoire Limbo）。
 
+**放置关系**（旁置 / 附着 / 垫下 / 牌库）：见 [01 §3.5.1](01-game-state-zones.md)。`MoveCard` 的目标须带齐 PlacementKind + 宿主（若有）；**ATTACHED ≠ UNDER**；离场默认捆绑可用 `LeavePlayPolicy` 保留标记/附着/垫下。
+
 ---
 
-### 5.2 ② 标记/计数地址 — `AtomTransferMarker` / `AtomAdjustMarker`
+### 5.2 ② 标记/计数地址 — `AtomTransferMarker`（已裁决 · 无穷池 2026-10-23）
 
-**类职责**：`MarkerSlot` 上的 token/计数变更。守恒搬运用 **Transfer**；单端增减（含 `POOL_*` 端点）用 **Adjust**。桌游语义上 heal/take horror 等优先表为 **Transfer**（bearer ↔ pool），见 OQ-07-02。
+**类职责**：`MarkerSlot` 上桌面 token 的变更。**唯一** L0 = **`AtomTransferMarker`**（1 源 → 1 目标）。
+
+**无穷供给池（physical `supply` / Domain `TokenPool`）**：
+
+- damage / horror / clue / resource / doom 等桌面标记 **始终**有来源或去向 = 供给池。
+- 池 **无穷**：取出永不因库存失败；回池 **不累加**库存计数（湮入供给）。
+- **禁止**从虚无创造 / 向虚无湮灭的单端 Adjust 作为桌面标记原语。
 
 #### `AtomTransferMarker`
 
@@ -366,121 +414,278 @@ class AtomTransferMarker:
     var sub_key: StringName = &""    # USES 时两边一致
 ```
 
-**做什么**：`from` 减 `amount`，`to` 加 `amount`；**总量守恒**（池 ↔ 卡 ↔ 地点 ↔ 调查员之间搬运）。
+**做什么**：`from` 减 `amount`，`to` 加 `amount`。池端按无穷模型；承载者端改 Domain 计数并镜像物理层。  
+**粒度硬约束**：**仅 1 源 → 1 目标**。禁止在单次 L0 内吞多源多目标。
 
-**典型语义**：
+**多来源 / 多目标**：包装层 `MarkerTransferBatch` 展开为若干条本原子。再分配 / Move 伤恐共用；**不**另铸 `seq.effect.transfer_*`。  
+命名流程侧：`seq.effect.deal` / `discover_clue` 可一次压栈带 `legs[]`，handler 内仍逐腿调本原子——**seq 多目标 ≠ L0 多目标**。伤+恐待分配走 `deal.assignable` 同帧同时 Apply。
 
-- Discover clue：`CLUES_ON_LOCATION` → `CLUES_ON_INVESTIGATOR`
-- Move 1 damage：`CARD.damage` → `CARD.damage`（另一张卡）
-- Place clue from pool：`POOL_CLUE` → `CLUES_ON_LOCATION`
-
-**不做什么**：
-
-- 不 heal（那是 Adjust 负 delta，见下）
-- 不 deal damage（Wrapper 在 Assign 后用 Adjust 或 Transfer from pool）
-- 不检查 defeat（Wrapper `CheckDefeat`）
-
-**约束**：
-
-- `from` 当前值 `< amount` → 原子 **失败**，整棵组合树中止（除非 Wrapper 声明 partial OK）
-- `USES` 必须指定 `sub_key`
-
----
-
-#### `AtomAdjustMarker`
-
-```gdscript
-class AtomAdjustMarker:
-    var kind: MarkerKind
-    var delta: int                   # 可正可负
-    var at: MarkerSlot
-    var clamp_min: int = 0
-    var clamp_max: int = 2147483647
-```
-
-**做什么**：单点 `at` 增减；**不与另一槽位配对**（创造/消灭标记）。
-
-**典型语义**：
-
-- Heal 2 damage：`delta = -2`, `at = card.DAMAGE`, `clamp_min = 0`
-- Gain 1 resource：`delta = +1`, `at = inv.RESOURCE`
-- Place doom on agenda：`delta = +1`, `at = DOOM_ON_AGENDA`
-- Take horror：`delta = +1`, `at = inv 或 card.HORROR`
-
-**与 Transfer 的边界（已裁决 OQ-07-02）**：
-
-| 操作 | 原子 |
+| 语义 | Transfer |
 |---|---|
-| Heal / 移除 affliction | **Adjust** 负 delta |
-| Move damage/horror A→B | **Transfer** |
-| Deal from 「虚无」 | **Adjust** 正 delta（或 POOL → 卡 用 Transfer） |
+| Deal / place affliction | `POOL_*` → bearer |
+| Heal / 回池 | bearer → `POOL_*` |
+| Move / 再分配 | bearer A → bearer B |
+| Discover clue | location → investigator（或经池，视地址模型） |
+| Gain resource | `POOL_RESOURCE` → investigator |
 
-**不触发** heal 相关 [reaction] 的判定：由 TimingBus 看 **语义标签**（Wrapper 在 Adjust 前标记 `semantic=heal`），非原子自身。
+**禁止** `adjust_marker` / 虚无 delta 糖：调用方必须显式写 `transfer_marker(kind, n, from, to)`（含 `MarkerSlot.supply(kind)` 池端点）。  
+**不检查** defeat（上层 `CheckDefeat`）。  
+heal 相关 [reaction]：TimingBus 看语义标签，非原子自身。
+
+#### ~~`AtomAdjustMarker`~~（废止）
+
+已删除。桌面标记只经 `AtomTransferMarker`。
 
 ---
 
-### 5.3 ③ 揭示与离散 — `AtomRevealCard` / `AtomSetFlag` / `AtomSetRef`
+### 5.3 ③ 卡牌形态 — `AtomFlipCard` / `AtomSetExhausted`
 
-**类职责**：非 pile、非 marker 守恒搬运的 **字段写入** — 含 Grimoire **Reveal（揭示卡牌）** 与 exhaust、地点翻面、引用等。
+**类职责**：桌上卡牌的 **物理形态**——哪一面朝上、是否横置。对应 `PhysicalOps.set_face` / `set_exhausted`（经 Domain 镜像）。
 
-#### `AtomRevealCard`
-
-> 规则 **明确命名** 的 Reveal；**不是** Presentation 旁路。
+#### `AtomFlipCard`（翻面）
 
 ```gdscript
-class AtomRevealCard:
+class AtomFlipCard:
     var card_id: StringName
-    var audience: FaceAudience       # CONTROLLER | ALL | HIDDEN_ALL
-    var controller_id: StringName    # audience=CONTROLLER 时同步 controller（遭遇 draw 等）
+    var face: CardFace                 # A | B
 ```
 
-**做什么**：写入 `CardInstance.face_visibility.audience`；`CONTROLLER` 时通常同步 `controller_id`。  
-**用户交互**：Presentation 读 Domain 后向对应观察者 **公开牌面**。  
-**Headless**：规则层始终有完整 `definition_id`；测试 assert `face_known_to(card, observer)`。
+**做什么**：写物理 `PhysicalCard.face`（及 Domain 镜像若有）。  
+**不做什么**：**不**写 `FaceAudience`；不决定「谁可知牌面」。
 
-| 操作 | audience | 场景 |
-|---|---|---|
-| `reveal_to_controller` | CONTROLLER | 调查员抽牌 D2；Hidden 对控制者；窥探仅自己可见 |
-| `reveal_to_all` | ALL | 遭遇 E2 公开；「全体看牌库顶」 |
-| `hide_from_all` | HIDDEN_ALL | Search 展示结束、恢复未知 |
+| 场景 | 形态 |
+|---|---|
+| 双面地点 / Act / Agenda 翻到另一面 | `face = B`（或回 `A`） |
+| 抽牌后把牌翻到正面朝上 | 常伴随信息层 Reveal，但本原子只翻面 |
 
-**与 MoveCard 边界**：Reveal **不改 zone**（D2 后 zone 仍可 DECK/Limbo；D3 才 MoveCard 入手）。
-
-**实现**：`StateMutator.reveal_to_*` 委托 `InformationExecutor`（历史类名；语义 = L0 揭示原语）。**dry-run** 成功 → **CREATED**。
-
-#### `AtomSetFlag`
+#### `AtomSetExhausted`（横置 / 重整）
 
 ```gdscript
-class AtomSetFlag:
-    var bearer_id: StringName
-    var field: FlagField
-    var value: Variant                 # bool 或 CardFace
+class AtomSetExhausted:
+    var card_id: StringName
+    var exhausted: bool                # true = 横置（约 90°）；false = 重整
 ```
 
-**典型**：Exhaust / Ready、Hidden、Flip Act/Agenda 面（`FACE`）、Location **`REVEALED`**（地点翻面）。
-
-**不做什么**：Reveal 地点的 **放线索、改连接** → `RevealLocationWrapper`（组合 Adjust + SetFlag + 可能 MoveCard）。
-
-#### `AtomSetRef`
-
-```gdscript
-class AtomSetRef:
-    var bearer_id: StringName
-    var field: RefField
-    var ref_id: StringName             # 空 = 清除
-```
-
-**典型**：
-
-- 调查员移动：`LOCATION` → 新 `location_id`（**不**自动 Reveal 地点；Wrapper 处理 enter）
-- Attach：`ATTACHED_TO` + 伴随 `AtomMoveCard` → `ATTACHED_TO` pile
-- Engage：`ENGAGED_WITH`（Domain 同步 enemy/investigator 双向集合）
-
-**Slot 占用**：`SLOT_*` 设置时 Domain 校验 slot 类型与互斥；非法则原子失败。
+**做什么**：写物理 orientation + Domain `exhausted`（现经 `ExhaustReadyFlow` / `PhysicalBinding.mirror_exhausted`）。  
+**入口**：规则书手续多为 `seq.effect.exhaust` / `seq.effect.ready`（命名流程），RESOLVE 内落地本原子——**不是**信息层 SetFlag 冒充形态。
 
 ---
 
-### 5.4 Domain 工厂（非效果原子）
+### 5.4 信息原语 = 不可见结算（**不是**状态原语）
+
+> **对齐**：除开物理层以外、**仍算结算**的那些——Register / Log / Remember…  
+> **可见性不在此列**（见 §5.4.1）。
+
+dry-run **CREATED**；**不是** Timing 订阅面。
+
+#### 5.4.0 族谱（不可见结算 · 收束）
+
+| 族 | 写哪里 | 说明 | 状态 |
+|---|---|---|---|
+| **A. Register** | `RegistrationStore` | lasting / 延时 / cannot / gain / blank / 挂能力 / **有效控制**… | **主量**（[06](06-registration-buff-model.md)） |
+| **B. Chronicle（记事）** | 场景/战役记事库 | 「在日志中记录…」∪「记住…」；键值/条目，**无**三种 Buff | **薄**；≠ `RulesMemory` |
+
+控制权、纯规则拓扑、Gain 特征等：**优先 Register Buff**，不单立信息原语族。
+
+**不是结算**：FaceAudience（权限）；物理三族；派生索引；`RulesMemory`；印刷 Spec；`effective_*` 查询。
+
+#### 5.4.1 可见性 = 权限 / 卡牌信息管理（**不是原语**）
+
+> **裁决（2026-10-24）**：牌面可见性是为游戏性服务的 **玩家权限式信息管理**，**不是**结算原语。  
+> 某些结算或命名流程步会 **自动同步** 可见性；**改变可见性本身不算一种结算**，dry-run **不**因仅改 Audience 而标 **CREATED**。
+
+```text
+结算 / 手续步（CREATED 看这些）
+  Move 入手 · 进弃牌 · Search 取牌 · Register · …
+        │
+        ▼ 可附带（政策，非效果叶）
+  FaceAudience / known_to   ← 谁被允许知道这张牌的牌面
+```
+
+| 问题 | 答 |
+|---|---|
+| 可见性纳入原语吗？ | **否** |
+| 改可见性算结算吗？ | **否**；是权限同步 |
+| 为何还有 `reveal_to_*` API？ | 手续/政策入口（D2/E2、窥探、Search 结束 hide）；**写权限**，不冒充效果叶 |
+| 纸面「Reveal the top card」？ | 常是 **手续步**（或伴物理翻面）；有意义的 CREATED 来自其后的取/弃/检定等，或根本无 CREATED |
+| Cancel revelation？ | Cancel 的是 **显现能力体**（Composition 效果），不是「取消 Audience 写入」；G4 仍 discard（FAQ） |
+
+与物理翻面 **正交**：面朝下仍可对控制者可知（隐私）；翻面是形态结算，Audience 是权限。
+
+实现可保留 `InformationExecutor.reveal_to_*` / `hide_from_all` 作为 **政策写入**；Composition 若仍有 reveal 节点，标注为 **权限同步**，L7 **不计** CREATED。
+
+#### 5.4.2 Register · 设计解剖（结算面 vs 载荷面）
+
+> 详：[06 §2–§5 / §9](06-registration-buff-model.md)。此处回答：**形态是什么、原语语境下还能不能拆。**
+
+```text
+┌─ 结算面（信息原语 · 仅此）─────────────────────┐
+│  Register / Unregister                         │
+│  = 插入或卸下一条 Registration                 │
+│  CREATED ⇔ 插入成功（Unload 亦为结算）           │
+└────────────────────────────────────────────────┘
+         │ 写出
+         ▼
+┌─ Registration（壳）────────────────────────────┐
+│  source · lifetime · scope · tags              │
+│  lasting vs 延时 = 只改 lifetime，不是两种原语  │
+└────────────────────────────────────────────────┘
+         │ 内含
+         ▼
+┌─ Buff 载荷（非原语 · Register 唯一可写物）─────┐
+│  行为三型：MODIFIER | RESTRICTION | LISTENER   │
+│  Gain 特征族：KEYWORD · TRAIT · ICON · ABILITY │
+│  扩展：有效控制、blank…                        │
+│  Gain 创建 → 可【衍生】再挂行为 Buff / 能力挂载 │
+└────────────────────────────────────────────────┘
+```
+
+| 轴 | 有什么 | 是原语吗？ |
+|---|---|---|
+| **结算** | Register · Unregister（**只能**写/卸 Buff） | **是** |
+| **壳参数** | lifetime · scope · source | **否** |
+| **载荷** | 行为三型 + Gain 特征族 | **否** |
+| **衍生** | Gain → 行为 Buff / Lifecycle mount | **否**（创建副作用；子项仍是 Buff 或挂载） |
+| **消费** | collect / COLLECT / ModifierEngine… | **否** |
+
+**行为三型**：
+
+| BuffType | 消费 | 典型 |
+|---|---|---|
+| **MODIFIER** | ModifierEngine | until… +1；伤害/发现量等 |
+| **RESTRICTION** | Eligibility / Intent | cannot；SKIP_AOO… |
+| **LISTENER** | Catalog → Composition | 「until… after…」；延时；**或** keyword Gain **衍生** |
+| **BLANK**（非 MODIFIER） | 压制印刷文本框 | 见 06；**不**走加减法 |
+
+**Gain 特征 Buff**（[06 §3.2](06-registration-buff-model.md)）：Register 写出「拥有」；**文本能力 / 行为 keyword** 在创建时 **衍生**（非改叫 LISTENER）：
+
+| 档 | Gain 载荷 | 衍生 |
+|---|---|---|
+| 只读 | TRAIT / ICON / 部分 KEYWORD | 通常无 |
+| 文本能力 / 行为 keyword | `ABILITY`+AbilitySpec 或 KEYWORD | Lifecycle mount；Profile → LISTENER/RESTRICTION/MODIFIER |
+
+**印刷能力不是 Buff**（进场挂载，不经 Register）。**效果 gains 能力** = Gain Buff → 衍生挂载。禁止 Register 旁路挂裸 AbilitySpec；禁止把印刷 Forced 举例成 LISTENER。详见 [06 §2.3 / §3.2.1a](06-registration-buff-model.md)。
+
+持续 vs 延时：**同一 Register**，差在 `DURATION/WHILE_*` vs `UNTIL_FIRED`（[06 §4](06-registration-buff-model.md)）。多 Buff 可同壳一次 Register（§5.4）。
+
+##### 原语语境下 Register 还能拆吗？
+
+| 拆法 | 结论 |
+|---|---|
+| 按 BuffType 拆成 3 个结算原语 | **否** — 共享壳与 Store；差别在载荷 |
+| 拆 lasting / delayed 两套原语 | **否** — 已并 lifetime |
+| 拆 Register vs Unregister | **可选** 语法糖；语义上是一对互逆写 |
+| 拆「拥有标记」vs「行为 Buff」为两套 Store | **不建议** — 同为 Registration；查询已分 `has_effective` / collect(type) |
+| 把 Chronicle 并进 Register（FACT Buff） | **可但不必** — 记事无 lifetime/三型消费，保持薄库更干净 |
+
+**裁决倾向**：**信息原语结算面不再拆**——就是 Register（± Unregister）。复杂度留在 **Buff 形态与 Lifetime**，不要再增殖结算动词。
+
+**与发起有效性**：Register 留在原语内，正是为了 L7 dry-run——「只挂 Buff、不动子」仍算干了点什么；空效果体另用 `EmptySettle`（§4.1.2 composition）；真挂 Buff 仍靠 Register。
+
+卡面创建经 `seq.effect.register`；禁止真空 `RegistrationStore.register`。
+
+#### 5.4.2b Register 作为信息原语：怎么包装 / 丰富
+
+> 结算面保持极薄；**丰富发生在壳参数与 Buff 载荷**，不增殖 `seq.effect.*` 结算动词。
+
+```text
+Composition / 卡面
+  └─ nest 或内联 → seq.effect.register | unregister     ← 唯一结算包装
+        params: RegistrationTemplate
+          ├─ 壳：source · lifetime · scope · tags · referents…
+          └─ buffs[]：BuffSpec { type, payload, … }
+                ├─ MODIFIER      → ModifierEngine
+                ├─ RESTRICTION   → Eligibility / Intent
+                ├─ LISTENER      → Catalog fire → Composition（效果创造的延时/持续壳内听）
+                └─ 拥有标记      → has_effective_*（再按需挂行为 Buff）
+```
+
+| 层 | 包装什么 | 丰富方向 | 不要塞什么 |
+|---|---|---|---|
+| **结算 API** | `register(template)` / `unregister(id\|filter)` | 保持两动词；CREATED=插入成功 | 按 BuffType 拆 `seq.effect.modifier` 等 |
+| **壳 Lifetime** | `WHILE_*` / `DURATION` / `UNTIL_FIRED` / `UNTIL_CONDITION` | 补齐纸面 until/while；tick 边界先于同界 Listener | 另开 LastingStore |
+| **壳 Scope / source** | 谁受益、绑哪张源卡 | 有效控制、宿主离场卸 | 真空改 `controller_id` 当原语 |
+| **MODIFIER payload** | stat · op · value · stacking | 技能/费用/伤害量等数值 | 把 **blank** 塞进 MODIFIER |
+| **BLANK payload** | 空白哪些框/面 | 视为空白印刷文本 | 当数值修正；抹 gained（RR：不抹） |
+| **RESTRICTION payload** | RestrictionKind + 参数 | cannot 族、SKIP_AOO、冷漠、交战、**有效控制**、拓扑限制 | 把 Prey/Spawn 指令做成 Restriction |
+| **LISTENER payload** | timing slot + Composition / nest seq | 效果创造的「until… after…」与纯延时 | 印刷 Forced / `[reaction]`（能力） |
+| **Gain 族** | 几乎全部能力类型（含 Forced、关键词）+ TRAIT/ICON/数值 | Grant → AbilitySpec / 标记 / MODIFIER | 把 Gain 收成仅 KEYWORD |
+| **糖 template** | `lasting_modifier` / `skip_aoo` / `gained_keyword…` | 编译期/Builder 展开为完整 Template | 运行时糖 Atom 吞多步 |
+
+**包装纪律（与物理原语对称）**：
+
+1. **薄结算、厚载荷** — 信息原语对外只有 Register/Unregister；花样全在 Template。  
+2. **一律经命名流程** — `seq.effect.register` / `unregister`；Composition 叶禁止直写 Store。  
+3. **一次 Register 可多 Buff 同壳** — 同一 lifetime 罩住 +1 与「每次…」（[06 §5.4](06-registration-buff-model.md)）。  
+4. **查询不是原语** — `collect` / `has_effective_*` / ModifierEngine 为厚读。  
+5. **与 Chronicle 分家** — 日志/记住不进 BuffType；需要时另叶。  
+6. **与 EmptySettle 分家** — 无正文事件用不写入的空叶过发起门；有 lasting 正文仍 Register。
+
+**优先丰富清单**（不改结算动词）：
+
+| 优先级 | 丰富点 | 用途 |
+|---|---|---|
+| P0 | RestrictionKind 报表完备 | cannot / 入口改道（SKIP_AOO 等） |
+| P0 | Lifetime 与离场/帧 tick 对齐 | 险境、隐私、UNTIL_FIRED |
+| P1 | 有效控制；**BLANK** 独立载荷（≠ MODIFIER） | 文本框空白进 effective 公式 |
+| P1 | LISTENER payload 与 AbilitySpec 边界测试 | 防 Forced 误编进 Buff |
+| P2 | Template 工厂覆盖纸面句式 | 编译器少手写壳字段 |
+
+#### 5.4.3 Chronicle（记事）· 日志 ∪ 记住
+
+简单、无 Buff 三型：追加/写入条目或键值；后文「若日志有… / 若记得…」只读。  
+≠ 事件回放 UI；≠ 步间 `RulesMemory`。可进 Composition 为薄结算叶；**不是** Register 的第四 BuffType。
+
+#### 派生索引 vs 直读（策略裁决）
+
+实体规模小（1–4 调查员、场面卡数十张量级），**直读物理 / 经投影函数扫描的开销通常可接受**。单独做「延迟失效缓存」要挂的更新点反而多（Move、交战进出威胁区、附着、击败退场、翻面、线索 Transfer…），漏一处 = 静默错局面，代价高于多几次扫描。
+
+| 策略 | 何时用 | 风险 |
+|---|---|---|
+| **A. 直读投影**（默认） | `enemies_at(loc)`、`cards_in(region)` 每次从物理区算 | 热路径上重复扫描；逻辑简单、无陈旧 |
+| **B. 咽喉双写** | 仅在 `StateMutator.move_card` / `transfer_marker` / `flip` **同一事务**写 Domain 索引 | 可接受；**不是**散落 listener 缓存 |
+| **C. 延迟失效缓存** | **默认不用** | 触发面大、易漏；仅 profile 证明热点后再考虑，且失效必须挂咽喉而非各 flow |
+
+**裁决**：默认 **A**；现有 `location_tag` / threat 列表若保留，按 **B** 在 Mutator 咽喉维护，文档称 **派生索引**，不称信息原语。禁止演进成 C。
+
+| 字段（例） | 权威 | 维护 |
+|---|---|---|
+| 位置 / 威胁区 / 附着 | 物理区 | A 直读，或 B 咽喉索引 |
+| `LocationState.revealed` | 形态 + 线索标记 | 同上 |
+| 常规 `controller` | 手牌/场地区属主 | 同上；隐私例外可与 audience 绑定 |
+
+#### 卡牌信息解析（厚读 · **非**新写原语）
+
+卡面印刷与生效特征 **是信息**，但走 **目录 + Register 查询**，不新增「图标原语」：
+
+```text
+effective(card) =
+    printed(CardDefinition)          # 技能投入图标、连接、特性、关键词、能力文本…
+      ∪ gained(Register)             # Gain 图标/特性/关键词/能力（Grimoire：视为具备）
+      − blank_printed(Register)      # 文本框 blank：抹印刷；gained 不被 blank（RR）
+```
+
+| 来源 | 归属 | 说明 |
+|---|---|---|
+| 印刷图标 / 连接 / 特性 | `CardDefinition` 只读目录 | 导入期；信息层 **读** |
+| Gain … | **Register**（创建经 `seq.effect.register`） | 查询须区分 `is_printed_*` vs `has_effective_*`（[06 §Gain](06-registration-buff-model.md)） |
+| 视为空白 blank | **Register · BLANK**（**不是** MODIFIER） | 压制 **印刷** 文本框；不抹 gained；改的是 effective 读径，不是 +/− 数值 |
+| 谁看得到牌面 | **权限层** `FaceAudience`（非原语） | 与印刷/生效特征正交 |
+
+检定 commit、连接图、关键词开火等：**只问 `effective_*`**，禁止手续直接假定「等于印刷」。
+
+#### 厚读 ≠ 不可见结算
+
+| 厚（不结算） | 不可见结算叶（信息原语） |
+|---|---|
+| 直读投影、Eligibility、场合、`RulesMemory`、**Audience 权限** | A Register · B Log · C Remember · … |
+| `effective_*` **查询** | Gain / blank **创建** = A |
+| Register / log / 记忆的 **读取** | 对应库的 **写入** |
+| 印刷 Spec | — |
+
+---
+
+### 5.5 Domain 工厂（非效果原子）
 
 | 操作 | 归属 | 说明 |
 |---|---|---|
@@ -499,7 +704,7 @@ Spawn 敌人/Asset = `Create` + `AtomMoveCard`（Wrapper 或 Simultaneous 组）
 |---|---|---|
 | **选择/搜索** | search top 5, choose card | L1 `Choice` + 查询 API；选中后 `MoveCard` |
 | **洗牌** | shuffle deck | Domain 工具 `PileOps.shuffle`；宏 `Shuffle(deck)` 调用之 |
-| **伤害 Assign** | soak、direct、prevent | `DamageWrapper` 步骤；输出多个 Adjust/Transfer |
+| **伤害 Assign** | assign、direct、prevent | `DamageWrapper` 步骤；输出多个 Adjust/Transfer |
 | **检定** | ST.1–ST.8 | `SkillTestEngine` |
 | **Initiation** | pay cost, AOO | `AbilityInitiationPipeline` |
 | **Timing** | Cancel, Replacement, After | `TimingBus` |
@@ -544,7 +749,7 @@ Draw(1) := Choice? + MoveCard(deck.TOP → hand.BOTTOM)
 ```gdscript
 class AtomicRecord:
     var seq: int
-    var atom_kind: StringName    # move_card | reveal_card | transfer_marker | adjust_marker | set_flag | set_ref
+    var atom_kind: StringName    # move_card | transfer_marker | flip_card | set_exhausted | (+ info: reveal_audience …)
     var payload: Dictionary      # 地址 + 数值 + card_id
     var state_hash: String
 ```
@@ -580,10 +785,10 @@ CompositionExecutor.run(tree)
 | 旧 EffectOp | 展开 |
 |---|---|
 | DRAW_CARDS | `Repeat(n, MoveCard deck→hand)` |
-| GAIN_RESOURCE | `AdjustMarker(RESOURCE, +n)` |
-| HEAL | `AdjustMarker(DAMAGE\|HORROR, -n, clamp_min=0)` + semantic heal |
-| TRANSFER_AFFLICTION | `TransferMarker(DAMAGE\|HORROR, n, A, B)` |
-| DEAL_DAMAGE | `DamageWrapper` → Assign → 若干 `AdjustMarker` |
+| GAIN_RESOURCE | `TransferMarker(POOL_RESOURCE → inv.RESOURCE, n)` |
+| HEAL | `TransferMarker(bearer → POOL_*, n)` + semantic heal |
+| TRANSFER_AFFLICTION | `MarkerTransferBatch` → 若干 `TransferMarker`（每腿 1:1） |
+| DEAL_DAMAGE | `DamagePipeline` → Assign → 若干 `TransferMarker(POOL → bearer)` |
 | DISCOVER_CLUE | `TransferMarker(CLUES_ON_LOCATION, n, loc, inv)` |
 | EXHAUST / READY | `SetFlag(EXHAUSTED, true/false)` |
 | MOVE_INVESTIGATOR | `SetRef(LOCATION, loc)` + enter Wrapper 可选 |
@@ -609,9 +814,12 @@ CompositionExecutor.run(tree)
 | ID | 问题 | 建议默认 |
 |---|---|---|
 | OQ-PRIM-01 | Leave play 时 attachment discard 顺序是否可见 | 否；Simultaneous 组内原子，无顺序依赖 |
-| OQ-PRIM-02 | `AdjustMarker` heal 是否允许超过当前 damage（浪费） | 允许；clamp 在 0，多余 delta 丢弃 |
+| OQ-PRIM-02 | heal 超过当前 damage（浪费） | Transfer 量夹到当前值；多余不取 |
 | OQ-PRIM-03 | Engage 是否一个 `SetRef` 还是 Ref+MoveCard 两个原子 | **两个原子** Seq；Wrapper `Engage` 保证顺序 |
 | OQ-PRIM-04 | 调查员 defeated 时 clues 归地点 | Wrapper：`TransferMarker` CLUES_ON_INVESTIGATOR → CLUES_ON_LOCATION |
+| OQ-PRIM-05 | 控制/归属是否单立 E 族 | 无区 Move 时倾向 **是** |
+| OQ-PRIM-06 | 纯规则改图是否单立 F 族 | 无物理标记时倾向 **是** |
+| OQ-PRIM-07 | Log 与 Remember 是否合并为一个「记忆库」原子族 | 纸面常分写；存储可同后端不同 API |
 
 ---
 
@@ -619,6 +827,24 @@ CompositionExecutor.run(tree)
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-24 | v0.3.28 | Register 只写 Buff；Gain 创建可衍生行为 Buff / 能力挂载 |
+| 2026-10-24 | v0.3.27 | Gain 分档：只读特征 vs 文本能力（注册+初始化，同印刷挂载） |
+| 2026-10-24 | v0.3.26 | Gain 可含 Forced/触发/Constant/关键词等几乎全部能力类型 |
+| 2026-10-24 | v0.3.25 | §5.4.2：Gain 特征族含触发/永续能力；纠正「只有 KEYWORD 标记」 |
+| 2026-10-24 | v0.3.24 | §5.4.2b：Register 包装/丰富 — 薄 API、厚壳与 Buff；优先 RestrictionKind/Lifetime/控制 |
+| 2026-10-24 | v0.3.23 | §0：Register 作原语 ↔ 发起有效性；物理∧Register 皆无 CREATED = 空结算禁发起 |
+| 2026-10-24 | v0.3.22 | §5.4.2：LISTENER Buff 举例改为 lasting/延时；Forced/reaction = 能力 |
+| 2026-10-24 | v0.3.21 | §5.4：信息原语≈Register+Chronicle；控制走 Buff；Register 结算面不按 BuffType 拆 |
+| 2026-10-24 | v0.3.20 | §0/§5.4.1：FaceAudience = 权限/信息管理，非结算原语；不单独 CREATED |
+| 2026-10-24 | v0.3.19 | §5.4.2：Register = 结算动词；Buff = Registration 载荷（非第二套原语） |
+| 2026-10-24 | v0.3.18 | §0/§5.4：信息原语 = 不可见结算；含 Register·Log·Remember·Audience；废「只有 Audience + Register 旁路」 |
+| 2026-10-24 | v0.3.17 | §5.4.0：信息原语盘点（后由 v0.3.18 改对齐） |
+| 2026-10-24 | v0.3.16 | §0.0：原语 = 能影响游戏的结算（必须做事）；厚读 ≠ 原语 |
+| 2026-10-24 | v0.3.15 | §5.4：直读优先 vs 咽喉双写；卡牌生效特征 = 印刷∪Gain−blank（读路径） |
+| 2026-10-23 | v0.3.14 | §5.4 收薄：信息原语主轴仅可见性；引用/多数旗 → 物理派生索引 |
+| 2026-10-23 | v0.3.13 | §0/§5.4：信息原语初稿（后收薄为 v0.3.14） |
+| 2026-10-23 | v0.3.12 | §0/§5：状态原语仅物理层；③=翻面/横置；Reveal/`FaceAudience`/SetRef → §5.4 信息层 |
+| 2026-10-23 | v0.3.11 | §5.2：桌面标记仅 Transfer；供给池无穷；废止 Adjust 为桌面 L0 |
 | 2026-09-21 | v0.3.10 | §3：L2 宏展开为 `seq.effect.*`（纸面无名也铸造）；07-composition §1.3.3 |
 | 2026-09-21 | v0.3.9 | Fast 只改打出窗口/花费；种类始终 `PLAY_CARD`，不是能力 |
 | 2026-09-21 | v0.3.8 | Fast 打出与触发对称；不新增 BuffType |

@@ -120,3 +120,18 @@ func run_full_round_investigators(count: int) -> bool:
 		if i < count - 1 and not advance_to_action_phase():
 			return false
 	return run_through_step(AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS)
+
+
+## 遭遇显现入口：nest `seq.encounter.revelation`（禁裸 resolve_revelations）。
+func resolve_encounter_revelation(
+	card_id: StringName,
+	drawer_id: StringName = &"inv_1"
+) -> bool:
+	if ctx == null or ctx.sequence_catalog == null:
+		return false
+	var nest_result := ctx.sequence_catalog.nest(
+		ctx,
+		&"seq.encounter.revelation",
+		{"drawer_id": drawer_id, "card_id": card_id}
+	)
+	return bool(nest_result.get("resolved", false))

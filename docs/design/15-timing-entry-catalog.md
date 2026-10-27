@@ -180,19 +180,20 @@ Grimoire 规范流程
 
 **卡牌正文**不走单独原子表，也不登记 `seq.card…`：编译为 **Composition 树**（同样落地 L0）。树节点 **嵌 nest** 已有规则手续 `seq.*` 时，外层是砖块 SUBSEQUENCE，内层仍是卡面 Composition。
 
-#### 状态原语（L0）— 三类（07-primitives §2、§5）
+#### 状态原语（L0）— 三类 · **仅物理层**（07-primitives §0、§5）
 
-[07-effect-primitives §2](07-effect-primitives.md) **已裁决**：复杂效果 = **卡牌地址 + 标记/计数 + 揭示与离散**：
+[07-effect-primitives](07-effect-primitives.md) **已裁决**：状态原语只覆盖桌面实体；**信息层写入另算**：
 
-| 类 | 改什么 | 典型子操作 |
+| 类 | 改什么（物理） | 典型子操作 |
 |---|---|---|
-| **① 卡牌地址** | `CardSlot`、zone、顺序 | `AtomMoveCard` |
-| **② 标记/计数地址** | `MarkerSlot`；含 pool 端点 | `AtomTransferMarker`；`AtomAdjustMarker` |
-| **③ 揭示与离散** | `FaceAudience`；标志/引用 | **`AtomRevealCard`** → `reveal_to_*`；`AtomSetFlag`；`AtomSetRef` |
+| **① 卡牌地址** | 区、次序 | `AtomMoveCard` |
+| **② 标记/计数地址** | `MarkerSlot`；∞ 供给池 | **`AtomTransferMarker` only** |
+| **③ 卡牌形态** | 正反面；横置/重整 | `AtomFlipCard`；`AtomSetExhausted` |
 
-**Register** 是效果但 **不是** L0；整流程 **Draw/DealDamage/Play** = 命名 `seq.*` 展开为 L0 + Register。
+**信息层**（`FaceAudience` / 地点指称等）**不是**状态原语；Grimoire Reveal 仍是效果。  
+**Register** 是效果但 **不是** L0。整流程 **Draw/DealDamage/Play** = 命名 `seq.*` 展开为物理 L0 + 信息写入 + Register。
 
-`CompositionNode.atom_name` 是 **调用包装**，必须归约到 L0（含 **Reveal**）或 Register 路径。
+`CompositionNode.atom_name` 是 **调用包装**，须归约到物理 L0、信息写入或 Register。
 
 #### 砖块（Brick）— 边界
 
@@ -200,8 +201,8 @@ Grimoire 规范流程
 
 | Brick | 改 GameState？ | 改 Registration？ | 典型 |
 |---|---|---|---|
-| **EFFECT** | 是（经 L0/L1，含 **Reveal**） | 可（Register 节点） | `reveal_batch`、`commit_enter_hand`、E3 RESTRICTION |
-| **REVEAL** | **是**（③ `AtomRevealCard`，类内子操作） | 否 | D2/E2 `reveal_to_*`（Grimoire Reveal 步） |
+| **EFFECT** | 是（物理 L0 / 信息写入 / Composition） | 可（Register 节点） | `commit_enter_hand`、E3 RESTRICTION、形态原子 |
+| **REVEAL** | **是**（**信息层** `FaceAudience`；可另伴物理翻面） | 否 | D2/E2 `reveal_to_*`（Grimoire Reveal 步） |
 | **SUBSEQUENCE** | 委托子 seq | 委托 | `nest seq.draw.empty_piles_defeated`、`nest seq.enter_hand` |
 | **FRAMEWORK_STEP** | 经框架通道 | — | Upkeep 步进、阶段切换 |
 
@@ -211,8 +212,8 @@ Grimoire 规范流程
 
 | Brick | 改 GameState？ | 改 Registration？ | 典型 |
 |---|---|---|---|
-| **EFFECT** | 是（经 L0/L1） | 可（L2 Register） | G0–G2：`pop_deck_top`、`shuffle_and_horror`、E3 RESTRICTION |
-| **REVEAL** | **是**（③ 揭示与离散） | 否 | D2/E2 `reveal_to_*` |
+| **EFFECT** | 是（物理 L0 / 信息写入） | 可（L2 Register） | G0–G2：`pop_deck_top`、`shuffle_and_horror`、E3 RESTRICTION |
+| **REVEAL** | **是**（信息层 Reveal） | 否 | D2/E2 `reveal_to_*` |
 | **SUBSEQUENCE** | 委托 | 委托 | nest 已有 `seq.*` |
 | **FRAMEWORK_STEP** | 经框架通道 | — | Upkeep 步进 |
 
@@ -502,8 +503,8 @@ seq.action.draw                          ← 另一命名 seq（耗 action）
 
 ```gdscript
 enum BrickKind {
-    EFFECT,          # L0 原子 / Composition 落地（改 zone、伤害等）
-    REVEAL,          # AtomRevealCard：写 FaceAudience（Grimoire Reveal；是 L0 效果）
+    EFFECT,          # 物理 L0 / Composition 落地（区、标记、形态等）
+    REVEAL,          # 信息层 FaceAudience（Grimoire Reveal；是效果，不是物理状态原语）
     SUBSEQUENCE,     # 嵌套另一条 RuleSequence
     FRAMEWORK_STEP,  # 框架步（框架通道）
 }
@@ -511,8 +512,8 @@ enum BrickKind {
 
 | Brick | 是否「效果施加」 | 典型 |
 |---|---|---|
-| **EFFECT** | 是 | G0–G2：MoveCard、Register RESTRICTION、`enter_hand` |
-| **REVEAL** | **是**（③ AtomRevealCard） | `FaceAudience` → CONTROLLER / ALL（[01 §3.6](01-game-state-zones.md)） |
+| **EFFECT** | 是 | G0–G2：MoveCard、Register RESTRICTION、`enter_hand`、横置 |
+| **REVEAL** | **是**（信息层 Reveal） | `FaceAudience` → CONTROLLER / ALL（[01 §3.6](01-game-state-zones.md)） |
 | **SUBSEQUENCE** | — | **Delegate**：跨命名 seq 复用（如 action.draw → draw.investigator） |
 | **FRAMEWORK_STEP** | — | Upkeep 步进、阶段切换 |
 
@@ -724,13 +725,13 @@ nest_batch seq.enter_hand                                  ← 结算剩余（�
 | 步骤 | 内联/嵌套 | 因果 vs 连续 | 应 emit 的 TimingEntry | 典型能力 | 实现 |
 |---|---|---|---|---|---|
 | D0 push | 根 `run` | 整段 draw **开始** | — | — | ✅ |
-| **WOULD** | — | 这次抽取 PreImpact | 父 **WOULD** | would draw · 牌在 **DECK** | ⚠️ 未 emit |
-| D1 collect ×N | **内联** | **连续**（发起 impact 离库） | — | — | ✅ pop 过早于 Would（缺口） |
+| **WOULD** | — | 这次抽取 PreImpact（= 整段第一块前） | 父 **WOULD** | would draw · 牌在 **DECK** | ✅ 信封头（`split_timing`；TIM-01） |
+| D1 collect ×N | **内联** | **连续**（发起 impact 离库） | — | — | ✅ 在 WOULD 之后 |
 | D1 两堆空 | **nest** | **因果**：空库 **导致** defeated | （abort；无父 AFTER） | — | ✅ |
-| D2 reveal | **内联** | **连续**：发起 impact | — | — | ❌ |
-| D3 物理入手 | **内联** | **连续**：抽取步骤完成 → **HAND** | 父 **WHEN** | when you draw | ❌ |
+| D2 reveal | **内联** | **连续**：发起 impact | — | — | ✅ |
+| D3 物理入手 | **内联** | **连续**：抽取步骤完成 → **HAND** | 父 **WHEN** | when you draw | ✅ `offer_slot` 在入手后、显现前 |
 | D3 显现 | **nest** | **因果**：入手 **触发** Revelation | 子 `(enter_hand, slot)` | Revelation | ✅ nest |
-| D5 pop | 父 pop | 该次抽取结算完毕 | 父 **AFTER** | after you draw | ✅ pop；❌ offer |
+| D5 pop | 父 pop | 该次抽取结算完毕 | 父 **AFTER** | after you draw | ✅ |
 
 **结构决策（因果优先）**：
 
@@ -1445,7 +1446,7 @@ seq.draw.investigator RESOLVE (D1 collect_one_step):
 | Mythos 1.4（每位调查员） | `ScenarioSystem.resolve_encounter_draw(inv)` → `catalog.run(seq.draw.encounter, {drawer_id, amount: 1})` |
 | 卡牌效果「draw N encounter cards」 | 同上，`amount = N` |
 | Setup 14 game begins | 仅结算 **deferred** 显现；Setup 1–13 **不**进入本管线（OQ-10-01） |
-| Act/Agenda b 面 encounter | 按 encounter cardtype 规则；可 nest 同一 `seq.encounter.*` 子 flow |
+| Act/Agenda b 面 encounter | nest `seq.encounter.resolve_card`（`as_drawn=false`）：进场+显现同抽取规则；**不** emit/nest `encounter_card_drawn`；无 surge when-drawn 槽 |
 
 `ScenarioSystem` **不** proliferate 逐步逻辑；只做 framework 步进与 `catalog.run` 委托（对齐 [10 §2](10-scenario-encounter.md)）。
 
@@ -1458,7 +1459,7 @@ seq.draw.investigator RESOLVE (D1 collect_one_step):
 | `pop_encounter_deck_top` | L0 | deck → limbo/pending；append `encounter_pending` |
 | `shuffle_encounter_discard_into_deck` | L0 | 遭遇弃牌堆洗回牌库 |
 | `shuffle_encounter_discard` | L1 Seq | 仅洗弃，**无** horror marker |
-| `reveal_to_all` | L0 **AtomRevealCard** | `FaceAudience.ALL` |
+| `reveal_to_all` | 信息层 Reveal（非物理 L0） | `FaceAudience.ALL`；可另伴物理翻面 |
 | `discard_to_encounter_pile` | L0 | treachery 默认 E5 |
 | `discard_spawn_failed` | L0 | owner 路由（委托 08 §7.4） |
 

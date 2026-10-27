@@ -338,13 +338,20 @@ static func _move_marker(game_ctx: GameContext, params: Dictionary) -> Dictionar
 			"amount": amount,
 			"move_kind": move_kind,
 		})
-	## 地点上的标记：当前 Domain 以 LocationState.clues 承载线索。
+	## 地点上的标记：Domain 以 LocationState.clues 承载；经 Transfer 搬运。
 	if kind != AhcEnums.MarkerKind.CLUE and kind != int(AhcEnums.MarkerKind.CLUE):
 		return {"ok": false, "error": "unsupported_location_marker"}
 	if from_loc.clues < amount:
 		return {"ok": false, "error": "insufficient_markers"}
-	from_loc.clues -= amount
-	dest_loc.clues += amount
+	if game_ctx.mutator == null:
+		return {"ok": false, "error": "no_mutator"}
+	if not game_ctx.mutator.transfer_marker(
+		AhcEnums.MarkerKind.CLUE,
+		amount,
+		MarkerSlot.location(from_id, AhcEnums.MarkerKind.CLUE),
+		MarkerSlot.location(dest_id, AhcEnums.MarkerKind.CLUE)
+	):
+		return {"ok": false, "error": "transfer_failed"}
 	_log_move(game_ctx, SUBJECT_MARKER, &"clue", from_id, dest_id, {
 		"amount": amount,
 		"move_kind": move_kind,

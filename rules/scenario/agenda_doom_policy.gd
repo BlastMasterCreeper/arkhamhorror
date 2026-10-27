@@ -21,6 +21,8 @@ static func clear_all_doom(game_ctx: GameContext) -> int:
 		return 0
 	var cleared := doom_in_play(game_ctx.state)
 	game_ctx.state.doom_on_agenda = 0
+	if game_ctx.state.physical_binding != null:
+		game_ctx.state.physical_binding.mirror_agenda_doom_set(game_ctx.state, 0)
 	for enemy_id in game_ctx.state.registry.all_enemy_ids():
 		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 		if enemy != null and enemy.doom > 0:

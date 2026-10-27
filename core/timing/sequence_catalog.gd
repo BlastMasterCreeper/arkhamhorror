@@ -6,15 +6,21 @@ enum EntryKind { RUN, NEST_BATCH }
 var _entries: Dictionary = {}
 
 
+## `split_timing`：信封头 WOULD（抽牌 SPLIT）。`no_envelope_slot`：信封不开槽，
+## 由 handler 在砖块边界 `offer_slot`（伤害 Apply 等）。
 func register_run(
 	flow_id: StringName,
 	build_trigger: Callable,
-	resolve: Callable
+	resolve: Callable,
+	split_timing: bool = false,
+	no_envelope_slot: bool = false
 ) -> void:
 	_entries[flow_id] = {
 		"kind": EntryKind.RUN,
 		"build_trigger": build_trigger,
 		"handler": resolve,
+		"split_timing": split_timing,
+		"no_envelope_slot": no_envelope_slot,
 	}
 
 
@@ -45,7 +51,12 @@ func run(game_ctx: GameContext, flow_id: StringName, params: Dictionary = {}) ->
 	var build_trigger: Callable = entry.get("build_trigger", Callable())
 	if game_ctx != null and game_ctx.sequences != null and build_trigger.is_valid():
 		var trigger: TriggeringCondition = build_trigger.call(params)
-		game_ctx.sequences.run(trigger, resolve_fn)
+		game_ctx.sequences.run(
+			trigger,
+			resolve_fn,
+			bool(entry.get("split_timing", false)),
+			bool(entry.get("no_envelope_slot", false))
+		)
 	else:
 		resolve_fn.call()
 	return resolved[0]
@@ -81,7 +92,12 @@ func nest(game_ctx: GameContext, flow_id: StringName, params: Dictionary = {}) -
 	var build_trigger: Callable = entry.get("build_trigger", Callable())
 	if game_ctx != null and game_ctx.sequences != null and build_trigger.is_valid():
 		var trigger: TriggeringCondition = build_trigger.call(params)
-		game_ctx.sequences.nest(trigger, resolve_fn)
+		game_ctx.sequences.nest(
+			trigger,
+			resolve_fn,
+			bool(entry.get("split_timing", false)),
+			bool(entry.get("no_envelope_slot", false))
+		)
 	else:
 		resolve_fn.call()
 	return resolved[0]

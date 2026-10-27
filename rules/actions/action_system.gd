@@ -114,9 +114,15 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 				)
 				result["amount"] = gain_result.get("amount", 1)
 			elif _mutator:
-				inv.resource_pool += 1
+				_mutator.transfer_marker(
+					AhcEnums.MarkerKind.RESOURCE,
+					1,
+					MarkerSlot.supply(AhcEnums.MarkerKind.RESOURCE),
+					MarkerSlot.investigator(investigator_id, AhcEnums.MarkerKind.RESOURCE)
+				)
+				result["amount"] = 1
 			else:
-				inv.resource_pool += 1
+				return {"ok": false, "error": "resource_unavailable"}
 		AhcEnums.ActionType.DRAW:
 			if _action_sequences and _game_ctx:
 				result = _action_sequences.draw(
@@ -125,9 +131,8 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 					1,
 					[&"draw_action"]
 				)
-			elif _mutator:
-				result = _mutator.perform_draw_action(investigator_id)
 			else:
+				## 禁 mutator 抽牌旁路（I2 / run_mutator_only）。
 				result = {"ok": false, "error": "draw_unavailable"}
 		AhcEnums.ActionType.MOVE:
 			result = _run_resolved_action(AhcEnums.ActionType.MOVE, investigator_id, extra)

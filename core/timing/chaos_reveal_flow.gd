@@ -65,5 +65,6 @@ static func _fire_after_reveal_hooks(
 		var node: CompositionNode = hook.get("composition") as CompositionNode
 		if node == null:
 			continue
-		if game_ctx != null and game_ctx.composition != null:
-			game_ctx.composition.execute(node)
+		if game_ctx != null:
+			var inv := ctx.performing_investigator if ctx != null else &""
+			CompositionMount.resolve_ability(game_ctx, node, inv)

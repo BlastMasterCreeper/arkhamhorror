@@ -32,6 +32,8 @@ static func from_sequence(
 			ctx.referents["encounter_drawer_id"] = peril_frame.drawer_id
 			ctx.referents["drawn_card_id"] = peril_frame.current_card_id
 	match phase:
+		AhcEnums.SequencePhase.WOULD:
+			ctx.timing = StringName("would_%s" % trigger.kind)
 		AhcEnums.SequencePhase.WHEN:
 			ctx.timing = StringName("when_%s" % trigger.kind)
 		AhcEnums.SequencePhase.AFTER:

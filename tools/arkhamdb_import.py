@@ -80,15 +80,26 @@ def parse_traits(raw: str | None) -> list[str]:
 
 
 def extract_keywords(card: dict[str, Any], text: str) -> list[str]:
+    """关键词来自卡面文本行；`permanent` 可用 JSON 字段。
+
+    ArkhamDB JSON 的 `hidden: true` **不是** 隐私（Hidden）关键词——常表示
+    linked/b 面不单独进遭遇库列表（如 01121b / 12179b）。隐私只认文本 `Hidden`。
+
+    关键词常在 Spawn/Prey 行之后单独成行（如 01121b 的 `Hunter.`），故扫前若干行。
+    """
     keywords: list[str] = []
-    if card.get("hidden"):
-        keywords.append("hidden")
     if card.get("permanent"):
         keywords.append("permanent")
-    header = text.split("\n")[0] if text else ""
-    for name, pat in KEYWORD_LINE_PATTERNS:
-        if pat.search(header) and name not in keywords:
-            keywords.append(name)
+    lines = [ln.strip() for ln in (text or "").split("\n") if ln.strip()]
+    for line in lines[:8]:
+        # 能力体开始后不再当关键词行（避免 Flavor/规则句误伤）
+        if re.match(r"^(Forced|Revelation|\[action\]|\[reaction\]|\[fast\])", line, re.I):
+            break
+        if re.match(r"^While\b", line, re.I):
+            break
+        for name, pat in KEYWORD_LINE_PATTERNS:
+            if pat.search(line) and name not in keywords:
+                keywords.append(name)
     return keywords
 
 
@@ -127,7 +138,28 @@ def skills_icons(card: dict[str, Any]) -> dict[str, int]:
     return icons
 
 
-def enemy_block(card: dict[str, Any]) -> dict[str, Any]:
+def _health_bonus_per_investigator(text: str) -> int:
+    """卡面「gets +N health per investigator」（非印刷 [per_investigator] 图标）。"""
+    match = re.search(
+        r"gets?\s*\+(\d+)\s*health\s*per\s*investigator",
+        text or "",
+        re.I,
+    )
+    return int(match.group(1)) if match else 0
+
+
+def _forbids_clues_while_engaged(text: str) -> bool:
+    """交战期间不能发现/花费线索（01121b Masked Hunter）。"""
+    return bool(
+        re.search(
+            r"while you are engaged with .+?,\s*you cannot discover or spend clues",
+            text or "",
+            re.I | re.S,
+        )
+    )
+
+
+def enemy_block(card: dict[str, Any], text: str = "") -> dict[str, Any]:
     keys = [
         "health",
         "enemy_fight",
@@ -150,6 +182,9 @@ def enemy_block(card: dict[str, Any]) -> dict[str, Any]:
     ]:
         if src in card:
             block[dst] = card[src]
+    bonus = _health_bonus_per_investigator(text)
+    if bonus > 0:
+        block["health_bonus_per_investigator"] = bonus
     return block
 
 
@@ -177,9 +212,12 @@ SKILL_ICON_TO_NAME = {
 
 def extract_spawn_line(text: str) -> str | None:
     match = re.search(r"<b>Spawn</b>\s*[-–]\s*(.+?)(?:\n|<b>|$)", text, re.I | re.S)
-    if not match:
-        return None
-    return match.group(1).strip().rstrip(".")
+    if match:
+        return match.group(1).strip().rstrip(".")
+    match = re.search(r"(?m)^Spawn\s*[-–]\s*(.+)$", text or "", re.I)
+    if match:
+        return match.group(1).strip().rstrip(".")
+    return None
 
 
 def compile_spawn(text: str) -> dict[str, Any] | None:
@@ -193,20 +231,60 @@ def compile_spawn(text: str) -> dict[str, Any] | None:
         return {"selector": "nearest_empty"}
     if lower == "farthest empty location":
         return {"selector": "farthest_empty"}
+    if lower == "engaged with prey":
+        return {"selector": "engaged_with_prey"}
     return {"selector": "named_location", "location_title": line}
 
 
+def extract_prey_line(text: str) -> str | None:
+    match = re.search(r"Prey\s*\(([^)]+)\)", text or "", re.I)
+    if match:
+        return match.group(1).strip()
+    match = re.search(r"<b>Prey</b>\s*[-–]\s*(.+?)(?:\n|<b>|$)", text or "", re.I | re.S)
+    if match:
+        return match.group(1).strip().rstrip(".")
+    match = re.search(r"(?m)^Prey\s*[-–]\s*(.+)$", text or "", re.I)
+    if match:
+        return match.group(1).strip().rstrip(".")
+    return None
+
+
 def compile_prey(text: str) -> dict[str, Any] | None:
-    match = re.search(r"Prey\s*\(([^)]+)\)", text, re.I)
-    if not match:
+    inner = extract_prey_line(text)
+    if not inner:
         return None
-    inner = match.group(1).strip()
     inner_l = inner.lower()
     if inner_l.endswith(" only"):
         return {
             "kind": "investigator_only",
             "investigator_title": inner[: -len(" only")].strip(),
         }
+    ## Nearest to another [[Cultist]] enemy（50026b Narôgath 等）。
+    nearest = re.search(
+        r"nearest to another\s*(?:\[\[([^\]]+)\]\]|(\w+))\s*enem(?:y|ies)",
+        inner_l,
+        re.I,
+    )
+    if nearest:
+        trait = (nearest.group(1) or nearest.group(2) or "").strip()
+        ## 保留卡面大小写：从原文再取一次。
+        raw = re.search(
+            r"nearest to another\s*(?:\[\[([^\]]+)\]\]|(\w+))\s*enem(?:y|ies)",
+            inner,
+            re.I,
+        )
+        if raw:
+            trait = (raw.group(1) or raw.group(2) or trait).strip()
+        if trait:
+            return {
+                "kind": "nearest_to_enemy_trait",
+                "enemy_trait": trait,
+                "exclude_self": True,
+            }
+    if "most clues" in inner_l:
+        return {"kind": "clues", "metric": "clues", "compare": "highest"}
+    if "fewest clues" in inner_l:
+        return {"kind": "clues", "metric": "clues", "compare": "lowest"}
     if "most resources" in inner_l:
         return {"kind": "skill", "metric": "resources", "compare": "highest"}
     if "fewest resources" in inner_l:
@@ -221,6 +299,40 @@ def compile_prey(text: str) -> dict[str, Any] | None:
     if "highest" in inner_l:
         return {"kind": "skill", "metric": "skill", "compare": "highest", "skill": skill}
     return None
+
+
+def _merge_encounter_back(out: dict[str, Any], linked: dict[str, Any]) -> None:
+    """Act/Agenda linked_card 为遭遇类型 → 写入 back_card_type 与背面敌人参数。"""
+    linked_type = linked.get("type_code") or ""
+    if linked_type not in ("enemy", "treachery", "location"):
+        return
+    out["back_card_type"] = linked_type
+    out["back_definition_id"] = linked.get("code", "")
+    out["back_name"] = linked.get("name", "")
+    linked_text = linked.get("real_text") or linked.get("text") or ""
+    if linked_text and not out.get("back_text"):
+        out["back_text"] = linked_text
+    if linked_type == "enemy":
+        eb = enemy_block(linked, linked_text)
+        if eb:
+            out["enemy"] = eb
+        if linked.get("victory"):
+            out["victory"] = int(linked.get("victory") or 0)
+        traits = parse_traits(linked.get("traits") or linked.get("real_traits"))
+        if traits:
+            out["back_traits"] = traits
+        if _forbids_clues_while_engaged(linked_text):
+            out["forbid_clues_while_engaged"] = True
+    linked_kw = extract_keywords(linked, linked_text)
+    for kw in linked_kw:
+        if kw not in out["keywords"]:
+            out["keywords"].append(kw)
+    spawn = compile_spawn(linked_text)
+    if spawn:
+        out["spawn_instruction"] = spawn
+    prey = compile_prey(linked_text)
+    if prey:
+        out["prey_instruction"] = prey
 
 
 def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
@@ -243,7 +355,8 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
         "resource_cost_sentinel": cost_sentinel,
         "is_weakness": is_weakness,
         "subtype_code": subtype,
-        "hidden": bool(card.get("hidden")) or "hidden" in keywords,
+        ## 隐私 = 关键词 Hidden；≠ ArkhamDB JSON `hidden`（b 面列表隐藏）。
+        "hidden": "hidden" in keywords,
         "aloof": "aloof" in keywords,
         "permanent": bool(card.get("permanent")),
         "victory": int(card.get("victory", 0) or 0),
@@ -252,12 +365,18 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
         "faction_code": card.get("faction_code", ""),
         "slot": card.get("slot", ""),
         "skills_icons": skills_icons(card),
-        "enemy": enemy_block(card),
+        "enemy": enemy_block(card, text),
         "location": location_block(card),
         "encounter_code": card.get("encounter_code", ""),
         "ability_hints": extract_ability_hints(text),
         "text": text,
     }
+    if "doom" in card and card.get("doom") is not None:
+        out["doom"] = int(card["doom"])
+    if card.get("back_text"):
+        out["back_text"] = card.get("back_text")
+    if card.get("back_name"):
+        out["back_name"] = card.get("back_name")
     # 能力分段只用正面文本；背面是翻面效果，勿并入 Forced 捕获。
     front_text = card.get("text") or ""
     segments, compiled = compile_card_abilities(front_text)
@@ -277,6 +396,11 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
     prey = compile_prey(text)
     if prey:
         out["prey_instruction"] = prey
+    if type_code == "enemy" and _forbids_clues_while_engaged(text):
+        out["forbid_clues_while_engaged"] = True
+    linked = card.get("linked_card")
+    if isinstance(linked, dict) and type_code in ("act", "agenda"):
+        _merge_encounter_back(out, linked)
     if card.get("duplicate_of"):
         out["duplicate_of"] = card["duplicate_of"]
     return out

@@ -115,7 +115,7 @@ static func check_asset_caps(game_ctx: GameContext, card_id: StringName) -> Dict
 	)
 
 
-## 对场上支援造成伤害并常态检测击败。
+## 对场上支援造成伤害并常态检测击败（POOL → 卡 Transfer）。
 static func deal_damage_to_asset(
 	game_ctx: GameContext,
 	card_id: StringName,
@@ -126,14 +126,22 @@ static func deal_damage_to_asset(
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null or not _asset_in_play(card):
 		return {"ok": false, "defeated": false}
-	card.tokens.damage += amount
+	if game_ctx.mutator == null:
+		return {"ok": false, "defeated": false}
+	if not game_ctx.mutator.transfer_marker(
+		AhcEnums.MarkerKind.DAMAGE,
+		amount,
+		MarkerSlot.supply(AhcEnums.MarkerKind.DAMAGE),
+		MarkerSlot.card(card_id, AhcEnums.MarkerKind.DAMAGE)
+	):
+		return {"ok": false, "defeated": false}
 	var check := check_asset_caps(game_ctx, card_id)
 	check["ok"] = true
 	check["damage"] = card.tokens.damage
 	return check
 
 
-## 对场上支援造成恐惧并常态检测击败。
+## 对场上支援造成恐惧并常态检测击败（POOL → 卡 Transfer）。
 static func deal_horror_to_asset(
 	game_ctx: GameContext,
 	card_id: StringName,
@@ -144,7 +152,15 @@ static func deal_horror_to_asset(
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null or not _asset_in_play(card):
 		return {"ok": false, "defeated": false}
-	card.tokens.horror += amount
+	if game_ctx.mutator == null:
+		return {"ok": false, "defeated": false}
+	if not game_ctx.mutator.transfer_marker(
+		AhcEnums.MarkerKind.HORROR,
+		amount,
+		MarkerSlot.supply(AhcEnums.MarkerKind.HORROR),
+		MarkerSlot.card(card_id, AhcEnums.MarkerKind.HORROR)
+	):
+		return {"ok": false, "defeated": false}
 	var check := check_asset_caps(game_ctx, card_id)
 	check["ok"] = true
 	check["horror"] = card.tokens.horror
@@ -425,3 +441,4 @@ static func _enemy_definition_id(game_ctx: GameContext, enemy_id: StringName) ->
 	if card != null:
 		return card.id.definition_id
 	return enemy_id
+

@@ -34,6 +34,8 @@ static func spawn_from_dict(data: Dictionary) -> SpawnInstructionSpec:
 			return SpawnInstructionSpec.nearest_empty()
 		"farthest_empty":
 			return SpawnInstructionSpec.farthest_empty()
+		"engaged_with_prey":
+			return SpawnInstructionSpec.engaged_with_prey()
 	return null
 
 
@@ -44,11 +46,23 @@ static func prey_from_dict(data: Dictionary) -> PreyInstructionSpec:
 		if title == "":
 			return null
 		return PreyInstructionSpec.investigator_only(title)
+	if kind == "nearest_to_enemy_trait":
+		var trait_name := StringName(str(data.get("enemy_trait", "")))
+		if trait_name == &"":
+			return null
+		return PreyInstructionSpec.nearest_to_enemy_trait(
+			trait_name, bool(data.get("exclude_self", true))
+		)
 	var compare := str(data.get("compare", "highest"))
-	if str(data.get("metric", "skill")) == "resources":
+	var metric := str(data.get("metric", "skill"))
+	if metric == "resources" or kind == "resources":
 		if compare == "lowest":
 			return PreyInstructionSpec.fewest_resources()
 		return PreyInstructionSpec.most_resources()
+	if metric == "clues" or kind == "clues":
+		if compare == "lowest":
+			return PreyInstructionSpec.fewest_clues()
+		return PreyInstructionSpec.most_clues()
 	var skill := _skill_from_name(str(data.get("skill", "willpower")))
 	if compare == "lowest":
 		return PreyInstructionSpec.lowest(skill)

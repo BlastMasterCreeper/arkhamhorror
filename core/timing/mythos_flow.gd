@@ -7,7 +7,15 @@ extends RefCounted
 static func place_doom(game_ctx: GameContext) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false, "reason": &"invalid_context"}
-	game_ctx.state.doom_on_agenda += 1
+	if game_ctx.mutator == null:
+		return {"ok": false, "reason": &"no_mutator"}
+	if not game_ctx.mutator.transfer_marker(
+		AhcEnums.MarkerKind.DOOM,
+		1,
+		MarkerSlot.supply(AhcEnums.MarkerKind.DOOM),
+		MarkerSlot.agenda_doom()
+	):
+		return {"ok": false, "reason": &"transfer_failed"}
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,

@@ -4,6 +4,7 @@ extends RefCounted
 var tokens: Array[ChaosToken] = []
 ## 本检定仍留置工作区、待 ST.8 归袋的标记（物理堆）。
 var revealed_this_test: Array[ChaosToken] = []
+var _binding: PhysicalBinding = null
 ## 封印中的标记：不在袋内，不可 `draw_random`。
 var sealed_tokens: Array[ChaosToken] = []
 ## 祝福/诅咒等：检定能力结算后归还的混沌标记池（非袋；≠ Damage/Horror TokenPool）。
@@ -17,6 +18,12 @@ var on_resolved_reveal: Callable
 
 ## 袋内 + 封印中同 kind 数量（祝福/诅咒上限 10 计此；不含 pool）。
 const BLESS_CURSE_CAP := 10
+
+
+func bind_physical(binding: PhysicalBinding) -> void:
+	_binding = binding
+	if _binding != null:
+		_binding.resync_chaos_bag_from_tokens(tokens)
 
 
 func shuffle() -> void:
@@ -40,6 +47,8 @@ func draw_random(source: StringName = &"skill_test") -> ChaosToken:
 	var token := tokens[idx]
 	tokens.remove_at(idx)
 	revealed_this_test.append(token)
+	if _binding != null:
+		_binding.mirror_chaos_draw(token)
 	_record_reveal(token, source)
 	return token
 
@@ -215,6 +224,8 @@ func resolved_records() -> Array[ChaosRevealRecord]:
 
 func add_token(token: ChaosToken) -> void:
 	tokens.append(token)
+	if _binding != null:
+		_binding.mirror_chaos_add_to_bag(token)
 
 
 ## 从袋封印到 host 卡；成功则标记离袋。
@@ -309,6 +320,8 @@ func clear() -> void:
 	chaos_token_pool.clear()
 	reveal_ledger.clear()
 	reveal_scope_id = &""
+	if _binding != null:
+		_binding.resync_chaos_bag_from_tokens([])
 
 
 func _record_reveal(token: ChaosToken, source: StringName) -> void:
@@ -329,8 +342,14 @@ func _settle_from_revealed(token: ChaosToken) -> void:
 
 
 func _return_to_pool(token: ChaosToken) -> void:
+	## 离揭示工作区进 chaos_token_pool：物理侧先按归袋镜像出 AUGURY，再从袋计数摘掉。
+	if _binding != null and revealed_this_test.has(token):
+		_binding.mirror_chaos_return(token)
 	revealed_this_test.erase(token)
 	tokens.erase(token)
+	if _binding != null:
+		## pool 不在袋内：resync 袋侧与逻辑 tokens 对齐（刚 return 进袋的那一枚去掉）。
+		_binding.resync_chaos_bag_from_tokens(tokens)
 	token.return_to_pool = false
 	token.reveal_another = false
 	if not chaos_token_pool.has(token):
@@ -338,9 +357,16 @@ func _return_to_pool(token: ChaosToken) -> void:
 
 
 func _return_physical(token: ChaosToken) -> void:
+	var was_revealed := revealed_this_test.has(token)
 	revealed_this_test.erase(token)
-	if not tokens.has(token):
+	var already_in_bag := tokens.has(token)
+	if not already_in_bag:
 		tokens.append(token)
+	if _binding != null:
+		if was_revealed:
+			_binding.mirror_chaos_return(token)
+		elif not already_in_bag:
+			_binding.mirror_chaos_add_to_bag(token)
 
 
 func _find_record(token: ChaosToken) -> ChaosRevealRecord:

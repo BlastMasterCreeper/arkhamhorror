@@ -47,7 +47,12 @@ func last_skill_test_fail_by() -> int:
 	return _last_skill_test_fail_by
 
 
-func execute(node: CompositionNode) -> void:
+## 返回 false = 真空拒绝（未压栈）；true = 已在栈内走树。
+func execute(node: CompositionNode) -> bool:
+	## I2 硬门槛：禁止真空 — 必须已在命名流程栈帧内（17 I2 / 23）。
+	if not _has_sequence_frame():
+		push_error("CompositionExecutor.execute: vacuum refused (sequences.depth()==0)")
+		return false
 	_last_step_created = false
 	_last_skill_test_fail_by = 0
 	_last_step_enemy_id = &""
@@ -55,6 +60,15 @@ func execute(node: CompositionNode) -> void:
 	_last_resolved_location = &""
 	_inv_override_stack.clear()
 	_run_node(node)
+	return true
+
+
+func _has_sequence_frame() -> bool:
+	return (
+		_game_ctx != null
+		and _game_ctx.sequences != null
+		and _game_ctx.sequences.depth() > 0
+	)
 
 
 func _run_node(node: CompositionNode) -> void:
@@ -213,14 +227,15 @@ func _record_composition_step(node: CompositionNode, created: bool) -> void:
 func _execute_atom(node: CompositionNode) -> bool:
 	match node.atom_name:
 		&"draw":
+			## 糖残留：新树用 nest_draw_investigator；此处仍须走 catalog，禁 mutator 旁路。
 			if RestrictionEvaluator.blocks_draw(node.inv_id, _registrations):
 				_log.log(AhcEnums.LogCategory.CARD, "composition:draw_blocked", {"inv": node.inv_id})
 				return false
+			if _draw == null or _game_ctx == null:
+				push_error("CompositionExecutor: draw atom requires DrawInvestigatorService")
+				return false
 			var amount := maxi(node.draw_amount, 1)
-			if _draw and _game_ctx:
-				_draw.draw_cards(_game_ctx, node.inv_id, amount, [&"composition_draw"])
-			else:
-				_mutator.execute_draw_instruction(node.inv_id, amount)
+			_draw.draw_cards(_game_ctx, node.inv_id, amount, [&"composition_draw"])
 			_log.log(AhcEnums.LogCategory.CARD, "composition:draw", {"inv": node.inv_id, "amount": amount})
 			return true
 		&"move_card":
@@ -229,16 +244,21 @@ func _execute_atom(node: CompositionNode) -> bool:
 				_log.log(AhcEnums.LogCategory.CARD, "composition:move_card", {"card": node.card_id})
 				return true
 			return false
-		&"adjust_marker":
-			if node.marker_slot != null:
-				_mutator.adjust_marker(node.marker_slot, node.marker_delta)
-				_log.log(
-					AhcEnums.LogCategory.CARD,
-					"composition:adjust_marker",
-					{"delta": node.marker_delta}
-				)
-				return true
-			return false
+		&"transfer_marker":
+			if node.marker_from == null or node.marker_to == null:
+				return false
+			var xfer_amt := maxi(node.amount, node.marker_delta)
+			if xfer_amt <= 0:
+				xfer_amt = 1
+			var ok := _mutator.transfer_marker(
+				node.marker_kind, xfer_amt, node.marker_from, node.marker_to
+			)
+			_log.log(
+				AhcEnums.LogCategory.CARD,
+				"composition:transfer_marker",
+				{"kind": node.marker_kind, "amount": xfer_amt, "ok": ok}
+			)
+			return ok
 		&"set_flag":
 			_mutator.set_flag(node.inv_id, node.flag_field, node.flag_value)
 			_log.log(AhcEnums.LogCategory.CARD, "composition:set_flag", {"bearer": node.inv_id})
@@ -419,6 +439,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_enemy_attack(node)
 		&"nest_search":
 			return _execute_nest_search(node)
+		&"nest_evade", &"automatically_evade":
+			return _execute_nest_evade(node)
 		&"exhaust_card":
 			return _execute_exhaust_card(node)
 		&"exhaust_enemy":
@@ -463,8 +485,9 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"spend_clues_group":
 			return _execute_spend_clues_group(node)
 		&"nest_move_connecting":
-			## 兼容旧单 Atom；新树应为 select + nest_move_to。
-			return _execute_nest_move_connecting_legacy(node)
+			## 工厂已展开为 select+nest_move_to；原始 ATOM 不再执行（禁糖）。
+			push_error("CompositionExecutor: nest_move_connecting atom retired; use move_to_connecting")
+			return false
 		&"nest_move_to":
 			return _execute_nest_move_to(node)
 		&"nest_move_attachment_to":
@@ -473,7 +496,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_move_marker_to(node)
 		&"nest_gain_resource":
 			return _execute_nest_gain_resource(node)
-		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage":
+		&"take_horror", &"nest_take_horror", &"take_damage", &"nest_take_damage", &"nest_deal_damage", &"nest_damage", &"nest_deal_assignable":
 			return _execute_nest_damage(node)
 		&"nest_lose_resources":
 			return _execute_nest_lose_resources(node)
@@ -881,6 +904,35 @@ func _execute_nest_search(node: CompositionNode) -> bool:
 				"taken": (result.get("taken", []) as Array).size(),
 				"flow": &"seq.effect.search",
 			}
+		)
+	return ok
+
+
+func _execute_nest_evade(node: CompositionNode) -> bool:
+	if _game_ctx == null:
+		return false
+	var inv_id := _ability_controller(_resolve_inv(node))
+	var enemy_id := _resolve_enemy_spec(node, inv_id)
+	if enemy_id == &"":
+		return false
+	var mode := EvadeFlow.normalize_mode(node.engage_mode)
+	if node.atom_name == &"automatically_evade":
+		mode = EvadeFlow.MODE_AUTOMATIC
+	var result := EvadeFlow.nest_or_run(
+		_game_ctx,
+		{
+			"enemy_id": enemy_id,
+			"investigator_id": inv_id,
+			"mode": mode,
+		}
+	)
+	var ok := bool(result.get("ok", false))
+	if ok:
+		_last_step_enemy_id = enemy_id
+		_log.log(
+			AhcEnums.LogCategory.CARD,
+			"composition:nest_evade",
+			{"enemy": enemy_id, "inv": inv_id, "mode": mode, "flow": EvadeFlow.FLOW}
 		)
 	return ok
 
@@ -1490,6 +1542,11 @@ func _execute_spend_clues_group(node: CompositionNode) -> bool:
 		var inv := _state.registry.get_investigator(inv_id)
 		if inv == null or inv.eliminated or inv.resigned or inv.clues_on_card <= 0:
 			continue
+		if (
+			_registrations != null
+			and RestrictionEvaluator.blocks_spend_clue(inv_id, _registrations)
+		):
+			continue
 		var take := mini(1, mini(inv.clues_on_card, need - spent))
 		inv.clues_on_card -= take
 		spent += take
@@ -1499,32 +1556,6 @@ func _execute_spend_clues_group(node: CompositionNode) -> bool:
 		{"need": need, "spent": spent}
 	)
 	return spent >= need
-
-
-## 旧单 Atom：内嵌选地点（仅兼容；新编译勿用）。
-func _execute_nest_move_connecting_legacy(node: CompositionNode) -> bool:
-	if _game_ctx == null or _state == null:
-		return false
-	var inv_id := _resolve_inv(node)
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null or inv.location_tag == &"":
-		return false
-	var current := _state.registry.get_location(inv.location_tag)
-	if current == null:
-		return false
-	var candidates: Array[StringName] = []
-	for conn in current.connections:
-		candidates.append(conn)
-	if candidates.is_empty():
-		return false
-	var dest_id: StringName = candidates[0]
-	if _game_ctx.interaction != null:
-		var picked: Variant = _game_ctx.interaction.ask_pick_target(
-			candidates, inv_id, &"pick:move_connecting", _game_ctx
-		)
-		if picked != null:
-			dest_id = StringName(str(picked))
-	return _perform_investigator_move(inv_id, dest_id)
 
 
 func _execute_nest_move_to(node: CompositionNode) -> bool:
@@ -1839,27 +1870,44 @@ func _execute_nest_damage(node: CompositionNode) -> bool:
 	if target == &"enemy_at_controller_location" and enemy_id == &"":
 		enemy_id = _pick_enemy_at_controller_location(inv_id)
 		target = &"enemy"
-	var result := _nest_or_direct(
-		&"seq.effect.damage",
-		{
-			"controller_id": inv_id,
-			"kind": kind,
-			"amount": amount,
-			"direct": node.is_direct,
-			"target": target,
-			"source": node.card_id,
-			"card_id": node.card_id,
-			"enemy_id": enemy_id,
-		}
+	var needs_assign := (
+		target == &"controller"
+		or target == &""
+		or target == &"each_at_controller_location"
+		or target == &"each_at_source_location"
 	)
+	var flow_id: StringName = node.nest_flow_id
+	## 待分配目标：强制 deal.assignable（兼容旧 JSON damage*）。
+	if needs_assign:
+		flow_id = &"seq.effect.deal.assignable"
+	elif flow_id == &"" or flow_id == &"seq.effect.damage":
+		flow_id = &"seq.effect.deal"
+	var nest_params := {
+		"controller_id": inv_id,
+		"direct": node.is_direct,
+		"target": target if target != &"" else &"controller",
+		"source": node.card_id,
+		"card_id": node.card_id,
+		"enemy_id": enemy_id,
+	}
+	## bundle：伤+恐同条；否则单 kind+amount。
+	if node.atom_name == &"nest_deal_assignable" or node.definition_id == &"deal_bundle":
+		nest_params["damage"] = maxi(node.marker_delta, 0)
+		nest_params["horror"] = maxi(node.amount, 0)
+	else:
+		nest_params["kind"] = kind
+		nest_params["amount"] = amount
+	var result := _nest_or_direct(flow_id, nest_params)
 	if result.is_empty() and _mutator != null and target == &"controller":
-		if kind == &"horror":
-			_mutator.take_horror(inv_id, amount)
-		else:
-			_mutator.adjust_marker(
-				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.DAMAGE),
-				amount
-			)
+		var marker := (
+			AhcEnums.MarkerKind.HORROR_TAKEN if kind == &"horror" else AhcEnums.MarkerKind.DAMAGE
+		)
+		_mutator.transfer_marker(
+			marker,
+			amount,
+			MarkerSlot.supply(marker),
+			MarkerSlot.investigator(inv_id, marker)
+		)
 		## 无 catalog 回退时仍跑伤/恐常态击败检测。
 		if _game_ctx != null:
 			DefeatFlow.check_investigator_caps(_game_ctx, inv_id)
@@ -2100,7 +2148,7 @@ func _execute_register(node: CompositionNode) -> bool:
 	return ok
 
 
-## 卡面 Buff 创建唯一落地：nest/run `seq.effect.register`（Catalog 缺失才直写 Store）。
+## 卡面 Buff 创建唯一落地：nest/run `seq.effect.register`（禁真空 Store）。
 func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
 	if template == null:
 		return false
@@ -2112,6 +2160,7 @@ func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
 			"template": template,
 		}
 	)
-	if result.is_empty() and _registrations != null:
-		return _registrations.register(template) != &""
+	if result.is_empty():
+		push_error("CompositionExecutor: seq.effect.register unavailable; refused vacuum register")
+		return false
 	return bool(result.get("ok", false))

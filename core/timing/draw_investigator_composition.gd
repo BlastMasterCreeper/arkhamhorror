@@ -13,9 +13,11 @@ static func shuffle_and_horror(inv_id: StringName) -> CompositionNode:
 	return CompositionNode.seq(
 		[
 			CompositionNode.shuffle_discard_into_deck(inv_id),
-			CompositionNode.adjust_marker(
-				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.HORROR_TAKEN),
-				1
+			CompositionNode.transfer_marker(
+				AhcEnums.MarkerKind.HORROR_TAKEN,
+				1,
+				MarkerSlot.supply(AhcEnums.MarkerKind.HORROR_TAKEN),
+				MarkerSlot.investigator(inv_id, AhcEnums.MarkerKind.HORROR_TAKEN)
 			),
 		]
 	)

@@ -222,6 +222,20 @@ enum FaceAudience { HIDDEN_ALL, CONTROLLER, ALL }
 
 enum GrimRuleMode { AUTO_WORST, PAUSE_FOR_RULING, DISABLED }
 
+## 电子版同级选择自动决策（16 §3.2）。FAVOR/DISFAVOR 价值评估后补。
+enum AutoChoiceMode {
+	ASK,
+	REGISTRATION_ORDER,
+	RANDOM,
+}
+
+## 可选响应入池偏好（16 §7.1.3）；Forced 不受影响。
+enum AbilityResponseMode {
+	ASK,
+	AUTO_JOIN,
+	AUTO_DECLINE,
+}
+
 enum EventRecordKind {
 	FRAMEWORK_STEP,
 	INITIATION_STEP,
@@ -246,7 +260,8 @@ enum StatKey {
 
 enum StatCompareOp { EQ, GE, LE }
 
-enum SequencePhase { WHEN, RESOLVE, AFTER }
+## WOULD 在 WHEN 前（SPLIT 抽牌等）；ALIAS 流程可跳过 WOULD。
+enum SequencePhase { WOULD, WHEN, RESOLVE, AFTER }
 
 enum PileKind {
 	INV_DECK,
@@ -269,9 +284,9 @@ enum MarkerKind {
 	POOL_RESOURCE,
 }
 
-enum BearerKind { CARD, INVESTIGATOR, GLOBAL }
+enum BearerKind { CARD, INVESTIGATOR, LOCATION, AGENDA, GLOBAL }
 
-enum AtomOp { MOVE_CARD, TRANSFER_MARKER, ADJUST_MARKER, REVEAL_CARD, SET_FLAG, SET_REF }
+enum AtomOp { MOVE_CARD, TRANSFER_MARKER, REVEAL_CARD, SET_FLAG, SET_REF }
 
 enum FlagField { ELIMINATED, RESIGNED }
 
@@ -292,6 +307,39 @@ enum RestrictionKind {
 	## 交战状态（成对）：与威胁区场面脱钩。真实交战与「视为交战」均 Register 本 Buff。
 	## 查询入口读本 Kind；**不是** Intent 拦截，也不是 LISTENER。
 	ENGAGEMENT,
+	## 交战期间不能发现线索（01121b Masked Hunter）。挂在 ENGAGEMENT 同 Register，脱离时卸。
+	FORBID_DISCOVER_CLUE,
+	## 交战期间不能花费线索（同上）。
+	FORBID_SPEND_CLUE,
+	## 冷漠（Aloof）：未交战时不能被 Fight。挂 WHILE_IN_PLAY；已交战则 Evaluator 放行。
+	## 禁自动交战仍由 spawn / auto-engage 读拥有（Domain/keyword），不经本 Kind。
+	FORBID_ATTACK,
+	## 伤害/恐惧 Assign（分摊）约束：原流程（DamageAssigner）读取；非 LISTENER / Cancel。
+	## payload 见 RestrictionPayload.assign_* + AssignConstraintOp。
+	ASSIGN_CONSTRAINT,
+}
+
+
+## 分摊约束算子（挂在 RestrictionKind.ASSIGN_CONSTRAINT 上，可多条并存）。
+enum AssignConstraintOp {
+	## 扩大候选：04015 direct 可摊本卡；Bodyguard 可摊他人伤害。
+	INCLUDE_CANDIDATE,
+	## 优先填满本卡，才可摊到调查员卡（03109）。
+	PRIOR_FILL,
+	## 至少 N 点摊到本卡（09007；if_able）。
+	MIN_TO_SUBJECT,
+	## 匹配集合计至多 N 点（60232 trait:Miskatonic）。
+	MAX_TO_MATCH,
+	## 赋分摊容量：无印刷 health/sanity 亦可摊；有印刷则叠加（特殊 Buff）。
+	GRANT_CAPACITY,
+}
+
+
+## 分摊约束适用的 direct 范围。
+enum AssignDirectScope {
+	NON_DIRECT,
+	DIRECT,
+	BOTH,
 }
 
 enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }
@@ -317,9 +365,41 @@ enum StatRef {
 	SKILL_INTELLECT,
 	SKILL_COMBAT,
 	SKILL_AGILITY,
+	## 无类型技能修正（似 wild）；ST.5 匹配任意技能检定。
+	SKILL_ANY,
+	## 调查难度（地点 shroud）；MOD-Q-SHROUD。
+	SHROUD,
+	## 敌人攻击伤害/恐惧印刷量（先修再造成）；MOD-Q-ENEMY-DAMAGE / HORROR。
+	ENEMY_DAMAGE,
+	ENEMY_HORROR,
 	RESOURCE_GAIN_AMOUNT,
 	INITIATION_RESOURCE_COST,
 	INITIATION_ACTION_COST,
 }
 
 enum ModOp { ADD, SUB, MUL, DOUBLE, HALVE }
+
+## MODIFIER：标量 NONE；域 B 效果量挂 AmountPlan.kind。
+## 仅保留有消费式多腿场景的 kind（伤 / 发现）；不为对称预留 HORROR。
+enum ModifierPlanKind {
+	NONE,
+	ATTACK_DAMAGE,
+	DISCOVER,
+}
+
+## Plan 量修正：标量 SCALAR；域 B 效果量 Buff 标记 CONSUME_*（每条用一次）。
+## 无名攻击/发现修正 **不含目标**；只改已定效果的量。物化见 AmountEffectShape。
+enum ModifierApplyMode {
+	SCALAR,
+	## 域 B：本条修正消费一次。攻击/发现无名 +N → 改 Plan 攻击伤害（或发现）量。
+	CONSUME_CHOOSE_ONE_LEG,
+}
+
+## 已定攻击/发现效果的物化形态（卡面写死；先于无名修正）。
+## 无名 additional 只改「本次攻击伤害/发现量」数值，不带目标、不改 Assign 步骤。
+enum AmountEffectShape {
+	## 目标已定（单敌 / 03153 多腿）：攻击伤害量 = primary 腿；修正 += primary。
+	DETERMINED,
+	## 04305：效果已定（候选集已知）；`amount` = 攻击伤害量；修正 += amount；执行时再 Assign。
+	ASSIGN,
+}

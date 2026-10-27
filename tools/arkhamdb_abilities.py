@@ -65,6 +65,24 @@ TRIGGER_PHRASE_MAP: list[tuple[re.Pattern[str], str, str]] = [
     ),
 ]
 
+# 「受到伤/恐」：match_kind 恒 damage；affliction_filter 分条件；take_self=true。
+# 允许 trigger 尾部挂费用（, exhaust X）。
+# would take → WOULD（取消/防止/降低/additional 02221 均在此）；
+# when take（无 would）→ WHEN（预留；现无生产卡）；after take → AFTER。
+_TAKE_AFFLICTION = (
+    r"(?:damage and/or horror|horror and/or damage|"
+    r"damage or horror|horror or damage|"
+    r"damage and horror|horror and damage|"
+    r"damage|horror)"
+)
+TAKE_TRIGGER_PHRASE = re.compile(
+    rf"^(?P<slot>After|When) you (?P<would>would )?take "
+    rf"(?:1 or more )?{_TAKE_AFFLICTION}"
+    rf"(?P<tail>\b.*)?$",
+    re.I,
+)
+EXHAUST_COST_TAIL = re.compile(r",\s*exhaust\s+.+$", re.I)
+
 ## Mask of Silenus / Statue 式：揭额外 + 选 resolve；费用可在冒号前。
 REVEAL_ADDITIONAL_RESOLVE = re.compile(
     r"^(?:When you would reveal a chaos token,\s*)?"
@@ -271,10 +289,60 @@ def plain_text(raw: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def match_trigger_phrase(trigger: str) -> dict[str, str] | None:
+def _affliction_filter_from_take_text(text: str) -> str:
+    lower = text.lower()
+    ## 勿把「1 or more damage」里的 or 当成伤/恐双通道。
+    if re.search(
+        r"damage\s+and/or\s+horror|horror\s+and/or\s+damage|"
+        r"damage\s+or\s+horror|horror\s+or\s+damage|"
+        r"damage\s+and\s+horror|horror\s+and\s+damage",
+        lower,
+    ):
+        return "either"
+    has_dmg = "damage" in lower
+    has_hor = "horror" in lower
+    if has_dmg and has_hor:
+        return "either"
+    if has_hor:
+        return "horror"
+    return "damage"
+
+
+def match_take_trigger_phrase(trigger: str) -> dict[str, str] | None:
+    """After/When you (would) take damage|horror|and/or → damage + affliction_filter."""
     text = plain_text(trigger).rstrip(".").strip()
     if not text:
         return None
+    cleaned = EXHAUST_COST_TAIL.sub("", text).strip().rstrip(".,").strip()
+    m = TAKE_TRIGGER_PHRASE.match(cleaned)
+    if m is None:
+        return None
+    slot = m.group("slot")
+    would = bool(m.group("would"))
+    # would take → WOULD（含 cancel/additional）；裸 when take → WHEN（预留）。
+    if would:
+        phase = "WOULD"
+    elif slot.lower() == "when":
+        phase = "WHEN"
+    else:
+        phase = "AFTER"
+    filt = _affliction_filter_from_take_text(cleaned)
+    return {
+        "match_kind": "damage",
+        "phase": phase,
+        "timing": f"{phase.lower()}_damage",
+        "affliction_filter": filt,
+        "take_self": True,
+    }
+
+
+def match_trigger_phrase(trigger: str) -> dict[str, Any] | None:
+    text = plain_text(trigger).rstrip(".").strip()
+    if not text:
+        return None
+    take = match_take_trigger_phrase(text)
+    if take is not None:
+        return take
     for pattern, match_kind, phase in TRIGGER_PHRASE_MAP:
         if pattern.match(text):
             return {
@@ -285,11 +353,37 @@ def match_trigger_phrase(trigger: str) -> dict[str, str] | None:
     return None
 
 
+def peel_exhaust_cost(trigger: str) -> tuple[str, bool]:
+    """从 trigger 尾剥 `, exhaust …` 费用；返回 (干净 trigger, 是否有 exhaust)。"""
+    text = plain_text(trigger).strip()
+    if not text:
+        return "", False
+    if EXHAUST_COST_TAIL.search(text):
+        return EXHAUST_COST_TAIL.sub("", text).strip().rstrip(",").strip(), True
+    return text, False
+
+
 def split_forced_body(body: str) -> tuple[str, str]:
     if ":" in body:
         trigger, effect = body.split(":", 1)
         return trigger.strip(), effect.strip()
     return "", body.strip()
+
+
+def _with_exhaust_cost(compiled: dict[str, Any]) -> dict[str, Any]:
+    """效果前插入 exhaust_source（reaction 费用）。"""
+    if compiled.get("template") == "seq":
+        steps = list(compiled.get("steps", []))
+        return {
+            **compiled,
+            "steps": [{"template": "exhaust_source"}, *steps],
+            "translation": compiled.get("translation", "full_expand"),
+        }
+    return {
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [{"template": "exhaust_source"}, compiled],
+    }
 
 
 def classify_if_kind(body: str, segment_kind: str) -> str:
@@ -487,13 +581,29 @@ def compile_lose_or_attack(body: str) -> dict[str, Any] | None:
 
 
 def _leaf_take_damage(amount: int, **extra: Any) -> dict[str, Any]:
-    """D→C：nest `seq.effect.damage`（kind + target + amount；source 由装载 card_id）。"""
+    """D→C：nest `seq.effect.deal.assignable`（待分配；kind+amount）。"""
     out: dict[str, Any] = {
         "template": "take_damage",
-        "flow_id": "seq.effect.damage",
+        "flow_id": "seq.effect.deal.assignable",
         "kind": "damage",
         "amount": amount,
         "target": "controller",
+    }
+    out.update(extra)
+    return out
+
+
+def _leaf_deal_assignable(
+    damage: int = 0, horror: int = 0, **extra: Any
+) -> dict[str, Any]:
+    """伤+恐同条待分配；翻译用 Simultaneous 修饰 Apply 侧（引擎同帧同时写）。"""
+    out: dict[str, Any] = {
+        "template": "deal_assignable",
+        "flow_id": "seq.effect.deal.assignable",
+        "damage": damage,
+        "horror": horror,
+        "target": "controller",
+        "simultaneous": damage > 0 and horror > 0,
     }
     out.update(extra)
     return out
@@ -1306,8 +1416,11 @@ def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     ## 费用在冒号前时（spend N charge: …）整段匹配，避免 split 丢费用。
     compiled = compile_reveal_additional_resolve(body)
     trigger = ""
+    trigger_clean = ""
+    has_exhaust = False
     if compiled is None:
         trigger, effect = split_forced_body(body)
+        trigger_clean, has_exhaust = peel_exhaust_cost(trigger)
         compiled = compile_effect_body(effect if effect else body)
     else:
         trig_m = re.match(
@@ -1316,18 +1429,21 @@ def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             re.I,
         )
         trigger = trig_m.group(1) if trig_m else "When you would reveal a chaos token"
+        trigger_clean = trigger
     if compiled is None:
         return None
+    if has_exhaust:
+        compiled = _with_exhaust_cost(compiled)
     entry: dict[str, Any] = {
         "segment_index": segment["index"],
         "register_as": "reaction",
         "ability_id": f"reaction:{segment['index']}",
         "ability_kind": "reaction",
         "status": "effect_only",
-        "trigger": trigger,
+        "trigger": trigger_clean if trigger_clean else trigger,
         **compiled,
     }
-    timing = match_trigger_phrase(trigger)
+    timing = match_trigger_phrase(trigger_clean if trigger_clean else trigger)
     if timing is None and compiled.get("template") == "seq":
         ## 费用夹在 trigger 与冒号之间时，用规范短语再匹配一次。
         timing = match_trigger_phrase("When you would reveal a chaos token")

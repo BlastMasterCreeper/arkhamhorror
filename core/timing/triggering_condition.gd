@@ -491,6 +491,26 @@ static func search(
 	return t
 
 
+## 躲避效果（seq.effect.evade · 横置+解除交战；含自动躲避入口）。
+static func evade_effect(
+	params: Dictionary,
+	after_timing: StringName = &"after_evade_effect"
+) -> TriggeringCondition:
+	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
+	var inv_id: StringName = params.get(
+		"investigator_id", params.get("inv_id", &"")
+	) as StringName
+	var mode: StringName = params.get("mode", &"") as StringName
+	var t := TriggeringCondition.new()
+	t.id = StringName("evade_effect_%s_%d" % [enemy_id, Time.get_ticks_msec()])
+	t.kind = &"evade_effect"
+	t.controller_id = inv_id
+	t.tags = [&"evade", &"effect", mode]
+	t.after_timing = after_timing
+	t.payload = params.duplicate()
+	return t
+
+
 ## 横置（seq.effect.exhaust）。
 static func exhaust(
 	params: Dictionary,
@@ -740,13 +760,25 @@ static func discover_clue(
 	amount: int = 1,
 	after_timing: StringName = &"after_discover_clue"
 ) -> TriggeringCondition:
+	return discover_clue_from_params(
+		{"inv_id": inv_id, "location_id": location_id, "amount": amount},
+		after_timing
+	)
+
+
+## 单地或 legs 多地；多目标仍一条 discover_clue 帧（AFTER 一次）。
+static func discover_clue_from_params(
+	params: Dictionary,
+	after_timing: StringName = &"after_discover_clue"
+) -> TriggeringCondition:
+	var inv_id: StringName = params.get("inv_id", &"")
 	var t := TriggeringCondition.new()
 	t.id = StringName("discover_clue_%s_%d" % [inv_id, Time.get_ticks_msec()])
 	t.kind = &"discover_clue"
 	t.controller_id = inv_id
 	t.tags = [&"discover_clue"]
 	t.after_timing = after_timing
-	t.payload = {"inv_id": inv_id, "location_id": location_id, "amount": amount}
+	t.payload = params.duplicate(true)
 	return t
 
 
@@ -777,13 +809,87 @@ static func damage(
 	source: StringName = &"",
 	after_timing: StringName = &"after_damage"
 ) -> TriggeringCondition:
+	return damage_from_params(
+		{
+			"controller_id": controller_id,
+			"kind": kind,
+			"amount": amount,
+			"direct": is_direct,
+			"target": target,
+			"source": source,
+		},
+		after_timing
+	)
+
+
+## 单目标或 legs 多目标；多目标仍一条 damage 帧。
+## payload 恒带 `damage` / `horror`（可一侧为 0）；同一时点、条件看这两量。
+static func damage_from_params(
+	params: Dictionary,
+	after_timing: StringName = &"after_damage"
+) -> TriggeringCondition:
+	var controller_id: StringName = params.get(
+		"controller_id", params.get("inv_id", &"")
+	)
+	var payload := params.duplicate(true)
+	var amounts := normalize_affliction_amounts(params)
+	var dmg := int(amounts.get("damage", 0))
+	var hor := int(amounts.get("horror", 0))
+	payload["damage"] = dmg
+	payload["horror"] = hor
+	var kind := StringName(str(params.get("kind", "")))
+	if kind == &"":
+		if dmg > 0 and hor <= 0:
+			kind = &"damage"
+		elif hor > 0 and dmg <= 0:
+			kind = &"horror"
+		else:
+			kind = &"damage"
+	payload["kind"] = kind
+	if not payload.has("amount"):
+		payload["amount"] = dmg + hor
 	return _effect(
 		&"damage",
 		controller_id,
 		[&"effect", &"damage", kind],
 		after_timing,
-		{"kind": kind, "amount": amount, "direct": is_direct, "target": target, "source": source}
+		payload
 	)
+
+
+## 从 params / payload 规范化伤恐量（兼容旧 kind+amount；legs 合计）。
+static func normalize_affliction_amounts(params: Dictionary) -> Dictionary:
+	var dmg := maxi(int(params.get("damage", params.get("damage_amount", 0))), 0)
+	var hor := maxi(int(params.get("horror", params.get("horror_amount", 0))), 0)
+	dmg += _sum_leg_amounts(params.get("legs_damage", null))
+	hor += _sum_leg_amounts(params.get("legs_horror", null))
+	if dmg <= 0 and hor <= 0:
+		var kind := StringName(str(params.get("kind", "damage")))
+		var amount := maxi(int(params.get("amount", 0)), 0)
+		var legs_sum := _sum_leg_amounts(params.get("legs", null))
+		if legs_sum > 0:
+			amount = legs_sum
+		if kind == &"horror":
+			hor = amount
+		else:
+			dmg = amount
+	return {"damage": dmg, "horror": hor}
+
+
+static func affliction_amounts(trigger: TriggeringCondition) -> Dictionary:
+	if trigger == null:
+		return {"damage": 0, "horror": 0}
+	return normalize_affliction_amounts(trigger.payload)
+
+
+static func _sum_leg_amounts(raw: Variant) -> int:
+	if not (raw is Array):
+		return 0
+	var total := 0
+	for leg in raw as Array:
+		if leg is Dictionary:
+			total += maxi(int((leg as Dictionary).get("amount", 0)), 0)
+	return total
 
 
 static func lose_resources(

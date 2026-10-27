@@ -58,7 +58,8 @@ python tools/analyze_arkhamdb_cards.py
 | `enemy_*` | 战斗/猎杀数值 | `enemy_stats()` |
 | `shroud` / `clues` | 地点 | investigate |
 | `doom` | 场景 | act/agenda |
-| `hidden` | 布尔 | 隐私 E4 |
+| `hidden` | 布尔 | **隐私（Hidden）关键词**（引擎）；≠ ArkhamDB API 的 `hidden`（常=linked/b 面不进遭遇库列表，如 01121b / 12179b） |
+| `back_card_type` | enemy / treachery / location（可选） | Act/Agenda **`linked_card`** 遭遇类型背面；翻面按抽取流程（`as_drawn=false`） |
 | `encounter_code` | 遭遇套 | **有值 ⇒ 冒险卡牌**（Scenario card）；与正面 type 正交 |
 | `card_back` | `player` \| `encounter` | **卡背类型**（无文本背面 / 牌库外观）；≠ `card_type`；≠ `CardFace` |
 | `tags` | hh/hd/pa/se/fa | 构筑规则（非运行时） |
@@ -156,8 +157,8 @@ python tools/analyze_arkhamdb_cards.py
 - [x] 回填 `CardRegistry` 布尔/关键词字段：`is_hunter` / `is_retaliate` / `is_massive` / `has_surge` / `has_peril` / `is_permanent`；loader 同步 `hunter`/`retaliate`/`massive`
 - [x] Spawn/Prey 文本 → JSON spec → `ArkhamDbInstructionCompiler` → `SpawnInstructionSpec` / `PreyInstructionSpec`
 - [x] Core 2026 四张指令卡：12099 Farthest empty · 12114 lowest agility · 12164 most resources · 12009 Trish only
-- [x] `SpawnLocationResolver`：`nearest_empty` / `farthest_empty`；`PreyResolver`：`resources` / `investigator_only`
-- [x] 单元测试 ADB-07～13
+- [x] `SpawnLocationResolver`：`nearest_empty` / `farthest_empty`；`PreyResolver`：`resources` / `investigator_only` / **`nearest_to_enemy_trait`**（路径距离 + `CardRegistry.card_has_trait`）
+- [x] 单元测试 ADB-07～13；ADB-10b / PREY-01 / SC-34（50026 Nearest to Cultist）
 
 **运行**：`python tools/arkhamdb_import.py` → Godot `ArkhamDbCardLoader.load_core_2026()`
 
@@ -169,6 +170,7 @@ python tools/analyze_arkhamdb_cards.py
 - [x] Core 2026 统计：分段存档；模板可表达子集已编译（`ability_compile_summary` in `_meta`）
 - [x] Forced → `TriggeredAbilityService` 直执；`TRIGGER_PHRASE_MAP` → `match_kind`/`phase`；锚 12125 / 12108 ✅
 - [x] Reaction → `register_triggered` + Initiation + `ask_use_ability`；锚 12145 ✅（ADB-30～32）
+- [x] take damage/horror 时点：`would`/`when`/`after` + `affliction_filter`/`take_self`；锚 12060 Jim Culver ✅（ADB-73/74）
 - [ ] Action → `register_triggered` + Activate（分段已存，待模板/脚本）
 - [x] Free triggered（ArkhamDB `[fast]`）→ `register_as:free` + Player Window `list_free_abilities` / `activate_free`；锚 12046 ✅
 - [ ] 全量 32+29+49 能力覆盖（当前为模板可表达子集）
@@ -213,6 +215,7 @@ Gained characteristics 统计：[`core_2026_gained_characteristics.md`](../data/
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-27 | v0.7 | take 时点接线：would/when/after + affliction_filter；锚 12060（ADB-73/74） |
 | 2026-08-13 | v0.6 | Reaction 竖切：12145 Downtown 发现线索后选用获得资源（ADB-30～32） |
 | 2026-07-06 | v0.5 | Phase 4 完成 + Gained characteristics 报告（06 §3.2） |
 | 2026-07-06 | v0.4 | Phase 4：设计表回填报告 + 06/12/15/OQ 同步 |
