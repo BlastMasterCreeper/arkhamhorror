@@ -201,7 +201,9 @@ static func register_triggered(
 	optional: bool = false,
 	window: StringName = &"",
 	action_types: Array = [],
-	provokes_aoo: Variant = null
+	provokes_aoo: Variant = null,
+	affliction_filter: StringName = &"",
+	take_self: bool = false
 ) -> void:
 	if not _triggered.has(definition_id):
 		_triggered[definition_id] = []
@@ -216,6 +218,8 @@ static func register_triggered(
 		"window": window,
 		"action_types": action_types.duplicate(),
 		"builder": builder,
+		"affliction_filter": affliction_filter,
+		"take_self": take_self,
 	}
 	if provokes_aoo != null:
 		unit["provokes_aoo"] = bool(provokes_aoo)

@@ -260,7 +260,7 @@ Grimoire p.8：
 |---|---|---|
 | **WOULD** | Assign 后、Apply 前（更早一档） | *would take*；**取消 / 防止 / 降低 / 改分配**；早期误印 *when* 的防伤对策编译收此；`reduce_pending` / `reassign_pending_legs` |
 | **WHEN** | Assign 后、Apply 前（较晚一档） | *when you take* = **你控制的卡**将承伤；非取消反应/修正；**additional 加量**（下款） |
-| **AFTER** | Apply + defeat 检测后 / seq pop | *after you take…*：**同一时点**；条件分「受到伤害后」（damage>0）/「受到恐惧后」（horror>0）/「受到伤害和/或恐惧后」（至少一种）。TC.kind 仍 `damage`；payload 恒带 `damage`/`horror`（可一侧为 0）；`SequenceHandler.affliction_filter` |
+| **AFTER** | Apply + **defeat nest 完成**后 / seq pop | *after you take…*：**同一时点**；条件分「受到伤害后」（damage>0）/「受到恐惧后」（horror>0）/「受到伤害和/或恐惧后」（至少一种）。TC.kind 仍 `damage`；payload 恒带 `damage`/`horror`（可一侧为 0）；`SequenceHandler.affliction_filter` + `take_self`。编译：`TRIGGER` take 短语 → `match_kind=damage` + filter；**禁止**把 cap 检测挪到父 AFTER 之后（击败须在 RESOLVE 内 nest，父 AFTER 才能看见已击败局面） |
 
 ```gdscript
 # Assign = PI（非时点）→ pending legs
@@ -855,6 +855,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-27 | v0.6.18 | §4：编译接线 would/when/after take + `affliction_filter`/`take_self`；AFTER 在击败 nest 之后 |
 | 2026-10-26 | v0.6.17 | §4：无印刷+GRANT 不设上限；inv/敌伤害无限；`legs_damage`/`legs_horror`；AFTER 伤/恐/和或条件 |
 | 2026-10-26 | v0.6.16 | §4：外向/已定腿 PreImpact（`DealPreImpact` WOULD→WHEN→Apply） |
 | 2026-10-26 | v0.6.15 | §4：Assign Gate（`ask_assign_*` / among）；逾期默认腿表 |

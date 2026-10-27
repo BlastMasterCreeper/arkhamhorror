@@ -284,6 +284,8 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | `register_as` | `action` / `free` / `forced` / `revelation` / `reaction` |
 | `action_types` | 行动类型全集（含 designator）；**借机类型层**由此判定 |
 | `action_cost` / `resource_cost` / `window` / `match_kind` / `phase` | 装载与 Eligibility |
+| `affliction_filter` | 受到伤/恐条件：`damage` \| `horror` \| `either`（TC.kind 仍 `damage`） |
+| `take_self` | `true` = 「you take」：仅调查员承伤帧；外向 among/敌腿不匹配 |
 | `translation` | `full_expand` 等审计标记 |
 | `status` | `full` / `partial` |
 
