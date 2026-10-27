@@ -7965,7 +7965,7 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 
 
 func _test_zm_leave_play_tokens_to_pool() -> bool:
-	## 01 §5.2 / Grimoire Leaves Play：离场卡上标记归还无穷 token pool（卡面剥光；池不计库存）。
+	## 01 §5.2 / Grimoire Leaves Play：离场卡上标记归还 token pool。
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_asset_to_play(
 		h.ctx, &"inv_1", &"ally_zm_tokens", {"health": 3, "sanity": 3}
@@ -7978,6 +7978,10 @@ func _test_zm_leave_play_tokens_to_pool() -> bool:
 	card.tokens.clue = 3
 	card.tokens.doom = 1
 	card.tokens.uses[&"ammo"] = 4
+	var pool := h.ctx.state.token_pool
+	var d0 := pool.damage_available
+	var h0 := pool.horror_available
+	var c0 := pool.clue_available
 	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
 	return (
 		moved
@@ -7986,6 +7990,9 @@ func _test_zm_leave_play_tokens_to_pool() -> bool:
 		and card.tokens.clue == 0
 		and card.tokens.doom == 0
 		and card.tokens.uses.is_empty()
+		and pool.damage_available == d0 + 2
+		and pool.horror_available == h0 + 1
+		and pool.clue_available == c0 + 3
 	)
 
 
@@ -8008,8 +8015,9 @@ func _test_zm_leave_play_discards_attachments() -> bool:
 	fire.zone = AhcEnums.Zone.ATTACHED
 	fire.attached_to = host.id
 	host.attachments.append(fire.id)
-	## 附属上亦有标记，弃置（ATTACHED leave）时应剥光。
+	## 附属上亦有标记，弃置时应归池。
 	fire.tokens.damage = 1
+	var pool_d0 := h.ctx.state.token_pool.damage_available
 	var moved := h.ctx.mutator.move_card(host_id, CardSlot.discard_top(&"inv_1"))
 	var fire_after := h.ctx.state.registry.get_card(fire_id)
 	return (
@@ -8020,6 +8028,7 @@ func _test_zm_leave_play_discards_attachments() -> bool:
 		and fire_after.zone == AhcEnums.Zone.DISCARD
 		and h.ctx.state.encounter_discard.has(fire_id)
 		and fire_after.tokens.damage == 0
+		and h.ctx.state.token_pool.damage_available == pool_d0 + 1
 	)
 
 

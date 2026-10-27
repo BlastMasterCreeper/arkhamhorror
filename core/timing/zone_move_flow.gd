@@ -186,8 +186,9 @@ static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> voi
 	_discard_attachments_on_leave(game_ctx, card)
 
 
-## 卡上桌面标记 → 无穷 TokenPool（`give` 湮入；本栈尚无 CARD `MarkerSlot`，不经 transfer_marker）。
-## uses 非桌面池槽，仅清零；sealed 由 `SealFlow.release_on_leave_play` 先释回袋，再清空域计数。
+## 卡上 damage/horror/clue → TokenPool 计数；doom/uses 清零。
+## 本栈尚无 CARD `MarkerSlot` / 无穷 `give`；合入 physical/deal 栈后再改 `transfer_marker`。
+## sealed 由 `SealFlow.release_on_leave_play` 先释回袋，再清空域计数。
 static func _return_tokens_to_pool(game_ctx: GameContext, card: CardInstance) -> void:
 	if card == null or game_ctx == null or game_ctx.state == null:
 		return
@@ -197,14 +198,9 @@ static func _return_tokens_to_pool(game_ctx: GameContext, card: CardInstance) ->
 	var clue := maxi(card.tokens.clue, 0)
 	var doom := maxi(card.tokens.doom, 0)
 	if pool != null:
-		if damage > 0:
-			pool.give(AhcEnums.MarkerKind.DAMAGE, damage)
-		if horror > 0:
-			pool.give(AhcEnums.MarkerKind.HORROR, horror)
-		if clue > 0:
-			pool.give(AhcEnums.MarkerKind.CLUE, clue)
-		if doom > 0:
-			pool.give(AhcEnums.MarkerKind.DOOM, doom)
+		pool.damage_available += damage
+		pool.horror_available += horror
+		pool.clue_available += clue
 	card.tokens.damage = 0
 	card.tokens.horror = 0
 	card.tokens.clue = 0
