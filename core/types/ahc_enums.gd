@@ -260,7 +260,8 @@ enum StatKey {
 
 enum StatCompareOp { EQ, GE, LE }
 
-enum SequencePhase { WHEN, RESOLVE, AFTER }
+## WOULD 在 WHEN 前（SPLIT 抽牌等）；ALIAS 流程可跳过 WOULD。
+enum SequencePhase { WOULD, WHEN, RESOLVE, AFTER }
 
 enum PileKind {
 	INV_DECK,

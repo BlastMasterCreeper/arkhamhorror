@@ -708,13 +708,13 @@ nest_batch seq.enter_hand                                  ← 结算剩余（�
 | 步骤 | 内联/嵌套 | 因果 vs 连续 | 应 emit 的 TimingEntry | 典型能力 | 实现 |
 |---|---|---|---|---|---|
 | D0 push | 根 `run` | 整段 draw **开始** | — | — | ✅ |
-| **WOULD** | — | 这次抽取 PreImpact | 父 **WOULD** | would draw · 牌在 **DECK** | ⚠️ 未 emit |
-| D1 collect ×N | **内联** | **连续**（发起 impact 离库） | — | — | ✅ pop 过早于 Would（缺口） |
+| **WOULD** | — | 这次抽取 PreImpact（= 整段第一块前） | 父 **WOULD** | would draw · 牌在 **DECK** | ✅ 信封头（`split_timing`；TIM-01） |
+| D1 collect ×N | **内联** | **连续**（发起 impact 离库） | — | — | ✅ 在 WOULD 之后 |
 | D1 两堆空 | **nest** | **因果**：空库 **导致** defeated | （abort；无父 AFTER） | — | ✅ |
-| D2 reveal | **内联** | **连续**：发起 impact | — | — | ❌ |
-| D3 物理入手 | **内联** | **连续**：抽取步骤完成 → **HAND** | 父 **WHEN** | when you draw | ❌ |
+| D2 reveal | **内联** | **连续**：发起 impact | — | — | ✅ |
+| D3 物理入手 | **内联** | **连续**：抽取步骤完成 → **HAND** | 父 **WHEN** | when you draw | ✅ `offer_slot` 在入手后、显现前 |
 | D3 显现 | **nest** | **因果**：入手 **触发** Revelation | 子 `(enter_hand, slot)` | Revelation | ✅ nest |
-| D5 pop | 父 pop | 该次抽取结算完毕 | 父 **AFTER** | after you draw | ✅ pop；❌ offer |
+| D5 pop | 父 pop | 该次抽取结算完毕 | 父 **AFTER** | after you draw | ✅ |
 
 **结构决策（因果优先）**：
 

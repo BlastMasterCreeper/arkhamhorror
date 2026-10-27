@@ -64,7 +64,7 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| T1 | **WOULD** | 该次流程 PreImpact（抽牌：这条指令尚未发生；任何一张 pop 前牌在 **DECK**） |
+| T1 | **WOULD** | 该次流程 PreImpact（抽牌：这条指令尚未发生；任何一张 pop 前牌在 **DECK**）— **`seq.draw.*` SPLIT 已接** |
 | T2 | **WHEN** | 发起 impact 之后的打断槽（抽牌：抽取步骤；同一指令的 N 张已同时抽到，不覆盖显现 / G4） |
 | T3 | **AFTER** | 该次流程整段结算完毕（抽牌：同时抽出组的显现 / G4 都完。涌动是之后的延时，另开指令） |
 | T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)`；抽牌按卡面转译钉语义；**v1 未实现** |
@@ -176,7 +176,7 @@
 
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
-| **父 Would / When** | 卡面 draw 转译：Would = 这次抽取 PreImpact；When = 抽取步骤（15 §3） | **未实现**：现栈 WHEN→整段 RESOLVE；无 WOULD 相 |
+| **父 Would / When** | 卡面 draw 转译：Would = 整段 PreImpact（信封头）；When = 抽取步骤砖块后（15 §3） | ✅ `split_timing`：信封 WOULD + 中段 `offer_slot(WHEN)`（TIM-01/02） |
 | **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |

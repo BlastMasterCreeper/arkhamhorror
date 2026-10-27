@@ -9,12 +9,14 @@ var _entries: Dictionary = {}
 func register_run(
 	flow_id: StringName,
 	build_trigger: Callable,
-	resolve: Callable
+	resolve: Callable,
+	split_timing: bool = false
 ) -> void:
 	_entries[flow_id] = {
 		"kind": EntryKind.RUN,
 		"build_trigger": build_trigger,
 		"handler": resolve,
+		"split_timing": split_timing,
 	}
 
 
@@ -45,7 +47,8 @@ func run(game_ctx: GameContext, flow_id: StringName, params: Dictionary = {}) ->
 	var build_trigger: Callable = entry.get("build_trigger", Callable())
 	if game_ctx != null and game_ctx.sequences != null and build_trigger.is_valid():
 		var trigger: TriggeringCondition = build_trigger.call(params)
-		game_ctx.sequences.run(trigger, resolve_fn)
+		var split_timing := bool(entry.get("split_timing", false))
+		game_ctx.sequences.run(trigger, resolve_fn, split_timing)
 	else:
 		resolve_fn.call()
 	return resolved[0]
@@ -81,7 +84,8 @@ func nest(game_ctx: GameContext, flow_id: StringName, params: Dictionary = {}) -
 	var build_trigger: Callable = entry.get("build_trigger", Callable())
 	if game_ctx != null and game_ctx.sequences != null and build_trigger.is_valid():
 		var trigger: TriggeringCondition = build_trigger.call(params)
-		game_ctx.sequences.nest(trigger, resolve_fn)
+		var split_timing := bool(entry.get("split_timing", false))
+		game_ctx.sequences.nest(trigger, resolve_fn, split_timing)
 	else:
 		resolve_fn.call()
 	return resolved[0]
