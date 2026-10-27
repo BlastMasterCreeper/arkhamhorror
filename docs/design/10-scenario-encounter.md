@@ -1,4 +1,4 @@
-# 10 — 遭遇、Act/Agenda 与场景 (ScenarioSystem)
+# 10 — 遭遇、场景/密谋与冒险 (ScenarioSystem)
 
 > **依赖**：[02-framework-flow.md](02-framework-flow.md), [08-enemy-engagement.md](08-enemy-engagement.md), [05-chaos-bag.md](05-chaos-bag.md)  
 > **规则来源**：Grimoire Mythos 1.4, Act/Agenda, Encounter Draw, Winning and Losing
@@ -7,7 +7,7 @@
 
 ## 1. 目标
 
-管理 **Encounter Deck 抽取管线**、Act/Agenda 推进、Scenario Reference、Victory Display、Resolution `(→R#)`。
+管理 **Encounter Deck 抽取管线**、**场景/密谋（Act/Agenda）** 推进、**冒险参考卡（Scenario Reference）**、Victory Display、Resolution `(→R#)`。
 
 ---
 

@@ -1,4 +1,4 @@
-# 05 — 混沌袋与场景参考 (ChaosBagSystem)
+# 05 — 混沌袋与冒险参考 (ChaosBagSystem)
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md), [04-skill-test-engine.md](04-skill-test-engine.md)  
 > **规则来源**：Grimoire Chaos Tokens (p.7), Scenario Reference Card
@@ -7,7 +7,7 @@
 
 ## 1. 目标
 
-管理 **Chaos Bag** 组成、揭示/归还、符号效果解析，并与 **Scenario Reference Card** 及 Investigator Elder Sign 绑定。
+管理 **Chaos Bag** 组成、揭示/归还、符号效果解析，并与 **冒险参考卡（Scenario Reference Card）** 及 Investigator Elder Sign 绑定。
 
 ---
 
@@ -95,7 +95,7 @@ class ChaosBagSystem:
     var reference: ScenarioReferenceDefinition
 
     func build_from_difficulty(scenario_id, difficulty) -> void
-    func apply_campaign_modifiers(log: CampaignLog) -> void   # 战役间 bag 变化
+    func apply_campaign_modifiers(log: CampaignLog) -> void   # 剧本间 bag 变化
     func reveal_for_skill_test(ctx: SkillTestContext) -> ChaosToken
     func resolve_symbol_effect(token: ChaosToken, ctx: SkillTestContext) -> void
     func get_elder_sign_effect(investigator_id: StringName) -> AbilityDefinition
@@ -190,7 +190,7 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 **不是** Framework Player Window（OQ-04-01 仍成立）；PI 在揭示手续内经由 `PlayerInteractionGate`。
 
-**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）；**Seal Domain**；**Elder Sign**（调查员印刷旧印 · Joe 12004 竖切）；**Bless/Curse**（规则自带符号能力 · `BlessCurseRules`）。仍范围外：OQ-05-02 战役符号脚本、Premonition **实卡编译**（12064 未译；框架已竖切）。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
+**已开线**：冒险参考卡 JSON（OQ-05-01 · Spreading Flames 竖切）；**Seal Domain**；**Elder Sign**（调查员印刷旧印 · Joe 12004 竖切）；**Bless/Curse**（规则自带符号能力 · `BlessCurseRules`）。仍范围外：OQ-05-02 剧本符号脚本、Premonition **实卡编译**（12064 未译；框架已竖切）。**不是缺口**：整次检定 Cancel——发动后不存在（[04 §3.0](04-skill-test-engine.md) · OQ-04-04）。
 
 ---
 
@@ -209,13 +209,13 @@ FAQ：Olive + Grotesque Statue 等同时替换「揭示 1 枚」时，**先声�
 
 ---
 
-## 6. 战役持久化
+## 6. 剧本持久化
 
 Grimoire Setup 6：
 
-- 战役第一场按 guide 组装 bag
-- 后续场景使用**上一场结束时**的 bag 组成
-- Epic/新 campaign transfer 时 reset bag
+- 剧本第一场按 guide 组装 bag
+- 后续冒险使用**上一场结束时**的 bag 组成
+- Epic/新剧本 transfer 时 reset bag
 
 ```gdscript
 class ChaosBagSnapshot:
@@ -224,7 +224,7 @@ class ChaosBagSnapshot:
     var sealed_tokens: Array[ChaosToken]
 ```
 
-存入 `CampaignState`，非 `GameStateStore`（跨 scenario）。
+存入 `CampaignState`，非 `GameStateStore`（跨冒险）。
 
 ---
 
@@ -237,7 +237,7 @@ class ChaosBagSnapshot:
 | Core 2026 各冒险 Skull/Cultist/... 标准效果 | `data/scenarios/<id>/reference.json` → `ScenarioReferenceDefinition` |
 | Spreading Flames「draw Fire! from discard」 | JSON `on_fail` / `on_fail_by` → Composition 模板 |
 | Act 数动态 X | modifier expr：`neg_act` / `neg_act_plus_1` |
-| 战役自定义符号 | 预留 `ScenarioScript` / `CampaignScript`（OQ-05-02） |
+| 剧本自定义符号 | 预留 `ScenarioScript` / `CampaignScript`（OQ-05-02） |
 
 竖切：Spreading Flames（12105）；`ScenarioReferenceBinder` → 卡上 `symbol_abilities`；ST.4 `ScenarioReferenceApplier` 发起；`text_box_blank` 跳过印刷条（OQ-04-07）。
 
@@ -302,7 +302,7 @@ class ChaosBagSnapshot:
 | BC-04 | 能力揭示 curse | finalize 回袋；pool 空 |
 | BC-05 | Ignore bless | 无修饰；ST.8 回袋 |
 | C-05 | ST.8 return token | bag count 恢复 |
-| C-06 | 战役 scenario 2 继承 bag | snapshot restore |
+| C-06 | 剧本第 2 场冒险继承 bag | snapshot restore |
 | BAG-LEDGER-01 | 检定揭示入账本；ST.8 清空 scope | 物理堆空；ledger 空 |
 | BAG-LEDGER-02 | 能力揭示 curse → finalize 即 binary | finalize 时一次；链后不连发；袋守恒 |
 | BAG-LEDGER-03 | Cancel 后 if_revealed 不开火 | `has_uncanceled_kind` false |

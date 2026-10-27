@@ -320,7 +320,7 @@ func _on_ward(_ctx, _inst, payload: Dictionary) -> void:
 - Keywords: Hunter, Prey, Retaliate — 引擎 keyword handler
 - Spawn/engage 默认管线
 
-### 7.6 Spreading Flames Scenario Reference
+### 7.6 Spreading Flames 冒险参考卡（Scenario Reference）
 
 ```gdscript
 extends ScenarioScriptBase

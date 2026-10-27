@@ -77,7 +77,7 @@
 | **B** 弱点闭环 | 进威胁区 → Forced → `[action][action]` 自弃 | `discard_card`（来源） |
 | **C** Fight / Investigate 宏 | ammo/charge + 本检定 MODIFIER | `spend_token`、THIS_TEST register |
 | **D** Free / 搜库 | `[fast]` 费用窗、Search top N | `search_deck`、`add_to_hand` |
-| **E** 场景 / Codex / Resign | Parley、群体线索、Instead | 场景表 nest，非卡面 Policy |
+| **E** 冒险 / Codex / Resign | Parley、群体线索、Instead | 冒险表 nest，非卡面 Policy |
 
 **推荐顺序**：A1 → B1 → C1–C2 → A3–A4 → D → E。
 

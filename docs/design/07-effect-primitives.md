@@ -727,7 +727,7 @@ Draw(1) := Choice? + MoveCard(deck.TOP → hand.BOTTOM)
 
 | 操作 | 层级 |
 |---|---|
-| 组装 bag / 场景重置 | Setup / Scenario |
+| 组装 bag / 冒险重置 | Setup / Scenario |
 | Reveal 1 token | `ChaosBagMutator.reveal()` — **Domain 专用 op**，等价「从 bag 序列 Pop + 放入 revealed 缓冲区」 |
 | Return token | `ChaosBagMutator.return_token()` |
 
