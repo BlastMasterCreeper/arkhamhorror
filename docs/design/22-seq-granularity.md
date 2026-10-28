@@ -285,11 +285,11 @@
 
 打出是 **完整流程**，有可响应时点；**不是**「只靠裸 Initiation 种类名凑合听」。  
 **要**在已有发起手续（`PLAY_CARD` Initiation 七步）外加一层 **打出包装**（命名流程或等价包装帧），使打出窗与包装时点订在包装上，而不是散落在通用 Initiation。  
-进场区划结果仍听 `seq.zone.move`（场外→场上）。包装的精确 `flow_id` / 与 Initiation 分槽 → 实现时钉（候选如 `seq.play` 包装 nest/委托 Initiation；**禁止**把打出收成 `AbilityKind`）。
+进场区划结果仍听 `seq.zone.move`（场外→场上）。**`flow_id` 钉为 `seq.play`**：包装 nest/委托 Initiation（[06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类--可落地层fence--chuck-fergus)）；**禁止**把打出收成 `AbilityKind`。
 
 **打出本身无行动费用**；无快速时经 **Play 行动入口** 发起包装，快速只改入口/窗口/AOO（见 [06 §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)）。
 
-**赋快速 / 降费类（Fence · Chuck Fergus）**：**仅「获快速」** 改写为宿主 **`[free] Play …`**（不再叠目标 Fast 关键词）；**降费**仍为 `When you play` 反应 + 付费前 `cost_delta`（不劫持有时点快速的窗口）。FAQ 对称：行动不足可走原赋快速路径 ↔ **修正后可付**时允许欠印刷费暂发起。全文：[06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类fence--chuck-fergus)。
+**赋快速 / 降费类（Fence · Chuck Fergus）**：可落地层见 [06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类--可落地层fence--chuck-fergus)——铸 **`seq.play`** 包装委托 Initiation；获快速→宿主 `[free]` nest `seq.play`（`EFFECT_PLAY`，不叠 Fast）；降费→`(seq.play, WHEN)` Register MODIFIER；provisional L6；落地切片 1→5。
 
 **G9 · 投入（待议）**
 
@@ -410,7 +410,7 @@
 | 2026-10-13 | I2 真空抽查 → [23-vacuum-audit](23-vacuum-audit.md)；铸造清单已收口，下一刀偏结构性硬门槛 |
 | 2026-10-27 | §9 Catalog 全量审计：初扫 66（含别名） |
 | 2026-10-27 | §9.2：**去掉全部 flow 别名**；正式 **60** 条；`damage*`/`gain_resource`/`enemy.move`/`enemy.defeat`/`investigation_phase_ends` 已删；`skill_type_for_flow` 死代码已删 |
-| 2026-10-28 | G8：获快速→`[free] Play`；降费=付费前反应；欠费暂发起对称（[06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类fence--chuck-fergus)） |
+| 2026-10-28 | G8：可落地层 `seq.play` + provisional + WHEN Register（[06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类--可落地层fence--chuck-fergus)） |
 | 2026-10-27 | G7–G11 改裁：费用=效果属性；AOO=攻击嵌套来源；**打出要 Initiation 包装**；投入待议；险境=Buff 信息层 |
 | 2026-10-27 | G10 补例：花费/失去资源 **同 L0**，**异包装时点**；响应订包装不订裸原子 |
 | 2026-10-27 | 通则：同原子异包装 — 受到/放置伤恐、治愈/移除、抽取/加入手牌 |
