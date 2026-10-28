@@ -59,6 +59,19 @@ static func discover_bonus_this_test(
 	)
 
 
+## 本次检定技能值修正（混乱符号能力等 · 信息层 MODIFIER Buff）。
+static func skill_modifier_this_test(
+	controller_id: StringName,
+	stat: AhcEnums.StatRef,
+	amount: int
+) -> RegistrationTemplate:
+	return lasting_modifier(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_SKILL_TEST,
+		ModifierPayload.add_skill(stat, amount)
+	)
+
+
 ## 调查 shroud −N（标量 MOD-Q-SHROUD）。
 static func reduce_shroud_this_turn(
 	controller_id: StringName,

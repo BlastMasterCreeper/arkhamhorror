@@ -819,9 +819,9 @@ Asset 印刷 *Forced – After you fight: draw 1* / *After you fight, draw 1*（
 
 ### 6.2 统一构件（来源 · 载荷 · 查询 · 计算 · 寿命）
 
-> **已对齐**：**修正的来源不全是 Buff。**  
-> Buff（Register MODIFIER）只是来源之一。引擎改的是 **数值**；贡献可来自 Store、检定帧、投入组装等。  
-> **禁止**把混乱标记、投入图标等一律 Register 成 Buff。
+> **已对齐（2026-10-28）**：**信息层数值修正 = MODIFIER Buff**（经 `seq.effect.register`）。  
+> 引擎算数仍只经 `ModifierEngine`；**混乱符号修正**属信息层，ST.4 创建 `THIS_SKILL_TEST` Buff，**不是** `SkillTestContext` 裸 int。  
+> 投入图标等为检定组装底座（非信息原语），不 Register。
 
 ```text
 数值修正系统（计算面 · 唯一）
@@ -830,17 +830,15 @@ Asset 印刷 *Forced – After you fight: draw 1* / *After you fight, draw 1*（
         ▲
         │ 汇入（按查询站收集）
         │
-来源 Source（可多类并存）
-  ├─ Buff · Registration MODIFIER     ← seq.effect.register；Constant 同 Payload
-  ├─ 检定帧短暂贡献                   ← 混乱标记修正等（SkillTestContext；非 Buff）
-  ├─ 投入组装                         ← commit 图标加成（常并入比较值底座；非 Buff）
-  └─ （可扩展）其它非 Buff 贡献         ← 仍禁止为省事而假 Register
+来源 Source
+  ├─ Buff · Registration MODIFIER     ← seq.effect.register；含混乱符号能力修正
+  ├─ 投入组装                         ← commit 图标加成（比较值底座；非 Buff）
+  └─ 印刷底座                         ← compute 的 base（非 Buff）
 ```
 
 | 来源 | 是 Buff？ | 寿命 | 例子 |
 |---|---|---|---|
-| Registration / Constant MODIFIER | **是** | `LifetimeSpec` / WHILE_IN_PLAY | until… +1 fight；费用 −1；攻击伤 +1 |
-| 检定帧 | **否** | 本次检定 | **混乱标记**对比较值/难度的修正 |
+| Registration / Constant MODIFIER | **是** | `LifetimeSpec` / WHILE_IN_PLAY / **THIS_SKILL_TEST** | until… +1 fight；**混乱 token 技能修正**；费用 −1 |
 | 投入组装 | **否** | 本次检定（已 commit） | 技能图标点数 |
 | 印刷底座 | **否** | 实体上 | 未修正的 shroud / 技能印刷值（compute 的 `base`） |
 
@@ -856,10 +854,11 @@ Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
   apply_to_amount_plan(plan, …)   → 域 B：无名 +N 改已定效果的量（无目标）
 ```
 
-**寿命**：Buff → Registration；混乱/投入 → 检定帧；**不**为每个 value_key 另造寿命系统。
+**寿命**：Buff → Registration（混乱技能修正 = `THIS_SKILL_TEST`，ST.8 tick 卸）；投入 → 检定组装；**不**为每个 value_key 另造寿命系统。
 
 **Buff 创建**：仍经 `seq.effect.register`；禁止真空 Store。dry-run：Register → CREATED。  
-**非 Buff 来源**：揭示混乱、commit 步骤写入上下文——**不是**信息原语 Register。
+**混乱符号**：ST.4 发起符号能力时 Register MODIFIER；Cancel/Ignore 对该能力及其 CREATED Buff。`SkillTestContext.chaos_modifier` 仅审计镜像。  
+**非 Buff 来源**：commit 图标组装——**不是**信息原语 Register。
 
 ### 6.3 应用模式（与域的关系）
 
@@ -904,9 +903,9 @@ enum ValueRealm { PRINTED, EFFECT_AMOUNT, SEQUENCE_SCALAR }
 | `INITIATION_*_COST` | A | 费用 |
 | `RESOURCE_GAIN_AMOUNT` | B | 单点效果量 |
 | `AmountPlan`（仅 `ATTACK_DAMAGE` / `DISCOVER`） | B | 有消费式多腿场景才用 Plan；不为恐惧对称预留 |
-| `chaos_modifier` on test ctx | C | **非 Buff** 来源；与 Store 修正同一叠加律，挂检定帧 |
+| 混乱符号技能修正 | C（经 Buff） | ST.4 `seq.effect.register` · `THIS_SKILL_TEST`；ST.5 经 ModifierEngine；`chaos_modifier` 仅镜像 |
 
-**目标态 ST.5**：`ST_SKILL_VALUE = compute/assemble(有效技能, 投入, 域 C 修正含混乱)`；难度侧可 `ST_DIFFICULTY` 与域 A shroud 读分离（调查：先 A 读 shroud，再可叠加 C 的「本次难度」）。
+**ST.5**：`ST_SKILL_VALUE = 有效技能 + 投入 + ModifierEngine(含混乱 THIS_SKILL_TEST Buff)`；难度侧可 `ST_DIFFICULTY` 与域 A shroud 读分离（调查：先 A 读 shroud，再可叠加 C 的「本次难度」）。
 
 详查询站与 Plan：§16.3。
 

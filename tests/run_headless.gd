@@ -55,6 +55,7 @@ func _initialize() -> void:
 	_run_test("ES-05 Joe fail skips on_success", _test_es05_joe_fail_no_success)
 	_run_test("BC-01 bless +2 reveal_another return_to_pool", _test_bc01_bless_st4)
 	_run_test("BC-02 curse -2 reveal_another return_to_pool", _test_bc02_curse_st4)
+	_run_test("BC-02b chaos mod is THIS_SKILL_TEST Buff", _test_bc02b_chaos_mod_buff)
 	_run_test("BC-03 bless chain then ST.8 to pool", _test_bc03_bless_chain_pool)
 	_run_test("BC-04 ability curse finalize returns to bag", _test_bc04_ability_curse_bag)
 	_run_test("BC-05 ignored bless returns to bag", _test_bc05_ignored_bless_bag)
@@ -1153,6 +1154,43 @@ func _test_bc02_curse_st4() -> bool:
 	)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return ok
+
+
+func _test_bc02b_chaos_mod_buff() -> bool:
+	## ST.4 创建 THIS_SKILL_TEST MODIFIER；ST.5 经 ModifierEngine（负修正压低）；ST.8 tick 卸。
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.skill_willpower = 4
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var curse := ChaosToken.symbol(AhcEnums.ChaosTokenKind.CURSE, 0, &"bc_buff")
+	test.revealed_tokens.append(curse)
+	test.reveal_batch_start = 0
+	h.ctx.skill_tests.step_apply_symbol_effects(test)
+	var regs_after_st4 := 0
+	for reg in h.ctx.registrations.all_registrations():
+		if (
+			reg.lifetime_kind == AhcEnums.LifetimeKind.DURATION
+			and reg.duration == AhcEnums.DurationAnchorKind.THIS_SKILL_TEST
+		):
+			regs_after_st4 += 1
+	var mv := h.ctx.skill_tests.step_calculate_modified_value(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var regs_after_st8 := 0
+	for reg2 in h.ctx.registrations.all_registrations():
+		if (
+			reg2.lifetime_kind == AhcEnums.LifetimeKind.DURATION
+			and reg2.duration == AhcEnums.DurationAnchorKind.THIS_SKILL_TEST
+		):
+			regs_after_st8 += 1
+	return (
+		test.chaos_modifier == -2
+		and not test.chaos_modifier_reg_ids.is_empty()
+		and regs_after_st4 >= 1
+		and mv == 2
+		and regs_after_st8 == 0
+	)
 
 
 func _test_bc03_bless_chain_pool() -> bool:

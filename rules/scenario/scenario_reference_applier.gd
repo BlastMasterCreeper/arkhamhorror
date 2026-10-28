@@ -15,7 +15,7 @@ static func apply_token(
 		return
 	match token.kind:
 		AhcEnums.ChaosTokenKind.NUMERIC:
-			ctx.chaos_modifier += token.modifier
+			ChaosSkillModifier.apply(game_ctx, ctx, token.modifier)
 			return
 		AhcEnums.ChaosTokenKind.AUTO_FAIL:
 			ctx.auto_fail = true
@@ -27,7 +27,7 @@ static func apply_token(
 			## 规则自带能力：由 BlessCurseRules 处理，不查参考卡。
 			return
 		AhcEnums.ChaosTokenKind.FROST:
-			ctx.chaos_modifier += token.modifier
+			ChaosSkillModifier.apply(game_ctx, ctx, token.modifier)
 			return
 		AhcEnums.ChaosTokenKind.ELDER_SIGN:
 			_apply_elder_sign(game_ctx, ctx, token, state)
@@ -44,9 +44,9 @@ static func apply_token(
 		if _had_printed_but_blank(game_ctx, store, token.kind):
 			return
 		if token.kind == AhcEnums.ChaosTokenKind.SKULL and store != null:
-			ctx.chaos_modifier -= maxi(store.current_act_number, 1)
+			ChaosSkillModifier.apply(game_ctx, ctx, -maxi(store.current_act_number, 1))
 		else:
-			ctx.chaos_modifier += token.modifier
+			ChaosSkillModifier.apply(game_ctx, ctx, token.modifier)
 		return
 	_apply_symbol_ability(game_ctx, ctx, token, ability, store)
 
@@ -63,7 +63,8 @@ static func _apply_elder_sign(
 	var ability := _lookup_elder_sign(game_ctx, store, ctx)
 	if ability == null:
 		## 无印刷 Elder Sign：旧印默认 +0（无额外效果）。
-		ctx.chaos_modifier += token.modifier if token != null else 0
+		var elder_mod := token.modifier if token != null else 0
+		ChaosSkillModifier.apply(game_ctx, ctx, elder_mod)
 		return
 	_apply_symbol_ability(game_ctx, ctx, token, ability, store)
 
@@ -76,7 +77,7 @@ static func _apply_symbol_ability(
 	store: GameStateStore
 ) -> void:
 	var effect := ability.to_effect_dict()
-	ctx.chaos_modifier += _resolve_modifier(effect.get("modifier", 0), store)
+	ChaosSkillModifier.apply(game_ctx, ctx, _resolve_modifier(effect.get("modifier", 0), store))
 	if bool(effect.get("reveal_another", false)) and token != null:
 		token.reveal_another = true
 	_execute_immediate(game_ctx, ctx, effect, ability)
