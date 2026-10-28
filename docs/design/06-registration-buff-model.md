@@ -452,7 +452,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 **C3 · 快速：打出形式，不是能力、也不是单独成本政策**
 
-快速（Fast）为 **事件打出 ↔ 支援触发** 的窗口/**入口**对称而设。**打出始终是 `PLAY_CARD`，不是能力**；**打出本身无行动费用**，无快速时经 **Play 行动入口** 发起（[06-ability-initiation §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)）。赋快速/降费类改写见 [06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类fence--chuck-fergus--改写为独立打出包装能力)。
+快速（Fast）为 **事件打出 ↔ 支援触发** 的窗口/**入口**对称而设。**打出始终是 `PLAY_CARD`，不是能力**；**打出本身无行动费用**，无快速时经 **Play 行动入口** 发起（[06-ability-initiation §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)）。Fence/Chuck 类改写见 [06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类fence--chuck-fergus)。
 
 | 打出形式 | 入口/窗口对称 | 种类 |
 |---|---|---|
