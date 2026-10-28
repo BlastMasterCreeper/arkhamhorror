@@ -136,22 +136,26 @@ class AbilityHook:
 
 **禁止**：把打出改成 `AbilityKind`；把规则书 **Fast.** 与 ArkhamDB `[fast]`（= 免费触发符号）合并；为快速另建 `*FastPolicy`；把有时点快速事件 Register 成场上 LISTENER；用外层能力的 `[free]`/`[action]` **冒充** 被打出牌的快速形态。
 
-### 4.2.1 赋快速 / 降费类 — 可落地层（Fence · Chuck Fergus）
+### 4.2.1 赋快速 / 打出额外费用（Fence · Chuck Fergus · 可推广）
 
-**已裁决（2026-10-28）**：卡文改写不够；本节钉 **对照现码可落地的运行时框架**。  
+**已裁决（2026-10-28）**：
+
+1. **获快速** → 宿主独立 `[free]` 能力，效果 nest/run `seq.play`（**不**叠目标 Fast 关键词）。  
+2. **降费** → **Constant · 打出额外费用**（additional cost to play）：不另开「When you play」事后反应，**不** provisional。  
+3. **打出额外费用** 提升为 **通用编译/发起模式**（凡「as an additional cost to play …」及引擎改写等价句），不限于 Fence/Chuck。  
+4. **撤销** provisional L6 / 「估 WHEN 降费再暂发起」（先画靶后射箭；玩家不可见信息与未知抉择不可预测）。
+
 锚例：`04108` Fence；`09072` Chuck Fergus。
 
-**现状债（必须收）**：`ActionSystem.play_card` → `AbilityInitiationPipeline` **直调**，无打出包装帧；`INIT_1` 只吃**已登记** MODIFIER，**无**付费前 ResponseWindow；`can_initiate` 在付费前硬否 `cannot_pay`。
-
-#### A. 改写卡文（编译目标）
+#### A. 改写卡文（规范格式）
 
 **Fence**
 
 ```text
 [free] During your turn, exhaust Fence: Play an [[Illicit]] card from your hand.
 
-[reaction] When you play a fast [[Illicit]] card during your turn, exhaust Fence:
-That card costs 1 less.
+Constant – As an additional cost to play a fast [[Illicit]] card during your turn,
+you may exhaust Fence. If you do, that card costs 1 less.
 ```
 
 **Chuck Fergus**
@@ -160,120 +164,125 @@ That card costs 1 less.
 [free] During your turn, exhaust Chuck Fergus:
 Play a [[Tactic]] or [[Trick]] event from your hand.
 
-[reaction] When you play a [[Tactic]] or [[Trick]] event, exhaust Chuck Fergus: Choose one —
-- That event costs 2 fewer resources to play.
-- You get +2 skill value while performing a skill test during the resolution of that event.
+Constant – As an additional cost to play a [[Tactic]] or [[Trick]] event,
+you may exhaust Chuck Fergus. If you do, that event costs 2 fewer resources to play.
+
+[reaction] When you play a [[Tactic]] or [[Trick]] event:
+You get +2 skill value while performing a skill test during the resolution of that event.
 ```
 
-| 纸面 | 编译 | 不做什么 |
+| 纸面 | 类型 / 时机 | 编译 |
 |---|---|---|
-| 获快速 | 宿主 `FREE_TRIGGERED`：横置 → 效果 **nest/run `seq.play`** | **不**给目标叠 Fast / `play_form` |
-| 降费 | LISTENER `(seq.play, WHEN)` + L3 → exhaust + **Register** `INITIATION_RESOURCE_COST` MODIFIER（经既有 `InitiationCostPipeline.apply_modifiers`） | **不**改成宿主 `[free]/[action] Play … costs less` |
-| +2 技能 | LISTENER `(seq.play, AFTER)` 或结算期钩 | 不改入口/费用 |
+| 获快速 | `[free]` · 你的回合 / 玩家窗 | `FREE_TRIGGERED` → nest `seq.play`（`entry=EFFECT_PLAY`，`provokes_aoo=false`） |
+| 降费 | **Constant** · 打出费用声明 | `PlayAdditionalCostOffer`（可选或强制）挂在目标打出上 |
+| +2 技能 | `[reaction]` · When you play | LISTENER `(seq.play, AFTER)` 或结算期钩；**不**改合法性 |
 
-#### B. 打出包装 `seq.play`（G8 钉名）
+#### B. 通用模式：打出额外费用（Play Additional Cost）
 
-**铸** `seq.play`：包装帧，**委托**现有 `AbilityInitiationPipeline`（七步不另起炉灶）。禁止第二套 Initiation；禁止 `seq.card…`。落地时 Catalog 审计改为必铸（今日仍在 forbidden 列表 = 债）。
+纸面或改写句凡属：
+
+- *As an additional cost to play …, …*
+- *As an additional cost to play …, you may …*（可选）
+- 引擎将「When you play … reduce cost / exhaust to reduce」收成上式
+
+一律编译为 **打出声明期的费用分支**，不是独立事后反应、不是宿主替代 Play。
 
 ```text
-入口（只决定谁有权 run/nest seq.play；种类始终 PLAY_CARD）
-  ├─ Play 行动（无 Fast）              → run(seq.play, { entry: PLAY_ACTION, … })
-  ├─ 玩家窗 / 时点窗（印刷 Fast）      → run(seq.play, { entry: PLAY_FAST_*, … })
-  └─ 宿主 [free] 效果（Fence 改写）    → nest(seq.play, { entry: EFFECT_PLAY, … })
+PlayCostPlan（一次打出声明）
+  baseline: 印刷资源费 ± 已存在 MODIFIER（预挂 Buff 等）
+  offers[]: PlayAdditionalCostOffer   ← Constant 收集
 ```
 
-| params | 含义 |
+| Offer 字段 | 含义 |
 |---|---|
-| `controller_id` / `card_id` | 打出者与目标 |
-| `entry` | `PLAY_ACTION` / `PLAY_FAST_WINDOW` / `PLAY_FAST_TIMING` / `EFFECT_PLAY` |
-| `provokes_aoo` | Fence 的 `EFFECT_PLAY` **默认 false**（保原获快速的免借机，而不叠 Fast 关键词） |
-| `resource_cost` | 印刷资源费 |
-| `composition` | on-play 树 |
+| `filter` | 哪次打出可挂（trait / fast / during your turn…） |
+| `additional` | 额外费用叶（exhaust 指定支援、花资源、弃牌…） |
+| `cost_delta` | 接受本 offer 后对 baseline 资源费的修正（如 −1 / −2） |
+| `mode` | `OPTIONAL`（you may） / `REQUIRED`（无「may」则必须付额外费用才能走该合法支） |
 
-**`PLAY_CARD` intent 的 `action_cost` 恒 0**（打出无行动费用）。若经 Play 行动入口，行动在 **进入 `seq.play` 前**由行动层扣除。
-
-#### C. 帧内步骤（接 `AbilityInitiationPipeline`）
+**合法性 = 费用计划的析取（OR）**：任一 **完整可付支** 成立即可考虑打出。
 
 ```text
-catalog.run/nest(seq.play)
-  push 帧 · TC = play(controller, card)          ← WHEN/AFTER 锚
-  ├─ PRE：FORBID_PLAY / 手牌（现 `_play_card_pre_*`）
-  ├─ PROVISIONAL L6：can_provisionally_pay       ← 新增；见 D
-  ├─ WHEN ResponseWindow（付费前）               ← 新增；降费在此 Register
-  │     COLLECT (seq.play, WHEN) → 选用 nest 能力 → seq.effect.register
-  │     窗关 → re-apply_modifiers
-  ├─ HARD L6：apply_modifiers → can_pay → pay    ← 现 InitiationCostPipeline
-  ├─ INIT_2B AOO（provokes_aoo / SKIP_AOO）
-  ├─ L7 dry_run → commence → resolve             ← 现 INIT_3/4
-  └─ AFTER ResponseWindow（可选；Chuck +2）
+支 A：不接受任何 OPTIONAL offer → 付 baseline（若存在 REQUIRED offer 则本支不存在）
+支 B：接受 offer₁ → 付 additional₁ + (baseline + cost_delta₁)
+支 C：接受 offer₂ → …
+（多枚 OPTIONAL 可组合时，每组合一条支；实现可先单 offer，再扩展）
+```
+
+COLLECT / `can_initiate`：**存在至少一条当前局面下 `can_pay` 的支** ⇒ 打出候选可进池。  
+**禁止**用「发起后可能开火的反应」生成支。
+
+#### C. 玩家意向（PI · 声明期，非 nest）
+
+进入 `seq.play` / 发起硬付费 **之前**，用 `PlayerInteractionGate` **有限期确认**选支（[16](16-player-interaction.md)；非 nest、非 Composition 冒充选择）：
+
+| 情况 | 行为 |
+|---|---|
+| **≥2 条可付支**（含「不付额外费用」与「付额外费用换降价」） | **必须询问**选哪一条 |
+| **仅 1 条可付支，且该支含额外费用**（无「白打」支） | **仍必须询问意向**（确认愿意支付额外费用）；拒绝 / 逾期默认 → **不发起** |
+| **仅 1 条可付支，且无额外费用** | 可默认该支；按产品也可跳过询问 |
+| **0 条可付支** | 不可打出 |
+
+默认：逾期采用 `default_index`（通常「不付可选额外费用」；若仅强制额外费用支则可付则 default=确认付，或 default=拒绝不发起——产品钉：**仅强制支时逾期=不发起**，避免静默扣横置）。
+
+选定后写入 `RulesMemory` / intent：`accepted_offers` + 最终 `resource_cost` / 待付 additional；再进 L6 `pay`（baseline 修正后资源 + additional 原子，如 exhaust）。
+
+#### D. `seq.play` 帧内步骤（无 provisional）
+
+```text
+入口（Play 行动 / Fast 窗 / EFFECT_PLAY nest）→ run/nest seq.play
+  push
+  PRE：FORBID_PLAY / 手牌
+  COLLECT PlayCostPlan 支 · OR 可付？
+  PI：选支 / 确认额外费用意向          ← §C
+  HARD L6：按选定支 pay（资源 + additional）
+  INIT_2B AOO → L7 → commence → resolve
+  AFTER（可选；Chuck +2）
 pop
 ```
 
-| 现码 | 改动 |
+| 现债 | 收法 |
 |---|---|
-| 入口前硬 `can_pay` | 改为 provisional；硬门移到 WHEN **后** |
-| `INIT_1_APPLY_MODIFIERS` | 保留；WHEN 后再跑一次 |
-| `INIT_2_PAY_COSTS` | 不变 |
-| `ActionSystem.play_card` 直调七步 | 变薄：组 params → `catalog.run(seq.play)` |
+| `play_card` 直调七步 | → `catalog.run(seq.play)` 委托 `AbilityInitiationPipeline` |
+| provisional / WHEN 降费 | **删除**；改 PlayCostPlan + PI |
+| 降费抢快速窗口 | Constant 挂在**目标牌正常打出声明**上，窗口仍属目标 `play_form` |
 
-#### D. Provisional（FAQ 对称 · 可编码）
+#### E. `[free] Play`（获快速改写）
 
-```gdscript
-# InitiationCostPipeline 扩展
-func estimate_min_resource_cost(intent, ctx) -> int:
-    # 已有 MODIFIER 之后，再减去本 WHEN 窗 eligible 降费反应的最大可知 delta
-    #（编译期自 reduce_initiation_resource_cost / 等效声明）
+1. `FREE_TRIGGERED`；横置 = 该能力费用。  
+2. 效果：`SelectionSpec` → `nest(seq.play, { entry: EFFECT_PLAY, provokes_aoo: false })`。  
+3. 不叠 Fast。该路径是**另一入口**，与 Constant 降费支正交：自由打出未赋 Fast 的牌时，不自动当成「fast Illicit」去挂 Fence 降费 offer（filter 钉印刷/当前 Fast 形态）。
 
-func can_provisionally_pay(intent, ctx) -> bool:
-    return estimate_min_resource_cost(intent, ctx) <= inv.resource_pool
-```
+#### F. 推广（编译器）
 
-| 场景 | 进 `seq.play` | WHEN 后硬门 |
-|---|---|---|
-| 池 ≥ 印刷（或已有 Buff 后）费 | 过 | 过 |
-| 池 < 印刷费，但 eligible 降费能使 `min ≤ 池` | **允许** | 未开火/不够 → `cannot_pay` |
-| 池 < 印刷费且无足够候选 | **拒绝** | — |
+| 纸面/改写 | 编译 |
+|---|---|
+| *as an additional cost to play …, you may …* | `OPTIONAL` PlayAdditionalCostOffer |
+| *as an additional cost to play …,*（无 may） | `REQUIRED` offer；无白打支 |
+| *When you play …, exhaust X: reduce cost*（引擎改写） | 同上 Constant offer，**禁止**字面 WHEN 事后降费 |
+| Seal 等已有「打出额外费用」 | 同一 PlayCostPlan 轴（可与 offer 并列） |
 
-行动不足：由 `[free]` 入口满足（不经 Play 行动）。欠印刷费：由 provisional + WHEN 满足。禁止无候选赊账。
+Schema 字段归 [20](20-card-translation-schema.md)（落地时增 `play_additional_cost`）；选择经 [21](21-selection-spec.md) / Gate，不 nest `seq.choose.*`。
 
-#### E. Fence `[free] Play` 接法
-
-1. 普通 `FREE_TRIGGERED`（`TriggeredAbilityService` / 玩家窗发起池）；横置 = 该能力 L6。  
-2. 效果：`SelectionSpec`（手牌 Illicit）→ `catalog.nest(seq.play, { entry: EFFECT_PLAY, provokes_aoo: false, card_id })`。  
-3. 不写 Fast、不改目标 `play_form`。  
-4. 0 行动：免费能力仍可进玩家窗 → nest 打出。
-
-Chuck 的 `[free] Play` 同构；降费/+2 是目标 `seq.play` 上的 LISTENER。
-
-#### F. 降费接 Register（禁真空）
-
-```text
-(seq.play, WHEN) → 能力 Initiation（exhaust）
-  → nest seq.effect.register（MODIFIER · INITIATION_RESOURCE_COST · 钉本次 play/initiation）
-  → 回 seq.play → apply_modifiers → modified_resource_cost↓
-```
-
-复用 `ModifierPayload.reduce_initiation_resource_cost`（`INIT-04` 已测**预挂** Buff）。缺口：Buff **改由 WHEN 反应创建**，lifetime 钉本次 `seq.play`。
-
-#### G. 落地切片（实现序 · 勿跳）
+#### G. 落地切片
 
 | 序 | 切片 | 验收 |
 |---|---|---|
-| 1 | 铸 `seq.play`；`play_card` → `catalog.run`；七步帧内委托 | 现有 play 测绿；栈顶可见 `seq.play` |
-| 2 | 印刷 Fast `play_form` 接线入口 | KW-FAST 不止测表 |
-| 3 | WHEN 付费前窗 + `can_provisionally_pay` | 0 资源 + 降费可过；无候选不可 |
-| 4 | Fence/Chuck 编译：free nest play；降费 LISTENER | 0 行动 free-play；有时点快速降费不丢窗 |
-| 5 | AFTER / +2 技能 | Chuck 第三支 |
+| 1 | 铸 `seq.play`；`play_card` → `catalog.run` | 栈顶可见；旧 play 测绿 |
+| 2 | `PlayCostPlan` + PI 选支/确认 | 双支询问；单强制支也询问；0 支不可打 |
+| 3 | Fast `play_form` 入口接线 | 有时点快速仍走自身窗 |
+| 4 | Fence/Chuck 编译：`[free]` nest + Constant offer | 0 行动 free-play；降费不丢快速窗 |
+| 5 | AFTER +2 | Chuck 第三支 |
 
-#### H. 禁止（实现级）
+#### H. 禁止
 
 | 禁止 | 理由 |
 |---|---|
-| 无 `seq.play` 帧真空跑降费 / on-play | DoD |
-| 降费写成宿主替代 Play | 抢入口 |
-| `[free] Play` 再 gains fast | 叠关键词；免 AOO 用 `provokes_aoo` 包装参 |
-| provisional 不估 delta 或无条件放行 | 挡合法对称 / 赊账 |
-| `*FencePolicy` / `seq.card.fence` | 翻译红线 |
+| provisional / 预测 WHEN 降费 | 时序矛盾；信息与抉择不可知 |
+| 降费写成宿主 `[free]/[action] Play … costs less` 且锁死免费窗 | 抢有时点快速窗口（Constant offer 才是降费正道） |
+| `[free] Play` 再 gains fast | 叠关键词；免 AOO 用 `provokes_aoo` |
+| 静默扣额外费用不询问 | 有支必问；仅强制支也问意向 |
+| `*FencePolicy` / `seq.card…` | 翻译红线 |
 
 ---
 ## 5. Eligibility 关卡（L0–L7）
@@ -433,11 +442,11 @@ class AbilityInitiationPipeline:
         # L1–L5 快速复核（可选用后场面可能已变）
         if not eligibility.passes_through(intent.spec, ctx, EligibilityStage.PRE_INITIATE, up_to_level = 5):
             return ABORT
-        # PLAY_CARD 经 seq.play：此处前须已 provisional；WHEN 付费前窗已关（§4.2.1 C–D）
+        # PLAY_CARD 经 seq.play：声明期已 PI 选定 PlayCostPlan 支（§4.2.1 B–D）；无 provisional
         event_log.record_initiation(INIT_1_APPLY_MODIFIERS, intent)
-        apply_cost_modifiers(intent)                    # L6 前半（含 WHEN 内新 Register 的 MODIFIER）
+        apply_cost_modifiers(intent)                    # L6 前半（预挂 Buff + 选定支 cost_delta）
         event_log.record_initiation(INIT_2_PAY_COSTS, intent)
-        if not cost_pipeline.pay(intent): return ABORT  # L6 硬门
+        if not cost_pipeline.pay(intent): return ABORT  # L6 硬门（含 additional）
         event_log.record_initiation(INIT_2B_AOO, intent)
         resolve_attacks_of_opportunity(intent)
         if cancel_before_initiate(intent): return CANCELLED
@@ -450,7 +459,7 @@ class AbilityInitiationPipeline:
         return SUCCESS
 ```
 
-打出完整路径见 **§4.2.1 C**（`seq.play` 包装 → provisional → WHEN → 再进本管线硬 L6）。能力发起无打出包装时，无 WHEN 付费前窗，行为同今日。
+打出完整路径见 **§4.2.1 D**（`seq.play` → PlayCostPlan 析取 → PI 选支 → 硬 L6）。能力发起无打出包装时行为同今日。
 
 Initiation 各步 **完整写入 EventRecord**，与 Framework 同级（已裁决 OQ-IDX-02）。
 
@@ -459,10 +468,10 @@ Initiation 各步 **完整写入 EventRecord**，与 Framework 同级（已裁�
 | Step | Grimoire | 实现 |
 |---|---|---|
 | Pre | Play restrictions + 效果可结算性 | Eligibility **L3–L5** 复核；**L7** `dry_run()` |
-| Pre（打出） | Cost feasibility（暂） | **`can_provisionally_pay`**（§4.2.1 D）；硬门在 WHEN 后 |
-| Pre（打出） | — | **`seq.play` WHEN** 付费前 ResponseWindow（降费 Register） |
-| 1 | Apply cost modifiers | L6 前半（`apply_modifiers`） |
-| 2 | Pay costs | L6 硬支付 |
+| Pre（打出） | Cost feasibility | **PlayCostPlan 析取**：任一支可付即可（§4.2.1 B）；**无** provisional |
+| Pre（打出） | 额外费用意向 | **PI** 选支 / 确认（有 OPTIONAL 必问；仅 REQUIRED 支也问）（§4.2.1 C） |
+| 1 | Apply cost modifiers | L6 前半（`apply_modifiers` + 选定 `cost_delta`） |
+| 2 | Pay costs | L6 硬支付（资源 + additional） |
 | 2b | AOO | `AttackOfOpportunityResolver` |
 | 3 | Commence play / ability | Limbo, enter play |
 | 4 | Resolve effects | `CompositionExecutor`（见 [07-composition](07-composition.md)） |
@@ -703,9 +712,10 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
-| 2026-10-28 | v0.4.22 | **§4.2.1** 可落地层：`seq.play` 包装、provisional、WHEN→Register、切片序；接现管线 |
-| 2026-10-28 | v0.4.21 | **§4.2.1** 卡文：仅获快速→`[free] Play`；降费 When-you-play；欠费对称 |
-| 2026-10-28 | v0.4.20 | **§4.2.1** 初稿（后由 v0.4.21/22 收口） |
+| 2026-10-28 | v0.4.23 | **§4.2.1** 降费→Constant 打出额外费用；PlayCostPlan 析取+PI；撤销 provisional；可推广 |
+| 2026-10-28 | v0.4.22 | **§4.2.1** 曾写 provisional/WHEN（已由 v0.4.23 废止） |
+| 2026-10-28 | v0.4.21 | **§4.2.1** 卡文迭代 |
+| 2026-10-28 | v0.4.20 | **§4.2.1** 初稿 |
 | 2026-10-27 | v0.4.19 | **§4.2** 打出包装：完整流程 + 可响应时点；链 [22 G8](22-seq-granularity.md) |
 | 2026-10-22 | v0.4.18 | **§6** `ActivationPool` → `InitiationPool` / 发起池（避 Activate） |
 | 2026-10-22 | v0.4.17 | **§6** 术语对齐 16 §7.0：响应池 / 发起池 |

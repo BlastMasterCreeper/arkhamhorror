@@ -78,6 +78,8 @@
 
 卡面 **choose / select / may（选目标）** → **A**，不是 nest、不是 Then。通用规格见 **[21-selection-spec](21-selection-spec.md)**。
 
+**打出额外费用选支**（[06 §4.2.1](06-ability-initiation.md#421-赋快速--打出额外费用fence--chuck-fergus--可推广)）：声明期对 `PlayCostPlan` 的 OPTIONAL/REQUIRED offer **也走 Gate 有限期确认**——有多支必问；仅一条且含额外费用也问意向；**不是** nest，**不是** `when_play` 事后反应。
+
 | 卡面语义 | template 例 | 必填规格 |
 |---|---|---|
 | 选 1 / N 实体（区域·特性·关键词·横置…） | `select` / `pick_target` / `pick_multi` | `filter`、`min`/`max`、`prompt_id`、`bind`/`memory_key`（多选 shape=`entity_list`） |
