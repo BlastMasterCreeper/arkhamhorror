@@ -158,18 +158,20 @@ class AbilityHook:
 
 ```text
 Constant – As an additional cost to play an [[Illicit]] card during your turn,
-you may exhaust Fence to have that play gain fast for this play.
+you may exhaust Fence to have that play gain “Fast. Play only during your turn.”
 If that card was already fast, instead reduce its cost by 1.
 ```
 
-（引擎：OPTIONAL 声明支；已快速时出示 −1 支，否则出示本帧快速支；PI 只列当前可付支。）
+（引擎：OPTIONAL 声明支；已快速时出示 −1 支，否则出示本帧快速支；PI 只列当前可付支。本帧快速的入口窗钉在**你的回合**玩家窗，与勘误一致。）
 
 **Chuck Fergus**
+
+（官方勘误 · Chuck Fergus 32/72：原「gains fast」第一条改为 gains **「Fast. Play only during your turn.」**；FAQ：赋快速不能用来回合外打出。）
 
 ```text
 Constant – As an additional cost to play a [[Tactic]] or [[Trick]] event,
 you may exhaust Chuck Fergus to choose one —
-- Have that play gain fast for this play.
+- Have that play gain “Fast. Play only during your turn.”
 - Have that event cost 2 fewer resources to play.
 - Get +2 skill value while performing a skill test during the resolution of that event.
 ```
@@ -192,7 +194,7 @@ PlayDeclarationPlan（一次拟打出）
 | `filter` | 哪次打出可挂（trait / 已快速 / during your turn…） |
 | `mode` | `OPTIONAL` / `REQUIRED` |
 | `additional` | 额外费用（exhaust 本卡、花资源、弃牌…） |
-| `grant_fast` | true → **本帧** `entry=PLAY_FAST_WINDOW`（或产品钉的快速窗）、`provokes_aoo=false`；**不**改牌面关键词 |
+| `grant_fast` | true → **本帧** `entry=PLAY_FAST_WINDOW`、`provokes_aoo=false`；窗口谓词默认 **仅你的回合**（勘误「Fast. Play only during your turn.」）；**不**改牌面关键词；**禁止**靠本支回合外打出 |
 | `cost_delta` | 资源费修正 |
 | `resolution` | 结算期修正（如 `skill_value:+2` 于本帧检定） |
 | `choose_one` | 同一 offer 内互斥子支（Chuck 三选一） |
@@ -215,9 +217,9 @@ COLLECT：对每条支检查 **当前窗口是否匹配该支 entry**、**additi
 
 | 是 | 否 |
 |---|---|
-| 本帧 `seq.play` 的 `entry` / AOO 按快速形态 | 改 `Card` 印刷关键词或 HAND 上持久 Fast |
-| 本帧内其它效果若问「此次打出是否按快速」→ **是** | 打出结束后仍视为永久 Fast 牌 |
-| 与印刷已快速叠加时：入口已是快速；Fence 走「instead −1」支 | 再叠一层 gains fast 空操作当降费 |
+| 本帧 `entry` / AOO 按快速；**默认仅你的回合**（Chuck 勘误原文） | 改牌面关键词或持久 Fast；回合外靠赋快速打出（FAQ） |
+| 本帧内问「此次是否按快速」→ **是** | 打出结束后仍视为永久 Fast 牌 |
+| 已印刷快速：入口已是快速；Fence 走 instead −1 | 无回合谓词的裸 `grant_fast` |
 
 #### D. 玩家意向（PI · 声明期）
 
@@ -702,6 +704,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
+| 2026-10-28 | v0.4.26 | **§4.2.1** 本帧快速纳入 Chuck 勘误：`Fast. Play only during your turn.` |
 | 2026-10-28 | v0.4.25 | **§4.2.1** 卡文句式对齐 05114：`you may {cost} to {benefit}` |
 | 2026-10-28 | v0.4.24 | **§4.2.1** 升级 `PlayDeclarationPlan`：支可本帧快速/降费/结算加值；卡文收束 Constant |
 | 2026-10-28 | v0.4.23 | **§4.2.1** 降费→Constant 额外费用；废 provisional（后由 v0.4.24 扩支） |

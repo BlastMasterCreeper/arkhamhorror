@@ -316,7 +316,7 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 字段 | 含义 |
 |---|---|
 | `mode` | `optional` / `required` |
-| `grant_fast` | **本帧**快速入口；不改牌面关键词 |
+| `grant_fast` | **本帧**快速入口；默认 **Play only during your turn**（Chuck 勘误）；不改牌面关键词 |
 | `cost_delta` | 资源费修正 |
 | `resolution` | 本帧结算期修正（检定加值等） |
 | `choose_one` | 互斥子支 |
