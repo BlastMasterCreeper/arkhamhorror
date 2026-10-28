@@ -105,38 +105,39 @@ class SkillTestEngine:
 | **载荷** | modifier（→ ST.5）· 效果（再揭示、失败句→ST.7…） |
 
 ```text
-seq.chaos.reveal
-  └─ 每枚 resolved token
-        ST.3 揭示
-        └─ nest / 发起 隐式符号能力   ← ST.4
-              · modifier → ctx
-              · 「Reveal another」→ 再 nest ST.3→符号能力
-              · fail / fail-by → 注册 ST.7（OQ-05-03）
+揭示链（检定父流程编排；ST.3 / ST.4 只是名义步号）
+  nest seq.chaos.reveal          ← ST.3 整帧（WHEN / After；含 if_revealed）
+    pop
+  对每枚 resolved：
+    nest seq.chaos.symbol        ← ST.4 符号能力（父流程下一步，非 ST.3 内联）
+          · modifier → THIS_SKILL_TEST Buff（seq.effect.register）
+          · 「Reveal another」→ 本帧内再 nest seq.chaos.reveal
+                → 再对新增 resolved nest seq.chaos.symbol
+          · fail / fail-by → 注册 ST.7（OQ-05-03）
+  整链结束 → PW_SKILL_TEST_AFTER_REVEAL → ST.5
 ```
 
 **回溯锚点**（故步骤回退说得通）：
 
 | 干预 | 对象 |
 |---|---|
-| Cancel 揭示 | 无 token → 无能力可发 |
+| Cancel 揭示 | 无 token → 无能力可发（锚 `seq.chaos.reveal`） |
 | Ignore | 仍揭示；不施加该符号能力的 modifier/效果 |
-| Cancel / Instead 符号能力 | 以该次能力发起为锚 |
+| Cancel / Instead 符号能力 | 以该次 `seq.chaos.symbol` 发起为锚 |
 | 空白参考卡文本框 | 无对应印刷能力 → ST.4 无效果 |
 
-- 多能力「将要揭示」替换：整批仍 **一次** ST.3，再对 resolved 逐枚发符号能力（[05 §4.2](05-chaos-bag.md)）
-- 「Reveal another」→ **仅**再嵌 ST.3→符号能力；不回 ST.2；递归无 PW（OQ-04-01）
+- 多能力「将要揭示」替换：整批仍 **一次** ST.3，再对 resolved **逐枚 nest** 符号能力（[05 §4.2](05-chaos-bag.md)）
+- 「Reveal another」→ **ST.4 帧内**再 nest ST.3→符号能力；不回 ST.2；递归无 PW（OQ-04-01）
 - 整链结束 → `PW_SKILL_TEST_AFTER_REVEAL`（进 ST.5 前一次）
-- 实现：`ScenarioReferenceBinder` 把 JSON 符号条装成参考卡 `symbol_abilities`；`ScenarioReferenceApplier` 于 ST.4 发起（`text_box_blank` 跳过印刷条）
+- 实现：`ScenarioReferenceBinder` 装参考卡 `symbol_abilities`；`ChaosSymbolFlow` / `ScenarioReferenceApplier` 于 `seq.chaos.symbol` 发起（`text_box_blank` 跳过印刷条）
 
 ```gdscript
 func resolve_reveal_chain(handle: SkillTestHandle) -> void:
-    while true:
-        step_reveal_token(handle)                      # ST.3
-        var again := step_initiate_symbol_ability(handle)  # ST.4
-        if not again:
-            break
+    nest seq.chaos.reveal                              # ST.3 整帧
+    for token in this_batch:
+        nest seq.chaos.symbol { token }                # ST.4；再揭示在帧内递归
     open_player_window(PW_SKILL_TEST_AFTER_REVEAL)
-    step_calculate_modified_value(handle)              # ST.5
+    # ST.5 …
 ```
 
 ### 3.5 ST.5 Modified skill value

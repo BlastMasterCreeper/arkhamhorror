@@ -477,6 +477,20 @@ static func _register_chaos_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return ChaosRevealFlow.run(game_ctx, params)
 	)
+	## ST.4：单枚 resolved 隐式符号能力；父流程在 ST.3 整帧后 nest（非内联）。
+	catalog.register_run(
+		&"seq.chaos.symbol",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("inv_id", params.get("controller_id", &""))
+			var test_id: StringName = params.get("test_id", &"")
+			var token: ChaosToken = params.get("token") as ChaosToken
+			var token_id: StringName = &""
+			if token != null:
+				token_id = token.instance_id
+			return TriggeringCondition.chaos_symbol_ability(inv_id, test_id, token_id),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return ChaosSymbolFlow.run(game_ctx, params)
+	)
 
 
 static func _register_keyword_flows(catalog: SequenceCatalog) -> void:

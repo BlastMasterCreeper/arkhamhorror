@@ -203,14 +203,14 @@
 
 ## 5. 当前已注册 flow（代码）
 
-**权威清单与审计**：[22 §9](22-seq-granularity.md#9-catalog-全量审计2026-10-27)（**60** 条正式 id，无别名；`SEQ-AUDIT-01`）。粒度 / 合并 / 刻意不铸见 [22](22-seq-granularity.md)。
+**权威清单与审计**：[22 §9](22-seq-granularity.md#9-catalog-全量审计2026-10-27)（**61** 条正式 id，无别名；`SEQ-AUDIT-01`）。粒度 / 合并 / 刻意不铸见 [22](22-seq-granularity.md)。
 
 要点（非穷尽）：
 
 | 族 | 代表 flow_id |
 |---|---|
 | 抽牌 / 入手 / 显现 | `seq.draw.*` · `seq.enter_hand` · `seq.encounter.*` · `seq.keyword.surge` |
-| 检定 / 混乱 | `seq.skill_test` · `seq.chaos.reveal` |
+| 检定 / 混乱 | `seq.skill_test` · `seq.chaos.reveal` · `seq.chaos.symbol` |
 | 行动外壳 | `seq.action.{draw,gain_resource,move,investigate,fight,engage,evade}` |
 | 效果核 | `seq.effect.deal`(/`.assignable`) · `move` · `exhaust`/`ready` · `evade` · `search` · `defeat` · `register`/`unregister` · `discard_card` · `seal`/`release_seal` · `reveal_location` · … |
 | 敌人 / 交战 | `seq.enemy.{3_2,phase_attacks,attack,resolve_location}` · `seq.engage` · `seq.keyword.{hunter,patrol,massive}` |
