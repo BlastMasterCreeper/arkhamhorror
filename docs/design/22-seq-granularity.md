@@ -281,11 +281,15 @@
 借机攻击 **就是** 敌人攻击（`seq.enemy.attack` / `perform_attack`）。**禁止** `seq.aoo`。  
 是否借机 = 看 **攻击嵌套的来源**（挂在 Initiation 付完费用后、主体效果前的 AOO 砖 / 栈溯源）。`AttackKind.OPPORTUNITY` 仍可作叶上快捷过滤，不是唯一辨识轴。
 
-**G8 · 打出（改裁 · 2026-10-27）**
+**G8 · 打出（改裁 · 2026-10-27；赋快速/降费 · 2026-10-28）**
 
 打出是 **完整流程**，有可响应时点；**不是**「只靠裸 Initiation 种类名凑合听」。  
-**要**在已有发起手续（`PLAY_CARD` Initiation 七步）外加一层 **打出包装**（命名流程或等价包装帧），使打出窗 / When-you-play 等订在包装上，而不是散落在通用 Initiation。  
-进场区划结果仍听 `seq.zone.move`（场外→场上）。包装的精确 `flow_id` / 与 Initiation 分槽 → 实现时钉（候选如 `seq.play` 包装 nest/委托 Initiation；**禁止**把打出收成 `AbilityKind`）。
+**要**在已有发起手续（`PLAY_CARD` Initiation 七步）外加一层 **打出包装**（命名流程或等价包装帧），使打出窗与包装时点订在包装上，而不是散落在通用 Initiation。  
+进场区划结果仍听 `seq.zone.move`（场外→场上）。**`flow_id` 钉为 `seq.play`**：包装 nest/委托 Initiation（[06 §4.2.1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广)）；**禁止**把打出收成 `AbilityKind`。
+
+**打出本身无行动费用**；无快速时经 **Play 行动入口** 发起包装，快速只改入口/窗口/AOO（见 [06 §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)）。
+
+**打出声明支（Fence · Chuck · 可推广）**：见 [06 §4.2.1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广)——铸 **`seq.play`**；Constant **`PlayDeclarationPlan`** 支可打包 **本帧快速 / 降费 / 结算加值** + 额外费用；声明期 **PI**；**禁止** provisional 与拆条 `[free] Play` 冒充获快速。
 
 **G9 · 投入（待议）**
 
@@ -406,6 +410,7 @@
 | 2026-10-13 | I2 真空抽查 → [23-vacuum-audit](23-vacuum-audit.md)；铸造清单已收口，下一刀偏结构性硬门槛 |
 | 2026-10-27 | §9 Catalog 全量审计：初扫 66（含别名） |
 | 2026-10-27 | §9.2：**去掉全部 flow 别名**；正式 **60** 条；`damage*`/`gain_resource`/`enemy.move`/`enemy.defeat`/`investigation_phase_ends` 已删；`skill_type_for_flow` 死代码已删 |
+| 2026-10-28 | G8：`PlayDeclarationPlan` 支可本帧快速/降费/结算加值（[06 §4.2.1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广)） |
 | 2026-10-27 | G7–G11 改裁：费用=效果属性；AOO=攻击嵌套来源；**打出要 Initiation 包装**；投入待议；险境=Buff 信息层 |
 | 2026-10-27 | G10 补例：花费/失去资源 **同 L0**，**异包装时点**；响应订包装不订裸原子 |
 | 2026-10-27 | 通则：同原子异包装 — 受到/放置伤恐、治愈/移除、抽取/加入手牌 |
@@ -447,6 +452,8 @@
 | `seq.effect.enter_play` | **不是效果**（G4）；听 `seq.zone.move` |
 | `seq.commit` | **G9 待议**；未裁决前不铸 |
 | `seq.skill_test.{intellect,combat,agility}` | 已并 → 单条 `seq.skill_test` + `params.skill` |
+
+**不再「刻意不铸」**：`seq.play`（G8）— 已裁决要铸；落地前审计可能暂禁，以 [06 §4.2.1 切片 1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广) 为准。
 
 ### 9.4 文档债（本轮已收）
 
