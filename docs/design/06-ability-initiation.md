@@ -136,55 +136,67 @@ class AbilityHook:
 
 **禁止**：把打出改成 `AbilityKind`；把规则书 **Fast.** 与 ArkhamDB `[fast]`（= 免费触发符号）合并；为快速另建 `*FastPolicy`；把有时点快速事件 Register 成场上 LISTENER；用外层能力的 `[free]`/`[action]` **冒充** 被打出牌的快速形态。
 
-### 4.2.1 赋快速 / 降费类（Fence · Chuck Fergus）— 改写为独立打出包装能力
+### 4.2.1 赋快速 / 降费类（Fence · Chuck Fergus）
 
-**已裁决（2026-10-28）**：纸面「When you play … gains fast / reduce cost / …」时点别扭（见 Fence FAQ、Chuck Fergus 勘误/FAQ）；引擎 **不**按字面挂普通 `when_play` 后置反应，而 **改写** 为与打出包装同构的 **独立能力**（方案 C，经纠正）。
+**已裁决（2026-10-28）**：纸面「When you play … gains fast / reduce cost / …」别扭（Fence FAQ；Chuck 勘误/FAQ）。**仅「获得快速」** 拆成独立的 **`[free] Play …` 能力**（不经 Play 行动入口；**不必**再给目标牌 Fast 关键词——免费能力发起的打出已省掉行动入口）。**降费**与**结算期修正**仍挂在目标牌**自己的**打出上（反应），**不**改写成宿主 `[free]`/`[action] Play`（以免抢走有时点快速的窗口）。
 
-锚例：`04108` Fence；`09072` / 同名 Chuck Fergus（勘误：获快速 = 获得「Fast. Play only during your turn.」；FAQ：赋快速 **不能** 用来回合外打出）。
+锚例：`04108` Fence；`09072` Chuck Fergus。
 
-#### 正交拆分（硬门槛）
+#### 改写卡文（英文规范）
 
-| 纸面选项 | 引擎形态 | 说明 |
-|---|---|---|
-| **获得快速** | **独立能力** → 发起一次 **快速打出包装** | 专管入口/窗口/AOO；横置等是 **本能力** 的费用，不是「外层改成 free 所以事件变快」 |
-| **降低资源费用** | **独立能力** → 发起一次 **普通打出包装** + `cost_delta` | **仍走无快速时的入口**（Play 行动），只改资源费用属性；与快速 **正交** |
-| **结算期修正**（如 Chuck +2 技能） | 可保留为 **打出包装上的反应/结算期修正** | 不改入口；不必改写成替代打出 |
-
-纸面「一条反应 + 三选一」是排版；引擎须落成 **多条独立能力（发动时选一条）**，禁止合成「一条 free 打出 + 内联选项」把快速吃掉。
-
-#### 规范写法（能力级）
+**Fence (04108)**
 
 ```text
-能力「赋快速打出」（独立）
-  费用：横置本卡（等）
-  效果：对一手牌中合法目标发起 快速打出包装（PLAY_FAST_*）
-        — 入口对称 [free]/[reaction]；不经 Play 行动；不引起借机攻击
-        — 窗口谓词随勘误/卡面（如「仅你的回合」）钉在包装上
+[free] During your turn, exhaust Fence: Play an [[Illicit]] card from your hand.
 
-能力「降费打出」（独立）
-  费用：横置本卡（等）
-  效果：对一手牌中合法目标发起 普通打出包装（PLAY_ACTION）
-        + 费用属性 cost_delta（如 −2 / −1）
-        — 入口仍是 Play 行动；需要又快又便宜 → 两条能力条件分别满足，不靠一条包办
+[reaction] When you play a fast [[Illicit]] card during your turn, exhaust Fence:
+That card costs 1 less.
+```
 
-能力「结算期修正」（可选，独立或钩在打出包装）
-  当目标事件的打出包装进入结算：施加技能修正等
+**Chuck Fergus (09072)**
+
+```text
+[free] During your turn, exhaust Chuck Fergus:
+Play a [[Tactic]] or [[Trick]] event from your hand.
+
+[reaction] When you play a [[Tactic]] or [[Trick]] event, exhaust Chuck Fergus: Choose one —
+- That event costs 2 fewer resources to play.
+- You get +2 skill value while performing a skill test during the resolution of that event.
+```
+
+| 纸面选项 | 改写 | 说明 |
+|---|---|---|
+| **获得快速** | **`[free] … Play …`**（独立能力） | 只拆这一条；效果是打出，**不再**写 gains fast / as a fast card |
+| **降低资源费用** | 仍 **`[reaction] When you play`** + `cost_delta` | 入口/窗口仍属被打出牌（含有时点快速）；反应只改费用，挂**付费前**槽 |
+| **结算期修正**（+2 技能） | 仍 **`When you play`** 结算期 | 不改入口、不改费用 |
+
+#### FAQ 对称：行动不足 ↔ 费用不足
+
+Fence FAQ：无剩余行动仍可走原「赋快速」路径（现收成 `[free] Play`）。  
+**同理（已裁决）**：印刷费用一时付不起、但场上**仍有可开火的降费反应**（Fence / Chuck −N）足以使修正后费用可付时，**允许暂发起**该次打出 → 付费前槽结算降费 → 再过 L6。  
+**禁止**在 COLLECT/PRE_INITIATE 仅按**未修正印刷费**一刀切否决，却又不开放付费前降费窗。
+
+```text
+打出包装发起（窗口/入口已按目标牌形态定稿）
+  → 付费前：降费类 When-you-play 反应（exhaust Fence/Chuck 等）
+  → L6：按修正后 cost 支付
+  → 其余发起步 / 结算（含 +2 技能等）
 ```
 
 #### 禁止
 
 | 禁止 | 理由 |
 |---|---|
-| 把宿主改成 `[free] 横置：打出一张…` 并宣称这实现了「获得快速」 | 外层免费触发只改 **宿主能力** 的入口；**打出本身无行动费用**，这不等于目标牌获得快速形态 |
-| 用外层 `[action]`/`[free]`/`[reaction]` 冒充被打出牌的 Fast | 快速是 **打出包装的形态参数**，不是宿主触发种类 |
-| 字面 `When you play` 后置反应里再改入口/费用，指望「发起已合法后再赋快速」 | 与 Fence FAQ（赋快速须算进发起）及「无行动却已开非快速打出」悖论同构；入口/费用必须在包装声明时带好 |
-| 一条能力内联「选：快速 / 降费 / +技能」且共享同一打出入口 | 快速与降费入口不同，必须拆能力 |
+| 降费也写成 `[free]`/`[action] Play … costs less` | 劫持入口；有时点快速牌会丢原窗口 |
+| 在 `[free] Play` 上再写 gains fast / as a fast card | 免费能力发起的打出已不经 Play 行动；叠 Fast 多余且混淆形态 |
+| 把降费当成打出**后**置效果 | 费用须在 L6 前定稿；与「费用不足也可暂发起」对称冲突 |
+| 无降费候选时仍允许「欠费发起」 | 对称只覆盖**修正后可付**；不是无条件赊账 |
 
-#### 与 Initiation / 费用通则的关系
+#### 与 Initiation / 费用通则
 
-- 每次打出仍是 `PLAY_CARD` + 打出包装 + 共用发起七步；赋快速/降费只是 **谁发起包装、包装带什么形态/费用属性**。
-- 资源降费 = 费用属性（[22 G10](22-seq-granularity.md)），不是新 Spend seq。
-- 宿主上的横置等 = 该条 **独立能力** 的 cost；与目标牌打出的资源费用分层。
+- 打出仍是 `PLAY_CARD` + 打出包装 + 共用发起七步。
+- 资源降费 = 费用属性（[22 G10](22-seq-granularity.md)），在付费前槽写入 `cost_delta`。
+- 宿主横置 = 该条能力自己的 cost，与目标牌资源费分层。
 
 ---
 
@@ -611,7 +623,8 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
-| 2026-10-28 | v0.4.20 | **§4.2.1** 赋快速/降费改写为独立打出包装能力；澄清打出无行动费用、Play 行动仅为入口；链 Fence/Chuck |
+| 2026-10-28 | v0.4.21 | **§4.2.1** 定稿：仅获快速→`[free] Play`；降费留 When-you-play 付费前；FAQ 对称欠费暂发起 |
+| 2026-10-28 | v0.4.20 | **§4.2.1** 初稿（后由 v0.4.21 收口卡文与降费形态） |
 | 2026-10-27 | v0.4.19 | **§4.2** 打出包装：完整流程 + 可响应时点；链 [22 G8](22-seq-granularity.md) |
 | 2026-10-22 | v0.4.18 | **§6** `ActivationPool` → `InitiationPool` / 发起池（避 Activate） |
 | 2026-10-22 | v0.4.17 | **§6** 术语对齐 16 §7.0：响应池 / 发起池 |

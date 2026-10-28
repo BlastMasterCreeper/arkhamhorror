@@ -289,7 +289,7 @@
 
 **打出本身无行动费用**；无快速时经 **Play 行动入口** 发起包装，快速只改入口/窗口/AOO（见 [06 §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)）。
 
-**赋快速 / 降费类（Fence · Chuck Fergus）**：纸面「When you play … gains fast / reduce cost」不按后置反应实现；**改写为独立打出包装能力**——**获得快速**与**降低资源费用**必须拆成两条（快速 → `PLAY_FAST_*` 包装；降费 → 仍 `PLAY_ACTION` + `cost_delta`）；**禁止**用宿主 `[free]` 冒充目标快速。结算期修正（如 +2 技能）可另挂。全文：[06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类fence--chuck-fergus--改写为独立打出包装能力)。
+**赋快速 / 降费类（Fence · Chuck Fergus）**：**仅「获快速」** 改写为宿主 **`[free] Play …`**（不再叠目标 Fast 关键词）；**降费**仍为 `When you play` 反应 + 付费前 `cost_delta`（不劫持有时点快速的窗口）。FAQ 对称：行动不足可走原赋快速路径 ↔ **修正后可付**时允许欠印刷费暂发起。全文：[06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类fence--chuck-fergus)。
 
 **G9 · 投入（待议）**
 
@@ -410,7 +410,7 @@
 | 2026-10-13 | I2 真空抽查 → [23-vacuum-audit](23-vacuum-audit.md)；铸造清单已收口，下一刀偏结构性硬门槛 |
 | 2026-10-27 | §9 Catalog 全量审计：初扫 66（含别名） |
 | 2026-10-27 | §9.2：**去掉全部 flow 别名**；正式 **60** 条；`damage*`/`gain_resource`/`enemy.move`/`enemy.defeat`/`investigation_phase_ends` 已删；`skill_type_for_flow` 死代码已删 |
-| 2026-10-28 | G8：赋快速/降费 → 独立打出包装能力（[06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类fence--chuck-fergus--改写为独立打出包装能力)）；打出无行动费用 |
+| 2026-10-28 | G8：获快速→`[free] Play`；降费=付费前反应；欠费暂发起对称（[06 §4.2.1](06-ability-initiation.md#421-赋快速--降费类fence--chuck-fergus)） |
 | 2026-10-27 | G7–G11 改裁：费用=效果属性；AOO=攻击嵌套来源；**打出要 Initiation 包装**；投入待议；险境=Buff 信息层 |
 | 2026-10-27 | G10 补例：花费/失去资源 **同 L0**，**异包装时点**；响应订包装不订裸原子 |
 | 2026-10-27 | 通则：同原子异包装 — 受到/放置伤恐、治愈/移除、抽取/加入手牌 |
