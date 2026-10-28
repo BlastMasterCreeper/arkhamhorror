@@ -1343,7 +1343,7 @@ func _test_shriv01_compile_if_revealed() -> bool:
 
 
 func _test_shriv02_horror_before_symbol() -> bool:
-	## FAQ：揭示 skull 当下 take horror（ST.3），早于参考卡符号能力（ST.4）。
+	## FAQ：if_revealed 紧贴 resolved（RESOLVE）；符号能力在 reveal After · Forced。
 	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
 	h.run_setup()
 	h.ctx.state.current_act_number = 2
@@ -1352,6 +1352,7 @@ func _test_shriv02_horror_before_symbol() -> bool:
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var horror_before := inv.horror_taken
+	var mod_at_if_revealed: Array = [999]
 	var body := CompositionNode.take_horror(&"inv_1", 2)
 	var specs: Array = [{
 		"kinds": SkillTestIfRevealed.shrivelling_kinds(),
@@ -1361,22 +1362,28 @@ func _test_shriv02_horror_before_symbol() -> bool:
 	var st := SkillTestHelper.new(h.ctx)
 	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
 	SkillTestIfRevealed.register_specs(test, h.ctx, specs)
+	## 在 if_revealed 开火时再抓一次 modifier（应早于 After Forced 符号）。
+	test.if_revealed_watchers.append({
+		"kinds": SkillTestIfRevealed.shrivelling_kinds(),
+		"mode": &"each",
+		"on_match": func(ctx: SkillTestContext, _kind: int, _n: int) -> void:
+			mod_at_if_revealed[0] = ctx.chaos_modifier,
+	})
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	h.ctx.skill_tests.step_commit(test, [])
 	h.ctx.skill_tests.close_player_window(test)
+	## 整帧含 After · Forced 符号；勿再 step_apply_symbol_effects。
 	h.ctx.skill_tests.step_reveal_token(test)
 	var horror_after_reveal := inv.horror_taken
-	var mod_before_symbol := test.chaos_modifier
-	h.ctx.skill_tests.step_apply_symbol_effects(test)
-	var mod_after_symbol := test.chaos_modifier
+	var mod_after_reveal := test.chaos_modifier
 	h.ctx.skill_tests.close_player_window(test)
 	h.ctx.skill_tests.continue_after_reveal_window(test)
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return (
 		horror_after_reveal == horror_before + 2
-		and mod_before_symbol == 0
-		and mod_after_symbol == -2
+		and int(mod_at_if_revealed[0]) == 0
+		and mod_after_reveal == -2
 		and inv.horror_taken == horror_before + 2
 	)
 
