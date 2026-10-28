@@ -453,7 +453,7 @@
 | `seq.commit` | **G9 待议**；未裁决前不铸 |
 | `seq.skill_test.{intellect,combat,agility}` | 已并 → 单条 `seq.skill_test` + `params.skill` |
 
-**不再「刻意不铸」**：`seq.play`（G8）— 已裁决要铸；落地前审计可能暂禁，以 [06 §4.2.1 切片 1](06-ability-initiation.md#421-赋快速--降费类--可落地层fence--chuck-fergus) 为准。
+**不再「刻意不铸」**：`seq.play`（G8）— 已裁决要铸；落地前审计可能暂禁，以 [06 §4.2.1 切片 1](06-ability-initiation.md#421-赋快速--打出额外费用fence--chuck-fergus--可推广) 为准。
 
 ### 9.4 文档债（本轮已收）
 
