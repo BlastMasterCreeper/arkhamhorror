@@ -412,7 +412,7 @@
 | 2026-10-27 | §9 Catalog 全量审计：初扫 66（含别名） |
 | 2026-10-27 | §9.2：**去掉全部 flow 别名**；正式 **60** 条；`damage*`/`gain_resource`/`enemy.move`/`enemy.defeat`/`investigation_phase_ends` 已删；`skill_type_for_flow` 死代码已删 |
 | 2026-10-28 | G8：`PlayDeclarationPlan` 支可本帧快速/降费/结算加值（[06 §4.2.1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广)） |
-| 2026-10-28 | 铸 `seq.chaos.symbol`（ST.4 名义）；揭示后 nest；正式 **61** 条 |
+| 2026-10-28 | 铸 `seq.chaos.symbol`（ST.4 名义）；订 reveal **After · Forced**；正式 **61** 条 |
 | 2026-10-27 | G7–G11 改裁：费用=效果属性；AOO=攻击嵌套来源；**打出要 Initiation 包装**；投入待议；险境=Buff 信息层 |
 | 2026-10-27 | G10 补例：花费/失去资源 **同 L0**，**异包装时点**；响应订包装不订裸原子 |
 | 2026-10-27 | 通则：同原子异包装 — 受到/放置伤恐、治愈/移除、抽取/加入手牌 |

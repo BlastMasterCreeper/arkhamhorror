@@ -1195,7 +1195,7 @@ func _test_bc02b_chaos_mod_buff() -> bool:
 
 
 func _test_bc02c_symbol_nests_after_reveal() -> bool:
-	## ST.3 = seq.chaos.reveal；ST.4 = nest seq.chaos.symbol（非内联 while）。
+	## ST.3 = reveal；ST.4 = reveal After · Forced 上 nest seq.chaos.symbol。
 	var h := RuleTestHarness.new(42)
 	if not h.ctx.sequence_catalog.has_flow(&"seq.chaos.symbol"):
 		return false
