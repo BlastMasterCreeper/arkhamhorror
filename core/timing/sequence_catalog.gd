@@ -35,6 +35,14 @@ func has_flow(flow_id: StringName) -> bool:
 	return _entries.has(flow_id)
 
 
+## 已注册 flow_id 快照（审计 / 测试）；顺序不稳定。
+func registered_flow_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key in _entries.keys():
+		out.append(key as StringName)
+	return out
+
+
 func run(game_ctx: GameContext, flow_id: StringName, params: Dictionary = {}) -> Dictionary:
 	var entry: Dictionary = _entries.get(flow_id, {})
 	if entry.is_empty():

@@ -241,13 +241,15 @@ func step_calculate_modified_value(ctx: SkillTestContext) -> int:
 	var commit_bonus := 0
 	for c in ctx.committed:
 		commit_bonus += c.icon_bonus
-	var reg_bonus := 0
+	## 混乱符号修正已是 THIS_SKILL_TEST MODIFIER Buff，经 ModifierEngine 汇入（勿再加 chaos_modifier）。
+	## compute(base+commit) 一次算完：负修正可压低总值；引擎内部 floor≥0。
+	var assembled := base + commit_bonus
 	if _modifiers:
 		var q := ModifierQuery.new()
 		q.controller_id = ctx.performing_investigator
 		q.stat = _skill_to_stat(ctx.skill)
-		reg_bonus = _modifiers.compute(0, q)
-	ctx.modified_value = base + commit_bonus + reg_bonus + ctx.chaos_modifier
+		assembled = _modifiers.compute(assembled, q)
+	ctx.modified_value = assembled
 	if ctx.auto_success:
 		ctx.modified_value = maxi(ctx.modified_value, ctx.difficulty)
 	if ctx.auto_fail:
@@ -294,6 +296,14 @@ func step_end(ctx: SkillTestContext, game_ctx: GameContext = null) -> void:
 	_discard_committed(ctx)
 	_state.chaos_bag.return_all_revealed()
 	_state.chaos_bag.end_reveal_scope()
+	## 卸掉本次检定 THIS_SKILL_TEST 修正（含混乱符号 MODIFIER Buff）。
+	var regs: RegistrationStore = null
+	if game_ctx != null:
+		regs = game_ctx.registrations
+	elif _game_ctx != null:
+		regs = _game_ctx.registrations
+	if regs != null:
+		regs.tick_duration(AhcEnums.DurationAnchorKind.THIS_SKILL_TEST)
 	if _stack.size() > 0 and _stack[_stack.size() - 1] == ctx:
 		_stack.pop_back()
 	## 嵌套检定可能仍在栈上；仅栈空时卸回调。
@@ -376,7 +386,7 @@ func _discard_committed(ctx: SkillTestContext) -> void:
 
 func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:
 	## ST.4：规则自带 Bless/Curse 先于参考卡 / Elder Sign。
-	if BlessCurseRules.try_apply(ctx, token):
+	if BlessCurseRules.try_apply(ctx, token, _game_ctx):
 		return
 	## 参考卡隐式符号能力（空白则跳过印刷条）；Elder Sign 走调查员印刷。
 	ScenarioReferenceApplier.apply_token(_game_ctx, ctx, token, _state)

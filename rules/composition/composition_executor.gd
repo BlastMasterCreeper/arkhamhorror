@@ -1846,10 +1846,10 @@ func _execute_nest_damage(node: CompositionNode) -> bool:
 		or target == &"each_at_source_location"
 	)
 	var flow_id: StringName = node.nest_flow_id
-	## 待分配目标：强制 deal.assignable（兼容旧 JSON damage*）。
+	## 待分配目标：强制 deal.assignable；已定目标默认 deal。
 	if needs_assign:
 		flow_id = &"seq.effect.deal.assignable"
-	elif flow_id == &"" or flow_id == &"seq.effect.damage":
+	elif flow_id == &"":
 		flow_id = &"seq.effect.deal"
 	var nest_params := {
 		"controller_id": inv_id,
