@@ -295,7 +295,7 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 
 ### 7.1 打出声明支（Constant · 可推广）
 
-纸面 *as an additional cost to play …*（及引擎将「打出时获快速 / 降费 / 结算加值」改写者）登记为 **`play_branch_offer`**（挂提供方；目标打出收集进 `PlayDeclarationPlan`）。一支可带额外费用，并修正 **本帧快速 / 费用 / 结算期**：
+纸面句式对齐 **05114 Meat Cleaver**：*As an additional cost to initiate this ability, you may … to …*；打出域为 *As an additional cost to play …, you may … to …*（及引擎将「打出时获快速 / 降费 / 结算加值」改写者）。登记为 **`play_branch_offer`**（挂提供方；目标打出收集进 `PlayDeclarationPlan`）。一支可带额外费用，并修正 **本帧快速 / 费用 / 结算期**：
 
 ```json
 {

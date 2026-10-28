@@ -148,29 +148,33 @@ class AbilityHook:
 
 锚例：`04108` Fence；`09072` Chuck Fergus。
 
-#### A. 改写卡文（规范格式 · 收束）
+#### A. 改写卡文（规范格式 · 对齐 05114）
+
+句式锚：**Meat Cleaver（05114）**  
+`As an additional cost to initiate this ability, you may take 1 horror to have this attack deal +1 damage.`  
+→ 打出域同构：`As an additional cost to play …, you may {additional} to {benefit}.`（`you may … to …`；可选额外费用换本帧利益）
 
 **Fence**
 
 ```text
 Constant – As an additional cost to play an [[Illicit]] card during your turn,
-you may exhaust Fence. If you do, that play gains fast for this play.
-If that card was already fast, reduce its cost by 1 instead.
+you may exhaust Fence to have that play gain fast for this play.
+If that card was already fast, instead reduce its cost by 1.
 ```
 
-（引擎：两条 OPTIONAL 声明支——「横置→本帧快速」与「横置→已快速则 −1」；已快速时通常只出示降费支，或 PI 只给合法支。）
+（引擎：OPTIONAL 声明支；已快速时出示 −1 支，否则出示本帧快速支；PI 只列当前可付支。）
 
 **Chuck Fergus**
 
 ```text
 Constant – As an additional cost to play a [[Tactic]] or [[Trick]] event,
-you may exhaust Chuck Fergus. If you do, choose one —
-- That play gains fast for this play.
-- That event costs 2 fewer resources to play.
-- You get +2 skill value while performing a skill test during the resolution of that event.
+you may exhaust Chuck Fergus to choose one —
+- Have that play gain fast for this play.
+- Have that event cost 2 fewer resources to play.
+- Get +2 skill value while performing a skill test during the resolution of that event.
 ```
 
-不再另写 `[free] Play` / 单独 `[reaction]` +2；一律声明期选支。
+不再另写 `[free] Play` / 单独 `[reaction]` +2；一律声明期选支。能力发起上的同型句（*to initiate this ability*）与打出句（*to play …*）共用 `PlayDeclarationPlan` / 发起费用支轴。
 
 #### B. `PlayDeclarationPlan`（原 PlayCostPlan 升级）
 
@@ -698,6 +702,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 | 2026-09-20 | v0.4.9 | §4/§8.3：抽取时钉抽取步骤 |
 | 2026-09-20 | v0.4.10 | §8.3：抽取后 = 整段抽取结算完毕；抽取时仍只钉步骤 |
 | 2026-09-20 | v0.4.11 | §8.3：Would / When / After 的抽牌转译指称 |
+| 2026-10-28 | v0.4.25 | **§4.2.1** 卡文句式对齐 05114：`you may {cost} to {benefit}` |
 | 2026-10-28 | v0.4.24 | **§4.2.1** 升级 `PlayDeclarationPlan`：支可本帧快速/降费/结算加值；卡文收束 Constant |
 | 2026-10-28 | v0.4.23 | **§4.2.1** 降费→Constant 额外费用；废 provisional（后由 v0.4.24 扩支） |
 | 2026-10-28 | v0.4.22 | **§4.2.1** 曾写 provisional/WHEN（已由 v0.4.23 废止） |
