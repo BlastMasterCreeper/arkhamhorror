@@ -230,7 +230,7 @@
 | `seq.act_agenda.resolve_back` | 背面结算 | **保留** |
 | `seq.framework.phase_boundary` | 各阶段 begins/ends | **已铸**（G6 · **一条**）；`phase`+`boundary` params；TC.kind 仍细分（如 `investigation_phase_ends`）；旧 flow 别名已删 |
 | `seq.chaos.reveal` | Chaos bag reveal（ST.3 名义） | **已铸**；WHEN 窗收集替换 → RESOLVE 离袋（[05](05-chaos-bag.md)） |
-| `seq.chaos.symbol` | 隐式符号能力（ST.4 名义） | **已铸**；父流程在 reveal 整帧后 **nest**；再揭示在本帧内 nest reveal |
+| `seq.chaos.symbol` | 隐式符号能力（ST.4 名义） | **已铸**；订在 `reveal` **After · Forced** 同档 nest；再揭示 → nest 新 reveal |
 | `seq.interrupt.cancel` / `ignore` | Cancel / Ignore | **保留** |
 | `seq.replace.instead` | Instead / Would | **保留** |
 | `seq.ability.resolve` | Initiation 装载 | **保留**（工程帧，非词条） |

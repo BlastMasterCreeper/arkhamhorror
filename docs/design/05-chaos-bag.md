@@ -116,12 +116,12 @@ ST.1 begin → bag.begin_reveal_scope(test_id)
 nest seq.chaos.reveal（ST.3 名义）
       → ChaosRevealIntentPlanner.plan_and_reveal（见 §4.2）
       → 同时离袋；resolved 入 ctx.revealed_tokens；其余 → ignore_reveal
-      → **紧贴** notify_resolved → if_revealed_watchers（早于 ST.4）
-      → 帧 After（蜡烛等）→ pop
-对每枚 resolved：nest seq.chaos.symbol（ST.4 名义；父流程下一步）
-      → 隐式符号能力；reveal another → 帧内再 nest reveal → nest symbol
-整链结束 → PW_SKILL_TEST_AFTER_REVEAL（窗内 Rod 式揭示：finalize 时同样 notify）
-         → ST.5 …
+      → **紧贴** notify_resolved → if_revealed_watchers
+      → **After · Forced**：对每枚 resolved nest seq.chaos.symbol（ST.4 名义）
+            （与其它 Forced After 同档；蜡烛等 [reaction] 同窗稍后）
+            reveal another → 再 nest reveal（新帧 After 再发符号）
+      → pop
+整链结束 → PW_SKILL_TEST_AFTER_REVEAL → ST.5 …
 ST.8 → return_all_revealed + end_reveal_scope
 ```
 

@@ -103,11 +103,9 @@ func commit_card(ctx: SkillTestContext, from_inv: StringName, card_id: StringNam
 func resolve_reveal_chain(ctx: SkillTestContext) -> void:
 	if ctx.current_step != AhcEnums.SkillTestStep.ST_2_COMMIT:
 		return
-	## ST.3 整帧（含 After）结束后，对批内每枚 nest ST.4；reveal another 在符号帧内再 nest。
-	## 不再 while 内联 ST.3→ST.4。
+	## 只 nest/run 揭示：符号能力在 reveal **After · Forced** 同档发起（非 After 后再 nest）。
 	step_reveal_token(ctx)
-	step_apply_symbol_effects(ctx)
-	## 揭示链结束 → PW_AFTER_REVEAL → ST.5。
+	## 揭示链（含 After 符号）结束 → PW_AFTER_REVEAL → ST.5。
 	## *If revealed* 已在各次 resolved 结算时 eager 触发，不再固定时点读账本。
 	_open_player_window(ctx, AhcEnums.PlayerWindow.PW_SKILL_TEST_AFTER_REVEAL)
 

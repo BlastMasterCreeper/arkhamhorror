@@ -1,9 +1,69 @@
 class_name ChaosSymbolFlow
 extends RefCounted
 
-## seq.chaos.symbol · ST.4：单枚 resolved token 的隐式符号能力。
-## 父流程在 ST.3（seq.chaos.reveal）整帧结束后 nest；非 ST.3 内联 then。
-## 「Reveal another」→ 本帧 RESOLVE 内再 nest ST.3，再对新增 resolved nest 本流。
+## seq.chaos.symbol · ST.4 名义：单枚 resolved 的隐式符号能力。
+## 挂在 `seq.chaos.reveal` 的 **After** 上，**Forced 同档**（与其它 Forced After 同窗）。
+## 不是「After 窗关完后父流程再 nest」。
+## 「Reveal another」→ nest 新的 reveal；新批符号仍由该帧 After Forced 发起。
+
+
+const HANDLER_SOURCE: StringName = &"rules.chaos_symbol"
+
+
+## Bootstrap：订 reveal After · Forced（幂等）。
+static func bind_rules_handler(game_ctx: GameContext) -> void:
+	if game_ctx == null or game_ctx.sequences == null:
+		return
+	game_ctx.sequences.unregister_handlers_by_source(HANDLER_SOURCE)
+	var handler := SequenceHandler.after_forced(
+		&"reveal_chaos_token",
+		func() -> void:
+			on_reveal_after_forced(game_ctx)
+	)
+	handler.source_id = HANDLER_SOURCE
+	game_ctx.sequences.register_handler(handler)
+
+
+## reveal After · Forced：对本批 resolved 逐枚 nest `seq.chaos.symbol`。
+static func on_reveal_after_forced(game_ctx: GameContext) -> void:
+	if game_ctx == null or game_ctx.sequence_catalog == null:
+		return
+	var trigger := game_ctx.sequences.current_trigger() if game_ctx.sequences != null else null
+	var ctx: SkillTestContext = null
+	var batch_start := 0
+	if trigger != null:
+		ctx = trigger.payload.get("skill_test_ctx") as SkillTestContext
+		batch_start = int(trigger.payload.get("symbol_batch_start", 0))
+	if ctx == null and game_ctx.skill_tests != null:
+		ctx = game_ctx.skill_tests.current_context()
+	if ctx == null:
+		return
+	batch_start = clampi(batch_start, 0, ctx.revealed_tokens.size())
+	ctx.current_step = AhcEnums.SkillTestStep.ST_4_SYMBOL
+	for i in range(batch_start, ctx.revealed_tokens.size()):
+		var token: ChaosToken = ctx.revealed_tokens[i]
+		if token == null:
+			continue
+		nest_for_token(game_ctx, ctx, token)
+
+
+static func nest_for_token(
+	game_ctx: GameContext,
+	ctx: SkillTestContext,
+	token: ChaosToken
+) -> Dictionary:
+	if game_ctx == null or game_ctx.sequence_catalog == null or token == null:
+		return {"ok": false}
+	return game_ctx.sequence_catalog.nest(
+		game_ctx,
+		&"seq.chaos.symbol",
+		{
+			"inv_id": ctx.performing_investigator if ctx != null else &"",
+			"test_id": ctx.id if ctx != null else &"",
+			"skill_test_ctx": ctx,
+			"token": token,
+		}
+	)
 
 
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -19,6 +79,7 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	apply_symbol_ability(game_ctx, ctx, token)
 	var nested_again := false
 	if token.reveal_another:
+		## 再 nest 揭示；新批符号由新帧 After · Forced 发起。
 		nested_again = _nest_reveal_another(game_ctx, ctx)
 	return {
 		"ok": true,
@@ -27,7 +88,7 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	}
 
 
-## Bless/Curse 先于参考卡 / Elder Sign（与 SkillTestEngine 同序）。
+## Bless/Curse 先于参考卡 / Elder Sign。
 static func apply_symbol_ability(
 	game_ctx: GameContext,
 	ctx: SkillTestContext,
@@ -39,14 +100,12 @@ static func apply_symbol_ability(
 	ScenarioReferenceApplier.apply_token(game_ctx, ctx, token, state)
 
 
-## Reveal another：nest 新一帧 ST.3，再对批内新 token nest ST.4（递归）。
 static func _nest_reveal_another(game_ctx: GameContext, ctx: SkillTestContext) -> bool:
 	if game_ctx == null or game_ctx.sequence_catalog == null:
 		return false
-	var batch_start := ctx.revealed_tokens.size()
-	ctx.reveal_batch_start = batch_start
+	ctx.reveal_batch_start = ctx.revealed_tokens.size()
 	ctx.current_step = AhcEnums.SkillTestStep.ST_3_REVEAL
-	game_ctx.sequence_catalog.nest(
+	var res: Dictionary = game_ctx.sequence_catalog.nest(
 		game_ctx,
 		&"seq.chaos.reveal",
 		{
@@ -55,20 +114,4 @@ static func _nest_reveal_another(game_ctx: GameContext, ctx: SkillTestContext) -
 			"skill_test_ctx": ctx,
 		}
 	)
-	var nested_any := false
-	for i in range(batch_start, ctx.revealed_tokens.size()):
-		var next_tok: ChaosToken = ctx.revealed_tokens[i]
-		if next_tok == null:
-			continue
-		game_ctx.sequence_catalog.nest(
-			game_ctx,
-			&"seq.chaos.symbol",
-			{
-				"inv_id": ctx.performing_investigator,
-				"test_id": ctx.id,
-				"skill_test_ctx": ctx,
-				"token": next_tok,
-			}
-		)
-		nested_any = true
-	return nested_any
+	return bool(res.get("ok", false))

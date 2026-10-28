@@ -105,16 +105,18 @@ class SkillTestEngine:
 | **载荷** | modifier（→ ST.5）· 效果（再揭示、失败句→ST.7…） |
 
 ```text
-揭示链（检定父流程编排；ST.3 / ST.4 只是名义步号）
-  nest seq.chaos.reveal          ← ST.3 整帧（WHEN / After；含 if_revealed）
-    pop
-  对每枚 resolved：
-    nest seq.chaos.symbol        ← ST.4 符号能力（父流程下一步，非 ST.3 内联）
-          · modifier → THIS_SKILL_TEST Buff（seq.effect.register）
-          · 「Reveal another」→ 本帧内再 nest seq.chaos.reveal
-                → 再对新增 resolved nest seq.chaos.symbol
-          · fail / fail-by → 注册 ST.7（OQ-05-03）
-  整链结束 → PW_SKILL_TEST_AFTER_REVEAL → ST.5
+nest seq.chaos.reveal                 ← ST.3 名义（揭示 impact）
+  [WHEN]  将要揭示 / 揭示时反应
+  RESOLVE 离袋 · if_revealed（紧贴 resolved）
+  [AFTER] ← **符号能力就在这里**（Forced 同档；与其它 Forced After 同窗）
+            对每枚 resolved：nest seq.chaos.symbol   ← ST.4 名义
+              · modifier → THIS_SKILL_TEST Buff
+              · 「Reveal another」→ nest 新的 seq.chaos.reveal
+                    （新帧自己的 After Forced 再发符号）
+              · fail / fail-by → 注册 ST.7
+            同窗还可有蜡烛等 [reaction] After（Forced 批之后意愿池）
+  pop
+整链结束 → PW_SKILL_TEST_AFTER_REVEAL → ST.5
 ```
 
 **回溯锚点**（故步骤回退说得通）：
@@ -122,22 +124,19 @@ class SkillTestEngine:
 | 干预 | 对象 |
 |---|---|
 | Cancel 揭示 | 无 token → 无能力可发（锚 `seq.chaos.reveal`） |
-| Ignore | 仍揭示；不施加该符号能力的 modifier/效果 |
-| Cancel / Instead 符号能力 | 以该次 `seq.chaos.symbol` 发起为锚 |
-| 空白参考卡文本框 | 无对应印刷能力 → ST.4 无效果 |
+| Ignore | 仍揭示；不发起该枚的符号能力 |
+| Cancel / Instead 符号能力 | 以该次 `seq.chaos.symbol`（After Forced）为锚 |
+| 空白参考卡文本框 | 无对应印刷能力 → 不 nest 有效体 |
 
-- 多能力「将要揭示」替换：整批仍 **一次** ST.3，再对 resolved **逐枚 nest** 符号能力（[05 §4.2](05-chaos-bag.md)）
-- 「Reveal another」→ **ST.4 帧内**再 nest ST.3→符号能力；不回 ST.2；递归无 PW（OQ-04-01）
+- 多能力「将要揭示」替换：整批仍 **一次** reveal；After Forced 对 resolved **逐枚 nest** 符号（[05 §4.2](05-chaos-bag.md)）
+- 「Reveal another」→ 符号帧内再 nest reveal；不回 ST.2；递归无 PW（OQ-04-01）
 - 整链结束 → `PW_SKILL_TEST_AFTER_REVEAL`（进 ST.5 前一次）
-- 实现：`ScenarioReferenceBinder` 装参考卡 `symbol_abilities`；`ChaosSymbolFlow` / `ScenarioReferenceApplier` 于 `seq.chaos.symbol` 发起（`text_box_blank` 跳过印刷条）
+- 实现：`ChaosSymbolFlow.bind_rules_handler` 订 `reveal_chaos_token` After · Forced；体为 `seq.chaos.symbol`
 
 ```gdscript
 func resolve_reveal_chain(handle: SkillTestHandle) -> void:
-    nest seq.chaos.reveal                              # ST.3 整帧
-    for token in this_batch:
-        nest seq.chaos.symbol { token }                # ST.4；再揭示在帧内递归
+    nest seq.chaos.reveal   # After Forced 内 nest symbol；勿在 pop 后再扫 ST.4
     open_player_window(PW_SKILL_TEST_AFTER_REVEAL)
-    # ST.5 …
 ```
 
 ### 3.5 ST.5 Modified skill value

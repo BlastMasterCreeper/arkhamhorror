@@ -857,7 +857,7 @@ Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
 **寿命**：Buff → Registration（混乱技能修正 = `THIS_SKILL_TEST`，ST.8 tick 卸）；投入 → 检定组装；**不**为每个 value_key 另造寿命系统。
 
 **Buff 创建**：仍经 `seq.effect.register`；禁止真空 Store。dry-run：Register → CREATED。  
-**混乱符号**：ST.4 = nest `seq.chaos.symbol`（在 `seq.chaos.reveal` 整帧后）；能力内 Register MODIFIER；Cancel/Ignore 对该能力帧及其 CREATED Buff。`SkillTestContext.chaos_modifier` 仅审计镜像。  
+**混乱符号**：ST.4 = nest `seq.chaos.symbol`，挂在 `seq.chaos.reveal` 的 **After · Forced**（与其它 Forced 同档）；能力内 Register MODIFIER；Cancel/Ignore 对该能力帧及其 CREATED Buff。`SkillTestContext.chaos_modifier` 仅审计镜像。  
 **非 Buff 来源**：commit 图标组装——**不是**信息原语 Register。
 
 ### 6.3 应用模式（与域的关系）

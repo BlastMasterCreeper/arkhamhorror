@@ -15,6 +15,9 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var abilities: Array = ctx.pending_reveal_replace.duplicate()
 	ctx.pending_reveal_replace.clear()
 	var gate: PlayerInteractionGate = game_ctx.interaction
+	## 本批起始：After · Forced 符号能力只扫这一段。
+	var batch_start := ctx.revealed_tokens.size()
+	ctx.reveal_batch_start = batch_start
 	var plan: Dictionary = ChaosRevealIntentPlanner.plan_and_reveal(
 		game_ctx.state.chaos_bag,
 		1,
@@ -29,8 +32,17 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	for item in resolved:
 		if item is ChaosToken:
 			ctx.revealed_tokens.append(item as ChaosToken)
-	## disposition 已定：紧贴揭示通知 if_revealed（早于 ST.4 符号能力）。
+	## disposition 已定：紧贴揭示通知 if_revealed（早于 After 符号能力）。
 	game_ctx.state.chaos_bag.notify_resolved_tokens(resolved)
+	## 供 After · Forced（ChaosSymbolFlow）读取本批。
+	if game_ctx.sequences != null:
+		game_ctx.sequences.patch_trigger_payload(
+			{
+				"skill_test_ctx": ctx,
+				"symbol_batch_start": batch_start,
+				"test_id": ctx.id,
+			}
+		)
 	_fire_after_reveal_hooks(game_ctx, ctx, resolved)
 	return {
 		"ok": not (plan.get("tokens", []) as Array).is_empty() or abilities.is_empty(),
