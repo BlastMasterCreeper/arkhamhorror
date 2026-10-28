@@ -78,7 +78,7 @@
 
 卡面 **choose / select / may（选目标）** → **A**，不是 nest、不是 Then。通用规格见 **[21-selection-spec](21-selection-spec.md)**。
 
-**打出额外费用选支**（[06 §4.2.1](06-ability-initiation.md#421-赋快速--打出额外费用fence--chuck-fergus--可推广)）：声明期对 `PlayCostPlan` 的 OPTIONAL/REQUIRED offer **也走 Gate 有限期确认**——有多支必问；仅一条且含额外费用也问意向；**不是** nest，**不是** `when_play` 事后反应。
+**打出声明支选支**（[06 §4.2.1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广)）：声明期对 `PlayDeclarationPlan` 的 OPTIONAL/REQUIRED / `choose_one` **走 Gate 有限期确认**——有多支必问；仅一条且含额外费用也问意向；**不是** nest，**不是** `when_play` 事后反应。
 
 | 卡面语义 | template 例 | 必填规格 |
 |---|---|---|
@@ -293,28 +293,35 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 
 **不再使用**条目级 `provokes_aoo` 覆盖。类型豁免（Fight/Evade/Parley/Resign）走 `action_types`；卡面「does not provoke」走 **B · `no_provoke_aoo`**。
 
-### 7.1 打出额外费用（Constant · 可推广）
+### 7.1 打出声明支（Constant · 可推广）
 
-纸面 *as an additional cost to play …*（及引擎将「打出时降费」改写者）**不**进 `steps` 事后反应，而登记为打出声明期的 **`play_additional_cost` offer**（挂在提供方卡；目标 `seq.play` 收集进 `PlayCostPlan`）：
+纸面 *as an additional cost to play …*（及引擎将「打出时获快速 / 降费 / 结算加值」改写者）登记为 **`play_branch_offer`**（挂提供方；目标打出收集进 `PlayDeclarationPlan`）。一支可带额外费用，并修正 **本帧快速 / 费用 / 结算期**：
 
 ```json
 {
   "register_as": "constant",
-  "play_additional_cost": {
+  "play_branch_offer": {
     "mode": "optional",
-    "filter": { "traits": ["illicit"], "keywords": ["fast"], "during": "your_turn" },
+    "filter": { "traits": ["tactic", "trick"] },
     "additional": [{ "template": "exhaust_self" }],
-    "cost_delta": { "resource": -1 }
+    "choose_one": [
+      { "grant_fast": true },
+      { "cost_delta": { "resource": -2 } },
+      { "resolution": { "skill_value": 2 } }
+    ]
   }
 }
 ```
 
-| `mode` | 含义 |
+| 字段 | 含义 |
 |---|---|
-| `optional` | *you may*：与「不付额外费用」支析取；PI 选支 |
-| `required` | 无白打支；PI 仍确认意向，拒绝则不发起 |
+| `mode` | `optional` / `required` |
+| `grant_fast` | **本帧**快速入口；不改牌面关键词 |
+| `cost_delta` | 资源费修正 |
+| `resolution` | 本帧结算期修正（检定加值等） |
+| `choose_one` | 互斥子支 |
 
-落地时将 `play_additional_cost` / `mode` / `cost_delta` / `additional` 列入 §2.1 白名单。运行时：[06 §4.2.1](06-ability-initiation.md#421-赋快速--打出额外费用fence--chuck-fergus--可推广)。**禁止**编译为 `(seq.play, WHEN)` 降费 LISTENER 或 provisional。
+运行时：[06 §4.2.1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广)。**禁止** WHEN 事后改入口/费用、provisional、另拆 `[free] Play` 冒充获快速。
 
 ---
 
@@ -327,7 +334,7 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 卡面 steps 内联拆光 `seq.effect.resign` 体 | nest `flow_id: seq.effect.resign` |
 | 为选目标 nest `seq.choose.*` | `pick_target`（A） |
 | JSON 写 `"enemy": "enemy_conn"` | `"enemy": "memory:picked_enemy"` 或寻址规格 |
-| `When you play … reduce cost` 作 WHEN LISTENER / provisional | Constant `play_additional_cost` + 声明期 PI（§7.1） |
+| `When you play … gains fast / reduce cost / +skill` 作 WHEN 或拆 `[free] Play` | Constant `play_branch_offer`（可 `grant_fast` / `cost_delta` / `resolution`）+ 声明期 PI（§7.1） |
 
 ---
 
@@ -350,4 +357,5 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 2026-09-28 | v0.2 | §4.2.1：抑制+明示交战不可被 forced-auto / After 替代（冷漠/横置） |
 | 2026-09-29 | v0.3 | §4.1：具名限制叶落地一律 `seq.effect.register`（禁真空 Store） |
 | 2026-09-29 | v0.4 | §3：挂接 21 SelectionSpec；白名单扩 filter 对象 / bind / 基数 |
-| 2026-10-28 | v0.5 | **§7.1** 打出额外费用 `play_additional_cost`；§3.1 PI 选支；禁 WHEN 降费/provisional |
+| 2026-10-28 | v0.5 | **§7.1** 打出额外费用初稿 |
+| 2026-10-28 | v0.6 | **§7.1** 升级 `play_branch_offer`：本帧快速/降费/结算加值；卡文可收束 |
