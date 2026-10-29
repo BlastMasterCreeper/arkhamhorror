@@ -1,30 +1,129 @@
 class_name RulesMemory
 extends RefCounted
 
+## 步间指称 + 命名流程打断/替换账本（Cancel / Ignore① / Instead）。
+## 取代旧 PendingResolutionStore：身份是 seq.* + bind，不是 EffectOp pending。
+
 var phase_trace: Array[String] = []
 var _referents: Dictionary = {}
 var _encounter_frame_stack: Array[EncounterResolutionFrame] = []
 var _cancelled_sequence_keys: Dictionary = {}
+var _ignored_sequence_keys: Dictionary = {}
+## key → Array[{ "params": Dictionary, "source_ability_id": StringName, "initiation_seq": int }]
+var _sequence_replacements: Dictionary = {}
+var _next_replacement_seq: int = 0
 
 
 static func sequence_bind_key(flow_id: StringName, bind: Dictionary = {}) -> StringName:
 	var card_id: StringName = bind.get("card_id", &"") as StringName
 	if card_id != &"":
 		return StringName("%s:%s" % [flow_id, card_id])
+	var effect_instance: StringName = bind.get("effect_instance", &"") as StringName
+	if effect_instance != &"":
+		return StringName("%s:%s" % [flow_id, effect_instance])
 	return flow_id
 
 
 func cancel_sequence(flow_id: StringName, bind: Dictionary = {}) -> void:
-	_cancelled_sequence_keys[sequence_bind_key(flow_id, bind)] = true
+	var key := sequence_bind_key(flow_id, bind)
+	_cancelled_sequence_keys[key] = true
+	## Cancel 关闭该身份上的替换窗。
+	_sequence_replacements.erase(key)
+	_ignored_sequence_keys.erase(key)
 
 
 func is_sequence_cancelled(flow_id: StringName, bind: Dictionary = {}) -> bool:
 	return bool(_cancelled_sequence_keys.get(sequence_bind_key(flow_id, bind), false))
 
 
-## 消费一次 Cancel（击败常态检测等：本次停退场，之后可再触）。
 func clear_sequence_cancel(flow_id: StringName, bind: Dictionary = {}) -> void:
 	_cancelled_sequence_keys.erase(sequence_bind_key(flow_id, bind))
+
+
+## Ignore①：保留发起身份，结算时跳过施加（与 Cancel 注销不同）。
+func ignore_sequence(flow_id: StringName, bind: Dictionary = {}) -> Dictionary:
+	var key := sequence_bind_key(flow_id, bind)
+	if bool(_cancelled_sequence_keys.get(key, false)):
+		return {"ok": false, "error": "sequence_cancelled"}
+	if bool(_ignored_sequence_keys.get(key, false)):
+		return {"ok": true, "already_ignored": true}
+	_ignored_sequence_keys[key] = true
+	## Ignore 后不可再挂 Instead。
+	_sequence_replacements.erase(key)
+	return {"ok": true}
+
+
+func is_sequence_ignored(flow_id: StringName, bind: Dictionary = {}) -> bool:
+	return bool(_ignored_sequence_keys.get(sequence_bind_key(flow_id, bind), false))
+
+
+func clear_sequence_ignore(flow_id: StringName, bind: Dictionary = {}) -> void:
+	_ignored_sequence_keys.erase(sequence_bind_key(flow_id, bind))
+
+
+## Instead：对尚未结算的命名流程身份登记替换载荷（最近 initiation_seq 胜）。
+func register_sequence_replacement(
+	flow_id: StringName,
+	bind: Dictionary,
+	replacement_params: Dictionary,
+	source_ability_id: StringName = &""
+) -> Dictionary:
+	var key := sequence_bind_key(flow_id, bind)
+	if bool(_cancelled_sequence_keys.get(key, false)):
+		return {"ok": false, "error": "sequence_cancelled"}
+	if bool(_ignored_sequence_keys.get(key, false)):
+		return {"ok": false, "error": "sequence_ignored"}
+	_next_replacement_seq += 1
+	var entry := {
+		"params": replacement_params.duplicate(true),
+		"source_ability_id": source_ability_id,
+		"initiation_seq": _next_replacement_seq,
+	}
+	var bucket: Array = _sequence_replacements.get(key, [])
+	bucket.append(entry)
+	_sequence_replacements[key] = bucket
+	return {"ok": true, "initiation_seq": _next_replacement_seq}
+
+
+func winning_sequence_replacement(flow_id: StringName, bind: Dictionary = {}) -> Dictionary:
+	var key := sequence_bind_key(flow_id, bind)
+	var bucket: Array = _sequence_replacements.get(key, [])
+	if bucket.is_empty():
+		return {}
+	var winner: Dictionary = bucket[0]
+	for item in bucket:
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		if int(item.get("initiation_seq", 0)) > int(winner.get("initiation_seq", 0)):
+			winner = item
+	return winner
+
+
+func clear_sequence_replacements(flow_id: StringName, bind: Dictionary = {}) -> void:
+	_sequence_replacements.erase(sequence_bind_key(flow_id, bind))
+
+
+## 效果手续开跑前：读 Cancel / Ignore / Instead，并消费打断账本。
+func consume_effect_gate(flow_id: StringName, bind: Dictionary = {}) -> Dictionary:
+	if is_sequence_cancelled(flow_id, bind):
+		clear_sequence_cancel(flow_id, bind)
+		clear_sequence_ignore(flow_id, bind)
+		clear_sequence_replacements(flow_id, bind)
+		return {"ok": false, "cancelled": true, "error": "sequence_cancelled"}
+	if is_sequence_ignored(flow_id, bind):
+		clear_sequence_ignore(flow_id, bind)
+		clear_sequence_replacements(flow_id, bind)
+		return {"ok": true, "ignored": true, "applied": false}
+	var winner := winning_sequence_replacement(flow_id, bind)
+	clear_sequence_replacements(flow_id, bind)
+	if not winner.is_empty():
+		return {
+			"ok": true,
+			"replaced": true,
+			"replacement_params": winner.get("params", {}),
+			"source_ability_id": winner.get("source_ability_id", &""),
+		}
+	return {"ok": true}
 
 
 func push_encounter_frame(frame: EncounterResolutionFrame) -> void:
@@ -104,4 +203,7 @@ func duplicate_memory() -> RulesMemory:
 	copy._referents = _referents.duplicate(true)
 	copy._encounter_frame_stack = _encounter_frame_stack.duplicate()
 	copy._cancelled_sequence_keys = _cancelled_sequence_keys.duplicate()
+	copy._ignored_sequence_keys = _ignored_sequence_keys.duplicate()
+	copy._sequence_replacements = _sequence_replacements.duplicate(true)
+	copy._next_replacement_seq = _next_replacement_seq
 	return copy

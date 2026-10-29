@@ -28,6 +28,7 @@ static func sequence(flow_id: StringName, bind: Dictionary = {}) -> InterruptTar
 	return t
 
 
+## @deprecated IMPACT pending 已退役；请改 `sequence(flow_id, bind)`。
 static func pending_impact(pending_id: StringName) -> InterruptTarget:
 	var t := InterruptTarget.new()
 	t.kind = Kind.IMPACT

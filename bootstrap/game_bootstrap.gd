@@ -25,7 +25,6 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.ability_response_prefs = AbilityResponsePreferences.new()
 	ctx.player_window_intents = PlayerWindowIntentPool.new()
 	ctx.player_window_intents.bind_game_context(ctx)
-	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)
 	ctx.registrations = RegistrationStore.new()
 	ctx.stat_projections = StatProjectionStore.new()
 	ctx.stat_projections.bind(ctx.events, ctx.state)
@@ -51,7 +50,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.timing.bind_listeners(ctx.listeners)
 	ctx.legality = InitiationLegalityChecker.new()
 	ctx.initiation = AbilityInitiationPipeline.new(
-		ctx.state, ctx.events, ctx.effects, ctx.composition
+		ctx.state, ctx.events, ctx.composition
 	)
 	ctx.triggered_abilities = TriggeredAbilityService.new()
 	ctx.scenario = ScenarioSystem.new(ctx.state, ctx.log)
@@ -81,7 +80,6 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.initiation.bind_game_context(ctx)
 	ctx.triggered_abilities.bind_game_context(ctx)
 	ctx.sequences.bind_game_context(ctx)
-	ctx.effects.bind_game_context(ctx)
 	## 混乱符号能力 = reveal After · Forced（与其它 Forced 同档）。
 	ChaosSymbolFlow.bind_rules_handler(ctx)
 	ZoneMoveFlow.bind_mutator(ctx)

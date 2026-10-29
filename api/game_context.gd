@@ -17,7 +17,6 @@ var player_window_intents: PlayerWindowIntentPool
 var actions: ActionSystem
 var skill_tests: SkillTestEngine
 var initiation: AbilityInitiationPipeline
-var effects: EffectResolutionGraph
 var scenario: ScenarioSystem
 var enemy: EnemySystem
 
