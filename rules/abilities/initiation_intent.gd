@@ -20,6 +20,13 @@ var provokes_aoo: bool = false
 var aoo_action_type: AhcEnums.ActionType = AhcEnums.ActionType.ACTIVATE
 ## 一次行动可具有多种行动类型（如 Activate+Parley）；借机攻击按全集判断。
 var action_types: Array = []
+## Limit / Max（INITIATE_QUOTA 等）；非 Registration payload。
+var limits: Array = []
+## 同名 Max 合计用；空则用 ability_id。
+var title_key: StringName = &""
+## 进场占位检查用（PLAY_CARD / put into play）。
+var definition_id: StringName = &""
+var occupancy_limits: Array = []
 
 
 static func create(controller_id: StringName, composition: CompositionNode) -> InitiationIntent:

@@ -48,6 +48,19 @@ static func traits(definition_id: StringName) -> Array:
 	return []
 
 
+## 卡定义上的 LimitSpec[]（ZONE_OCCUPANCY / DECKBUILDING 等）；运行时 Array 元素为 LimitSpec。
+static func limit_specs(definition_id: StringName) -> Array:
+	var data := definition_data(definition_id)
+	var raw: Variant = data.get("limits", [])
+	if raw is not Array:
+		return []
+	var out: Array = []
+	for item in raw as Array:
+		if item is LimitSpec:
+			out.append(item)
+	return out
+
+
 static func ability_segments(definition_id: StringName) -> Array:
 	var data := definition_data(definition_id)
 	var segments: Variant = data.get("ability_segments", [])

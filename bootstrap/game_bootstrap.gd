@@ -23,6 +23,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.stat_projections = StatProjectionStore.new()
 	ctx.stat_projections.bind(ctx.events, ctx.state)
 	ctx.stat_emitter = GameStatEmitter.new(ctx.events, ctx.state, ctx.stat_projections)
+	ctx.limits = LimitTracker.new()
 	ctx.registrations.bind_stat_projections(ctx.stat_projections)
 	ctx.mutator = StateMutator.new(ctx.state)
 	ctx.mutator.bind_registration_store(ctx.registrations)

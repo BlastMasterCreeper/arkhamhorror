@@ -8,6 +8,7 @@ enum Kind {
 	COST,
 	KEYWORD,
 	CHAOS_TOKEN,
+	LIMIT,
 }
 
 
@@ -57,6 +58,13 @@ static func chaos_token(scope: Dictionary = {}) -> InterruptTarget:
 	return t
 
 
+static func limit(bind: Dictionary = {}) -> InterruptTarget:
+	var t := InterruptTarget.new()
+	t.kind = Kind.LIMIT
+	t.bind = bind.duplicate()
+	return t
+
+
 static func from_params(params: Dictionary) -> InterruptTarget:
 	var t := InterruptTarget.new()
 	var kind_name: String = str(params.get("kind", "sequence"))
@@ -71,6 +79,8 @@ static func from_params(params: Dictionary) -> InterruptTarget:
 			t.kind = Kind.KEYWORD
 		"chaos_token", "CHAOS_TOKEN":
 			t.kind = Kind.CHAOS_TOKEN
+		"limit", "LIMIT":
+			t.kind = Kind.LIMIT
 		_:
 			t.kind = Kind.SEQUENCE
 	t.flow_id = params.get("flow_id", &"") as StringName

@@ -350,3 +350,53 @@ enum StatRef {
 }
 
 enum ModOp { ADD, SUB, MUL, DOUBLE, HALVE }
+
+## Limit / Max 配额（非 RegistrationKind；见 06d）。
+enum LimitKind {
+	INITIATE_QUOTA,
+	USE_QUOTA,
+	EVENT_QUOTA,
+	COMMIT_MAX,
+	ZONE_OCCUPANCY,
+	DECKBUILDING,
+}
+
+enum LimitPeriod {
+	NONE,
+	TURN,
+	ROUND,
+	PHASE,
+	GAME,
+	CAMPAIGN,
+	SKILL_TEST,
+	ATTACK,
+	INVESTIGATION,
+	ACT,
+	LOCATION,
+	CUSTOM_ANCHOR,
+}
+
+enum LimitAudience {
+	PLAYER,
+	GROUP,
+	TITLE,
+	PER_TARGET_INVESTIGATOR,
+	PER_ASSET_INSTANCE,
+	PER_ANCHOR,
+}
+
+enum OccupancyMatch { BY_TITLE, BY_TRAIT }
+
+enum ZoneConstraint {
+	NONE,
+	PER_INVESTIGATOR,
+	PER_LOCATION,
+	IN_PLAY,
+	PER_DECK,
+	PER_ASSET,
+	PER_ENEMY,
+	PER_AGENDA_ACT,
+	ATTACHED,
+	BENEATH,
+	VICTORY_DISPLAY,
+}

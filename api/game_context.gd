@@ -40,6 +40,8 @@ var triggered_abilities: TriggeredAbilityService
 
 var stat_projections: StatProjectionStore
 var stat_emitter: GameStatEmitter
+## Limit / Max 配额门槛（非 Registration）。
+var limits: LimitTracker
 
 var active_investigator_id: StringName = &""
 var performing_investigator_id: StringName = &""

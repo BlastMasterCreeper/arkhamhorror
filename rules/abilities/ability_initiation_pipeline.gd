@@ -42,6 +42,8 @@ func can_initiate(intent: InitiationIntent, ctx: GameContext) -> bool:
 		return false
 	if intent.kind == InitiationIntent.Kind.PLAY_CARD and not _play_card_pre_valid(intent, ctx):
 		return false
+	if not _passes_limits(intent, ctx):
+		return false
 	_cost.apply_modifiers(intent, ctx)
 	if not _cost.can_pay(intent):
 		return false
@@ -66,6 +68,9 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 		var play_err := _play_card_pre_error(intent, ctx)
 		if play_err != &"":
 			return {"ok": false, "error": String(play_err)}
+
+	if not _passes_limits(intent, ctx):
+		return {"ok": false, "error": "limit_reached"}
 
 	_cost.apply_modifiers(intent, ctx)
 	if not _cost.can_pay(intent):
@@ -96,6 +101,7 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 		return {"ok": false, "error": "illegal"}
 
 	_events.append_initiation(AhcEnums.InitiationStep.INIT_3_COMMENCE, hash, payload)
+	_record_limits_commence(intent, ctx)
 	if intent.kind == InitiationIntent.Kind.PLAY_CARD:
 		if not _commence_play(intent, ctx):
 			_cost.refund(intent)
@@ -233,7 +239,58 @@ func _play_card_pre_error(intent: InitiationIntent, ctx: GameContext) -> StringN
 		return &"unknown_card"
 	if card.zone != AhcEnums.Zone.HAND or not inv.hand.has(intent.card_id):
 		return &"not_in_hand"
+	if not _passes_occupancy(intent, ctx, card):
+		return &"occupancy_limit"
 	return &""
+
+
+func _passes_limits(intent: InitiationIntent, ctx: GameContext) -> bool:
+	if intent == null or ctx == null or ctx.limits == null:
+		return true
+	if intent.limits.is_empty():
+		return true
+	return ctx.limits.can_initiate_all(
+		intent.limits,
+		intent.ability_id,
+		intent.controller_id,
+		ctx,
+		intent.title_key
+	)
+
+
+func _record_limits_commence(intent: InitiationIntent, ctx: GameContext) -> void:
+	if intent == null or ctx == null or ctx.limits == null:
+		return
+	if intent.limits.is_empty():
+		return
+	ctx.limits.record_commence_all(
+		intent.limits,
+		intent.ability_id,
+		intent.controller_id,
+		ctx,
+		intent.title_key
+	)
+
+
+func _passes_occupancy(
+	intent: InitiationIntent,
+	ctx: GameContext,
+	card: CardInstance
+) -> bool:
+	if ctx == null or ctx.limits == null:
+		return true
+	var specs: Array = intent.occupancy_limits.duplicate() if intent != null else []
+	var def_id := intent.definition_id if intent != null else &""
+	if def_id == &"" and card != null:
+		def_id = card.id.definition_id
+	for s in CardRegistry.limit_specs(def_id):
+		if s is LimitSpec and (s as LimitSpec).kind == AhcEnums.LimitKind.ZONE_OCCUPANCY:
+			specs.append(s)
+	if specs.is_empty():
+		return true
+	return ctx.limits.can_enter_zone_all(
+		specs, ctx, intent.controller_id, def_id, &""
+	)
 
 
 func _commence_play(intent: InitiationIntent, ctx: GameContext) -> bool:

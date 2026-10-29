@@ -5,6 +5,20 @@
 
 > 仅 Core 2026（26 张）不够定规格；以全量为准。
 
+## 0. 落地状态（2026-10-29）
+
+| 项 | 状态 |
+|---|---|
+| `LimitSpec` / 枚举（`AhcEnums.Limit*`） | ✅ |
+| `LimitTracker`（initiate 计数 + occupancy 现读 + ignore） | ✅ |
+| Initiation L5：`intent.limits` → `can_initiate` / `INIT_3_COMMENCE` 记账 | ✅ |
+| 入区：`occupancy_limits` / `CardRegistry.limit_specs` · PLAY 预检 | ✅ |
+| `InterruptTarget.LIMIT` → ignore | ✅ |
+| 括号句 `try_parse_paren_clause`（once per turn/round/phase/game · Group） | ✅ |
+| USE_QUOTA / EVENT_QUOTA / COMMIT_MAX 运行时 | ⬜ 下一批 |
+| ArkhamDB 编译器自动挂 `LimitSpec` | ⬜ 下一批 |
+| StatProjection / EventRecord 重建计数 | ⬜（竖切为增量计数） |
+
 ## 1. 五族规模
 
 | 族 | 卡数 | 门槛 |
@@ -121,6 +135,7 @@ class LimitSpec:
 
 | 日期 | 说明 |
 |---|---|
+| 2026-10-29 | 竖切落地：LimitTracker + Initiation L5 + occupancy + Ignore LIMIT；测试 LIM-01…05 |
 | 2026-10-29 | 全量 pack 搜集；扩 A/C 与 LimitSpec |
 | 2026-10-29 | 初版仅 Core 2026 |
 

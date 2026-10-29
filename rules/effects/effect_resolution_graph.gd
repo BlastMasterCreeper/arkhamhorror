@@ -91,8 +91,31 @@ func interrupt_ignore_dispatch(target: InterruptTarget) -> Dictionary:
 			return {"ok": false, "error": "keyword_ignore_not_wired", "keyword": target.keyword}
 		InterruptTarget.Kind.CHAOS_TOKEN:
 			return {"ok": false, "error": "chaos_ignore_not_wired"}
+		InterruptTarget.Kind.LIMIT:
+			return _ignore_limit(target)
 		_:
 			return {"ok": false, "error": "ignore_kind_mismatch", "kind": target.kind}
+
+
+func _ignore_limit(target: InterruptTarget) -> Dictionary:
+	if _game_ctx == null or _game_ctx.limits == null:
+		return {"ok": false, "error": "missing_limits"}
+	var bind: Dictionary = target.bind if target != null else {}
+	var spec: LimitSpec = bind.get("spec") as LimitSpec
+	if spec == null:
+		return {"ok": false, "error": "missing_limit_spec"}
+	_game_ctx.limits.ignore_limit(
+		spec,
+		bind.get("ability_id", &"") as StringName,
+		bind.get("controller_id", &"") as StringName,
+		bind.get("title_key", &"") as StringName
+	)
+	_log.log(
+		AhcEnums.LogCategory.ABILITY,
+		"limit:ignored",
+		{"limit_id": spec.id, "ability": bind.get("ability_id", &"")}
+	)
+	return {"ok": true, "ignored": "limit", "limit_id": spec.id}
 
 
 func apply_interrupt_cancel(target: InterruptTarget) -> Dictionary:

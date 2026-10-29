@@ -66,6 +66,11 @@ func _initialize() -> void:
 	_run_test("INIT-05 action ability provokes AOO", _test_initiation_action_aoo)
 	_run_test("INIT-06 on_play composition resolves", _test_initiation_on_play)
 	_run_test("INIT-07 refunds costs after post-AOO abort", _test_initiation_post_aoo_refund)
+	_run_test("LIM-01 once per round blocks second initiate", _test_lim_once_per_round)
+	_run_test("LIM-02 group limit shared across investigators", _test_lim_group_once_per_round)
+	_run_test("LIM-03 ignore limit allows second initiate", _test_lim_ignore_once_per_round)
+	_run_test("LIM-04 parse paren Limit clauses", _test_lim_parse_paren)
+	_run_test("LIM-05 occupancy per investigator", _test_lim_occupancy_per_investigator)
 	_run_test("TRIG-01 forced triggered bypasses initiation", _test_trig_forced_after_gain)
 	_run_test("TRIG-02 reaction declined by default", _test_trig_reaction_declined)
 	_run_test("TRIG-03 reaction accepted resolves", _test_trig_reaction_accepted)
@@ -1505,6 +1510,123 @@ func _test_initiation_sequence_events() -> bool:
 		AhcEnums.InitiationStep.INIT_4_RESOLVE,
 	]
 	return _collect_initiation_steps(h) == expected
+
+
+func _lim_resource_intent(controller_id: StringName, ability_id: StringName, limit: LimitSpec) -> InitiationIntent:
+	## nest_gain_resource dry-run CREATED，便于走完整 Initiation。
+	var intent := InitiationIntent.ability(
+		controller_id, CompositionNode.nest_gain_resource(controller_id, 1)
+	)
+	intent.ability_id = ability_id
+	intent.limits = [limit]
+	return intent
+
+
+func _test_lim_once_per_round() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.round_number = 1
+	var lim := LimitSpec.once_per_round()
+	var intent := _lim_resource_intent(&"inv_1", &"lim_ability", lim)
+	if not h.ctx.initiation.can_initiate(intent, h.ctx):
+		return false
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	if not res.ok:
+		return false
+	var again := _lim_resource_intent(&"inv_1", &"lim_ability", lim)
+	if h.ctx.initiation.can_initiate(again, h.ctx):
+		return false
+	var blocked := h.ctx.initiation.initiate(again, h.ctx)
+	if blocked.get("ok", true) or blocked.get("error", "") != "limit_reached":
+		return false
+	## 新一轮重置
+	h.ctx.state.round_number = 2
+	var next_round := _lim_resource_intent(&"inv_1", &"lim_ability", lim)
+	return h.ctx.initiation.can_initiate(next_round, h.ctx)
+
+
+func _test_lim_group_once_per_round() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.round_number = 1
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var lim := LimitSpec.group_once_per_round()
+	var a := _lim_resource_intent(&"inv_1", &"loc_ability", lim)
+	if not h.ctx.initiation.initiate(a, h.ctx).ok:
+		return false
+	var b := _lim_resource_intent(&"inv_2", &"loc_ability", lim)
+	return not h.ctx.initiation.can_initiate(b, h.ctx)
+
+
+func _test_lim_ignore_once_per_round() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.round_number = 1
+	var lim := LimitSpec.once_per_round()
+	var first := _lim_resource_intent(&"inv_1", &"lim_ign", lim)
+	if not h.ctx.initiation.initiate(first, h.ctx).ok:
+		return false
+	var target := InterruptTarget.limit(
+		{"spec": lim, "ability_id": &"lim_ign", "controller_id": &"inv_1"}
+	)
+	var ign := h.ctx.effects.interrupt_ignore_dispatch(target)
+	if not ign.get("ok", false):
+		return false
+	var second := _lim_resource_intent(&"inv_1", &"lim_ign", lim)
+	return h.ctx.initiation.can_initiate(second, h.ctx)
+
+
+func _test_lim_parse_paren() -> bool:
+	var a := LimitSpec.try_parse_paren_clause("(Limit once per round.)")
+	var b := LimitSpec.try_parse_paren_clause("(Group limit once per game.)")
+	var c := LimitSpec.try_parse_paren_clause("(Limit once per turn)")
+	if a == null or a.period != AhcEnums.LimitPeriod.ROUND:
+		return false
+	if a.audience != AhcEnums.LimitAudience.PLAYER or a.amount != 1:
+		return false
+	if b == null or b.period != AhcEnums.LimitPeriod.GAME:
+		return false
+	if b.audience != AhcEnums.LimitAudience.GROUP:
+		return false
+	if c == null or c.period != AhcEnums.LimitPeriod.TURN:
+		return false
+	return LimitSpec.try_parse_paren_clause("not a limit") == null
+
+
+func _test_lim_occupancy_per_investigator() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"sticky_fingers",
+		{
+			"card_type": &"asset",
+			"title": "Sticky Fingers",
+			"resource_cost": 0,
+			"limits": [LimitSpec.limit_per_investigator(1)],
+		}
+	)
+	## 已在场一张
+	var existing_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var existing := CardInstance.new()
+	existing.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, existing_id, &"sticky_fingers")
+	existing.owner_id = &"inv_1"
+	existing.controller_id = &"inv_1"
+	existing.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(existing)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.play_area.append(existing_id)
+	## 手牌第二张同名
+	var hand_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var hand_card := CardInstance.new()
+	hand_card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, hand_id, &"sticky_fingers")
+	hand_card.owner_id = &"inv_1"
+	hand_card.controller_id = &"inv_1"
+	hand_card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(hand_card)
+	inv.hand.append(hand_id)
+	inv.resource_pool = 5
+	var intent := InitiationIntent.play_card(&"inv_1", hand_id, 0, 0, null)
+	intent.definition_id = &"sticky_fingers"
+	if h.ctx.initiation.can_initiate(intent, h.ctx):
+		return false
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return not res.get("ok", true) and res.get("error", "") == "occupancy_limit"
 
 
 func _test_initiation_play_cost_abort() -> bool:
