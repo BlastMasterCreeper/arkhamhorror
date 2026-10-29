@@ -2,7 +2,7 @@ class_name GainedCharacteristicSpec
 extends RefCounted
 
 ## Grimoire *gains a characteristic* · **不是** Buff。
-## 拥有记录；行为侧由 profile **衍生** MODIFIER / GATE / DIRECTIVE / LISTENER / RELATION（或 AbilityLifecycle）。
+## 拥有记录；行为侧由 profile **衍生** MODIFIER / GATE / DIRECTIVE / LISTENER / STATUS（或 AbilityLifecycle）。
 
 var kind: AhcEnums.GainedCharacteristicKind = AhcEnums.GainedCharacteristicKind.KEYWORD
 ## KEYWORD / TRAIT / ICON 的标识；ABILITY 时可为能力名或空（载荷另挂）。

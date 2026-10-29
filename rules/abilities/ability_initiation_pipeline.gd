@@ -116,7 +116,7 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 	return result
 
 
-## 卡面 no_provoke_aoo：挂限制类 Buff（非 Listener / 非 Cancel）。
+## 卡面 no_provoke_aoo：挂GATE/DIRECTIVE（非 Listener / 非 Cancel）。
 ## 仅当类型本身会借机时挂（Resign 等类型豁免无需挂）。
 ## 创建经 `seq.effect.register`（Initiation 顶层用 catalog.run；非真空 Store）。
 func _mount_skip_aoo_buff(intent: InitiationIntent, ctx: GameContext) -> void:
@@ -151,8 +151,8 @@ static func _composition_declares_skip_aoo(node: CompositionNode) -> bool:
 	if node.kind == AhcEnums.CompositionNodeKind.ATOM and node.atom_name == &"no_provoke_aoo":
 		return true
 	if node.kind == AhcEnums.CompositionNodeKind.REGISTER and node.register_template != null:
-		for buff in node.register_template.buffs:
-			if buff.type != AhcEnums.BuffType.DIRECTIVE or buff.directive == null:
+		for buff in node.register_template.payloads:
+			if buff.type != AhcEnums.RegistrationKind.DIRECTIVE or buff.directive == null:
 				continue
 			if buff.directive.kind == AhcEnums.DirectiveKind.SKIP_AOO:
 				return true

@@ -1943,7 +1943,7 @@ func _execute_register(node: CompositionNode) -> bool:
 	return ok
 
 
-## 卡面 Buff 创建唯一落地：nest/run `seq.effect.register`（禁真空 Store）。
+## 卡面 Registration 创建唯一落地：nest/run `seq.effect.register`（禁真空 Store）。
 func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
 	if template == null:
 		return false

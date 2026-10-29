@@ -194,7 +194,7 @@ static func register_buff(game_ctx: GameContext, params: Dictionary) -> Dictiona
 	return {"ok": reg_id != &"", "reg_id": reg_id}
 
 
-## Gain 特征授予（非 Buff）。写入 GainedCharacteristicStore；可衍生 Registration Buff。
+## Gain 特征授予（非 Registration 载荷）。写入 GainedCharacteristicStore；可衍生 Registration Buff。
 static func grant_characteristic(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null or game_ctx.gains == null:
 		return {"ok": false, "error": "no_gain_store"}

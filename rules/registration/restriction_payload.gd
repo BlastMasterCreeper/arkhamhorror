@@ -1,7 +1,7 @@
 class_name RestrictionPayload
 extends GatePayload
 
-## @deprecated 使用 GatePayload（GATE Buff）。保留类名以免旧引用瞬间全炸。
+## @deprecated 使用 GatePayload（GATE）。保留类名以免旧引用瞬间全炸。
 
 
 static func forbid_draw() -> GatePayload:
@@ -34,6 +34,6 @@ static func suppress_auto_engage(enemy_id: StringName) -> DirectivePayload:
 	return DirectivePayload.suppress_auto_engage(enemy_id)
 
 
-## @deprecated 使用 RelationPayload.engagement。
-static func engagement(enemy_id: StringName, investigator_id: StringName) -> RelationPayload:
-	return RelationPayload.engagement(enemy_id, investigator_id)
+## @deprecated 使用 StatusPayload.engagement。
+static func engagement(enemy_id: StringName, investigator_id: StringName) -> StatusPayload:
+	return StatusPayload.engagement(enemy_id, investigator_id)

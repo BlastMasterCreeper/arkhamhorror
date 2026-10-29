@@ -1,7 +1,7 @@
 class_name EncounterGainedKeyword
 extends RefCounted
 
-## 动态 keyword · G3 Grant · G5 evaluate · GainStore（非 Buff）。
+## 动态 keyword · G3 Grant · G5 evaluate · GainStore（非 Registration 载荷）。
 
 
 static func register_if_absent(

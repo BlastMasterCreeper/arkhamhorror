@@ -1,7 +1,7 @@
 class_name GatePayload
 extends RefCounted
 
-## GATE Buff：改 Intent 合法性（cannot / forbid）。
+## GATE：改 Intent 合法性（cannot / forbid）。
 
 var kind: AhcEnums.GateKind = AhcEnums.GateKind.FORBID_DRAW
 var drawer_id: StringName = &""

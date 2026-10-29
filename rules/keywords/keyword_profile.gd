@@ -1,7 +1,7 @@
 class_name KeywordProfile
 extends RefCounted
 
-## 06 §3.2.5–§3.2.7 · 对局行为编译为三种 Buff；Fast 走 Initiation 档（非第四 BuffType）。
+## 06 §3.2.5–§3.2.7 · 对局行为编译为Registration 载荷；Fast 走 Initiation 档（非第四 RegistrationKind）。
 ## 注册/注销绑已有 seq.* 砖或 zone 变迁（L0），禁止 PERIL_CHECK 一类独立场合节点。
 ## LISTENER：mount ≠ fire；开火锚 = (fire_flow_id, consume_slot) + fire_priority。
 ## 猎物 / 生成是指令，不进本类。

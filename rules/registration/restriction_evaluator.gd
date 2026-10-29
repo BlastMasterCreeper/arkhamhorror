@@ -1,7 +1,7 @@
 class_name RestrictionEvaluator
 extends RefCounted
 
-## GATE Buff 消费：Intent 合法性。类名暂留；语义是门禁不是笼统 restriction。
+## GATE 消费：Intent 合法性。类名暂留；语义是门禁不是笼统 restriction。
 
 enum Intent {
 	DRAW,
@@ -38,8 +38,8 @@ static func block_reason(
 	if store == null:
 		return &""
 	for reg in store.all_registrations():
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.GATE or buff.gate == null:
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.GATE or buff.gate == null:
 				continue
 			var reason := _matches(
 				buff.gate, reg, intent, actor_id, skill_test, leave_hand_card_id

@@ -1,7 +1,7 @@
 class_name RegistrationStore
 extends RefCounted
 
-## 只存行为 Buff（MODIFIER / GATE / DIRECTIVE / LISTENER / RELATION）。
+## 只存Registration 载荷（MODIFIER / GATE / DIRECTIVE / LISTENER / STATUS）。
 ## Gain 在 `GainedCharacteristicStore`。
 
 var _entries: Array[Registration] = []
@@ -66,7 +66,7 @@ func unregister(id: StringName) -> void:
 
 
 func unregister_by_drawn_card(card_id: StringName) -> void:
-	## G4：只卸该卡 GATE（险境）；不卸 DIRECTIVE/LISTENER/RELATION，也不碰 GainStore。
+	## G4：只卸该卡 GATE（险境）；不卸 DIRECTIVE/LISTENER/STATUS，也不碰 GainStore。
 	if card_id == &"":
 		return
 	var to_remove: Array[StringName] = []
@@ -76,8 +76,8 @@ func unregister_by_drawn_card(card_id: StringName) -> void:
 		if reg.drawn_card_id != card_id:
 			continue
 		var removes_gate := false
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.GATE:
+		for buff in reg.payloads:
+			if buff.type == AhcEnums.RegistrationKind.GATE:
 				removes_gate = true
 				break
 		if removes_gate:
@@ -109,8 +109,8 @@ func _find_skip_aoo_reg_id(controller_id: StringName) -> StringName:
 	for reg in _entries:
 		if reg.controller_id != controller_id:
 			continue
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.DIRECTIVE or buff.directive == null:
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.DIRECTIVE or buff.directive == null:
 				continue
 			if buff.directive.kind == AhcEnums.DirectiveKind.SKIP_AOO:
 				return reg.id
@@ -139,8 +139,8 @@ func _find_suppress_auto_engage_reg_id(enemy_id: StringName) -> StringName:
 	if enemy_id == &"":
 		return &""
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.DIRECTIVE or buff.directive == null:
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.DIRECTIVE or buff.directive == null:
 				continue
 			if buff.directive.kind != AhcEnums.DirectiveKind.SUPPRESS_AUTO_ENGAGE:
 				continue
@@ -157,13 +157,13 @@ func engagement_partner(enemy_id: StringName) -> StringName:
 	if enemy_id == &"":
 		return &""
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RELATION or buff.relation == null:
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.STATUS or buff.status == null:
 				continue
-			if buff.relation.kind != AhcEnums.RelationKind.ENGAGEMENT:
+			if buff.status.kind != AhcEnums.StatusKind.ENGAGEMENT:
 				continue
-			if buff.relation.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
-				var inv: StringName = buff.relation.drawer_id
+			if buff.status.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+				var inv: StringName = buff.status.drawer_id
 				if inv == &"":
 					inv = reg.controller_id
 				return inv
@@ -176,17 +176,17 @@ func engaged_enemies_for(investigator_id: StringName) -> Array[StringName]:
 		return out
 	var seen: Dictionary = {}
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RELATION or buff.relation == null:
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.STATUS or buff.status == null:
 				continue
-			if buff.relation.kind != AhcEnums.RelationKind.ENGAGEMENT:
+			if buff.status.kind != AhcEnums.StatusKind.ENGAGEMENT:
 				continue
-			var inv: StringName = buff.relation.drawer_id
+			var inv: StringName = buff.status.drawer_id
 			if inv == &"":
 				inv = reg.controller_id
 			if inv != investigator_id:
 				continue
-			var enemy_id: StringName = buff.relation.subject_id
+			var enemy_id: StringName = buff.status.subject_id
 			if enemy_id == &"":
 				enemy_id = reg.drawn_card_id
 			if enemy_id == &"" or seen.has(enemy_id):
@@ -201,12 +201,12 @@ func clear_engagement(enemy_id: StringName) -> void:
 		return
 	var to_remove: Array[StringName] = []
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RELATION or buff.relation == null:
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.STATUS or buff.status == null:
 				continue
-			if buff.relation.kind != AhcEnums.RelationKind.ENGAGEMENT:
+			if buff.status.kind != AhcEnums.StatusKind.ENGAGEMENT:
 				continue
-			if buff.relation.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+			if buff.status.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
 				to_remove.append(reg.id)
 				break
 	for id in to_remove:
@@ -217,15 +217,15 @@ func _find_engagement_reg_id(enemy_id: StringName, investigator_id: StringName) 
 	if enemy_id == &"" or investigator_id == &"":
 		return &""
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RELATION or buff.relation == null:
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.STATUS or buff.status == null:
 				continue
-			if buff.relation.kind != AhcEnums.RelationKind.ENGAGEMENT:
+			if buff.status.kind != AhcEnums.StatusKind.ENGAGEMENT:
 				continue
-			var subject: StringName = buff.relation.subject_id
+			var subject: StringName = buff.status.subject_id
 			if subject == &"":
 				subject = reg.drawn_card_id
-			var inv: StringName = buff.relation.drawer_id
+			var inv: StringName = buff.status.drawer_id
 			if inv == &"":
 				inv = reg.controller_id
 			if subject == enemy_id and inv == investigator_id:
@@ -259,8 +259,8 @@ func has_hidden_leave_hand_restriction(card_id: StringName) -> bool:
 			continue
 		if reg.drawn_card_id != card_id:
 			continue
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.GATE:
+		for buff in reg.payloads:
+			if buff.type == AhcEnums.RegistrationKind.GATE:
 				return true
 	return false
 
@@ -273,8 +273,8 @@ func has_peril_for_drawn_card(card_id: StringName) -> bool:
 			continue
 		if reg.drawn_card_id != card_id:
 			continue
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.GATE:
+		for buff in reg.payloads:
+			if buff.type == AhcEnums.RegistrationKind.GATE:
 				return true
 	return false
 
@@ -300,8 +300,8 @@ func collect_modifiers(controller_id: StringName) -> Array[ModifierPayload]:
 	for reg in _entries:
 		if reg.controller_id != controller_id and reg.controller_id != &"":
 			continue
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.MODIFIER and buff.modifier:
+		for buff in reg.payloads:
+			if buff.type == AhcEnums.RegistrationKind.MODIFIER and buff.modifier:
 				out.append(buff.modifier)
 	return out
 
@@ -313,8 +313,8 @@ func all_registrations() -> Array[Registration]:
 func collect_listeners(timing_name: StringName) -> Array[ListenerEntry]:
 	var out: Array[ListenerEntry] = []
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.LISTENER or buff.listener == null:
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.LISTENER or buff.listener == null:
 				continue
 			if buff.listener.timing != timing_name:
 				continue
@@ -338,7 +338,7 @@ func duplicate_store() -> RegistrationStore:
 		r.duration = reg.duration
 		r.encounter_frame_id = reg.encounter_frame_id
 		r.drawn_card_id = reg.drawn_card_id
-		r.buffs = reg.buffs.duplicate()
+		r.payloads = reg.payloads.duplicate()
 		r.derived_from_gain_id = reg.derived_from_gain_id
 		copy._entries.append(r)
 	return copy

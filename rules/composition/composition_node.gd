@@ -230,7 +230,7 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 	return n
 
 
-## 卡面 gains keyword · nest `seq.effect.grant`（GainStore；非 Buff / 非 register）。
+## 卡面 gains keyword · nest `seq.effect.grant`（GainStore；非 Registration 载荷 / 非 register）。
 static func grant_keyword(card_id: StringName, keyword: StringName) -> CompositionNode:
 	var n := _nest_leaf(&"nest_effect_grant", &"seq.effect.grant")
 	n.gain_template = GainTemplate.keyword_drawn_card_resolving(card_id, keyword)

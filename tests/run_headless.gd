@@ -4482,8 +4482,8 @@ func _kw_occ_bind(
 	var template := RegistrationTemplate.new()
 	template.lifetime_kind = lifetime
 	template.drawn_card_id = card_id
-	template.buffs.append(
-		BuffSpec.listener_buff(ListenerPayload.at_timing(&"kw_occ_dummy", null))
+	template.payloads.append(
+		RegistrationPayload.of_listener(ListenerPayload.at_timing(&"kw_occ_dummy", null))
 	)
 	return store.register(template)
 

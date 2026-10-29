@@ -1,19 +1,19 @@
-# 06b — Registration 与 Buff 规格 (统一能力模型)
+# 06b — Registration 规格 (统一能力模型)
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.5.0 · 2026-10-29 — 行为 Buff 按根本特质五类；Gain 出 Registration
+> **状态**：v0.5.1 · 2026-10-29 — 总称 **Registration**；`RegistrationKind` 五类；Gain 分立；旧称 Buff/RELATION 废
 
 ---
 
 ## 1. 目标
 
-用 **Register / Unregister + Buff + Context** 统一理解持续规则覆盖；**Gain 特征单独管理**。
+用 **Register / Unregister + RegistrationPayload + Context** 统一理解持续规则覆盖；**Gain 特征单独管理**。
 
-- **印刷能力类型** → 编译期 tags / 能力管线，不是 Register Buff。
+- **印刷能力类型** → 编译期 tags / 能力管线，不是 Register。
 - **状态变更** → Composition / L0。
-- **规则覆盖** → `RegistrationStore` 只挂 **行为 Buff**。
-- **Gain 拥有** → `GainedCharacteristicStore`；可衍生行为 Buff。
+- **规则覆盖** → `RegistrationStore` 只挂 **Registration 载荷**（下表五类）。
+- **Gain 拥有** → `GainedCharacteristicStore`；可衍生 Registration。
 
 ---
 
@@ -23,10 +23,10 @@
 class Registration:
     var id: StringName
     var lifetime: LifetimeSpec
-    var buffs: Array[BuffSpec]   # 只行为 Buff
+    var payloads: Array[RegistrationPayload]   # 仅 RegistrationKind 五类
 
-class BuffSpec:
-    var type: BuffType   # MODIFIER | GATE | DIRECTIVE | LISTENER | RELATION
+class RegistrationPayload:
+    var type: RegistrationKind   # MODIFIER | GATE | DIRECTIVE | LISTENER | STATUS
 
 class GainedCharacteristicStore:  # 与 Registration 分立
     # GainEntry{ gains[], derived_reg_ids[], lifetime… }
@@ -34,49 +34,50 @@ class GainedCharacteristicStore:  # 与 Registration 分立
 
 | 原语 / 名词 | 含义 |
 |---|---|
-| **Register** | 只写入 **行为 Buff** 到 `RegistrationStore` |
+| **Register** | 写入 **Registration 载荷** 到 `RegistrationStore`（`seq.effect.register`） |
 | **Grant** | 写入 **Gain** 到 `GainedCharacteristicStore`（`seq.effect.grant`） |
-| **Buff** | 行为覆盖载荷（下表五类） |
-| **GainedCharacteristic** | *gains …* 拥有记录；**不是 Buff** |
+| **Registration** | 壳 + 载荷；总称；**不再叫 Buff** |
+| **RegistrationPayload** | 按 `RegistrationKind` 分型的行为/断言载荷 |
+| **GainedCharacteristic** | *gains …* 拥有记录；**不是 Registration** |
 
-### 2.1 行为 Buff · 按根本特质（已裁决）
+### 2.1 RegistrationKind · 按根本特质（已裁决）
 
 不问外层称号好不好听，按**信息层事实的根本差别**分：
 
-| BuffType | 根本特质 | 消费 | 例 |
+| RegistrationKind | 根本特质 | 消费 | 例 |
 |---|---|---|---|
 | **MODIFIER** | 改**可折叠的量** | ModifierEngine | +1 skill、shroud−、伤/发现量 |
-| **GATE** | 改 **Intent 合法性**（能否发起） | Eligibility / GateEvaluator | FORBID_PLAY/DRAW/…、险境、隐私离手 |
-| **DIRECTIVE** | 改**已入手续的走法**（入口读后分支；不拦 Intent 本身） | 各原流程入口 | SKIP_AOO、SUPPRESS_AUTO_ENGAGE、SkillRedirect |
+| **GATE** | 拦 **命名序列 / Intent 结算**（cannot） | Eligibility / GateEvaluator | FORBID_PLAY/DRAW/…、险境、隐私离手 |
+| **DIRECTIVE** | 改**已入手续的走法**（入口读后分支；不拦 Intent 本身） | 各原流程入口 | SKIP_AOO、SkillRedirect |
 | **LISTENER** | **武装时点效果**（到点开火 Composition） | Timing / Dispatcher | lasting delayed、关键词开火竖切 |
-| **RELATION** | **成对/关系事实** | 关系查询 | ENGAGEMENT |
+| **STATUS** | **局面断言**（可脱离物理场面） | 状态查询 | ENGAGEMENT（≠ 威胁区） |
 
 ```text
-seq.effect.register  → Registration.buffs[]（上表五类）
-seq.effect.grant     → GainStore（拥有）→ 可选衍生 register 行为 Buff
+seq.effect.register  → Registration.payloads[]（上表五类）
+seq.effect.grant     → GainStore（拥有）→ 可选衍生 register
 ```
 
-**禁止**：把 Gain 塞进 `BuffType`；把 GATE/DIRECTIVE/RELATION 混称旧 `RESTRICTION`；用 MODIFIER 加减假装改维。
+**禁止**：把 Gain 塞进 `RegistrationKind`；把 GATE/DIRECTIVE/STATUS 混称旧 `RESTRICTION`；用 MODIFIER 加减假装改维；总称再叫 Buff。
 
 ---
 
-## 3. BuffType（五类 · 根本特质）
+## 3. RegistrationKind（五类 · 根本特质）
 
 ```gdscript
-enum BuffType {
+enum RegistrationKind {
     MODIFIER,    # 量
-    GATE,        # Intent 合法性
+    GATE,        # 拦结算 / Intent 合法性
     DIRECTIVE,   # 手续走法
     LISTENER,    # 时点武装
-    RELATION,    # 关系事实
+    STATUS,      # 局面断言
 }
 ```
 
-| 非 Buff 机制 | 实现方式 |
+| 非 Registration 机制 | 实现方式 |
 |---|---|
 | Surge（**印刷**） | `CardDefinition.keywords` 含 `surge` |
-| Surge（**动态** `gains surge`） | G3 Register **Gain.`KEYWORD`** · `WHILE_DRAWN_CARD_RESOLVING`；G5 与印刷合并 evaluate，**不叠加**（见 §3.1、[15 §17.4.5](15-timing-entry-catalog.md)） |
-| Peril、Aloof、Massive 等其它 **关键词** | `CardDefinition.keywords` + 编译为 MODIFIER/RESTRICTION/LISTENER |
+| Surge（**动态** `gains surge`） | G3 **Grant** `KEYWORD` · `WHILE_DRAWN_CARD_RESOLVING`；G5 与印刷合并 evaluate，**不叠加**（见 §3.1、[15 §17.4.5](15-timing-entry-catalog.md)） |
+| Peril、Aloof、Massive 等其它 **关键词** | `CardDefinition.keywords` + 编译为 GATE / DIRECTIVE / LISTENER / MODIFIER |
 | Cancel / Replacement | [07-composition](07-composition.md) 的 `CancelPending` / `ReplacePending` 节点 |
 | Skill Test / Encounter 帧 | `SkillTestContext` 字段 + 子系统读 Context |
 
@@ -819,7 +820,7 @@ Duration tick **先于** 同边界「at end of phase」的 Listener（Grimoire L
 class RegistrationStore:
     func register(reg: Registration) -> StringName
     func unregister(id: StringName) -> void
-    func collect(type: BuffType, ctx: ApplicationContext) -> Array[BuffSpec]
+    func collect(type: RegistrationKind, ctx: ApplicationContext) -> Array[RegistrationPayload]
     func tick_durations(anchor: DurationAnchor.Kind, ctx: ApplicationContext) -> void
     func on_card_enter_play(card_id, templates: Array[RegistrationTemplate]) -> void
     func on_card_leave_play(card_id: StringName) -> void  # 只卸 WHILE_IN_PLAY
@@ -1142,8 +1143,9 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-29 | v0.5.0 | **根本特质五类**：MODIFIER / GATE / DIRECTIVE / LISTENER / RELATION；Gain 迁 `GainedCharacteristicStore` + `seq.effect.grant`；废扁平 RESTRICTION/KEYWORD |
-| 2026-10-29 | v0.4.44 | **Gain ≠ Buff**：`GainedCharacteristicSpec`；删 `BuffType.KEYWORD`（已被 v0.5.0 吸收） |
+| 2026-10-29 | v0.5.1 | 总称定为 **Registration**（废 Buff）；`BuffType`→`RegistrationKind`；`BuffSpec`→`RegistrationPayload`；`RELATION`→`STATUS`；壳字段 `buffs`→`payloads` |
+| 2026-10-29 | v0.5.0 | **根本特质五类**：MODIFIER / GATE / DIRECTIVE / LISTENER / STATUS（当时仍称 RELATION/Buff）；Gain 迁 `GainedCharacteristicStore` + `seq.effect.grant`；废扁平 RESTRICTION/KEYWORD |
+| 2026-10-29 | v0.4.44 | **Gain ≠ Registration 载荷**：`GainedCharacteristicSpec`；删旧 `BuffType.KEYWORD`（已被 v0.5 吸收） |
 | 2026-10-10 | v0.4.21 | §3.2.7：庞大 REPLACE 锚改到 `seq.enemy.attack`；`phase_attacks` 仅为固定 nest 手续 |
 | 2026-10-10 | v0.4.20 | §3.2.7：庞大 = REPLACE → `seq.keyword.massive`；删平行 massive 流程 |
 | 2026-10-10 | v0.4.19 | **§3.2.7** 关键词挂载时点 × 开火锚 × 跨类/同锚优先级；`fire_priority`（Hunter 10 先于 Patrol 20） |

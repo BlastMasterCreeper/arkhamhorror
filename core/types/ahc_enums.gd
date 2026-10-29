@@ -294,13 +294,13 @@ enum DirectiveKind {
 	SKILL_REDIRECT,
 }
 
-## RELATION：成对/关系事实（非 cannot、非改道指令）。
-enum RelationKind {
+## STATUS：站得住的查询断言（可脱离物理；交战≠威胁区）。
+enum StatusKind {
 	## 交战成对（真实或视为）；与威胁区场面脱钩。
 	ENGAGEMENT,
 }
 
-## @deprecated 使用 GateKind / DirectiveKind / RelationKind。
+## @deprecated 使用 GateKind / DirectiveKind / StatusKind。
 enum RestrictionKind {
 	FORBID_DRAW,
 	FORBID_PLAY,
@@ -312,12 +312,15 @@ enum RestrictionKind {
 	ENGAGEMENT,
 }
 
-## 行为 Buff · 按根本特质分（不是外层称号凑数）。
-## MODIFIER=量 · GATE=Intent 合法性 · DIRECTIVE=手续走法 · LISTENER=时点武装 · RELATION=关系事实。
-## Gain 特征不是 Buff，见 GainedCharacteristicKind。
-enum BuffType { MODIFIER, GATE, DIRECTIVE, LISTENER, RELATION }
+## Registration 载荷 kind（总称是 Registration，不再叫 Buff）。
+## MODIFIER=量 · GATE=拦命名序列结算 · DIRECTIVE=手续改道 · LISTENER=时点武装 · STATUS=局面断言。
+## Gain 不是 Registration 载荷，见 GainedCharacteristicKind。
+enum RegistrationKind { MODIFIER, GATE, DIRECTIVE, LISTENER, STATUS }
 
-## Grimoire *gains a characteristic* · 单独管理；创建后可衍生行为 Buff。
+## @deprecated 使用 RegistrationKind。
+enum BuffType { MODIFIER, GATE, DIRECTIVE, LISTENER, STATUS }
+
+## Grimoire *gains a characteristic* · 单独管理；可衍生 Registration。
 enum GainedCharacteristicKind { KEYWORD, TRAIT, ICON, ABILITY }
 
 enum CompositionNodeKind { SEQ, ATOM, REGISTER, IF, CHOICE, OPTIONAL, REPEAT, FOR_EACH }

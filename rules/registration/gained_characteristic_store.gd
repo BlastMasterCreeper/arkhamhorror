@@ -2,7 +2,7 @@ class_name GainedCharacteristicStore
 extends RefCounted
 
 ## Gain 特征单独管理（不是 Registration / 不是 Buff）。
-## 衍生行为 Buff 写入 RegistrationStore，id 记在 derived_reg_ids。
+## 衍生Registration 载荷 写入 RegistrationStore，id 记在 derived_reg_ids。
 
 class GainEntry:
 	extends RefCounted

@@ -7,7 +7,7 @@ var card_id: StringName = &""
 var lifetime_kind: AhcEnums.LifetimeKind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
 var drawn_card_id: StringName = &""
 var gains: Array[GainedCharacteristicSpec] = []
-## 衍生行为 Buff 的 RegistrationTemplate（可选；Register 进 RegistrationStore 后绑 derived）。
+## 衍生Registration 载荷 的 RegistrationTemplate（可选；Register 进 RegistrationStore 后绑 derived）。
 var derive_buff_templates: Array[RegistrationTemplate] = []
 
 

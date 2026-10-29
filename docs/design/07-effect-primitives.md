@@ -155,7 +155,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 | Uses / Victory / Seal | L0 / Domain | 仍是关键词，不走三种 Buff |
 | 构筑关键词 | 11 | 对局不消费 |
 
-**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 BuffType。LISTENER 注册/注销绑已有 `seq.*` 砖或 zone 变迁，禁止 `PERIL_CHECK` 一类独立场合节点。见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)。
+**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 `RegistrationKind`。LISTENER 注册/注销绑已有 `seq.*` 砖或 zone 变迁，禁止 `PERIL_CHECK` 一类独立场合节点。见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)。
 
 ---
 

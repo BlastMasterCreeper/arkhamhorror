@@ -2,7 +2,7 @@ class_name EngagementStatus
 extends RefCounted
 
 ## 交战状态（成对 Buff）门面。
-## 权威：RegistrationStore · RelationKind.ENGAGEMENT（RELATION Buff）。
+## 权威：RegistrationStore · StatusKind.ENGAGEMENT（STATUS）。
 ## 威胁区是区划占位（检测用），不是本 Buff；勿把「在威胁区」当成交战状态存储。
 ## 庞大仍可用虚拟同地点查询。
 
@@ -41,7 +41,7 @@ static func clear(game_ctx: GameContext, enemy_id: StringName) -> void:
 	game_ctx.registrations.clear_engagement(enemy_id)
 
 
-## 是否成对交战：Buff 优先；庞大可虚拟同地点；Domain engaged_with 仅兼容迁移。
+## 是否成对交战：STATUS 优先；庞大可虚拟同地点；Domain engaged_with 仅兼容迁移。
 static func is_engaged_with(
 	game_ctx: GameContext,
 	enemy_id: StringName,
@@ -59,11 +59,11 @@ static func is_engaged_with(
 		return false
 	if enemy.massive:
 		return MassiveEngagement.is_virtually_engaged_with(enemy, investigator_id, game_ctx)
-	## 迁移兼容：尚无 Buff 时读 Domain。
+	## 迁移兼容：尚无 STATUS 时读 Domain。
 	return enemy.engaged_with == investigator_id
 
 
-## 该敌人当前交战伙伴（Buff → Domain → 空）。
+## 该敌人当前交战伙伴（STATUS → Domain → 空）。
 static func partner(game_ctx: GameContext, enemy_id: StringName) -> StringName:
 	if game_ctx != null and game_ctx.registrations != null:
 		var from_buff := game_ctx.registrations.engagement_partner(enemy_id)
