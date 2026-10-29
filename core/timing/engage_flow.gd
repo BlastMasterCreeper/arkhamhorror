@@ -7,7 +7,7 @@ extends RefCounted
 ## - **auto**：框架区域变更后的自动交战（Prey/Lead；冷漠/横置跳过）
 ## - **effect**：效果交战（卡面 nest、以及基础 Engage 行动外壳 nest）
 ##
-## 交战状态 = RestrictionKind.ENGAGEMENT Buff（赋予/注销）。
+## 交战状态 = RelationKind.ENGAGEMENT（RELATION Buff；赋予/注销）。
 ## 威胁区 = 区划占位，只做检测；enter_threat 常伴随移入威胁区，grant 不移入。
 ## 禁止另铸 `seq.enemy.auto_engage` 等按场合拆名。
 

@@ -1,6 +1,9 @@
 class_name RegistrationStore
 extends RefCounted
 
+## 只存行为 Buff（MODIFIER / GATE / DIRECTIVE / LISTENER / RELATION）。
+## Gain 在 `GainedCharacteristicStore`。
+
 var _entries: Array[Registration] = []
 var _next_id: int = 0
 var _stat_projections: StatProjectionStore = null
@@ -25,7 +28,6 @@ func unregister_by_controller(controller_id: StringName) -> void:
 
 
 func on_card_leave_play(card_id: StringName) -> void:
-	## 06 §3.2.6 · 只卸 WHILE_IN_PLAY。不碰涌动 / 险境 / 隐私 / 起始 / 绑定 / 延时。
 	_unregister_matching(card_id, [
 		AhcEnums.LifetimeKind.WHILE_IN_PLAY,
 	])
@@ -55,23 +57,16 @@ func on_drawn_card_finalize(card_id: StringName) -> void:
 
 
 func unregister(id: StringName) -> void:
-	var derived: Array[StringName] = []
-	for reg in _entries:
-		if reg.id == id:
-			derived = reg.derived_reg_ids.duplicate()
-			break
 	if _stat_projections != null:
 		_stat_projections.detach(id)
 	for i in range(_entries.size() - 1, -1, -1):
 		if _entries[i].id == id:
 			_entries.remove_at(i)
-			break
-	## Gain 壳卸下 → 级联卸衍生行为 Buff。
-	for child_id in derived:
-		unregister(child_id)
+			return
 
 
 func unregister_by_drawn_card(card_id: StringName) -> void:
+	## G4：只卸该卡 GATE（险境）；不卸 DIRECTIVE/LISTENER/RELATION，也不碰 GainStore。
 	if card_id == &"":
 		return
 	var to_remove: Array[StringName] = []
@@ -80,31 +75,27 @@ func unregister_by_drawn_card(card_id: StringName) -> void:
 			continue
 		if reg.drawn_card_id != card_id:
 			continue
-		var removes_peril := false
+		var removes_gate := false
 		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.RESTRICTION:
-				removes_peril = true
+			if buff.type == AhcEnums.BuffType.GATE:
+				removes_gate = true
 				break
-		if removes_peril:
+		if removes_gate:
 			to_remove.append(reg.id)
 	for id in to_remove:
 		unregister(id)
 
 
-## 读取：是否存在 SKIP_AOO 限制类 Buff（不卸）。
 func has_skip_aoo(controller_id: StringName) -> bool:
 	return _find_skip_aoo_reg_id(controller_id) != &""
 
 
-## 入口读完后卸掉本行动的 SKIP_AOO（lifetime）；不是 Cancel/Ignore。
 func clear_skip_aoo(controller_id: StringName) -> void:
 	var reg_id := _find_skip_aoo_reg_id(controller_id)
 	if reg_id != &"":
 		unregister(reg_id)
 
 
-## INIT_2B：读取 SKIP_AOO → 供原流程分支；读后 clear lifetime。
-## 返回 true = 原流程应跳过借机攻击（限制生效），不是 interrupt。
 func read_skip_aoo(controller_id: StringName) -> bool:
 	if not has_skip_aoo(controller_id):
 		return false
@@ -119,19 +110,17 @@ func _find_skip_aoo_reg_id(controller_id: StringName) -> StringName:
 		if reg.controller_id != controller_id:
 			continue
 		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+			if buff.type != AhcEnums.BuffType.DIRECTIVE or buff.directive == null:
 				continue
-			if buff.restriction.kind == AhcEnums.RestrictionKind.SKIP_AOO:
+			if buff.directive.kind == AhcEnums.DirectiveKind.SKIP_AOO:
 				return reg.id
 	return &""
 
 
-## 读取：该敌人是否有 SUPPRESS_AUTO_ENGAGE（不卸）。
 func has_suppress_auto_engage(enemy_id: StringName) -> bool:
 	return _find_suppress_auto_engage_reg_id(enemy_id) != &""
 
 
-## auto-engage 入口：读取限制 → 原流程跳过自动交战；读后 clear。
 func read_suppress_auto_engage(enemy_id: StringName) -> bool:
 	var reg_id := _find_suppress_auto_engage_reg_id(enemy_id)
 	if reg_id == &"":
@@ -140,7 +129,6 @@ func read_suppress_auto_engage(enemy_id: StringName) -> bool:
 	return true
 
 
-## 明示交战后清掉残留（若移入未触发 auto-engage 入口）。
 func clear_suppress_auto_engage(enemy_id: StringName) -> void:
 	var reg_id := _find_suppress_auto_engage_reg_id(enemy_id)
 	if reg_id != &"":
@@ -152,39 +140,36 @@ func _find_suppress_auto_engage_reg_id(enemy_id: StringName) -> StringName:
 		return &""
 	for reg in _entries:
 		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+			if buff.type != AhcEnums.BuffType.DIRECTIVE or buff.directive == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.SUPPRESS_AUTO_ENGAGE:
+			if buff.directive.kind != AhcEnums.DirectiveKind.SUPPRESS_AUTO_ENGAGE:
 				continue
-			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+			if buff.directive.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
 				return reg.id
 	return &""
 
 
-## 交战状态 Buff：敌人是否与该调查员成对交战（与威胁区脱钩）。
 func has_engagement(enemy_id: StringName, investigator_id: StringName) -> bool:
 	return _find_engagement_reg_id(enemy_id, investigator_id) != &""
 
 
-## 该敌人当前交战的调查员（无则 &""）；一对一。
 func engagement_partner(enemy_id: StringName) -> StringName:
 	if enemy_id == &"":
 		return &""
 	for reg in _entries:
 		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+			if buff.type != AhcEnums.BuffType.RELATION or buff.relation == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+			if buff.relation.kind != AhcEnums.RelationKind.ENGAGEMENT:
 				continue
-			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
-				var inv: StringName = buff.restriction.drawer_id
+			if buff.relation.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+				var inv: StringName = buff.relation.drawer_id
 				if inv == &"":
 					inv = reg.controller_id
 				return inv
 	return &""
 
 
-## 与该调查员成对交战的敌人列表。
 func engaged_enemies_for(investigator_id: StringName) -> Array[StringName]:
 	var out: Array[StringName] = []
 	if investigator_id == &"":
@@ -192,16 +177,16 @@ func engaged_enemies_for(investigator_id: StringName) -> Array[StringName]:
 	var seen: Dictionary = {}
 	for reg in _entries:
 		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+			if buff.type != AhcEnums.BuffType.RELATION or buff.relation == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+			if buff.relation.kind != AhcEnums.RelationKind.ENGAGEMENT:
 				continue
-			var inv: StringName = buff.restriction.drawer_id
+			var inv: StringName = buff.relation.drawer_id
 			if inv == &"":
 				inv = reg.controller_id
 			if inv != investigator_id:
 				continue
-			var enemy_id: StringName = buff.restriction.subject_id
+			var enemy_id: StringName = buff.relation.subject_id
 			if enemy_id == &"":
 				enemy_id = reg.drawn_card_id
 			if enemy_id == &"" or seen.has(enemy_id):
@@ -211,18 +196,17 @@ func engaged_enemies_for(investigator_id: StringName) -> Array[StringName]:
 	return out
 
 
-## 卸掉该敌人全部交战状态 Buff（脱离 / 抢怪前）。
 func clear_engagement(enemy_id: StringName) -> void:
 	if enemy_id == &"":
 		return
 	var to_remove: Array[StringName] = []
 	for reg in _entries:
 		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+			if buff.type != AhcEnums.BuffType.RELATION or buff.relation == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+			if buff.relation.kind != AhcEnums.RelationKind.ENGAGEMENT:
 				continue
-			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+			if buff.relation.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
 				to_remove.append(reg.id)
 				break
 	for id in to_remove:
@@ -234,60 +218,19 @@ func _find_engagement_reg_id(enemy_id: StringName, investigator_id: StringName) 
 		return &""
 	for reg in _entries:
 		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+			if buff.type != AhcEnums.BuffType.RELATION or buff.relation == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+			if buff.relation.kind != AhcEnums.RelationKind.ENGAGEMENT:
 				continue
-			var subject: StringName = buff.restriction.subject_id
+			var subject: StringName = buff.relation.subject_id
 			if subject == &"":
 				subject = reg.drawn_card_id
-			var inv: StringName = buff.restriction.drawer_id
+			var inv: StringName = buff.relation.drawer_id
 			if inv == &"":
 				inv = reg.controller_id
 			if subject == enemy_id and inv == investigator_id:
 				return reg.id
 	return &""
-
-
-## Gain 拥有查询（不是 Buff）。当前涌动竖切绑 `WHILE_DRAWN_CARD_RESOLVING`。
-func has_gained_keyword(card_id: StringName, keyword: StringName) -> bool:
-	if card_id == &"" or keyword == &"":
-		return false
-	for reg in _entries:
-		if reg.drawn_card_id != card_id:
-			continue
-		for gain in reg.gains:
-			if (
-				gain.kind == AhcEnums.GainedCharacteristicKind.KEYWORD
-				and gain.id == keyword
-			):
-				return true
-	return false
-
-
-## @deprecated 使用 has_gained_keyword（Gain ≠ Buff）。
-func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
-	return has_gained_keyword(card_id, keyword)
-
-
-func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:
-	if card_id == &"":
-		return
-	var to_remove: Array[StringName] = []
-	for reg in _entries:
-		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
-			continue
-		if reg.drawn_card_id != card_id:
-			continue
-		var has_keyword := false
-		for gain in reg.gains:
-			if gain.kind == AhcEnums.GainedCharacteristicKind.KEYWORD:
-				has_keyword = true
-				break
-		if has_keyword:
-			to_remove.append(reg.id)
-	for id in to_remove:
-		unregister(id)
 
 
 func unregister_by_hidden_in_hand_card(card_id: StringName) -> void:
@@ -317,7 +260,7 @@ func has_hidden_leave_hand_restriction(card_id: StringName) -> bool:
 		if reg.drawn_card_id != card_id:
 			continue
 		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.RESTRICTION:
+			if buff.type == AhcEnums.BuffType.GATE:
 				return true
 	return false
 
@@ -331,7 +274,7 @@ func has_peril_for_drawn_card(card_id: StringName) -> bool:
 		if reg.drawn_card_id != card_id:
 			continue
 		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.RESTRICTION:
+			if buff.type == AhcEnums.BuffType.GATE:
 				return true
 	return false
 
@@ -396,8 +339,7 @@ func duplicate_store() -> RegistrationStore:
 		r.encounter_frame_id = reg.encounter_frame_id
 		r.drawn_card_id = reg.drawn_card_id
 		r.buffs = reg.buffs.duplicate()
-		r.gains = reg.gains.duplicate()
-		r.derived_reg_ids = reg.derived_reg_ids.duplicate()
+		r.derived_from_gain_id = reg.derived_from_gain_id
 		copy._entries.append(r)
 	return copy
 

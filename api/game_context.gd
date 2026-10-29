@@ -18,6 +18,8 @@ var scenario: ScenarioSystem
 var enemy: EnemySystem
 
 var registrations: RegistrationStore
+## Gain 特征（非 Buff）；与 registrations 分立。
+var gains: GainedCharacteristicStore
 var mutator: StateMutator
 var modifiers: ModifierEngine
 var composition: CompositionExecutor

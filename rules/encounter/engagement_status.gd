@@ -2,7 +2,7 @@ class_name EngagementStatus
 extends RefCounted
 
 ## 交战状态（成对 Buff）门面。
-## 权威：RegistrationStore · RestrictionKind.ENGAGEMENT。
+## 权威：RegistrationStore · RelationKind.ENGAGEMENT（RELATION Buff）。
 ## 威胁区是区划占位（检测用），不是本 Buff；勿把「在威胁区」当成交战状态存储。
 ## 庞大仍可用虚拟同地点查询。
 

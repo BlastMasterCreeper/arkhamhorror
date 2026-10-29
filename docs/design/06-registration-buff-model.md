@@ -2,18 +2,18 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
-> **状态**：v0.4.44 · 2026-10-29 — Gain ≠ Buff；`GainedCharacteristic` 单独管理再衍生行为 Buff
+> **状态**：v0.5.0 · 2026-10-29 — 行为 Buff 按根本特质五类；Gain 出 Registration
 
 ---
 
 ## 1. 目标
 
-用 **Register / Unregister + Buff + Context** 统一理解全部能力与持续/延时效果。
+用 **Register / Unregister + Buff + Context** 统一理解持续规则覆盖；**Gain 特征单独管理**。
 
-- **印刷能力类型**（Constant / Forced / [reaction] / [action]）→ 编译期 **tags**，不是运行时分支。
-- **状态变更**由 [07-composition](07-composition.md)（Atom 节点）完成。
-- **规则变更**由 **RegisterNode** 写入 `RegistrationStore`。
-- **Buff 仅三种**；**Gain 特征不是 Buff**；关键词行为、Cancel/Replacement **不是** Buff 类型。
+- **印刷能力类型** → 编译期 tags / 能力管线，不是 Register Buff。
+- **状态变更** → Composition / L0。
+- **规则覆盖** → `RegistrationStore` 只挂 **行为 Buff**。
+- **Gain 拥有** → `GainedCharacteristicStore`；可衍生行为 Buff。
 
 ---
 
@@ -22,60 +22,53 @@
 ```gdscript
 class Registration:
     var id: StringName
-    var source: SourceRef
     var lifetime: LifetimeSpec
-    var scope: ScopeFilter
-    var buffs: Array[BuffSpec]                       # 行为三型
-    var gains: Array[GainedCharacteristicSpec]       # Gain 特征（不是 Buff）
-    var derived_reg_ids: Array[StringName]            # Gain → 衍生行为 Buff 的 reg id
-    var tags: Array[StringName]
+    var buffs: Array[BuffSpec]   # 只行为 Buff
 
 class BuffSpec:
-    var type: BuffType   # MODIFIER | RESTRICTION | LISTENER 仅三种
-    var payload: Variant
+    var type: BuffType   # MODIFIER | GATE | DIRECTIVE | LISTENER | RELATION
 
-class GainedCharacteristicSpec:
-    var kind: GainedCharacteristicKind   # KEYWORD | TRAIT | ICON | ABILITY
-    var id: StringName
-    var ability_spec: Variant   # ABILITY 档
+class GainedCharacteristicStore:  # 与 Registration 分立
+    # GainEntry{ gains[], derived_reg_ids[], lifetime… }
 ```
 
 | 原语 / 名词 | 含义 |
 |---|---|
-| **Register** | `RegistrationStore.register(reg)`（结算动词） |
-| **Unregister** | id / filter / lifetime tick；卸 Gain 壳 → 级联卸 `derived_reg_ids` |
-| **Buff** | **仅**行为三型载荷（`BuffSpec`） |
-| **GainedCharacteristic** | Grimoire *gains …* 的**拥有**记录；**正式名不叫 Buff** |
-| **Context** | `ApplicationContext`（§9） |
+| **Register** | 只写入 **行为 Buff** 到 `RegistrationStore` |
+| **Grant** | 写入 **Gain** 到 `GainedCharacteristicStore`（`seq.effect.grant`） |
+| **Buff** | 行为覆盖载荷（下表五类） |
+| **GainedCharacteristic** | *gains …* 拥有记录；**不是 Buff** |
 
-### 2.1 Gain ≠ Buff（已裁决）
+### 2.1 行为 Buff · 按根本特质（已裁决）
+
+不问外层称号好不好听，按**信息层事实的根本差别**分：
+
+| BuffType | 根本特质 | 消费 | 例 |
+|---|---|---|---|
+| **MODIFIER** | 改**可折叠的量** | ModifierEngine | +1 skill、shroud−、伤/发现量 |
+| **GATE** | 改 **Intent 合法性**（能否发起） | Eligibility / GateEvaluator | FORBID_PLAY/DRAW/…、险境、隐私离手 |
+| **DIRECTIVE** | 改**已入手续的走法**（入口读后分支；不拦 Intent 本身） | 各原流程入口 | SKIP_AOO、SUPPRESS_AUTO_ENGAGE、SkillRedirect |
+| **LISTENER** | **武装时点效果**（到点开火 Composition） | Timing / Dispatcher | lasting delayed、关键词开火竖切 |
+| **RELATION** | **成对/关系事实** | 关系查询 | ENGAGEMENT |
 
 ```text
-Register（结算）
-  → Registration 壳（lifetime · scope · source）
-       ├─ buffs[]   → 行为 Buff（MODIFIER / RESTRICTION / LISTENER）
-       └─ gains[]   → GainedCharacteristic（拥有）
-            └─ 创建时可 **衍生** → 再 Register 行为 Buff / AbilityLifecycle.mount
-                 （derived_reg_ids 绑回 Gain 壳）
+seq.effect.register  → Registration.buffs[]（上表五类）
+seq.effect.grant     → GainStore（拥有）→ 可选衍生 register 行为 Buff
 ```
 
-| 层 | 规范名 | 成员 | 消费 |
-|---|---|---|---|
-| 行为 | **Buff** | `MODIFIER` · `RESTRICTION` · `LISTENER` | ModifierEngine / Eligibility / LISTENER fire |
-| Gain | **GainedCharacteristic** | `KEYWORD` · `TRAIT` · `ICON` · `ABILITY` | `effective_*`；再衍生行为 Buff / 能力挂载 |
-
-**禁止**：把 Gain 塞进扁平 `BuffType`；为 keyword 新建第四种行为 Buff；绕过 Gain 真空挂 AbilitySpec。  
-**口语**可说「挂了个 register」；写文档/枚举时 Gain **不叫** Buff。
+**禁止**：把 Gain 塞进 `BuffType`；把 GATE/DIRECTIVE/RELATION 混称旧 `RESTRICTION`；用 MODIFIER 加减假装改维。
 
 ---
 
-## 3. BuffType（三种）
+## 3. BuffType（五类 · 根本特质）
 
 ```gdscript
 enum BuffType {
-    MODIFIER,       # 被动改数值
-    RESTRICTION,    # 被动禁止/允许；编译卡面 "cannot …"；Grimoire：cannot 绝对，不得 countermand（07 §3.2）
-    LISTENER,       # timing 到点跑 Composition
+    MODIFIER,    # 量
+    GATE,        # Intent 合法性
+    DIRECTIVE,   # 手续走法
+    LISTENER,    # 时点武装
+    RELATION,    # 关系事实
 }
 ```
 
@@ -1149,7 +1142,8 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
-| 2026-10-29 | v0.4.44 | **Gain ≠ Buff**：`GainedCharacteristicSpec` / `gains[]`；删 `BuffType.KEYWORD`；`has_gained_keyword`；卸 Gain 级联 `derived_reg_ids` |
+| 2026-10-29 | v0.5.0 | **根本特质五类**：MODIFIER / GATE / DIRECTIVE / LISTENER / RELATION；Gain 迁 `GainedCharacteristicStore` + `seq.effect.grant`；废扁平 RESTRICTION/KEYWORD |
+| 2026-10-29 | v0.4.44 | **Gain ≠ Buff**：`GainedCharacteristicSpec`；删 `BuffType.KEYWORD`（已被 v0.5.0 吸收） |
 | 2026-10-10 | v0.4.21 | §3.2.7：庞大 REPLACE 锚改到 `seq.enemy.attack`；`phase_attacks` 仅为固定 nest 手续 |
 | 2026-10-10 | v0.4.20 | §3.2.7：庞大 = REPLACE → `seq.keyword.massive`；删平行 massive 流程 |
 | 2026-10-10 | v0.4.19 | **§3.2.7** 关键词挂载时点 × 开火锚 × 跨类/同锚优先级；`fire_priority`（Hunter 10 先于 Patrol 20） |

@@ -152,9 +152,9 @@ static func _composition_declares_skip_aoo(node: CompositionNode) -> bool:
 		return true
 	if node.kind == AhcEnums.CompositionNodeKind.REGISTER and node.register_template != null:
 		for buff in node.register_template.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+			if buff.type != AhcEnums.BuffType.DIRECTIVE or buff.directive == null:
 				continue
-			if buff.restriction.kind == AhcEnums.RestrictionKind.SKIP_AOO:
+			if buff.directive.kind == AhcEnums.DirectiveKind.SKIP_AOO:
 				return true
 	for child in node.children:
 		if _composition_declares_skip_aoo(child):

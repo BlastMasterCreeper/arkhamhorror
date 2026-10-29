@@ -1,14 +1,14 @@
 class_name RegistrationTemplate
 extends RefCounted
 
+## Registration **只**挂行为 Buff。Gain 见 `GainTemplate` / `GainedCharacteristicStore`。
+
 var controller_id: StringName = &""
 var lifetime_kind: AhcEnums.LifetimeKind = AhcEnums.LifetimeKind.DURATION
 var duration: AhcEnums.DurationAnchorKind = AhcEnums.DurationAnchorKind.THIS_TURN
 var encounter_frame_id: StringName = &""
 var drawn_card_id: StringName = &""
 var buffs: Array[BuffSpec] = []
-## Gain 特征载荷（不是 Buff）。
-var gains: Array[GainedCharacteristicSpec] = []
 var stat_queries: Array = []
 
 
@@ -25,17 +25,26 @@ static func lasting_modifier(
 	return t
 
 
-static func lasting_restriction(
+static func lasting_gate(
 	controller_id: StringName,
 	duration: AhcEnums.DurationAnchorKind,
-	payload: RestrictionPayload
+	payload: GatePayload
 ) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = controller_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.DURATION
 	t.duration = duration
-	t.buffs.append(BuffSpec.restriction_buff(payload))
+	t.buffs.append(BuffSpec.gate_buff(payload))
 	return t
+
+
+## @deprecated 使用 lasting_gate。
+static func lasting_restriction(
+	controller_id: StringName,
+	duration: AhcEnums.DurationAnchorKind,
+	payload: GatePayload
+) -> RegistrationTemplate:
+	return lasting_gate(controller_id, duration, payload)
 
 
 static func delayed_listener(
@@ -49,14 +58,12 @@ static func delayed_listener(
 	return t
 
 
-## 限制类 SKIP_AOO：行动开始 Register；INIT_2B 入口读取后卸掉。
-## 非 LISTENER（无 Catalog emit）；非 Cancel/Ignore。
+## DIRECTIVE · SKIP_AOO：行动开始 Register；INIT_2B 入口读取后卸掉。
 static func skip_aoo_for_action(controller_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = controller_id
-	## 与延时 LISTENER 的 UNTIL_FIRED 同枚举，语义是「入口读完即卸」，不是 listener 开火。
 	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
-	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.skip_aoo(controller_id)))
+	t.buffs.append(BuffSpec.directive_buff(DirectivePayload.skip_aoo(controller_id)))
 	return t
 
 
@@ -65,70 +72,58 @@ static func skip_aoo_until_fired(controller_id: StringName) -> RegistrationTempl
 	return skip_aoo_for_action(controller_id)
 
 
-## 限制类 SUPPRESS_AUTO_ENGAGE：效果移入前 Register；auto-engage 入口读取后卸掉。
+## DIRECTIVE · SUPPRESS_AUTO_ENGAGE。
 static func suppress_auto_engage_until_fired(enemy_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = &""
 	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
 	t.drawn_card_id = enemy_id
-	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.suppress_auto_engage(enemy_id)))
+	t.buffs.append(BuffSpec.directive_buff(DirectivePayload.suppress_auto_engage(enemy_id)))
 	return t
 
 
-## 交战状态：WHILE_IN_PLAY（敌人离场卸）；真实交战与视为交战共用。
+## RELATION · 交战成对。
 static func engagement_pair(enemy_id: StringName, investigator_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = investigator_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
 	t.drawn_card_id = enemy_id
 	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.engagement(enemy_id, investigator_id))
+		BuffSpec.relation_buff(RelationPayload.engagement(enemy_id, investigator_id))
 	)
 	return t
 
 
-## G2 peril Register：`WHILE_DRAWN_CARD_RESOLVING(card_id)` — G4 完 Unregister；不跨 Surge。
+## GATE · 险境 FORBID_*。
 static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = &""
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
 	t.drawn_card_id = card_id
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_play_peril(drawer_id, card_id))
-	)
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_trigger_peril(drawer_id, card_id))
-	)
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_commit_peril(drawer_id, card_id))
-	)
+	t.buffs.append(BuffSpec.gate_buff(GatePayload.forbid_play_peril(drawer_id, card_id)))
+	t.buffs.append(BuffSpec.gate_buff(GatePayload.forbid_trigger_peril(drawer_id, card_id)))
+	t.buffs.append(BuffSpec.gate_buff(GatePayload.forbid_commit_peril(drawer_id, card_id)))
 	return t
 
 
-## E4 隐私 Register：`WHILE_HIDDEN_IN_HAND(card_id)` — 卡面能力合法离手时 Unregister。
+## GATE · 隐私 FORBID_LEAVE_HAND。
 static func hidden_in_hand(controller_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = controller_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND
 	t.drawn_card_id = card_id
 	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_leave_hand(card_id, controller_id))
+		BuffSpec.gate_buff(GatePayload.forbid_leave_hand(card_id, controller_id))
 	)
 	return t
 
 
-## G3 动态 keyword · Gain 拥有标记（非 Buff）· `WHILE_DRAWN_CARD_RESOLVING`。
-## G5 evaluate 后 Unregister；G4 peril 不清除。行为侧由 KeywordConsumer / 日后 LISTENER 衍生消费。
+## @deprecated Gain 已迁 `GainTemplate` / `GainedCharacteristicStore`。
 static func gained_keyword_drawn_card_resolving(
 	card_id: StringName,
 	keyword: StringName
-) -> RegistrationTemplate:
-	var t := RegistrationTemplate.new()
-	t.controller_id = &""
-	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
-	t.drawn_card_id = card_id
-	t.gains.append(GainedCharacteristicSpec.keyword(keyword))
-	return t
+) -> GainTemplate:
+	return GainTemplate.keyword_drawn_card_resolving(card_id, keyword)
 
 
 ## @deprecated 使用 peril_drawn_card_resolving

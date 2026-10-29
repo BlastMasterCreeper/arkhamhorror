@@ -1,8 +1,7 @@
 class_name EffectiveCharacteristicQuery
 extends RefCounted
 
-## 06 §3.2 · printed ∪ gained characteristic 查询。
-## gained = Registration.gains（GainedCharacteristic）；**不是** BuffType。
+## 06 §3.2 · printed ∪ gained。gained 读 GainStore（不是 Buff）。
 
 
 static func has_effective_keyword(
@@ -15,9 +14,9 @@ static func has_effective_keyword(
 		return false
 	if CardRegistry.has_keyword(definition_id, keyword):
 		return true
-	if game_ctx == null or game_ctx.registrations == null or card_id == &"":
+	if game_ctx == null or game_ctx.gains == null or card_id == &"":
 		return false
-	return game_ctx.registrations.has_gained_keyword(card_id, keyword)
+	return game_ctx.gains.has_gained_keyword(card_id, keyword)
 
 
 static func has_printed_keyword(definition_id: StringName, keyword: StringName) -> bool:

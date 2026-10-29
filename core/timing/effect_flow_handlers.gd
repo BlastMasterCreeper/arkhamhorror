@@ -178,6 +178,9 @@ static func register_buff(game_ctx: GameContext, params: Dictionary) -> Dictiona
 	if game_ctx == null or game_ctx.registrations == null:
 		return {"ok": false, "error": "no_store"}
 	var template: Variant = params.get("template", null)
+	## Gain 误走 register 时改道（模板已迁 GainTemplate）。
+	if template is GainTemplate:
+		return grant_characteristic(game_ctx, params)
 	if template is not RegistrationTemplate:
 		return {"ok": false, "error": "invalid_template"}
 	var reg_id := game_ctx.registrations.register(template as RegistrationTemplate)
@@ -189,6 +192,24 @@ static func register_buff(game_ctx: GameContext, params: Dictionary) -> Dictiona
 			reg_id
 		)
 	return {"ok": reg_id != &"", "reg_id": reg_id}
+
+
+## Gain 特征授予（非 Buff）。写入 GainedCharacteristicStore；可衍生 Registration Buff。
+static func grant_characteristic(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	if game_ctx == null or game_ctx.gains == null:
+		return {"ok": false, "error": "no_gain_store"}
+	var template: Variant = params.get("template", null)
+	if template is not GainTemplate:
+		return {"ok": false, "error": "invalid_gain_template"}
+	var gain_id := game_ctx.gains.register(template as GainTemplate)
+	_log(game_ctx, "effect:grant", {"gain": gain_id})
+	if game_ctx.memory != null:
+		game_ctx.memory.set_referent(
+			params.get("controller_id", &"") as StringName,
+			&"last_gain_id",
+			gain_id
+		)
+	return {"ok": gain_id != &"", "gain_id": gain_id}
 
 
 static func unregister_buff(game_ctx: GameContext, params: Dictionary) -> Dictionary:

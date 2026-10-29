@@ -1,6 +1,8 @@
 class_name RestrictionEvaluator
 extends RefCounted
 
+## GATE Buff 消费：Intent 合法性。类名暂留；语义是门禁不是笼统 restriction。
+
 enum Intent {
 	DRAW,
 	PLAY,
@@ -37,10 +39,10 @@ static func block_reason(
 		return &""
 	for reg in store.all_registrations():
 		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+			if buff.type != AhcEnums.BuffType.GATE or buff.gate == null:
 				continue
 			var reason := _matches(
-				buff.restriction, reg, intent, actor_id, skill_test, leave_hand_card_id
+				buff.gate, reg, intent, actor_id, skill_test, leave_hand_card_id
 			)
 			if reason != &"":
 				return reason
@@ -60,7 +62,7 @@ static func api_error(reason: StringName) -> String:
 
 
 static func _matches(
-	payload: RestrictionPayload,
+	payload: GatePayload,
 	reg: Registration,
 	intent: Intent,
 	actor_id: StringName,
@@ -68,25 +70,25 @@ static func _matches(
 	leave_hand_card_id: StringName = &""
 ) -> StringName:
 	match payload.kind:
-		AhcEnums.RestrictionKind.FORBID_DRAW:
+		AhcEnums.GateKind.FORBID_DRAW:
 			if intent != Intent.DRAW:
 				return &""
 			if reg.controller_id != actor_id and reg.controller_id != &"":
 				return &""
 			return &"restriction_forbid_draw"
-		AhcEnums.RestrictionKind.FORBID_PLAY:
+		AhcEnums.GateKind.FORBID_PLAY:
 			if intent != Intent.PLAY:
 				return &""
 			if actor_id == payload.drawer_id:
 				return &""
 			return &"restriction_forbid_play"
-		AhcEnums.RestrictionKind.FORBID_TRIGGER:
+		AhcEnums.GateKind.FORBID_TRIGGER:
 			if intent != Intent.TRIGGER:
 				return &""
 			if actor_id == payload.drawer_id:
 				return &""
 			return &"restriction_forbid_trigger"
-		AhcEnums.RestrictionKind.FORBID_COMMIT_TO_TEST:
+		AhcEnums.GateKind.FORBID_COMMIT_TO_TEST:
 			if intent != Intent.COMMIT_TO_TEST:
 				return &""
 			if skill_test == null:
@@ -96,7 +98,7 @@ static func _matches(
 			if skill_test.performing_investigator != payload.drawer_id:
 				return &""
 			return &"restriction_forbid_commit_to_test"
-		AhcEnums.RestrictionKind.FORBID_LEAVE_HAND:
+		AhcEnums.GateKind.FORBID_LEAVE_HAND:
 			if intent != Intent.LEAVE_HAND:
 				return &""
 			if leave_hand_card_id == &"" or payload.drawn_card_id != leave_hand_card_id:

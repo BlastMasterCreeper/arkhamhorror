@@ -321,9 +321,9 @@ static func _keywords_of(game_ctx: GameContext, entity_id: StringName) -> Array[
 			out.append(&"aloof")
 		if enemy.massive:
 			out.append(&"massive")
-	if game_ctx.registrations != null:
+	if game_ctx.gains != null:
 		for kw in [&"surge", &"peril", &"hunter", &"alert", &"retaliate", &"elusive"]:
-			if game_ctx.registrations.has_gained_keyword(entity_id, kw):
+			if game_ctx.gains.has_gained_keyword(entity_id, kw):
 				out.append(kw)
 	return out
 

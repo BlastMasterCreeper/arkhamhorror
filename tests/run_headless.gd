@@ -1200,7 +1200,8 @@ func _test_must_choice_pick_option() -> bool:
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(node)
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
-	return inv.horror_taken == 0 and h.ctx.registrations.count() == 1
+	## surge 分支是 Gain，不是 Registration Buff。
+	return inv.horror_taken == 0 and h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _test_choice_optional_default_decline() -> bool:
@@ -1460,7 +1461,7 @@ func _test_enc_12124_choice_punish() -> bool:
 	return (
 		inv.damage_taken == 1
 		and inv.horror_taken == 1
-		and h.ctx.registrations.has_gained_keyword(card_id, &"surge")
+		and h.ctx.gains.has_gained_keyword(card_id, &"surge")
 	)
 
 
@@ -1477,7 +1478,7 @@ func _test_enc_surge_12126_fail_by_horror() -> bool:
 	if not h.resolve_encounter_revelation(card_id):
 		return false
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
-	return inv.horror_taken == 1 and inv.clues_on_card == 2 and not h.ctx.registrations.has_gained_keyword(card_id, &"surge")
+	return inv.horror_taken == 1 and inv.clues_on_card == 2 and not h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _collect_initiation_steps(h: RuleTestHarness) -> Array:
@@ -2039,21 +2040,32 @@ func _test_seq_eff_register_unregister() -> bool:
 		return false
 	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.unregister"):
 		return false
-	var card_id := &"surge_card"
-	var c := CompositionTestHelper.new(h.ctx)
-	c.execute(CompositionNode.grant_keyword(card_id, &"surge"))
-	if not h.ctx.registrations.has_gained_keyword(card_id, &"surge"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.grant"):
 		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	## Buff 路径：MODIFIER register / unregister。
+	c.execute(
+		CompositionNode.nest_effect_register(
+			RegistrationTemplate.lasting_modifier(
+				&"inv_1",
+				AhcEnums.DurationAnchorKind.THIS_TURN,
+				ModifierPayload.add_skill(AhcEnums.StatRef.SKILL_WILLPOWER, 1)
+			)
+		)
+	)
 	if _sequence_kind_count(h, &"effect_register") == 0:
 		return false
 	var regs: Array = h.ctx.registrations.all_registrations()
 	if regs.is_empty():
 		return false
 	c.execute(CompositionNode.nest_effect_unregister((regs[0] as Registration).id))
-	return (
+	var buff_ok := (
 		h.ctx.registrations.count() == 0
 		and _sequence_kind_count(h, &"effect_unregister") > 0
 	)
+	## Gain 路径：grant keyword（不进 Registration）。
+	c.execute(CompositionNode.grant_keyword(&"surge_card", &"surge"))
+	return buff_ok and h.ctx.gains.has_gained_keyword(&"surge_card", &"surge")
 
 
 func _test_seq_eff_lose_resources_fizzle() -> bool:
@@ -4203,16 +4215,16 @@ func _test_enc_surge_keyword_survives_g4() -> bool:
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_surge", [])
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	EncounterGainedKeyword.register_surge(h.ctx, card_id)
-	if not h.ctx.registrations.has_gained_keyword(card_id, &"surge"):
+	if not h.ctx.gains.has_gained_keyword(card_id, &"surge"):
 		return false
 	EncounterPeril.unregister_for_card(h.ctx, card_id)
-	if not h.ctx.registrations.has_gained_keyword(card_id, &"surge"):
+	if not h.ctx.gains.has_gained_keyword(card_id, &"surge"):
 		return false
 	DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
-	if not h.ctx.registrations.has_gained_keyword(card_id, &"surge"):
+	if not h.ctx.gains.has_gained_keyword(card_id, &"surge"):
 		return false
 	var consumed := KeywordConsumer.evaluate_keyword(h.ctx, card_id, &"surge")
-	return consumed and not h.ctx.registrations.has_gained_keyword(card_id, &"surge")
+	return consumed and not h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _adb_add_encounter_treachery_to_deck(h: RuleTestHarness, def_id: StringName) -> StringName:
@@ -4274,7 +4286,7 @@ func _test_enc_surge_12126_with_clues() -> bool:
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	if not h.resolve_encounter_revelation(card_id):
 		return false
-	return not h.ctx.registrations.has_gained_keyword(card_id, &"surge")
+	return not h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _test_adb_compile_raising_suspicions() -> bool:
@@ -4327,7 +4339,7 @@ func _test_enc_surge_12160_no_target_gained() -> bool:
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	if not h.resolve_encounter_revelation(card_id):
 		return false
-	return h.ctx.registrations.has_gained_keyword(card_id, &"surge")
+	return h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _test_gain_effective_keyword() -> bool:
@@ -4517,26 +4529,28 @@ func _test_kw_occ_leave_hand_scoped() -> bool:
 func _test_kw_occ_peril_finalize() -> bool:
 	var h := RuleTestHarness.new(42)
 	var store := h.ctx.registrations
+	var gains := h.ctx.gains
 	store.register(RegistrationTemplate.peril_drawn_card_resolving(&"inv_1", &"treachery"))
 	EncounterGainedKeyword.register_surge(h.ctx, &"treachery")
 	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, &"hunter_card")
-	if store.count() != 3:
+	## peril+hunter 在 Registration；surge 在 GainStore。
+	if store.count() != 2:
 		return false
 	if not store.has_peril_for_drawn_card(&"treachery"):
 		return false
-	if not store.has_gained_keyword(&"treachery", &"surge"):
+	if not gains.has_gained_keyword(&"treachery", &"surge"):
 		return false
 	store.on_card_leave_play(&"treachery")
-	if store.count() != 3:
+	if store.count() != 2:
 		return false
 	store.on_drawn_card_finalize(&"treachery")
 	if store.has_peril_for_drawn_card(&"treachery"):
 		return false
-	if not store.has_gained_keyword(&"treachery", &"surge"):
+	if not gains.has_gained_keyword(&"treachery", &"surge"):
 		return false
 	store.on_leave_deck(&"starting_missing")
 	store.on_leave_set_aside(&"bonded_missing")
-	return store.count() == 2 and store.has_gained_keyword(&"treachery", &"surge")
+	return store.count() == 1 and gains.has_gained_keyword(&"treachery", &"surge")
 
 
 func _test_kw_fast_play_form() -> bool:

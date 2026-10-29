@@ -275,27 +275,47 @@ enum AtomOp { MOVE_CARD, TRANSFER_MARKER, ADJUST_MARKER, REVEAL_CARD, SET_FLAG, 
 
 enum FlagField { ELIMINATED, RESIGNED }
 
+## GATE：改 Intent 合法性（cannot / forbid）。
+enum GateKind {
+	FORBID_DRAW,
+	FORBID_PLAY,
+	FORBID_TRIGGER,
+	FORBID_COMMIT_TO_TEST,
+	FORBID_LEAVE_HAND,
+}
+
+## DIRECTIVE：改已入手续的走法（原流程读后分支；不拦 Intent 本身）。
+enum DirectiveKind {
+	## 「This action does not provoke AOO」· INIT_2B 读后跳过借机。
+	SKIP_AOO,
+	## 抑制自动交战；auto-engage 入口读后跳过。明示交战不受影响。
+	SUPPRESS_AUTO_ENGAGE,
+	## 检定改维 *use X instead of Y*（ST.1 组装读；Empower Self 可 Ignore）。
+	SKILL_REDIRECT,
+}
+
+## RELATION：成对/关系事实（非 cannot、非改道指令）。
+enum RelationKind {
+	## 交战成对（真实或视为）；与威胁区场面脱钩。
+	ENGAGEMENT,
+}
+
+## @deprecated 使用 GateKind / DirectiveKind / RelationKind。
 enum RestrictionKind {
 	FORBID_DRAW,
 	FORBID_PLAY,
 	FORBID_TRIGGER,
 	FORBID_COMMIT_TO_TEST,
 	FORBID_LEAVE_HAND,
-	## 限制类：卡面「This action does not provoke attacks of opportunity」。
-	## 行动开始 Register；INIT_2B 由 AOO **原流程读取** 后自行分支（不跑借机）。
-	## 不是 LISTENER，不是 Cancel/Ignore。
 	SKIP_AOO,
-	## 限制类：抑制 **自动交战**（Prey/Lead 选目标）。
-	## 效果移入后仍会走到 auto-engage 入口；入口 **读取** 本限制后自行跳过。
-	## 明示交战（seq.engage mode=effect）不受影响。
 	SUPPRESS_AUTO_ENGAGE,
-	## 交战状态（成对）：与威胁区场面脱钩。真实交战与「视为交战」均 Register 本 Buff。
-	## 查询入口读本 Kind；**不是** Intent 拦截，也不是 LISTENER。
 	ENGAGEMENT,
 }
 
-## 行为 Buff 仅三种。Gain 特征见 `GainedCharacteristicKind`（不是 Buff）。
-enum BuffType { MODIFIER, RESTRICTION, LISTENER }
+## 行为 Buff · 按根本特质分（不是外层称号凑数）。
+## MODIFIER=量 · GATE=Intent 合法性 · DIRECTIVE=手续走法 · LISTENER=时点武装 · RELATION=关系事实。
+## Gain 特征不是 Buff，见 GainedCharacteristicKind。
+enum BuffType { MODIFIER, GATE, DIRECTIVE, LISTENER, RELATION }
 
 ## Grimoire *gains a characteristic* · 单独管理；创建后可衍生行为 Buff。
 enum GainedCharacteristicKind { KEYWORD, TRAIT, ICON, ABILITY }
