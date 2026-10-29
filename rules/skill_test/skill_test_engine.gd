@@ -103,12 +103,9 @@ func commit_card(ctx: SkillTestContext, from_inv: StringName, card_id: StringNam
 func resolve_reveal_chain(ctx: SkillTestContext) -> void:
 	if ctx.current_step != AhcEnums.SkillTestStep.ST_2_COMMIT:
 		return
-	while true:
-		step_reveal_token(ctx)
-		var reveal_again := step_apply_symbol_effects(ctx)
-		if not reveal_again:
-			break
-	## ST.4 链结束 → PW_AFTER_REVEAL（窗内能力揭示仍走 on_resolved_reveal）→ ST.5。
+	## 只 nest/run 揭示：符号能力在 reveal **After · Forced** 同档发起（非 After 后再 nest）。
+	step_reveal_token(ctx)
+	## 揭示链（含 After 符号）结束 → PW_AFTER_REVEAL → ST.5。
 	## *If revealed* 已在各次 resolved 结算时 eager 触发，不再固定时点读账本。
 	_open_player_window(ctx, AhcEnums.PlayerWindow.PW_SKILL_TEST_AFTER_REVEAL)
 
@@ -184,8 +181,8 @@ func step_reveal_token(ctx: SkillTestContext) -> ChaosToken:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_3_REVEAL
 	ctx.reveal_batch_start = ctx.revealed_tokens.size()
 	if _game_ctx != null and _game_ctx.sequence_catalog != null:
-		## WHEN：将要揭示反应挂 pending；RESOLVE：意图规划并离袋。
-		_game_ctx.sequence_catalog.run(
+		## nest：父检定/符号帧下压 ST.3；无父时 nest≡run。
+		_game_ctx.sequence_catalog.nest(
 			_game_ctx,
 			&"seq.chaos.reveal",
 			{
@@ -219,19 +216,44 @@ func step_reveal_token(ctx: SkillTestContext) -> ChaosToken:
 	return ctx.revealed_tokens[ctx.revealed_tokens.size() - 1]
 
 
+## 对当前批 resolved 逐枚 nest `seq.chaos.symbol`（ST.4）。
+## 返回是否有 token 请求 reveal_another（审计；再揭示已在符号帧内 nest）。
 func step_apply_symbol_effects(ctx: SkillTestContext) -> bool:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_4_SYMBOL
 	var again := false
 	var start := clampi(ctx.reveal_batch_start, 0, ctx.revealed_tokens.size())
-	for i in range(start, ctx.revealed_tokens.size()):
+	## 批大小在循环前固定：reveal_another 追加的 token 由符号帧内递归 nest，不在此扫。
+	var end := ctx.revealed_tokens.size()
+	for i in range(start, end):
 		var token: ChaosToken = ctx.revealed_tokens[i]
 		if token == null:
 			continue
-		_apply_token_effect(ctx, token)
+		_initiate_symbol_ability(ctx, token)
 		if token.reveal_another:
 			again = true
 	_advance_step(AhcEnums.SkillTestStep.ST_4_SYMBOL, ctx)
 	return again
+
+
+## 单枚：优先 nest `seq.chaos.symbol`；无 Catalog 时回退内联（仅测试旁路）。
+func _initiate_symbol_ability(ctx: SkillTestContext, token: ChaosToken) -> void:
+	if (
+		_game_ctx != null
+		and _game_ctx.sequence_catalog != null
+		and _game_ctx.sequence_catalog.has_flow(&"seq.chaos.symbol")
+	):
+		_game_ctx.sequence_catalog.nest(
+			_game_ctx,
+			&"seq.chaos.symbol",
+			{
+				"inv_id": ctx.performing_investigator,
+				"test_id": ctx.id,
+				"skill_test_ctx": ctx,
+				"token": token,
+			}
+		)
+		return
+	_apply_token_effect(ctx, token)
 
 
 func step_calculate_modified_value(ctx: SkillTestContext) -> int:
@@ -385,11 +407,8 @@ func _discard_committed(ctx: SkillTestContext) -> void:
 
 
 func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:
-	## ST.4：规则自带 Bless/Curse 先于参考卡 / Elder Sign。
-	if BlessCurseRules.try_apply(ctx, token, _game_ctx):
-		return
-	## 参考卡隐式符号能力（空白则跳过印刷条）；Elder Sign 走调查员印刷。
-	ScenarioReferenceApplier.apply_token(_game_ctx, ctx, token, _state)
+	## 旁路：无 Catalog 时与 ChaosSymbolFlow 同序。
+	ChaosSymbolFlow.apply_symbol_ability(_game_ctx, ctx, token)
 
 
 func _matching_icon_bonus(card: CardInstance, skill: AhcEnums.SkillType) -> int:

@@ -56,6 +56,7 @@ func _initialize() -> void:
 	_run_test("BC-01 bless +2 reveal_another return_to_pool", _test_bc01_bless_st4)
 	_run_test("BC-02 curse -2 reveal_another return_to_pool", _test_bc02_curse_st4)
 	_run_test("BC-02b chaos mod is THIS_SKILL_TEST Buff", _test_bc02b_chaos_mod_buff)
+	_run_test("BC-02c symbol nests after reveal", _test_bc02c_symbol_nests_after_reveal)
 	_run_test("BC-03 bless chain then ST.8 to pool", _test_bc03_bless_chain_pool)
 	_run_test("BC-04 ability curse finalize returns to bag", _test_bc04_ability_curse_bag)
 	_run_test("BC-05 ignored bless returns to bag", _test_bc05_ignored_bless_bag)
@@ -1193,8 +1194,35 @@ func _test_bc02b_chaos_mod_buff() -> bool:
 	)
 
 
+func _test_bc02c_symbol_nests_after_reveal() -> bool:
+	## ST.3 = reveal；ST.4 = reveal After · Forced 上 nest seq.chaos.symbol。
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.chaos.symbol"):
+		return false
+	GameBootstrap.setup_chaos_bag(h.ctx, [
+		ChaosToken.numeric(-1, &"nest_num"),
+	])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_commit(test, [])
+	h.ctx.skill_tests.close_player_window(test)
+	var reveal_before := _sequence_kind_count(h, &"reveal_chaos_token")
+	var symbol_before := _sequence_kind_count(h, &"chaos_symbol_ability")
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	var reveal_after := _sequence_kind_count(h, &"reveal_chaos_token")
+	var symbol_after := _sequence_kind_count(h, &"chaos_symbol_ability")
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return (
+		reveal_after > reveal_before
+		and symbol_after > symbol_before
+		and test.chaos_modifier == -1
+		and not test.chaos_modifier_reg_ids.is_empty()
+	)
+
+
 func _test_bc03_bless_chain_pool() -> bool:
-	## bless → reveal another（numeric +1）→ ST.8：bless 进 pool，numeric 回袋。
+	## bless → ST.4 帧内 nest 再揭 numeric +1 → ST.8：bless 进 pool，numeric 回袋。
 	var h := RuleTestHarness.new(42)
 	var bless := ChaosToken.symbol(AhcEnums.ChaosTokenKind.BLESS, 0, &"bc_chain_b")
 	var num := ChaosToken.numeric(1, &"bc_chain_n")
@@ -1203,7 +1231,7 @@ func _test_bc03_bless_chain_pool() -> bool:
 	var st := SkillTestHelper.new(h.ctx)
 	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
 	h.ctx.skill_tests.begin_test(test, h.ctx)
-	## 注入 bless 为已揭示；再跑 ST.4 → 触发再揭 → 袋中只剩 numeric。
+	## 注入 bless；ST.4 nest 符号能力内自动再 nest ST.3→ST.4。
 	bag.tokens.erase(bless)
 	if not bag.revealed_this_test.has(bless):
 		bag.revealed_this_test.append(bless)
@@ -1213,9 +1241,6 @@ func _test_bc03_bless_chain_pool() -> bool:
 	if not again:
 		h.ctx.skill_tests.step_end(test, h.ctx)
 		return false
-	## 模拟 reveal_another 链：再揭 numeric 并 apply。
-	h.ctx.skill_tests.step_reveal_token(test)
-	h.ctx.skill_tests.step_apply_symbol_effects(test)
 	h.ctx.skill_tests.step_calculate_modified_value(test)
 	h.ctx.skill_tests.step_determine_success(test)
 	h.ctx.skill_tests.step_apply_results(test)
@@ -1318,7 +1343,7 @@ func _test_shriv01_compile_if_revealed() -> bool:
 
 
 func _test_shriv02_horror_before_symbol() -> bool:
-	## FAQ：揭示 skull 当下 take horror（ST.3），早于参考卡符号能力（ST.4）。
+	## FAQ：if_revealed 紧贴 resolved（RESOLVE）；符号能力在 reveal After · Forced。
 	var h := RuleTestHarness.new(42, GameBootstrap.config_spreading_flames())
 	h.run_setup()
 	h.ctx.state.current_act_number = 2
@@ -1327,6 +1352,7 @@ func _test_shriv02_horror_before_symbol() -> bool:
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var horror_before := inv.horror_taken
+	var mod_at_if_revealed: Array = [999]
 	var body := CompositionNode.take_horror(&"inv_1", 2)
 	var specs: Array = [{
 		"kinds": SkillTestIfRevealed.shrivelling_kinds(),
@@ -1336,22 +1362,28 @@ func _test_shriv02_horror_before_symbol() -> bool:
 	var st := SkillTestHelper.new(h.ctx)
 	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
 	SkillTestIfRevealed.register_specs(test, h.ctx, specs)
+	## 在 if_revealed 开火时再抓一次 modifier（应早于 After Forced 符号）。
+	test.if_revealed_watchers.append({
+		"kinds": SkillTestIfRevealed.shrivelling_kinds(),
+		"mode": &"each",
+		"on_match": func(ctx: SkillTestContext, _kind: int, _n: int) -> void:
+			mod_at_if_revealed[0] = ctx.chaos_modifier,
+	})
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	h.ctx.skill_tests.step_commit(test, [])
 	h.ctx.skill_tests.close_player_window(test)
+	## 整帧含 After · Forced 符号；勿再 step_apply_symbol_effects。
 	h.ctx.skill_tests.step_reveal_token(test)
 	var horror_after_reveal := inv.horror_taken
-	var mod_before_symbol := test.chaos_modifier
-	h.ctx.skill_tests.step_apply_symbol_effects(test)
-	var mod_after_symbol := test.chaos_modifier
+	var mod_after_reveal := test.chaos_modifier
 	h.ctx.skill_tests.close_player_window(test)
 	h.ctx.skill_tests.continue_after_reveal_window(test)
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return (
 		horror_after_reveal == horror_before + 2
-		and mod_before_symbol == 0
-		and mod_after_symbol == -2
+		and int(mod_at_if_revealed[0]) == 0
+		and mod_after_reveal == -2
 		and inv.horror_taken == horror_before + 2
 	)
 
@@ -10097,7 +10129,7 @@ func _test_act_catalog_registered() -> bool:
 	return h.ctx.action_sequences != null
 
 
-## 22 / bootstrap 全量对照：必有 60 条正式 id；别名 / 已废 / 刻意不铸不得注册。
+## 22 / bootstrap 全量对照：必有正式 id；别名 / 已废 / 刻意不铸不得注册。
 func _test_seq_audit_catalog_inventory() -> bool:
 	var h := RuleTestHarness.new(42)
 	var catalog := h.ctx.sequence_catalog
@@ -10114,6 +10146,7 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.action.move",
 		&"seq.agenda.advance",
 		&"seq.chaos.reveal",
+		&"seq.chaos.symbol",
 		&"seq.defeat.leave_play",
 		&"seq.draw.empty_piles_defeated",
 		&"seq.draw.encounter",
@@ -10187,7 +10220,7 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.skill_test.agility",
 		&"seq.setup",
 	]
-	if required.size() != 60:
+	if required.size() != 61:
 		return false
 	for flow_id in required:
 		if not catalog.has_flow(flow_id):

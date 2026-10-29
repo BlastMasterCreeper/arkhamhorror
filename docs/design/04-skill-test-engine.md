@@ -105,38 +105,38 @@ class SkillTestEngine:
 | **载荷** | modifier（→ ST.5）· 效果（再揭示、失败句→ST.7…） |
 
 ```text
-seq.chaos.reveal
-  └─ 每枚 resolved token
-        ST.3 揭示
-        └─ nest / 发起 隐式符号能力   ← ST.4
-              · modifier → ctx
-              · 「Reveal another」→ 再 nest ST.3→符号能力
-              · fail / fail-by → 注册 ST.7（OQ-05-03）
+nest seq.chaos.reveal                 ← ST.3 名义（揭示 impact）
+  [WHEN]  将要揭示 / 揭示时反应
+  RESOLVE 离袋 · if_revealed（紧贴 resolved）
+  [AFTER] ← **符号能力就在这里**（Forced 同档；与其它 Forced After 同窗）
+            对每枚 resolved：nest seq.chaos.symbol   ← ST.4 名义
+              · modifier → THIS_SKILL_TEST Buff
+              · 「Reveal another」→ nest 新的 seq.chaos.reveal
+                    （新帧自己的 After Forced 再发符号）
+              · fail / fail-by → 注册 ST.7
+            同窗 `[reaction]`（蜡烛等）**必定低于 Forced**（基础规则；意愿池在 Forced 批之后）
+  pop
+整链结束 → PW_SKILL_TEST_AFTER_REVEAL → ST.5
 ```
 
 **回溯锚点**（故步骤回退说得通）：
 
 | 干预 | 对象 |
 |---|---|
-| Cancel 揭示 | 无 token → 无能力可发 |
-| Ignore | 仍揭示；不施加该符号能力的 modifier/效果 |
-| Cancel / Instead 符号能力 | 以该次能力发起为锚 |
-| 空白参考卡文本框 | 无对应印刷能力 → ST.4 无效果 |
+| Cancel 揭示 | 无 token → 无能力可发（锚 `seq.chaos.reveal`） |
+| Ignore | 仍揭示；不发起该枚的符号能力 |
+| Cancel / Instead 符号能力 | 以该次 `seq.chaos.symbol`（After Forced）为锚 |
+| 空白参考卡文本框 | 无对应印刷能力 → 不 nest 有效体 |
 
-- 多能力「将要揭示」替换：整批仍 **一次** ST.3，再对 resolved 逐枚发符号能力（[05 §4.2](05-chaos-bag.md)）
-- 「Reveal another」→ **仅**再嵌 ST.3→符号能力；不回 ST.2；递归无 PW（OQ-04-01）
+- 多能力「将要揭示」替换：整批仍 **一次** reveal；After Forced 对 resolved **逐枚 nest** 符号（[05 §4.2](05-chaos-bag.md)）
+- 「Reveal another」→ 符号帧内再 nest reveal；不回 ST.2；递归无 PW（OQ-04-01）
 - 整链结束 → `PW_SKILL_TEST_AFTER_REVEAL`（进 ST.5 前一次）
-- 实现：`ScenarioReferenceBinder` 把 JSON 符号条装成参考卡 `symbol_abilities`；`ScenarioReferenceApplier` 于 ST.4 发起（`text_box_blank` 跳过印刷条）
+- 实现：`ChaosSymbolFlow.bind_rules_handler` 订 `reveal_chaos_token` After · Forced；体为 `seq.chaos.symbol`
 
 ```gdscript
 func resolve_reveal_chain(handle: SkillTestHandle) -> void:
-    while true:
-        step_reveal_token(handle)                      # ST.3
-        var again := step_initiate_symbol_ability(handle)  # ST.4
-        if not again:
-            break
+    nest seq.chaos.reveal   # After Forced 内 nest symbol；勿在 pop 后再扫 ST.4
     open_player_window(PW_SKILL_TEST_AFTER_REVEAL)
-    step_calculate_modified_value(handle)              # ST.5
 ```
 
 ### 3.5 ST.5 Modified skill value

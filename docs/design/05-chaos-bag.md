@@ -113,12 +113,15 @@ ST.3/ST.4 **融合**为一条链：揭示产出 token → **发起隐式符号�
 
 ```
 ST.1 begin → bag.begin_reveal_scope(test_id)
-ST.3: ChaosRevealIntentPlanner.plan_and_reveal（见 §4.2）
+nest seq.chaos.reveal（ST.3 名义）
+      → ChaosRevealIntentPlanner.plan_and_reveal（见 §4.2）
       → 同时离袋；resolved 入 ctx.revealed_tokens；其余 → ignore_reveal
-      → **紧贴** notify_resolved → if_revealed_watchers（早于 ST.4）
-ST.4: 对每枚 resolved **发起隐式符号能力**；任一 reveal another → 再 nest ST.3→能力
-整链结束 → PW_SKILL_TEST_AFTER_REVEAL（窗内 Rod 式揭示：finalize 时同样 notify）
-         → ST.5 …
+      → **紧贴** notify_resolved → if_revealed_watchers
+      → **After · Forced**：对每枚 resolved nest seq.chaos.symbol（ST.4 名义）
+            （与其它 Forced After 同档；同窗 `[reaction]` 必低于 Forced）
+            reveal another → 再 nest reveal（新帧 After 再发符号）
+      → pop
+整链结束 → PW_SKILL_TEST_AFTER_REVEAL → ST.5 …
 ST.8 → return_all_revealed + end_reveal_scope
 ```
 
@@ -336,7 +339,7 @@ class ChaosBagSnapshot:
 | REF-04 | SF elder_thing fail-by | fail_by≥2 → 抽 Fire! |
 | REF-05 | SF hard skull | -(act+1) |
 | SHRIV-01 | 编译 skill_test.if_revealed 皱缩术 kinds | specs×1 · kinds=5 |
-| SHRIV-02 | skull → take horror @ ST.3 早于 ST.4 | horror 先；modifier 后 |
+| SHRIV-02 | if_revealed @ RESOLVE 早于 After Forced 符号 | horror 先；modifier 后 |
 | SHRIV-03 | 两枚 skull + any 自肃 | horror 只 +2 一次 |
 | CF-01 | 12059 编译 if_revealed skull | action fight + if_else source_has_use |
 | CF-02 | 12059 揭 skull 扣 charge | 3→2 |

@@ -82,6 +82,8 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.triggered_abilities.bind_game_context(ctx)
 	ctx.sequences.bind_game_context(ctx)
 	ctx.effects.bind_game_context(ctx)
+	## 混乱符号能力 = reveal After · Forced（与其它 Forced 同档）。
+	ChaosSymbolFlow.bind_rules_handler(ctx)
 	ZoneMoveFlow.bind_mutator(ctx)
 	return ctx
 
