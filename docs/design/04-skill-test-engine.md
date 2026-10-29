@@ -114,7 +114,7 @@ nest seq.chaos.reveal                 ← ST.3 名义（揭示 impact）
               · 「Reveal another」→ nest 新的 seq.chaos.reveal
                     （新帧自己的 After Forced 再发符号）
               · fail / fail-by → 注册 ST.7
-            同窗还可有蜡烛等 [reaction] After（Forced 批之后意愿池）
+            同窗 `[reaction]`（蜡烛等）**必定低于 Forced**（基础规则；意愿池在 Forced 批之后）
   pop
 整链结束 → PW_SKILL_TEST_AFTER_REVEAL → ST.5
 ```

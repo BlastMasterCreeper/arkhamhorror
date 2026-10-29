@@ -118,7 +118,7 @@ nest seq.chaos.reveal（ST.3 名义）
       → 同时离袋；resolved 入 ctx.revealed_tokens；其余 → ignore_reveal
       → **紧贴** notify_resolved → if_revealed_watchers
       → **After · Forced**：对每枚 resolved nest seq.chaos.symbol（ST.4 名义）
-            （与其它 Forced After 同档；蜡烛等 [reaction] 同窗稍后）
+            （与其它 Forced After 同档；同窗 `[reaction]` 必低于 Forced）
             reveal another → 再 nest reveal（新帧 After 再发符号）
       → pop
 整链结束 → PW_SKILL_TEST_AFTER_REVEAL → ST.5 …
@@ -339,7 +339,7 @@ class ChaosBagSnapshot:
 | REF-04 | SF elder_thing fail-by | fail_by≥2 → 抽 Fire! |
 | REF-05 | SF hard skull | -(act+1) |
 | SHRIV-01 | 编译 skill_test.if_revealed 皱缩术 kinds | specs×1 · kinds=5 |
-| SHRIV-02 | skull → take horror @ ST.3 早于 ST.4 | horror 先；modifier 后 |
+| SHRIV-02 | if_revealed @ RESOLVE 早于 After Forced 符号 | horror 先；modifier 后 |
 | SHRIV-03 | 两枚 skull + any 自肃 | horror 只 +2 一次 |
 | CF-01 | 12059 编译 if_revealed skull | action fight + if_else source_has_use |
 | CF-02 | 12059 揭 skull 扣 charge | 3→2 |
