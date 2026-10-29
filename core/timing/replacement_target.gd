@@ -3,25 +3,17 @@ extends RefCounted
 
 ## Instead / Would 卡面效果的统一编译目标（07-effect-resolution §7.0）。
 enum Kind {
-	PENDING,
+	PENDING, ## @deprecated 退役；apply 返回 pending_replace_retired
 	SEQUENCE,
 	WOULD_TRIGGER,
 }
 
 
 var kind: Kind = Kind.SEQUENCE
-var pending_id: StringName = &"" ## @deprecated IMPACT pending 已退役
+var pending_id: StringName = &"" ## @deprecated
 var flow_id: StringName = &""
 var triggering_condition_id: StringName = &""
 var bind: Dictionary = {}
-
-
-static func pending(pending_id: StringName) -> ReplacementTarget:
-	## @deprecated 返回 PENDING 仅用于报错路径；请改 SEQUENCE。
-	var t := ReplacementTarget.new()
-	t.kind = Kind.PENDING
-	t.pending_id = pending_id
-	return t
 
 
 static func sequence(flow_id: StringName, bind: Dictionary = {}) -> ReplacementTarget:
@@ -45,6 +37,7 @@ static func from_params(params: Dictionary) -> ReplacementTarget:
 	var kind_name: String = str(params.get("kind", "sequence"))
 	match kind_name:
 		"pending", "PENDING":
+			## 退役路径：保留 Kind 以便 Handler 报 pending_replace_retired。
 			t.kind = Kind.PENDING
 		"sequence", "SEQUENCE":
 			t.kind = Kind.SEQUENCE

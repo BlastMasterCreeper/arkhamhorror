@@ -1409,7 +1409,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 | 结构 / 牌组合法性 | Setup、deckbuild |
 | 目标不存在、效果空转 | Eligibility L7 |
 | Assign / prevent / reassign | `DamagePipeline` + Wrapper |
-| Instead 竞争 | `PendingResolution` + initiation_seq |
+| Instead 竞争 | `RulesMemory` sequence replacement + initiation_seq |
 | 区域不变量（leave play token→pool） | `StateMutator` / [01 §5](01-game-state-zones.md) |
 | 关键词流程（Surge 再抽） | **G5** nest evaluate + 再抽 G1（**G4 后**；不在 G1 Register） |
 | **Reveal 卡牌**（D2/E2、窥探） | L0 `reveal_to_*`（**是效果**，非 Buff）；见 [07 §5.3](07-effect-primitives.md) |
