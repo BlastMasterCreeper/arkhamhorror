@@ -354,6 +354,7 @@ Cancel / Ignore 卡面
 | Cancel 某 initiation | `seq.interrupt.cancel` | **SEQUENCE** | `flow_id` + RulesMemory referent |
 | Ignore costs | `seq.interrupt.ignore` | **COST** | `bind: { cost_slot, ability_id }` |
 | Ignore Retaliate / Alert 等 | `seq.interrupt.ignore` | **KEYWORD** | `keyword: retaliate`, `scope: { fight_id }` |
+| Ignore aloof **for Fight** | `seq.interrupt.ignore` | **KEYWORD** / RESTRICTION 入口 | `keyword: aloof`, `for: FIGHT`, `scope: { fight_id }`（见 §6.0.2） |
 | Ignore chaos token modifier | `seq.interrupt.ignore` | **CHAOS_TOKEN** | `scope: { skill_test_id, token_id }` |
 | 竖切：pending EffectOp | 同上 | **IMPACT** | `pending_id`（占位；非卡面长期译法） |
 
@@ -361,6 +362,7 @@ Cancel / Ignore 卡面
 
 - **Mode**（`cancel` / `ignore`）= 卡面 Cancel 词条 vs Ignore 词条 → 选 `seq.interrupt.cancel` 或 `.ignore`。
 - **Kind** = 运行时 **绑定对象**；同一 Mode 下不同 Kind 走不同分支（见 §6 表）。
+- **`for` / purpose**（§6.0.2）= 只屏蔽 A 对 **指定手续 B** 的触发或限制，**不是**「结算 B 期间空白 A」。
 
 ```gdscript
 class InterruptTarget:
@@ -394,6 +396,30 @@ class InterruptTarget:
 | IMPACT（`pending_id`） | 已接 `PendingResolutionStore` |
 | SEQUENCE（`flow_id` + bind） | 已接 `RulesMemory.cancel_sequence` → G3 跳过 composition |
 | COST / KEYWORD / CHAOS_TOKEN | 待接 Initiation / keyword / chaos 子系统 |
+
+### 6.0.2 「Ignore A for B」窄范围（已裁决）
+
+卡面 *ignore A for B* / *ignoring the aloof keyword*（就某次 Fight 而言）= **仅**忽略 **A 施加于 B 结算的触发或限制**。
+
+| 是 | 否 |
+|---|---|
+| 屏蔽 A 对 **B 这条手续** 的 Eligibility / RESTRICTION / 相关 LISTENER 触发 | 在结算 B **整段期间** 空白 A 的全部效果 |
+| `for` 钉死 purpose（如 `FIGHT`）+ `scope`（如本帧 `fight_id`） | 顺带改写 A 的其它规则面（交战、spawn、移动…） |
+
+**锚例 · 10077 Becky**（Tommy 签名枪）：可忽略目标上的 **冷漠（aloof）**（及反击等）以便 **攻击**。
+
+- **允许**：对该次 Fight 不读冷漠的 `FORBID_ATTACK`（未交战也可发起攻击）。
+- **不允许**：因此次攻击而 **自动交战**；冷漠「不自动交战」仍在。攻击结束敌人仍可 unengaged。
+- **同理**：若同时 ignore **反击（Retaliate）**，只屏蔽该 Fight 失败后的 retaliate 触发；不把冷漠/交战状态一并抹掉。
+
+```text
+ignore aloof for Fight
+  → InterruptTarget { kind: KEYWORD, keyword: aloof, for: FIGHT, scope: fight_id }
+  → Fight Eligibility / FORBID_ATTACK Evaluator 查 IgnoreMask(for=FIGHT)
+  → 不写 engaged_with；不 nest seq.engage；不关 aloof 的 skip-auto-engage
+```
+
+**禁止**：把 *ignore aloof* 译成「本帧视同已交战 / as if engaged」除非卡面**另写** engage 或 as-if；禁止用「结算 Fight 时 keyword 全关」实现。
 
 ### 6.0.1 样例：Ward of Protection（Cancel · SEQUENCE）
 
@@ -856,6 +882,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-29 | v0.6.20 | §6.0.2：**Ignore A for B** 窄范围；10077 忽略冷漠仅放开攻击限制、不自动交战 |
 | 2026-10-27 | v0.6.19 | §4：明示取消/additional 钉 WOULD；WHEN take 预留、现无生产卡 |
 | 2026-10-27 | v0.6.18 | §4：编译接线 would/when/after take + `affliction_filter`/`take_self`；AFTER 在击败 nest 之后 |
 | 2026-10-26 | v0.6.17 | §4：无印刷+GRANT 不设上限；inv/敌伤害无限；`legs_damage`/`legs_horror`；AFTER 伤/恐/和或条件 |
