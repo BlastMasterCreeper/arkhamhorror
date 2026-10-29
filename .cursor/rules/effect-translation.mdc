@@ -170,6 +170,7 @@ AbilitySpec
 - **内联 vs nest**（[15 §4.0.5](docs/design/15-timing-entry-catalog.md)）：**上一步是否触发本步时点**？是 → nest 另一条 seq；否 → 内联。Then 是 Composition 内联 Seq，不是 nest。**玩家确认另算**，见上 §2。
 - 新规则手续 → **`register_run` / `nest`**，不新建语义 Service。
 - **Cancel / Ignore** → 卡面 Composition 的 Interrupt 节点 nest **`seq.interrupt.cancel` / `seq.interrupt.ignore`** + `InterruptTarget`（[07 §6.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*CancelPolicy`。
+- **Ignore A for B**（窄范围）：只忽略 **A 对 B 结算** 的触发/限制，**不是**结算 B 期间空白 A 全部效果。例：10077 忽略冷漠以便攻击 → 只放行 `FORBID_ATTACK`；**不**自动交战。见 [07 §6.0.2](docs/design/07-effect-resolution.md)。
 - **Instead / Would** → Composition 的 Replace 节点 nest **`seq.replace.instead`** + `ReplacementTarget` + `replacement` 载荷（[07 §7.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*InsteadPolicy`。
 - **Cancel encounter revelation** → 仅注销 G3 显现；**G4 仍 discard** 至 encounter discard（FAQ · [07 §6.0.1](docs/design/07-effect-resolution.md)）。
 - **Cannot** → Register RESTRICTION + [06 §16](docs/design/06-registration-buff-model.md) Intent 入口。
