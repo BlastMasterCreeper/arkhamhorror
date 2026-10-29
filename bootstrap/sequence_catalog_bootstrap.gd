@@ -625,23 +625,7 @@ static func _resolve_draw_investigator(
 	var inv_id: StringName = params.get("inv_id", &"")
 	var amount: int = int(params.get("amount", 1))
 	var source_tags: Array = params.get("source_tags", [])
-	var bind := _effect_bind(params)
-	if not bind.has("controller_id") and inv_id != &"":
-		bind["controller_id"] = inv_id
-	if game_ctx != null and game_ctx.memory != null:
-		var gate: Dictionary = game_ctx.memory.consume_effect_gate(
-			&"seq.draw.investigator", bind
-		)
-		if bool(gate.get("cancelled", false)):
-			return {"ok": false, "cancelled": true, "drawn": [], "error": "sequence_cancelled"}
-		if bool(gate.get("ignored", false)):
-			return {"ok": true, "ignored": true, "applied": false, "drawn": []}
-		if bool(gate.get("replaced", false)):
-			var repl: Dictionary = gate.get("replacement_params", {})
-			if repl.has("amount"):
-				amount = int(repl.get("amount", amount))
-			if repl.has("inv_id") and StringName(str(repl.get("inv_id", &""))) != &"":
-				inv_id = repl.get("inv_id", inv_id) as StringName
+	## Cancel / Ignore / Instead：由 SequenceCatalog 在 RESOLVE 消费。
 	## REST-E-DRAW：FORBID_DRAW 拦抽牌 Intent（原 EffectRestrictionGate）。
 	if game_ctx != null and game_ctx.registrations != null:
 		var forbid := RestrictionEvaluator.block_reason(
@@ -780,27 +764,8 @@ static func _resolve_gain_resource(
 	params: Dictionary,
 	mutator: StateMutator
 ) -> Dictionary:
+	## Cancel / Ignore / Instead：由 SequenceCatalog 在 RESOLVE 消费并合并 replacement。
 	var controller_id: StringName = params.get("controller_id", &"")
-	var bind := _effect_bind(params)
-	var was_replaced := false
-	if game_ctx != null and game_ctx.memory != null:
-		var gate: Dictionary = game_ctx.memory.consume_effect_gate(
-			&"seq.effect.gain_resource", bind
-		)
-		if bool(gate.get("cancelled", false)):
-			return {"ok": false, "cancelled": true, "amount": 0, "error": "sequence_cancelled"}
-		if bool(gate.get("ignored", false)):
-			return {"ok": true, "ignored": true, "applied": false, "amount": 0}
-		if bool(gate.get("replaced", false)):
-			was_replaced = true
-			var repl: Dictionary = gate.get("replacement_params", {})
-			params = params.duplicate()
-			if repl.has("base_amount"):
-				params["base_amount"] = int(repl.get("base_amount", 0))
-			elif repl.has("amount"):
-				params["base_amount"] = int(repl.get("amount", 0))
-			if repl.has("controller_id") and StringName(str(repl.get("controller_id", &""))) != &"":
-				controller_id = repl.get("controller_id", controller_id) as StringName
 	var base_amount: int = int(params.get("base_amount", 0))
 	var amount := base_amount
 	if game_ctx != null and game_ctx.modifiers != null and game_ctx.sequences != null:
@@ -818,15 +783,4 @@ static func _resolve_gain_resource(
 		)
 	if game_ctx != null and game_ctx.memory != null:
 		game_ctx.memory.set_referent(controller_id, &"last_gain_amount", amount)
-	return {"ok": true, "amount": amount, "applied": amount > 0, "replaced": was_replaced}
-
-
-static func _effect_bind(params: Dictionary) -> Dictionary:
-	var bind := {}
-	if params.has("card_id"):
-		bind["card_id"] = params.get("card_id", &"")
-	if params.has("effect_instance"):
-		bind["effect_instance"] = params.get("effect_instance", &"")
-	if params.has("controller_id"):
-		bind["controller_id"] = params.get("controller_id", &"")
-	return bind
+	return {"ok": true, "amount": amount, "applied": amount > 0}

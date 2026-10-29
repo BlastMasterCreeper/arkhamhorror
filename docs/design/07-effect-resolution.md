@@ -405,9 +405,9 @@ class InterruptTarget:
 
 | Kind | 机制 | 状态 |
 |---|---|---|
-| SEQUENCE | Cancel / Ignore① | 已接 `RulesMemory`（`cancel_sequence` / `ignore_sequence`）；效果手续经 `consume_effect_gate` |
-| IMPACT | ① | **已退役**（原 pending EffectOp；改订 SEQUENCE + `effect_instance` / `card_id` bind） |
-| CHAOS_TOKEN | ① | 待接 |
+| SEQUENCE | Cancel / Ignore① | 已接 `RulesMemory`；**`SequenceCatalog` RESOLVE 统一 `consume_effect_gate`**（`seq.effect.*` / `seq.draw.*` / `seq.chaos.*` / `seq.ability.resolve` / `seq.encounter.revelation` / `seq.enter_hand`；interrupt/replace 自身不计） |
+| IMPACT | ① | **已退役**（改订 SEQUENCE + `effect_instance` / `card_id` bind） |
+| CHAOS_TOKEN | ① | 账本可钉；符号能力具体回溯仍待竖切 |
 | COST / KEYWORD | ② | 待接 Eligibility / LISTENER Mask |
 
 ### 6.0.2 「Ignore A for B」窄范围（机制 ② · 已裁决）
@@ -608,8 +608,8 @@ class ReplacementTarget:
 
 | Kind | 状态 |
 |---|---|
-| SEQUENCE | 已接 `RulesMemory` + `seq.effect.*` / `seq.draw.*` `consume_effect_gate` |
-| PENDING | **已退役** |
+| SEQUENCE | 已接 `RulesMemory` + Catalog 统一 `consume_effect_gate`（见 §6.0 接线表） |
+| PENDING | **已退役**（`from_params` 仍可解析出 Kind 以便报错） |
 | WOULD_TRIGGER | 待接 Would 窗口 / condition 层 |
 
 ### 7.0.1 样例：遭遇库顶 Instead（Would · WOULD_TRIGGER）

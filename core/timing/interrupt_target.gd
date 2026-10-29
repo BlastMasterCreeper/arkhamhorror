@@ -2,9 +2,10 @@ class_name InterruptTarget
 extends RefCounted
 
 ## Cancel / Ignore 卡面效果的统一编译目标（07-effect-resolution §6.0）。
+## IMPACT 已退役：from_params 的 impact/pending 映射为无效 SEQUENCE（缺 flow_id）。
 enum Kind {
 	SEQUENCE,
-	IMPACT,
+	IMPACT, ## @deprecated 退役；apply 返回 impact_pending_retired
 	COST,
 	KEYWORD,
 	CHAOS_TOKEN,
@@ -13,9 +14,9 @@ enum Kind {
 
 var kind: Kind = Kind.SEQUENCE
 var flow_id: StringName = &""
-var pending_id: StringName = &""
+var pending_id: StringName = &"" ## @deprecated
 var keyword: StringName = &""
-var impact_op: AhcEnums.EffectOp = AhcEnums.EffectOp.DRAW_CARDS
+var impact_op: AhcEnums.EffectOp = AhcEnums.EffectOp.DRAW_CARDS ## @deprecated
 var bind: Dictionary = {}
 var scope: Dictionary = {}
 
@@ -25,14 +26,6 @@ static func sequence(flow_id: StringName, bind: Dictionary = {}) -> InterruptTar
 	t.kind = Kind.SEQUENCE
 	t.flow_id = flow_id
 	t.bind = bind.duplicate()
-	return t
-
-
-## @deprecated IMPACT pending 已退役；请改 `sequence(flow_id, bind)`。
-static func pending_impact(pending_id: StringName) -> InterruptTarget:
-	var t := InterruptTarget.new()
-	t.kind = Kind.IMPACT
-	t.pending_id = pending_id
 	return t
 
 

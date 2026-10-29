@@ -15,6 +15,7 @@ var _next_replacement_seq: int = 0
 
 
 static func sequence_bind_key(flow_id: StringName, bind: Dictionary = {}) -> StringName:
+	## 身份轴：card_id（含 source/enemy 别名）或 effect_instance；ability_id 仅审计，不进 key。
 	var card_id: StringName = bind.get("card_id", &"") as StringName
 	if card_id != &"":
 		return StringName("%s:%s" % [flow_id, card_id])
@@ -22,6 +23,32 @@ static func sequence_bind_key(flow_id: StringName, bind: Dictionary = {}) -> Str
 	if effect_instance != &"":
 		return StringName("%s:%s" % [flow_id, effect_instance])
 	return flow_id
+
+
+## Catalog / handler 共用：从手续 params 抽出打断身份 bind。
+static func effect_bind_from_params(params: Dictionary) -> Dictionary:
+	var bind := {}
+	var card_id: StringName = params.get("card_id", &"") as StringName
+	if card_id == &"":
+		card_id = params.get("source_id", &"") as StringName
+	if card_id == &"":
+		card_id = params.get("enemy_id", &"") as StringName
+	if card_id == &"":
+		card_id = params.get("investigator_id", &"") as StringName
+	if card_id != &"":
+		bind["card_id"] = card_id
+	var effect_instance: StringName = params.get("effect_instance", &"") as StringName
+	if effect_instance != &"":
+		bind["effect_instance"] = effect_instance
+	var ability_id: StringName = params.get("ability_id", &"") as StringName
+	if ability_id != &"":
+		bind["ability_id"] = ability_id
+	var controller_id: StringName = params.get("controller_id", &"") as StringName
+	if controller_id == &"":
+		controller_id = params.get("inv_id", &"") as StringName
+	if controller_id != &"":
+		bind["controller_id"] = controller_id
+	return bind
 
 
 func cancel_sequence(flow_id: StringName, bind: Dictionary = {}) -> void:

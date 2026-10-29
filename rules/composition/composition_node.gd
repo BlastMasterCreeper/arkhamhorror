@@ -21,7 +21,8 @@ var marker_from: MarkerSlot = null
 var marker_to: MarkerSlot = null
 var register_template: RegistrationTemplate = null
 var provenance: AbilityUnitRef = null
-var pending_id: StringName = &"" ## @deprecated IMPACT pending 已退役
+## 复用字段：unregister 的 reg_id；非旧 IMPACT pending。
+var pending_id: StringName = &""
 var replacement_params: Dictionary = {}
 var source_ability_id: StringName = &""
 var interrupt_mode: StringName = &""
@@ -656,8 +657,6 @@ static func interrupt(mode: StringName, target: InterruptTarget) -> CompositionN
 	n.atom_name = &"interrupt"
 	n.interrupt_mode = mode
 	n.interrupt_target = target
-	if target != null and target.pending_id != &"":
-		n.pending_id = target.pending_id
 	return n
 
 

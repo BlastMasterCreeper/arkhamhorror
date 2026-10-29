@@ -252,6 +252,9 @@ func _initialize() -> void:
 	_run_test("REPL-01 most recent replacement wins", _test_repl_most_recent_wins)
 	_run_test("REPL-02 composition replace instead then resolve", _test_repl_composition_pipeline)
 	_run_test("REPL-03 catalog replace instead sequence", _test_repl_catalog_instead)
+	_run_test("GATE-01 catalog cancels ability.resolve host", _test_gate_cancel_ability_resolve)
+	_run_test("GATE-02 catalog cancels seq.effect.search", _test_gate_cancel_effect_search)
+	_run_test("GATE-03 catalog ignores seq.effect.heal", _test_gate_ignore_effect_heal)
 	_run_test("ENC-01 seq.draw.encounter catalog", _test_enc_draw_catalog)
 	_run_test("ENC-02 default spawn engaged", _test_enc_spawn_default_engaged)
 	_run_test("ENC-17 default spawn drawer not prey auto engage", _test_enc_default_spawn_drawer_not_prey)
@@ -6332,6 +6335,78 @@ func _test_repl_catalog_instead() -> bool:
 		res.get("ok", false)
 		and res.get("replaced", false)
 		and inv.resource_pool == pool_before + 3
+	)
+
+
+func _test_gate_cancel_ability_resolve() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var pool_before := inv.resource_pool
+	var tree := CompositionNode.nest_gain_resource(&"inv_1", 4)
+	InterruptHandler.apply_cancel(
+		h.ctx,
+		InterruptTarget.sequence(&"seq.ability.resolve", {"card_id": &"gate_src"})
+	)
+	var ok := CompositionMount.resolve_ability(
+		h.ctx, tree, &"inv_1", &"gate_ab", &"gate_src"
+	)
+	return not ok and inv.resource_pool == pool_before
+
+
+func _test_gate_cancel_effect_search() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_gate_search")
+	var deck_before := h.ctx.state.encounter_deck.duplicate()
+	InterruptHandler.apply_cancel(
+		h.ctx,
+		InterruptTarget.sequence(
+			&"seq.effect.search",
+			{"effect_instance": &"gate_search"}
+		)
+	)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.search",
+		{
+			"controller_id": &"inv_1",
+			"area": SearchFlow.AREA_ENCOUNTER_DECK,
+			"scope": SearchFlow.SCOPE_ENTIRE,
+			"take_count": 1,
+			"effect_instance": &"gate_search",
+		}
+	)
+	return (
+		not res.get("ok", true)
+		and bool(res.get("cancelled", false))
+		and h.ctx.state.encounter_deck == deck_before
+	)
+
+
+func _test_gate_ignore_effect_heal() -> bool:
+	var h := RuleTestHarness.new(42)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.damage_taken = 2
+	InterruptHandler.apply_ignore(
+		h.ctx,
+		InterruptTarget.sequence(
+			&"seq.effect.heal",
+			{"effect_instance": &"gate_heal"}
+		)
+	)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.heal",
+		{
+			"controller_id": &"inv_1",
+			"amount": 1,
+			"effect_instance": &"gate_heal",
+		}
+	)
+	return (
+		res.get("ok", false)
+		and res.get("ignored", false)
+		and not res.get("applied", true)
+		and inv.damage_taken == 2
 	)
 
 

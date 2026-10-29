@@ -199,26 +199,11 @@ static func defeat_asset_effect(game_ctx: GameContext, card_id: StringName) -> D
 	)
 
 
-## Catalog handler（`seq.effect.defeat`）：Cancel 则停；否则 nest 退场。
+## Catalog handler（`seq.effect.defeat`）：Cancel/Ignore 由 Catalog 账本消费；否则 nest 退场。
 static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var p := _normalize_params(game_ctx, params)
 	if p.is_empty():
 		return {"ok": false, "defeated": false, "error": "invalid_params"}
-	var subject: StringName = p.get("subject", &"") as StringName
-	var bind := _cancel_bind(p, subject)
-	if (
-		game_ctx != null
-		and game_ctx.memory != null
-		and game_ctx.memory.is_sequence_cancelled(FLOW_DEFEAT, bind)
-	):
-		## 消费本次 Cancel：伤/恐常态检测之后仍可再触发。
-		game_ctx.memory.clear_sequence_cancel(FLOW_DEFEAT, bind)
-		return {
-			"ok": false,
-			"defeated": false,
-			"cancelled": true,
-			"subject": subject,
-		}
 	if (
 		game_ctx != null
 		and game_ctx.sequence_catalog != null
@@ -410,17 +395,6 @@ static func _subject(params: Dictionary) -> StringName:
 	if params.get("card_id", &"") as StringName != &"":
 		return SUBJECT_ASSET
 	return &""
-
-
-static func _cancel_bind(params: Dictionary, subject: StringName) -> Dictionary:
-	match subject:
-		SUBJECT_ENEMY:
-			return {"card_id": params.get("enemy_id", &"")}
-		SUBJECT_INVESTIGATOR:
-			return {"card_id": params.get("investigator_id", &"")}
-		SUBJECT_ASSET:
-			return {"card_id": params.get("card_id", &"")}
-	return {}
 
 
 static func _enemy_definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
