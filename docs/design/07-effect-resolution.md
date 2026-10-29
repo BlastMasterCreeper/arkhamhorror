@@ -336,92 +336,104 @@ MarkerTransferBatch.execute(mutator, DAMAGE, sources, targets)
 
 ## 6. Cancel vs Ignore
 
-### 6.0 统一译法（Cancel / Ignore 卡面）
+### 6.0 风味「Ignore」≠ 单一机制（已纠正）
 
-Cancel / Ignore **卡面正文**译效果组合；其中 Interrupt 节点 nest 共享手续 **`seq.interrupt.*`**，携带同一 **`InterruptTarget`**。**禁止**为单卡保留 `cancel_revelation` 等平行 Service，也禁止把整张卡登记成独立 `seq.card…`。
+卡面都写 *ignore*，**风味相近**；引擎上至少两路，**禁止**收成「一律跳过 seq 结算」：
+
+| 机制 | 在干什么 | 运行时落点 | 典型 |
+|---|---|---|---|
+| **① 结算忽略**（settlement ignore） | 某条已发起的 seq / impact **仍登记**，resolve **不施加** | `seq.interrupt.ignore` · SEQUENCE / IMPACT / CHAOS_TOKEN | Ignore chaos modifier；Ignore 某条 pending |
+| **② 限制/影响忽略**（influence ignore） | **不卸** RESTRICTION / keyword Buff，但本手续 **不读** 其对 B 的限制或触发 | IgnoreMask @ Eligibility / RESTRICTION Evaluator / LISTENER 入口；`for`+`scope` | Ignore aloof **for Fight**；Ignore Retaliate **for this fight**；Ignore costs |
 
 ```text
-Cancel / Ignore 卡面
-  → AbilityCompiler 选定 timing entry（[reaction] / Forced when…）
-  → composition 内 nest 或 L2 Interrupt 节点
-  → seq.interrupt.cancel | seq.interrupt.ignore { target: InterruptTarget }
-  → InterruptHandler 按 target.kind 分发到对应运行时
+① 结算忽略：  initiate 成立 → resolve 标 ignored → 不写状态
+② 影响忽略：  Buff 仍在 → 查 B 的限制/触发时被 Mask 挡掉 → B 仍可合法发起/不触发 A
 ```
 
-| 卡面 archetype | catalog | `InterruptTarget.kind` | bind 示例 |
+**Cancel** 仍只对应「未结算前注销 / 打断 initiation」（与 ① 对照见 §6.1）。  
+**② 不是 Cancel**，也 **不是** 把 A 的 Registration 卸掉。
+
+### 6.0.1 统一译法（卡面 → 两路）
+
+Cancel / Ignore **卡面正文**译效果组合。① 走 Interrupt 节点 nest **`seq.interrupt.*`** + `InterruptTarget`；② 仍可经同一 `seq.interrupt.ignore` 登记 Mask，但 **消费点在限制/触发入口**，不是「跳过 B 的 RESOLVE」。**禁止**单卡 `*CancelPolicy` / `seq.card…`。
+
+```text
+Cancel / Ignore① 卡面
+  → nest seq.interrupt.cancel | .ignore { target: InterruptTarget }
+  → 注销 pending 或 resolve 不施加
+
+Ignore② 卡面（ignore A for B）
+  → nest seq.interrupt.ignore { target: KEYWORD|COST, for, scope }
+  → 在 B 的 Eligibility / RESTRICTION / LISTENER 入口查 IgnoreMask
+```
+
+| 卡面 archetype | 机制 | catalog / 入口 | bind 示例 |
 |---|---|---|---|
-| Cancel revelation / treachery | `seq.interrupt.cancel` | **SEQUENCE** | `flow_id: seq.encounter.revelation`, `bind: { card_id }` |
-| Cancel 某 initiation | `seq.interrupt.cancel` | **SEQUENCE** | `flow_id` + RulesMemory referent |
-| Ignore costs | `seq.interrupt.ignore` | **COST** | `bind: { cost_slot, ability_id }` |
-| Ignore Retaliate / Alert 等 | `seq.interrupt.ignore` | **KEYWORD** | `keyword: retaliate`, `scope: { fight_id }` |
-| Ignore aloof **for Fight** | `seq.interrupt.ignore` | **KEYWORD** / RESTRICTION 入口 | `keyword: aloof`, `for: FIGHT`, `scope: { fight_id }`（见 §6.0.2） |
-| Ignore chaos token modifier | `seq.interrupt.ignore` | **CHAOS_TOKEN** | `scope: { skill_test_id, token_id }` |
-| 竖切：pending EffectOp | 同上 | **IMPACT** | `pending_id`（占位；非卡面长期译法） |
+| Cancel revelation / treachery | Cancel | `seq.interrupt.cancel` · SEQUENCE | `flow_id: seq.encounter.revelation` |
+| Cancel 某 initiation | Cancel | `seq.interrupt.cancel` · SEQUENCE | `flow_id` + referent |
+| Ignore chaos token modifier | ① 结算忽略 | `seq.interrupt.ignore` · CHAOS_TOKEN | `scope: { skill_test_id, token_id }` |
+| Ignore 单条 pending impact | ① 结算忽略 | `seq.interrupt.ignore` · IMPACT | `pending_id` |
+| Ignore costs | ② 影响忽略 | `seq.interrupt.ignore` · COST | `bind: { cost_slot, ability_id }` |
+| Ignore Retaliate / Alert | ② 影响忽略 | `seq.interrupt.ignore` · KEYWORD | `keyword: retaliate`, `scope: { fight_id }` |
+| Ignore aloof **for Fight** | ② 影响忽略 | KEYWORD Mask @ `FORBID_ATTACK` | `keyword: aloof`, `for: FIGHT`（§6.0.2） |
 
-**Mode 与 Kind 分离**：
+**Mode / Kind / for**：
 
-- **Mode**（`cancel` / `ignore`）= 卡面 Cancel 词条 vs Ignore 词条 → 选 `seq.interrupt.cancel` 或 `.ignore`。
-- **Kind** = 运行时 **绑定对象**；同一 Mode 下不同 Kind 走不同分支（见 §6 表）。
-- **`for` / purpose**（§6.0.2）= 只屏蔽 A 对 **指定手续 B** 的触发或限制，**不是**「结算 B 期间空白 A」。
+- **Mode**（`cancel` / `ignore`）= 卡面 Cancel vs Ignore 词 → catalog 选支。
+- **Kind** = 绑定对象；**同一 Mode 下** ① 与 ② 分流。
+- **`for` / purpose**（仅 ②）= 只挡 A 对 **手续 B** 的影响，见 §6.0.2。
 
 ```gdscript
 class InterruptTarget:
     enum Kind { SEQUENCE, IMPACT, COST, KEYWORD, CHAOS_TOKEN }
     var kind: Kind
     var flow_id: StringName      # SEQUENCE
-    var pending_id: StringName   # IMPACT 竖切占位
+    var pending_id: StringName   # IMPACT
     var keyword: StringName      # KEYWORD
     var bind: Dictionary
     var scope: Dictionary
+    var for_purpose: StringName  # ②：FIGHT / EVADE / …
 ```
 
 **Composition 对齐**（[07-composition §3](07-composition.md)）：
 
-- 推荐：`catalog.nest(game_ctx, &"seq.interrupt.cancel", { "target": … })`
-- 等价：`CompositionNode.interrupt_cancel(InterruptTarget.sequence(...))`
-- `cancel_pending` / `ignore_pending` Builder API **保留为** `InterruptTarget.pending_impact` 的语法糖（测试 / 竖切）。
+- Cancel / ①：`catalog.nest(…, &"seq.interrupt.cancel"|".ignore", { "target": … })`
+- ②：同 nest 登记 Mask；**禁止**把 ② 实现成「跳过 `seq.action.fight` 的 RESOLVE」。
 
-**与关键词三档译法**（[07-effect-primitives §0.1](07-effect-primitives.md)）：
+**运行时接线状态**：
 
-| 目标 | 译法档 | 说明 |
+| Kind | 机制 | 状态 |
 |---|---|---|
-| Ignore **keyword** 行为 | ③ + `seq.interrupt.ignore` | 在 keyword LISTENER 入口查 IgnoreMask |
-| Cancel **Card Ability initiation** | Card Ability + `seq.interrupt.cancel` | 打断 **SEQUENCE**，非 Register |
-| Ignore **单条 impact** | `seq.interrupt.ignore` · IMPACT | 保留 initiate，resolve 不施加 |
+| IMPACT | ① | 已接 `PendingResolutionStore` |
+| SEQUENCE（cancel） | Cancel | 已接 `RulesMemory.cancel_sequence` |
+| CHAOS_TOKEN | ① | 待接 |
+| COST / KEYWORD | ② | 待接 Eligibility / LISTENER Mask |
 
-**运行时接线状态**（2026-07）：
+### 6.0.2 「Ignore A for B」窄范围（机制 ② · 已裁决）
 
-| Kind | 状态 |
-|---|---|
-| IMPACT（`pending_id`） | 已接 `PendingResolutionStore` |
-| SEQUENCE（`flow_id` + bind） | 已接 `RulesMemory.cancel_sequence` → G3 跳过 composition |
-| COST / KEYWORD / CHAOS_TOKEN | 待接 Initiation / keyword / chaos 子系统 |
-
-### 6.0.2 「Ignore A for B」窄范围（已裁决）
-
-卡面 *ignore A for B* / *ignoring the aloof keyword*（就某次 Fight 而言）= **仅**忽略 **A 施加于 B 结算的触发或限制**。
+卡面 *ignore A for B* = **机制 ②**：仅忽略 **A 施加于 B 结算的触发或限制**（RESTRICTION / 相关 LISTENER），**不是** ①「跳过 B 本身结算」，也 **不是** 结算 B 期间空白 A 全部效果。
 
 | 是 | 否 |
 |---|---|
-| 屏蔽 A 对 **B 这条手续** 的 Eligibility / RESTRICTION / 相关 LISTENER 触发 | 在结算 B **整段期间** 空白 A 的全部效果 |
-| `for` 钉死 purpose（如 `FIGHT`）+ `scope`（如本帧 `fight_id`） | 顺带改写 A 的其它规则面（交战、spawn、移动…） |
+| 屏蔽 A 对 **B** 的 Eligibility / RESTRICTION / 相关触发 | 跳过 B 的 seq RESOLVE（那是 ①） |
+| `for` + `scope` 钉死本帧 purpose | 卸掉 A 的 Registration；或改写 A 的其它规则面（交战、spawn…） |
 
-**锚例 · 10077 Becky**（Tommy 签名枪）：可忽略目标上的 **冷漠（aloof）**（及反击等）以便 **攻击**。
+**锚例 · 10077 Becky**：忽略目标 **冷漠**（及反击等）以便 **攻击**。
 
-- **允许**：对该次 Fight 不读冷漠的 `FORBID_ATTACK`（未交战也可发起攻击）。
-- **不允许**：因此次攻击而 **自动交战**；冷漠「不自动交战」仍在。攻击结束敌人仍可 unengaged。
-- **同理**：若同时 ignore **反击（Retaliate）**，只屏蔽该 Fight 失败后的 retaliate 触发；不把冷漠/交战状态一并抹掉。
+- **允许（②）**：本帧 Fight 不读冷漠的 `FORBID_ATTACK`。
+- **不允许**：因此自动交战；不关冷漠「不自动交战」。
+- **同理**：ignore **反击** = 屏蔽该 Fight 失败后的 retaliate **触发**（仍是 ②），不是跳过 Fight 结算。
 
 ```text
-ignore aloof for Fight
-  → InterruptTarget { kind: KEYWORD, keyword: aloof, for: FIGHT, scope: fight_id }
-  → Fight Eligibility / FORBID_ATTACK Evaluator 查 IgnoreMask(for=FIGHT)
-  → 不写 engaged_with；不 nest seq.engage；不关 aloof 的 skip-auto-engage
+ignore aloof for Fight          ← 机制 ②，不是 ①
+  → Mask { keyword: aloof, for: FIGHT, scope: fight_id }
+  → FORBID_ATTACK Evaluator 放行
+  → 不写 engaged_with；不 nest seq.engage
 ```
 
-**禁止**：把 *ignore aloof* 译成「本帧视同已交战 / as if engaged」除非卡面**另写** engage 或 as-if；禁止用「结算 Fight 时 keyword 全关」实现。
+**禁止**：译成「本帧 as if engaged」除非卡面另写；禁止「结算 Fight 时 keyword 全关」；禁止把 ② 收成 pending `ignored: true`。
 
-### 6.0.1 样例：Ward of Protection（Cancel · SEQUENCE）
+### 6.0.3 样例：Ward of Protection（Cancel · SEQUENCE）
 
 > **卡面（2026 Core）**：*Fast. Play when you draw a non-weakness treachery card. Cancel that card's revelation effect and take 1 horror.*
 
@@ -503,17 +515,17 @@ CompositionNode.seq([
 
 ### 6.1 规则语义对照
 
-| | Cancel | Ignore |
-|---|---|---|
-| **序列登记** | **未结算前注销** pending（`PendingResolutionStore` 移除；视为从未登记可结算序列） | **保留** pending 登记（initiate 仍成立；可对 initiate 响应） |
-| **结算** | 不可再 resolve（`unknown_pending`） | resolve 时 **不施加** op（`ignored: true`, `applied: false`） |
-| Initiation | 打断，未发生 | 已 initiate |
-| 后续反应 | 不可 react | 可 react to initiate |
-| Chaos token | 视为未 draw | 已 draw，modifier/effect 不应用 |
-| **遭遇 treachery（Cancel revelation）** | 显现效果未发生；**仍视为已 draw** | — |
-| **遭遇 treachery 落点** | **G4 仍 discard → encounter discard pile** | — |
+| | Cancel | Ignore ① 结算忽略 | Ignore ② 影响忽略 |
+|---|---|---|---|
+| **对象** | 即将/正在 initiate 的效果或 seq | 已登记的 seq / impact / token 效果 | RESTRICTION / keyword 触发对 **B** 的约束 |
+| **登记** | **注销** pending | **保留** pending（initiate 仍成立） | **不卸** A 的 Buff；挂 **IgnoreMask** |
+| **结果** | 视为未发生；不可再 resolve | resolve **不施加**（`ignored: true`） | B 的 Evaluator / LISTENER **跳过**被 Mask 的那条影响 |
+| 后续反应 | 不可 react | 可 react to initiate | B 仍正常结算；仅少了被忽略的限制/触发 |
+| Chaos token | 视为未 draw | 已 draw，modifier/effect 不应用 | — |
+| **遭遇 treachery（Cancel revelation）** | 显现未发生；**仍视为已 draw**；**G4 仍 discard** | — | — |
 
-Exile/remove from game **不可** ignore。
+Exile/remove from game **不可** ignore（①）。  
+**②** 与 ① **风味都叫忽略，机制不同**；翻译先判卡面是「跳过某效果结算」还是「本手续不吃某限制/触发」。
 
 ### 6.2 Cancel 与 Replacement 交互（已裁决 OQ-07-06）
 
@@ -882,6 +894,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-10-29 | v0.6.21 | §6.0：Ignore 拆 **① 结算忽略** / **② 影响忽略**；纠正「忽略=只跳过 seq 结算」过窄说法 |
 | 2026-10-29 | v0.6.20 | §6.0.2：**Ignore A for B** 窄范围；10077 忽略冷漠仅放开攻击限制、不自动交战 |
 | 2026-10-27 | v0.6.19 | §4：明示取消/additional 钉 WOULD；WHEN take 预留、现无生产卡 |
 | 2026-10-27 | v0.6.18 | §4：编译接线 would/when/after take + `affliction_filter`/`take_self`；AFTER 在击败 nest 之后 |
