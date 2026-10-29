@@ -1,71 +1,108 @@
-# 06d — Limit / Max（配额 · 基于 Core 2026 搜集）
+# Limit / Max · 全量 ArkhamDB 搜集与分类
 
-> **依赖**：[06-ability-initiation.md](06-ability-initiation.md) L5、[06c-stat-projections.md](06c-stat-projections.md)、[06-registration-buff-model.md](06-registration-buff-model.md)、[07-effect-resolution.md](07-effect-resolution.md) InterruptTarget  
-> **状态**：v0.1 · 2026-10-29 — 先搜集 Core 2026 再分类设计  
-> **范围**：`core_2026` 玩家 + 遭遇 imported/pack；命中 **26** 张
+数据源：[Kamalisk/arkhamdb-json-data](https://github.com/Kamalisk/arkhamdb-json-data) 全量 `pack/**/*.json`（临时克隆分析，未把全库入库）。
+命中：**670** 张；漏抽：**15**。
 
----
+> 仅 Core 2026（26 张）不够定规格；以全量为准。
 
-## 1. 搜集摘要
+## 1. 五族规模
 
-| 印刷形态 | n | 例 |
+| 族 | 卡数 | 门槛 |
 |---|---|---|
-| `(Limit once per round/game.)` | 13 | 12001 Daniela；12119 Warren Observatory |
-| `(Group limit once per round.)` | 2 | 12116 Miskatonic Quad；12153 Southside |
-| `Max 1 committed per skill test` | 4 | 12053/57 Out of Sight；12081 Timely Intervention；12084 On the Brink |
-| `Limit 1 per investigator` | 5 | 12048/54 Sticky Fingers；12074 Hunter's Instinct；12125 Unspeakable Truths；12193 Languor |
-| `Limit 1 per location` | 1 | 12157 Arcane Lock |
-| `Limit 1 per deck` | 1 | 12181 Collector（Reward Permanent） |
-| `Max N per period` / `Max N in play` / `(Max N)` 缩放 | **0**（本包） | 仍按 Grimoire 预留 |
+| **A** 发起/使用/事件配额 | 459 | L5 / 使用点 / 计量事件 |
+| **B** 投入 Max | 45 | Commit 有效性 |
+| **C** 占位（区域·附着·beneath·trait） | 112 | 入区/附着有效性 |
+| **D** 构筑 | 58 | 牌组构建 |
+| **E** 缩放封顶 | 15 | 效果参数钳制（非 LimitSpec） |
+| **X** 未归 | 0 | — |
 
-完整逐卡表见运行产物 `limit-max-core2026-inventory.md`（artifacts）；下文按**设计族**收口。
+## 2. 子型
 
----
+| n | key | 例 |
+|---|---|---|
+| 237 | `A/use_or_initiate` | `13008` Water Street: (Limit once per turn.) |
+| 215 | `A/group` | `13042` Loading Dock: (Group limit once per game.) |
+| 59 | `C/per_investigator` | `13065` Echoing in Darkness: Limit 1 per investigator |
+| 58 | `D/per_deck` | `13118` The Blood Blight: Limit 1 per deck |
+| 45 | `B/committed_per_test` | `01089` Guts: Max 1 committed per skill test |
+| 15 | `C/per_location` | `12157` Arcane Lock: Limit 1 per location |
+| 12 | `C/in_play` | `08027` Combat Training: Limit 1 [[Composure]] in play |
+| 10 | `E/paren_max` | `02333` Vast Expanse: (max 5) |
+| 7 | `C/attached` | `08089` Quickdraw Holster: (Limit 1 attached asset.) |
+| 7 | `C/per_asset` | `10028` Tinker: Limit 1 per asset |
+| 5 | `A/event_meter` | `90084` Jenny Barnes: (Limit 5 resources per round.) |
+| 5 | `C/beneath` | `98019` Gloria Goldberg: (max 3 cards beneath her) |
+| 5 | `E/to_a_maximum` | `10029` Purified: to a maximum of 5 |
+| 3 | `A/max_per` | `08079` Blood Will Have Blood: Max 1 per attack |
+| 2 | `A/per_each_investigator` | `03002` Minh Thi Phan: (Limit once for each investigator per round.) |
+| 2 | `C/attached_capacity` | `08067` Astronomical Atlas: (max 5 cards attached) |
+| 2 | `C/per_agenda_act` | `02085` Light of Aforgomon: Limit 1 per agenda/act |
+| 2 | `C/per_enemy` | `11516` End of Negotiations: Limit 1 per enemy |
+| 1 | `C/token_per_location` | `09614` If It Bleeds...: (Limit 1 scouting report per [[Wilderness]] location.) |
 
-## 2. 分类（设计族）
+## 3. 高频短语 Top 25
 
-| 族 | 卡面 | Core 2026 | 门槛 | 计数权威 |
-|---|---|---|---|---|
-| **A · 发起配额** | Limit/Group limit once per period；能力上 Max per period | 15 | Eligibility **L5**（initiate） | `EventRecord` / StatProjection（`ABILITY_COMMENCED`） |
-| **B · 投入 Max** | Max N committed per skill test | 4 | **Commit** 有效性 | 本检定已 commit 同名份数 |
-| **C · 区域占位** | Limit N per investigator/location；Limit/Max in play 等 | 6 | **入区 / 进场 / 附着** 有效性 | Domain 同名在目标区域 |
-| **D · 构筑** | Limit N per deck | 1 | 牌组构建 | deck list（对局外） |
-| **E · 缩放封顶** | `(Max N)` / to a maximum of N | 0 | 效果结算钳制 | 当次量（**非**本配额系统） |
+| n | phrase |
+|---|---|
+| 113 | `(Group limit once per game.)` |
+| 94 | `(Limit once per round.)` |
+| 56 | `(Group limit once per round.)` |
+| 45 | `Limit 1 per investigator` |
+| 45 | `Limit 1 per deck` |
+| 44 | `(Limit once per game.)` |
+| 42 | `Max 1 committed per skill test` |
+| 32 | `(Limit once per turn.)` |
+| 27 | `(Limit once per test.)` |
+| 23 | `(Group limit once per game)` |
+| 14 | `(Limit once per phase.)` |
+| 12 | `Limit 1 per location` |
+| 11 | `Limit 1 [[Mask]] per investigator` |
+| 10 | `Limit 1 [[Composure]] in play` |
+| 10 | `(Limit once per game for each vehicle.)` |
+| 9 | `(max 5)` |
+| 7 | `Limit 1 per asset` |
+| 5 | `Limit 1 [[Covenant]] per deck` |
+| 4 | `(Group limit once per phase.)` |
+| 3 | `Limit 1 [[Footwear]] per investigator` |
+| 3 | `Limit 1 [[Trap]] per location` |
+| 3 | `(Limit once per round)` |
+| 3 | `(Group limit twice per game.)` |
+| 3 | `Max 1 committed per test` |
+| 3 | `(Limit 1 success per game.)` |
 
-**默认**：Limit = per-player；**Group limit** = 全组共享。  
-**Max**（能力全文）= 同名 title 全部复制品合计发起次数。  
-**独特** ≠ Limit：关键词自有编译路径，**不**并入本表。
+## 4. 相对 Core 2026 必须扩的规格点
 
----
+| 形态 | 族 | 规格 |
+|---|---|---|
+| once/twice/N · turn/round/phase/game/test | A | `amount` + `period`（含 PHASE/SKILL_TEST） |
+| Group limit · campaign/act/location/vehicle/depth | A | `audience=GROUP` + `anchor` |
+| success / resources per period | A | `EVENT_QUOTA` |
+| N times per attack/investigation | A | `USE_QUOTA` + 行动作用域 |
+| Max N per game/turn/attack | A | `audience=TITLE` |
+| once per asset / each investigator | A | 按实例或目标调查员 |
+| Limit N **[[Trait]]** per investigator/location/in play | C | `match=BY_TRAIT` |
+| per asset/enemy/agenda·act；attached；beneath；in play | C | `zone` 扩枚举 |
+| Limit N per deck | D | 构筑 |
+| (Max N) / to a maximum of N | E | 不进 LimitSpec |
 
-## 3. 设计裁决
+## 5. 裁决
 
-1. **不是** `RegistrationKind`，**不进** `Registration.payloads[]`。声明 = `LimitSpec`（挂在能力 / 卡定义上）。
-2. **A–D 统一：都不衍生 GATE。** 触顶 = 对应门槛现读失败；不 Register/Unregister 禁入场 GATE。
-3. **Ignore the limit** → `InterruptTarget.kind = LIMIT`，绑定具体 `LimitSpec`；该次门槛跳过。Cancel/Ignore **效果**仍计 **A**（已 initiate）。
-4. **E** 走效果参数 / MODIFIER 钳制，不进 `LimitSpec`。
+1. **不进** Registration payload；**不衍生 GATE**；独特 ≠ Limit。
+2. 统一 `LimitSpec`；到门槛现读。
+3. A 计量事件不限于 `ABILITY_COMMENCED`（另有 use-within-scope / success / resource_gain）。
+4. C 匹配 ⊆ {by title, by trait}；区域含 play/threat、location、in play、attached、beneath。
+5. Ignore → `InterruptTarget.LIMIT`。
 
-```text
-AbilitySpec.limits: LimitSpec[]     # A（及能力级 Max）
-CardDefinition.limits: LimitSpec[]  # C / D（占位、构筑）；B 可在 skill 定义上
-Commit / EnterZone / L5             # 各门槛读 LimitSpec + 计数
-seq.interrupt.ignore · LIMIT        # 跳过该次检查
-```
-
-### 3.1 `LimitSpec` 草图
+### LimitSpec 草图
 
 ```gdscript
-enum LimitKind { INITIATE_QUOTA, COMMIT_MAX, ZONE_OCCUPANCY, DECKBUILDING }
-enum LimitPeriod { NONE, TURN, ROUND, PHASE, GAME, SKILL_TEST }
-enum LimitAudience { PLAYER, GROUP, TITLE }  # TITLE = 同名合计（Max on ability）
+enum LimitKind { INITIATE_QUOTA, USE_QUOTA, EVENT_QUOTA, COMMIT_MAX, ZONE_OCCUPANCY, DECKBUILDING }
+enum LimitPeriod { NONE, TURN, ROUND, PHASE, GAME, CAMPAIGN, SKILL_TEST, ATTACK, INVESTIGATION, ACT, LOCATION, CUSTOM_ANCHOR }
+enum LimitAudience { PLAYER, GROUP, TITLE, PER_TARGET_INVESTIGATOR, PER_ASSET_INSTANCE, PER_ANCHOR }
+enum OccupancyMatch { BY_TITLE, BY_TRAIT }
 enum ZoneConstraint {
-    NONE,
-    PER_INVESTIGATOR,
-    PER_LOCATION,
-    IN_PLAY,
-    PER_DECK,
-    VICTORY_DISPLAY,
-    # …
+    NONE, PER_INVESTIGATOR, PER_LOCATION, IN_PLAY, PER_DECK,
+    PER_ASSET, PER_ENEMY, PER_AGENDA_ACT, ATTACHED, BENEATH, VICTORY_DISPLAY,
 }
 
 class LimitSpec:
@@ -74,46 +111,35 @@ class LimitSpec:
     var period: LimitPeriod
     var audience: LimitAudience
     var zone: ZoneConstraint
+    var match: OccupancyMatch
+    var trait: StringName
+    var event_key: StringName
+    var anchor_key: StringName
 ```
-
-| 族 | kind | period | audience | zone |
-|---|---|---|---|---|
-| A Limit once per round | INITIATE_QUOTA | ROUND | PLAYER | NONE |
-| A Group limit once per round | INITIATE_QUOTA | ROUND | GROUP | NONE |
-| A Limit once per game | INITIATE_QUOTA | GAME | PLAYER | NONE |
-| B Max 1 committed per skill test | COMMIT_MAX | SKILL_TEST | TITLE | NONE |
-| C Limit 1 per investigator | ZONE_OCCUPANCY | NONE | PLAYER* | PER_INVESTIGATOR |
-| C Limit 1 per location | ZONE_OCCUPANCY | NONE | — | PER_LOCATION |
-| D Limit 1 per deck | DECKBUILDING | NONE | PLAYER | PER_DECK |
-
-\*占位类「per investigator」= 每位调查员控制区/威胁区至多 N；与 A 的 PLAYER 发起配额不同轴。
-
----
-
-## 4. 与 Registration / Ignore 的边界
-
-| 机制 | 是否 payload | 说明 |
-|---|---|---|
-| Limit/Max（A–D） | **否** | 门槛现读 |
-| 独特 | **否（本表）** | 关键词；可编译 GATE，但不是 LimitSpec |
-| Ignore limit | InterruptTarget | 不是卸 Registration |
-| 缩放 Max（E） | 否（非配额） | 量封顶 |
-
----
-
-## 5. 实现顺序（建议）
-
-1. `LimitSpec` + 编译器从能力/卡面抽出 A/B/C（Core 2026 竖切）
-2. L5：`INITIATE_QUOTA` + commence 记账（含 Group / per game）
-3. Commit 路径：`COMMIT_MAX`
-4. 入区：`ZONE_OCCUPANCY`（Sticky Fingers / Arcane Lock / 威胁区 treachery）
-5. `InterruptTarget.LIMIT`
-6. 构筑 D 可后置；E 随效果参数
-
----
 
 ## 6. 变更记录
 
-| 日期 | 版本 | 说明 |
+| 日期 | 说明 |
+|---|---|
+| 2026-10-29 | 全量 pack 搜集；扩 A/C 与 LimitSpec |
+| 2026-10-29 | 初版仅 Core 2026 |
+
+## 附录 · 仍漏抽
+
+| code | name | snip |
 |---|---|---|
-| 2026-10-29 | v0.1 | Core 2026 搜集 26 张；五族分类；不进 payload、不衍生 GATE；独特分开 |
+| `05279` | Dayana Esperence | Uses (3 secrets). \| [fast]: Attach a non-weakness [[Spell]] event from your hand to Dayana Esperence |
+| `05233` | Investments | Uses (0 supplies). Limit 10 supplies on Investments. \| [fast] Exhaust Investments: Place 1 supply on |
+| `04204` | Ornate Bow | Uses (1 ammo). Limit 1 ammo on Ornate Bow. \| [action] Spend 1 ammo: <b>Fight.</b> This attack uses [ |
+| `04031` | Protective Incantation | Group limit 2 copies of Protective Incantation in play. \| Seal (any except [auto_fail]). \| <b>Forced |
+| `07211a` | Thomas Dawson's Car | Vehicle. Limit 2 investigators in this vehicle. \| This vehicle is running. Investigators cannot ente |
+| `07211b` | Thomas Dawson's Car | Vehicle. Limit 2 investigators in this vehicle. \| This vehicle is stopped. \| [action] If you are thi |
+| `07212a` | Elina Harper's Car | Vehicle. Limit 2 investigators in this vehicle. \| This vehicle is running. Investigators cannot ente |
+| `07212b` | Elina Harper's Car | Vehicle. Limit 2 investigators in this vehicle. \| This vehicle is stopped. \| [action] If you are thi |
+| `09006` | On the Mend | Limit 1 On the Mend in your hand. \| Commit only to a test you are performing. \| <b>Forced</b> - When |
+| `09106` | Making Preparations | Max 2 [[Dilemma]] per round. \| <b>Revelation</b> - Choose two skills ([willpower], [intellect], [com |
+| `09107` | Predator or Prey | Max 2 [[Dilemma]] per round. \| <b>Revelation</b> - If there are no enemies in play, draw 1 card. Oth |
+| `09109` | At a Crossroads | Max 2 [[Dilemma]] per round. \| <b>Revelation</b> - Choose an investigator and decide (choose one): \| |
+| `09111` | Nature of the Beast | Max 2 [[Dilemma]] per round. \| <b>Revelation</b> - Reveal the top 3 cards of the encounter deck. Cho |
+| `09115` | Heed the Dream | Max 2 [[Dilemma]] per round. \| <b>Revelation</b> - Reveal the top card from each investigator's deck |
+| `09118` | Fickle Fortune | Max 2 [[Dilemma]] per round. \| <b>Revelation</b> - You must decide (choose one): \| - Place 1 doom on |
