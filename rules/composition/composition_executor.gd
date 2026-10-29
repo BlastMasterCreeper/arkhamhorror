@@ -363,43 +363,24 @@ func _execute_atom(node: CompositionNode) -> bool:
 				{"inv": node.inv_id, "card": node.card_id}
 			)
 			return true
-		&"cancel_pending":
-			if _game_ctx != null and _game_ctx.effects != null:
-				_game_ctx.effects.cancel_pending(node.pending_id)
-				return node.pending_id != &""
-			return false
-		&"ignore_pending":
-			if _game_ctx != null and _game_ctx.effects != null:
-				_game_ctx.effects.ignore_pending(node.pending_id)
-				return node.pending_id != &""
-			return false
 		&"interrupt":
-			if _game_ctx != null and _game_ctx.effects != null and node.interrupt_target != null:
+			if _game_ctx != null and node.interrupt_target != null:
 				if node.interrupt_mode == &"ignore":
-					_game_ctx.effects.apply_interrupt_ignore(node.interrupt_target)
+					InterruptHandler.apply_ignore(_game_ctx, node.interrupt_target)
 				else:
-					_game_ctx.effects.apply_interrupt_cancel(node.interrupt_target)
+					InterruptHandler.apply_cancel(_game_ctx, node.interrupt_target)
 				return true
-			return false
-		&"replace_pending":
-			if _game_ctx != null and _game_ctx.effects != null and node.effect_request != null:
-				_game_ctx.effects.register_replacement(
-					node.pending_id,
-					node.effect_request,
-					node.source_ability_id
-				)
-				return node.pending_id != &""
 			return false
 		&"replace_instead":
 			if (
 				_game_ctx != null
-				and _game_ctx.effects != null
 				and node.replace_target != null
-				and node.effect_request != null
+				and not node.replacement_params.is_empty()
 			):
-				_game_ctx.effects.apply_replace_instead(
+				ReplacementHandler.apply_instead(
+					_game_ctx,
 					node.replace_target,
-					node.effect_request,
+					node.replacement_params,
 					node.source_ability_id
 				)
 				return true
@@ -416,11 +397,6 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_queue_sealed_reveal_instead(node)
 		&"after_reveal_if_resolved_symbol":
 			return _execute_after_reveal_if_resolved_symbol(node)
-		&"resolve_pending":
-			if _game_ctx != null and _game_ctx.effects != null:
-				_game_ctx.effects.resolve_pending(node.pending_id)
-				return node.pending_id != &""
-			return false
 		&"place_doom_nearest_enemy_without_doom", &"nest_place_doom":
 			return _execute_nest_place_doom(node)
 		&"place_doom_on_current_agenda", &"nest_mythos_place_doom":

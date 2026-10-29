@@ -1,6 +1,6 @@
-# 07 — 效果解析与修饰 (EffectResolutionGraph)
+# 07 — 效果解析与修饰
 
-> **依赖**：[01-game-state-zones.md](01-game-state-zones.md), [06-ability-initiation.md](06-ability-initiation.md), **[07-effect-primitives.md](07-effect-primitives.md)（L0 原子）**, **[07-composition.md](07-composition.md)（效果组合）**  
+> **依赖**：[01-game-state-zones.md](01-game-state-zones.md), [06-ability-initiation.md](06-ability-initiation.md), **[07-effect-primitives.md](07-effect-primitives.md)（L0 原子）**, **[07-composition.md](07-composition.md)（效果组合）**, **[17-seq-runtime.md](17-seq-runtime.md)**  
 > **规则来源**：Grimoire Dealing Damage/Horror, Effects, Target, Instead, Cancel, Modifiers
 
 ---
@@ -9,15 +9,16 @@
 
 - **L0 原子**：`MoveCard` / `TransferMarker` / … — 见 [07-effect-primitives.md](07-effect-primitives.md)
 - **效果组合 Composition**：L0/L1/L2 组合树 + dry-run — 见 [07-composition.md](07-composition.md)
+- **命名流程 `seq.*`**：规则手续；Cancel / Ignore① / Instead 挂在 `RulesMemory` 的流程身份上 — 见 [17-seq-runtime.md](17-seq-runtime.md)
 - **Registration / Buff**：规则表 — 见 [06-registration-buff-model.md](06-registration-buff-model.md)
 
-下文 `EffectOp`、`EffectRequest` 在实现上应 **编译为 CompositionTree**，而非与原子并列的第三套执行分支。
+> **已退役**：`EffectResolutionGraph` / `EffectRequest` / `PendingResolutionStore` 不再是第三执行支柱。下文历史 `EffectOp` / DAG 叙述保留作对照；实现路径 = **Catalog `seq.*` + Composition + RulesMemory 打断账本**。
 
 ---
 
 ## 1. 目标
 
-将所有游戏效果统一为 **EffectRequest DAG**，处理 Target、Cancel/Ignore/Instead、Then、For each、Damage 两步、Modifiers 重算。
+将游戏效果统一为 **命名流程 + 效果组合**，处理 Target、Cancel/Ignore/Instead、Then、For each、Damage 两步、Modifiers 重算。
 
 ---
 
@@ -404,8 +405,8 @@ class InterruptTarget:
 
 | Kind | 机制 | 状态 |
 |---|---|---|
-| IMPACT | ① | 已接 `PendingResolutionStore` |
-| SEQUENCE（cancel） | Cancel | 已接 `RulesMemory.cancel_sequence` |
+| SEQUENCE | Cancel / Ignore① | 已接 `RulesMemory`（`cancel_sequence` / `ignore_sequence`）；效果手续经 `consume_effect_gate` |
+| IMPACT | ① | **已退役**（原 pending EffectOp；改订 SEQUENCE + `effect_instance` / `card_id` bind） |
 | CHAOS_TOKEN | ① | 待接 |
 | COST / KEYWORD | ② | 待接 Eligibility / LISTENER Mask |
 
@@ -565,19 +566,20 @@ Instead / Would 卡面
   → AbilityCompiler 选定 timing entry（Forced when… / Delayed when X would…）
   → composition 内 nest 或 L2 Replace 节点
   → seq.replace.instead {
-       target: ReplacementTarget,
-       replacement: EffectRequest | nest seq.*,
+       target: ReplacementTarget（默认 SEQUENCE）,
+       replacement: Dictionary（参数 / nest 载荷）,
        source_ability_id
      }
-  → ReplacementHandler → PendingResolutionStore（most recent initiation_seq）
+  → ReplacementHandler → RulesMemory.register_sequence_replacement（most recent initiation_seq）
+  → 目标 seq RESOLVE 经 consume_effect_gate 消费
 ```
 
 | 卡面 archetype | catalog | `ReplacementTarget.kind` | 说明 |
 |---|---|---|---|
-| Instead of resolving X, do Y | `seq.replace.instead` | **PENDING** | 替换 pending impact 的 resolve 路径 |
-| Instead of treachery revelation… | `seq.replace.instead` | **SEQUENCE** | 替换命名流程 resolve（待接 Stack） |
+| Instead of resolving X, do Y | `seq.replace.instead` | **SEQUENCE** | 替换命名流程 resolve（`effect_instance` / `card_id` bind） |
+| Instead of treachery revelation… | `seq.replace.instead` | **SEQUENCE** | 同上 |
 | When X **would** happen… | `seq.replace.instead` | **WOULD_TRIGGER** | Would 层；先于 When 同 trigger |
-| 竖切：register replacement | 同上 | **PENDING** | `pending_id` 占位 |
+| ~~PENDING impact~~ | — | **已退役** | 原 `PendingResolutionStore` |
 
 **与 Interrupt 的分工**（§6.0）：
 
@@ -588,9 +590,8 @@ Instead / Would 卡面
 
 ```gdscript
 class ReplacementTarget:
-    enum Kind { PENDING, SEQUENCE, WOULD_TRIGGER }
+    enum Kind { PENDING, SEQUENCE, WOULD_TRIGGER }  # PENDING = 退役报错路径
     var kind: Kind
-    var pending_id: StringName
     var flow_id: StringName
     var triggering_condition_id: StringName
     var bind: Dictionary
@@ -599,17 +600,16 @@ class ReplacementTarget:
 **Composition 对齐**：
 
 - 推荐：`catalog.nest(game_ctx, &"seq.replace.instead", { target, replacement, source_ability_id })`
-- 等价：`CompositionNode.replace_instead(ReplacementTarget.pending(...), EffectRequest...)`
-- `replace_pending` **保留为** `ReplacementTarget.pending` 语法糖。
+- 等价：`CompositionNode.replace_instead(ReplacementTarget.sequence(...), replacement_params)`
 
-**竞争裁决**（不变）：同一 `triggering_condition_id` + 冲突 replacement → `initiation_seq` 最大者胜出（§7.2）。
+**竞争裁决**（不变）：同一流程身份上冲突 replacement → `initiation_seq` 最大者胜出（§7.2）。
 
-**运行时接线状态**（2026-07）：
+**运行时接线状态**：
 
 | Kind | 状态 |
 |---|---|
-| PENDING | 已接 `PendingResolutionStore.register_replacement` |
-| SEQUENCE | 待接 `ResolutionSequenceStack` resolve 改写 |
+| SEQUENCE | 已接 `RulesMemory` + `seq.effect.*` / `seq.draw.*` `consume_effect_gate` |
+| PENDING | **已退役** |
 | WOULD_TRIGGER | 待接 Would 窗口 / condition 层 |
 
 ### 7.0.1 样例：遭遇库顶 Instead（Would · WOULD_TRIGGER）

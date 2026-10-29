@@ -21,8 +21,8 @@ var marker_from: MarkerSlot = null
 var marker_to: MarkerSlot = null
 var register_template: RegistrationTemplate = null
 var provenance: AbilityUnitRef = null
-var pending_id: StringName = &""
-var effect_request: EffectRequest = null
+var pending_id: StringName = &"" ## @deprecated IMPACT pending 已退役
+var replacement_params: Dictionary = {}
 var source_ability_id: StringName = &""
 var interrupt_mode: StringName = &""
 var interrupt_target: InterruptTarget = null
@@ -669,16 +669,6 @@ static func interrupt_ignore(target: InterruptTarget) -> CompositionNode:
 	return interrupt(&"ignore", target)
 
 
-## 竖切占位：等价 interrupt_cancel(InterruptTarget.pending_impact(...))。
-static func cancel_pending(pending_id: StringName) -> CompositionNode:
-	return interrupt_cancel(InterruptTarget.pending_impact(pending_id))
-
-
-## 竖切占位：等价 interrupt_ignore(InterruptTarget.pending_impact(...))。
-static func ignore_pending(pending_id: StringName) -> CompositionNode:
-	return interrupt_ignore(InterruptTarget.pending_impact(pending_id))
-
-
 ## 将要揭示替换：挂入当前检定 `pending_reveal_replace`（ST.3 / seq.chaos.reveal 消费）。
 ## draw_amount = 展开叶数；amount = resolve 数（-1 = 全 resolve）。
 static func queue_chaos_reveal_replace(
@@ -780,37 +770,15 @@ static func after_reveal_if_resolved_symbol(
 ## L2 · 统一 Instead 节点（07 §7.0：nest seq.replace.instead 或本节点）。
 static func replace_instead(
 	target: ReplacementTarget,
-	replacement: EffectRequest,
+	replacement_params: Dictionary,
 	source_ability_id: StringName = &""
 ) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"replace_instead"
 	n.replace_target = target
-	n.effect_request = replacement
+	n.replacement_params = replacement_params.duplicate(true)
 	n.source_ability_id = source_ability_id
-	if target != null and target.pending_id != &"":
-		n.pending_id = target.pending_id
-	return n
-
-
-## 竖切占位：等价 replace_instead(ReplacementTarget.pending(...), ...)。
-static func replace_pending(
-	pending_id: StringName,
-	replacement: EffectRequest,
-	source_ability_id: StringName = &""
-) -> CompositionNode:
-	return replace_instead(
-		ReplacementTarget.pending(pending_id), replacement, source_ability_id
-	)
-
-
-## L2 · Resolve pending（Cancel / Replacement 窗口结束后执行）。
-static func resolve_pending(pending_id: StringName) -> CompositionNode:
-	var n := CompositionNode.new()
-	n.kind = AhcEnums.CompositionNodeKind.ATOM
-	n.atom_name = &"resolve_pending"
-	n.pending_id = pending_id
 	return n
 
 

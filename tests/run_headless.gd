@@ -242,16 +242,16 @@ func _initialize() -> void:
 	_run_test("ADB-18 ability compile summary", _test_adb_ability_compile_summary)
 	_run_test("EFF-01 effect draw blocked by forbid_draw", _test_eff_draw_blocked)
 	_run_test("EFF-02 effect draw resolves when allowed", _test_eff_draw_ok)
-	_run_test("CAN-01 cancel pending draw", _test_can_cancel_pending_draw)
-	_run_test("CAN-02 cancel fails after resolve", _test_can_cancel_after_resolve)
+	_run_test("CAN-01 cancel sequence draw", _test_can_cancel_pending_draw)
+	_run_test("CAN-02 cancel after resolve does not rewind", _test_can_cancel_after_resolve)
 	_run_test("CAN-03 replacement fails after cancel", _test_can_replacement_after_cancel)
-	_run_test("IGN-01 ignore keeps pending but skips apply", _test_ign_ignore_skips_apply)
+	_run_test("IGN-01 ignore skips apply", _test_ign_ignore_skips_apply)
 	_run_test("IGN-02 ignore blocks replacement", _test_ign_blocks_replacement)
-	_run_test("INT-01 catalog interrupt cancel pending", _test_int_catalog_interrupt_cancel)
+	_run_test("INT-01 catalog interrupt cancel sequence", _test_int_catalog_interrupt_cancel)
 	_run_test("CAN-ENC-01 ward cancel revelation discards", _test_can_enc_ward_cancel_revelation)
 	_run_test("REPL-01 most recent replacement wins", _test_repl_most_recent_wins)
-	_run_test("REPL-02 composition cancel replace resolve", _test_repl_composition_pipeline)
-	_run_test("REPL-03 catalog replace instead pending", _test_repl_catalog_instead)
+	_run_test("REPL-02 composition replace instead then resolve", _test_repl_composition_pipeline)
+	_run_test("REPL-03 catalog replace instead sequence", _test_repl_catalog_instead)
 	_run_test("ENC-01 seq.draw.encounter catalog", _test_enc_draw_catalog)
 	_run_test("ENC-02 default spawn engaged", _test_enc_spawn_default_engaged)
 	_run_test("ENC-17 default spawn drawer not prey auto engage", _test_enc_default_spawn_drawer_not_prey)
@@ -6018,11 +6018,15 @@ func _test_eff_draw_blocked() -> bool:
 	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionTestHelper.forbid_draw_turn(&"inv_1"))
-	var res := h.ctx.effects.submit(EffectRequest.draw_cards(&"inv_1", 1))
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.draw.investigator",
+		{"inv_id": &"inv_1", "amount": 1, "effect_instance": &"eff_forbid"}
+	)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
-		not res.ok
-		and res.error == "restriction_forbid_draw"
+		not res.get("ok", true)
+		and str(res.get("error", "")) == "restriction_forbid_draw"
 		and res.get("blocked_by_restriction", false)
 		and inv.hand.is_empty()
 	)
@@ -6031,73 +6035,107 @@ func _test_eff_draw_blocked() -> bool:
 func _test_eff_draw_ok() -> bool:
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
-	var res := h.ctx.effects.submit(EffectRequest.draw_cards(&"inv_1", 1))
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.draw.investigator",
+		{"inv_id": &"inv_1", "amount": 1, "effect_instance": &"eff_ok"}
+	)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
-	return res.ok and inv.hand.has(card_id) and inv.deck.is_empty()
+	return bool(res.get("ok", false)) and inv.hand.has(card_id) and inv.deck.is_empty()
 
 
 func _test_can_cancel_pending_draw() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
-	var begin := h.ctx.effects.begin_pending(EffectRequest.draw_cards(&"inv_1", 1))
-	if not begin.get("ok", false):
+	var bind := {"effect_instance": &"can_draw_1"}
+	var cancel := InterruptHandler.apply_cancel(
+		h.ctx,
+		InterruptTarget.sequence(&"seq.draw.investigator", bind)
+	)
+	if not cancel.get("ok", false):
 		return false
-	var pending_id: StringName = begin.get("pending_id", &"")
-	if not h.ctx.effects.cancel_pending(pending_id).get("ok", false):
-		return false
-	var res := h.ctx.effects.resolve_pending(pending_id)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.draw.investigator",
+		{"inv_id": &"inv_1", "amount": 1, "effect_instance": &"can_draw_1"}
+	)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
-		not res.ok
-		and res.error == "unknown_pending"
-		and not h.ctx.effects.is_pending_registered(pending_id)
+		not res.get("ok", true)
+		and bool(res.get("cancelled", false))
+		and str(res.get("error", "")) == "sequence_cancelled"
 		and inv.hand.is_empty()
 	)
 
 
 func _test_can_cancel_after_resolve() -> bool:
 	var h := RuleTestHarness.new(42)
-	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 1))
-	var pending_id: StringName = begin.get("pending_id", &"")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	if not h.ctx.effects.resolve_pending(pending_id).get("ok", false):
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 1,
+			"effect_instance": &"can_after",
+		}
+	)
+	if not res.get("ok", false) or inv.resource_pool != pool_before + 1:
 		return false
-	if inv.resource_pool != pool_before + 1:
-		return false
-	var cancel := h.ctx.effects.cancel_pending(pending_id)
-	return not cancel.get("ok", false) and cancel.error == "already_resolved"
+	## 已施加后 Cancel 不能回滚；仅给尚未结算的身份打标。
+	InterruptHandler.apply_cancel(
+		h.ctx,
+		InterruptTarget.sequence(
+			&"seq.effect.gain_resource",
+			{"effect_instance": &"can_after"}
+		)
+	)
+	return inv.resource_pool == pool_before + 1
 
 
 func _test_can_replacement_after_cancel() -> bool:
 	var h := RuleTestHarness.new(42)
-	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 3))
-	var pending_id: StringName = begin.get("pending_id", &"")
-	if not h.ctx.effects.cancel_pending(pending_id).get("ok", false):
+	var bind := {"effect_instance": &"can_repl"}
+	if not InterruptHandler.apply_cancel(
+		h.ctx,
+		InterruptTarget.sequence(&"seq.effect.gain_resource", bind)
+	).get("ok", false):
 		return false
-	var repl := h.ctx.effects.register_replacement(
-		pending_id,
-		EffectRequest.gain_resource(&"inv_1", 1),
+	var repl := ReplacementHandler.apply_instead(
+		h.ctx,
+		ReplacementTarget.sequence(&"seq.effect.gain_resource", bind),
+		{"base_amount": 1, "controller_id": &"inv_1"},
 		&"ability_a"
 	)
-	return not repl.get("ok", false) and repl.error == "unknown_pending"
+	return not repl.get("ok", false) and str(repl.get("error", "")) == "sequence_cancelled"
 
 
 func _test_ign_ignore_skips_apply() -> bool:
 	var h := RuleTestHarness.new(42)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 3))
-	var pending_id: StringName = begin.get("pending_id", &"")
-	if not h.ctx.effects.ignore_pending(pending_id).get("ok", false):
+	var bind := {"effect_instance": &"ign_skip"}
+	if not InterruptHandler.apply_ignore(
+		h.ctx,
+		InterruptTarget.sequence(&"seq.effect.gain_resource", bind)
+	).get("ok", false):
 		return false
-	if not h.ctx.effects.is_pending_registered(pending_id):
+	if not h.ctx.memory.is_sequence_ignored(&"seq.effect.gain_resource", bind):
 		return false
 	if inv.resource_pool != pool_before:
 		return false
-	var res := h.ctx.effects.resolve_pending(pending_id)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 3,
+			"effect_instance": &"ign_skip",
+		}
+	)
 	return (
-		res.ok
+		res.get("ok", false)
 		and res.get("ignored", false)
 		and not res.get("applied", true)
 		and inv.resource_pool == pool_before
@@ -6106,40 +6144,47 @@ func _test_ign_ignore_skips_apply() -> bool:
 
 func _test_ign_blocks_replacement() -> bool:
 	var h := RuleTestHarness.new(42)
-	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 3))
-	var pending_id: StringName = begin.get("pending_id", &"")
-	if not h.ctx.effects.ignore_pending(pending_id).get("ok", false):
+	var bind := {"effect_instance": &"ign_repl"}
+	if not InterruptHandler.apply_ignore(
+		h.ctx,
+		InterruptTarget.sequence(&"seq.effect.gain_resource", bind)
+	).get("ok", false):
 		return false
-	var repl := h.ctx.effects.register_replacement(
-		pending_id,
-		EffectRequest.gain_resource(&"inv_1", 1),
+	var repl := ReplacementHandler.apply_instead(
+		h.ctx,
+		ReplacementTarget.sequence(&"seq.effect.gain_resource", bind),
+		{"base_amount": 1, "controller_id": &"inv_1"},
 		&"ability_a"
 	)
-	return not repl.get("ok", false) and String(repl.get("error", &"")) == "pending_closed"
+	return not repl.get("ok", false) and str(repl.get("error", "")) == "sequence_ignored"
 
 
 func _test_int_catalog_interrupt_cancel() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1")
-	var begin := h.ctx.effects.begin_pending(EffectRequest.draw_cards(&"inv_1", 1))
-	if not begin.get("ok", false):
-		return false
-	var pending_id: StringName = begin.get("pending_id", &"")
 	var cancel := h.ctx.sequence_catalog.run(
 		h.ctx,
 		&"seq.interrupt.cancel",
 		{
 			"controller_id": &"inv_1",
-			"target": {"kind": "impact", "pending_id": pending_id},
+			"target": {
+				"kind": "sequence",
+				"flow_id": &"seq.draw.investigator",
+				"bind": {"effect_instance": &"int_draw"},
+			},
 		}
 	)
 	if not cancel.get("ok", false):
 		return false
-	var res := h.ctx.effects.resolve_pending(pending_id)
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.draw.investigator",
+		{"inv_id": &"inv_1", "amount": 1, "effect_instance": &"int_draw"}
+	)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
-		not res.ok
-		and res.error == "unknown_pending"
+		not res.get("ok", true)
+		and bool(res.get("cancelled", false))
 		and inv.hand.is_empty()
 	)
 
@@ -6166,7 +6211,8 @@ func _test_can_enc_ward_cancel_revelation() -> bool:
 	if h.ctx.mutator.pop_encounter_deck_top() != card_id:
 		return false
 	h.ctx.memory.push_encounter_frame(EncounterResolutionFrame.create(&"inv_1"))
-	var cancel := h.ctx.effects.apply_interrupt_cancel(
+	var cancel := InterruptHandler.apply_cancel(
+		h.ctx,
 		InterruptTarget.sequence(
 			&"seq.encounter.revelation",
 			{"card_id": card_id, "controller_id": &"inv_1"}
@@ -6198,43 +6244,53 @@ func _test_repl_most_recent_wins() -> bool:
 	var h := RuleTestHarness.new(42)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	var begin := h.ctx.effects.begin_pending(
-		EffectRequest.gain_resource(&"inv_1", 9),
-		&"trigger_gain"
+	var bind := {"effect_instance": &"repl_win"}
+	var target := ReplacementTarget.sequence(&"seq.effect.gain_resource", bind)
+	if not ReplacementHandler.apply_instead(
+		h.ctx, target, {"base_amount": 1, "controller_id": &"inv_1"}, &"ability_first"
+	).get("ok", false):
+		return false
+	if not ReplacementHandler.apply_instead(
+		h.ctx, target, {"base_amount": 5, "controller_id": &"inv_1"}, &"ability_second"
+	).get("ok", false):
+		return false
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 9,
+			"effect_instance": &"repl_win",
+		}
 	)
-	var pending_id: StringName = begin.get("pending_id", &"")
-	if not h.ctx.effects.register_replacement(
-		pending_id,
-		EffectRequest.gain_resource(&"inv_1", 1),
-		&"ability_first"
-	).get("ok", false):
-		return false
-	if not h.ctx.effects.register_replacement(
-		pending_id,
-		EffectRequest.gain_resource(&"inv_1", 5),
-		&"ability_second"
-	).get("ok", false):
-		return false
-	var res := h.ctx.effects.resolve_pending(pending_id)
-	return res.ok and res.get("replaced", false) and inv.resource_pool == pool_before + 5
+	return (
+		res.get("ok", false)
+		and res.get("replaced", false)
+		and inv.resource_pool == pool_before + 5
+	)
 
 
 func _test_repl_composition_pipeline() -> bool:
 	var h := RuleTestHarness.new(42)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 9))
-	var pending_id: StringName = begin.get("pending_id", &"")
+	var bind := {"effect_instance": &"repl_comp"}
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(
-		CompositionNode.seq([
-			CompositionNode.replace_pending(
-				pending_id,
-				EffectRequest.gain_resource(&"inv_1", 2),
-				&"card_instead"
-			),
-			CompositionNode.resolve_pending(pending_id),
-		])
+		CompositionNode.replace_instead(
+			ReplacementTarget.sequence(&"seq.effect.gain_resource", bind),
+			{"base_amount": 2, "controller_id": &"inv_1"},
+			&"card_instead"
+		)
+	)
+	h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 9,
+			"effect_instance": &"repl_comp",
+		}
 	)
 	return inv.resource_pool == pool_before + 2
 
@@ -6243,16 +6299,16 @@ func _test_repl_catalog_instead() -> bool:
 	var h := RuleTestHarness.new(42)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	var begin := h.ctx.effects.begin_pending(EffectRequest.gain_resource(&"inv_1", 9))
-	if not begin.get("ok", false):
-		return false
-	var pending_id: StringName = begin.get("pending_id", &"")
 	var repl := h.ctx.sequence_catalog.run(
 		h.ctx,
 		&"seq.replace.instead",
 		{
 			"controller_id": &"inv_1",
-			"target": {"kind": "pending", "pending_id": pending_id},
+			"target": {
+				"kind": "sequence",
+				"flow_id": &"seq.effect.gain_resource",
+				"bind": {"effect_instance": &"repl_cat"},
+			},
 			"replacement": {
 				"op": AhcEnums.EffectOp.GAIN_RESOURCE,
 				"controller_id": &"inv_1",
@@ -6263,8 +6319,20 @@ func _test_repl_catalog_instead() -> bool:
 	)
 	if not repl.get("ok", false):
 		return false
-	var res := h.ctx.effects.resolve_pending(pending_id)
-	return res.ok and res.get("replaced", false) and inv.resource_pool == pool_before + 3
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 9,
+			"effect_instance": &"repl_cat",
+		}
+	)
+	return (
+		res.get("ok", false)
+		and res.get("replaced", false)
+		and inv.resource_pool == pool_before + 3
+	)
 
 
 func _test_st_begin() -> bool:

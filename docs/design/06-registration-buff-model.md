@@ -1304,7 +1304,7 @@ class AmountPlan:
 | **REST-E-DRAW** | `CompositionExecutor` draw atom | execute 前 | `DRAW` |
 | **REST-E-COMMIT** | `SkillTestEngine.commit_card` | commit 前 | `COMMIT_TO_TEST` |
 | **REST-E-ACTION** | `ActionSystem.execute` | 耗 action、发起 basic action 前 | `MOVE` `ENGAGE` `FIGHT` …（待扩） |
-| **REST-E-EFFECT** | `EffectResolutionGraph` step 4 / Composition 等价点 | submit `EffectRequest` 前 | 按 `EffectOp`→Intent（待接） |
+| **REST-E-EFFECT** | `seq.*` 效果手续 RESOLVE 前 / Composition 等价点 | Catalog resolve 入口 | 按 Intent（如 DRAW→`FORBID_DRAW`；已接 draw） |
 | **REST-E-ACTIVATE** | Asset `[action]` / `[free]` initiation | Pre-restrictions | `ACTIVATE`（待 enum） |
 | **REST-E-AOO** | `AttackOfOpportunityResolver` @ INIT_2B | 付完 cost、跑借机前 | —（读 `SKIP_AOO` 供 **原流程分支**） |
 | **REST-E-AUTO-ENGAGE** | `EnemySystem.auto_engage_at_location` | 区域变更后自动交战前 | —（读 `SUPPRESS_AUTO_ENGAGE`：跳过 Prey/Lead 自动交战） |
@@ -1382,7 +1382,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 | `EnemySystem.auto_engage_at_location`（常由 `seq.engage` mode=auto / 区域变更后触发） | REST-E-AUTO-ENGAGE | `SUPPRESS_AUTO_ENGAGE` | 原流程读取分支 | **已实现** |
 | `DamagePipeline.deal_investigator` Assign（`DamageAssigner`） | REST-E-ASSIGN | `ASSIGN_CONSTRAINT` | 原流程读取（候选/先验/最小/最大） | **已实现** |
 | `AbilityInitiationPipeline` / Action play·trigger 前 | REST-E-PLAY / REST-E-TRIGGER | `FORBID_PLAY` / `FORBID_TRIGGER` | 拦 Intent | Kind 有；接线见 §16.4.2 |
-| `EffectResolutionGraph` step 4（`EffectRestrictionGate`） | REST-E-EFFECT | 按 `EffectOp`→Intent（§16.4.3） | 拦 Intent | 部分（如 DRAW） |
+| `seq.draw.investigator` RESOLVE（`RestrictionEvaluator.Intent.DRAW`） | REST-E-EFFECT / REST-E-DRAW | `FORBID_DRAW` | 拦 Intent | **已实现** |
 | （状态查询，非某 seq 结算兴趣） | — | `ENGAGEMENT` | `EngagementStatus` 成对查询 | **已实现** · 不进本表消费列 |
 
 **与 LISTENER 对照**：LISTENER 的「兴趣」是 TimingBus 订阅键；本表的「兴趣」是 RESOLVE 读限制。二者不要写进同一列。

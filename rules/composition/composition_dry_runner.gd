@@ -369,16 +369,10 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				and discard_card.zone == AhcEnums.Zone.HAND
 				and discard_card.owner_id == &"encounter"
 			)
-		&"cancel_pending":
-			return node.pending_id != &""
-		&"ignore_pending":
-			return node.pending_id != &""
 		&"interrupt":
 			return node.interrupt_target != null
-		&"replace_pending":
-			return node.pending_id != &"" and node.effect_request != null
 		&"replace_instead":
-			return node.replace_target != null and node.effect_request != null
+			return node.replace_target != null and not node.replacement_params.is_empty()
 		&"spend_use":
 			var spend_card := sim.state.registry.get_card(node.card_id)
 			if spend_card == null:
@@ -396,8 +390,6 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return node.card_id != &"" and node.draw_amount >= 1
 		&"after_reveal_if_resolved_symbol":
 			return node.then_branch != null
-		&"resolve_pending":
-			return node.pending_id != &""
 		&"place_doom_nearest_enemy_without_doom", &"nest_place_doom":
 			var origin := node.inv_id
 			if node.place_doom_target == &"source":

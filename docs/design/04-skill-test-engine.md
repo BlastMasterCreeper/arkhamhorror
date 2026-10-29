@@ -286,7 +286,7 @@ Player Window 仍可出现；COLLECT / Initiation 在 **L4** 经 `RestrictionEva
 | **ActionSystem.play_asset / play_event** | 付 cost 前 | `PLAY` |
 | **SkillTestEngine.commit_card** | commit 前 | `COMMIT_TO_TEST` |
 | **CompositionExecutor draw atom** | execute 前 | `DRAW` |
-| **EffectResolutionGraph** step 4 | submit 前 | 按 op 映射 Intent（§16.4.3） |
+| **命名流程 / Composition** RESOLVE 前 | 效果手续入口 | 按 Intent 映射（§16.4.3；如 DRAW） |
 
 ```gdscript
 var reason := RestrictionEvaluator.block_reason(
