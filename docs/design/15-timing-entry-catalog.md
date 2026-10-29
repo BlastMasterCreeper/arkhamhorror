@@ -1308,7 +1308,7 @@ G3 revelation:
 本条 AFTER 之后（KeywordConsumer）:
   nest seq.keyword.surge
   should_surge = CardRegistry.has_surge(def_id)
-              OR RegistrationStore.has_keyword_buff(card_id, &"surge")
+              OR RegistrationStore.has_gained_keyword(card_id, &"surge")
   if should_surge: nest seq.draw.encounter（amount=1）
   Unregister KEYWORD(surge) for card_id   # 动态标记；印刷 surge 不 Register
 ```

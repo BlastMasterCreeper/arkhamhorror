@@ -228,7 +228,7 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 	return n
 
 
-## 卡面 gains keyword · nest `seq.effect.register`（不是真空 REGISTER）。
+## 卡面 gains keyword · nest `seq.effect.register` 写出 **Gain**（非 Buff）。
 static func grant_keyword(card_id: StringName, keyword: StringName) -> CompositionNode:
 	return nest_effect_register(
 		RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword)

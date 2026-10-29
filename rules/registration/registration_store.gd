@@ -55,12 +55,20 @@ func on_drawn_card_finalize(card_id: StringName) -> void:
 
 
 func unregister(id: StringName) -> void:
+	var derived: Array[StringName] = []
+	for reg in _entries:
+		if reg.id == id:
+			derived = reg.derived_reg_ids.duplicate()
+			break
 	if _stat_projections != null:
 		_stat_projections.detach(id)
 	for i in range(_entries.size() - 1, -1, -1):
 		if _entries[i].id == id:
 			_entries.remove_at(i)
-			return
+			break
+	## Gain 壳卸下 → 级联卸衍生行为 Buff。
+	for child_id in derived:
+		unregister(child_id)
 
 
 func unregister_by_drawn_card(card_id: StringName) -> void:
@@ -241,18 +249,25 @@ func _find_engagement_reg_id(enemy_id: StringName, investigator_id: StringName) 
 	return &""
 
 
-func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
+## Gain 拥有查询（不是 Buff）。当前涌动竖切绑 `WHILE_DRAWN_CARD_RESOLVING`。
+func has_gained_keyword(card_id: StringName, keyword: StringName) -> bool:
 	if card_id == &"" or keyword == &"":
 		return false
 	for reg in _entries:
-		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
-			continue
 		if reg.drawn_card_id != card_id:
 			continue
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.KEYWORD and buff.keyword == keyword:
+		for gain in reg.gains:
+			if (
+				gain.kind == AhcEnums.GainedCharacteristicKind.KEYWORD
+				and gain.id == keyword
+			):
 				return true
 	return false
+
+
+## @deprecated 使用 has_gained_keyword（Gain ≠ Buff）。
+func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
+	return has_gained_keyword(card_id, keyword)
 
 
 func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:
@@ -265,8 +280,8 @@ func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:
 		if reg.drawn_card_id != card_id:
 			continue
 		var has_keyword := false
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.KEYWORD:
+		for gain in reg.gains:
+			if gain.kind == AhcEnums.GainedCharacteristicKind.KEYWORD:
 				has_keyword = true
 				break
 		if has_keyword:
@@ -381,6 +396,8 @@ func duplicate_store() -> RegistrationStore:
 		r.encounter_frame_id = reg.encounter_frame_id
 		r.drawn_card_id = reg.drawn_card_id
 		r.buffs = reg.buffs.duplicate()
+		r.gains = reg.gains.duplicate()
+		r.derived_reg_ids = reg.derived_reg_ids.duplicate()
 		copy._entries.append(r)
 	return copy
 

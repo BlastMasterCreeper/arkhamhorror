@@ -294,7 +294,11 @@ enum RestrictionKind {
 	ENGAGEMENT,
 }
 
-enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }
+## 行为 Buff 仅三种。Gain 特征见 `GainedCharacteristicKind`（不是 Buff）。
+enum BuffType { MODIFIER, RESTRICTION, LISTENER }
+
+## Grimoire *gains a characteristic* · 单独管理；创建后可衍生行为 Buff。
+enum GainedCharacteristicKind { KEYWORD, TRAIT, ICON, ABILITY }
 
 enum CompositionNodeKind { SEQ, ATOM, REGISTER, IF, CHOICE, OPTIONAL, REPEAT, FOR_EACH }
 

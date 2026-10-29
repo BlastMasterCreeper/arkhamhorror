@@ -139,7 +139,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 |---|---|---|
 | Victory X、Bearer、My Collection | 静态 / 路由元数据 | defeat、weakness、构筑 |
 | 🧣 per investigator | 印刷值缩放 | setup 乘数 |
-| Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff（[06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)） | RESTRICTION / LISTENER / MODIFIER；KEYWORD 标记只表示拥有 |
+| Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff；动态 gains 先写 Gain（[06 §2.1](06-registration-buff-model.md)） | RESTRICTION / LISTENER / MODIFIER；Gain.`KEYWORD` 只表示拥有 |
 | 技能图标 `[willpower]` 等 | `skills_icons` | commit / 检定，见 [04](04-skill-test-engine.md) |
 
 #### 0.1.6 指令 / 参数 / 关键词 Buff（与三档正交）

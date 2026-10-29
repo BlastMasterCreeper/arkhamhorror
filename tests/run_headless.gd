@@ -1460,7 +1460,7 @@ func _test_enc_12124_choice_punish() -> bool:
 	return (
 		inv.damage_taken == 1
 		and inv.horror_taken == 1
-		and h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+		and h.ctx.registrations.has_gained_keyword(card_id, &"surge")
 	)
 
 
@@ -1477,7 +1477,7 @@ func _test_enc_surge_12126_fail_by_horror() -> bool:
 	if not h.resolve_encounter_revelation(card_id):
 		return false
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
-	return inv.horror_taken == 1 and inv.clues_on_card == 2 and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return inv.horror_taken == 1 and inv.clues_on_card == 2 and not h.ctx.registrations.has_gained_keyword(card_id, &"surge")
 
 
 func _collect_initiation_steps(h: RuleTestHarness) -> Array:
@@ -2042,7 +2042,7 @@ func _test_seq_eff_register_unregister() -> bool:
 	var card_id := &"surge_card"
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(CompositionNode.grant_keyword(card_id, &"surge"))
-	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+	if not h.ctx.registrations.has_gained_keyword(card_id, &"surge"):
 		return false
 	if _sequence_kind_count(h, &"effect_register") == 0:
 		return false
@@ -4203,16 +4203,16 @@ func _test_enc_surge_keyword_survives_g4() -> bool:
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_surge", [])
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	EncounterGainedKeyword.register_surge(h.ctx, card_id)
-	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+	if not h.ctx.registrations.has_gained_keyword(card_id, &"surge"):
 		return false
 	EncounterPeril.unregister_for_card(h.ctx, card_id)
-	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+	if not h.ctx.registrations.has_gained_keyword(card_id, &"surge"):
 		return false
 	DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
-	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+	if not h.ctx.registrations.has_gained_keyword(card_id, &"surge"):
 		return false
 	var consumed := KeywordConsumer.evaluate_keyword(h.ctx, card_id, &"surge")
-	return consumed and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return consumed and not h.ctx.registrations.has_gained_keyword(card_id, &"surge")
 
 
 func _adb_add_encounter_treachery_to_deck(h: RuleTestHarness, def_id: StringName) -> StringName:
@@ -4274,7 +4274,7 @@ func _test_enc_surge_12126_with_clues() -> bool:
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	if not h.resolve_encounter_revelation(card_id):
 		return false
-	return not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return not h.ctx.registrations.has_gained_keyword(card_id, &"surge")
 
 
 func _test_adb_compile_raising_suspicions() -> bool:
@@ -4327,7 +4327,7 @@ func _test_enc_surge_12160_no_target_gained() -> bool:
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	if not h.resolve_encounter_revelation(card_id):
 		return false
-	return h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return h.ctx.registrations.has_gained_keyword(card_id, &"surge")
 
 
 func _test_gain_effective_keyword() -> bool:
@@ -4524,7 +4524,7 @@ func _test_kw_occ_peril_finalize() -> bool:
 		return false
 	if not store.has_peril_for_drawn_card(&"treachery"):
 		return false
-	if not store.has_keyword_buff(&"treachery", &"surge"):
+	if not store.has_gained_keyword(&"treachery", &"surge"):
 		return false
 	store.on_card_leave_play(&"treachery")
 	if store.count() != 3:
@@ -4532,11 +4532,11 @@ func _test_kw_occ_peril_finalize() -> bool:
 	store.on_drawn_card_finalize(&"treachery")
 	if store.has_peril_for_drawn_card(&"treachery"):
 		return false
-	if not store.has_keyword_buff(&"treachery", &"surge"):
+	if not store.has_gained_keyword(&"treachery", &"surge"):
 		return false
 	store.on_leave_deck(&"starting_missing")
 	store.on_leave_set_aside(&"bonded_missing")
-	return store.count() == 2 and store.has_keyword_buff(&"treachery", &"surge")
+	return store.count() == 2 and store.has_gained_keyword(&"treachery", &"surge")
 
 
 func _test_kw_fast_play_form() -> bool:

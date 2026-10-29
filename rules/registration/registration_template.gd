@@ -7,6 +7,8 @@ var duration: AhcEnums.DurationAnchorKind = AhcEnums.DurationAnchorKind.THIS_TUR
 var encounter_frame_id: StringName = &""
 var drawn_card_id: StringName = &""
 var buffs: Array[BuffSpec] = []
+## Gain 特征载荷（不是 Buff）。
+var gains: Array[GainedCharacteristicSpec] = []
 var stat_queries: Array = []
 
 
@@ -115,7 +117,8 @@ static func hidden_in_hand(controller_id: StringName, card_id: StringName) -> Re
 	return t
 
 
-## G3 动态 keyword · `WHILE_DRAWN_CARD_RESOLVING(card_id)` — G5 evaluate 后 Unregister；G4 peril 不清除。
+## G3 动态 keyword · Gain 拥有标记（非 Buff）· `WHILE_DRAWN_CARD_RESOLVING`。
+## G5 evaluate 后 Unregister；G4 peril 不清除。行为侧由 KeywordConsumer / 日后 LISTENER 衍生消费。
 static func gained_keyword_drawn_card_resolving(
 	card_id: StringName,
 	keyword: StringName
@@ -124,7 +127,7 @@ static func gained_keyword_drawn_card_resolving(
 	t.controller_id = &""
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
 	t.drawn_card_id = card_id
-	t.buffs.append(BuffSpec.keyword_buff(keyword))
+	t.gains.append(GainedCharacteristicSpec.keyword(keyword))
 	return t
 
 

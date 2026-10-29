@@ -12,8 +12,9 @@ static func register_if_absent(
 ) -> void:
 	if game_ctx == null or card_id == &"" or keyword == &"":
 		return
-	if game_ctx.registrations.has_keyword_buff(card_id, keyword):
+	if game_ctx.registrations.has_gained_keyword(card_id, keyword):
 		return
+	## Gain 拥有标记（非 Buff）；涌动行为仍由 KeywordConsumer 读 effective 消费。
 	var template := RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword)
 	if game_ctx.sequence_catalog == null:
 		push_error("EncounterGainedKeyword: sequence_catalog missing; vacuum refused")

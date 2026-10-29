@@ -227,7 +227,7 @@ AbilitySpec.effect             ← 卡牌正文 = 一棵 Composition（不是 se
 1. 解释器要把它当成一次可 CREATED 的效果跑完；
 2. 可能被 Would / When / After 订阅，或会在多张卡/多条手续里复用。
 
-用 **参数** 区分次数与目标（`amount`、`bearer`），不要为「造成 1 恐惧」和「造成 2 恐惧」开两条 seq。Register 用参数区分 `MODIFIER` / `RESTRICTION` / `LISTENER` / KEYWORD 标记，不要为每个关键词各开一条 `seq.effect.register_surge`（消费涌动仍是已有的 `seq.keyword.surge`，那是 **开火**，不是创建）。
+用 **参数** 区分次数与目标（`amount`、`bearer`），不要为「造成 1 恐惧」和「造成 2 恐惧」开两条 seq。Register 载荷分 **行为 Buff**（`MODIFIER` / `RESTRICTION` / `LISTENER`）与 **Gain**（`gains[]`，非 BuffType）；不要为每个关键词各开一条 `seq.effect.register_surge`（消费涌动仍是已有的 `seq.keyword.surge`，那是 **开火**，不是创建）。
 
 **不铸造**
 
