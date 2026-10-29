@@ -1377,7 +1377,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 | Composition draw atom / `seq.draw.investigator` 等价点 | REST-E-DRAW | `FORBID_DRAW` | 拦 Intent | **已实现** |
 | `SkillTestEngine.commit_card`（检定 ST 投入；非独立 `seq.commit`） | REST-E-COMMIT | `FORBID_COMMIT_TO_TEST` | 拦 Intent | **已实现** |
 | `StateMutator.move_card`（离手；隐私等） | REST-E-MOVE | `FORBID_LEAVE_HAND` | 拦 Intent | **已实现** |
-| `seq.action.fight` / `BasicActionResolver.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行 | **已实现** |
+| `seq.action.fight` / `BasicActionResolver.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行；**Ignore aloof for Fight** 只放行本条、不自动交战（[07 §6.0.2](07-effect-resolution.md#602-ignore-a-for-b窄范围已裁决)） | **已实现** |
 | Initiation INIT_2B · `AttackOfOpportunityResolver` | REST-E-AOO | `SKIP_AOO` | 原流程读取分支 | **已实现** |
 | `EnemySystem.auto_engage_at_location`（常由 `seq.engage` mode=auto / 区域变更后触发） | REST-E-AUTO-ENGAGE | `SUPPRESS_AUTO_ENGAGE` | 原流程读取分支 | **已实现** |
 | `DamagePipeline.deal_investigator` Assign（`DamageAssigner`） | REST-E-ASSIGN | `ASSIGN_CONSTRAINT` | 原流程读取（候选/先验/最小/最大） | **已实现** |

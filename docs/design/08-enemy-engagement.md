@@ -38,6 +38,7 @@ class EnemyState:
 | **Engage action** | 手动 engage（与 spawn 无关的 **[action]**） |
 | Evade success | disengage → enemy at location |
 | **Aloof spawn**（含无 Spawn 的 encounter draw） | at drawer location，**unengaged**，**不**进 threat area |
+| **Ignore aloof for Fight**（如 10077） | 仅放开「未交战不可攻」；**不**因此自动交战。见 [07 §6.0.2](07-effect-resolution.md#602-ignore-a-for-b窄范围已裁决) |
 | Massive | ready: **虚拟交战**同地点全体调查员；exhausted: 不与任何人交战；**永不**进 threat area（见 §6.6） |
 
 **威胁区 ≠ 交战状态**：威胁区是 **区域占位信息**（敌人卡是否位于某调查员威胁区 — 可检测/查询）。交战状态是 **ENGAGEMENT Buff**（可赋予/注销）。二者脱钩：常态真实交战常伴随「移入威胁区」的区划变化，之后检测会显示在威胁区；「视为交战」只 Register Buff，卡可仍在地点上，检测威胁区不必为真。**庞大** 永不进威胁区，虚拟交战见 §6.6。
