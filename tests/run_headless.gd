@@ -71,6 +71,10 @@ func _initialize() -> void:
 	_run_test("LIM-03 ignore limit allows second initiate", _test_lim_ignore_once_per_round)
 	_run_test("LIM-04 parse paren Limit clauses", _test_lim_parse_paren)
 	_run_test("LIM-05 occupancy per investigator", _test_lim_occupancy_per_investigator)
+	_run_test("LIM-06 use quota per attack", _test_lim_use_per_attack)
+	_run_test("LIM-07 event quota resources per round", _test_lim_resources_per_round)
+	_run_test("LIM-08 commit max by LimitSpec", _test_lim_commit_max)
+	_run_test("LIM-09 reenter play resets initiate quota", _test_lim_reenter_resets)
 	_run_test("TRIG-01 forced triggered bypasses initiation", _test_trig_forced_after_gain)
 	_run_test("TRIG-02 reaction declined by default", _test_trig_reaction_declined)
 	_run_test("TRIG-03 reaction accepted resolves", _test_trig_reaction_accepted)
@@ -1577,6 +1581,9 @@ func _test_lim_parse_paren() -> bool:
 	var a := LimitSpec.try_parse_paren_clause("(Limit once per round.)")
 	var b := LimitSpec.try_parse_paren_clause("(Group limit once per game.)")
 	var c := LimitSpec.try_parse_paren_clause("(Limit once per turn)")
+	var d := LimitSpec.try_parse_paren_clause("(Limit three times per attack.)")
+	var e := LimitSpec.try_parse_paren_clause("(Limit 5 resources per round.)")
+	var f := LimitSpec.try_parse_paren_clause("Max 1 committed per skill test")
 	if a == null or a.period != AhcEnums.LimitPeriod.ROUND:
 		return false
 	if a.audience != AhcEnums.LimitAudience.PLAYER or a.amount != 1:
@@ -1586,6 +1593,16 @@ func _test_lim_parse_paren() -> bool:
 	if b.audience != AhcEnums.LimitAudience.GROUP:
 		return false
 	if c == null or c.period != AhcEnums.LimitPeriod.TURN:
+		return false
+	if d == null or d.kind != AhcEnums.LimitKind.USE_QUOTA or d.amount != 3:
+		return false
+	if d.period != AhcEnums.LimitPeriod.ATTACK:
+		return false
+	if e == null or e.kind != AhcEnums.LimitKind.EVENT_QUOTA or e.amount != 5:
+		return false
+	if e.event_key != &"resource_gain":
+		return false
+	if f == null or f.kind != AhcEnums.LimitKind.COMMIT_MAX or f.amount != 1:
 		return false
 	return LimitSpec.try_parse_paren_clause("not a limit") == null
 
@@ -1627,6 +1644,143 @@ func _test_lim_occupancy_per_investigator() -> bool:
 		return false
 	var res := h.ctx.initiation.initiate(intent, h.ctx)
 	return not res.get("ok", true) and res.get("error", "") == "occupancy_limit"
+
+
+func _test_lim_use_per_attack() -> bool:
+	## Fire Axe 类：同一次攻击作用域内 USE_QUOTA 用尽后拒绝；新攻击重置。
+	var h := RuleTestHarness.new(42)
+	var lim := LimitSpec.use_per_attack(2)
+	h.ctx.limits.begin_scope(AhcEnums.LimitPeriod.ATTACK, &"atk_1")
+	for _i in range(2):
+		var ok_intent := _lim_resource_intent(&"inv_1", &"fire_axe_use", lim)
+		if not h.ctx.initiation.initiate(ok_intent, h.ctx).ok:
+			return false
+	var blocked := _lim_resource_intent(&"inv_1", &"fire_axe_use", lim)
+	if h.ctx.initiation.can_initiate(blocked, h.ctx):
+		return false
+	var blocked_res := h.ctx.initiation.initiate(blocked, h.ctx)
+	if blocked_res.get("ok", true) or blocked_res.get("error", "") != "limit_reached":
+		return false
+	h.ctx.limits.end_scope(AhcEnums.LimitPeriod.ATTACK, &"atk_1")
+	h.ctx.limits.begin_scope(AhcEnums.LimitPeriod.ATTACK, &"atk_2")
+	var next_atk := _lim_resource_intent(&"inv_1", &"fire_axe_use", lim)
+	return h.ctx.initiation.can_initiate(next_atk, h.ctx)
+
+
+func _test_lim_resources_per_round() -> bool:
+	## Jenny：每轮资源获得按 EVENT_QUOTA 截断。
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.round_number = 1
+	var lim := LimitSpec.resources_per_round(5)
+	var first := h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 3,
+			"event_limits": [lim],
+			"ability_id": &"jenny_gain",
+		}
+	)
+	if not first.get("ok", false) or int(first.get("amount", 0)) != 3:
+		return false
+	var second := h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 4,
+			"event_limits": [lim],
+			"ability_id": &"jenny_gain",
+		}
+	)
+	## 剩余 2 → 截断为 2。
+	if not second.get("ok", false) or int(second.get("amount", 0)) != 2:
+		return false
+	var third := h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 1,
+			"event_limits": [lim],
+			"ability_id": &"jenny_gain",
+		}
+	)
+	if third.get("ok", true) or int(third.get("amount", -1)) != 0:
+		return false
+	h.ctx.state.round_number = 2
+	var next_round := h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.effect.gain_resource",
+		{
+			"controller_id": &"inv_1",
+			"base_amount": 5,
+			"event_limits": [lim],
+			"ability_id": &"jenny_gain",
+		}
+	)
+	return next_round.get("ok", false) and int(next_round.get("amount", 0)) == 5
+
+
+func _test_lim_commit_max() -> bool:
+	## Max 1 committed per skill test via LimitSpec（同 definition）。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"guts_lim",
+		{
+			"card_type": &"skill",
+			"title": "Guts",
+			"limits": [LimitSpec.max_committed_per_test(1)],
+		}
+	)
+	var a := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER, &"guts_lim"
+	)
+	var b := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER, &"guts_lim"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var first := h.ctx.skill_tests.commit_card(test, &"inv_1", a)
+	if not first.get("ok", false):
+		return false
+	var second := h.ctx.skill_tests.commit_card(test, &"inv_1", b)
+	return not second.get("ok", true) and second.get("error", "") == "max_committed"
+
+
+func _test_lim_reenter_resets() -> bool:
+	## 离场→再进场：INITIATE_QUOTA 视为新能力实例。
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.round_number = 1
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"lim_reenter_asset")
+	var card := h.ctx.state.registry.get_card(card_id)
+	if card == null or card.limit_play_gen < 1:
+		return false
+	var lim := LimitSpec.once_per_round()
+	var first := _lim_resource_intent(&"inv_1", &"reenter_ability", lim)
+	first.source_id = card_id
+	if not h.ctx.initiation.initiate(first, h.ctx).ok:
+		return false
+	var blocked := _lim_resource_intent(&"inv_1", &"reenter_ability", lim)
+	blocked.source_id = card_id
+	if h.ctx.initiation.can_initiate(blocked, h.ctx):
+		return false
+	## 离场清配额；再进场 gen+1。
+	if not h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1")):
+		return false
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.discard.erase(card_id)
+	inv.play_area.append(card_id)
+	var from_zone := card.zone
+	card.zone = AhcEnums.Zone.PLAY_AREA
+	ZoneMoveFlow.notify_zone_set(h.ctx, card_id, from_zone, AhcEnums.Zone.PLAY_AREA)
+	if card.limit_play_gen < 2:
+		return false
+	var again := _lim_resource_intent(&"inv_1", &"reenter_ability", lim)
+	again.source_id = card_id
+	return h.ctx.initiation.can_initiate(again, h.ctx)
 
 
 func _test_initiation_play_cost_abort() -> bool:

@@ -73,9 +73,19 @@ static func resolve_basic_action(
 					EngageFlow.nest_after_area_change(game_ctx, dest)
 			return move_result
 		AhcEnums.ActionType.INVESTIGATE:
-			return resolver.investigate(game_ctx, inv_id, extra)
+			return _with_limit_scope(
+				game_ctx,
+				AhcEnums.LimitPeriod.INVESTIGATION,
+				inv_id,
+				func() -> Dictionary: return resolver.investigate(game_ctx, inv_id, extra)
+			)
 		AhcEnums.ActionType.FIGHT:
-			return resolver.fight(game_ctx, inv_id, extra)
+			return _with_limit_scope(
+				game_ctx,
+				AhcEnums.LimitPeriod.ATTACK,
+				inv_id,
+				func() -> Dictionary: return resolver.fight(game_ctx, inv_id, extra)
+			)
 		AhcEnums.ActionType.ENGAGE:
 			## 基础行动 = 调查员自带能力 → nest 效果交战（mode=effect）；溯源靠行动外壳栈帧。
 			if game_ctx.sequence_catalog != null and game_ctx.sequence_catalog.has_flow(&"seq.engage"):
@@ -105,3 +115,19 @@ static func _merge_tags(base: Array[StringName], source_tags: Array) -> Array[St
 	for tag in source_tags:
 		tags.append(tag as StringName)
 	return tags
+
+
+## USE_QUOTA · per attack / investigation：行动外壳打开作用域，结算后关闭。
+static func _with_limit_scope(
+	game_ctx: GameContext,
+	period: AhcEnums.LimitPeriod,
+	inv_id: StringName,
+	body: Callable
+) -> Dictionary:
+	var scope_id := StringName("%s#%d" % [String(inv_id), Time.get_ticks_usec()])
+	if game_ctx != null and game_ctx.limits != null:
+		game_ctx.limits.begin_scope(period, scope_id)
+	var result: Dictionary = body.call()
+	if game_ctx != null and game_ctx.limits != null:
+		game_ctx.limits.end_scope(period, scope_id)
+	return result

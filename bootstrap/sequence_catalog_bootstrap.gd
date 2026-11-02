@@ -757,10 +757,45 @@ static func _resolve_gain_resource(
 		q.controller_id = controller_id
 		q.stat = AhcEnums.StatRef.RESOURCE_GAIN_AMOUNT
 		amount = game_ctx.modifiers.compute(base_amount, q, app_ctx)
+	## EVENT_QUOTA · resources per round（Jenny 等）：按剩余配额截断。
+	amount = _clamp_resource_gain_limits(game_ctx, params, controller_id, amount)
+	if amount <= 0:
+		if game_ctx != null and game_ctx.memory != null:
+			game_ctx.memory.set_referent(controller_id, &"last_gain_amount", 0)
+		return {"amount": 0, "ok": false, "error": "limit_reached"}
 	mutator.adjust_marker(
 		MarkerSlot.investigator(controller_id, AhcEnums.MarkerKind.RESOURCE),
 		amount
 	)
 	if game_ctx != null and game_ctx.memory != null:
 		game_ctx.memory.set_referent(controller_id, &"last_gain_amount", amount)
-	return {"amount": amount}
+	return {"amount": amount, "ok": true}
+
+
+static func _clamp_resource_gain_limits(
+	game_ctx: GameContext,
+	params: Dictionary,
+	controller_id: StringName,
+	amount: int
+) -> int:
+	if game_ctx == null or game_ctx.limits == null or amount <= 0:
+		return amount
+	var specs: Array = params.get("event_limits", []) as Array
+	if specs.is_empty():
+		return amount
+	var unit_id: StringName = params.get("ability_id", params.get("unit_id", &"")) as StringName
+	var instance_id: StringName = params.get("instance_id", &"") as StringName
+	var title_key: StringName = params.get("title_key", &"") as StringName
+	var out := amount
+	for s in specs:
+		if s is not LimitSpec:
+			continue
+		var spec := s as LimitSpec
+		if spec.kind != AhcEnums.LimitKind.EVENT_QUOTA:
+			continue
+		if spec.event_key != &"" and spec.event_key != &"resource_gain":
+			continue
+		out = game_ctx.limits.clamp_event_amount(
+			spec, unit_id, controller_id, game_ctx, out, title_key, instance_id
+		)
+	return out

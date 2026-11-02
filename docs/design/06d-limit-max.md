@@ -5,17 +5,20 @@
 
 > 仅 Core 2026（26 张）不够定规格；以全量为准。
 
-## 0. 落地状态（2026-10-29）
+## 0. 落地状态（2026-11-02）
 
 | 项 | 状态 |
 |---|---|
 | `LimitSpec` / 枚举（`AhcEnums.Limit*`） | ✅ |
-| `LimitTracker`（initiate 计数 + occupancy 现读 + ignore） | ✅ |
-| Initiation L5：`intent.limits` → `can_initiate` / `INIT_3_COMMENCE` 记账 | ✅ |
+| `LimitTracker`（initiate / use / event 计数 + occupancy 现读 + ignore） | ✅ |
+| Initiation L5：`intent.limits` → INITIATE_QUOTA / USE_QUOTA · `INIT_3_COMMENCE` 记账 | ✅ |
 | 入区：`occupancy_limits` / `CardRegistry.limit_specs` · PLAY 预检 | ✅ |
 | `InterruptTarget.LIMIT` → ignore | ✅ |
-| 括号句 `try_parse_paren_clause`（once per turn/round/phase/game · Group） | ✅ |
-| USE_QUOTA / EVENT_QUOTA / COMMIT_MAX 运行时 | ⬜ 下一批 |
+| 括号句 `try_parse_paren_clause`（once/Group · use per attack · resources · commit Max） | ✅ |
+| USE_QUOTA：`begin_scope`（Fight/Investigate 外壳）+ L5 `can_use` / `record_use` | ✅ |
+| EVENT_QUOTA：`seq.effect.gain_resource` · `event_limits` 截断（Jenny） | ✅ |
+| COMMIT_MAX：`SkillTestEngine.commit_card` 读 `LimitSpec` | ✅ |
+| 离场/再进场：`limit_play_gen` + `reset_for_instance` | ✅ |
 | ArkhamDB 编译器自动挂 `LimitSpec` | ⬜ 下一批 |
 | StatProjection / EventRecord 重建计数 | ⬜（竖切为增量计数） |
 
@@ -135,6 +138,7 @@ class LimitSpec:
 
 | 日期 | 说明 |
 |---|---|
+| 2026-11-02 | USE_QUOTA / EVENT_QUOTA / COMMIT_MAX 运行时 + 再进场世代；测试 LIM-06…09 |
 | 2026-10-29 | 竖切落地：LimitTracker + Initiation L5 + occupancy + Ignore LIMIT；测试 LIM-01…05 |
 | 2026-10-29 | 全量 pack 搜集；扩 A/C 与 LimitSpec |
 | 2026-10-29 | 初版仅 Core 2026 |

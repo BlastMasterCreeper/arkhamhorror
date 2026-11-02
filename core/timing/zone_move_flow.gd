@@ -118,10 +118,14 @@ static func zone_is_in_play(zone: AhcEnums.Zone) -> bool:
 
 static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> void:
 	## 用卡上 controller；空则回退 card_id（敌人 spawn 等）。
-	if game_ctx == null or game_ctx.triggered_abilities == null or card_id == &"":
+	if game_ctx == null or card_id == &"":
 		return
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
+		return
+	## Limit X per period：再进场 = 新能力实例。
+	card.limit_play_gen += 1
+	if game_ctx.triggered_abilities == null:
 		return
 	if not CardRegistry.has_triggered(card.id.definition_id):
 		return
@@ -136,3 +140,8 @@ static func _apply_leave_play(game_ctx: GameContext, card_id: StringName) -> voi
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
 		game_ctx.registrations.on_card_leave_play(card_id)
+	if game_ctx.limits != null:
+		game_ctx.limits.reset_for_instance(card_id)
+		var card := game_ctx.state.registry.get_card(card_id) if game_ctx.state != null else null
+		if card != null:
+			game_ctx.limits.reset_for_instance(card.limit_instance_key())

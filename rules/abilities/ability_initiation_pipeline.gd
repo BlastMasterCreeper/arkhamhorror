@@ -249,13 +249,36 @@ func _passes_limits(intent: InitiationIntent, ctx: GameContext) -> bool:
 		return true
 	if intent.limits.is_empty():
 		return true
-	return ctx.limits.can_initiate_all(
-		intent.limits,
-		intent.ability_id,
-		intent.controller_id,
-		ctx,
-		intent.title_key
-	)
+	var instance_id := _limit_instance_id(intent, ctx)
+	for s in intent.limits:
+		if s is not LimitSpec:
+			continue
+		var spec := s as LimitSpec
+		match spec.kind:
+			AhcEnums.LimitKind.INITIATE_QUOTA:
+				if not ctx.limits.can_initiate(
+					spec,
+					intent.ability_id,
+					intent.controller_id,
+					ctx,
+					intent.title_key,
+					instance_id
+				):
+					return false
+			AhcEnums.LimitKind.USE_QUOTA:
+				if not ctx.limits.can_use(
+					spec,
+					intent.ability_id,
+					intent.controller_id,
+					ctx,
+					intent.title_key,
+					instance_id
+				):
+					return false
+			_:
+				## EVENT_QUOTA / COMMIT_MAX / ZONE_OCCUPANCY 不在 L5 发起门槛计次。
+				pass
+	return true
 
 
 func _record_limits_commence(intent: InitiationIntent, ctx: GameContext) -> void:
@@ -263,13 +286,44 @@ func _record_limits_commence(intent: InitiationIntent, ctx: GameContext) -> void
 		return
 	if intent.limits.is_empty():
 		return
-	ctx.limits.record_commence_all(
-		intent.limits,
-		intent.ability_id,
-		intent.controller_id,
-		ctx,
-		intent.title_key
-	)
+	var instance_id := _limit_instance_id(intent, ctx)
+	for s in intent.limits:
+		if s is not LimitSpec:
+			continue
+		var spec := s as LimitSpec
+		match spec.kind:
+			AhcEnums.LimitKind.INITIATE_QUOTA:
+				ctx.limits.record_commence(
+					spec,
+					intent.ability_id,
+					intent.controller_id,
+					ctx,
+					intent.title_key,
+					instance_id
+				)
+			AhcEnums.LimitKind.USE_QUOTA:
+				ctx.limits.record_use(
+					spec,
+					intent.ability_id,
+					intent.controller_id,
+					ctx,
+					intent.title_key,
+					instance_id
+				)
+			_:
+				pass
+
+
+func _limit_instance_id(intent: InitiationIntent, ctx: GameContext) -> StringName:
+	if intent == null:
+		return &""
+	var card_id := intent.source_id if intent.source_id != &"" else intent.card_id
+	if card_id == &"" or ctx == null or ctx.state == null:
+		return card_id
+	var card := ctx.state.registry.get_card(card_id)
+	if card == null:
+		return card_id
+	return card.limit_instance_key()
 
 
 func _passes_occupancy(
@@ -304,6 +358,8 @@ func _commence_play(intent: InitiationIntent, ctx: GameContext) -> bool:
 	inv.hand.erase(intent.card_id)
 	inv.play_area.append(intent.card_id)
 	card.zone = AhcEnums.Zone.PLAY_AREA
+	## 与 ZoneMoveFlow 进场一致：Limit 世代 +1。
+	card.limit_play_gen += 1
 	if ctx.triggered_abilities != null:
 		ctx.triggered_abilities.install_card(intent.controller_id, intent.card_id)
 	return true
