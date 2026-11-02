@@ -73,6 +73,8 @@ var from_zone: StringName = &""
 var amount: int = 1
 ## 地点标记种类（nest_move_marker_to）。
 var marker_kind: AhcEnums.MarkerKind = AhcEnums.MarkerKind.CLUE
+## EVENT_QUOTA 等：nest_gain_resource 转发为 gain_resource.event_limits。
+var event_limits: Array = []
 
 
 static func seq(nodes: Array) -> CompositionNode:
@@ -597,12 +599,17 @@ static func nest_move_connecting(controller_id: StringName) -> CompositionNode:
 
 
 ## L1 · 获得资源（反应/效果；nest `seq.effect.gain_resource`）。
-static func nest_gain_resource(controller_id: StringName, amount: int = 1) -> CompositionNode:
+static func nest_gain_resource(
+	controller_id: StringName,
+	amount: int = 1,
+	event_limits: Array = []
+) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
 	n.atom_name = &"nest_gain_resource"
 	n.inv_id = controller_id
 	n.marker_delta = maxi(amount, 1)
+	n.event_limits = event_limits.duplicate()
 	return n
 
 

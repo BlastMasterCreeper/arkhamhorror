@@ -1642,14 +1642,18 @@ func _execute_nest_gain_resource(node: CompositionNode) -> bool:
 	if inv_id == &"":
 		return false
 	var amount := maxi(node.marker_delta, 1)
+	var params := {
+		"controller_id": inv_id,
+		"base_amount": amount,
+		"source_tags": [&"card_ability"],
+	}
+	if node != null and not node.event_limits.is_empty():
+		params["event_limits"] = node.event_limits.duplicate()
+		params["ability_id"] = node.source_ability_id
 	var result := _game_ctx.sequence_catalog.nest(
 		_game_ctx,
 		&"seq.effect.gain_resource",
-		{
-			"controller_id": inv_id,
-			"base_amount": amount,
-			"source_tags": [&"card_ability"],
-		}
+		params
 	)
 	_log.log(
 		AhcEnums.LogCategory.CARD,

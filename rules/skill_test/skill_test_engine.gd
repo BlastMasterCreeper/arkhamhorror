@@ -87,10 +87,8 @@ func commit_card(ctx: SkillTestContext, from_inv: StringName, card_id: StringNam
 	var bonus := _matching_icon_bonus(card, ctx.skill)
 	if bonus <= 0:
 		return {"ok": false, "error": "no_matching_icon"}
-	if card.max_committed_per_test >= 0:
-		var title_count := _count_committed_by_definition(ctx, card.id.definition_id)
-		if title_count >= card.max_committed_per_test:
-			return {"ok": false, "error": "max_committed"}
+	if not _passes_commit_max(ctx, card):
+		return {"ok": false, "error": "max_committed"}
 	ctx.committed.append(CommittedCard.create(card_id, from_inv, bonus))
 	if from_inv != ctx.performing_investigator:
 		ctx.ally_committed = true
@@ -291,6 +289,31 @@ func _count_committed_by_definition(ctx: SkillTestContext, definition_id: String
 		if card and card.id.definition_id == definition_id:
 			count += 1
 	return count
+
+
+func _passes_commit_max(ctx: SkillTestContext, card: CardInstance) -> bool:
+	if card == null:
+		return true
+	## 优先 LimitSpec COMMIT_MAX；否则回退卡面 max_committed_per_test 别名。
+	var specs: Array = CardRegistry.limit_specs(card.id.definition_id)
+	var has_spec := false
+	if _game_ctx != null and _game_ctx.limits != null:
+		for s in specs:
+			if s is not LimitSpec:
+				continue
+			var spec := s as LimitSpec
+			if spec.kind != AhcEnums.LimitKind.COMMIT_MAX:
+				continue
+			has_spec = true
+			if not _game_ctx.limits.can_commit_title(
+				spec, ctx, _game_ctx, card.id.definition_id, CardRegistry.title(card.id.definition_id)
+			):
+				return false
+	if has_spec:
+		return true
+	if card.max_committed_per_test >= 0:
+		return _count_committed_by_definition(ctx, card.id.definition_id) < card.max_committed_per_test
+	return true
 
 
 func _open_player_window(ctx: SkillTestContext, window: AhcEnums.PlayerWindow) -> void:
