@@ -9,6 +9,13 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from limit_compile import (
+    attach_limits_to_compiled,
+    collect_card_limits,
+    extract_clauses,
+    split_card_and_ability_limits,
+)
+
 REVELATION = re.compile(
     r"<b>Revelation</b>\s*[-–]\s*(.+?)(?=\n<b>|\[(?:reaction|action|fast)\]|\Z)",
     re.I | re.S,
@@ -657,7 +664,7 @@ def compile_engage_from_connecting(body: str) -> dict[str, Any] | None:
             },
             {
                 "template": "nest_enemy_move_to",
-                "flow_id": "seq.enemy.move",
+                "flow_id": "seq.effect.move",
                 "enemy": "memory:picked_enemy",
                 "location": "source_location",
             },
@@ -1040,46 +1047,56 @@ def compile_fast_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     """Compile ArkhamDB [fast] segment as Free triggered ability（免费触发能力）."""
     body = str(segment.get("body", "")).strip()
     if FAST_DURING_TURN_EXHAUST_MOVE.match(body):
-        return {
-            "segment_index": segment["index"],
-            "register_as": "free",
-            "ability_id": f"free:{segment['index']}",
-            "ability_kind": "free",
-            "window": "during_your_turn",
-            "status": "full",
-            "translation": "full_expand",
-            "template": "seq",
-            "steps": [
-                {"template": "exhaust_source"},
-                *compile_move_to_connecting_steps(),
-            ],
-        }
+        return attach_limits_to_compiled(
+            {
+                "segment_index": segment["index"],
+                "register_as": "free",
+                "ability_id": f"free:{segment['index']}",
+                "ability_kind": "free",
+                "window": "during_your_turn",
+                "status": "full",
+                "translation": "full_expand",
+                "template": "seq",
+                "steps": [
+                    {"template": "exhaust_source"},
+                    *compile_move_to_connecting_steps(),
+                ],
+            },
+            body,
+        )
     if FAST_DURING_TURN_MOVE_INV_COUNT.match(body):
-        # 条件：场上恰 1–2 调查员；Group limit 运行时后补。
-        return {
-            "segment_index": segment["index"],
-            "register_as": "free",
-            "ability_id": f"free:{segment['index']}",
-            "ability_kind": "free",
-            "window": "during_your_turn",
-            "status": "partial",
-            "translation": "full_expand",
-            "condition": "investigators_in_game_1_or_2",
-            "template": "seq",
-            "steps": compile_move_to_connecting_steps(),
-        }
+        # 条件：场上恰 1–2 调查员；Group limit 挂 limits[]。
+        return attach_limits_to_compiled(
+            {
+                "segment_index": segment["index"],
+                "register_as": "free",
+                "ability_id": f"free:{segment['index']}",
+                "ability_kind": "free",
+                "window": "during_your_turn",
+                # 人数条件仍 partial；limit 由 attach 挂上。
+                "status": "partial",
+                "translation": "full_expand",
+                "condition": "investigators_in_game_1_or_2",
+                "template": "seq",
+                "steps": compile_move_to_connecting_steps(),
+            },
+            body,
+        )
     group_clues = compile_group_spend_clues_deal_damage(body)
     if group_clues is not None:
-        return {
-            "segment_index": segment["index"],
-            "register_as": "free",
-            "ability_id": f"free:{segment['index']}",
-            "ability_kind": "free",
-            "window": "during_your_turn",
-            # 群体线索分配交互后补；先落地效果骨架。
-            "status": "partial",
-            **group_clues,
-        }
+        return attach_limits_to_compiled(
+            {
+                "segment_index": segment["index"],
+                "register_as": "free",
+                "ability_id": f"free:{segment['index']}",
+                "ability_kind": "free",
+                "window": "during_your_turn",
+                # 群体线索分配交互后补；先落地效果骨架。
+                "status": "partial",
+                **group_clues,
+            },
+            body,
+        )
     return None
 
 
@@ -1103,7 +1120,8 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         str(t).lower() for t in action_types
     ]:
         status = "partial"
-    elif "(limit" in body.lower():
+    ability_limits = split_card_and_ability_limits(extract_clauses(body))[1]
+    if "(limit" in body.lower() and not ability_limits:
         status = "partial"
     # 应展尽展的 Resign / Engage-from-connecting 视为 full。
     if compiled.get("translation") == "full_expand":
@@ -1126,7 +1144,7 @@ def compile_action_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         "status": status,
         **compiled,
     }
-    return entry
+    return attach_limits_to_compiled(entry, body)
 
 
 def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
@@ -1165,7 +1183,7 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
         }
         if segment.get("if_kind"):
             entry["if_kind"] = segment["if_kind"]
-        return entry
+        return attach_limits_to_compiled(entry, body)
     if kind == "forced":
         effect = compile_effect_body(body)
         if effect is None:
@@ -1185,7 +1203,7 @@ def compile_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
             entry["status"] = "full"
         if segment.get("if_kind"):
             entry["if_kind"] = segment["if_kind"]
-        return entry
+        return attach_limits_to_compiled(entry, body)
     if kind == "fast":
         return compile_fast_segment(segment)
     if kind == "action":
@@ -1215,11 +1233,12 @@ def compile_reaction_segment(segment: dict[str, Any]) -> dict[str, Any] | None:
     if timing is not None:
         entry.update(timing)
         entry["status"] = "full"
-    if "(limit" in body.lower():
+    ability_limits = split_card_and_ability_limits(extract_clauses(body))[1]
+    if "(limit" in body.lower() and not ability_limits:
         entry["status"] = "partial"
     if segment.get("if_kind"):
         entry["if_kind"] = segment["if_kind"]
-    return entry
+    return attach_limits_to_compiled(entry, body)
 
 
 def _preview_skill_or_seq(steps: list[Any]) -> str | None:
@@ -1377,14 +1396,18 @@ def _template_body_preview(compiled: dict[str, Any]) -> str:
     return ""
 
 
-def compile_card_abilities(text: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def compile_card_abilities(
+    text: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Return (segments, compiled_abilities, card_level_limits)."""
     segments = segment_abilities(text)
     compiled: list[dict[str, Any]] = []
     for segment in segments:
         entry = compile_segment(segment)
         if entry is not None:
             compiled.append(entry)
-    return segments, compiled
+    card_limits = collect_card_limits(text)
+    return segments, compiled, card_limits
 
 
 def summarize_compile(all_cards: dict[str, Any]) -> dict[str, Any]:

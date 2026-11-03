@@ -291,6 +291,12 @@ func _build_intent(descriptor: TriggeredAbilityDescriptor) -> InitiationIntent:
 		intent.action_types = action_types
 	intent.source_id = descriptor.source_id
 	intent.ability_id = descriptor.id
+	if not descriptor.limits.is_empty():
+		intent.limits = descriptor.limits.duplicate()
+	elif descriptor.definition_id != &"" and descriptor.id != &"":
+		intent.limits = CardRegistry.ability_limit_specs(
+			descriptor.definition_id, descriptor.id
+		)
 	return intent
 
 

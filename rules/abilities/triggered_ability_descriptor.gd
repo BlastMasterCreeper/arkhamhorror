@@ -26,6 +26,8 @@ var action_types: Array = []
 ## 卡面显式覆盖借机（如「不引发借机攻击」）；null = 按 action_types 判定。
 ## Engage 类型本身会借机；仅卡面写明豁免时才覆盖为 false。
 var provokes_aoo_override: Variant = null
+## LimitSpec[]（发起/使用/事件配额）；来自 compiled_abilities.limits。
+var limits: Array = []
 
 
 func is_player_initiated() -> bool:
@@ -140,7 +142,21 @@ static func from_registry_unit(
 	desc.action_types = _parse_action_types(unit.get("action_types", []))
 	if unit.has("provokes_aoo"):
 		desc.provokes_aoo_override = bool(unit.get("provokes_aoo"))
+	desc.limits = _parse_limits(unit.get("limits", []))
+	if desc.limits.is_empty() and definition_id != &"" and desc.id != &"":
+		desc.limits = CardRegistry.ability_limit_specs(definition_id, desc.id)
 	return desc
+
+
+static func _parse_limits(raw: Variant) -> Array:
+	var out: Array = []
+	if not raw is Array:
+		return out
+	for item in raw as Array:
+		var spec := LimitSpec.from_variant(item)
+		if spec != null:
+			out.append(spec)
+	return out
 
 
 static func _parse_action_types(raw: Variant) -> Array:

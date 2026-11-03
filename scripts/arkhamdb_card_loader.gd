@@ -101,6 +101,10 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 	var compiled: Variant = src.get("compiled_abilities", [])
 	if compiled is Array:
 		out["compiled_abilities"] = compiled.duplicate(true)
+	var limits: Variant = src.get("limits", [])
+	if limits is Array and not (limits as Array).is_empty():
+		## 保留 dict 形态；CardRegistry.limit_specs 现读水合为 LimitSpec。
+		out["limits"] = (limits as Array).duplicate(true)
 	ArkhamDbInstructionCompiler.apply_instructions(out, src)
 	_AbilityCompiler.apply_to_registry(definition_id, src)
 	return out

@@ -82,6 +82,7 @@ func _initialize() -> void:
 	_run_test("LIM-14 title max per round", _test_lim_title_max_per_round)
 	_run_test("LIM-15 success event quota", _test_lim_success_event_quota)
 	_run_test("LIM-16 deckbuilding per deck", _test_lim_deckbuilding)
+	_run_test("LIM-17 imported JSON limits hydrate", _test_lim_imported_compile)
 	_run_test("COMMIT-01 stage then confirm enters limbo", _test_commit_pool_confirm_limbo)
 	_run_test("COMMIT-02 king yellow forbid confirm 1 or 2", _test_commit_forbid_exact_counts)
 	_run_test("COMMIT-03 unstage and commit max in pool", _test_commit_unstage_and_max)
@@ -2005,6 +2006,49 @@ func _test_lim_deckbuilding() -> bool:
 		&"cov_b", {"card_type": &"asset", "title": "B", "traits": ["Covenant"]}
 	)
 	return not tracker.can_include_in_deck(trait_lim, [&"cov_a"], &"cov_b")
+
+
+func _test_lim_imported_compile() -> bool:
+	## 编译器自动挂 LimitSpec → imported JSON → 水合现读。
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026.json")
+	ArkhamDbCardLoader.load_imported_file(
+		"res://data/arkhamdb/imported/core_2026_encounter.json"
+	)
+	## 12048 Sticky Fingers：卡级 Limit 1 per investigator
+	var sticky := CardRegistry.limit_specs(&"12048")
+	if sticky.is_empty():
+		return false
+	var sticky0 := sticky[0] as LimitSpec
+	if sticky0.kind != AhcEnums.LimitKind.ZONE_OCCUPANCY:
+		return false
+	if sticky0.zone != AhcEnums.ZoneConstraint.PER_INVESTIGATOR:
+		return false
+	## 12053 Out of Sight：COMMIT_MAX
+	var commit_specs := CardRegistry.limit_specs(&"12053")
+	if commit_specs.is_empty():
+		return false
+	if (commit_specs[0] as LimitSpec).kind != AhcEnums.LimitKind.COMMIT_MAX:
+		return false
+	## 12117 Dormitories：能力 once per game
+	var dorm := CardRegistry.ability_limit_specs(&"12117", &"action:0")
+	if dorm.is_empty():
+		return false
+	var dorm0 := dorm[0] as LimitSpec
+	if dorm0.kind != AhcEnums.LimitKind.INITIATE_QUOTA or dorm0.period != AhcEnums.LimitPeriod.GAME:
+		return false
+	## 12116 Group limit on free ability
+	var quad := CardRegistry.ability_limit_specs(&"12116", &"free:0")
+	if quad.is_empty():
+		return false
+	if (quad[0] as LimitSpec).audience != AhcEnums.LimitAudience.GROUP:
+		return false
+	## from_dict 水合 + 发起门槛
+	var h := RuleTestHarness.new(42)
+	var intent := _lim_resource_intent(&"inv_1", &"action:0", dorm0)
+	if not h.ctx.initiation.initiate(intent, h.ctx).ok:
+		return false
+	var again := _lim_resource_intent(&"inv_1", &"action:0", dorm0)
+	return not h.ctx.initiation.can_initiate(again, h.ctx)
 
 
 func _test_commit_pool_confirm_limbo() -> bool:

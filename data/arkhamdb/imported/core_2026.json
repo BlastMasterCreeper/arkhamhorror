@@ -234,10 +234,25 @@
         "register_as": "reaction",
         "ability_id": "reaction:0",
         "ability_kind": "reaction",
-        "status": "partial",
+        "status": "effect_only",
         "trigger": "After you successfully investigate",
         "template": "draw",
-        "amount": 1
+        "amount": 1,
+        "limits": [
+          {
+            "id": "per_round",
+            "kind": "INITIATE_QUOTA",
+            "amount": 1,
+            "period": "ROUND",
+            "audience": "PLAYER",
+            "zone": "NONE",
+            "match": "BY_TITLE",
+            "trait_name": "",
+            "card_type": "",
+            "event_key": "",
+            "title_key": ""
+          }
+        ]
       }
     ]
   },
@@ -1635,6 +1650,21 @@
         "template": "gain_resources",
         "amount": 1
       }
+    ],
+    "limits": [
+      {
+        "id": "per_investigator",
+        "kind": "ZONE_OCCUPANCY",
+        "amount": 1,
+        "period": "NONE",
+        "audience": "PLAYER",
+        "zone": "PER_INVESTIGATOR",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
+      }
     ]
   },
   "12051": {
@@ -1722,7 +1752,22 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Max 1 committed per skill test.\nIf this test is successful by 2 or more, the performing investigator may disengage from each enemy and move to a revealed connecting location."
+    "text": "Max 1 committed per skill test.\nIf this test is successful by 2 or more, the performing investigator may disengage from each enemy and move to a revealed connecting location.",
+    "limits": [
+      {
+        "id": "max_committed",
+        "kind": "COMMIT_MAX",
+        "amount": 1,
+        "period": "SKILL_TEST",
+        "audience": "TITLE",
+        "zone": "NONE",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
+      }
+    ]
   },
   "12054": {
     "definition_id": "12054",
@@ -1770,6 +1815,21 @@
         "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
         "template": "gain_resources",
         "amount": 1
+      }
+    ],
+    "limits": [
+      {
+        "id": "per_investigator",
+        "kind": "ZONE_OCCUPANCY",
+        "amount": 1,
+        "period": "NONE",
+        "audience": "PLAYER",
+        "zone": "PER_INVESTIGATOR",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
       }
     ]
   },
@@ -1830,7 +1890,22 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Max 1 committed per skill test.\nIf this test is successful by 1 or more, the performing investigator may disengage from each enemy and move to a revealed location up to 2 connections away."
+    "text": "Max 1 committed per skill test.\nIf this test is successful by 1 or more, the performing investigator may disengage from each enemy and move to a revealed location up to 2 connections away.",
+    "limits": [
+      {
+        "id": "max_committed",
+        "kind": "COMMIT_MAX",
+        "amount": 1,
+        "period": "SKILL_TEST",
+        "audience": "TITLE",
+        "zone": "NONE",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
+      }
+    ]
   },
   "12058": {
     "definition_id": "12058",
@@ -2324,6 +2399,21 @@
         "body": "After you engage an enemy, spend 1 supply and exhaust Hunter's Instinct: Add a level 0 event in your discard pile to your hand.",
         "index": 0
       }
+    ],
+    "limits": [
+      {
+        "id": "per_investigator",
+        "kind": "ZONE_OCCUPANCY",
+        "amount": 1,
+        "period": "NONE",
+        "audience": "PLAYER",
+        "zone": "PER_INVESTIGATOR",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
+      }
     ]
   },
   "12075": {
@@ -2494,7 +2584,22 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Max 1 committed per skill test.\nYou may commit Timely Intervention from your hand after revealing chaos tokens during a skill test you are performing."
+    "text": "Max 1 committed per skill test.\nYou may commit Timely Intervention from your hand after revealing chaos tokens during a skill test you are performing.",
+    "limits": [
+      {
+        "id": "max_committed",
+        "kind": "COMMIT_MAX",
+        "amount": 1,
+        "period": "SKILL_TEST",
+        "audience": "TITLE",
+        "zone": "NONE",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
+      }
+    ]
   },
   "12082": {
     "definition_id": "12082",
@@ -2589,7 +2694,22 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Max 1 committed per skill test.\nIf this test fails, return each other card committed to this test to its owner's hand and draw 1 card."
+    "text": "Max 1 committed per skill test.\nIf this test fails, return each other card committed to this test to its owner's hand and draw 1 card.",
+    "limits": [
+      {
+        "id": "max_committed",
+        "kind": "COMMIT_MAX",
+        "amount": 1,
+        "period": "SKILL_TEST",
+        "audience": "TITLE",
+        "zone": "NONE",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
+      }
+    ]
   },
   "12085": {
     "definition_id": "12085",

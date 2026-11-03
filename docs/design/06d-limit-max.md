@@ -24,7 +24,7 @@
 | `DECKBUILDING`：`can_include_in_deck` 牌组列表现读（无 CampaignState） | ✅ |
 | EVENT `success`：L5 门槛 + ST.6 记账 | ✅ |
 | 解析扩：occupancy / beneath / per-target / Max TITLE / success | ✅ |
-| ArkhamDB 编译器自动挂 `LimitSpec` | ⬜ 下一批 |
+| ArkhamDB 编译器自动挂 `LimitSpec` | ✅（`tools/limit_compile.py` → JSON `limits` / `compiled_abilities[].limits` → `LimitSpec.from_dict`） |
 | StatProjection / EventRecord 重建计数 | ⬜（竖切为增量计数） |
 | 幕间 / XP 购卡 / CampaignLog 分支 | ⬜（仅设计稿；场内 `scenario_resolution` 已有） |
 
@@ -144,6 +144,7 @@ class LimitSpec:
 
 | 日期 | 说明 |
 |---|---|
+| 2026-11-03 | ArkhamDB 编译器自动挂 LimitSpec（卡级 + 能力级）；水合与发起接线；LIM-17 + `tools/test_limit_compile.py` |
 | 2026-11-03 | 剩余子型：TITLE / per-target / 占位 IN_PLAY·ATTACHED·BENEATH·per-host / DECKBUILDING / success EVENT；`Zone.BENEATH`；测试 LIM-10…16 |
 | 2026-11-02 | USE_QUOTA / EVENT_QUOTA / COMMIT_MAX 运行时 + 再进场世代；测试 LIM-06…09 |
 | 2026-10-29 | 竖切落地：LimitTracker + Initiation L5 + occupancy + Ignore LIMIT；测试 LIM-01…05 |
