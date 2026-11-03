@@ -62,3 +62,27 @@ static func forbid_leave_hand(card_id: StringName, controller_id: StringName = &
 	p.drawn_card_id = card_id
 	p.drawer_id = controller_id
 	return p
+
+
+## 04201：subject 卡可投入任意技能类型（仍无匹配图标加成）。
+static func allow_commit_any_skill(
+	subject_card_id: StringName,
+	controller_id: StringName = &""
+) -> GatePayload:
+	var p := GatePayload.new()
+	p.kind = AhcEnums.GateKind.ALLOW_COMMIT_ANY_SKILL
+	p.subject_id = subject_card_id
+	p.drawer_id = controller_id
+	return p
+
+
+## 05002 Joe / as-if 手牌打出：subject 可不在 HAND 仍可 PLAY。
+static func allow_play_as_if_in_hand(
+	subject_card_id: StringName,
+	controller_id: StringName = &""
+) -> GatePayload:
+	var p := GatePayload.new()
+	p.kind = AhcEnums.GateKind.ALLOW_PLAY_AS_IF_IN_HAND
+	p.subject_id = subject_card_id
+	p.drawer_id = controller_id
+	return p

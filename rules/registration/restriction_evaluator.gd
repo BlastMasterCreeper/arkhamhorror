@@ -30,6 +30,53 @@ static func blocks_leave_hand(card_id: StringName, store: RegistrationStore) -> 
 	return block_reason(Intent.LEAVE_HAND, &"", store, null, card_id) != &""
 
 
+## ALLOW 开口：默认资格不满足时查询是否有放宽 GATE（FORBID 仍优先由 block_reason 拦）。
+static func allows_commit_any_skill(
+	actor_id: StringName,
+	card_id: StringName,
+	store: RegistrationStore
+) -> bool:
+	return _has_allow(
+		AhcEnums.GateKind.ALLOW_COMMIT_ANY_SKILL, actor_id, card_id, store
+	)
+
+
+static func allows_play_as_if_in_hand(
+	actor_id: StringName,
+	card_id: StringName,
+	store: RegistrationStore
+) -> bool:
+	return _has_allow(
+		AhcEnums.GateKind.ALLOW_PLAY_AS_IF_IN_HAND, actor_id, card_id, store
+	)
+
+
+static func _has_allow(
+	kind: AhcEnums.GateKind,
+	actor_id: StringName,
+	card_id: StringName,
+	store: RegistrationStore
+) -> bool:
+	if store == null or card_id == &"":
+		return false
+	for reg in store.all_registrations():
+		for buff in reg.payloads:
+			if buff.type != AhcEnums.RegistrationKind.GATE or buff.gate == null:
+				continue
+			var gate: GatePayload = buff.gate
+			if gate.kind != kind:
+				continue
+			if gate.subject_id != &"" and gate.subject_id != card_id:
+				continue
+			var who := gate.drawer_id
+			if who == &"":
+				who = reg.controller_id
+			if who != &"" and who != actor_id:
+				continue
+			return true
+	return false
+
+
 static func block_reason(
 	intent: Intent,
 	actor_id: StringName,
@@ -121,4 +168,7 @@ static func _matches(
 			if leave_hand_card_id == &"" or payload.drawn_card_id != leave_hand_card_id:
 				return &""
 			return &"restriction_forbid_leave_hand"
+		## ALLOW_* 不经 block_reason；见 allows_*。
+		AhcEnums.GateKind.ALLOW_COMMIT_ANY_SKILL, AhcEnums.GateKind.ALLOW_PLAY_AS_IF_IN_HAND:
+			return &""
 	return &""

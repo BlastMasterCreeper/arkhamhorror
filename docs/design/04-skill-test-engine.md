@@ -87,7 +87,7 @@ ST.2
   PW_SKILL_TEST_AFTER_COMMIT
 ```
 
-- Performing investigator：任意张 eligible（matching icon 或 wild；`commit_without_matching_icon` 钩子另议）
+- Performing investigator：任意张 eligible（matching icon 或 wild；或 GATE `ALLOW_COMMIT_ANY_SKILL` / 04201）
 - 同地点其他 investigator：**1 张**（险境时 **Cannot**，见 §4）
 - 每张 matching icon +1 skill value（确认后计入 ST.5）
 - Max committed per test：对**池**计数（如 Perception）

@@ -79,6 +79,8 @@ func _initialize() -> void:
 	_run_test("COMMIT-02 king yellow forbid confirm 1 or 2", _test_commit_forbid_exact_counts)
 	_run_test("COMMIT-03 unstage and commit max in pool", _test_commit_unstage_and_max)
 	_run_test("COMMIT-04 limbo st7 success while in limbo", _test_commit_limbo_st7)
+	_run_test("GATE-ALLOW-01 Take Heart commit any skill", _test_gate_allow_commit_any_skill)
+	_run_test("GATE-ALLOW-02 play as if in hand", _test_gate_allow_play_as_if_hand)
 	_run_test("TRIG-01 forced triggered bypasses initiation", _test_trig_forced_after_gain)
 	_run_test("TRIG-02 reaction declined by default", _test_trig_reaction_declined)
 	_run_test("TRIG-03 reaction accepted resolves", _test_trig_reaction_accepted)
@@ -1912,6 +1914,73 @@ func _test_commit_limbo_st7() -> bool:
 		and inv.resource_pool == before + 2
 		and card.zone == AhcEnums.Zone.DISCARD
 	)
+
+
+func _test_gate_allow_commit_any_skill() -> bool:
+	## 04201 Take Heart：无图标 + ALLOW_COMMIT_ANY_SKILL → 可投入；图标加成仍为 0。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"take_heart",
+		{"card_type": &"skill", "title": "Take Heart", "limits": [LimitSpec.max_committed_per_test(1)]}
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var card := CardInstance.new()
+	card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"take_heart")
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	## 无 skill_icons
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var denied := h.ctx.skill_tests.stage_commit(test, &"inv_1", card_id)
+	if denied.get("ok", true) or denied.get("error", "") != "no_matching_icon":
+		return false
+	h.ctx.registrations.register(
+		RegistrationTemplate.allow_commit_any_skill(&"inv_1", card_id)
+	)
+	var ok := h.ctx.skill_tests.stage_commit(test, &"inv_1", card_id)
+	if not ok.get("ok", false):
+		return false
+	var conf := h.ctx.skill_tests.confirm_commits(test)
+	return (
+		conf.get("ok", false)
+		and test.committed.size() == 1
+		and test.committed[0].icon_bonus == 0
+		and card.zone == AhcEnums.Zone.LIMBO
+	)
+
+
+func _test_gate_allow_play_as_if_hand() -> bool:
+	## 05002 形：牌在牌库顶，ALLOW_PLAY_AS_IF_IN_HAND 后可打出 event。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"hunch_event",
+		{"card_type": &"event", "title": "Hunch", "resource_cost": 0}
+	)
+	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"hunch_event")
+	var card := h.ctx.state.registry.get_card(card_id)
+	var intent := InitiationIntent.play_card(&"inv_1", card_id, 0, 0, null)
+	intent.definition_id = &"hunch_event"
+	if h.ctx.initiation.can_initiate(intent, h.ctx):
+		return false
+	var blocked := h.ctx.initiation.initiate(intent, h.ctx)
+	if blocked.get("ok", true) or blocked.get("error", "") != "not_in_hand":
+		return false
+	h.ctx.registrations.register(
+		RegistrationTemplate.allow_play_as_if_in_hand(&"inv_1", card_id)
+	)
+	var again := InitiationIntent.play_card(&"inv_1", card_id, 0, 0, null)
+	again.definition_id = &"hunch_event"
+	if not h.ctx.initiation.can_initiate(again, h.ctx):
+		return false
+	var res := h.ctx.initiation.initiate(again, h.ctx)
+	## event commence → LIMBO → finalize discard
+	card = h.ctx.state.registry.get_card(card_id)
+	return res.get("ok", false) and card.zone == AhcEnums.Zone.DISCARD
 
 
 func _test_initiation_play_cost_abort() -> bool:

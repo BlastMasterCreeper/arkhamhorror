@@ -106,7 +106,7 @@ func stage_commit(ctx: SkillTestContext, from_inv: StringName, card_id: StringNa
 	if not committer.hand.has(card_id):
 		return {"ok": false, "error": "not_in_hand"}
 	var bonus := _matching_icon_bonus(card, ctx.skill)
-	if bonus <= 0 and not _allows_commit_without_matching_icon(card):
+	if bonus <= 0 and not _allows_commit_without_matching_icon(card, from_inv, card_id):
 		return {"ok": false, "error": "no_matching_icon"}
 	if not _passes_commit_max_against_pool(ctx, card):
 		return {"ok": false, "error": "max_committed"}
@@ -426,10 +426,17 @@ func _passes_commit_max_against_pool(ctx: SkillTestContext, card: CardInstance) 
 	return true
 
 
-## 无匹配图标仍可投入（卡面能力）；竖切钩子，默认关。
-func _allows_commit_without_matching_icon(card: CardInstance) -> bool:
+## 无匹配图标仍可投入：GATE ALLOW_COMMIT_ANY_SKILL（04201）或定义钩子。
+func _allows_commit_without_matching_icon(
+	card: CardInstance,
+	from_inv: StringName,
+	card_id: StringName
+) -> bool:
 	if card == null:
 		return false
+	var store := _game_ctx.registrations if _game_ctx != null else null
+	if RestrictionEvaluator.allows_commit_any_skill(from_inv, card_id, store):
+		return true
 	var data := CardRegistry.definition_data(card.id.definition_id)
 	return bool(data.get("commit_without_matching_icon", false))
 

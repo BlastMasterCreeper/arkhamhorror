@@ -47,7 +47,7 @@ class GainedCharacteristicStore:  # 与 Registration 分立
 | RegistrationKind | 根本特质 | 消费 | 例 |
 |---|---|---|---|
 | **MODIFIER** | 改**可折叠的量** | ModifierEngine | +1 skill、shroud−、伤/发现量 |
-| **GATE** | 拦 **命名序列 / Intent 结算**（cannot） | Eligibility / GateEvaluator | FORBID_PLAY/DRAW/…、险境、隐私离手 |
+| **GATE** | **资格门**：拦住或放宽 Intent/手续默认资格 | Eligibility / GateEvaluator | FORBID_*；ALLOW_COMMIT_ANY_SKILL（04201）；ALLOW_PLAY_AS_IF_IN_HAND（05002） |
 | **DIRECTIVE** | 改**已入手续的走法**（入口读后分支；不拦 Intent 本身） | 各原流程入口 | SKIP_AOO、SkillRedirect |
 | **LISTENER** | **武装时点效果**（到点开火 Composition） | Timing / Dispatcher | lasting delayed、关键词开火竖切 |
 | **STATUS** | **局面断言**（可脱离物理场面） | 状态查询 | ENGAGEMENT（≠ 威胁区） |
@@ -59,6 +59,17 @@ seq.effect.grant     → GainStore（拥有）→ 可选衍生 register
 
 **禁止**：把 Gain 塞进 `RegistrationKind`；把 GATE/DIRECTIVE/STATUS 混称旧 `RESTRICTION`；用 MODIFIER 加减假装改维；总称再叫 Buff。
 
+### 2.1.1 GATE · ALLOW 开口与 *as if*（竖切）
+
+GATE **不改名**：门可拦可放。`FORBID_*` 拒绝 Intent；`ALLOW_*` 在**默认资格失败**时放宽开口（`RestrictionEvaluator.allows_*`）。FORBID 仍优先。
+
+| GateKind | 默认被放宽的资格 | 锚例 |
+|---|---|---|
+| `ALLOW_COMMIT_ANY_SKILL` | 投入须匹配图标 | **04201** Take Heart（*any type of test*；**不**等于 gains wild / +1） |
+| `ALLOW_PLAY_AS_IF_IN_HAND` | 打出须在 HAND | **05002** Joe hunch（*play … as if it were in your hand*；仅打出口） |
+
+*as if* 全文还可改地点/交战等局面观（FAQ 2.10；如 Pocket Telescope 调查连接地点）——那些联动**不**塞进本竖切；专题翻译时再拆 DIRECTIVE/场景覆盖。本竖切只落地 **资格开口**。
+
 ---
 
 ## 3. RegistrationKind（五类 · 根本特质）
@@ -66,7 +77,7 @@ seq.effect.grant     → GainStore（拥有）→ 可选衍生 register
 ```gdscript
 enum RegistrationKind {
     MODIFIER,    # 量
-    GATE,        # 拦结算 / Intent 合法性
+    GATE,        # 资格门：FORBID 拦住 / ALLOW 开口
     DIRECTIVE,   # 手续走法
     LISTENER,    # 时点武装
     STATUS,      # 局面断言

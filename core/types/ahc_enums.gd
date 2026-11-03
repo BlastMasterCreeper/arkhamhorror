@@ -276,6 +276,7 @@ enum AtomOp { MOVE_CARD, TRANSFER_MARKER, ADJUST_MARKER, REVEAL_CARD, SET_FLAG, 
 enum FlagField { ELIMINATED, RESIGNED }
 
 ## GATE：改 Intent 合法性（cannot / forbid）。
+## GATE：资格门 — 拦住（FORBID）或放宽开口（ALLOW）。非 MODIFIER。
 enum GateKind {
 	FORBID_DRAW,
 	FORBID_PLAY,
@@ -285,6 +286,10 @@ enum GateKind {
 	## 按 **该 Gate 控制者** 在投入池中的张数，于 **确认投入** 时检测。
 	FORBID_COMMIT_COUNT,
 	FORBID_LEAVE_HAND,
+	## ALLOW · 04201 Take Heart：可投入任意检定类型（无视匹配图标；不给 +1）。
+	ALLOW_COMMIT_ANY_SKILL,
+	## ALLOW · 05002 Joe hunch / Backpack 等：可 **打出** 该牌 as if 在手（仅打出口；非真在手）。
+	ALLOW_PLAY_AS_IF_IN_HAND,
 }
 
 ## DIRECTIVE：改已入手续的走法（原流程读后分支；不拦 Intent 本身）。

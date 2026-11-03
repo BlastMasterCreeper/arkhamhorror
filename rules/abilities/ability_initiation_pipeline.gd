@@ -237,8 +237,14 @@ func _play_card_pre_error(intent: InitiationIntent, ctx: GameContext) -> StringN
 	var card := ctx.state.registry.get_card(intent.card_id)
 	if card == null:
 		return &"unknown_card"
-	if card.zone != AhcEnums.Zone.HAND or not inv.hand.has(intent.card_id):
-		return &"not_in_hand"
+	var in_hand := card.zone == AhcEnums.Zone.HAND and inv.hand.has(intent.card_id)
+	if not in_hand:
+		## ALLOW · as if 在手（05002 Joe hunch 等）：仅放宽打出口，不把牌真放进手牌。
+		var regs: RegistrationStore = ctx.registrations if ctx != null else null
+		if not RestrictionEvaluator.allows_play_as_if_in_hand(
+			intent.controller_id, intent.card_id, regs
+		):
+			return &"not_in_hand"
 	if not _passes_occupancy(intent, ctx, card):
 		return &"occupancy_limit"
 	return &""
