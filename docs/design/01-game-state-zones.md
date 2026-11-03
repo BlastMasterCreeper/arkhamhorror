@@ -126,7 +126,7 @@ enum Zone {
 }
 ```
 
-**Limbo 语义**：Event/Treachery **显现结算中**时进 LIMBO；Limbo 中卡**不算 In-Play**（Grimoire Limbo）。**已 commit 的 Skill** 不进 LIMBO — 见 `SkillTestContext.committed`，zone 暂留 HAND 直至 ST.8（OQ-01-03）。
+**Limbo 语义**：Event/Treachery **显现结算中**时进 LIMBO；Limbo 中卡**不算 In-Play**（Grimoire Limbo）。**已确认投入**的 player cards（含 skill）亦进 LIMBO（ST.2 `confirm_commits`），直至 ST.8 弃置；预投入仅在 `commit_pool`，仍在 HAND（见 [04 §3.2](04-skill-test-engine.md)）。
 
 ### 3.6 牌面可见性（按观察者）
 
@@ -381,7 +381,7 @@ class LocationState:
 |---|---|---|
 | OQ-01-02 | 通用「同时效果组」语义：同一 timing point 开始结算；组完成后才触发 `after`；适用于 Unique 冲突与「A and B」。原语 `SimultaneousEffectGroup`。 | 2026-05-25 |
 | OQ-01-01 | **Domain** `CardInstance.is_hidden`；**Presentation** 对非 owner 隐藏牌名。见 §3.6。 | 2026-05-25 |
-| OQ-01-03 | **B**：`SkillTestContext.committed` 追踪；zone **仍为 HAND** 至 ST.8；**不进 LIMBO**。见 §3.5 Limbo 说明、04 §4。 | 2026-05-25 |
+| OQ-01-03 | **改裁（2026-11-03）**：预投入在池、仍 HAND；**确认后进 LIMBO**（Grimoire）；`committed` 列表 + ST.8 弃。见 §3.5、[04 §3.2](04-skill-test-engine.md)。 | 2026-11-03 |
 
 ---
 

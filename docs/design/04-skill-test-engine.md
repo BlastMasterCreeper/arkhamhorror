@@ -69,14 +69,38 @@ class SkillTestEngine:
 - 发起 `TimingBus`: `skill_test_begins`
 - Push `GameContext.skill_test_stack`
 
-### 3.2 ST.2 Commit
+### 3.2 ST.2 Commit（投入池 → 确认同时投入）
 
-- Performing investigator：任意张 eligible（matching icon 或 wild）
+裁决（03011 *The King in Yellow*「不能正好投入 1 或 2 张」+ FAQ 同时投入）：**一次检定的投入是一批同时生效**，不是逐张依次生效。
+
+```text
+ST.2
+  stage_commit / unstage_commit  →  投入池（预投入，不生效、不进 LIMBO）
+       │ 动态校验：图标匹配 / 无图标可投钩子 / COMMIT_MAX / 协助 1 张 /
+       │           peril FORBID_COMMIT_TO_TEST / …
+       ▼
+  confirm_commits（检定玩家确认）
+       │ 批次门禁：FORBID_COMMIT_COUNT（按控制者池内张数，03011）
+       │ 整批 HAND → LIMBO（同时）
+       │ 写入 committed；emit cards_committed（投入后时点）
+       ▼
+  PW_SKILL_TEST_AFTER_COMMIT
+```
+
+- Performing investigator：任意张 eligible（matching icon 或 wild；`commit_without_matching_icon` 钩子另议）
 - 同地点其他 investigator：**1 张**（险境时 **Cannot**，见 §4）
-- 每张 matching icon +1 skill value
-- Max committed per test 限制（如 Perception max 1）
+- 每张 matching icon +1 skill value（确认后计入 ST.5）
+- Max committed per test：对**池**计数（如 Perception）
 - 不付 resource cost
-- **Player Window**：`PW_SKILL_TEST_AFTER_COMMIT`（ST.2 完成后、进入 ST.3 之前）
+- **确认前**池内牌仍在手牌、不生效；**确认后**进 **LIMBO**（对齐 Grimoire；废止 OQ-01-03「留 HAND」）
+- **Player Window**：`PW_SKILL_TEST_AFTER_COMMIT`（确认完成后、进入 ST.3 之前）
+
+```gdscript
+func stage_commit(ctx, from_inv, card_id) -> Result   # 入池
+func unstage_commit(ctx, card_id) -> Result
+func confirm_commits(ctx) -> Result                   # 同时生效
+func step_commit(ctx, cards) -> Result                # stage 全部 + confirm
+```
 
 ### 3.3 ST.3 Reveal
 
@@ -124,7 +148,9 @@ base = investigator.get_skill(skill)
 
 > **FAQ / Grimoire**：凡依附 **本次检定 success/fail 判定** 的后果 — 包括 *If you succeed/fail*、*If this test is successful/failed*、*for each point you fail by*、committed skill *If this test is successful…*、chaos token *fail by X+* — **均在 ST.7 统一执行**；**不是** ST.6 嵌套时点，**不是** `seq.skill_test.*` nest pop 后父 Composition 的 Seq 步（OQ-05-03 · 07-composition §3.3）。
 
-**引擎落点**：`SkillTestSt7Plan` — 内联 **Composition 树**（可含 Choice / Seq / Atom），由 `SkillTestEngine.step_apply_results` 在 ST.7 调用 `CompositionExecutor`；**不**新建 TriggeringCondition。
+**投入技能支（特殊）**：确认投入时 **不**把 success/fail 写成 lasting/延时 Registration。ST.7 时扫描 `committed` 中 **仍在 LIMBO** 的牌，读其 `commit_st7` plan 再经 `seq.ability.resolve` 结算。来源已离开 LIMBO → 本检定不再结算该支。
+
+**引擎落点**：`SkillTestSt7Plan` — 内联 **Composition 树**（可含 Choice / Seq / Atom），由 `SkillTestEngine.step_apply_results` 在 ST.7 调用；**不**新建 TriggeringCondition。
 
 | 卡面模式 | `SkillTestSt7Plan` 槽 | ST.7 行为 |
 |---|---|---|
@@ -331,8 +357,9 @@ seq.draw.encounter → resolve_card_body (内联)
 | 无 matching icon | 不可 commit |
 | Peril | 仅 performing 可 commit（**Cannot**，§4） |
 | Max N committed | 按 title 计数 |
-| Commit 归属 | **`SkillTestContext.committed` 列表**；卡 **zone 仍为 HAND** 直至 ST.8 discard（已裁决 OQ-01-03）。不用 LIMBO |
-| LIMBO | 仅 **Event/Treachery 显现结算中** 等场景；与 committed skill **无关** |
+| Commit 归属 | 预投入 → `commit_pool`；确认后 → `committed` + **LIMBO**；ST.8 discard |
+| LIMBO | Event/Treachery 显现；**以及**已确认投入的 player cards（Grimoire） |
+| ST.7 投入技能支 | **不**在投入时创建延时 Buff；ST.7 **检测仍在 LIMBO 的 committed** 再结算 success/fail 支 |
 
 ---
 

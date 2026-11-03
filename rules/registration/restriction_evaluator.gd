@@ -8,6 +8,8 @@ enum Intent {
 	PLAY,
 	TRIGGER,
 	COMMIT_TO_TEST,
+	## 确认投入批次（投入池 → 同时生效）；张数门禁等在此检。
+	CONFIRM_COMMIT,
 	LEAVE_HAND,
 }
 
@@ -98,6 +100,21 @@ static func _matches(
 			if skill_test.performing_investigator != payload.drawer_id:
 				return &""
 			return &"restriction_forbid_commit_to_test"
+		AhcEnums.GateKind.FORBID_COMMIT_COUNT:
+			if intent != Intent.CONFIRM_COMMIT:
+				return &""
+			if skill_test == null or skill_test.commit_pool == null:
+				return &""
+			var who := payload.drawer_id
+			if who == &"":
+				who = reg.controller_id
+			if who == &"":
+				return &""
+			var n := skill_test.commit_pool.count_for(who)
+			for forbidden in payload.forbidden_commit_counts:
+				if n == int(forbidden):
+					return &"restriction_forbid_commit_count"
+			return &""
 		AhcEnums.GateKind.FORBID_LEAVE_HAND:
 			if intent != Intent.LEAVE_HAND:
 				return &""

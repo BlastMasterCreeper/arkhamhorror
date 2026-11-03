@@ -226,7 +226,7 @@ func can_event(
 	return can_consume(spec, unit_id, controller_id, game_ctx, amount, title_key, instance_id)
 
 
-## COMMIT_MAX：同名投入本检定上限（现读 committed 列表，不走 _counts）。
+## COMMIT_MAX：同名投入本检定上限（预投入读池；确认后读 committed）。
 func can_commit_title(
 	spec: LimitSpec,
 	skill_ctx: SkillTestContext,
@@ -242,7 +242,12 @@ func can_commit_title(
 	var want_title := title
 	if want_title == "":
 		want_title = CardRegistry.title(definition_id)
-	for commit in skill_ctx.committed:
+	var source: Array = []
+	if not skill_ctx.commits_confirmed and skill_ctx.commit_pool != null:
+		source = skill_ctx.commit_pool.snapshot()
+	else:
+		source = skill_ctx.committed
+	for commit in source:
 		var card: CardInstance = game_ctx.state.registry.get_card(commit.card_id)
 		if card == null:
 			continue

@@ -75,6 +75,10 @@ func _initialize() -> void:
 	_run_test("LIM-07 event quota resources per round", _test_lim_resources_per_round)
 	_run_test("LIM-08 commit max by LimitSpec", _test_lim_commit_max)
 	_run_test("LIM-09 reenter play resets initiate quota", _test_lim_reenter_resets)
+	_run_test("COMMIT-01 stage then confirm enters limbo", _test_commit_pool_confirm_limbo)
+	_run_test("COMMIT-02 king yellow forbid confirm 1 or 2", _test_commit_forbid_exact_counts)
+	_run_test("COMMIT-03 unstage and commit max in pool", _test_commit_unstage_and_max)
+	_run_test("COMMIT-04 limbo st7 success while in limbo", _test_commit_limbo_st7)
 	_run_test("TRIG-01 forced triggered bypasses initiation", _test_trig_forced_after_gain)
 	_run_test("TRIG-02 reaction declined by default", _test_trig_reaction_declined)
 	_run_test("TRIG-03 reaction accepted resolves", _test_trig_reaction_accepted)
@@ -1781,6 +1785,133 @@ func _test_lim_reenter_resets() -> bool:
 	var again := _lim_resource_intent(&"inv_1", &"reenter_ability", lim)
 	again.source_id = card_id
 	return h.ctx.initiation.can_initiate(again, h.ctx)
+
+
+func _test_commit_pool_confirm_limbo() -> bool:
+	## 预投入不离手；确认后同时进 LIMBO。
+	var h := RuleTestHarness.new(42)
+	var a := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER, &"commit_pool_a"
+	)
+	var b := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER, &"commit_pool_b"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.stage_commit(test, &"inv_1", a).get("ok", false):
+		return false
+	if not h.ctx.skill_tests.stage_commit(test, &"inv_1", b).get("ok", false):
+		return false
+	var card_a := h.ctx.state.registry.get_card(a)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	if card_a.zone != AhcEnums.Zone.HAND or not inv.hand.has(a) or test.commits_confirmed:
+		return false
+	if test.commit_pool.size() != 2:
+		return false
+	var conf := h.ctx.skill_tests.confirm_commits(test)
+	if not conf.get("ok", false):
+		return false
+	card_a = h.ctx.state.registry.get_card(a)
+	var card_b := h.ctx.state.registry.get_card(b)
+	return (
+		test.commits_confirmed
+		and test.committed.size() == 2
+		and test.commit_pool.is_empty()
+		and card_a.zone == AhcEnums.Zone.LIMBO
+		and card_b.zone == AhcEnums.Zone.LIMBO
+		and not inv.hand.has(a)
+		and not inv.hand.has(b)
+	)
+
+
+func _test_commit_forbid_exact_counts() -> bool:
+	## 03011：可入池 1～2 张，确认时按控制者张数拒绝；0 或 ≥3 可通过。
+	var h := RuleTestHarness.new(42)
+	h.ctx.registrations.register(
+		RegistrationTemplate.forbid_commit_counts(&"inv_1", [1, 2], &"king_yellow")
+	)
+	var cards: Array[StringName] = []
+	for i in range(3):
+		cards.append(
+			GameBootstrap.add_skill_card_to_hand(
+				h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT, StringName("ky_skill_%d" % i)
+			)
+		)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 1)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.stage_commit(test, &"inv_1", cards[0]).get("ok", false):
+		return false
+	var bad1 := h.ctx.skill_tests.confirm_commits(test)
+	if bad1.get("ok", true) or bad1.get("error", "") != "restriction_forbid_commit_count":
+		return false
+	if not h.ctx.skill_tests.stage_commit(test, &"inv_1", cards[1]).get("ok", false):
+		return false
+	var bad2 := h.ctx.skill_tests.confirm_commits(test)
+	if bad2.get("ok", true):
+		return false
+	if not h.ctx.skill_tests.stage_commit(test, &"inv_1", cards[2]).get("ok", false):
+		return false
+	var ok3 := h.ctx.skill_tests.confirm_commits(test)
+	return ok3.get("ok", false) and test.committed.size() == 3
+
+
+func _test_commit_unstage_and_max() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"guts_pool",
+		{
+			"card_type": &"skill",
+			"title": "Guts",
+			"limits": [LimitSpec.max_committed_per_test(1)],
+		}
+	)
+	var a := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER, &"guts_pool"
+	)
+	var b := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.WILLPOWER, &"guts_pool"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.stage_commit(test, &"inv_1", a).get("ok", false):
+		return false
+	var blocked := h.ctx.skill_tests.stage_commit(test, &"inv_1", b)
+	if blocked.get("ok", true) or blocked.get("error", "") != "max_committed":
+		return false
+	if not h.ctx.skill_tests.unstage_commit(test, a).get("ok", false):
+		return false
+	return h.ctx.skill_tests.stage_commit(test, &"inv_1", b).get("ok", false)
+
+
+func _test_commit_limbo_st7() -> bool:
+	## 投入技能 success 支在 ST.7 且来源仍在 LIMBO 时结算。
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var plan := SkillTestSt7Plan.new()
+	plan.on_success = CompositionNode.nest_gain_resource(&"inv_1", 2)
+	CardRegistry.register_definition(
+		&"perception_limbo",
+		{"card_type": &"skill", "title": "Perception", "commit_st7": plan}
+	)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT, &"perception_limbo"
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var before := inv.resource_pool
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 0)
+	var commits: Array[CommittedCard] = [CommittedCard.create(card_id, &"inv_1")]
+	var result := st.run(test, commits)
+	var card := h.ctx.state.registry.get_card(card_id)
+	## ST.8 后已弃；资源应在 ST.7（仍 LIMBO）时已获得。
+	return (
+		result.success
+		and inv.resource_pool == before + 2
+		and card.zone == AhcEnums.Zone.DISCARD
+	)
 
 
 func _test_initiation_play_cost_abort() -> bool:

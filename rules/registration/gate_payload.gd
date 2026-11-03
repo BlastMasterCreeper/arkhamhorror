@@ -8,6 +8,8 @@ var drawer_id: StringName = &""
 var drawn_card_id: StringName = &""
 var encounter_frame_id: StringName = &""
 var subject_id: StringName = &""
+## FORBID_COMMIT_COUNT：禁止的投入张数（按控制者计）；例 [1, 2] = 03011。
+var forbidden_commit_counts: Array[int] = []
 
 
 static func forbid_draw() -> GatePayload:
@@ -37,6 +39,20 @@ static func forbid_commit_peril(drawer_id: StringName, drawn_card_id: StringName
 	p.kind = AhcEnums.GateKind.FORBID_COMMIT_TO_TEST
 	p.drawer_id = drawer_id
 	p.drawn_card_id = drawn_card_id
+	return p
+
+
+## 03011 等：控制者不能正好投入 listed 张数（确认投入时检）。
+static func forbid_commit_counts(
+	controller_id: StringName,
+	counts: Array[int],
+	source_card_id: StringName = &""
+) -> GatePayload:
+	var p := GatePayload.new()
+	p.kind = AhcEnums.GateKind.FORBID_COMMIT_COUNT
+	p.drawer_id = controller_id
+	p.drawn_card_id = source_card_id
+	p.forbidden_commit_counts = counts.duplicate()
 	return p
 
 
