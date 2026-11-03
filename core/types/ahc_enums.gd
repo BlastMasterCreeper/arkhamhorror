@@ -281,6 +281,9 @@ enum GateKind {
 	FORBID_PLAY,
 	FORBID_TRIGGER,
 	FORBID_COMMIT_TO_TEST,
+	## 批次投入数量门禁（03011 The King in Yellow：不能正好投入 1 或 2 张）。
+	## 按 **该 Gate 控制者** 在投入池中的张数，于 **确认投入** 时检测。
+	FORBID_COMMIT_COUNT,
 	FORBID_LEAVE_HAND,
 }
 

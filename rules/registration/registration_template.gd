@@ -106,6 +106,24 @@ static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringNam
 	return t
 
 
+## GATE · 投入批次张数（03011：不能正好投入 1 或 2 张）；确认投入时检。
+static func forbid_commit_counts(
+	controller_id: StringName,
+	counts: Array[int],
+	source_card_id: StringName = &""
+) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = controller_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
+	t.drawn_card_id = source_card_id
+	t.payloads.append(
+		RegistrationPayload.of_gate(
+			GatePayload.forbid_commit_counts(controller_id, counts, source_card_id)
+		)
+	)
+	return t
+
+
 ## GATE · 隐私 FORBID_LEAVE_HAND。
 static func hidden_in_hand(controller_id: StringName, card_id: StringName) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
