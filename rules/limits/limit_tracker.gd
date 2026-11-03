@@ -1,18 +1,56 @@
 class_name LimitTracker
 extends RefCounted
 
-## Limit / Max 配额门槛（06d）。权威可重建自 EventRecord；本实现为增量计数 + 现读。
+## Limit / Max 配额门槛（06d）。
+## 运行时 HOT = 增量计数；权威 = EventRecord（LIMIT_CONSUME / LIMIT_IGNORE）可 fold 重建。
+## 禁止单独持久化本表——存档应落 EventRecord（或含其的战役快照）。
 
 var _counts: Dictionary = {}  # counter_key -> int
 var _ignores: Dictionary = {}  # ignore_key -> true
 ## 作用域 token：ATTACK / INVESTIGATION / SKILL_TEST / CUSTOM → 当前打开的 id。
 var _scopes: Dictionary = {}
+var _events: EventRecordLog = null
+
+
+func bind_events(events: EventRecordLog) -> void:
+	_events = events
 
 
 func clear() -> void:
 	_counts.clear()
 	_ignores.clear()
 	_scopes.clear()
+
+
+## 自 EventRecord fold 重建计数与 ignore；不清/不重建 ephemeral scopes。
+func rebuild_from_events(events: EventRecordLog = null) -> int:
+	var log: EventRecordLog = events if events != null else _events
+	_counts.clear()
+	_ignores.clear()
+	if log == null:
+		return 0
+	var applied := 0
+	for rec in log.get_records():
+		if rec is not EventRecord:
+			continue
+		var er := rec as EventRecord
+		match er.kind:
+			AhcEnums.EventRecordKind.LIMIT_CONSUME:
+				var key := str(er.payload.get("counter_key", ""))
+				var amt := int(er.payload.get("amount", 0))
+				if key == "" or amt <= 0:
+					continue
+				_counts[key] = int(_counts.get(key, 0)) + amt
+				applied += 1
+			AhcEnums.EventRecordKind.LIMIT_IGNORE:
+				var ik := str(er.payload.get("ignore_key", ""))
+				if ik == "":
+					continue
+				_ignores[ik] = true
+				applied += 1
+			_:
+				pass
+	return applied
 
 
 ## 打开作用域（如一次 Fight / Investigate / Skill Test）。
@@ -117,6 +155,9 @@ func consume(
 		spec, unit_id, controller_id, game_ctx, title_key, instance_id, audience_id
 	)
 	_counts[key] = int(_counts.get(key, 0)) + take
+	_emit_consume(
+		spec, key, take, unit_id, controller_id, title_key, instance_id, audience_id, game_ctx
+	)
 	return take
 
 
@@ -315,7 +356,9 @@ func ignore_limit(
 ) -> void:
 	if spec == null:
 		return
-	_ignores[_ignore_key(spec, ability_id, controller_id, title_key, instance_id, audience_id)] = true
+	var ik := _ignore_key(spec, ability_id, controller_id, title_key, instance_id, audience_id)
+	_ignores[ik] = true
+	_emit_ignore(spec, ik, ability_id, controller_id, title_key, instance_id, audience_id)
 
 
 func clear_ignore(
@@ -330,6 +373,65 @@ func clear_ignore(
 		return
 	_ignores.erase(
 		_ignore_key(spec, ability_id, controller_id, title_key, instance_id, audience_id)
+	)
+
+
+func _emit_consume(
+	spec: LimitSpec,
+	counter_key: String,
+	amount: int,
+	unit_id: StringName,
+	controller_id: StringName,
+	title_key: StringName,
+	instance_id: StringName,
+	audience_id: StringName,
+	game_ctx: GameContext
+) -> void:
+	if _events == null or amount <= 0:
+		return
+	_events.append(
+		AhcEnums.EventRecordKind.LIMIT_CONSUME,
+		{
+			"counter_key": counter_key,
+			"amount": amount,
+			"limit_id": String(spec.id),
+			"kind": int(spec.kind),
+			"period": int(spec.period),
+			"audience": int(spec.audience),
+			"unit_id": String(unit_id),
+			"controller_id": String(controller_id),
+			"title_key": String(title_key),
+			"instance_id": String(instance_id),
+			"audience_id": String(audience_id),
+			"epoch": _epoch(spec.period, game_ctx),
+			"event_key": String(spec.event_key),
+		}
+	)
+
+
+func _emit_ignore(
+	spec: LimitSpec,
+	ignore_key: String,
+	ability_id: StringName,
+	controller_id: StringName,
+	title_key: StringName,
+	instance_id: StringName,
+	audience_id: StringName
+) -> void:
+	if _events == null:
+		return
+	_events.append(
+		AhcEnums.EventRecordKind.LIMIT_IGNORE,
+		{
+			"ignore_key": ignore_key,
+			"limit_id": String(spec.id),
+			"kind": int(spec.kind),
+			"ability_id": String(ability_id),
+			"controller_id": String(controller_id),
+			"title_key": String(title_key),
+			"instance_id": String(instance_id),
+			"audience_id": String(audience_id),
+		}
 	)
 
 

@@ -239,6 +239,10 @@ enum EventRecordKind {
 	ACTION_GRANT,
 	## 玩家交互（含 used_default）；见 16 §3 / Gate.ask。
 	INTERACTION_CHOICE,
+	## Limit 配额消费（冻结 counter_key / epoch）；LimitTracker 可 fold 重建。
+	LIMIT_CONSUME,
+	## Limit ignore（InterruptTarget.LIMIT）；重建 ignore 表。
+	LIMIT_IGNORE,
 }
 
 enum StatKey {

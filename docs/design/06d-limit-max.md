@@ -25,7 +25,8 @@
 | EVENT `success`：L5 门槛 + ST.6 记账 | ✅ |
 | 解析扩：occupancy / beneath / per-target / Max TITLE / success | ✅ |
 | ArkhamDB 编译器自动挂 `LimitSpec` | ✅（`tools/limit_compile.py` → JSON `limits` / `compiled_abilities[].limits` → `LimitSpec.from_dict`） |
-| StatProjection / EventRecord 重建计数 | ⬜（竖切为增量计数） |
+| EventRecord 重建计数 | ✅（`LIMIT_CONSUME` / `LIMIT_IGNORE` + `LimitTracker.rebuild_from_events`；HOT 增量仍为默认路径） |
+| Limit 计数单独持久化 | ❌ 禁止；权威在 EventRecord（战役存档见 OQ-00-03） |
 | 幕间 / XP 购卡 / CampaignLog 分支 | ⬜（仅设计稿；场内 `scenario_resolution` 已有） |
 
 ## 1. 五族规模
@@ -144,6 +145,7 @@ class LimitSpec:
 
 | 日期 | 说明 |
 |---|---|
+| 2026-11-03 | EventRecord `LIMIT_CONSUME`/`LIMIT_IGNORE` + `rebuild_from_events`；裁决不单独持久化计数；LIM-18 |
 | 2026-11-03 | ArkhamDB 编译器自动挂 LimitSpec（卡级 + 能力级）；水合与发起接线；LIM-17 + `tools/test_limit_compile.py` |
 | 2026-11-03 | 剩余子型：TITLE / per-target / 占位 IN_PLAY·ATTACHED·BENEATH·per-host / DECKBUILDING / success EVENT；`Zone.BENEATH`；测试 LIM-10…16 |
 | 2026-11-02 | USE_QUOTA / EVENT_QUOTA / COMMIT_MAX 运行时 + 再进场世代；测试 LIM-06…09 |
