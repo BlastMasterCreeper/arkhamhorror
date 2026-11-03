@@ -106,6 +106,35 @@ static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringNam
 	return t
 
 
+## GATE · ALLOW · 04201 Take Heart：subject 可投入任意检定类型。
+static func allow_commit_any_skill(
+	controller_id: StringName,
+	subject_card_id: StringName
+) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = controller_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_HAND
+	t.drawn_card_id = subject_card_id
+	t.payloads.append(
+		RegistrationPayload.of_gate(
+			GatePayload.allow_commit_any_skill(subject_card_id, controller_id)
+		)
+	)
+	return t
+
+
+## GATE · ALLOW · 05002 Joe hunch 等：subject 可打出 as if 在手（本阶段）。
+static func allow_play_as_if_in_hand(
+	controller_id: StringName,
+	subject_card_id: StringName
+) -> RegistrationTemplate:
+	return lasting_gate(
+		controller_id,
+		AhcEnums.DurationAnchorKind.THIS_PHASE,
+		GatePayload.allow_play_as_if_in_hand(subject_card_id, controller_id)
+	)
+
+
 ## GATE · 投入批次张数（03011：不能正好投入 1 或 2 张）；确认投入时检。
 static func forbid_commit_counts(
 	controller_id: StringName,
