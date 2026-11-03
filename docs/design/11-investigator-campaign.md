@@ -115,7 +115,7 @@ class CampaignInvestigatorRecord:
 
 ```
 1. Count XP = victory display + guide ± + prior unspent
-2. Spend window：逐张 NEW_PURCHASE / UPGRADE /（Customizable 勾选）…
+2. Purchase new cards（属手续）— 窗内逐张交易：NEW_CARD / UPGRADE / CUSTOM_CHECK …
 3. 每加 1 张非 Permanent → 须移除 1 张；maintain deck size
 4. 遵守 deckbuilding；weakness / required 不可因购卡移除
 5. Record unspent XP
@@ -123,51 +123,73 @@ class CampaignInvestigatorRecord:
 
 卡面若改 deckbuilding / 购卡 / 升级（如 Adaptable、Underworld Market）：**逐张结算**，购入后立即对本 spend window 生效（FAQ 1.37）。
 
-### 7.2 雷点：min-1 只绑「购新卡」，不绑「升级」
+### 7.2 属种划分（白马非马）— 勿写成「升级不是购买」
 
-| 来源 | 购新卡（new card） | 同名升级（upgrade） |
-|---|---|---|
-| Grimoire *Experience* | `cost = level`，**floor 1**（L0 仍付 1） | `cost = level差`，文面另写 **floor 1** |
-| FAQ **1.8** | 明确：购新卡最少付 1；L0 = 1 | **明确：该 minimum 不适用于 upgrade**；也不永久改印刷 level |
-| 2026 Core RB | 「always costs at least 1… even if level 0」 | 「spend … equal to the **difference in level**」——**无** floor 1 |
+Grimoire 把升级**写在**步骤 2「Purchase new cards」之下：
 
-**引擎裁决（已定）**：以 FAQ 1.8 + 2026 RB 为准。
+> When **purchasing** a higher level version of a card with the same title, the investigator may choose to "**upgrade**" …
 
-- `NEW_PURCHASE`：`xp_cost = max(1, printed_level)`（再乘 Exceptional 等修饰）。
-- `UPGRADE`：`xp_cost = new_level - old_level`（**无** min-1 floor）。  
-  标准整数 level、且必须升到**更高** level 时，差值本身 ≥ 1，与 Grimoire 升级句的 floor 1 **数值上通常重合**；差别在语义归属，避免把「购新卡 min-1」渗进升级谓词与边角（见 Customizable / 差值为 0 的非法请求）。
-
-`11` 旧稿「upgrade 付 level 差 min 1」→ **作废**，改为上式。
-
-### 7.3 升级是不是「购买」？
-
-**分两层，禁止混成一个谓词：**
-
-| 层 | 结论 | 依据 |
-|---|---|---|
-| **手续窗** | 升级落在 Experience 步骤 2「Purchase new cards」同一 spend window；Grimoire 用 “when purchasing a higher level version… may choose to upgrade”；“purchased (or upgraded) individually” | 同窗、逐张、扣 XP、改牌组 |
-| **卡面 / FAQ 谓词** | **升级 ≠ 购新卡（purchase a new card）** | FAQ 1.8 把 min-1 限定在 purchasing new cards；Customizable：「直接买带勾选的新卡 = purchasing a new card, **not** upgrading」；「对已有 customizable 勾选 = upgrading for card effects」 |
-
-因此引擎必须区分交易种类（建议枚举），**不要**用单一 `is_purchase` 覆盖两者：
+故：**升级 ⊆ 购买（属 / 手续窗）**；同时：**升级 ∉ 「购新卡」种**。单说「购买」时，卡面/FAQ 常带隐含前提「非升级的购买」——要用措辞粒度判定，禁止一刀切布尔。
 
 ```text
-XpSpendKind:
-  NEW_PURCHASE   — 加入一张牌组中尚无对应副本关系的新卡（含「直接买高亮 customizable」）
-  UPGRADE        — 同 title 低级→高级：付差额、移除低级、加入高级
-  CUSTOM_CHECK   — 已有 customizable 的 upgrade sheet 勾选（card-effect 亦算 upgrading）
+Purchase（属 · Experience §2 手续窗 · 凡扣 XP 改牌组的交易）
+├── NEW_CARD     「purchase (a) new card(s)」种 — 新增副本进牌组
+├── UPGRADE      「upgrade」种 — 同 title 低→高：付差额、换出低级
+└── CUSTOM_CHECK 已有 customizable 的 sheet 勾选（card-effect 亦算 upgrading）
 ```
 
-卡面「when you purchase / when you upgrade」分别听 `NEW_PURCHASE` / `UPGRADE|CUSTOM_CHECK`。  
-口语「买升级」只描述 spend window，**不能**写成规则谓词上的 purchase。
+| 说法 | 真假 | 说明 |
+|---|---|---|
+| 升级是购买（属） | **真** | 落在 Purchase 步骤；Grimoire：「when purchasing … upgrade」 |
+| 升级是购新卡（种） | **假** | FAQ 1.8 / DtRH / Arcane Research 等把 *new card(s)* 与 *upgrade* 对举 |
+| 卡面裸 `purchase` | **慎判** | 多指「购得该卡 / 购新卡」种；见 §7.4 措辞表 |
+| 卡面 `upgrade` | **种** | 只命中 UPGRADE（+ CUSTOM_CHECK，若规则写明） |
 
-### 7.4 费用与牌组约束（摘要）
+**禁止**：`is_purchase == !is_upgrade` 这种互斥布尔。  
+**要求**：交易带 `XpSpendKind`；卡面监听按**印刷措辞**绑到属或种（下表）。
+
+### 7.3 min-1：绑在「购新卡」种，不绑升级种
+
+| 来源 | NEW_CARD 种 | UPGRADE 种 |
+|---|---|---|
+| Grimoire | `level`，**floor 1** | 差额，文面另写 floor 1 |
+| FAQ **1.8** | min 1；L0=1；*purchasing **new** cards* | **该 minimum 不适用于 upgrading** |
+| 2026 Core RB | always ≥1 even if level 0 | 只写 level **difference**（无 floor） |
+
+**引擎裁决**：`NEW_CARD → max(1, level)`（再乘 Exceptional 等）；`UPGRADE → new − old`（无 min-1）。整数升档时差额常 ≥1，与 Grimoire 升级句 floor **数值常重合**；语义仍属「种」而非把购新卡 min-1 渗进升级。旧稿「upgrade 差 min 1」作废。
+
+### 7.4 卡面措辞普查（ArkhamDB 全文检索 · 锚例）
+
+对举最干净的一张 — **Down the Rabbit Hole (08059)**：
+
+- 「first 2 cards you **upgrade**」→ −1 XP（升级种）
+- 「**purchase new cards**」→ +1 XP（购新卡种）  
+同窗两句并列，证明印刷侧把两**种**拆开，而不是「升级∉购买属」。
+
+| 措辞模式 | 锚例 | 绑到 |
+|---|---|---|
+| `purchase new card(s)` / `new card you purchase` | DtRH 加价；**Pelt Shipment (10109)** 减价 | **NEW_CARD** |
+| `cards you upgrade` / `card you upgrade` / `to upgrade` | DtRH；**Arcane Research (04109)** Spell 升级减价；**Shrewd Analysis (04106)**；**Raven Quill (09042)** | **UPGRADE**（+ 规则写明的 CUSTOM_CHECK） |
+| `When you purchase [this card]` | Arcane Research（购时创伤）；Thick of It；Ascetic；Eldritch Brand；Spiritual Healing；Customizable 选 sheet | 该卡进入牌组的 **NEW_CARD** 事件（购得本卡） |
+| `Purchase (only) at deck creation` | DtRH、Geared Up、Forced Learning… | 构筑期限制，非幕间种判定 |
+| `repurchase`（exile 后再买） | **Déjà Vu (60531)** | **NEW_CARD** 变体（FAQ 1.18 语境） |
+| 裸 `next card you purchase`（无 new） | **Green Man Medallion (98002)** | **待裁定（OQ-11-07）**：属监听 vs 默认当 NEW_CARD 种 |
+
+**官方澄清（Arcane Research）**：减价只对「正在 upgrade、且**源卡**带 Spell」生效；**购一张新 Spell** 不享受；非 Spell→Spell 的升级也不享受。说明 **upgrade 种 ≠ purchase-new 种**，且升级种还看源卡性质。
+
+**Customizable 规则对举**（与卡面一致）：
+
+- 对**已在牌组**的 customizable 花 XP 勾 sheet → *upgrading*（for card effects）
+- **直接**购入带勾选的新副本 → *purchasing a new card, **not** upgrading*
+
+### 7.5 费用与牌组约束（摘要）
 
 | 种类 | XP | 牌组 |
 |---|---|---|
-| `NEW_PURCHASE` | `max(1, level)`；Exceptional → ×2 印刷费用；Myriad 可连带最多 2 张同 level 副本 0 XP | 非 Permanent：+1 须 −1；deckbuilding 准入 |
+| `NEW_CARD` | `max(1, level)`；Exceptional → ×2 印刷费用；Myriad 可连带最多 2 张同 level 副本 0 XP | 非 Permanent：+1 须 −1；deckbuilding 准入 |
 | `UPGRADE` | `new − old`（无 min-1）；须同 title 且 new > old；Researched 只能走升级且 log 任务已完成 | 移除低级、加入高级（通常净尺寸不变） |
-| Exile 后补牌至合法尺寸（FAQ 1.18） | 在补足尺寸前，L0 可 **0 XP** 购入 | 强制 maintain size |
-| Customizable 勾选 | 1 XP / checkbox；满格才算购得该 upgrade；sheet 合计 ≤10 | 已有副本：算 upgrading；新卡带勾选一次付清：算 NEW_PURCHASE |
+| Exile 后补牌至合法尺寸（FAQ 1.18） | 补足前 L0 可 **0 XP**；DtRH 加价**不**作用于此类补牌（FAQ） | 强制 maintain size |
+| `CUSTOM_CHECK` | 1 XP / checkbox；满格才算购得该 upgrade；sheet ≤10 | 已有副本：升级种；新卡带勾选一次付清：NEW_CARD |
 
 | 关键词 | 规则 |
 |---|---|
@@ -176,7 +198,7 @@ XpSpendKind:
 | Reward | 解锁后可用；golden corner |
 | Bearer | 忽略 deckbuilding；不计 deck size |
 | Myriad | 购一张可再 +≤2 同 level 0 XP；计总 XP 时第 2/3 副本不计 |
-| Researched | 不可 `NEW_PURCHASE` 高级；须从低级 upgrade + Campaign Log 任务 |
+| Researched | 不可 NEW_CARD 高级；须从低级 UPGRADE + Campaign Log 任务 |
 | Customizable | 见上；清空最后副本 → sheet 清空；回购当新卡 |
 
 ---
@@ -276,10 +298,12 @@ class InvestigatorCampaignSystem:
 |---|---|---|
 | I-01 | Starter deck campaign start | 无 random basic weakness |
 | I-02 | 4 trauma physical, health 7 | 第 4 场开始 3 damage — killed at 4th defeat? |
-| I-03 | `NEW_PURCHASE` level 0 | cost **1** XP（min-1） |
-| I-03b | `UPGRADE` L0→L1 | cost **1** XP（纯差额；非购新卡 min-1 谓词） |
-| I-03c | `UPGRADE` L2→L4 | cost **2** XP；不计购新卡 |
-| I-03d | 卡面「when you purchase」vs upgrade | 仅 `NEW_PURCHASE` 触发 purchase 谓词 |
+| I-03 | `NEW_CARD` level 0 | cost **1** XP（购新卡种 min-1） |
+| I-03b | `UPGRADE` L0→L1 | cost **1** XP（差额；FAQ 1.8 种外） |
+| I-03c | `UPGRADE` L2→L4 | cost **2** XP |
+| I-03d | DtRH：upgrade −1 与 purchase new +1 | 同窗分种；升级不加价、购新卡不减价 |
+| I-03e | Arcane Research：购新 Spell vs upgrade Spell | 仅后者吃减价 |
+| I-03f | `When you purchase [this]` | 仅该卡 NEW_CARD 事件 |
 | I-04 | Permanent Collector | +5 deck size |
 | I-05 | Draw weakness in opening | set aside, redraw |
 | I-06 | Resign 4 player | [per_investigator] still 4 |
@@ -300,6 +324,7 @@ class InvestigatorCampaignSystem:
 | OQ-11-04 | P1 | Deck validation 非法 deck — 阻止开始 scenario 还是 warning？ |
 | OQ-11-05 | P2 | Random basic weakness 池 — 按 product 还是 global 池？ |
 | OQ-11-06 | P1 | Physical+mental trauma 同时导致 killed **and** insane 的 edge case？ |
+| OQ-11-07 | P2 | Green Man Medallion 裸「next card you purchase」——属（含升级）还是默认 NEW_CARD 种？ |
 
 ---
 
@@ -309,4 +334,5 @@ class InvestigatorCampaignSystem:
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-06-18 | v0.2 | **§10** Weakness 全 cardtype 路由（asset/event/skill vs enemy/treachery）；WKN-01～04 |
-| 2026-11-03 | v0.3 | **§7** Experience：FAQ 1.8 / 2026 RB 裁决 min-1 仅 `NEW_PURCHASE`；升级 ≠ 购新卡谓词；`XpSpendKind`；废「upgrade 差 min 1」旧稿 |
+| 2026-11-03 | v0.3 | **§7** Experience：FAQ 1.8 / 2026 RB；购新卡种 min-1 |
+| 2026-11-03 | v0.4 | **§7** 属种（白马非马）：升级 ⊆ Purchase 属、∉ NEW_CARD 种；ArkhamDB 措辞普查（DtRH / Arcane Research / Pelt…）；OQ-11-07 Medallion |
