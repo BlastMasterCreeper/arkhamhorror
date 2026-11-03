@@ -56,9 +56,32 @@ static func limit_specs(definition_id: StringName) -> Array:
 		return []
 	var out: Array = []
 	for item in raw as Array:
-		if item is LimitSpec:
-			out.append(item)
+		var spec := LimitSpec.from_variant(item)
+		if spec != null:
+			out.append(spec)
 	return out
+
+
+## 某条已编译能力上的 LimitSpec[]（INITIATE/USE/EVENT）；JSON dict 现读水合。
+static func ability_limit_specs(definition_id: StringName, ability_id: StringName) -> Array:
+	if ability_id == &"":
+		return []
+	for entry in compiled_abilities(definition_id):
+		if entry is not Dictionary:
+			continue
+		var d := entry as Dictionary
+		if StringName(str(d.get("ability_id", ""))) != ability_id:
+			continue
+		var raw: Variant = d.get("limits", [])
+		if raw is not Array:
+			return []
+		var out: Array = []
+		for item in raw as Array:
+			var spec := LimitSpec.from_variant(item)
+			if spec != null:
+				out.append(spec)
+		return out
+	return []
 
 
 static func ability_segments(definition_id: StringName) -> Array:
@@ -169,7 +192,8 @@ static func register_triggered(
 	optional: bool = false,
 	window: StringName = &"",
 	action_types: Array = [],
-	provokes_aoo: Variant = null
+	provokes_aoo: Variant = null,
+	limits: Array = []
 ) -> void:
 	if not _triggered.has(definition_id):
 		_triggered[definition_id] = []
@@ -184,6 +208,7 @@ static func register_triggered(
 		"window": window,
 		"action_types": action_types.duplicate(),
 		"builder": builder,
+		"limits": limits.duplicate(),
 	}
 	if provokes_aoo != null:
 		unit["provokes_aoo"] = bool(provokes_aoo)

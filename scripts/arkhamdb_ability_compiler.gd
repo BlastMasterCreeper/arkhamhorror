@@ -522,7 +522,8 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			bool(entry.get("optional", false)),
 			StringName(str(entry.get("window", "any_player_window"))),
 			_action_types_from_entry(entry),
-			provokes
+			provokes,
+			_limits_from_entry(entry)
 		)
 		return true
 	if register_as == "forced" or register_as == "reaction":
@@ -541,10 +542,23 @@ static func _register_entry(definition_id: StringName, entry: Dictionary) -> boo
 			bool(entry.get("optional", false)),
 			&"",
 			_action_types_from_entry(entry),
-			null
+			null,
+			_limits_from_entry(entry)
 		)
 		return true
 	return false
+
+
+static func _limits_from_entry(entry: Dictionary) -> Array:
+	var raw: Variant = entry.get("limits", [])
+	if raw is not Array:
+		return []
+	var out: Array = []
+	for item in raw as Array:
+		var spec := LimitSpec.from_variant(item)
+		if spec != null:
+			out.append(spec)
+	return out
 
 
 static func _action_types_from_entry(entry: Dictionary) -> Array:

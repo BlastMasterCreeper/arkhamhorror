@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from arkhamdb_abilities import compile_card_abilities, summarize_compile
+from limit_compile import collect_card_limits
 
 ROOT = Path(__file__).resolve().parents[1]
 PACK_DIR = ROOT / "data" / "arkhamdb" / "pack"
@@ -239,11 +240,16 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
     }
     # 能力分段只用正面文本；背面是翻面效果，勿并入 Forced 捕获。
     front_text = card.get("text") or ""
-    segments, compiled = compile_card_abilities(front_text)
+    segments, compiled, card_limits = compile_card_abilities(front_text)
     if segments:
         out["ability_segments"] = segments
     if compiled:
         out["compiled_abilities"] = compiled
+    # 卡级 Limit（占位 / 投入 Max / 构筑）；与能力 limits[] 分立。
+    if not card_limits:
+        card_limits = collect_card_limits(front_text)
+    if card_limits:
+        out["limits"] = card_limits
     spawn = compile_spawn(text)
     if spawn:
         out["spawn_instruction"] = spawn

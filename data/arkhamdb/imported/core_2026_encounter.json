@@ -640,6 +640,21 @@
             "template": "nest_move_to",
             "location": "memory:picked_location"
           }
+        ],
+        "limits": [
+          {
+            "id": "group_per_round",
+            "kind": "INITIATE_QUOTA",
+            "amount": 1,
+            "period": "ROUND",
+            "audience": "GROUP",
+            "zone": "NONE",
+            "match": "BY_TITLE",
+            "trait_name": "",
+            "card_type": "",
+            "event_key": "",
+            "title_key": ""
+          }
         ]
       }
     ]
@@ -704,6 +719,21 @@
             "template": "heal",
             "kind": "horror",
             "amount": 1
+          }
+        ],
+        "limits": [
+          {
+            "id": "per_game",
+            "kind": "INITIATE_QUOTA",
+            "amount": 1,
+            "period": "GAME",
+            "audience": "PLAYER",
+            "zone": "NONE",
+            "match": "BY_TITLE",
+            "trait_name": "",
+            "card_type": "",
+            "event_key": "",
+            "title_key": ""
           }
         ]
       }
@@ -810,13 +840,28 @@
         "register_as": "reaction",
         "ability_id": "reaction:0",
         "ability_kind": "reaction",
-        "status": "partial",
+        "status": "full",
         "trigger": "After you discover 1 or more clues at this location",
         "template": "draw",
         "amount": 1,
         "match_kind": "discover_clue",
         "phase": "AFTER",
-        "timing": "after_discover_clue"
+        "timing": "after_discover_clue",
+        "limits": [
+          {
+            "id": "per_round",
+            "kind": "INITIATE_QUOTA",
+            "amount": 1,
+            "period": "ROUND",
+            "audience": "PLAYER",
+            "zone": "NONE",
+            "match": "BY_TITLE",
+            "trait_name": "",
+            "card_type": "",
+            "event_key": "",
+            "title_key": ""
+          }
+        ]
       }
     ]
   },
@@ -868,9 +913,24 @@
         "action_types": [
           "activate"
         ],
-        "status": "partial",
+        "status": "full",
         "template": "draw",
-        "amount": 3
+        "amount": 3,
+        "limits": [
+          {
+            "id": "per_game",
+            "kind": "INITIATE_QUOTA",
+            "amount": 1,
+            "period": "GAME",
+            "audience": "PLAYER",
+            "zone": "NONE",
+            "match": "BY_TITLE",
+            "trait_name": "",
+            "card_type": "",
+            "event_key": "",
+            "title_key": ""
+          }
+        ]
       }
     ]
   },
@@ -1156,6 +1216,21 @@
         ],
         "status": "full",
         "template": "discard_source"
+      }
+    ],
+    "limits": [
+      {
+        "id": "per_investigator",
+        "kind": "ZONE_OCCUPANCY",
+        "amount": 1,
+        "period": "NONE",
+        "audience": "PLAYER",
+        "zone": "PER_INVESTIGATOR",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
       }
     ]
   },
@@ -2761,6 +2836,21 @@
           }
         ]
       }
+    ],
+    "limits": [
+      {
+        "id": "per_location",
+        "kind": "ZONE_OCCUPANCY",
+        "amount": 1,
+        "period": "NONE",
+        "audience": "PLAYER",
+        "zone": "PER_LOCATION",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
+      }
     ]
   },
   "12158": {
@@ -3836,7 +3926,22 @@
     "location": {},
     "encounter_code": "queen_of_ash",
     "ability_hints": [],
-    "text": "Permanent. Reward. Limit 1 per deck. Purchase only at deck creation.\nYou get +5 deck size.\nYour investigator's Deckbuilding Options gains: \"one other [[Relic]] or [[Charm]] asset of any class ([guardian], [seeker], [rogue], [mystic], [survivor]) level 0-3.\""
+    "text": "Permanent. Reward. Limit 1 per deck. Purchase only at deck creation.\nYou get +5 deck size.\nYour investigator's Deckbuilding Options gains: \"one other [[Relic]] or [[Charm]] asset of any class ([guardian], [seeker], [rogue], [mystic], [survivor]) level 0-3.\"",
+    "limits": [
+      {
+        "id": "per_deck",
+        "kind": "DECKBUILDING",
+        "amount": 1,
+        "period": "NONE",
+        "audience": "PLAYER",
+        "zone": "PER_DECK",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
+      }
+    ]
   },
   "12182": {
     "definition_id": "12182",
@@ -4434,6 +4539,21 @@
         ],
         "status": "full",
         "template": "discard_source"
+      }
+    ],
+    "limits": [
+      {
+        "id": "per_investigator",
+        "kind": "ZONE_OCCUPANCY",
+        "amount": 1,
+        "period": "NONE",
+        "audience": "PLAYER",
+        "zone": "PER_INVESTIGATOR",
+        "match": "BY_TITLE",
+        "trait_name": "",
+        "card_type": "",
+        "event_key": "",
+        "title_key": ""
       }
     ]
   },

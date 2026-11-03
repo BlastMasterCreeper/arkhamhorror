@@ -51,6 +51,7 @@
 | `if_kind` / `evaluate` / `condition` / `then` / `else` | 控制流 | 控制流叶 |
 | `options` / `steps` / `st7` / `on_success` / `on_fail*` | 子树 / 检定计划 | 控制流、skill_test |
 | `field` / `value` | 仅 L0 `set_flag` 等离散原子 | 内联 L0（少用；优先进信封 handler） |
+| `limits` | `LimitSpec` JSON 数组（发起/使用/事件配额）；见 [06d](06d-limit-max.md) | **能力条目**（非步叶）；卡级占位/投入/构筑写定义根 `limits` |
 
 **禁止**（非白名单即非法，除非本表增行并同步编译器）：
 

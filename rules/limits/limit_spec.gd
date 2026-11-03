@@ -285,6 +285,142 @@ static func limit_per_deck(amount: int = 1, by_trait: StringName = &"") -> Limit
 	return s
 
 
+## 从 imported JSON / 编译器 dict 水合（字段为枚举名字符串或已是枚举 int）。
+static func from_dict(data: Dictionary) -> LimitSpec:
+	var s := LimitSpec.new()
+	if data.is_empty():
+		return s
+	s.id = StringName(str(data.get("id", "")))
+	s.kind = _parse_limit_kind(data.get("kind", "INITIATE_QUOTA"))
+	s.amount = int(data.get("amount", 1))
+	s.period = _parse_limit_period(data.get("period", "NONE"))
+	s.audience = _parse_limit_audience(data.get("audience", "PLAYER"))
+	s.zone = _parse_zone_constraint(data.get("zone", "NONE"))
+	s.match = _parse_occupancy_match(data.get("match", "BY_TITLE"))
+	s.trait_name = StringName(str(data.get("trait_name", "")))
+	s.card_type = StringName(str(data.get("card_type", "")))
+	s.event_key = StringName(str(data.get("event_key", "")))
+	s.anchor_key = StringName(str(data.get("anchor_key", "")))
+	s.title_key = StringName(str(data.get("title_key", "")))
+	return s
+
+
+static func from_variant(item: Variant) -> LimitSpec:
+	if item is LimitSpec:
+		return item as LimitSpec
+	if item is Dictionary:
+		return from_dict(item as Dictionary)
+	return null
+
+
+static func _parse_limit_kind(raw: Variant) -> AhcEnums.LimitKind:
+	if raw is int:
+		return raw as AhcEnums.LimitKind
+	match str(raw).to_upper():
+		"USE_QUOTA":
+			return AhcEnums.LimitKind.USE_QUOTA
+		"EVENT_QUOTA":
+			return AhcEnums.LimitKind.EVENT_QUOTA
+		"COMMIT_MAX":
+			return AhcEnums.LimitKind.COMMIT_MAX
+		"ZONE_OCCUPANCY":
+			return AhcEnums.LimitKind.ZONE_OCCUPANCY
+		"DECKBUILDING":
+			return AhcEnums.LimitKind.DECKBUILDING
+		_:
+			return AhcEnums.LimitKind.INITIATE_QUOTA
+
+
+static func _parse_limit_period(raw: Variant) -> AhcEnums.LimitPeriod:
+	if raw is int:
+		return raw as AhcEnums.LimitPeriod
+	match str(raw).to_upper():
+		"TURN":
+			return AhcEnums.LimitPeriod.TURN
+		"ROUND":
+			return AhcEnums.LimitPeriod.ROUND
+		"PHASE":
+			return AhcEnums.LimitPeriod.PHASE
+		"GAME":
+			return AhcEnums.LimitPeriod.GAME
+		"CAMPAIGN":
+			return AhcEnums.LimitPeriod.CAMPAIGN
+		"SKILL_TEST":
+			return AhcEnums.LimitPeriod.SKILL_TEST
+		"ATTACK":
+			return AhcEnums.LimitPeriod.ATTACK
+		"INVESTIGATION":
+			return AhcEnums.LimitPeriod.INVESTIGATION
+		"ACT":
+			return AhcEnums.LimitPeriod.ACT
+		"LOCATION":
+			return AhcEnums.LimitPeriod.LOCATION
+		"CUSTOM_ANCHOR":
+			return AhcEnums.LimitPeriod.CUSTOM_ANCHOR
+		_:
+			return AhcEnums.LimitPeriod.NONE
+
+
+static func _parse_limit_audience(raw: Variant) -> AhcEnums.LimitAudience:
+	if raw is int:
+		return raw as AhcEnums.LimitAudience
+	match str(raw).to_upper():
+		"GROUP":
+			return AhcEnums.LimitAudience.GROUP
+		"TITLE":
+			return AhcEnums.LimitAudience.TITLE
+		"PER_TARGET_INVESTIGATOR":
+			return AhcEnums.LimitAudience.PER_TARGET_INVESTIGATOR
+		"PER_ASSET_INSTANCE":
+			return AhcEnums.LimitAudience.PER_ASSET_INSTANCE
+		"PER_ANCHOR":
+			return AhcEnums.LimitAudience.PER_ANCHOR
+		_:
+			return AhcEnums.LimitAudience.PLAYER
+
+
+static func _parse_zone_constraint(raw: Variant) -> AhcEnums.ZoneConstraint:
+	if raw is int:
+		return raw as AhcEnums.ZoneConstraint
+	match str(raw).to_upper():
+		"PER_INVESTIGATOR":
+			return AhcEnums.ZoneConstraint.PER_INVESTIGATOR
+		"PER_LOCATION":
+			return AhcEnums.ZoneConstraint.PER_LOCATION
+		"IN_PLAY":
+			return AhcEnums.ZoneConstraint.IN_PLAY
+		"PER_DECK":
+			return AhcEnums.ZoneConstraint.PER_DECK
+		"PER_ASSET":
+			return AhcEnums.ZoneConstraint.PER_ASSET
+		"PER_ENEMY":
+			return AhcEnums.ZoneConstraint.PER_ENEMY
+		"PER_AGENDA_ACT":
+			return AhcEnums.ZoneConstraint.PER_AGENDA_ACT
+		"ATTACHED":
+			return AhcEnums.ZoneConstraint.ATTACHED
+		"BENEATH":
+			return AhcEnums.ZoneConstraint.BENEATH
+		"VICTORY_DISPLAY":
+			return AhcEnums.ZoneConstraint.VICTORY_DISPLAY
+		_:
+			return AhcEnums.ZoneConstraint.NONE
+
+
+static func _parse_occupancy_match(raw: Variant) -> AhcEnums.OccupancyMatch:
+	if raw is int:
+		return raw as AhcEnums.OccupancyMatch
+	match str(raw).to_upper():
+		"BY_TRAIT":
+			return AhcEnums.OccupancyMatch.BY_TRAIT
+		"BY_CARD_TYPE":
+			return AhcEnums.OccupancyMatch.BY_CARD_TYPE
+		"ANY":
+			return AhcEnums.OccupancyMatch.ANY
+		_:
+			return AhcEnums.OccupancyMatch.BY_TITLE
+
+
 ## 从卡面常见括号句 / 非括号 Limit 句编译（竖切）；未知句返回 null。
 static func try_parse_paren_clause(text: String) -> LimitSpec:
 	var t := text.strip_edges()
