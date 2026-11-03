@@ -131,10 +131,25 @@ Grimoire 把升级**写在**步骤 2「Purchase new cards」之下：
 
 故：**升级 ⊆ 购买（属 / 手续窗）**；同时：**升级 ∉ 「购新卡」种**。单说「购买」时，卡面/FAQ 常带隐含前提「非升级的购买」——要用措辞粒度判定，禁止一刀切布尔。
 
+#### 「new card」指什么（非牌组集合论）
+
+**不是**「牌组里目前没有的牌」——那几乎是废话：无论购新还是升级，进组的那张印刷品事先都不在牌组里；且购第二份同名同级也完全合法（牌组里已有同名）。
+
+**也不是**简单的「非同名高级卡」——同名更高级仍可**不选 upgrade**、按全价当购新卡买入，并移除**另一张**无关卡（Grimoire：先是 *purchasing a higher level version*，再 *may choose to* upgrade）。
+
+**是购入模式（mode）**：
+
+| 种 | 何时成立 | 费用 / 换出 |
+|---|---|---|
+| **NEW_CARD** | 默认购入路径：把目标印刷品**当作新纳入**加入牌组 | 付印刷 level（FAQ 1.8 → min 1）；为维持尺寸移除**另一张**（非「被升级掉」的那张低级） |
+| **UPGRADE** | 目标为同 title **更高** level，且玩家**选用** upgrade 选项 | 付 level 差（无购新卡 min-1）；**必须**移除那张低级同名 |
+
+故卡面/FAQ 的 *new card(s)* ≈「走 NEW_CARD 模式的那次购入」，与 *upgrade* 对举；**不是**对牌组内容的集合谓词。
+
 ```text
 Purchase（属 · Experience §2 手续窗 · 凡扣 XP 改牌组的交易）
-├── NEW_CARD     「purchase (a) new card(s)」种 — 新增副本进牌组
-├── UPGRADE      「upgrade」种 — 同 title 低→高：付差额、换出低级
+├── NEW_CARD     「purchase (a) new card(s)」种 — 默认购入模式（可含同名高级全价）
+├── UPGRADE      「upgrade」种 — 同 title 低→高且选用差额路径
 └── CUSTOM_CHECK 已有 customizable 的 sheet 勾选（card-effect 亦算 upgrading）
 ```
 
@@ -142,11 +157,13 @@ Purchase（属 · Experience §2 手续窗 · 凡扣 XP 改牌组的交易）
 |---|---|---|
 | 升级是购买（属） | **真** | 落在 Purchase 步骤；Grimoire：「when purchasing … upgrade」 |
 | 升级是购新卡（种） | **假** | FAQ 1.8 / DtRH / Arcane Research 等把 *new card(s)* 与 *upgrade* 对举 |
-| 卡面裸 `purchase` | **慎判** | 多指「购得该卡 / 购新卡」种；见 §7.4 措辞表 |
-| 卡面 `upgrade` | **种** | 只命中 UPGRADE（+ CUSTOM_CHECK，若规则写明） |
+| *new* = 牌组没有 | **假** | 集合论读法空洞；见上 |
+| *new* = 非同名高级 | **过窄** | 同名高级全价买入仍是 NEW_CARD |
+| 卡面裸 `purchase` | **慎判** | 多指购得该卡 / NEW_CARD 种；见 §7.4 |
+| 卡面 `upgrade` | **种** | 只命中 UPGRADE（+ 规则写明的 CUSTOM_CHECK） |
 
-**禁止**：`is_purchase == !is_upgrade` 这种互斥布尔。  
-**要求**：交易带 `XpSpendKind`；卡面监听按**印刷措辞**绑到属或种（下表）。
+**禁止**：`is_purchase == !is_upgrade` 互斥布尔；也禁止用「是否已在牌组」实现 *new*。  
+**要求**：交易带 `XpSpendKind`（模式标签）；卡面按印刷措辞绑属或种。
 
 ### 7.3 min-1：绑在「购新卡」种，不绑升级种
 
@@ -336,3 +353,4 @@ class InvestigatorCampaignSystem:
 | 2026-06-18 | v0.2 | **§10** Weakness 全 cardtype 路由（asset/event/skill vs enemy/treachery）；WKN-01～04 |
 | 2026-11-03 | v0.3 | **§7** Experience：FAQ 1.8 / 2026 RB；购新卡种 min-1 |
 | 2026-11-03 | v0.4 | **§7** 属种（白马非马）：升级 ⊆ Purchase 属、∉ NEW_CARD 种；ArkhamDB 措辞普查（DtRH / Arcane Research / Pelt…）；OQ-11-07 Medallion |
+| 2026-11-03 | v0.5 | **§7.2** 钉死 *new card* = 购入**模式**（非「牌组没有」、亦非「非同名高级」）；同名高级全价 = 仍 NEW_CARD |
