@@ -83,6 +83,7 @@ func _initialize() -> void:
 	_run_test("LIM-15 success event quota", _test_lim_success_event_quota)
 	_run_test("LIM-16 deckbuilding per deck", _test_lim_deckbuilding)
 	_run_test("LIM-17 imported JSON limits hydrate", _test_lim_imported_compile)
+	_run_test("LIM-18 EventRecord rebuild limit counts", _test_lim_event_rebuild)
 	_run_test("COMMIT-01 stage then confirm enters limbo", _test_commit_pool_confirm_limbo)
 	_run_test("COMMIT-02 king yellow forbid confirm 1 or 2", _test_commit_forbid_exact_counts)
 	_run_test("COMMIT-03 unstage and commit max in pool", _test_commit_unstage_and_max)
@@ -2006,6 +2007,50 @@ func _test_lim_deckbuilding() -> bool:
 		&"cov_b", {"card_type": &"asset", "title": "B", "traits": ["Covenant"]}
 	)
 	return not tracker.can_include_in_deck(trait_lim, [&"cov_a"], &"cov_b")
+
+
+func _test_lim_event_rebuild() -> bool:
+	## 增量计数可由 EventRecord LIMIT_CONSUME / LIMIT_IGNORE fold 重建；不单独持久化计数表。
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.round_number = 1
+	var lim := LimitSpec.once_per_round()
+	if not h.ctx.initiation.initiate(
+		_lim_resource_intent(&"inv_1", &"rebuild_ability", lim), h.ctx
+	).ok:
+		return false
+	if h.ctx.initiation.can_initiate(
+		_lim_resource_intent(&"inv_1", &"rebuild_ability", lim), h.ctx
+	):
+		return false
+	## 清 HOT → 暂时可发起；fold 后再次用尽。
+	h.ctx.limits.clear()
+	if not h.ctx.initiation.can_initiate(
+		_lim_resource_intent(&"inv_1", &"rebuild_ability", lim), h.ctx
+	):
+		return false
+	var applied := h.ctx.limits.rebuild_from_events(h.ctx.events)
+	if applied < 1:
+		return false
+	if h.ctx.initiation.can_initiate(
+		_lim_resource_intent(&"inv_1", &"rebuild_ability", lim), h.ctx
+	):
+		return false
+	## ignore 事件也可重建
+	var lim2 := LimitSpec.once_per_round(&"rebuild_ignore")
+	if not h.ctx.initiation.initiate(
+		_lim_resource_intent(&"inv_1", &"rebuild_ign_ab", lim2), h.ctx
+	).ok:
+		return false
+	var target := InterruptTarget.limit(
+		{"spec": lim2, "ability_id": &"rebuild_ign_ab", "controller_id": &"inv_1"}
+	)
+	if not h.ctx.effects.interrupt_ignore_dispatch(target).get("ok", false):
+		return false
+	h.ctx.limits.clear()
+	h.ctx.limits.rebuild_from_events(h.ctx.events)
+	return h.ctx.initiation.can_initiate(
+		_lim_resource_intent(&"inv_1", &"rebuild_ign_ab", lim2), h.ctx
+	)
 
 
 func _test_lim_imported_compile() -> bool:
