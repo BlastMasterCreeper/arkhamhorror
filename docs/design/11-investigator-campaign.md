@@ -165,6 +165,25 @@ Purchase（属 · Experience §2 手续窗 · 凡扣 XP 改牌组的交易）
 **禁止**：`is_purchase == !is_upgrade` 互斥布尔；也禁止用「是否已在牌组」实现 *new*。  
 **要求**：交易带 `XpSpendKind`（模式标签）；卡面按印刷措辞绑属或种。
 
+#### 购入报价：选定目标印刷品时列出可选升级项
+
+同名高级全价购入（留低级）是**合法**操作，不是要藏起来的边角。XP 必须在**提交前**确定，因此报价发生在「选定待购印刷品」这一刻，而不是事后改账：
+
+```text
+quote_purchase(target_def, deck, unspent_xp, modifiers…) → PurchaseOffer
+  always:
+    NEW_CARD 选项 — xp = NEW_CARD 公式（含 DtRH +1 等购新卡修饰）
+                   remove_candidates = 为维持尺寸可移除的牌（不含「必须换掉的低级」约束）
+  for each 牌组内同 title、level < target.level、可作 upgrade 源的副本（或按 level 聚合）:
+    UPGRADE 选项 — xp = (target.level − source.level)（再叠升级种修饰：Arcane Research / DtRH −1…）
+                   remove = 该源副本（锁定）
+  （Customizable / Researched 等另附合法选项）
+```
+
+- 玩家选中**一条**选项后，费用与换出已定，再扣 XP、改牌组、触发「when you purchase / upgrade」类效果。  
+- UI 不默认替玩家选 upgrade；只**列出**可选升级项（及全价 NEW_CARD）。  
+- 无合格低级源 → 仅 NEW_CARD（或 Researched 禁止 NEW_CARD 时仅升级路径 / 非法）。
+
 ### 7.3 min-1：绑在「购新卡」种，不绑升级种
 
 | 来源 | NEW_CARD 种 | UPGRADE 种 |
@@ -303,7 +322,9 @@ class InvestigatorCampaignSystem:
     func mulligan(inv: StringName, cards_to_replace: Array) -> void
     func check_hand_size(inv: StringName) -> void
     func eliminate(inv: StringName, reason: EliminationReason) -> void
-    func spend_xp_and_upgrade(record, purchases: Array) -> Result
+    ## 选定 target 印刷品 → 列出 NEW_CARD + 各合法 UPGRADE 报价（XP 已算清）
+    func quote_purchase(record, target_def_id: StringName) -> PurchaseOffer
+    func commit_purchase(record, choice: PurchaseChoice) -> Result
     func validate_deck(record) -> Result
 ```
 
@@ -321,6 +342,8 @@ class InvestigatorCampaignSystem:
 | I-03d | DtRH：upgrade −1 与 purchase new +1 | 同窗分种；升级不加价、购新卡不减价 |
 | I-03e | Arcane Research：购新 Spell vs upgrade Spell | 仅后者吃减价 |
 | I-03f | `When you purchase [this]` | 仅该卡 NEW_CARD 事件 |
+| I-03g | 牌组有 L0，报价 L3 同名 | Offer 含 NEW_CARD(全价) + UPGRADE(差额)；两者皆可选 |
+| I-03h | 牌组无低级同名，报价 L3 | Offer 仅 NEW_CARD |
 | I-04 | Permanent Collector | +5 deck size |
 | I-05 | Draw weakness in opening | set aside, redraw |
 | I-06 | Resign 4 player | [per_investigator] still 4 |
@@ -354,3 +377,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-03 | v0.3 | **§7** Experience：FAQ 1.8 / 2026 RB；购新卡种 min-1 |
 | 2026-11-03 | v0.4 | **§7** 属种（白马非马）：升级 ⊆ Purchase 属、∉ NEW_CARD 种；ArkhamDB 措辞普查（DtRH / Arcane Research / Pelt…）；OQ-11-07 Medallion |
 | 2026-11-03 | v0.5 | **§7.2** 钉死 *new card* = 购入**模式**（非「牌组没有」、亦非「非同名高级」）；同名高级全价 = 仍 NEW_CARD |
+| 2026-11-03 | v0.6 | **§7.2** 购入报价：选定目标时列出 NEW_CARD + 可选 UPGRADE 项并当场定价；API `quote_purchase` / `commit_purchase` |
