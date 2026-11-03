@@ -75,6 +75,13 @@ func _initialize() -> void:
 	_run_test("LIM-07 event quota resources per round", _test_lim_resources_per_round)
 	_run_test("LIM-08 commit max by LimitSpec", _test_lim_commit_max)
 	_run_test("LIM-09 reenter play resets initiate quota", _test_lim_reenter_resets)
+	_run_test("LIM-10 parse occupancy and audience subtypes", _test_lim_parse_subtypes)
+	_run_test("LIM-11 in-play trait occupancy", _test_lim_occupancy_in_play)
+	_run_test("LIM-12 attached and beneath occupancy", _test_lim_occupancy_attached_beneath)
+	_run_test("LIM-13 per-target investigator initiate", _test_lim_per_target_investigator)
+	_run_test("LIM-14 title max per round", _test_lim_title_max_per_round)
+	_run_test("LIM-15 success event quota", _test_lim_success_event_quota)
+	_run_test("LIM-16 deckbuilding per deck", _test_lim_deckbuilding)
 	_run_test("COMMIT-01 stage then confirm enters limbo", _test_commit_pool_confirm_limbo)
 	_run_test("COMMIT-02 king yellow forbid confirm 1 or 2", _test_commit_forbid_exact_counts)
 	_run_test("COMMIT-03 unstage and commit max in pool", _test_commit_unstage_and_max)
@@ -1787,6 +1794,217 @@ func _test_lim_reenter_resets() -> bool:
 	var again := _lim_resource_intent(&"inv_1", &"reenter_ability", lim)
 	again.source_id = card_id
 	return h.ctx.initiation.can_initiate(again, h.ctx)
+
+
+func _test_lim_parse_subtypes() -> bool:
+	var a := LimitSpec.try_parse_paren_clause("Limit 1 [[Composure]] in play")
+	var b := LimitSpec.try_parse_paren_clause("Limit 1 per deck")
+	var c := LimitSpec.try_parse_paren_clause("Limit 1 [[Mask]] per investigator")
+	var d := LimitSpec.try_parse_paren_clause("(Limit 1 attached asset.)")
+	var e := LimitSpec.try_parse_paren_clause("(max 3 cards beneath her)")
+	var f := LimitSpec.try_parse_paren_clause(
+		"(Limit once for each investigator per round.)"
+	)
+	var g := LimitSpec.try_parse_paren_clause("(Limit once per game for each vehicle.)")
+	var h := LimitSpec.try_parse_paren_clause("Max 2 [[Dilemma]] per round")
+	var i := LimitSpec.try_parse_paren_clause("(Limit 1 success per game.)")
+	var j := LimitSpec.try_parse_paren_clause("Limit 1 per location")
+	var k := LimitSpec.try_parse_paren_clause("Limit 1 per asset")
+	if a == null or a.zone != AhcEnums.ZoneConstraint.IN_PLAY:
+		return false
+	if a.match != AhcEnums.OccupancyMatch.BY_TRAIT or a.trait_name != &"Composure":
+		return false
+	if b == null or b.kind != AhcEnums.LimitKind.DECKBUILDING:
+		return false
+	if c == null or c.zone != AhcEnums.ZoneConstraint.PER_INVESTIGATOR:
+		return false
+	if c.trait_name != &"Mask":
+		return false
+	if d == null or d.zone != AhcEnums.ZoneConstraint.ATTACHED:
+		return false
+	if d.match != AhcEnums.OccupancyMatch.BY_CARD_TYPE or d.card_type != &"asset":
+		return false
+	if e == null or e.zone != AhcEnums.ZoneConstraint.BENEATH or e.amount != 3:
+		return false
+	if f == null or f.audience != AhcEnums.LimitAudience.PER_TARGET_INVESTIGATOR:
+		return false
+	if g == null or g.audience != AhcEnums.LimitAudience.PER_ASSET_INSTANCE:
+		return false
+	if h == null or h.audience != AhcEnums.LimitAudience.TITLE or h.amount != 2:
+		return false
+	if i == null or i.kind != AhcEnums.LimitKind.EVENT_QUOTA or i.event_key != &"success":
+		return false
+	if j == null or j.zone != AhcEnums.ZoneConstraint.PER_LOCATION:
+		return false
+	if k == null or k.zone != AhcEnums.ZoneConstraint.PER_ASSET:
+		return false
+	return true
+
+
+func _test_lim_occupancy_in_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"composure_a",
+		{
+			"card_type": &"asset",
+			"title": "Combat Training",
+			"traits": ["Composure"],
+			"resource_cost": 0,
+			"limits": [LimitSpec.limit_in_play(1, &"Composure")],
+		}
+	)
+	CardRegistry.register_definition(
+		&"composure_b",
+		{
+			"card_type": &"asset",
+			"title": "Physical Training",
+			"traits": ["Composure"],
+			"resource_cost": 0,
+			"limits": [LimitSpec.limit_in_play(1, &"Composure")],
+		}
+	)
+	var existing_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var existing := CardInstance.new()
+	existing.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, existing_id, &"composure_a")
+	existing.owner_id = &"inv_1"
+	existing.controller_id = &"inv_1"
+	existing.zone = AhcEnums.Zone.PLAY_AREA
+	h.ctx.state.registry.register_card(existing)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.play_area.append(existing_id)
+	var hand_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var hand_card := CardInstance.new()
+	hand_card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, hand_id, &"composure_b")
+	hand_card.owner_id = &"inv_1"
+	hand_card.controller_id = &"inv_1"
+	hand_card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(hand_card)
+	inv.hand.append(hand_id)
+	inv.resource_pool = 5
+	var intent := InitiationIntent.play_card(&"inv_1", hand_id, 0, 0, null)
+	intent.definition_id = &"composure_b"
+	if h.ctx.initiation.can_initiate(intent, h.ctx):
+		return false
+	var res := h.ctx.initiation.initiate(intent, h.ctx)
+	return not res.get("ok", true) and res.get("error", "") == "occupancy_limit"
+
+
+func _test_lim_occupancy_attached_beneath() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"attached_gun", {"card_type": &"asset", "title": "Gun"})
+	CardRegistry.register_definition(&"another_gun", {"card_type": &"asset", "title": "Rifle"})
+	var host_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"holster_host")
+	var host := h.ctx.state.registry.get_card(host_id)
+	var attached_spec := LimitSpec.limit_attached(1, &"asset")
+	## 已有一张附着 asset
+	var att_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var att := CardInstance.new()
+	att.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, att_id, &"attached_gun")
+	att.zone = AhcEnums.Zone.ATTACHED
+	att.attached_to = host.id
+	att.owner_id = &"inv_1"
+	att.controller_id = &"inv_1"
+	h.ctx.state.registry.register_card(att)
+	host.attachments.append(att.id)
+	if h.ctx.limits.can_enter_zone(
+		attached_spec, h.ctx, &"inv_1", &"another_gun", &"", host_id
+	):
+		return false
+	## beneath：已有 3 张则拒绝第 4
+	var beneath_spec := LimitSpec.limit_beneath(3)
+	for i in range(3):
+		var bid := h.ctx.state.registry.allocate_instance_id(&"card")
+		var bcard := CardInstance.new()
+		bcard.id = EntityId.create(
+			AhcEnums.EntityKind.PLAYER_CARD, bid, StringName("beneath_%d" % i)
+		)
+		bcard.zone = AhcEnums.Zone.BENEATH
+		bcard.attached_to = host.id
+		h.ctx.state.registry.register_card(bcard)
+	return not h.ctx.limits.can_enter_zone(
+		beneath_spec, h.ctx, &"inv_1", &"beneath_x", &"", host_id
+	)
+
+
+func _test_lim_per_target_investigator() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.round_number = 1
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
+	var lim := LimitSpec.once_per_target_investigator()
+	var a := _lim_resource_intent(&"inv_1", &"minh_help", lim)
+	a.limit_audience_id = &"inv_2"
+	if not h.ctx.initiation.initiate(a, h.ctx).ok:
+		return false
+	var blocked := _lim_resource_intent(&"inv_1", &"minh_help", lim)
+	blocked.limit_audience_id = &"inv_2"
+	if h.ctx.initiation.can_initiate(blocked, h.ctx):
+		return false
+	var other := _lim_resource_intent(&"inv_1", &"minh_help", lim)
+	other.limit_audience_id = &"inv_1"
+	return h.ctx.initiation.can_initiate(other, h.ctx)
+
+
+func _test_lim_title_max_per_round() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.ctx.state.round_number = 1
+	var lim := LimitSpec.max_title_per_period(1, AhcEnums.LimitPeriod.ROUND, &"Dilemma")
+	var a := _lim_resource_intent(&"inv_1", &"dilemma_a", lim)
+	a.title_key = &"Dilemma"
+	if not h.ctx.initiation.initiate(a, h.ctx).ok:
+		return false
+	var b := _lim_resource_intent(&"inv_1", &"dilemma_b", lim)
+	b.title_key = &"Dilemma"
+	return not h.ctx.initiation.can_initiate(b, h.ctx)
+
+
+func _test_lim_success_event_quota() -> bool:
+	var h := RuleTestHarness.new(42)
+	var lim := LimitSpec.success_per_game(1)
+	## 用尽前可发起
+	var intent := _lim_resource_intent(&"inv_1", &"success_once", lim)
+	if not h.ctx.initiation.can_initiate(intent, h.ctx):
+		return false
+	## ST.6 成功记账
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.WILLPOWER, 0)
+	test.auto_success = true
+	test.success_event_limits = [lim]
+	test.success_limit_unit_id = &"success_once"
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.skill_tests.step_determine_success(test)
+	if not test.success:
+		return false
+	## 成功配额用尽 → 不可再发起
+	var again := _lim_resource_intent(&"inv_1", &"success_once", lim)
+	return not h.ctx.initiation.can_initiate(again, h.ctx)
+
+
+func _test_lim_deckbuilding() -> bool:
+	var lim := LimitSpec.limit_per_deck(1)
+	CardRegistry.register_definition(
+		&"blood_blight", {"card_type": &"treachery", "title": "The Blood Blight"}
+	)
+	CardRegistry.register_definition(
+		&"blood_blight_2", {"card_type": &"treachery", "title": "The Blood Blight"}
+	)
+	var deck: Array = [&"blood_blight"]
+	var tracker := LimitTracker.new()
+	if not tracker.can_include_in_deck(lim, deck, &"blood_blight_2"):
+		## 同名已在组内 → 拒绝第二份
+		pass
+	else:
+		return false
+	## 空组可加入
+	if not tracker.can_include_in_deck(lim, [], &"blood_blight"):
+		return false
+	var trait_lim := LimitSpec.limit_per_deck(1, &"Covenant")
+	CardRegistry.register_definition(
+		&"cov_a", {"card_type": &"asset", "title": "A", "traits": ["Covenant"]}
+	)
+	CardRegistry.register_definition(
+		&"cov_b", {"card_type": &"asset", "title": "B", "traits": ["Covenant"]}
+	)
+	return not tracker.can_include_in_deck(trait_lim, [&"cov_a"], &"cov_b")
 
 
 func _test_commit_pool_confirm_limbo() -> bool:

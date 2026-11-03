@@ -5,7 +5,7 @@
 
 > 仅 Core 2026（26 张）不够定规格；以全量为准。
 
-## 0. 落地状态（2026-11-02）
+## 0. 落地状态（2026-11-03）
 
 | 项 | 状态 |
 |---|---|
@@ -19,8 +19,14 @@
 | EVENT_QUOTA：`seq.effect.gain_resource` · `event_limits` 截断（Jenny） | ✅ |
 | COMMIT_MAX：`SkillTestEngine.commit_card` 读 `LimitSpec` | ✅ |
 | 离场/再进场：`limit_play_gen` + `reset_for_instance` | ✅ |
+| 受众子型：`TITLE` / `PER_TARGET_INVESTIGATOR` / `PER_ASSET_INSTANCE` + `limit_audience_id` | ✅ |
+| 占位子型：`IN_PLAY` / `ATTACHED` / `BENEATH` / `PER_ASSET`·`ENEMY`·`AGENDA_ACT` + host/location | ✅ |
+| `DECKBUILDING`：`can_include_in_deck` 牌组列表现读（无 CampaignState） | ✅ |
+| EVENT `success`：L5 门槛 + ST.6 记账 | ✅ |
+| 解析扩：occupancy / beneath / per-target / Max TITLE / success | ✅ |
 | ArkhamDB 编译器自动挂 `LimitSpec` | ⬜ 下一批 |
 | StatProjection / EventRecord 重建计数 | ⬜（竖切为增量计数） |
+| 幕间 / XP 购卡 / CampaignLog 分支 | ⬜（仅设计稿；场内 `scenario_resolution` 已有） |
 
 ## 1. 五族规模
 
@@ -138,6 +144,7 @@ class LimitSpec:
 
 | 日期 | 说明 |
 |---|---|
+| 2026-11-03 | 剩余子型：TITLE / per-target / 占位 IN_PLAY·ATTACHED·BENEATH·per-host / DECKBUILDING / success EVENT；`Zone.BENEATH`；测试 LIM-10…16 |
 | 2026-11-02 | USE_QUOTA / EVENT_QUOTA / COMMIT_MAX 运行时 + 再进场世代；测试 LIM-06…09 |
 | 2026-10-29 | 竖切落地：LimitTracker + Initiation L5 + occupancy + Ignore LIMIT；测试 LIM-01…05 |
 | 2026-10-29 | 全量 pack 搜集；扩 A/C 与 LimitSpec |

@@ -32,3 +32,9 @@ var current_step: AhcEnums.SkillTestStep = AhcEnums.SkillTestStep.ST_1_BEGIN
 var ally_committed: bool = false
 var success_applied: bool = false
 var fail_applied: bool = false
+## EVENT_QUOTA · success（Limit 1 success per game 等）；ST.6 成功时记账。
+var success_event_limits: Array = []
+var success_limit_unit_id: StringName = &""
+var success_limit_title_key: StringName = &""
+var success_limit_instance_id: StringName = &""
+var success_limit_audience_id: StringName = &""

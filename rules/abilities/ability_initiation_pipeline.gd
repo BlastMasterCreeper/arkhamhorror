@@ -256,10 +256,14 @@ func _passes_limits(intent: InitiationIntent, ctx: GameContext) -> bool:
 	if intent.limits.is_empty():
 		return true
 	var instance_id := _limit_instance_id(intent, ctx)
+	var audience_id := intent.limit_audience_id
+	var title_key := intent.title_key
 	for s in intent.limits:
 		if s is not LimitSpec:
 			continue
 		var spec := s as LimitSpec
+		if title_key == &"" and spec.title_key != &"":
+			title_key = spec.title_key
 		match spec.kind:
 			AhcEnums.LimitKind.INITIATE_QUOTA:
 				if not ctx.limits.can_initiate(
@@ -267,8 +271,9 @@ func _passes_limits(intent: InitiationIntent, ctx: GameContext) -> bool:
 					intent.ability_id,
 					intent.controller_id,
 					ctx,
-					intent.title_key,
-					instance_id
+					title_key,
+					instance_id,
+					audience_id
 				):
 					return false
 			AhcEnums.LimitKind.USE_QUOTA:
@@ -277,12 +282,26 @@ func _passes_limits(intent: InitiationIntent, ctx: GameContext) -> bool:
 					intent.ability_id,
 					intent.controller_id,
 					ctx,
-					intent.title_key,
-					instance_id
+					title_key,
+					instance_id,
+					audience_id
+				):
+					return false
+			AhcEnums.LimitKind.EVENT_QUOTA:
+				## success 配额：用尽后不可再发起（失败可重试直至成功记账）。
+				if spec.event_key == &"success" and not ctx.limits.can_event(
+					spec,
+					intent.ability_id,
+					intent.controller_id,
+					ctx,
+					1,
+					title_key,
+					instance_id,
+					audience_id
 				):
 					return false
 			_:
-				## EVENT_QUOTA / COMMIT_MAX / ZONE_OCCUPANCY 不在 L5 发起门槛计次。
+				## COMMIT_MAX / ZONE_OCCUPANCY / resource EVENT 不在 L5 发起门槛计次。
 				pass
 	return true
 
@@ -293,10 +312,14 @@ func _record_limits_commence(intent: InitiationIntent, ctx: GameContext) -> void
 	if intent.limits.is_empty():
 		return
 	var instance_id := _limit_instance_id(intent, ctx)
+	var audience_id := intent.limit_audience_id
+	var title_key := intent.title_key
 	for s in intent.limits:
 		if s is not LimitSpec:
 			continue
 		var spec := s as LimitSpec
+		if title_key == &"" and spec.title_key != &"":
+			title_key = spec.title_key
 		match spec.kind:
 			AhcEnums.LimitKind.INITIATE_QUOTA:
 				ctx.limits.record_commence(
@@ -304,8 +327,9 @@ func _record_limits_commence(intent: InitiationIntent, ctx: GameContext) -> void
 					intent.ability_id,
 					intent.controller_id,
 					ctx,
-					intent.title_key,
-					instance_id
+					title_key,
+					instance_id,
+					audience_id
 				)
 			AhcEnums.LimitKind.USE_QUOTA:
 				ctx.limits.record_use(
@@ -313,8 +337,9 @@ func _record_limits_commence(intent: InitiationIntent, ctx: GameContext) -> void
 					intent.ability_id,
 					intent.controller_id,
 					ctx,
-					intent.title_key,
-					instance_id
+					title_key,
+					instance_id,
+					audience_id
 				)
 			_:
 				pass
@@ -348,8 +373,14 @@ func _passes_occupancy(
 			specs.append(s)
 	if specs.is_empty():
 		return true
+	var location_id := intent.occupancy_location_id if intent != null else &""
+	var host_id := intent.occupancy_host_id if intent != null else &""
+	if location_id == &"" and intent != null and ctx.state != null:
+		var inv := ctx.state.registry.get_investigator(intent.controller_id)
+		if inv != null and inv.location_id != null:
+			location_id = inv.location_id.instance_id
 	return ctx.limits.can_enter_zone_all(
-		specs, ctx, intent.controller_id, def_id, &""
+		specs, ctx, intent.controller_id, def_id, location_id, host_id
 	)
 
 

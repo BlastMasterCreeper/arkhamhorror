@@ -26,6 +26,8 @@ enum Zone {
 	THREAT_AREA,
 	LOCATION_AREA,
 	ATTACHED,
+	## 置于某卡之下（非在场附着）；宿主仍用 attached_to。
+	BENEATH,
 	CURRENT_ACT,
 	CURRENT_AGENDA,
 	SCENARIO_REFERENCE,
@@ -393,7 +395,14 @@ enum LimitAudience {
 	PER_ANCHOR,
 }
 
-enum OccupancyMatch { BY_TITLE, BY_TRAIT }
+enum OccupancyMatch {
+	BY_TITLE,
+	BY_TRAIT,
+	## 按正面 cardtype（如 attached asset）。
+	BY_CARD_TYPE,
+	## 宿主下任意牌（beneath max N）。
+	ANY,
+}
 
 enum ZoneConstraint {
 	NONE,
