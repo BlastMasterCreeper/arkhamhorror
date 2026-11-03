@@ -245,8 +245,38 @@ func step_determine_success(ctx: SkillTestContext) -> bool:
 		ctx.fail_by = maxi(ctx.difficulty - ctx.modified_value, 0)
 	else:
 		ctx.fail_by = ctx.difficulty if ctx.auto_fail else maxi(ctx.difficulty - ctx.modified_value, 0)
+	if ctx.success:
+		_record_success_event_limits(ctx)
 	_advance_step(AhcEnums.SkillTestStep.ST_6_RESOLVE_RESULT, ctx)
 	return ctx.success
+
+
+func _record_success_event_limits(ctx: SkillTestContext) -> void:
+	if ctx == null or ctx.success_event_limits.is_empty():
+		return
+	if _game_ctx == null or _game_ctx.limits == null:
+		return
+	var unit := ctx.success_limit_unit_id
+	if unit == &"":
+		unit = ctx.id
+	for s in ctx.success_event_limits:
+		if s is not LimitSpec:
+			continue
+		var spec := s as LimitSpec
+		if spec.kind != AhcEnums.LimitKind.EVENT_QUOTA:
+			continue
+		if spec.event_key != &"" and spec.event_key != &"success":
+			continue
+		_game_ctx.limits.record_event(
+			spec,
+			unit,
+			ctx.performing_investigator,
+			_game_ctx,
+			1,
+			ctx.success_limit_title_key,
+			ctx.success_limit_instance_id,
+			ctx.success_limit_audience_id
+		)
 
 
 func step_apply_results(ctx: SkillTestContext) -> Dictionary:

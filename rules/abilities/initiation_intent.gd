@@ -24,9 +24,15 @@ var action_types: Array = []
 var limits: Array = []
 ## 同名 Max 合计用；空则用 ability_id。
 var title_key: StringName = &""
+## PER_TARGET_INVESTIGATOR / PER_ASSET_INSTANCE / PER_ANCHOR 的受众键。
+var limit_audience_id: StringName = &""
 ## 进场占位检查用（PLAY_CARD / put into play）。
 var definition_id: StringName = &""
 var occupancy_limits: Array = []
+## 附着/beneath 宿主；空则占位不按宿主筛。
+var occupancy_host_id: StringName = &""
+## 地点占位；空则尝试读发起者当前位置。
+var occupancy_location_id: StringName = &""
 
 
 static func create(controller_id: StringName, composition: CompositionNode) -> InitiationIntent:
