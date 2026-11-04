@@ -173,17 +173,51 @@ Purchase（属 · Experience §2 手续窗 · 凡扣 XP 改牌组的交易）
 ```text
 quote_purchase(target_def, deck, unspent_xp, modifiers…) → PurchaseOffer
   always:
-    NEW_CARD 选项 — xp = NEW_CARD 公式（含 DtRH +1 等购新卡修饰）
+    NEW_CARD 选项 — xp = NEW_CARD 公式（含 Exceptional×2、DtRH +1 等）
                    remove_candidates = 为维持尺寸可移除的牌（不含「必须换掉的低级」约束）
   for each 牌组内同 title、level < target.level、可作 upgrade 源的副本（或按 level 聚合）:
-    UPGRADE 选项 — xp = (target.level − source.level)（再叠升级种修饰：Arcane Research / DtRH −1…）
+    UPGRADE 选项 — xp = (target.level − source.level)（再叠升级种修饰）
                    remove = 该源副本（锁定）
-  （Customizable / Researched 等另附合法选项）
+  if target 为 Customizable:
+    另出 CUSTOM_CHECK / 带勾选的 NEW_CARD 路径（§7.2.1）
 ```
 
 - 玩家选中**一条**选项后，费用与换出已定，再扣 XP、改牌组、触发「when you purchase / upgrade」类效果。  
 - UI 不默认替玩家选 upgrade；只**列出**可选升级项（及全价 NEW_CARD）。  
 - 无合格低级源 → 仅 NEW_CARD（或 Researched 禁止 NEW_CARD 时仅升级路径 / 非法）。
+
+#### 7.2.1 构筑关键词对报价的影响（待接到 quote）
+
+**Exceptional（卓越）** — Grimoire / RR：deckbuilding 关键词。
+
+| 点 | 规则 | 报价落点 |
+|---|---|---|
+| XP | **2× 印刷经验费用（level）** 购买 | `NEW_CARD`：`2 * printed_level`；再与 FAQ 1.8 的关系见下 |
+| 副本 | 同 title **最多 1 份** | `validate_deck` / Offer 合法性；≠ 普通 ≤2 |
+| 升级 | 文面写 *to purchase*；同名更高 level 的 Exceptional 走 UPGRADE 时，差额是否再 ×2 → **OQ-11-10**（常见读法：印刷费用×2 只绑「购买该印刷品的费用」，upgrade 付差时对**目标印刷费用**作差：`2*new − 2*old` 或 `2*(new−old)` 等价） | 报价层必须显式分支，禁止默默只用 `new−old` |
+
+与 min-1：L0 Exceptional 极少；若出现，先算印刷费用再 ×2，购新卡种仍受「至少 1」约束时以 FAQ 1.8 为准（通常 `max(1, 2*level)` 对 L0 仍为问题 — 记 OQ 若实卡出现）。
+
+**Customizable（定制）** — 独立子系统，**不是**普通 level 印刷品换级。
+
+| 点 | 规则 | 引擎落点 |
+|---|---|---|
+| Sheet | 每卡一张 upgrade sheet；1 XP = 勾 1 格；一项 upgrade 须勾满其全部格才算购得 | `CustomizationSheet` 状态挂在 **调查员拥有** 的该 title 上（非单张实例） |
+| Level | `ceil(已勾格数 / 2)`；最多 10 格 → level ≤5 | 动态 level；**购卡准入按勾选后 level** 验 Profile（FAQ：勾超选项会非法） |
+| 已在牌组上勾选 | 算 **upgrading**（DtRH / Arcane Research 等升级种修饰生效） | Offer 种 = `CUSTOM_CHECK`（∈ upgrade 种谓词） |
+| 新买带勾选 | 只付勾选所需 XP；算 **purchasing a new card, not upgrading** | Offer 种 = `NEW_CARD`（可附初始勾选载荷）；**无**升级种减价 |
+| 清空 | 最后一份离开牌组 → sheet 清空；回购当新卡空白 sheet | exile / 移除钩 |
+| 回购 | 付 sheet 所示费用，**或**继续往 sheet 花钱免费加回一份（FAQ） | 报价第二路径 |
+| 「When you purchase [this]」 | 选 trait / 记名等到 sheet（Raven Quill、Living Ink…） | 绑 NEW_CARD 事件，写 sheet 元数据 |
+
+ArkhamDB：`customization_options[]`（每项含 `xp` 格数等）、卡面 `Customizable.`；导入须 hydrate sheet schema，运行时 `CampaignInvestigatorRecord.customization_sheets: Dictionary`。
+
+```text
+XpSpendKind（完整）:
+  NEW_CARD        — 含：普通购新；Exceptional×2；Customizable「新买±初始勾选」
+  UPGRADE         — 同 title 印刷品换级（非 customizable sheet）
+  CUSTOM_CHECK    — 已有 customizable 的 sheet 勾选（upgrading 谓词）
+```
 
 ### 7.3 min-1：绑在「购新卡」种，不绑升级种
 
@@ -223,20 +257,20 @@ quote_purchase(target_def, deck, unspent_xp, modifiers…) → PurchaseOffer
 
 | 种类 | XP | 牌组 |
 |---|---|---|
-| `NEW_CARD` | `max(1, level)`；Exceptional → ×2 印刷费用；Myriad 可连带最多 2 张同 level 副本 0 XP | 非 Permanent：+1 须 −1；deckbuilding 准入 |
-| `UPGRADE` | `new − old`（无 min-1）；须同 title 且 new > old；Researched 只能走升级且 log 任务已完成 | 移除低级、加入高级（通常净尺寸不变） |
+| `NEW_CARD` | `max(1, printed)`；**Exceptional → ×2 printed**；Customizable 新买 = 勾选格合计 XP；Myriad 可连带 ≤2 同 level 0 XP | 非 Permanent：+1 须 −1；Exceptional 同 title ≤1 |
+| `UPGRADE` | 印刷品换级：`new − old`（无购新卡 min-1；Exceptional 见 OQ-11-10） | 移除低级、加入高级 |
 | Exile 后补牌至合法尺寸（FAQ 1.18） | 补足前 L0 可 **0 XP**；DtRH 加价**不**作用于此类补牌（FAQ） | 强制 maintain size |
-| `CUSTOM_CHECK` | 1 XP / checkbox；满格才算购得该 upgrade；sheet ≤10 | 已有副本：升级种；新卡带勾选一次付清：NEW_CARD |
+| `CUSTOM_CHECK` | 1 XP / checkbox；满格才「购得」该项；sheet ≤10；level=`ceil(勾数/2)` | 已有副本：升级种；须再验 Profile 是否允许新 level |
 
 | 关键词 | 规则 |
 |---|---|
 | Permanent | deck creation only；不计 deck size |
-| Exceptional | 2× 印刷 XP cost；max 1 copy by title |
+| Exceptional | **2× printed XP**；max **1** copy by title；见 §7.2.1 |
+| Customizable | sheet 子系统；见 §7.2.1；≠ 普通 UPGRADE |
 | Reward | 解锁后可用；golden corner |
 | Bearer | 忽略 deckbuilding；不计 deck size |
 | Myriad | 购一张可再 +≤2 同 level 0 XP；计总 XP 时第 2/3 副本不计 |
 | Researched | 不可 NEW_CARD 高级；须从低级 UPGRADE + Campaign Log 任务 |
-| Customizable | 见上；清空最后副本 → sheet 清空；回购当新卡 |
 
 ### 7.6 Deckbuilding Options 分类（购卡候选范围）
 
@@ -337,6 +371,8 @@ DeckLegality
 | **P4 扩展谓词** | trait / type / tag / uses / permanent / not | 谱系 C/I |
 | **P5 多职阶 + atleast** | FAQ 1.16；Lola / 5U-21 | 谱系 H |
 | **P6 购卡接线** | `list_accessible` + `quote_purchase` dry-run | 与 §7.2 报价合并；动态 options 修饰 |
+| **P6b Exceptional** | 费用 ×2 + 副本上限 1；UPGRADE 倍差 OQ-11-10 | 导入 `exceptional` 关键词；Offer / validate |
+| **P6c Customizable** | `CustomizationSheet` + CUSTOM_CHECK / 带勾 NEW_CARD | hydrate `customization_options`；level 动态；exile 清空 |
 
 **CampaignInvestigatorRecord 增补**（示意）：
 
@@ -491,6 +527,7 @@ class InvestigatorCampaignSystem:
 | OQ-11-07 | P2 | Green Man Medallion 裸「next card you purchase」——属（含升级）还是默认 NEW_CARD 种？ |
 | OQ-11-08 | P2 | Charlie / Lola∥ 两个 `faction_select` 是否必须选不同职阶？（印刷未写死时以 FAQ/惯例为准） |
 | OQ-11-09 | P2 | 动态 modifiers（Market 等）改 size/options 后，已超限的在组卡是强制立刻剔除还是仅阻止新购？ |
+| OQ-11-10 | P1 | Exceptional 同名换级：差额是否按 `2*(new−old)`（对印刷费用加倍后再差）？ |
 
 ---
 
@@ -506,3 +543,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-03 | v0.6 | **§7.2** 购入报价：选定目标时列出 NEW_CARD + 可选 UPGRADE 项并当场定价；API `quote_purchase` / `commit_purchase` |
 | 2026-11-04 | v0.7 | **§7.6–7.7** Deckbuilding Options 分类（ArkhamDB 普查）+ 分阶段实现计划；FAQ 1.15/1.16；DB-01–07 |
 | 2026-11-04 | v0.8 | **§7.7** 落地 `rules/deckbuilding/*` + 导入字段 + DB-01..07 headless |
+| 2026-11-04 | v0.9 | **§7.2.1** Exceptional / Customizable 纳入报价待接；P6b/P6c；OQ-11-10 |
