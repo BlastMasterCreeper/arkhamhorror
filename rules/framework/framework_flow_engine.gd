@@ -242,6 +242,20 @@ func open_player_window(w: AhcEnums.PlayerWindow) -> void:
 
 
 func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
+	if InvestigatorSetupFlow.player_steps_enabled(_game_ctx):
+		if step == AhcEnums.FrameworkStep.SETUP_02_APPLY_TRAUMA:
+			InvestigatorSetupFlow.apply_trauma(_game_ctx)
+		elif step == AhcEnums.FrameworkStep.SETUP_03_CHOOSE_LEAD_INVESTIGATOR:
+			InvestigatorSetupFlow.ensure_lead(_game_ctx)
+		elif step == AhcEnums.FrameworkStep.SETUP_04_SHUFFLE_INVESTIGATOR_DECKS:
+			InvestigatorSetupFlow.shuffle_decks(_game_ctx)
+		elif step == AhcEnums.FrameworkStep.SETUP_07_STARTING_RESOURCES:
+			InvestigatorSetupFlow.starting_resources(_game_ctx)
+		elif step == AhcEnums.FrameworkStep.SETUP_08_OPENING_HANDS_MULLIGAN:
+			var skip_mulligan := true
+			if _game_ctx.state != null and _game_ctx.state.has_meta("setup_skip_mulligan"):
+				skip_mulligan = bool(_game_ctx.state.get_meta("setup_skip_mulligan"))
+			InvestigatorSetupFlow.opening_hands(_game_ctx, {"skip_mulligan": skip_mulligan})
 	if step == AhcEnums.FrameworkStep.SETUP_10_SCENARIO_SETUP:
 		if _scenario:
 			_scenario.run_setup_scenario_layout()

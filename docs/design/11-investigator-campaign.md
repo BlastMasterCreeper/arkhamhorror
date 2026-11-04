@@ -77,26 +77,49 @@ Grimoire Elimination：removed from game 其 owner 控制物；clues → locatio
 
 ---
 
-## 6. 剧本状态（CampaignState）
+## 6. 剧本状态与开局（CampaignState / CampaignSetup）
+
+> **落地**：`rules/campaign/campaign_state.gd` · `campaign_log.gd` · `campaign_setup.gd` · `investigator_setup_flow.gd`；门面挂在 `InvestigatorCampaignSystem`。测 CAMP-01..05。
+
+```text
+start_campaign(difficulty, flags)
+  → select_investigator(def, choices)     # 附带 CHOICE；装 Signature
+  → set_opening_deck(player_cards, rng) # 校验 size；random basic weakness（Starter 可跳过）
+  → begin_scenario(scenario_id)           # prepare + 装库 + Framework Setup 01→14
+       ├─ prepare_scenario → RulesConfig.setup_scenario_id + Catalog
+       ├─ materialize_deck_into_context   # 牌库入局；创伤计数写入 InvestigatorState
+       └─ Framework（setup_run_player_steps=true）
+            SETUP_02 trauma → 03 lead → 04 shuffle → 07 资源5 → 08 起手5
+            SETUP_10–14 冒险布局 / act·agenda / 参考卡 / game begins
+```
+
+| API | 作用 |
+|---|---|
+| `start_campaign` | 建 `CampaignState`（Log / 难度 / Starter 旗标） |
+| `select_investigator` / `replace_investigator` | 选人或换人（换人不继承牌组）；未完成 CHOICE → 拒 |
+| `install_required_cards` | `deck_requirements.card` → Signature 入组 |
+| `set_opening_deck` / `validate_deck` | 构筑卡 + BW；`DeckLegality` |
+| `prepare_scenario` | 写 `current_scenario_id`；返回已接线的 `RulesConfig` + layout |
+| `begin_scenario` | 装库 + 打开玩家 Setup 闸 + 跑完 Framework 到 game begins |
+| `InvestigatorSetupFlow.*` | SETUP_02/03/04/07/08；默认仅 `setup_run_player_steps` 时执行 |
 
 ```gdscript
 class CampaignState:
     var log: CampaignLog
     var investigators: Array[CampaignInvestigatorRecord]
-    var chaos_bag_snapshot: ChaosBagSnapshot
-    var difficulty: Difficulty
+    var difficulty: StringName  # easy_standard / hard_expert
+    var current_scenario_id: StringName
+    var use_starter_deck_no_random_weakness: bool
+    var claimed_basic_weaknesses: Array[StringName]
 
 class CampaignInvestigatorRecord:
     var investigator_id: StringName
-    var deck_list: Array[DeckEntry]
+    var definition_id: StringName
+    var deck: Array[DeckCardView]
     var physical_trauma: int
     var mental_trauma: int
     var unspent_xp: int
-    var deckbuilding_choices: Dictionary  ## faction_select / option_select / deck_size_select 解析结果
-    var story_assets: Array[StringName]
-    var story_weaknesses: Array[StringName]
-    var killed: bool
-    var insane: bool
+    var deckbuilding_choices: Dictionary
 ```
 
 ### 6.1 Campaign Log
@@ -644,3 +667,5 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.15 | **§7.1.1** Count XP：VD Victory（02111）∪ guide ± ∪ 个人 When earning（06160 / Obol）；`ExperienceCount` |
 | 2026-11-04 | v0.16 | **P6e** Arcane Research / Pelt + DtRH 叠用；**SIZE_REFILL** FAQ 1.18；报价 preview 不耗次数；XP-09/10 |
 | 2026-11-04 | v0.17 | **§7.1.1** Count 个人通道为 signed delta：额外获得 ∪ *earn N fewer*（Dead Ends / Hospital Debts）；本场 floor 0 |
+| 2026-11-04 | v0.18 | **§6** 剧本开局落地：选/换调查员、初始牌库、`prepare_scenario`；CAMP-01..04 |
+| 2026-11-04 | v0.19 | **§6** `begin_scenario` + `InvestigatorSetupFlow`（SETUP_02/03/04/07/08）；CAMP-05 e2e |

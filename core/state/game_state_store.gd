@@ -32,6 +32,12 @@ var scenario_reference: ScenarioReferenceDefinition = null
 var scenario_layout_installed: bool = false
 var setup_game_begins_resolved: bool = false
 var deferred_setup_revelations: Array[StringName] = []
+## Setup 玩家侧闸（与 RulesConfig.setup_run_player_steps 配合，防重入）。
+var setup_trauma_applied: bool = false
+var setup_starting_resources_applied: bool = false
+var setup_opening_hands_applied: bool = false
+## 可选：绑定本场剧本状态（CampaignSetup.begin_scenario）。
+var campaign_state: CampaignState = null
 
 ## 物理层桌面；信息层 L0 经 StateMutator 镜像写入。
 var physical: PhysicalStore = PhysicalStore.new()

@@ -23,6 +23,74 @@ static func bind_investigator_choices(
 	return DeckbuildingChoiceFlow.bind_investigator(record, investigator_def, answers)
 
 
+## —— 剧本开局（见 CampaignSetup）——
+
+static func start_campaign(
+	campaign_id: StringName = &"campaign",
+	difficulty: StringName = &"easy_standard",
+	flags: Dictionary = {}
+) -> CampaignState:
+	return CampaignSetup.start_campaign(campaign_id, difficulty, flags)
+
+
+static func select_investigator(
+	state: CampaignState,
+	definition_id: StringName,
+	choices: Dictionary = {},
+	player_slot: StringName = &""
+) -> Dictionary:
+	return CampaignSetup.select_investigator(state, definition_id, choices, player_slot)
+
+
+static func replace_investigator(
+	state: CampaignState,
+	old_investigator_id: StringName,
+	new_definition_id: StringName,
+	choices: Dictionary = {}
+) -> Dictionary:
+	return CampaignSetup.replace_investigator(
+		state, old_investigator_id, new_definition_id, choices
+	)
+
+
+static func set_opening_deck(
+	state: CampaignState,
+	record: CampaignInvestigatorRecord,
+	player_card_ids: Array,
+	opts: Dictionary = {}
+) -> Dictionary:
+	return CampaignSetup.set_opening_deck(state, record, player_card_ids, opts)
+
+
+static func validate_deck(record: CampaignInvestigatorRecord) -> Dictionary:
+	return CampaignSetup.validate_opening_deck(record)
+
+
+static func prepare_scenario(
+	state: CampaignState,
+	scenario_id: StringName,
+	base_config: RulesConfig = null
+) -> Dictionary:
+	return CampaignSetup.prepare_scenario(state, scenario_id, base_config)
+
+
+static func materialize_deck_into_context(
+	ctx: GameContext,
+	record: CampaignInvestigatorRecord,
+	inv_id: StringName = &"",
+	location_tag: StringName = &"test_loc"
+) -> Dictionary:
+	return CampaignSetup.materialize_deck_into_context(ctx, record, inv_id, location_tag)
+
+
+static func begin_scenario(
+	state: CampaignState,
+	scenario_id: StringName,
+	opts: Dictionary = {}
+) -> Dictionary:
+	return CampaignSetup.begin_scenario(state, scenario_id, opts)
+
+
 ## 幕间步骤 1：Count XP 后打开购卡窗。
 ## 可直接传 earned_xp；或传 victory_points + guide_delta，并消费 record 上排队的个人 bonus。
 ## modifiers 可为已构建 Array，或 build_modifiers 规格 Dictionary（dtrh/arcane_research/pelt）。
