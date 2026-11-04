@@ -396,9 +396,13 @@ DeckLegality
 | **P3 选型** | Profile 绑定 `faction_select` / `option_select` / size | 谱系 E/F/G；Charlie 两 id 互异等约束另测 |
 | **P4 扩展谓词** | trait / type / tag / uses / permanent / not | 谱系 C/I |
 | **P5 多职阶 + atleast** | FAQ 1.16；Lola / 5U-21 | 谱系 H |
-| **P6 购卡接线** | `list_accessible` + `quote_purchase` dry-run | 与 §7.2 报价合并；动态 options 修饰 |
-| **P6b Exceptional** | 费用 ×2 + 副本上限 1；UPGRADE 倍差 OQ-11-10 | 导入 `exceptional` 关键词；Offer / validate |
-| **P6c Customizable** | `CustomizationSheet` + **EffectiveDeckCardView** 投影 | hydrate options；勾选后重算 traits/tags/level 再走 Matcher；exile 清空 |
+| **P6 购卡接线** | `CampaignInvestigatorRecord` + `quote_purchase` / `commit_purchase` | NEW_CARD / UPGRADE 报价；嵌 `can_add_card`；扣 XP 改牌组 |
+| **P6a list_accessible** | 卡池过滤目录 | 接 CardRegistry + Profile |
+| **P6b Exceptional** | 费用 ×2 + 副本上限 1；UPGRADE 倍差 OQ-11-10 | 导入 `exceptional`；Offer / validate |
+| **P6d Myriad / Permanent / Signature** | 副本 3、不计 size、ignore options | `deck_requirements` 自动打标；validate 分支 |
+| **P6e XP 修饰器** | DtRH / Arcane Research / Pelt… | 按种叠加减价；FAQ 1.37 当窗生效 |
+| **P6f 幕间壳** | Experience 步骤 1–5 运行时入口 | 无 UI 也可 headless 驱动 |
+| **P6c Customizable** | **延后**（投影改 traits/tags/level，子系统大） | 见 §7.2.1；不阻塞 P6–P6b/d |
 
 **CampaignInvestigatorRecord 增补**（示意）：
 
@@ -571,3 +575,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.8 | **§7.7** 落地 `rules/deckbuilding/*` + 导入字段 + DB-01..07 headless |
 | 2026-11-04 | v0.9 | **§7.2.1** Exceptional / Customizable 纳入报价待接；P6b/P6c；OQ-11-10 |
 | 2026-11-04 | v0.10 | **§7.2.1** 定制勾选 → EffectiveDeckCardView（traits/tags/level）；准入必须投影后重配位 |
+| 2026-11-04 | v0.11 | **P6c Customizable 延后**；重排缺口：P6 报价 → Exceptional / Myriad / 修饰器 / 幕间 |
