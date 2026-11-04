@@ -101,16 +101,19 @@ start_campaign(difficulty, flags)
 | `set_opening_deck` / `validate_deck` | 构筑卡 + BW；`DeckLegality` |
 | `prepare_scenario` | 写 `current_scenario_id`；返回已接线的 `RulesConfig` + layout |
 | `begin_scenario` | 装库 + 打开玩家 Setup 闸 + 跑完 Framework 到 game begins |
-| `InvestigatorSetupFlow.*` | SETUP_02/03/04/07/08；默认仅 `setup_run_player_steps` 时执行 |
+| `InvestigatorSetupFlow.*` | SETUP_02/03/04/**06**/07/08；玩家步默认仅 `setup_run_player_steps`；**06 袋**在剧本绑定或该闸时组装 |
+| `ChaosBagCatalog` | 四档袋配方（Brethren of Ash）；`easy_standard`→standard 袋；参考卡带 `reference_band` |
 
 ```gdscript
 class CampaignState:
     var log: CampaignLog
     var investigators: Array[CampaignInvestigatorRecord]
-    var difficulty: StringName  # easy_standard / hard_expert
+    var difficulty: StringName  # easy|standard|hard|expert（袋）；别名 easy_standard/hard_expert
     var current_scenario_id: StringName
     var use_starter_deck_no_random_weakness: bool
     var claimed_basic_weaknesses: Array[StringName]
+    var chaos_bag_id: StringName
+    var chaos_bag_snapshot: Array  # 跨冒险延续
 
 class CampaignInvestigatorRecord:
     var investigator_id: StringName
@@ -669,3 +672,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.17 | **§7.1.1** Count 个人通道为 signed delta：额外获得 ∪ *earn N fewer*（Dead Ends / Hospital Debts）；本场 floor 0 |
 | 2026-11-04 | v0.18 | **§6** 剧本开局落地：选/换调查员、初始牌库、`prepare_scenario`；CAMP-01..04 |
 | 2026-11-04 | v0.19 | **§6** `begin_scenario` + `InvestigatorSetupFlow`（SETUP_02/03/04/07/08）；CAMP-05 e2e |
+| 2026-11-04 | v0.20 | **SETUP_06** `ChaosBagCatalog`（Brethren of Ash 四档袋）+ 快照跨场；BAG-01/02 |

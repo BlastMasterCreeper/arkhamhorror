@@ -9,7 +9,8 @@ const MODE_EPIC := &"epic"
 
 var campaign_id: StringName = &""
 var mode: StringName = MODE_CAMPAIGN
-var difficulty: StringName = &"easy_standard"
+## 四档袋难度：easy / standard / hard / expert；亦接受 easy_standard / hard_expert 别名。
+var difficulty: StringName = &"standard"
 var log: CampaignLog = CampaignLog.new()
 var investigators: Array[CampaignInvestigatorRecord] = []
 ## Starter Deck 2026：不抽 random basic weakness。
@@ -19,6 +20,10 @@ var current_scenario_id: StringName = &""
 var scenarios_completed: Array[StringName] = []
 ## 已抽走的 basic weakness definition_id（全局池去重）。
 var claimed_basic_weaknesses: Array[StringName] = []
+## 跨冒险延续的混沌袋快照（[{kind, modifier}, …]）；空 = 下场 SETUP_06 按难度重建。
+var chaos_bag_snapshot: Array = []
+## 混沌袋配方 id（如 brethren_of_ash）；空则按 scenario/campaign 解析。
+var chaos_bag_id: StringName = &""
 
 
 func find_record(investigator_id: StringName) -> CampaignInvestigatorRecord:

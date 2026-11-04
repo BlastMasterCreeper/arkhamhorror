@@ -256,6 +256,13 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 			if _game_ctx.state != null and _game_ctx.state.has_meta("setup_skip_mulligan"):
 				skip_mulligan = bool(_game_ctx.state.get_meta("setup_skip_mulligan"))
 			InvestigatorSetupFlow.opening_hands(_game_ctx, {"skip_mulligan": skip_mulligan})
+	## SETUP_06：有剧本绑定或玩家 Setup 闸时组装；袋已满则跳过。
+	if step == AhcEnums.FrameworkStep.SETUP_06_ASSEMBLE_CHAOS_BAG:
+		var should_bag := InvestigatorSetupFlow.player_steps_enabled(_game_ctx)
+		if not should_bag and _game_ctx != null and _game_ctx.state != null:
+			should_bag = _game_ctx.state.campaign_state != null
+		if should_bag:
+			InvestigatorSetupFlow.assemble_chaos_bag(_game_ctx)
 	if step == AhcEnums.FrameworkStep.SETUP_10_SCENARIO_SETUP:
 		if _scenario:
 			_scenario.run_setup_scenario_layout()

@@ -27,7 +27,7 @@ static func bind_investigator_choices(
 
 static func start_campaign(
 	campaign_id: StringName = &"campaign",
-	difficulty: StringName = &"easy_standard",
+	difficulty: StringName = &"standard",
 	flags: Dictionary = {}
 ) -> CampaignState:
 	return CampaignSetup.start_campaign(campaign_id, difficulty, flags)

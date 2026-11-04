@@ -36,6 +36,7 @@ var deferred_setup_revelations: Array[StringName] = []
 var setup_trauma_applied: bool = false
 var setup_starting_resources_applied: bool = false
 var setup_opening_hands_applied: bool = false
+var setup_chaos_bag_assembled: bool = false
 ## 可选：绑定本场剧本状态（CampaignSetup.begin_scenario）。
 var campaign_state: CampaignState = null
 

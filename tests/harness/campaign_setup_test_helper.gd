@@ -190,15 +190,10 @@ static func test_camp05_begin_scenario_e2e() -> bool:
 	)
 	if not bool(built.get("ok", false)):
 		return false
-	var bag: Array[ChaosToken] = [ChaosToken.numeric(0)]
 	var begun := InvestigatorCampaignSystem.begin_scenario(
 		state,
 		ScenarioSetupCatalog.SPREADING_FLAMES,
-		{
-			"seed": 7,
-			"skip_mulligan": true,
-			"chaos_tokens": bag,
-		}
+		{"seed": 7, "skip_mulligan": true}
 	)
 	if not bool(begun.get("ok", false)):
 		return false
@@ -213,6 +208,13 @@ static func test_camp05_begin_scenario_e2e() -> bool:
 		return false
 	if not ctx.state.setup_game_begins_resolved:
 		return false
+	## SETUP_06：easy_standard → standard 袋 = 10 数字 + 7 符号。
+	if not ctx.state.setup_chaos_bag_assembled:
+		return false
+	if ctx.state.chaos_bag.tokens.size() != 17:
+		return false
+	if state.chaos_bag_snapshot.size() != 17:
+		return false
 	var inv := ctx.state.registry.get_investigator(&"p1")
 	if inv == null:
 		return false
@@ -226,3 +228,68 @@ static func test_camp05_begin_scenario_e2e() -> bool:
 	if inv.location_tag == &"":
 		return false
 	return state.log.has_note("begin_scenario:spreading_flames")
+
+
+static func test_bag01_brethren_sizes() -> bool:
+	var easy := ChaosBagCatalog.build_tokens(ChaosBagCatalog.BRETHREN_OF_ASH, &"easy")
+	var std := ChaosBagCatalog.build_tokens(ChaosBagCatalog.BRETHREN_OF_ASH, &"standard")
+	var hard := ChaosBagCatalog.build_tokens(ChaosBagCatalog.BRETHREN_OF_ASH, &"hard")
+	var expert := ChaosBagCatalog.build_tokens(ChaosBagCatalog.BRETHREN_OF_ASH, &"expert")
+	if easy.size() != 17 or std.size() != 17:
+		return false
+	if hard.size() != 18 or expert.size() != 19:
+		return false
+	## 符号：skull×2 + cultist + tablet + elder_thing + autofail + eldersign。
+	var skulls := 0
+	for t in std:
+		if t.kind == AhcEnums.ChaosTokenKind.SKULL:
+			skulls += 1
+	if skulls != 2:
+		return false
+	if ChaosBagCatalog.reference_band(&"easy") != &"easy_standard":
+		return false
+	if ChaosBagCatalog.reference_band(&"expert") != &"hard_expert":
+		return false
+	if ChaosBagCatalog.normalize_bag_difficulty(&"easy_standard") != &"standard":
+		return false
+	return ChaosBagCatalog.bag_id_for_scenario(ScenarioSetupCatalog.SPREADING_FLAMES) == ChaosBagCatalog.BRETHREN_OF_ASH
+
+
+static func test_bag02_snapshot_persists_across_scenarios() -> bool:
+	_reg_inv(
+		"inv_bag_persist",
+		{"title": "BagP", "deck_requirements": {"size": 8, "card": {}, "random": []}}
+	)
+	var player_ids: Array = []
+	for i in 8:
+		var cid := "pc_bag_%d" % i
+		_reg_card(cid, {"faction_code": "guardian"})
+		player_ids.append(cid)
+	var state := InvestigatorCampaignSystem.start_campaign(
+		&"brethren_of_ash", &"hard", {}
+	)
+	var sel := InvestigatorCampaignSystem.select_investigator(state, &"inv_bag_persist", {}, &"p1")
+	if not bool(sel.get("ok", false)):
+		return false
+	var built := InvestigatorCampaignSystem.set_opening_deck(
+		state, sel["record"], player_ids, {"skip_basic_weakness": true}
+	)
+	if not bool(built.get("ok", false)):
+		return false
+	var first := InvestigatorCampaignSystem.begin_scenario(
+		state, ScenarioSetupCatalog.SPREADING_FLAMES, {"seed": 3, "skip_mulligan": true}
+	)
+	if not bool(first.get("ok", false)):
+		return false
+	if state.chaos_bag_snapshot.size() != 18:
+		return false
+	## 模拟下场：清空装配旗，恢复快照而非重算。
+	var ctx2 := GameBootstrap.create(9, first["config"])
+	ctx2.state.campaign_state = state
+	ctx2.config.setup_run_player_steps = false
+	var assembled := InvestigatorSetupFlow.assemble_chaos_bag(ctx2)
+	return (
+		bool(assembled.get("ok", false))
+		and String(assembled.get("source", "")) == "snapshot"
+		and int(assembled.get("size", 0)) == 18
+	)

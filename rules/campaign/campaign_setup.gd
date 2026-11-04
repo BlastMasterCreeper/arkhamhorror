@@ -6,16 +6,20 @@ extends RefCounted
 
 static func start_campaign(
 	campaign_id: StringName = &"campaign",
-	difficulty: StringName = &"easy_standard",
+	difficulty: StringName = &"standard",
 	flags: Dictionary = {}
 ) -> CampaignState:
 	var state := CampaignState.new()
 	state.campaign_id = campaign_id
-	state.difficulty = difficulty
+	state.difficulty = ChaosBagCatalog.normalize_bag_difficulty(difficulty)
 	state.mode = StringName(str(flags.get("mode", CampaignState.MODE_CAMPAIGN)))
 	state.use_starter_deck_no_random_weakness = bool(
 		flags.get("use_starter_deck_no_random_weakness", false)
 	)
+	var bag_id := ChaosBagCatalog.bag_id_for_campaign(campaign_id)
+	if bag_id == &"" and flags.has("chaos_bag_id"):
+		bag_id = StringName(str(flags.get("chaos_bag_id")))
+	state.chaos_bag_id = bag_id
 	state.log.record("campaign_started:%s" % String(campaign_id))
 	return state
 
@@ -200,7 +204,10 @@ static func prepare_scenario(
 	state.current_scenario_id = scenario_id
 	var cfg := base_config if base_config != null else RulesConfig.new()
 	cfg.setup_scenario_id = scenario_id
-	cfg.chaos_difficulty = state.difficulty
+	## 参考卡两面带（≠ 四档袋难度）。
+	cfg.chaos_difficulty = ChaosBagCatalog.reference_band(state.difficulty)
+	if state.chaos_bag_id == &"":
+		state.chaos_bag_id = ChaosBagCatalog.resolve_bag_id(state.campaign_id, scenario_id)
 	ScenarioSetupCatalog.prepare_definitions(scenario_id)
 	var layout := ScenarioSetupCatalog.resolve_layout(cfg)
 	var decks := ScenarioSetupCatalog.resolve(cfg)
@@ -295,7 +302,7 @@ static func begin_scenario(
 			return {"ok": false, "reason": "materialize_failed", "detail": mat}
 	var lead: StringName = opts.get("lead_id", &"")
 	InvestigatorSetupFlow.ensure_lead(ctx, lead)
-	## 可选预装混沌袋（SETUP_06 暂无内置袋表）。
+	## 可选强制袋内容；否则 SETUP_06 从快照/Catalog 组装。
 	var tokens_raw: Variant = opts.get("chaos_tokens", [])
 	if tokens_raw is Array and not (tokens_raw as Array).is_empty():
 		var typed_tokens: Array[ChaosToken] = []
@@ -304,9 +311,14 @@ static func begin_scenario(
 				typed_tokens.append(t as ChaosToken)
 		if not typed_tokens.is_empty():
 			GameBootstrap.setup_chaos_bag(ctx, typed_tokens)
+			state.chaos_bag_snapshot = ChaosBagCatalog.snapshot_tokens(typed_tokens)
+			ctx.state.setup_chaos_bag_assembled = true
 	## 起手 mulligan 策略写入 state 备忘，供 SETUP_08 读（目前仅 skip）。
 	ctx.state.set_meta("setup_skip_mulligan", bool(opts.get("skip_mulligan", true)))
 	GameBootstrap.run_setup_through_game_begins(ctx)
+	## 开局后把袋写回剧本快照，供下场延续。
+	if ctx.state != null and ctx.state.chaos_bag != null:
+		state.chaos_bag_snapshot = ChaosBagCatalog.snapshot_tokens(ctx.state.chaos_bag.tokens)
 	state.log.record("begin_scenario:%s" % String(scenario_id))
 	return {
 		"ok": true,
@@ -314,6 +326,7 @@ static func begin_scenario(
 		"config": cfg,
 		"layout": prep.get("layout", {}),
 		"act_agenda": prep.get("act_agenda", {}),
+		"chaos_bag_size": ctx.state.chaos_bag.tokens.size() if ctx.state.chaos_bag else 0,
 	}
 
 

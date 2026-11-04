@@ -103,6 +103,18 @@ class ChaosBagSystem:
     func restore_from_campaign(snapshot: ChaosBagSnapshot) -> void
 ```
 
+### 3.1 开局组装（已落地 · SETUP_06）
+
+| 构件 | 作用 |
+|---|---|
+| `ChaosBagCatalog` | Campaign Guide 袋表；`data/campaigns/brethren_of_ash/chaos_bag.json` |
+| 四档难度 | `easy` / `standard` / `hard` / `expert`（`easy_standard`→standard；`hard_expert`→hard） |
+| 参考卡带 | `reference_band` → `easy_standard` \| `hard_expert`（与袋四档正交） |
+| `InvestigatorSetupFlow.assemble_chaos_bag` | Framework `SETUP_06`；快照优先，否则按难度建袋 |
+| `CampaignState.chaos_bag_snapshot` | 跨冒险延续；`begin_scenario` 结束回写 |
+
+符号表（Brethren of Ash / Spreading Flames 开局）：Skull×2、Cultist、Tablet、Elder Thing、Auto-fail、Elder Sign（与数字列一并入袋）。剧本 Log 修饰改袋仍走后续 `apply_campaign_modifiers`（未竖切）。
+
 ---
 
 ## 4. 揭示流程（与 ST.3–ST.4 协作）

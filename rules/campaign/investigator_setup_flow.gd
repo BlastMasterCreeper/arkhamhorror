@@ -68,6 +68,58 @@ static func ensure_lead(game_ctx: GameContext, preferred: StringName = &"") -> D
 	return {"ok": true, "lead": lead}
 
 
+## SETUP_06 · Assemble chaos bag（快照优先；否则 Catalog 按难度）。
+static func assemble_chaos_bag(game_ctx: GameContext) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false}
+	if game_ctx.state.setup_chaos_bag_assembled:
+		return {"ok": true, "skipped": true, "reason": &"already_assembled"}
+	## 已有袋内容（测试旁路 / begin_scenario 预装）→ 记组装完成。
+	if game_ctx.state.chaos_bag != null and not game_ctx.state.chaos_bag.tokens.is_empty():
+		game_ctx.state.setup_chaos_bag_assembled = true
+		return {
+			"ok": true,
+			"skipped": true,
+			"reason": &"bag_already_filled",
+			"size": game_ctx.state.chaos_bag.tokens.size(),
+		}
+	var camp: CampaignState = game_ctx.state.campaign_state
+	var tokens: Array[ChaosToken] = []
+	var source := &"catalog"
+	if camp != null and not camp.chaos_bag_snapshot.is_empty():
+		tokens = ChaosBagCatalog.tokens_from_snapshot(camp.chaos_bag_snapshot, &"persist")
+		source = &"snapshot"
+	else:
+		var bag_id: StringName = &""
+		var difficulty: StringName = &"standard"
+		if camp != null:
+			bag_id = camp.chaos_bag_id
+			difficulty = camp.difficulty
+		if bag_id == &"" and game_ctx.config != null:
+			bag_id = ChaosBagCatalog.bag_id_for_scenario(game_ctx.config.setup_scenario_id)
+		if bag_id == &"" and camp != null:
+			bag_id = ChaosBagCatalog.resolve_bag_id(camp.campaign_id, game_ctx.config.setup_scenario_id if game_ctx.config else &"")
+		if game_ctx.config != null and camp == null:
+			## 无剧本状态时：用参考卡带反推袋档（easy_standard→standard）。
+			difficulty = ChaosBagCatalog.normalize_bag_difficulty(game_ctx.config.chaos_difficulty)
+		tokens = ChaosBagCatalog.build_tokens(bag_id, difficulty, &"setup06")
+	if tokens.is_empty():
+		return {"ok": true, "skipped": true, "reason": &"no_bag_recipe"}
+	GameBootstrap.setup_chaos_bag(game_ctx, tokens)
+	game_ctx.state.setup_chaos_bag_assembled = true
+	if camp != null:
+		camp.chaos_bag_snapshot = ChaosBagCatalog.snapshot_tokens(tokens)
+	if game_ctx.state.chaos_bag != null:
+		game_ctx.state.chaos_bag.shuffle()
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"setup:assemble_chaos_bag",
+			{"source": source, "size": tokens.size()}
+		)
+	return {"ok": true, "source": source, "size": tokens.size()}
+
+
 ## SETUP_04 · Shuffle investigator decks。
 static func shuffle_decks(game_ctx: GameContext) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:

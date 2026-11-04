@@ -34,6 +34,8 @@ func _initialize() -> void:
 	_run_test("CAMP-03 prepare scenario", CampaignSetupTestHelper.test_camp03_prepare_scenario)
 	_run_test("CAMP-04 unresolved choice blocks", CampaignSetupTestHelper.test_camp04_unresolved_choice_blocks)
 	_run_test("CAMP-05 begin scenario e2e", CampaignSetupTestHelper.test_camp05_begin_scenario_e2e)
+	_run_test("BAG-01 brethren bag sizes", CampaignSetupTestHelper.test_bag01_brethren_sizes)
+	_run_test("BAG-02 snapshot persists", CampaignSetupTestHelper.test_bag02_snapshot_persists_across_scenarios)
 	_run_test("PHYS-01 set-aside to deck shuffle", PhysicalTestHelper.test_set_aside_to_deck_shuffle)
 	_run_test("PHYS-02 marker transfer pool to card", PhysicalTestHelper.test_marker_transfer_pool_to_card)
 	_run_test("PHYS-03 augury reveal and return", PhysicalTestHelper.test_augury_reveal_and_return)
