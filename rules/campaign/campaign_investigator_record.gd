@@ -14,7 +14,8 @@ var mental_trauma: int = 0
 ## 本 spend window 内注入的 XP 修饰器（DtRH 等）；幕间开始时可重建。
 var xp_modifiers: Array = []
 var experience_window_open: bool = false
-## 结算「When earning experience…」个人 bonus 队列（06160 / Obol 等）；Count 后清空。
+## 结算个人 XP 调整队列（正=额外获得；负=减少获得）；Count 后清空。
+## 例：06160 +1；03308 Obol +2；12006 Dead Ends −2；Hospital Debts −2。
 var pending_resolution_xp_bonuses: Array = []
 
 
@@ -49,9 +50,14 @@ func counted_deck_size() -> int:
 	return n
 
 
-## 登记结算时个人额外经验（卡面 "When earning experience during the resolution…"）。
+## 登记结算时个人 XP 调整（可正可负；或用 queue_resolution_xp_penalty）。
 func queue_resolution_xp_bonus(amount: int, source: StringName = &"") -> void:
-	pending_resolution_xp_bonuses.append(ExperienceCount.bonus(amount, source))
+	pending_resolution_xp_bonuses.append(ExperienceCount.delta(amount, source))
+
+
+## 「earn N fewer experience」→ 排队 −N。
+func queue_resolution_xp_penalty(fewer: int, source: StringName = &"") -> void:
+	pending_resolution_xp_bonuses.append(ExperienceCount.penalty(fewer, source))
 
 
 func take_resolution_xp_bonuses() -> Array:

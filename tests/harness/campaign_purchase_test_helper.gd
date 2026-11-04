@@ -252,34 +252,40 @@ static func test_xp05_interlude_shell() -> bool:
 
 
 static func test_xp08_count_vd_and_personal_bonus() -> bool:
-	## 02111 式：Victory 进共享池；06160 式：个人 When earning bonus。
+	## 02111 式：Victory 进共享池；06160 式：个人 When earning +；Dead Ends 式：fewer −。
 	var rec_a := _roland_record(5)
 	var rec_b := _roland_record(5)
 	rec_a.unspent_xp = 2
 	rec_b.unspent_xp = 0
-	## 对局中 06160 触发 → 只给 A 排队 +1。
 	rec_a.queue_resolution_xp_bonus(1, &"06160")
-	## VD 合计 3（含一张 Delve Victory 1 + 敌人等）；guide +0。
 	var tall_a := InvestigatorCampaignSystem.count_and_begin_experience_window(rec_a, 3, 0)
 	var tall_b := InvestigatorCampaignSystem.count_and_begin_experience_window(rec_b, 3, 0)
-	if int(tall_a.get("personal_bonus", -1)) != 1:
+	if int(tall_a.get("personal_delta", -1)) != 1:
 		return false
-	if int(tall_a.get("earned_this_scenario", -1)) != 4:  ## 3 VD + 1 personal
+	if int(tall_a.get("earned_this_scenario", -1)) != 4:
 		return false
-	if int(tall_b.get("earned_this_scenario", -1)) != 3:  ## 仅共享 VD
+	if int(tall_b.get("earned_this_scenario", -1)) != 3:
 		return false
-	if rec_a.unspent_xp != 6:  ## 2 prior + 4
+	if rec_a.unspent_xp != 6 or rec_b.unspent_xp != 3:
 		return false
-	if rec_b.unspent_xp != 3:
+	## Dead Ends：VD 1 − 2 fewer → raw −1 → earned 0；prior 5 不动。
+	var rec_d := _roland_record(5)
+	rec_d.unspent_xp = 5
+	rec_d.queue_resolution_xp_penalty(2, &"12006")
+	var tall_d := InvestigatorCampaignSystem.count_and_begin_experience_window(rec_d, 1, 0)
+	if int(tall_d.get("personal_delta", 0)) != -2:
 		return false
-	## bonus 队列已消费。
-	if not rec_a.pending_resolution_xp_bonuses.is_empty():
+	if int(tall_d.get("raw_earned_this_scenario", 0)) != -1:
 		return false
-	## Obol 式：额外 +2 经 extra_personal_bonuses。
+	if int(tall_d.get("earned_this_scenario", -1)) != 0:
+		return false
+	if rec_d.unspent_xp != 5:
+		return false
+	## Obol +2。
 	var rec_c := _roland_record(5)
 	rec_c.unspent_xp = 0
 	var tall_c := InvestigatorCampaignSystem.count_and_begin_experience_window(
-		rec_c, 1, 0, [], [ExperienceCount.bonus(2, &"03308")]
+		rec_c, 1, 0, [], [ExperienceCount.delta(2, &"03308")]
 	)
 	return int(tall_c.get("earned_this_scenario", -1)) == 3 and rec_c.unspent_xp == 3
 

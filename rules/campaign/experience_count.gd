@@ -2,20 +2,21 @@ class_name ExperienceCount
 extends RefCounted
 
 ## 幕间步骤 1「Count experience」汇总。
-## 共享池（胜利展示 Victory X）+ 剧本 guide ± + 个人「结算时额外经验」bonus。
+## 共享池（胜利展示 Victory X）+ 剧本 guide ± + 个人结算调整（可加可减）。
 
 
-## personal_bonuses: Array[Dictionary] { amount: int, source: StringName, ... }
-## 或 Array[int]；亦接受已登记在 record.pending_resolution_xp_bonuses 上的条目。
+## personal_deltas: Array[Dictionary] { amount: int, source: StringName }
+## amount > 0 = 额外获得（06160 / Obol）；amount < 0 = 减少获得（12006 Dead Ends / Hospital Debts）。
+## 亦接受 Array[int]。
 static func tally(
 	victory_points: int,
 	guide_delta: int = 0,
-	personal_bonuses: Array = [],
+	personal_deltas: Array = [],
 	prior_unspent: int = 0
 ) -> Dictionary:
 	var personal := 0
 	var sources: Array = []
-	for b in personal_bonuses:
+	for b in personal_deltas:
 		var amt := 0
 		var src: StringName = &""
 		if b is Dictionary:
@@ -27,27 +28,38 @@ static func tally(
 			continue
 		personal += amt
 		sources.append({"amount": amt, "source": src})
-	var earned := maxi(0, victory_points) + guide_delta + personal
-	## guide_delta 可为负（剧本惩罚）；earned 本场可为负再与 prior 相加时由调用方决定是否 clamp。
-	## Grimoire：本场合计加入 prior unspent；此处不强制 earned≥0，但 begin 窗常用 maxi(0, earned)。
+	## 本场 raw 可为负（惩罚大于 VD）；加入 unspent 时本场贡献 floor 0，不掏已积未花 XP。
+	var raw_earned := maxi(0, victory_points) + guide_delta + personal
+	var earned := maxi(0, raw_earned)
 	return {
 		"victory_points": victory_points,
 		"guide_delta": guide_delta,
-		"personal_bonus": personal,
+		"personal_delta": personal,
+		"personal_bonus": personal, ## 兼容旧键
 		"personal_sources": sources,
+		"raw_earned_this_scenario": raw_earned,
 		"earned_this_scenario": earned,
 		"prior_unspent": prior_unspent,
 		"unspent_after_count": prior_unspent + earned,
 	}
 
 
-## 从 GameStateStore 胜利展示求和（遇敌/地点/玩家牌 Victory X，如 02111 Delve）。
 static func victory_points_from_state(state: GameStateStore) -> int:
 	if state == null:
 		return 0
 	return state.total_victory_points()
 
 
-## 个人 bonus 条目（06160 / Charon's Obol 等「When earning experience…」）。
-static func bonus(amount: int, source: StringName = &"") -> Dictionary:
+## 个人结算调整：正=额外获得，负=减少获得（earn N fewer）。
+static func delta(amount: int, source: StringName = &"") -> Dictionary:
 	return {"amount": amount, "source": source}
+
+
+## 兼容旧名。
+static func bonus(amount: int, source: StringName = &"") -> Dictionary:
+	return delta(amount, source)
+
+
+static func penalty(amount: int, source: StringName = &"") -> Dictionary:
+	## amount 传正数表示「少得 N」；内部存负。
+	return delta(-maxi(0, amount), source)

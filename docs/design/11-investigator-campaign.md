@@ -123,29 +123,32 @@ class CampaignInvestigatorRecord:
 3. Record unspent experience
 ```
 
-#### 7.1.1 Count experience 口径（含卡面额外 XP）
+#### 7.1.1 Count experience 口径（含卡面加减 XP）
 
 ```
-earned_this_scenario =
+raw_earned =
     victory_display Σ Victory X     # 共享池；每名调查员同额（决议另有分配时除外）
   + campaign guide ±                # 决议奖励/惩罚
-  + personal_resolution_bonuses     # 「When earning experience during the resolution…」
+  + personal_resolution_delta       # 个人结算调整（可正可负）
+earned_this_scenario = max(0, raw_earned)   # 本场贡献不掏已积未花 XP
 unspent := prior_unspent + earned_this_scenario
 ```
 
 | 通道 | 机制 | 锚例 |
 |---|---|---|
-| **胜利展示 Victory X** | 对局中把牌放进 `victory_display`；Count 时 `total_victory_points()` | **02111 Delve Too Deep**（Victory 1；进 VD） |
-| **剧本 guide ±** | Campaign Guide 决议条文 | 「各调查员再得 2 经验」等 |
-| **个人结算 bonus** | 卡面 *When earning experience during the resolution of this scenario, you earn N additional experience*；按调查员登记，Count 时并入 | **06160 "Let God sort them out..."**（+1）；**03308 Charon's Obol**（未淘汰 +2 / 淘汰则杀死） |
+| **胜利展示 Victory X** | 对局中进 `victory_display`；Count 时求和 | **02111 Delve Too Deep**（Victory 1） |
+| **剧本 guide ±** | Campaign Guide 决议条文 | 「再得 2 经验」/「少得 N 经验」 |
+| **个人结算 delta（+）** | *you earn N additional experience*（When earning / 结算时） | **06160**（+1）；**03308 Charon's Obol**（未淘汰 +2） |
+| **个人结算 delta（−）** | *you earn N fewer experience* | **12006 Dead Ends**（手中结束 −2）；**Hospital Debts**（资源不足 −2） |
 
 **勿混**：
 
-- 02111 类 = **先**进 VD（有印刷 Victory）→ 走共享 VP 求和；不是另开「个人 +1」通道。  
-- 06160 类 = 可进 VD作标记，但 XP 来自 **When earning…** 个人 bonus（印刷未必有 Victory X）。  
-- DtRH / Arcane Research 等 = **花 XP 时**的购卡修饰器（步骤 2），**不是** Count 的 earned 通道。
+- 02111 类 = **先**进 VD（印刷 Victory）→ 共享 VP；不是个人 delta。  
+- 06160 / Dead Ends 类 = 个人 signed delta（加或减）；印刷未必有 Victory X。  
+- 「fewer」只减**本场获得**，`earned` floor 0，**不**从 prior unspent 倒扣。  
+- DtRH / Arcane Research = **花 XP** 购卡修饰器（步骤 2），不是 Count 通道。
 
-API：`ExperienceCount.tally` / `InvestigatorCampaignSystem.count_and_begin_experience_window`；对局中 `record.queue_resolution_xp_bonus(n, source)`。
+API：`ExperienceCount.tally` / `delta` / `penalty`；`record.queue_resolution_xp_bonus(+n)` / `queue_resolution_xp_penalty(n)`；`count_and_begin_experience_window`。
 
 卡面若改 deckbuilding / 购卡 / 升级（如 Adaptable、Underworld Market）：**逐张结算**，购入后立即对本 spend window 生效（FAQ 1.37）。
 
@@ -640,3 +643,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.14 | **§7.7.1** 副职阶/尺寸/特性 = 选调查员后附带玩家选择；`DeckbuildingChoiceFlow`；DB-05 |
 | 2026-11-04 | v0.15 | **§7.1.1** Count XP：VD Victory（02111）∪ guide ± ∪ 个人 When earning（06160 / Obol）；`ExperienceCount` |
 | 2026-11-04 | v0.16 | **P6e** Arcane Research / Pelt + DtRH 叠用；**SIZE_REFILL** FAQ 1.18；报价 preview 不耗次数；XP-09/10 |
+| 2026-11-04 | v0.17 | **§7.1.1** Count 个人通道为 signed delta：额外获得 ∪ *earn N fewer*（Dead Ends / Hospital Debts）；本场 floor 0 |
