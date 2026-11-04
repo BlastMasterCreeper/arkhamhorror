@@ -92,6 +92,7 @@ class CampaignInvestigatorRecord:
     var physical_trauma: int
     var mental_trauma: int
     var unspent_xp: int
+    var deckbuilding_choices: Dictionary  ## faction_select / option_select / deck_size_select 解析结果
     var story_assets: Array[StringName]
     var story_weaknesses: Array[StringName]
     var killed: bool
@@ -237,6 +238,125 @@ quote_purchase(target_def, deck, unspent_xp, modifiers…) → PurchaseOffer
 | Researched | 不可 NEW_CARD 高级；须从低级 UPGRADE + Campaign Log 任务 |
 | Customizable | 见上；清空最后副本 → sheet 清空；回购当新卡 |
 
+### 7.6 Deckbuilding Options 分类（购卡候选范围）
+
+> **规则**：Grimoire *Deck Customization*；FAQ **1.15**（*other* / 卡面文本类）、**1.16**（多职阶）、购卡须遵守 investigator 背面 options。  
+> **数据**：ArkhamDB `deck_options` / `deck_requirements`（本库 schema 已有字段；**勿**从 `back_text` 再解析散文）。普查 ≈105 名调查员（含平行 / 促销 / 新手）。
+
+购卡/构筑时「这张能不能进我的牌组」= 对该调查员当前 **已解析的 DeckbuildingProfile** 做准入检验。选项不是扁平白名单，而是**若干类别（category）+ 全局禁制 + 配额/下限**。
+
+#### 7.6.1 类别构件（单条 `deck_options[]` 条目能表达的谓词）
+
+| 构件 | ArkhamDB 字段 | 含义 | 频次量级 |
+|---|---|---|---|
+| **职阶带 level** | `faction` + `level` | 主类 / 副类 / Neutral 等经典带 | ~165（最大宗） |
+| **特性带 level** | `trait` + `level`（可加 `type`） | Spell / Tome / Relic / Tactic…；可限 cardtype | ~33+ |
+| **文本/标签带** | `tag` / `text` / `uses` + `level` | 难解析能力：heal horror/damage、seals、parley、firearm-in-text、uses(charges) | 少但硬 |
+| **有限职阶池** | `faction` + `level` + `limit`（+`error`） | 「最多 N 张某职阶/跨职阶」；常对应印刷 *other* | ~18+ |
+| **通用越级池** | 仅 `level`+`limit`+`error`（无 faction） | Dunwich 式「最多 5 张非本职 L0」 | 6（Zoey 等） |
+| **禁制** | `not: true` + `trait`/`permanent`/`text`… | 禁止匹配卡（Rex 禁 Fortune；Carolyn 禁 L1–5 Weapon…） | ~7 |
+| **玩家选型职阶** | `faction_select` + `level`（+`type`/`limit`/`id`/`name`） | Secondary Class / Class Choice（Tony、Mandy、Charlie、Lola∥…） | ~9 |
+| **玩家选型特性** | `option_select` | Wendy∥ Blessed/Cursed；Marion Trait Choice | 2 |
+| **牌组尺寸选型** | `deck_size_select` | Mandy 30/40/50 | 1 |
+| **全牌组下限** | `atleast` + `faction` | Lola「≥3 职阶各 ≥7」；5U-21「每职阶 ≥7」；Lola∥ `ignore_match` | 3 |
+| **Permanent 过滤** | `permanent` | Jenny∥ Talent 限非 permanent；5U-21 禁 permanent | 少 |
+
+**ArkhamDB `tags`（卡面侧标注，供选项匹配）**：`hh` heal horror；`hd` heal damage；`pa` parley；`se` seals token；`fa` firearm-in-text；历史 `st`/`uc` 等与 bonded/uses 并存。引擎以 **卡面 `tags` ∪ 结构化字段** 匹配，不在购卡时跑正则扫全文（`text` 正则仅作导入期打标 / 校验）。
+
+#### 7.6.2 语义角色（实现时的规则角色，不是 JSON 键）
+
+把每条选项归为四种角色（一条 JSON 可同时带匹配谓词 + 配额）：
+
+| 角色 | 作用 | 例 |
+|---|---|---|
+| **ALLOW 带** | 匹配则*可以*纳入（受 level / type 等） | Guardian 0–5；Spell 0–5 |
+| **LIMIT 池** | 匹配且**未**被更前的无限带吃掉时，占用配额 | 「最多 5 张 other L0」；「最多 15 张 L0–1 Seeker/Mystic」 |
+| **FORBID** | 匹配则**禁止**（先于 ALLOW） | no Illicit；no Firearm；no L1–5 Weapon |
+| **CHOICE / META** | 构筑前解析进 Profile，不直接验单卡 | `faction_select`、`option_select`、`deck_size_select` |
+| **DECK_CONSTRAINT** | 验**整副牌**而非单卡 | `atleast`；deck size；signature 张数；random BW |
+
+FAQ **1.15 *other***：LIMIT 池仅收「落不进任何更优先无限 ALLOW 带」的卡。实现 = **有序试配**：先无限 ALLOW，再 LIMIT；多职阶卡占坑规则见 FAQ **1.16**。
+
+#### 7.6.3 调查员形态谱系（按印刷模式，非穷举每人）
+
+| 谱系 | 典型 | Options 形状 |
+|---|---|---|
+| A. 本职 0–5 + 副职 0–2 + Neutral 0–5 | Core / 多数战役 | 仅 `faction`+`level` |
+| B. 本职+Neutral 无限 + 有限越级 L0 | Dunwich 五人 | A + 无 faction 的 `limit:5` |
+| C. 特性/文本扩展 + 有限跨职 | Marie Spell；Carolyn heal horror；Akachi charges；Daisy∥ Tome | `trait`/`tag`/`uses` + 跨职 `limit` |
+| D. 倒置职阶（本职锁 L0，副职高 level） | EotE Daniela/Norman/… | 本职 L0 + 副职 L1–5 + 副职 L0 `limit:5` |
+| E. 选型副职（事件/技能配额） | Tony / Mandy / Carson / Gloria | `faction_select` + `type` + `limit` |
+| F. 双选型职阶 | Charlie；Lola∥ | 两个 `faction_select` + `id` |
+| G. 选型特性 / 尺寸 | Wendy∥；Marion；Mandy size | `option_select` / `deck_size_select` |
+| H. 整副约束 | Lola；5U-21 | `atleast`（± `ignore_match` / `base_level`） |
+| I. 禁制叠加 | Preston；Lily；Rex∥；Carolyn | `not` |
+| J. 新手单职 | Nathaniel Cho 等 | 仅本职+Neutral 0–5 |
+
+Signature / required cards / basic weakness ∈ `deck_requirements`，**无视** options 限制且一般不计 deck size（Grimoire）；Bearer / 部分 story 同。
+
+#### 7.6.4 与购卡窗的关系
+
+`quote_purchase` / 候选列表的 **准入** =：
+
+1. 目标印刷品通过 FORBID；  
+2. 在当前 Profile 下存在一条配位路径（无限 ALLOW **或** 某 LIMIT 池仍有空位，含 FAQ *other* / 多职阶）；  
+3. 加入后整副仍满足 DECK_CONSTRAINT（atleast、size、副本上限…）——升级换出低级时按置换后状态验；  
+4. Reward / 未解锁 story 等另闸。
+
+卡面改 options（FAQ 1.37：Underworld Market 等）→ **立即**重建 Profile 再继续本窗报价。
+
+### 7.7 Deckbuilding 实现计划
+
+**原则**：消费 ArkhamDB 结构化 `deck_options`；运行时只持有**已解析 Profile**；单卡匹配与整副校验分离；购卡 dry-run 复用同一验证器。
+
+```text
+导入
+  CardDefinition.tags / traits / factions / level / type / uses / permanent
+  InvestigatorDefinition.deck_options[]、deck_requirements
+       ↓
+构筑前 CHOICE
+  解析 faction_select / option_select / deck_size_select
+  → DeckbuildingProfile（冻结选型 + 展开后的 ALLOW/LIMIT/FORBID 列表）
+       ↓
+DeckLegality
+  match_card → 有序配位（FORBID → 无限 ALLOW → LIMIT 占坑）
+  validate_deck → size / copies / atleast / required / limits 汇总
+       ↓
+购卡
+  filter 候选 + quote_purchase 时 dry-run validate_deck(deck ⊕ choice)
+```
+
+| 阶段 | 交付 | 说明 |
+|---|---|---|
+| **P0 数据** | hydrate `deck_options` → 内部 `DeckOptionRule`；卡面 `tags` | 与 ArkhamDB 键同构；`text` 正则只在导入打标 |
+| **P1 匹配核** | `CardAccessMatcher` + FAQ 1.15 有序配位 | 先覆盖谱系 A/B/J（faction+level±越级 limit） |
+| **P2 整副** | `validate_deck`：size、≤2 同名、requirements、LIMIT 计数 | 开局构筑硬闸 |
+| **P3 选型** | Profile 绑定 `faction_select` / `option_select` / size | 谱系 E/F/G；Charlie 两 id 互异等约束另测 |
+| **P4 扩展谓词** | trait / type / tag / uses / permanent / not | 谱系 C/I |
+| **P5 多职阶 + atleast** | FAQ 1.16；Lola / 5U-21 | 谱系 H |
+| **P6 购卡接线** | `list_accessible` + `quote_purchase` dry-run | 与 §7.2 报价合并；动态 options 修饰 |
+
+**CampaignInvestigatorRecord 增补**（示意）：
+
+```gdscript
+var deckbuilding_choices: Dictionary  # faction_1 → guardian, trait_choice → cursed, deck_size → 40…
+# 有效 Profile 可由 definition ⊕ choices ⊕ 运行时 modifiers（Market 等）惰性重建
+```
+
+**测试锚**（实现时）：
+
+| ID | 覆盖 |
+|---|---|
+| DB-01 | Roland：Seek L2 可、L3 不可 |
+| DB-02 | Zoey：第 6 张越级 L0 拒；多职阶本职不占坑 |
+| DB-03 | Carolyn：heal-horror 标签卡走无限带；L1 Weapon FORBID |
+| DB-04 | Tony：选型 Survivor 后 L0–1 Survivor **事件**可、资产不可超限 |
+| DB-05 | Mandy：size 50 时 size 校验 |
+| DB-06 | Lola：仅 2 职阶各 7 → atleast 失败 |
+| DB-07 | 购卡 dry-run：LIMIT 已满则该卡不进 Offer 候选 |
+
+**非目标（本阶段）**：从中文 `back_text` 编译 options；替代 ArkhamDB 人工 `tags` 的 NLP。
+
 ---
 
 ## 8. Starter Deck 2026
@@ -322,7 +442,9 @@ class InvestigatorCampaignSystem:
     func mulligan(inv: StringName, cards_to_replace: Array) -> void
     func check_hand_size(inv: StringName) -> void
     func eliminate(inv: StringName, reason: EliminationReason) -> void
-    ## 选定 target 印刷品 → 列出 NEW_CARD + 各合法 UPGRADE 报价（XP 已算清）
+    func resolve_deckbuilding_profile(record) -> DeckbuildingProfile
+    func list_accessible_cards(record, filter := {}) -> Array[StringName]
+    ## 选定 target 印刷品 → 列出 NEW_CARD + 各合法 UPGRADE 报价（XP 已算清；已做准入 dry-run）
     func quote_purchase(record, target_def_id: StringName) -> PurchaseOffer
     func commit_purchase(record, choice: PurchaseChoice) -> Result
     func validate_deck(record) -> Result
@@ -365,6 +487,8 @@ class InvestigatorCampaignSystem:
 | OQ-11-05 | P2 | Random basic weakness 池 — 按 product 还是 global 池？ |
 | OQ-11-06 | P1 | Physical+mental trauma 同时导致 killed **and** insane 的 edge case？ |
 | OQ-11-07 | P2 | Green Man Medallion 裸「next card you purchase」——属（含升级）还是默认 NEW_CARD 种？ |
+| OQ-11-08 | P2 | Charlie / Lola∥ 两个 `faction_select` 是否必须选不同职阶？（印刷未写死时以 FAQ/惯例为准） |
+| OQ-11-09 | P2 | 动态 modifiers（Market 等）改 size/options 后，已超限的在组卡是强制立刻剔除还是仅阻止新购？ |
 
 ---
 
@@ -378,3 +502,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-03 | v0.4 | **§7** 属种（白马非马）：升级 ⊆ Purchase 属、∉ NEW_CARD 种；ArkhamDB 措辞普查（DtRH / Arcane Research / Pelt…）；OQ-11-07 Medallion |
 | 2026-11-03 | v0.5 | **§7.2** 钉死 *new card* = 购入**模式**（非「牌组没有」、亦非「非同名高级」）；同名高级全价 = 仍 NEW_CARD |
 | 2026-11-03 | v0.6 | **§7.2** 购入报价：选定目标时列出 NEW_CARD + 可选 UPGRADE 项并当场定价；API `quote_purchase` / `commit_purchase` |
+| 2026-11-04 | v0.7 | **§7.6–7.7** Deckbuilding Options 分类（ArkhamDB 普查）+ 分阶段实现计划；FAQ 1.15/1.16；DB-01–07 |
