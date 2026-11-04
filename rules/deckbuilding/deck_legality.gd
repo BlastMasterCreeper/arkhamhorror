@@ -15,6 +15,7 @@ static func validate_deck(cards: Array, profile: DeckbuildingProfile) -> Diction
 	var views: Array[DeckCardView] = _to_views(cards)
 	var counted_for_size := 0
 	var title_counts: Dictionary = {}
+	var title_max: Dictionary = {} ## title → max copies（exceptional 1 / myriad 3 / 默认 2）
 	var limit_usage: Dictionary = {} ## rule instance id → count
 	var faction_counts: Dictionary = {} ## faction → count（非 ignore）
 
@@ -25,6 +26,12 @@ static func validate_deck(cards: Array, profile: DeckbuildingProfile) -> Diction
 			counted_for_size += 1
 		var title_key := card.title.to_lower()
 		title_counts[title_key] = int(title_counts.get(title_key, 0)) + 1
+		var allowed := 2
+		if card.exceptional:
+			allowed = 1
+		elif card.myriad:
+			allowed = 3
+		title_max[title_key] = mini(int(title_max.get(title_key, 99)), allowed)
 		for f in card.factions:
 			var fk := String(f).to_lower()
 			faction_counts[fk] = int(faction_counts.get(fk, 0)) + 1
@@ -49,8 +56,8 @@ static func validate_deck(cards: Array, profile: DeckbuildingProfile) -> Diction
 		errors.append("deck_size:%d!=%d" % [counted_for_size, profile.deck_size])
 
 	for title_key in title_counts.keys():
-		if int(title_counts[title_key]) > 2:
-			## Myriad 等例外后续扩展；默认 2。
+		var max_n := int(title_max.get(title_key, 2))
+		if int(title_counts[title_key]) > max_n:
 			errors.append("copy_limit:%s" % title_key)
 
 	for constraint in profile.deck_constraints:
@@ -80,6 +87,22 @@ static func can_add_card(
 	var remove_ids: Dictionary = {}
 	for r in _to_views(remove_cards):
 		remove_ids[r.definition_id] = int(remove_ids.get(r.definition_id, 0)) + 1
+
+	## Exceptional / Myriad 副本上限（计入将移除的源）。
+	var title_key := new_card.title.to_lower()
+	var existing := 0
+	var rem_left := remove_ids.duplicate()
+	for card in views:
+		if card.title.to_lower() != title_key:
+			continue
+		var rem := int(rem_left.get(card.definition_id, 0))
+		if rem > 0:
+			rem_left[card.definition_id] = rem - 1
+			continue
+		existing += 1
+	var max_copies := 1 if new_card.exceptional else (3 if new_card.myriad else 2)
+	if existing + 1 > max_copies:
+		return {"ok": false, "reason": "copy_limit"}
 
 	if kind == CardAccessMatcher.KIND_LIMITED:
 		var rule: DeckOptionRule = access.get("rule")

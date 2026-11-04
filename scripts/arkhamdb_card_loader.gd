@@ -93,6 +93,16 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 		out["xp"] = int(src.get("xp", 0))
 		if not out.has("level"):
 			out["level"] = int(src.get("xp", 0))
+	if bool(src.get("exceptional", false)) or kw_out.has(&"exceptional"):
+		out["exceptional"] = true
+		if not kw_out.has(&"exceptional"):
+			kw_out.append(&"exceptional")
+			out["keywords"] = kw_out
+	if bool(src.get("myriad", false)) or kw_out.has(&"myriad"):
+		out["myriad"] = true
+		if not kw_out.has(&"myriad"):
+			kw_out.append(&"myriad")
+			out["keywords"] = kw_out
 	var factions_raw: Variant = src.get("factions", [])
 	if factions_raw is Array and not (factions_raw as Array).is_empty():
 		var factions_out: Array[StringName] = []

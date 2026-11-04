@@ -367,7 +367,7 @@ Signature / required cards / basic weakness ∈ `deck_requirements`，**无视**
 
 ### 7.7 Deckbuilding 实现计划
 
-> **落地（2026-11-04）**：`rules/deckbuilding/` — `DeckOptionRule` / `DeckbuildingProfile` / `CardAccessMatcher` / `DeckLegality` / `DeckCardView`；导入透传 `deck_options`·`level`·`tags`·`factions`；测 DB-01/02/03/04/06/07。P5 atleast 基础（Lola）已通；P6 购卡窗接线与动态 modifiers 仍待。
+> **落地（2026-11-04）**：`rules/deckbuilding/` 准入核（DB-*）；**P6** `rules/campaign/` — `InvestigatorCampaignSystem`（`begin/end_experience_window` · `quote_purchase` · `commit_purchase` · `list_accessible`）+ `XpCostCalculator`（Exceptional×2、DtRH 修饰器）；Myriad/Exceptional 副本上限；测 XP-01..06。**P6c Customizable 仍延后**。
 
 **原则**：消费 ArkhamDB 结构化 `deck_options`；运行时只持有**已解析 Profile**；单卡匹配与整副校验分离；购卡 dry-run 复用同一验证器。
 
@@ -576,3 +576,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.9 | **§7.2.1** Exceptional / Customizable 纳入报价待接；P6b/P6c；OQ-11-10 |
 | 2026-11-04 | v0.10 | **§7.2.1** 定制勾选 → EffectiveDeckCardView（traits/tags/level）；准入必须投影后重配位 |
 | 2026-11-04 | v0.11 | **P6c Customizable 延后**；重排缺口：P6 报价 → Exceptional / Myriad / 修饰器 / 幕间 |
+| 2026-11-04 | v0.12 | **P6–P6b/d/e/f 落地** `InvestigatorCampaignSystem` + XP-01..06；Customizable 仍延后 |

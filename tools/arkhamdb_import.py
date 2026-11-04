@@ -32,6 +32,9 @@ KEYWORD_LINE_PATTERNS = [
     ("retaliate", re.compile(r"\bRetaliate\b", re.I)),
     ("massive", re.compile(r"\bMassive\b", re.I)),
     ("hidden", re.compile(r"\bHidden\b", re.I)),
+    ("exceptional", re.compile(r"\bExceptional\b", re.I)),
+    ("myriad", re.compile(r"\bMyriad\b", re.I)),
+    ("permanent", re.compile(r"\bPermanent\b", re.I)),
 ]
 
 ABILITY_HINT_PATTERNS = [
@@ -139,6 +142,10 @@ def extract_keywords(card: dict[str, Any], text: str) -> list[str]:
     keywords: list[str] = []
     if card.get("permanent"):
         keywords.append("permanent")
+    if card.get("exceptional"):
+        keywords.append("exceptional")
+    if card.get("myriad"):
+        keywords.append("myriad")
     lines = [ln.strip() for ln in (text or "").split("\n") if ln.strip()]
     for line in lines[:8]:
         # 能力体开始后不再当关键词行（避免 Flavor/规则句误伤）
@@ -426,6 +433,10 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
     if card.get("xp") is not None:
         out["level"] = int(card["xp"])
         out["xp"] = int(card["xp"])
+    if card.get("exceptional") or "exceptional" in keywords:
+        out["exceptional"] = True
+    if card.get("myriad") or "myriad" in keywords:
+        out["myriad"] = True
     tags = parse_tags(card.get("tags"))
     if tags:
         out["tags"] = tags

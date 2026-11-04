@@ -14,6 +14,8 @@ var uses_types: Array[StringName] = []
 var permanent: bool = false
 ## Signature / bearer / 显式忽略 options 的卡。
 var ignore_deckbuilding: bool = false
+var exceptional: bool = false
+var myriad: bool = false
 
 
 static func from_definition_dict(data: Dictionary, definition_id: StringName = &"") -> DeckCardView:
@@ -24,6 +26,8 @@ static func from_definition_dict(data: Dictionary, definition_id: StringName = &
 	v.card_type = StringName(str(data.get("card_type", "")))
 	v.permanent = bool(data.get("permanent", false))
 	v.ignore_deckbuilding = bool(data.get("ignore_deckbuilding", false))
+	v.exceptional = bool(data.get("exceptional", false))
+	v.myriad = bool(data.get("myriad", false))
 	v.factions = _string_names(data.get("factions", []))
 	if v.factions.is_empty():
 		var fc := str(data.get("faction_code", ""))
@@ -44,6 +48,17 @@ static func from_definition_dict(data: Dictionary, definition_id: StringName = &
 			var un := StringName(str(u).to_lower())
 			if un != &"" and not v.uses_types.has(un):
 				v.uses_types.append(un)
+	## keywords 数组回填 permanent / exceptional / myriad。
+	var kws: Variant = data.get("keywords", [])
+	if kws is Array:
+		for kw in kws as Array:
+			var k := String(kw).to_lower()
+			if k == "permanent":
+				v.permanent = true
+			elif k == "exceptional":
+				v.exceptional = true
+			elif k == "myriad":
+				v.myriad = true
 	return v
 
 
