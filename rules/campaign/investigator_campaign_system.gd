@@ -3,6 +3,24 @@ extends RefCounted
 
 ## Experience 购卡窗：报价 / 提交 / 候选目录 / 幕间入口。
 ## Customizable sheet 延后（P6c）。
+## 选定调查员后的附带构筑选型见 `DeckbuildingChoiceFlow` / `bind_investigator_choices`。
+
+
+## 选定调查员后列出附带玩家选择（副职阶 / 特性 / 尺寸…）。
+static func list_investigator_choices(
+	investigator_def: Dictionary,
+	answered: Dictionary = {}
+) -> Array:
+	return DeckbuildingChoiceFlow.list_choices(investigator_def, answered)
+
+
+## 绑定调查员定义 + 应用附带选择 → 冻结 Profile。
+static func bind_investigator_choices(
+	record: CampaignInvestigatorRecord,
+	investigator_def: Dictionary,
+	answers: Dictionary = {}
+) -> Dictionary:
+	return DeckbuildingChoiceFlow.bind_investigator(record, investigator_def, answers)
 
 
 static func begin_experience_window(

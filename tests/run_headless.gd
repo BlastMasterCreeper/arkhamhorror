@@ -14,6 +14,7 @@ func _initialize() -> void:
 	_run_test("DB-02 Zoey offclass limit multiclass", DeckbuildingTestHelper.test_db02_zoey_offclass_limit_and_multiclass)
 	_run_test("DB-03 Carolyn heal tag weapon forbid", DeckbuildingTestHelper.test_db03_carolyn_heal_tag_and_weapon_forbid)
 	_run_test("DB-04 Tony secondary class choice", DeckbuildingTestHelper.test_db04_tony_secondary_class_choice)
+	_run_test("DB-05 Mandy deck size choice", DeckbuildingTestHelper.test_db05_mandy_deck_size_choice)
 	_run_test("DB-06 Lola atleast factions", DeckbuildingTestHelper.test_db06_lola_atleast)
 	_run_test("DB-07 purchase dry-run limit full", DeckbuildingTestHelper.test_db07_purchase_dry_run_limit_full)
 	_run_test("DB-08 size exempt signature weakness permanent bearer", DeckbuildingTestHelper.test_db08_size_exempt_signature_weakness_permanent_bearer)

@@ -392,9 +392,10 @@ Signature / required cards / basic weakness ∈ `deck_requirements`，**无视**
   CardDefinition.tags / traits / factions / level / type / uses / permanent
   InvestigatorDefinition.deck_options[]、deck_requirements
        ↓
-构筑前 CHOICE
-  解析 faction_select / option_select / deck_size_select
-  → DeckbuildingProfile（冻结选型 + 展开后的 ALLOW/LIMIT/FORBID 列表）
+选定调查员
+  → 附带玩家选择（统一）：faction_select / option_select / deck_size_select
+  → 答案写入 deckbuilding_choices
+  → DeckbuildingProfile（冻结选型 + 展开 ALLOW/LIMIT/FORBID）
        ↓
 DeckLegality
   match_card → 有序配位（FORBID → 无限 ALLOW → LIMIT 占坑）
@@ -404,12 +405,26 @@ DeckLegality
   filter 候选 + quote_purchase 时 dry-run validate_deck(deck ⊕ choice)
 ```
 
+#### 7.7.1 选定调查员后的附带玩家选择（已裁决）
+
+副职阶、特性选型、牌组尺寸等 **不是** 各走一套机制，也 **不是** 对局内 seq 时点的 `PlayerInteractionGate`。
+
+统一归入：**选好调查员之后、构筑/购卡之前** 的附带玩家选择束。
+
+| 来源（`deck_options` Role.CHOICE） | 例子 | 答案键 |
+|---|---|---|
+| `faction_select` | Tony / Mandy / Carson **Secondary Class**；Charlie 双职阶 | `name` / `id` → 职阶码 |
+| `option_select` | Wendy∥ Blessed/Cursed；Marion Trait | `id` / `name` |
+| `deck_size_select` | Mandy **30/40/50** | 固定键 `deck_size` |
+
+API：`DeckbuildingChoiceFlow.list_choices` → 提示列表；`apply_answers` / `bind_investigator` → 写入 `CampaignInvestigatorRecord.deckbuilding_choices` 并冻结 Profile。未答完 → `unresolved`；`validate_deck` 拒。
+
 | 阶段 | 交付 | 说明 |
 |---|---|---|
 | **P0 数据** | hydrate `deck_options` → 内部 `DeckOptionRule`；卡面 `tags` | 与 ArkhamDB 键同构；`text` 正则只在导入打标 |
 | **P1 匹配核** | `CardAccessMatcher` + FAQ 1.15 有序配位 | 先覆盖谱系 A/B/J（faction+level±越级 limit） |
 | **P2 整副** | `validate_deck`：size、≤2 同名、requirements、LIMIT 计数 | 开局构筑硬闸 |
-| **P3 选型** | Profile 绑定 `faction_select` / `option_select` / size | 谱系 E/F/G；Charlie 两 id 互异等约束另测 |
+| **P3 附带选择** | `DeckbuildingChoiceFlow`：选调查员后统一 list/apply | 副职阶 / 特性 / size；谱系 E/F/G；Charlie 两 id 互异另测 |
 | **P4 扩展谓词** | trait / type / tag / uses / permanent / not | 谱系 C/I |
 | **P5 多职阶 + atleast** | FAQ 1.16；Lola / 5U-21 | 谱系 H |
 | **P6 购卡接线** | `CampaignInvestigatorRecord` + `quote_purchase` / `commit_purchase` | NEW_CARD / UPGRADE 报价；嵌 `can_add_card`；扣 XP 改牌组 |
@@ -434,10 +449,12 @@ var deckbuilding_choices: Dictionary  # faction_1 → guardian, trait_choice →
 | DB-01 | Roland：Seek L2 可、L3 不可 |
 | DB-02 | Zoey：第 6 张越级 L0 拒；多职阶本职不占坑 |
 | DB-03 | Carolyn：heal-horror 标签卡走无限带；L1 Weapon FORBID |
-| DB-04 | Tony：选型 Survivor 后 L0–1 Survivor **事件**可、资产不可超限 |
-| DB-05 | Mandy：size 50 时 size 校验 |
+| DB-04 | Tony：选调查员后附带 Secondary Class → Survivor 事件可、资产不可 |
+| DB-05 | Mandy：附带 `deck_size=50` + 副职 → size 校验按 50 |
 | DB-06 | Lola：仅 2 职阶各 7 → atleast 失败 |
 | DB-07 | 购卡 dry-run：LIMIT 已满则该卡不进 Offer 候选 |
+| DB-08 | size exempt：Signature / 弱点 / Permanent / Bearer |
+| DB-09 | Myriad **计入** size |
 
 **非目标（本阶段）**：从中文 `back_text` 编译 options；替代 ArkhamDB 人工 `tags` 的 NLP。
 
@@ -594,3 +611,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.11 | **P6c Customizable 延后**；重排缺口：P6 报价 → Exceptional / Myriad / 修饰器 / 幕间 |
 | 2026-11-04 | v0.12 | **P6–P6b/d/e/f 落地** `InvestigatorCampaignSystem` + XP-01..06；Customizable 仍延后 |
 | 2026-11-04 | v0.13 | **§7.5.1** `counts_toward_deck_size`：Permanent / Signature / 弱点 / Bearer 不计；**Myriad 计**；DB-08/09 |
+| 2026-11-04 | v0.14 | **§7.7.1** 副职阶/尺寸/特性 = 选调查员后附带玩家选择；`DeckbuildingChoiceFlow`；DB-05 |

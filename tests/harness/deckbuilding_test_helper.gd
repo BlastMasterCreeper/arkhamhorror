@@ -127,8 +127,12 @@ static func test_db03_carolyn_heal_tag_and_weapon_forbid() -> bool:
 
 
 static func test_db04_tony_secondary_class_choice() -> bool:
-	var profile := DeckbuildingProfile.from_options(
-		[
+	## 选调查员后的附带选择：Secondary Class → survivor。
+	var inv := {
+		"definition_id": "06003",
+		"card_type": "investigator",
+		"title": "Tony",
+		"deck_options": [
 			{"faction": ["rogue", "neutral"], "level": {"min": 0, "max": 5}},
 			{
 				"name": "Secondary Class",
@@ -138,10 +142,18 @@ static func test_db04_tony_secondary_class_choice() -> bool:
 				"limit": 10,
 			},
 		],
-		{"Secondary Class": "survivor"},
-		30,
-		&"06003"
+		"deck_requirements": {"size": 30},
+	}
+	var pending := DeckbuildingChoiceFlow.list_choices(inv, {})
+	if pending.size() != 1 or pending[0].get("kind") != DeckbuildingChoiceFlow.KIND_FACTION:
+		return false
+	var rec := CampaignInvestigatorRecord.new()
+	var bound := DeckbuildingChoiceFlow.bind_investigator(
+		rec, inv, {"Secondary Class": "survivor"}
 	)
+	if not bool(bound.get("ok", false)):
+		return false
+	var profile: DeckbuildingProfile = bound["profile"]
 	var surv_event := _card(
 		"se",
 		{
@@ -164,6 +176,62 @@ static func test_db04_tony_secondary_class_choice() -> bool:
 		CardAccessMatcher.can_access(surv_event, profile)
 		and not CardAccessMatcher.can_access(surv_asset, profile)
 	)
+
+
+static func test_db05_mandy_deck_size_choice() -> bool:
+	## Mandy：选调查员后附带 deck_size + Secondary Class。
+	var inv := {
+		"definition_id": "06002",
+		"card_type": "investigator",
+		"title": "Mandy",
+		"deck_options": [
+			{"deck_size_select": ["30", "40", "50"], "name": "Deck Size"},
+			{"faction": ["seeker", "neutral"], "level": {"min": 0, "max": 5}},
+			{
+				"name": "Secondary Class",
+				"faction_select": ["mystic", "rogue", "survivor"],
+				"level": {"min": 0, "max": 1},
+				"type": ["event", "skill"],
+				"limit": 10,
+			},
+		],
+		"deck_requirements": {"size": 30},
+	}
+	var pending := DeckbuildingChoiceFlow.list_choices(inv, {})
+	if pending.size() != 2:
+		return false
+	var kinds: Array = []
+	for p in pending:
+		kinds.append(p.get("kind"))
+	if not kinds.has(DeckbuildingChoiceFlow.KIND_DECK_SIZE):
+		return false
+	if not kinds.has(DeckbuildingChoiceFlow.KIND_FACTION):
+		return false
+	## 未答 → bind 未完成。
+	var rec0 := CampaignInvestigatorRecord.new()
+	var unbound := DeckbuildingChoiceFlow.bind_investigator(rec0, inv, {})
+	if bool(unbound.get("ok", true)):
+		return false
+	var rec := CampaignInvestigatorRecord.new()
+	var bound := DeckbuildingChoiceFlow.bind_investigator(
+		rec, inv, {"deck_size": 50, "Secondary Class": "mystic"}
+	)
+	if not bool(bound.get("ok", false)):
+		return false
+	var profile: DeckbuildingProfile = bound["profile"]
+	if profile.deck_size != 50:
+		return false
+	## 50 张 guardian 占位（实际 Mandy 是 seeker；用 seeker 填满）。
+	var deck: Array = []
+	for i in 50:
+		deck.append(_card("c%d" % i, {"faction_code": "seeker", "level": 0, "title": "C%d" % i}))
+	var ok50 := DeckLegality.validate_deck(deck, profile)
+	if not bool(ok50.get("ok", false)):
+		return false
+	## 30 张对 size=50 应失败。
+	var short: Array = deck.slice(0, 30)
+	var bad := DeckLegality.validate_deck(short, profile)
+	return not bool(bad.get("ok", true))
 
 
 static func test_db06_lola_atleast() -> bool:
