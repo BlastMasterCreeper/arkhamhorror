@@ -156,6 +156,39 @@ static func test_xp05_interlude_shell() -> bool:
 	return (not rec.experience_window_open) and rec.unspent_xp == 3
 
 
+static func test_xp08_count_vd_and_personal_bonus() -> bool:
+	## 02111 式：Victory 进共享池；06160 式：个人 When earning bonus。
+	var rec_a := _roland_record(5)
+	var rec_b := _roland_record(5)
+	rec_a.unspent_xp = 2
+	rec_b.unspent_xp = 0
+	## 对局中 06160 触发 → 只给 A 排队 +1。
+	rec_a.queue_resolution_xp_bonus(1, &"06160")
+	## VD 合计 3（含一张 Delve Victory 1 + 敌人等）；guide +0。
+	var tall_a := InvestigatorCampaignSystem.count_and_begin_experience_window(rec_a, 3, 0)
+	var tall_b := InvestigatorCampaignSystem.count_and_begin_experience_window(rec_b, 3, 0)
+	if int(tall_a.get("personal_bonus", -1)) != 1:
+		return false
+	if int(tall_a.get("earned_this_scenario", -1)) != 4:  ## 3 VD + 1 personal
+		return false
+	if int(tall_b.get("earned_this_scenario", -1)) != 3:  ## 仅共享 VD
+		return false
+	if rec_a.unspent_xp != 6:  ## 2 prior + 4
+		return false
+	if rec_b.unspent_xp != 3:
+		return false
+	## bonus 队列已消费。
+	if not rec_a.pending_resolution_xp_bonuses.is_empty():
+		return false
+	## Obol 式：额外 +2 经 extra_personal_bonuses。
+	var rec_c := _roland_record(5)
+	rec_c.unspent_xp = 0
+	var tall_c := InvestigatorCampaignSystem.count_and_begin_experience_window(
+		rec_c, 1, 0, [], [ExperienceCount.bonus(2, &"03308")]
+	)
+	return int(tall_c.get("earned_this_scenario", -1)) == 3 and rec_c.unspent_xp == 3
+
+
 static func test_xp07_size_exempt_purchase_no_remove() -> bool:
 	## Permanent / Signature 购入不要求 −1；Myriad 计入 size 须 −1。
 	var rec := _roland_record(5)

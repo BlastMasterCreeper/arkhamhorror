@@ -114,13 +114,38 @@ class CampaignInvestigatorRecord:
 
 ### 7.1 手续顺序（Scenario 后）
 
+官方 Grimoire *Experience* 为 **3** 步；下行 3–4 为步骤 2 内约束拆条（实现检查项，非另开手续）。
+
 ```
-1. Count XP = victory display + guide ± + prior unspent
+1. Count experience
 2. Purchase new cards（属手续）— 窗内逐张交易：NEW_CARD / UPGRADE / CUSTOM_CHECK …
-3. 每加 1 张非 Permanent → 须移除 1 张；maintain deck size
-4. 遵守 deckbuilding；weakness / required 不可因购卡移除
-5. Record unspent XP
+   · 计入 size 的卡 +1 须 −1；weakness / required 不可因购卡移除
+3. Record unspent experience
 ```
+
+#### 7.1.1 Count experience 口径（含卡面额外 XP）
+
+```
+earned_this_scenario =
+    victory_display Σ Victory X     # 共享池；每名调查员同额（决议另有分配时除外）
+  + campaign guide ±                # 决议奖励/惩罚
+  + personal_resolution_bonuses     # 「When earning experience during the resolution…」
+unspent := prior_unspent + earned_this_scenario
+```
+
+| 通道 | 机制 | 锚例 |
+|---|---|---|
+| **胜利展示 Victory X** | 对局中把牌放进 `victory_display`；Count 时 `total_victory_points()` | **02111 Delve Too Deep**（Victory 1；进 VD） |
+| **剧本 guide ±** | Campaign Guide 决议条文 | 「各调查员再得 2 经验」等 |
+| **个人结算 bonus** | 卡面 *When earning experience during the resolution of this scenario, you earn N additional experience*；按调查员登记，Count 时并入 | **06160 "Let God sort them out..."**（+1）；**03308 Charon's Obol**（未淘汰 +2 / 淘汰则杀死） |
+
+**勿混**：
+
+- 02111 类 = **先**进 VD（有印刷 Victory）→ 走共享 VP 求和；不是另开「个人 +1」通道。  
+- 06160 类 = 可进 VD作标记，但 XP 来自 **When earning…** 个人 bonus（印刷未必有 Victory X）。  
+- DtRH / Arcane Research 等 = **花 XP 时**的购卡修饰器（步骤 2），**不是** Count 的 earned 通道。
+
+API：`ExperienceCount.tally` / `InvestigatorCampaignSystem.count_and_begin_experience_window`；对局中 `record.queue_resolution_xp_bonus(n, source)`。
 
 卡面若改 deckbuilding / 购卡 / 升级（如 Adaptable、Underworld Market）：**逐张结算**，购入后立即对本 spend window 生效（FAQ 1.37）。
 
@@ -432,7 +457,7 @@ API：`DeckbuildingChoiceFlow.list_choices` → 提示列表；`apply_answers` /
 | **P6b Exceptional** | 费用 ×2 + 副本上限 1；UPGRADE 倍差 OQ-11-10 | 导入 `exceptional`；Offer / validate |
 | **P6d Myriad / Permanent / Signature** | Myriad 副本 3（**计** size）；Permanent/Signature/弱点/Bearer **不计** size；Signature ignore options | `counts_toward_deck_size`；requirements 打标 |
 | **P6e XP 修饰器** | DtRH / Arcane Research / Pelt… | 按种叠加减价；FAQ 1.37 当窗生效 |
-| **P6f 幕间壳** | Experience 步骤 1–5 运行时入口 | 无 UI 也可 headless 驱动 |
+| **P6f 幕间壳** | Experience 官方 3 步入口；Count 含 VD + guide + 个人 bonus | `ExperienceCount`；02111 / 06160 通道 |
 | **P6c Customizable** | **延后**（投影改 traits/tags/level，子系统大） | 见 §7.2.1；不阻塞 P6–P6b/d |
 
 **CampaignInvestigatorRecord 增补**（示意）：
@@ -612,3 +637,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.12 | **P6–P6b/d/e/f 落地** `InvestigatorCampaignSystem` + XP-01..06；Customizable 仍延后 |
 | 2026-11-04 | v0.13 | **§7.5.1** `counts_toward_deck_size`：Permanent / Signature / 弱点 / Bearer 不计；**Myriad 计**；DB-08/09 |
 | 2026-11-04 | v0.14 | **§7.7.1** 副职阶/尺寸/特性 = 选调查员后附带玩家选择；`DeckbuildingChoiceFlow`；DB-05 |
+| 2026-11-04 | v0.15 | **§7.1.1** Count XP：VD Victory（02111）∪ guide ± ∪ 个人 When earning（06160 / Obol）；`ExperienceCount` |

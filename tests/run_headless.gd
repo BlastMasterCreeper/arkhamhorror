@@ -26,6 +26,7 @@ func _initialize() -> void:
 	_run_test("XP-05 interlude shell", CampaignPurchaseTestHelper.test_xp05_interlude_shell)
 	_run_test("XP-06 myriad copy limit", CampaignPurchaseTestHelper.test_xp06_myriad_copy_limit)
 	_run_test("XP-07 size exempt purchase no remove", CampaignPurchaseTestHelper.test_xp07_size_exempt_purchase_no_remove)
+	_run_test("XP-08 count VD and personal bonus", CampaignPurchaseTestHelper.test_xp08_count_vd_and_personal_bonus)
 	_run_test("PHYS-01 set-aside to deck shuffle", PhysicalTestHelper.test_set_aside_to_deck_shuffle)
 	_run_test("PHYS-02 marker transfer pool to card", PhysicalTestHelper.test_marker_transfer_pool_to_card)
 	_run_test("PHYS-03 augury reveal and return", PhysicalTestHelper.test_augury_reveal_and_return)

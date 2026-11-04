@@ -23,6 +23,8 @@ static func bind_investigator_choices(
 	return DeckbuildingChoiceFlow.bind_investigator(record, investigator_def, answers)
 
 
+## 幕间步骤 1：Count XP 后打开购卡窗。
+## 可直接传 earned_xp；或传 victory_points + guide_delta，并消费 record 上排队的个人 bonus。
 static func begin_experience_window(
 	record: CampaignInvestigatorRecord,
 	earned_xp: int,
@@ -33,6 +35,29 @@ static func begin_experience_window(
 	record.unspent_xp += maxi(0, earned_xp)
 	record.xp_modifiers = modifiers.duplicate()
 	record.experience_window_open = true
+
+
+## Count → begin：VD（含 02111 等 Victory 牌）+ guide ± + 个人 bonus（06160 / Obol…）。
+static func count_and_begin_experience_window(
+	record: CampaignInvestigatorRecord,
+	victory_points: int,
+	guide_delta: int = 0,
+	modifiers: Array = [],
+	extra_personal_bonuses: Array = []
+) -> Dictionary:
+	if record == null:
+		return {"ok": false, "reason": "missing_record"}
+	var personal: Array = record.take_resolution_xp_bonuses()
+	for b in extra_personal_bonuses:
+		personal.append(b)
+	var tallied := ExperienceCount.tally(
+		victory_points, guide_delta, personal, record.unspent_xp
+	)
+	var earned := int(tallied.get("earned_this_scenario", 0))
+	begin_experience_window(record, earned, modifiers)
+	tallied["ok"] = true
+	tallied["unspent_xp"] = record.unspent_xp
+	return tallied
 
 
 static func end_experience_window(record: CampaignInvestigatorRecord) -> void:
