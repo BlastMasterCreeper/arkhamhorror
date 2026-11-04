@@ -87,6 +87,37 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 	for tr in traits:
 		trait_out.append(StringName(str(tr)))
 	out["traits"] = trait_out
+	if src.has("level"):
+		out["level"] = int(src.get("level", 0))
+	if src.has("xp"):
+		out["xp"] = int(src.get("xp", 0))
+		if not out.has("level"):
+			out["level"] = int(src.get("xp", 0))
+	var factions_raw: Variant = src.get("factions", [])
+	if factions_raw is Array and not (factions_raw as Array).is_empty():
+		var factions_out: Array[StringName] = []
+		for f in factions_raw as Array:
+			factions_out.append(StringName(str(f)))
+		out["factions"] = factions_out
+	var tags_raw: Variant = src.get("tags", [])
+	if tags_raw is Array and not (tags_raw as Array).is_empty():
+		var tags_out: Array[StringName] = []
+		for t in tags_raw as Array:
+			tags_out.append(StringName(str(t).to_lower()))
+		out["tags"] = tags_out
+	elif str(src.get("tags", "")) != "":
+		## 兼容 ``hd.hh.`` 字符串。
+		var tags_out2: Array[StringName] = []
+		for part in str(src.get("tags")).split("."):
+			var s := part.strip_edges().to_lower()
+			if s != "":
+				tags_out2.append(StringName(s))
+		if not tags_out2.is_empty():
+			out["tags"] = tags_out2
+	if src.has("deck_options") and src.get("deck_options") is Array:
+		out["deck_options"] = (src.get("deck_options") as Array).duplicate(true)
+	if src.has("deck_requirements"):
+		out["deck_requirements"] = src.get("deck_requirements")
 	var hints: Array = src.get("ability_hints", [])
 	var hint_out: Array[StringName] = []
 	for h in hints:

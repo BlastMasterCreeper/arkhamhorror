@@ -25,7 +25,8 @@
         "take_horror": 1,
         "discard_source": 3
       }
-    }
+    },
+    "note": "reimport with deckbuilding fields; preserved compiled_abilities from prior import"
   },
   "12001": {
     "definition_id": "12001",
@@ -63,6 +64,48 @@
       "elder_sign"
     ],
     "text": "[reaction] After an enemy attacks an investigator at your location: Fight that enemy <i>(using either a basic fight action or a </i><b>Fight</b><i> ability on a card)</i>. (Limit once per round.)\n[elder_sign] effect: +1. Deal 1 damage to an enemy at your location.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Guardian cards ([guardian]) level 0-5, Survivor cards ([survivor]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Daniela's Wrench, In Harm's Way, 1 random basic weakness.",
+    "factions": [
+      "guardian"
+    ],
+    "deck_options": [
+      {
+        "faction": [
+          "guardian",
+          "neutral"
+        ],
+        "level": {
+          "min": 0,
+          "max": 5
+        }
+      },
+      {
+        "faction": [
+          "survivor"
+        ],
+        "level": {
+          "min": 0,
+          "max": 2
+        }
+      }
+    ],
+    "deck_requirements": {
+      "card": {
+        "12002": {
+          "12002": "12002"
+        },
+        "12003": {
+          "12003": "12003"
+        }
+      },
+      "random": [
+        {
+          "target": "subtype",
+          "value": "basicweakness"
+        }
+      ],
+      "size": 30
+    },
+    "back_text": "<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Guardian cards ([guardian]) level 0-5, Survivor cards ([survivor]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Daniela's Wrench, In Harm's Way, 1 random basic weakness.",
     "ability_segments": [
       {
         "kind": "reaction",
@@ -105,6 +148,9 @@
       "fast"
     ],
     "text": "Daniela Reyes deck only.\n[fast] Exhaust Daniela's Wrench: Choose an enemy at your location. That enemy engages you and makes an immediate attack.\n[action]: <b>Fight</b> ([combat]). You get +2 [combat] for this attack. If this enemy attacked you this round, this attack deals +1 damage.",
+    "factions": [
+      "guardian"
+    ],
     "ability_segments": [
       {
         "kind": "fast",
@@ -146,6 +192,9 @@
       "forced"
     ],
     "text": "<b>Revelation</b> - Put In Harm's Way into play in your threat area.\n<b>Forced</b> - After you deal damage to an enemy: Take 1 damage and place 1 damage on In Harm's Way. If there is 3 or more damage on this card, discard it.\n<b>Forced</b> - When the game ends: Suffer 1 physical trauma.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "revelation",
@@ -221,6 +270,48 @@
       "elder_sign"
     ],
     "text": "[reaction] After you successfully investigate: Draw 1 card. (Limit once per round.)\n[elder_sign] effect: +1. If you succeed, draw 1 card and gain 1 resource.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Seeker cards ([seeker]) level 0-5, Guardian cards ([guardian]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Detective's Intuition, Dead Ends, 1 random basic weakness.",
+    "factions": [
+      "seeker"
+    ],
+    "deck_options": [
+      {
+        "faction": [
+          "seeker",
+          "neutral"
+        ],
+        "level": {
+          "min": 0,
+          "max": 5
+        }
+      },
+      {
+        "faction": [
+          "guardian"
+        ],
+        "level": {
+          "min": 0,
+          "max": 2
+        }
+      }
+    ],
+    "deck_requirements": {
+      "card": {
+        "12005": {
+          "12005": "12005"
+        },
+        "12006": {
+          "12006": "12006"
+        }
+      },
+      "random": [
+        {
+          "target": "subtype",
+          "value": "basicweakness"
+        }
+      ],
+      "size": 30
+    },
+    "back_text": "<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Seeker cards ([seeker]) level 0-5, Guardian cards ([guardian]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Detective's Intuition, Dead Ends, 1 random basic weakness.",
     "ability_segments": [
       {
         "kind": "reaction",
@@ -288,6 +379,13 @@
       "reaction"
     ],
     "text": "Joe Diamond deck only.\nGain 2 resources and heal 1 damage or 1 horror.\n[reaction] After you draw Detective's Intuition during your turn: Reveal it and draw 2 additional cards.",
+    "factions": [
+      "seeker"
+    ],
+    "tags": [
+      "hd",
+      "hh"
+    ],
     "ability_segments": [
       {
         "kind": "reaction",
@@ -323,6 +421,9 @@
       "forced"
     ],
     "text": "<b>Forced</b> - When you search your deck and Dead Ends is among the searched cards: Draw it, cancel the effects of the search, and shuffle your deck.\n<b>Forced</b> - When the game ends or you are eliminated, if this card is in your hand: You earn 2 fewer experience.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "forced",
@@ -372,7 +473,49 @@
     "ability_hints": [
       "elder_sign"
     ],
-    "text": "You may take an additional action during your turn, which can only be used to evade.\n[elder_sign] effect: +0. After this test resolves, you may disengage from each enemy and move to a connecting location.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Rogue cards ([rogue]) level 0-5, Seeker cards ([seeker]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Covert Ops, Black Chamber Operative, 1 random basic weakness."
+    "text": "You may take an additional action during your turn, which can only be used to evade.\n[elder_sign] effect: +0. After this test resolves, you may disengage from each enemy and move to a connecting location.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Rogue cards ([rogue]) level 0-5, Seeker cards ([seeker]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Covert Ops, Black Chamber Operative, 1 random basic weakness.",
+    "factions": [
+      "rogue"
+    ],
+    "deck_options": [
+      {
+        "faction": [
+          "rogue",
+          "neutral"
+        ],
+        "level": {
+          "min": 0,
+          "max": 5
+        }
+      },
+      {
+        "faction": [
+          "seeker"
+        ],
+        "level": {
+          "min": 0,
+          "max": 2
+        }
+      }
+    ],
+    "deck_requirements": {
+      "card": {
+        "12008": {
+          "12008": "12008"
+        },
+        "12009": {
+          "12009": "12009"
+        }
+      },
+      "random": [
+        {
+          "target": "subtype",
+          "value": "basicweakness"
+        }
+      ],
+      "size": 30
+    },
+    "back_text": "<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Rogue cards ([rogue]) level 0-5, Seeker cards ([seeker]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Covert Ops, Black Chamber Operative, 1 random basic weakness."
   },
   "12008": {
     "definition_id": "12008",
@@ -406,6 +549,9 @@
       "reaction"
     ],
     "text": "Trish Scarborough deck only.\n[reaction] After you evade an enemy, exhaust Covert Ops: Either draw 1 card, or move to a connecting location.",
+    "factions": [
+      "rogue"
+    ],
     "ability_segments": [
       {
         "kind": "reaction",
@@ -450,6 +596,9 @@
       "forced"
     ],
     "text": "Hunter. Prey (Trish Scarborough only).\n<b>Forced</b> - After you evade Black Chamber Operative: Place 1 of your clues on your location. If you cannot, this enemy readies, engages you, and makes an immediate attack.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "forced",
@@ -499,6 +648,48 @@
       "elder_sign"
     ],
     "text": "[reaction] After you play an asset: Either return another non-story asset you control to your hand, or play a different asset from your hand <i>(paying its cost)</i>. (Limit once per round.)\n[elder_sign] effect: +1. You may return a non-story asset at your location to its owner's hand.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Mystic cards ([mystic]) level 0-5, Rogue cards ([rogue]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): \"For my next trick...\", The Necronomicon <i>(Drake Translation)</i>, 1 random basic weakness.",
+    "factions": [
+      "mystic"
+    ],
+    "deck_options": [
+      {
+        "faction": [
+          "mystic",
+          "neutral"
+        ],
+        "level": {
+          "min": 0,
+          "max": 5
+        }
+      },
+      {
+        "faction": [
+          "rogue"
+        ],
+        "level": {
+          "min": 0,
+          "max": 2
+        }
+      }
+    ],
+    "deck_requirements": {
+      "card": {
+        "12011": {
+          "12011": "12011"
+        },
+        "12012": {
+          "12012": "12012"
+        }
+      },
+      "random": [
+        {
+          "target": "subtype",
+          "value": "basicweakness"
+        }
+      ],
+      "size": 30
+    },
+    "back_text": "<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Mystic cards ([mystic]) level 0-5, Rogue cards ([rogue]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): \"For my next trick...\", The Necronomicon <i>(Drake Translation)</i>, 1 random basic weakness.",
     "ability_segments": [
       {
         "kind": "reaction",
@@ -536,7 +727,10 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Dexter Drake deck only.\nSearch your deck for a [[Spell]] or [[Item]] asset and play it, reducing its cost by 2 <i>(shuffle your deck)</i>. This action does not provoke attacks of opportunity."
+    "text": "Dexter Drake deck only.\nSearch your deck for a [[Spell]] or [[Item]] asset and play it, reducing its cost by 2 <i>(shuffle your deck)</i>. This action does not provoke attacks of opportunity.",
+    "factions": [
+      "mystic"
+    ]
   },
   "12012": {
     "definition_id": "12012",
@@ -568,6 +762,9 @@
       "revelation"
     ],
     "text": "<b>Revelation</b> - Put The Necronomicon into play in your threat area. It cannot leave play except by the [action] ability below.\nYou cannot play assets or trigger abilities on other assets you control.\n[action]: Test [willpower] (5). If you succeed, discard The Necronomicon. If you fail, shuffle it into your deck and take 1 horror.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "revelation",
@@ -651,6 +848,48 @@
       "elder_sign"
     ],
     "text": "[fast] During a skill test you are performing, take 1 direct horror: Commit an eligible skill from your discard pile to this test. After this test resolves, shuffle that card into your deck. (Limit once per round.)\n[elder_sign] effect: +1. If you succeed, heal 1 horror.\n<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Survivor cards ([survivor]) level 0-5, Mystic cards ([mystic]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Isabelle's Twin .45s, Breaking Point, 1 random basic weakness.",
+    "factions": [
+      "survivor"
+    ],
+    "deck_options": [
+      {
+        "faction": [
+          "survivor",
+          "neutral"
+        ],
+        "level": {
+          "min": 0,
+          "max": 5
+        }
+      },
+      {
+        "faction": [
+          "mystic"
+        ],
+        "level": {
+          "min": 0,
+          "max": 2
+        }
+      }
+    ],
+    "deck_requirements": {
+      "card": {
+        "12014": {
+          "12014": "12014"
+        },
+        "12015": {
+          "12015": "12015"
+        }
+      },
+      "random": [
+        {
+          "target": "subtype",
+          "value": "basicweakness"
+        }
+      ],
+      "size": 30
+    },
+    "back_text": "<b>Deck Size</b>: 30.\n<b>Deckbuilding Options</b>: Survivor cards ([survivor]) level 0-5, Mystic cards ([mystic]) level 0-2, Neutral cards level 0-5.\n<b>Deckbuilding Requirements</b> (do not count toward deck size): Isabelle's Twin .45s, Breaking Point, 1 random basic weakness.",
     "ability_segments": [
       {
         "kind": "fast",
@@ -695,6 +934,9 @@
       "action"
     ],
     "text": "Isabelle Barnes deck only. Uses (6 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +1 [combat] and deal +1 damage for this attack.\n[reaction] After you resolve the above ability, spend 1 ammo and exhaust Isabelle's Twin .45s: <b>Fight</b> ([agility]). You get +1 [agility] and deal +1 damage for this attack.",
+    "factions": [
+      "survivor"
+    ],
     "ability_segments": [
       {
         "kind": "action",
@@ -739,6 +981,9 @@
       "revelation"
     ],
     "text": "<b>Revelation</b> - Take 1 direct damage. Then, if you have 6 or fewer remaining sanity, take 1 direct damage. Then, if you have 3 or fewer remaining sanity, take 1 direct damage.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "revelation",
@@ -789,6 +1034,11 @@
       "reaction"
     ],
     "text": "Bodyguard may be assigned damage dealt to other investigators at your location.\n[reaction] When Bodyguard is defeated: Deal 1 damage to an enemy at your location.",
+    "factions": [
+      "guardian"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -827,6 +1077,11 @@
       "fast"
     ],
     "text": "[fast] Spend 1 resource: You get +1 [combat] for this skill test (+2 [combat] instead if this is an attack or evasion).\n[fast] Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this is an attack or evasion).",
+    "factions": [
+      "guardian"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "fast",
@@ -872,6 +1127,11 @@
       "reaction"
     ],
     "text": "You get +1 [combat].\n[reaction] After you defeat an enemy, exhaust Logan Hastings: Gain 1 resource.",
+    "factions": [
+      "guardian"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -885,10 +1145,22 @@
         "register_as": "reaction",
         "ability_id": "reaction:0",
         "ability_kind": "reaction",
-        "status": "effect_only",
-        "trigger": "After you defeat an enemy, exhaust Logan Hastings",
-        "template": "gain_resources",
-        "amount": 1
+        "status": "full",
+        "trigger": "After you defeat an enemy",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "exhaust_source"
+          },
+          {
+            "template": "gain_resources",
+            "amount": 1
+          }
+        ],
+        "match_kind": "reveal_chaos_token",
+        "phase": "WHEN",
+        "timing": "when_reveal_chaos_token"
       }
     ]
   },
@@ -925,6 +1197,11 @@
       "action"
     ],
     "text": "Uses (4 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +1 [combat] and deal +1 damage for this attack.",
+    "factions": [
+      "guardian"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "action",
@@ -965,7 +1242,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": ""
+    "text": "",
+    "factions": [
+      "guardian"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12022": {
     "definition_id": "12022",
@@ -995,7 +1277,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Fast. Play after an enemy attacks you.\nDiscover 1 clue at your location."
+    "text": "Fast. Play after an enemy attacks you.\nDiscover 1 clue at your location.",
+    "factions": [
+      "guardian"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12023": {
     "definition_id": "12023",
@@ -1023,7 +1310,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Search the top 9 cards of your deck for a [[Tool]] or [[Weapon]] asset and add it to your hand. Shuffle your deck."
+    "text": "Search the top 9 cards of your deck for a [[Tool]] or [[Weapon]] asset and add it to your hand. Shuffle your deck.",
+    "factions": [
+      "guardian"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12026": {
     "definition_id": "12026",
@@ -1053,7 +1345,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Fast. Play when an enemy attacks an investigator at your location <i>(before resolving that attack)</i>.\nCancel that attack. Deal 1 damage to that enemy."
+    "text": "Fast. Play when an enemy attacks an investigator at your location <i>(before resolving that attack)</i>.\nCancel that attack. Deal 1 damage to that enemy.",
+    "factions": [
+      "guardian"
+    ],
+    "level": 1,
+    "xp": 1
   },
   "12027": {
     "definition_id": "12027",
@@ -1087,6 +1384,11 @@
       "reaction"
     ],
     "text": "Bodyguard may be assigned damage dealt to other investigators at your location.\n[reaction] When Bodyguard is defeated: Deal 2 damage to an enemy at your location.",
+    "factions": [
+      "guardian"
+    ],
+    "level": 2,
+    "xp": 2,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -1127,6 +1429,11 @@
       "action"
     ],
     "text": "[action]: <b>Fight</b> ([combat]). This attack deals + 1 damage.\n[action][action]: <b>Fight</b> ([combat]). You get +3 [combat] for this attack. If you succeed, you may exhaust Sledgehammer for this attack to deal +2 damage.",
+    "factions": [
+      "guardian"
+    ],
+    "level": 3,
+    "xp": 3,
     "ability_segments": [
       {
         "kind": "action",
@@ -1173,6 +1480,11 @@
       "action"
     ],
     "text": "Uses (3 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([combat]). You get +3 [combat] for this attack. If you succeed, this attack deals +1 damage for each point you succeed by (to a maximum of +4). If you fail and would deal damage to another investigator, this attack deals 1 damage for each point you fail by (to a maximum of 5 damage).",
+    "factions": [
+      "guardian"
+    ],
+    "level": 5,
+    "xp": 5,
     "ability_segments": [
       {
         "kind": "action",
@@ -1217,6 +1529,11 @@
       "reaction"
     ],
     "text": "You get +1 [intellect].\n[reaction] After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons: Gain 1 resource.",
+    "factions": [
+      "seeker"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -1230,10 +1547,22 @@
         "register_as": "reaction",
         "ability_id": "reaction:0",
         "ability_kind": "reaction",
-        "status": "effect_only",
-        "trigger": "After you successfully investigate by exactly 1 or 3, exhaust Dorothy Simmons",
-        "template": "gain_resources",
-        "amount": 1
+        "status": "full",
+        "trigger": "After you successfully investigate by exactly 1 or 3",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "exhaust_source"
+          },
+          {
+            "template": "gain_resources",
+            "amount": 1
+          }
+        ],
+        "match_kind": "reveal_chaos_token",
+        "phase": "WHEN",
+        "timing": "when_reveal_chaos_token"
       }
     ]
   },
@@ -1268,6 +1597,11 @@
       "action"
     ],
     "text": "Uses (4 secrets).\n[action] Spend 1 secret: <b>Investigate</b> ([intellect]). Investigate a revealed connecting location. You get +1 [intellect] for this investigation. If you succeed, you may exhaust Local Map to move to that location.",
+    "factions": [
+      "seeker"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "action",
@@ -1310,6 +1644,14 @@
       "fast"
     ],
     "text": "[fast] Spend 1 resource: You get +1 [intellect] for this skill test (+2 [intellect] instead if this is an investigation or parley).\n[fast] Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this is an investigation or parley).",
+    "factions": [
+      "seeker"
+    ],
+    "level": 0,
+    "xp": 0,
+    "tags": [
+      "pa"
+    ],
     "ability_segments": [
       {
         "kind": "fast",
@@ -1350,7 +1692,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Fast. Play when an enemy enters your location.\nDraw 2 cards."
+    "text": "Fast. Play when an enemy enters your location.\nDraw 2 cards.",
+    "factions": [
+      "seeker"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12037": {
     "definition_id": "12037",
@@ -1379,7 +1726,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "<b>Evade</b> ([agility]). You get +1 [agility] for this evasion for each clue you control (to a maximum of +3). If you succeed, you may disengage from each enemy engaged with you and move to a revealed connecting location."
+    "text": "<b>Evade</b> ([agility]). You get +1 [agility] for this evasion for each clue you control (to a maximum of +3). If you succeed, you may disengage from each enemy engaged with you and move to a revealed connecting location.",
+    "factions": [
+      "seeker"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12040": {
     "definition_id": "12040",
@@ -1413,6 +1765,11 @@
       "fast"
     ],
     "text": "Uses (4 secrets).\n[fast] During your turn, spend 1 or 2 secrets and exhaust Mysterious Grimoire: Search the top 3 cards (or 6 cards instead if you spent 2 secrets) of your deck for a card and draw it. If 1 or more weaknesses are among the searched cards, draw them as well. Shuffle your deck.",
+    "factions": [
+      "seeker"
+    ],
+    "level": 2,
+    "xp": 2,
     "ability_segments": [
       {
         "kind": "fast",
@@ -1453,7 +1810,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "<b>Evade</b> ([agility]). You get +2 [agility] for this evasion for each clue you control (to a maximum of +6). If you succeed, you may disengage from each enemy engaged with you and move to a revealed connecting location."
+    "text": "<b>Evade</b> ([agility]). You get +2 [agility] for this evasion for each clue you control (to a maximum of +6). If you succeed, you may disengage from each enemy engaged with you and move to a revealed connecting location.",
+    "factions": [
+      "seeker"
+    ],
+    "level": 2,
+    "xp": 2
   },
   "12043": {
     "definition_id": "12043",
@@ -1482,7 +1844,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Reveal the top 5 cards of your deck (8 cards instead if you control 2 or more clues). Draw 3 of them and place the rest of those cards on the top and/or bottom of your deck in any order."
+    "text": "Reveal the top 5 cards of your deck (8 cards instead if you control 2 or more clues). Draw 3 of them and place the rest of those cards on the top and/or bottom of your deck in any order.",
+    "factions": [
+      "seeker"
+    ],
+    "level": 5,
+    "xp": 5
   },
   "12045": {
     "definition_id": "12045",
@@ -1517,6 +1884,11 @@
       "action"
     ],
     "text": "Uses (4 ammo).\n[action] Spend 1 ammo: <b>Fight</b> ([agility]). If the targeted enemy is exhausted, this attack deals +1 damage.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "action",
@@ -1562,6 +1934,11 @@
       "fast"
     ],
     "text": "You get +1 [agility].\n[fast] During your turn, exhaust Olivier Bishop: Move to a connecting location.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "fast",
@@ -1627,6 +2004,14 @@
       "fast"
     ],
     "text": "[fast] Spend 1 resource: You get +1 [intellect] for this skill test (+2 [intellect] instead if this is an evasion or parley).\n[fast] Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this is an evasion or parley).",
+    "factions": [
+      "rogue"
+    ],
+    "level": 0,
+    "xp": 0,
+    "tags": [
+      "pa"
+    ],
     "ability_segments": [
       {
         "kind": "fast",
@@ -1669,6 +2054,11 @@
       "reaction"
     ],
     "text": "Limit 1 per investigator.\n[reaction] After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -1682,10 +2072,22 @@
         "register_as": "reaction",
         "ability_id": "reaction:0",
         "ability_kind": "reaction",
-        "status": "effect_only",
-        "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
-        "template": "gain_resources",
-        "amount": 1
+        "status": "full",
+        "trigger": "After you successfully evade an enemy",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "exhaust_source"
+          },
+          {
+            "template": "gain_resources",
+            "amount": 1
+          }
+        ],
+        "match_kind": "reveal_chaos_token",
+        "phase": "WHEN",
+        "timing": "when_reveal_chaos_token"
       }
     ]
   },
@@ -1717,7 +2119,15 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "<b>Parley.</b> Search the top 9 cards of the encounter deck for a non-[[Elite]] enemy, draw it, and gain resources equal to that enemy's printed health. Shuffle the encounter deck."
+    "text": "<b>Parley.</b> Search the top 9 cards of the encounter deck for a non-[[Elite]] enemy, draw it, and gain resources equal to that enemy's printed health. Shuffle the encounter deck.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 0,
+    "xp": 0,
+    "tags": [
+      "pa"
+    ]
   },
   "12052": {
     "definition_id": "12052",
@@ -1746,7 +2156,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Fast. Play only during your turn.\nPlay an [[Item]] asset from your hand, reducing its cost by 2. When your turn ends, return an [[Item]] asset you control to your hand."
+    "text": "Fast. Play only during your turn.\nPlay an [[Item]] asset from your hand, reducing its cost by 2. When your turn ends, return an [[Item]] asset you control to your hand.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12053": {
     "definition_id": "12053",
@@ -1774,7 +2189,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Max 1 committed per skill test.\nIf this test is successful by 2 or more, the performing investigator may disengage from each enemy and move to a revealed connecting location."
+    "text": "Max 1 committed per skill test.\nIf this test is successful by 2 or more, the performing investigator may disengage from each enemy and move to a revealed connecting location.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12054": {
     "definition_id": "12054",
@@ -1805,6 +2225,11 @@
       "reaction"
     ],
     "text": "Fast. Limit 1 per investigator.\n[reaction] After you successfully evade an enemy, exhaust Sticky Fingers: Gain 1 resource.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 2,
+    "xp": 2,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -1818,10 +2243,22 @@
         "register_as": "reaction",
         "ability_id": "reaction:0",
         "ability_kind": "reaction",
-        "status": "effect_only",
-        "trigger": "After you successfully evade an enemy, exhaust Sticky Fingers",
-        "template": "gain_resources",
-        "amount": 1
+        "status": "full",
+        "trigger": "After you successfully evade an enemy",
+        "template": "seq",
+        "translation": "full_expand",
+        "steps": [
+          {
+            "template": "exhaust_source"
+          },
+          {
+            "template": "gain_resources",
+            "amount": 1
+          }
+        ],
+        "match_kind": "reveal_chaos_token",
+        "phase": "WHEN",
+        "timing": "when_reveal_chaos_token"
       }
     ]
   },
@@ -1853,7 +2290,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "<b>Fight</b> ([combat]). You get +2 [combat] and deal +1 damage for this attack. If this attack defeats an enemy, gain 5 resources."
+    "text": "<b>Fight</b> ([combat]). You get +2 [combat] and deal +1 damage for this attack. If this attack defeats an enemy, gain 5 resources.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 2,
+    "xp": 2
   },
   "12057": {
     "definition_id": "12057",
@@ -1882,7 +2324,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Max 1 committed per skill test.\nIf this test is successful by 1 or more, the performing investigator may disengage from each enemy and move to a revealed location up to 2 connections away."
+    "text": "Max 1 committed per skill test.\nIf this test is successful by 1 or more, the performing investigator may disengage from each enemy and move to a revealed location up to 2 connections away.",
+    "factions": [
+      "rogue"
+    ],
+    "level": 3,
+    "xp": 3
   },
   "12058": {
     "definition_id": "12058",
@@ -1915,6 +2362,11 @@
       "reaction"
     ],
     "text": "[reaction] When horror is placed on Cloak of Resonance, exhaust it: Deal 1 damage to an enemy at your location.",
+    "factions": [
+      "mystic"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -1954,6 +2406,11 @@
       "action"
     ],
     "text": "Uses (3 charges).\n[action]: <b>Fight</b> ([willpower]). If you succeed, you may spend 1 charge to deal +1 damage for this attack. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
+    "factions": [
+      "mystic"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "action",
@@ -2009,12 +2466,7 @@
         },
         "notes": "partial: succeed may-spend +damage / +willpower not yet; if_revealed skull path full"
       }
-    ],
-    "ability_compile_summary": {
-      "status": "partial",
-      "compiled": 1,
-      "focus": "if_revealed_skull"
-    }
+    ]
   },
   "12060": {
     "definition_id": "12060",
@@ -2048,6 +2500,11 @@
       "reaction"
     ],
     "text": "You get +1 [willpower].\n[reaction] After you take damage and/or horror, exhaust Jim Culver: Draw 1 card.",
+    "factions": [
+      "mystic"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -2115,6 +2572,11 @@
       "fast"
     ],
     "text": "Uses (4 charges).\n[fast] Spend 1 charge and exhaust Lucky Charm: Move 1 damage or 1 horror from a card at your location to a card you control <i>(with a health or sanity value)</i>.",
+    "factions": [
+      "mystic"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "fast",
@@ -2158,6 +2620,11 @@
       "action"
     ],
     "text": "Uses (3 charges).\n[action]: <b>Investigate</b> ([willpower]). If you succeed, you may spend 1 charge to discover 1 additional clue at your location. If you reveal a [cultist] token during this test, remove 1 charge from Second Sight (if you cannot, take 1 horror and discard this card).",
+    "factions": [
+      "mystic"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "action",
@@ -2200,6 +2667,11 @@
       "fast"
     ],
     "text": "[fast] Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this test is on a [[Spell]] or [[Ritual]] card).\n[fast] Spend 1 resource: You get +1 [combat] for this skill test (+2 [combat] instead if this test is on a [[Spell]] or [[Ritual]] card).",
+    "factions": [
+      "mystic"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "fast",
@@ -2240,7 +2712,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Place 1 doom on a player card you control. Then, discover 1 clue at your location and 1 clue at another revealed location."
+    "text": "Place 1 doom on a player card you control. Then, discover 1 clue at your location and 1 clue at another revealed location.",
+    "factions": [
+      "mystic"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12067": {
     "definition_id": "12067",
@@ -2269,7 +2746,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "As an additional cost to commit Soul Link, take 1 horror."
+    "text": "As an additional cost to commit Soul Link, take 1 horror.",
+    "factions": [
+      "mystic"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12068": {
     "definition_id": "12068",
@@ -2305,6 +2787,11 @@
       "reaction"
     ],
     "text": "Uses (3 charges).\n[reaction] When you would reveal a chaos token, spend 1 charge: Reveal 1 additional token. Choose 1 of those tokens to resolve and ignore the other. If you resolved a token with a symbol, take 1 horror.",
+    "factions": [
+      "mystic"
+    ],
+    "level": 1,
+    "xp": 1,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -2382,7 +2869,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "<b>Investigate</b> ([intellect]). Add your [willpower] to your [intellect] for this investigation. If you succeed, discover 1 additional clue at your location. If you succeed and a token with a symbol was revealed during this test, you may discard a [[Terror]] or [[Hex]] treachery from any investigator's threat area."
+    "text": "<b>Investigate</b> ([intellect]). Add your [willpower] to your [intellect] for this investigation. If you succeed, discover 1 additional clue at your location. If you succeed and a token with a symbol was revealed during this test, you may discard a [[Terror]] or [[Hex]] treachery from any investigator's threat area.",
+    "factions": [
+      "mystic"
+    ],
+    "level": 3,
+    "xp": 3
   },
   "12071": {
     "definition_id": "12071",
@@ -2417,6 +2909,11 @@
       "action"
     ],
     "text": "Uses (4 charges).\n[action]: <b>Fight</b> ([willpower]). You get +2 [willpower] and deal +1 damage for this attack. If you succeed, you may spend 1 charge to deal 1 damage to an enemy at your location. If you reveal a [skull] token during this test, remove 1 charge from Cosmic Flame (if you cannot, take 1 damage and discard this card).",
+    "factions": [
+      "mystic"
+    ],
+    "level": 5,
+    "xp": 5,
     "ability_segments": [
       {
         "kind": "action",
@@ -2472,12 +2969,7 @@
         },
         "notes": "partial: succeed may-spend +damage / +willpower not yet; if_revealed skull path full"
       }
-    ],
-    "ability_compile_summary": {
-      "status": "partial",
-      "compiled": 1,
-      "focus": "if_revealed_skull"
-    }
+    ]
   },
   "12072": {
     "definition_id": "12072",
@@ -2510,6 +3002,15 @@
       "reaction"
     ],
     "text": "[reaction] When your turn begins: Heal 1 damage or 1 horror from Aleksey Saburov.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 0,
+    "xp": 0,
+    "tags": [
+      "hd",
+      "hh"
+    ],
     "ability_segments": [
       {
         "kind": "reaction",
@@ -2551,6 +3052,11 @@
       "reaction"
     ],
     "text": "Limit 1 per investigator. Uses (3 supplies). If there are no supplies on Hunter's Instinct, discard it.\n[reaction] After you engage an enemy, spend 1 supply and exhaust Hunter's Instinct: Add a level 0 event in your discard pile to your hand.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "reaction",
@@ -2595,6 +3101,11 @@
       "fast"
     ],
     "text": "[fast] During your turn, discard Jumpsuit: Choose a [[Tool]] or [[Weapon]] asset in your discard pile and add it to your hand.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "fast",
@@ -2633,6 +3144,11 @@
       "fast"
     ],
     "text": "[fast] Spend 1 resource: You get +1 [willpower] for this skill test (+2 [willpower] instead if this test is on a scenario card).\n[fast] Spend 1 resource: You get +1 [agility] for this skill test (+2 [agility] instead if this test is on a scenario card).",
+    "factions": [
+      "survivor"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "fast",
@@ -2673,7 +3189,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "<b>Evade</b> ([agility]). If you succeed, deal 1 damage to the evaded enemy. If you fail, return \"Shove off!\" to your hand at the end of your turn."
+    "text": "<b>Evade</b> ([agility]). If you succeed, deal 1 damage to the evaded enemy. If you fail, return \"Shove off!\" to your hand at the end of your turn.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12080": {
     "definition_id": "12080",
@@ -2701,7 +3222,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "If this skill test is successful while evading a non-[[Elite]] enemy, that enemy does not ready during the next upkeep phase."
+    "text": "If this skill test is successful while evading a non-[[Elite]] enemy, that enemy does not ready during the next upkeep phase.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12081": {
     "definition_id": "12081",
@@ -2731,7 +3257,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Max 1 committed per skill test.\nYou may commit Timely Intervention from your hand after revealing chaos tokens during a skill test you are performing."
+    "text": "Max 1 committed per skill test.\nYou may commit Timely Intervention from your hand after revealing chaos tokens during a skill test you are performing.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12082": {
     "definition_id": "12082",
@@ -2759,7 +3290,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Fast. Play when you would fail a skill test during which a non-[auto_fail] token was revealed.\nYou succeed at that skill test instead. If a token with a symbol was revealed during that skill test, take 1 horror."
+    "text": "Fast. Play when you would fail a skill test during which a non-[auto_fail] token was revealed.\nYou succeed at that skill test instead. If a token with a symbol was revealed during that skill test, take 1 horror.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 1,
+    "xp": 1
   },
   "12083": {
     "definition_id": "12083",
@@ -2791,6 +3327,11 @@
       "action"
     ],
     "text": "[action]: <b>Investigate</b> ([intellect]). Your location gets -1 shroud for this investigation. If you fail, you may exhaust Old Compass to attempt this test again. If you do, your location gets -2 shroud for this investigation, instead.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 2,
+    "xp": 2,
     "ability_segments": [
       {
         "kind": "action",
@@ -2826,7 +3367,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": "Max 1 committed per skill test.\nIf this test fails, return each other card committed to this test to its owner's hand and draw 1 card."
+    "text": "Max 1 committed per skill test.\nIf this test fails, return each other card committed to this test to its owner's hand and draw 1 card.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 2,
+    "xp": 2
   },
   "12085": {
     "definition_id": "12085",
@@ -2862,6 +3408,14 @@
       "action"
     ],
     "text": "[action]: <b>Fight</b> ([combat]). You get +2 [combat] for this attack (+3 [combat] instead if you have 3 or fewer remaining sanity). If this attack defeats an enemy, you may heal 1 horror.\n[reaction] When you trigger the above [action] ability, take 1 horror: This attack deals +1 damage.",
+    "factions": [
+      "survivor"
+    ],
+    "level": 3,
+    "xp": 3,
+    "tags": [
+      "hh"
+    ],
     "ability_segments": [
       {
         "kind": "action",
@@ -2907,6 +3461,11 @@
       "action"
     ],
     "text": "[action]: <b>Fight</b> ([combat]). You get +1 [combat] for this attack. If you succeed, you may discard Broken Bottle to deal +1 damage for this attack.",
+    "factions": [
+      "neutral"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "action",
@@ -2945,7 +3504,12 @@
     "location": {},
     "encounter_code": "",
     "ability_hints": [],
-    "text": ""
+    "text": "",
+    "factions": [
+      "neutral"
+    ],
+    "level": 0,
+    "xp": 0
   },
   "12088": {
     "definition_id": "12088",
@@ -2977,6 +3541,11 @@
       "action"
     ],
     "text": "[action]: <b>Investigate</b> ([intellect]). You get +1 [intellect] for this test. If you succeed, you may discard Hand-Crank Flashlight for your location to get -1 shroud until the end of the round.",
+    "factions": [
+      "neutral"
+    ],
+    "level": 0,
+    "xp": 0,
     "ability_segments": [
       {
         "kind": "action",
@@ -3016,6 +3585,9 @@
       "revelation"
     ],
     "text": "<b>Revelation</b> - Put The Gold Bug into play in your threat area. It cannot leave play except by the [action] ability below.\nYou get -1 health and -1 sanity.\n[action]: Shuffle the Gold Bug into your deck.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "revelation",
@@ -3078,6 +3650,9 @@
       "forced"
     ],
     "text": "Aloof.\n<b>Spawn</b> - Farthest empty location.\n<b>Forced</b> - When the investigation phase ends, if The Nameless Lurker is ready and has no doom on it: Place 1 doom on it.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "forced",
@@ -3131,6 +3706,9 @@
       "forced"
     ],
     "text": "<b>Revelation</b> - Put Pursued into play in your threat area.\n<b>Forced</b> - After an enemy enters <i>(moves into or spawns at)</i> your location: Take 1 horror.\n[action][action]: Discard Pursued.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "revelation",
@@ -3213,6 +3791,9 @@
       "forced"
     ],
     "text": "<b>Revelation</b> - Put Syndicate Obligations into play in your threat area.\n<b>Forced</b> - After you spend 1 or more resources: Take 1 damage.\n[action][action]: Discard Syndicate Obligations.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "revelation",
@@ -3294,6 +3875,9 @@
       "forced"
     ],
     "text": "<b>Revelation</b> - Put Wounded into play in your threat area.\n<b>Forced</b> - The first time you move each turn: Take 1 damage.\n[action][action]: Discard Wounded.",
+    "factions": [
+      "neutral"
+    ],
     "ability_segments": [
       {
         "kind": "revelation",

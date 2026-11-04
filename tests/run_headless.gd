@@ -10,6 +10,12 @@ var _failed := 0
 
 func _initialize() -> void:
 	print("=== AHC LCG headless tests ===")
+	_run_test("DB-01 Roland seeker level band", DeckbuildingTestHelper.test_db01_roland_seeker_levels)
+	_run_test("DB-02 Zoey offclass limit multiclass", DeckbuildingTestHelper.test_db02_zoey_offclass_limit_and_multiclass)
+	_run_test("DB-03 Carolyn heal tag weapon forbid", DeckbuildingTestHelper.test_db03_carolyn_heal_tag_and_weapon_forbid)
+	_run_test("DB-04 Tony secondary class choice", DeckbuildingTestHelper.test_db04_tony_secondary_class_choice)
+	_run_test("DB-06 Lola atleast factions", DeckbuildingTestHelper.test_db06_lola_atleast)
+	_run_test("DB-07 purchase dry-run limit full", DeckbuildingTestHelper.test_db07_purchase_dry_run_limit_full)
 	_run_test("PHYS-01 set-aside to deck shuffle", PhysicalTestHelper.test_set_aside_to_deck_shuffle)
 	_run_test("PHYS-02 marker transfer pool to card", PhysicalTestHelper.test_marker_transfer_pool_to_card)
 	_run_test("PHYS-03 augury reveal and return", PhysicalTestHelper.test_augury_reveal_and_return)

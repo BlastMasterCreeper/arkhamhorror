@@ -307,6 +307,8 @@ Signature / required cards / basic weakness ∈ `deck_requirements`，**无视**
 
 ### 7.7 Deckbuilding 实现计划
 
+> **落地（2026-11-04）**：`rules/deckbuilding/` — `DeckOptionRule` / `DeckbuildingProfile` / `CardAccessMatcher` / `DeckLegality` / `DeckCardView`；导入透传 `deck_options`·`level`·`tags`·`factions`；测 DB-01/02/03/04/06/07。P5 atleast 基础（Lola）已通；P6 购卡窗接线与动态 modifiers 仍待。
+
 **原则**：消费 ArkhamDB 结构化 `deck_options`；运行时只持有**已解析 Profile**；单卡匹配与整副校验分离；购卡 dry-run 复用同一验证器。
 
 ```text
@@ -503,3 +505,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-03 | v0.5 | **§7.2** 钉死 *new card* = 购入**模式**（非「牌组没有」、亦非「非同名高级」）；同名高级全价 = 仍 NEW_CARD |
 | 2026-11-03 | v0.6 | **§7.2** 购入报价：选定目标时列出 NEW_CARD + 可选 UPGRADE 项并当场定价；API `quote_purchase` / `commit_purchase` |
 | 2026-11-04 | v0.7 | **§7.6–7.7** Deckbuilding Options 分类（ArkhamDB 普查）+ 分阶段实现计划；FAQ 1.15/1.16；DB-01–07 |
+| 2026-11-04 | v0.8 | **§7.7** 落地 `rules/deckbuilding/*` + 导入字段 + DB-01..07 headless |

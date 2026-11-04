@@ -79,6 +79,55 @@ def parse_traits(raw: str | None) -> list[str]:
     return out
 
 
+def parse_tags(raw: Any) -> list[str]:
+    """ArkhamDB tags: ``hd.hh.`` string or list → ``['hd','hh']``."""
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        return [str(t).strip().lower() for t in raw if str(t).strip()]
+    out: list[str] = []
+    for part in re.split(r"[.\s]+", str(raw)):
+        t = part.strip().lower()
+        if t:
+            out.append(t)
+    return out
+
+
+def _card_factions(card: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for key in ("faction_code", "faction2_code", "faction3_code"):
+        v = card.get(key) or ""
+        if v and v not in out:
+            out.append(str(v))
+    return out
+
+
+def normalize_deck_requirements(raw: Any) -> dict[str, Any]:
+    """Accept ArkhamDB dict or ``size:30, card:…, random:…`` string."""
+    if isinstance(raw, dict):
+        return dict(raw)
+    if not isinstance(raw, str) or not raw.strip():
+        return {}
+    out: dict[str, Any] = {"card": {}, "random": []}
+    for part in raw.split(","):
+        p = part.strip()
+        if not p:
+            continue
+        if p.startswith("size:"):
+            out["size"] = int(p[5:])
+        elif p.startswith("card:"):
+            code = p[5:].strip()
+            out.setdefault("card", {})[code] = {code: code}
+        elif p.startswith("random:"):
+            # random:subtype:basicweakness
+            bits = p.split(":")
+            if len(bits) >= 3:
+                out.setdefault("random", []).append({"target": bits[1], "value": bits[2]})
+    if "size" not in out:
+        out["size"] = 30
+    return out
+
+
 def extract_keywords(card: dict[str, Any], text: str) -> list[str]:
     """关键词来自卡面文本行；`permanent` 可用 JSON 字段。
 
@@ -371,6 +420,19 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
         "ability_hints": extract_ability_hints(text),
         "text": text,
     }
+    factions = _card_factions(card)
+    if factions:
+        out["factions"] = factions
+    if card.get("xp") is not None:
+        out["level"] = int(card["xp"])
+        out["xp"] = int(card["xp"])
+    tags = parse_tags(card.get("tags"))
+    if tags:
+        out["tags"] = tags
+    if card.get("deck_options"):
+        out["deck_options"] = card["deck_options"]
+    if card.get("deck_requirements"):
+        out["deck_requirements"] = normalize_deck_requirements(card["deck_requirements"])
     if "doom" in card and card.get("doom") is not None:
         out["doom"] = int(card["doom"])
     if card.get("back_text"):
