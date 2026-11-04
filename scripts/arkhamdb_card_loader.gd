@@ -28,7 +28,35 @@ static func load_imported_dict(data: Dictionary) -> int:
 			var def_id := StringName(String(key))
 			CardRegistry.register_definition(def_id, _to_registry_dict(entry as Dictionary, def_id))
 			count += 1
+	## deck_requirements.card → Signature：ignore_deckbuilding（加载后补标，不依赖重导入）。
+	_mark_signatures_from_requirements(data)
 	return count
+
+
+static func _mark_signatures_from_requirements(data: Dictionary) -> void:
+	for key in data.keys():
+		if String(key).begins_with("_"):
+			continue
+		var entry: Variant = data[key]
+		if not entry is Dictionary:
+			continue
+		var d: Dictionary = entry
+		if str(d.get("card_type", "")) != "investigator":
+			continue
+		var req: Variant = d.get("deck_requirements", {})
+		if not req is Dictionary:
+			continue
+		var cards_req: Variant = (req as Dictionary).get("card", {})
+		if not cards_req is Dictionary:
+			continue
+		for sig_code in (cards_req as Dictionary).keys():
+			var sid := StringName(str(sig_code))
+			var existing := CardRegistry.definition_data(sid)
+			if existing.is_empty():
+				continue
+			existing["ignore_deckbuilding"] = true
+			existing["signature"] = true
+			CardRegistry.register_definition(sid, existing)
 
 
 static func load_core_2026() -> int:
@@ -103,6 +131,11 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 		if not kw_out.has(&"myriad"):
 			kw_out.append(&"myriad")
 			out["keywords"] = kw_out
+	## Signature（deck_requirements）/ Bearer 运行时写入：ignore options + 不计 size。
+	if bool(src.get("ignore_deckbuilding", false)) or bool(src.get("signature", false)):
+		out["ignore_deckbuilding"] = true
+	if bool(src.get("signature", false)):
+		out["signature"] = true
 	var factions_raw: Variant = src.get("factions", [])
 	if factions_raw is Array and not (factions_raw as Array).is_empty():
 		var factions_out: Array[StringName] = []

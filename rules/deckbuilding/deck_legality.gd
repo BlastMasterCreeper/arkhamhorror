@@ -20,21 +20,26 @@ static func validate_deck(cards: Array, profile: DeckbuildingProfile) -> Diction
 	var faction_counts: Dictionary = {} ## faction → count（非 ignore）
 
 	for card in views:
-		if card.ignore_deckbuilding:
-			continue
-		if not card.permanent:
+		## size：Permanent / 弱点 / Signature·Bearer（ignore_deckbuilding）不计；Myriad 计。
+		if card.counts_toward_deck_size():
 			counted_for_size += 1
-		var title_key := card.title.to_lower()
-		title_counts[title_key] = int(title_counts.get(title_key, 0)) + 1
-		var allowed := 2
-		if card.exceptional:
-			allowed = 1
-		elif card.myriad:
-			allowed = 3
-		title_max[title_key] = mini(int(title_max.get(title_key, 99)), allowed)
-		for f in card.factions:
-			var fk := String(f).to_lower()
-			faction_counts[fk] = int(faction_counts.get(fk, 0)) + 1
+		## 副本上限：Signature / Bearer（ignore）同名不占常规 2 上限（Grimoire Signature）。
+		if not card.ignore_deckbuilding:
+			var title_key := card.title.to_lower()
+			title_counts[title_key] = int(title_counts.get(title_key, 0)) + 1
+			var allowed := 2
+			if card.exceptional:
+				allowed = 1
+			elif card.myriad:
+				allowed = 3
+			title_max[title_key] = mini(int(title_max.get(title_key, 99)), allowed)
+		if card.ignore_deckbuilding:
+			## 仍参与 atleast 职阶分布？Bearer/Signature 一般 ignore；跳过 faction 约束计数。
+			pass
+		else:
+			for f in card.factions:
+				var fk := String(f).to_lower()
+				faction_counts[fk] = int(faction_counts.get(fk, 0)) + 1
 
 		var access := CardAccessMatcher.classify(card, profile)
 		var kind: StringName = access.get("kind", CardAccessMatcher.KIND_NONE)
@@ -89,20 +94,24 @@ static func can_add_card(
 		remove_ids[r.definition_id] = int(remove_ids.get(r.definition_id, 0)) + 1
 
 	## Exceptional / Myriad 副本上限（计入将移除的源）。
-	var title_key := new_card.title.to_lower()
-	var existing := 0
-	var rem_left := remove_ids.duplicate()
-	for card in views:
-		if card.title.to_lower() != title_key:
-			continue
-		var rem := int(rem_left.get(card.definition_id, 0))
-		if rem > 0:
-			rem_left[card.definition_id] = rem - 1
-			continue
-		existing += 1
-	var max_copies := 1 if new_card.exceptional else (3 if new_card.myriad else 2)
-	if existing + 1 > max_copies:
-		return {"ok": false, "reason": "copy_limit"}
+	## Signature / Bearer（ignore_deckbuilding）不占常规同名上限（Grimoire Signature）。
+	if not new_card.ignore_deckbuilding:
+		var title_key := new_card.title.to_lower()
+		var existing := 0
+		var rem_left := remove_ids.duplicate()
+		for card in views:
+			if card.ignore_deckbuilding:
+				continue
+			if card.title.to_lower() != title_key:
+				continue
+			var rem := int(rem_left.get(card.definition_id, 0))
+			if rem > 0:
+				rem_left[card.definition_id] = rem - 1
+				continue
+			existing += 1
+		var max_copies := 1 if new_card.exceptional else (3 if new_card.myriad else 2)
+		if existing + 1 > max_copies:
+			return {"ok": false, "reason": "copy_limit"}
 
 	if kind == CardAccessMatcher.KIND_LIMITED:
 		var rule: DeckOptionRule = access.get("rule")

@@ -162,7 +162,9 @@
         "body": "Fight ([combat]). You get +2 [combat] for this attack. If this enemy attacked you this round, this attack deals +1 damage.",
         "index": 1
       }
-    ]
+    ],
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12003": {
     "definition_id": "12003",
@@ -233,7 +235,9 @@
         "amount": 1,
         "direct": false
       }
-    ]
+    ],
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12004": {
     "definition_id": "12004",
@@ -392,7 +396,9 @@
         "body": "After you draw Detective's Intuition during your turn: Reveal it and draw 2 additional cards.",
         "index": 0
       }
-    ]
+    ],
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12006": {
     "definition_id": "12006",
@@ -437,7 +443,9 @@
         "trigger": "When the game ends or you are eliminated, if this card is in your hand",
         "index": 1
       }
-    ]
+    ],
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12007": {
     "definition_id": "12007",
@@ -558,7 +566,9 @@
         "body": "After you evade an enemy, exhaust Covert Ops: Either draw 1 card, or move to a connecting location.",
         "index": 0
       }
-    ]
+    ],
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12009": {
     "definition_id": "12009",
@@ -610,7 +620,9 @@
     "prey_instruction": {
       "kind": "investigator_only",
       "investigator_title": "Trish Scarborough"
-    }
+    },
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12010": {
     "definition_id": "12010",
@@ -730,7 +742,9 @@
     "text": "Dexter Drake deck only.\nSearch your deck for a [[Spell]] or [[Item]] asset and play it, reducing its cost by 2 <i>(shuffle your deck)</i>. This action does not provoke attacks of opportunity.",
     "factions": [
       "mystic"
-    ]
+    ],
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12012": {
     "definition_id": "12012",
@@ -810,7 +824,9 @@
           }
         }
       }
-    ]
+    ],
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12013": {
     "definition_id": "12013",
@@ -952,7 +968,9 @@
     "uses": {
       "count": 6,
       "type": "ammo"
-    }
+    },
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12015": {
     "definition_id": "12015",
@@ -1001,7 +1019,9 @@
         "amount": 1,
         "direct": true
       }
-    ]
+    ],
+    "ignore_deckbuilding": true,
+    "signature": true
   },
   "12016": {
     "definition_id": "12016",

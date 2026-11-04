@@ -283,19 +283,35 @@ XpSpendKind（完整）:
 
 | 种类 | XP | 牌组 |
 |---|---|---|
-| `NEW_CARD` | `max(1, printed)`；**Exceptional → ×2 printed**；Customizable 新买 = 勾选格合计 XP；Myriad 可连带 ≤2 同 level 0 XP | 非 Permanent：+1 须 −1；Exceptional 同 title ≤1 |
+| `NEW_CARD` | `max(1, printed)`；**Exceptional → ×2 printed**；Customizable 新买 = 勾选格合计 XP；Myriad 可连带 ≤2 同 level 0 XP | **计入 size** 的卡：+1 须 −1；Permanent / Signature / 弱点 / Bearer **免**；Exceptional 同 title ≤1 |
 | `UPGRADE` | 印刷品换级：`new − old`（无购新卡 min-1；Exceptional 见 OQ-11-10） | 移除低级、加入高级 |
 | Exile 后补牌至合法尺寸（FAQ 1.18） | 补足前 L0 可 **0 XP**；DtRH 加价**不**作用于此类补牌（FAQ） | 强制 maintain size |
 | `CUSTOM_CHECK` | 1 XP / checkbox；满格才「购得」该项；sheet ≤10；level=`ceil(勾数/2)` | 已有副本：升级种；须再验 Profile 是否允许新 level |
 
-| 关键词 | 规则 |
+#### 7.5.1 是否计入 Deck Size（已裁决）
+
+谓词：`DeckCardView.counts_toward_deck_size()`。Rulebook *Deck Customization* + Grimoire Permanent / Bearer / Signature。
+
+| 计入 size？ | 来源 | 备注 |
+|---|---|---|
+| **否** | **Permanent** | 仍须遵守 deck_options（≠ ignore） |
+| **否** | **弱点**（basic / signature weakness） | Rulebook：Weaknesses do not count |
+| **否** | **Signature**（`deck_requirements.card`） | 调查员专属玩家牌；`ignore_deckbuilding`；加载/导入打标 |
+| **否** | **Bearer / 剧情入组** | 「become the bearer」→ ignore options + 不计 size；`add_bearer_card` |
+| **是** | **Myriad** | **只**改副本上限 3 + 购时 ≤2 张同 level **0 XP**；每张仍占 size，购额外副本也须 −1 |
+| **是** | 普通玩家牌 | 默认 |
+
+**勿混**：`ignore_deckbuilding`（无视 options）⊃ Signature / Bearer；Permanent **不** ignore options，但 size exempt。Myriad **既不** ignore，**也不** size exempt。
+
+| 关键词 / 来源 | 规则 |
 |---|---|
-| Permanent | deck creation only；不计 deck size |
+| Permanent | deck creation only；不计 deck size；**仍**守 options |
 | Exceptional | **2× printed XP**；max **1** copy by title；见 §7.2.1 |
 | Customizable | sheet 子系统；见 §7.2.1；≠ 普通 UPGRADE |
 | Reward | 解锁后可用；golden corner |
+| Signature | `deck_requirements`；ignore options；不计 size |
 | Bearer | 忽略 deckbuilding；不计 deck size |
-| Myriad | 购一张可再 +≤2 同 level 0 XP；计总 XP 时第 2/3 副本不计 |
+| Myriad | 副本 ≤3；购时可 +≤2 同 level **0 XP**；**计入** size |
 | Researched | 不可 NEW_CARD 高级；须从低级 UPGRADE + Campaign Log 任务 |
 
 ### 7.6 Deckbuilding Options 分类（购卡候选范围）
@@ -367,7 +383,7 @@ Signature / required cards / basic weakness ∈ `deck_requirements`，**无视**
 
 ### 7.7 Deckbuilding 实现计划
 
-> **落地（2026-11-04）**：`rules/deckbuilding/` 准入核（DB-*）；**P6** `rules/campaign/` — `InvestigatorCampaignSystem`（`begin/end_experience_window` · `quote_purchase` · `commit_purchase` · `list_accessible`）+ `XpCostCalculator`（Exceptional×2、DtRH 修饰器）；Myriad/Exceptional 副本上限；测 XP-01..06。**P6c Customizable 仍延后**。
+> **落地（2026-11-04）**：`rules/deckbuilding/` 准入核（DB-*）；**P6** `rules/campaign/`；**§7.5.1** `counts_toward_deck_size`（Signature/弱点/Bearer/Permanent 不计；Myriad 计）+ loader requirements 打标；测 XP-01..06 / DB-08/09。**P6c Customizable 仍延后**。
 
 **原则**：消费 ArkhamDB 结构化 `deck_options`；运行时只持有**已解析 Profile**；单卡匹配与整副校验分离；购卡 dry-run 复用同一验证器。
 
@@ -399,7 +415,7 @@ DeckLegality
 | **P6 购卡接线** | `CampaignInvestigatorRecord` + `quote_purchase` / `commit_purchase` | NEW_CARD / UPGRADE 报价；嵌 `can_add_card`；扣 XP 改牌组 |
 | **P6a list_accessible** | 卡池过滤目录 | 接 CardRegistry + Profile |
 | **P6b Exceptional** | 费用 ×2 + 副本上限 1；UPGRADE 倍差 OQ-11-10 | 导入 `exceptional`；Offer / validate |
-| **P6d Myriad / Permanent / Signature** | 副本 3、不计 size、ignore options | `deck_requirements` 自动打标；validate 分支 |
+| **P6d Myriad / Permanent / Signature** | Myriad 副本 3（**计** size）；Permanent/Signature/弱点/Bearer **不计** size；Signature ignore options | `counts_toward_deck_size`；requirements 打标 |
 | **P6e XP 修饰器** | DtRH / Arcane Research / Pelt… | 按种叠加减价；FAQ 1.37 当窗生效 |
 | **P6f 幕间壳** | Experience 步骤 1–5 运行时入口 | 无 UI 也可 headless 驱动 |
 | **P6c Customizable** | **延后**（投影改 traits/tags/level，子系统大） | 见 §7.2.1；不阻塞 P6–P6b/d |
@@ -577,3 +593,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.10 | **§7.2.1** 定制勾选 → EffectiveDeckCardView（traits/tags/level）；准入必须投影后重配位 |
 | 2026-11-04 | v0.11 | **P6c Customizable 延后**；重排缺口：P6 报价 → Exceptional / Myriad / 修饰器 / 幕间 |
 | 2026-11-04 | v0.12 | **P6–P6b/d/e/f 落地** `InvestigatorCampaignSystem` + XP-01..06；Customizable 仍延后 |
+| 2026-11-04 | v0.13 | **§7.5.1** `counts_toward_deck_size`：Permanent / Signature / 弱点 / Bearer 不计；**Myriad 计**；DB-08/09 |

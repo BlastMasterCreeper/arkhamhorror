@@ -149,8 +149,8 @@ static func commit_purchase(record: CampaignInvestigatorRecord, choice: Dictiona
 
 	if kind == XpCostCalculator.KIND_UPGRADE and source != null:
 		_remove_one(record, source.definition_id)
-	elif kind == XpCostCalculator.KIND_NEW_CARD and not target.permanent:
-		## 维持尺寸：调用方应传入 remove_ids；若未传且超 size，自动失败。
+	elif kind == XpCostCalculator.KIND_NEW_CARD and target.counts_toward_deck_size():
+		## 维持尺寸：仅对计入 size 的卡要求 +1/−1；Permanent / Signature / 弱点 / Bearer 免。
 		var remove_ids: Array = choice.get("remove_ids", [])
 		if remove_ids.is_empty():
 			var counted := _count_for_size(record)
@@ -161,12 +161,20 @@ static func commit_purchase(record: CampaignInvestigatorRecord, choice: Dictiona
 				_remove_one(record, StringName(str(rid)))
 
 	record.deck.append(target)
-	## Myriad：购一张可再 +≤2 同 level 0 XP 副本（可选载荷）。
+	## Myriad：购一张可再 +≤2 同 level 0 XP 副本；**仍计入 size**，每张额外副本也须维持尺寸。
 	if target.myriad and bool(choice.get("myriad_extra", false)):
 		var extras := mini(2, int(choice.get("myriad_extra_count", 2)))
+		var extra_removes: Array = choice.get("myriad_extra_remove_ids", [])
+		var extra_ri := 0
 		for _i in extras:
 			if _title_count(record, target.title) >= 3:
 				break
+			if target.counts_toward_deck_size():
+				if extra_ri < extra_removes.size():
+					_remove_one(record, StringName(str(extra_removes[extra_ri])))
+					extra_ri += 1
+				elif _count_for_size(record) + 1 > profile.deck_size:
+					return {"ok": false, "reason": "need_remove_for_myriad_extra"}
 			record.deck.append(DeckCardView.from_definition_dict({
 				"definition_id": String(target.definition_id),
 				"title": target.title,
@@ -198,9 +206,7 @@ static func _title_count(record: CampaignInvestigatorRecord, title: String) -> i
 static func _count_for_size(record: CampaignInvestigatorRecord) -> int:
 	var n := 0
 	for c in record.deck:
-		if c.ignore_deckbuilding:
-			continue
-		if not c.permanent:
+		if c.counts_toward_deck_size():
 			n += 1
 	return n
 

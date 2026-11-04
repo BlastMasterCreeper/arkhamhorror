@@ -20,6 +20,9 @@ static func _card(
 		"uses_types": opts.get("uses_types", []),
 		"permanent": opts.get("permanent", false),
 		"ignore_deckbuilding": opts.get("ignore_deckbuilding", false),
+		"is_weakness": opts.get("is_weakness", false),
+		"myriad": opts.get("myriad", false),
+		"exceptional": opts.get("exceptional", false),
 	}
 	if data["factions"] is Array and (data["factions"] as Array).is_empty() and str(data["faction_code"]) != "":
 		data["factions"] = [data["faction_code"]]
@@ -210,3 +213,65 @@ static func test_db07_purchase_dry_run_limit_full() -> bool:
 		deck.append(_card("sk%d" % i, {"faction_code": "seeker", "level": 0, "title": "Sk%d" % i}))
 	var next := _card("skx", {"faction_code": "seeker", "level": 0, "title": "SkX"})
 	return not bool(DeckLegality.can_add_card(deck, next, profile).get("ok", true))
+
+
+## 30 张标准 + Signature + 弱点 + Permanent + Bearer → size 仍为 30。
+static func test_db08_size_exempt_signature_weakness_permanent_bearer() -> bool:
+	var profile := _roland()
+	var deck: Array = []
+	for i in 30:
+		deck.append(_card("c%d" % i, {"faction_code": "guardian", "level": 0, "title": "C%d" % i}))
+	deck.append(_card("sig", {
+		"faction_code": "guardian", "level": 0, "title": "Roland.38",
+		"ignore_deckbuilding": true,
+	}))
+	deck.append(_card("wkn", {
+		"faction_code": "neutral", "level": 0, "title": "CoverUp",
+		"is_weakness": true, "ignore_deckbuilding": true,
+	}))
+	deck.append(_card("perm", {
+		"faction_code": "guardian", "level": 0, "title": "Charisma",
+		"permanent": true,
+	}))
+	deck.append(_card("story", {
+		"faction_code": "neutral", "level": 0, "title": "KeyOfYs",
+		"ignore_deckbuilding": true,  ## Bearer 剧情
+	}))
+	var ok := DeckLegality.validate_deck(deck, profile)
+	if not bool(ok.get("ok", false)):
+		return false
+	## 去掉一张标准后 size 不足。
+	deck.pop_front()
+	var bad := DeckLegality.validate_deck(deck, profile)
+	return not bool(bad.get("ok", true))
+
+
+## Myriad 三副本全部计入 size（29 + 3 = 32 ≠ 30）。
+static func test_db09_myriad_counts_toward_size() -> bool:
+	var profile := _roland()
+	var deck: Array = []
+	for i in 29:
+		deck.append(_card("c%d" % i, {"faction_code": "guardian", "level": 0, "title": "C%d" % i}))
+	for i in 3:
+		deck.append(_card("m%d" % i, {
+			"faction_code": "guardian", "level": 0, "title": "Swarm",
+			"myriad": true,
+		}))
+	var over := DeckLegality.validate_deck(deck, profile)
+	if bool(over.get("ok", true)):
+		return false
+	var has_size := false
+	for e in over.get("errors", []):
+		if str(e).begins_with("deck_size"):
+			has_size = true
+	## 27 + 3 myriad = 30 → 合法。
+	var good: Array = []
+	for i in 27:
+		good.append(_card("g%d" % i, {"faction_code": "guardian", "level": 0, "title": "G%d" % i}))
+	for i in 3:
+		good.append(_card("m%d" % i, {
+			"faction_code": "guardian", "level": 0, "title": "Swarm",
+			"myriad": true,
+		}))
+	var ok := DeckLegality.validate_deck(good, profile)
+	return has_size and bool(ok.get("ok", false))

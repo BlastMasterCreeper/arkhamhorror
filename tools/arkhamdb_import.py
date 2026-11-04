@@ -503,8 +503,32 @@ def import_pack(pack_name: str) -> dict[str, Any]:
             continue
         out[card["code"]] = converted
         out["_meta"]["count"] += 1
+    mark_signature_from_deck_requirements(out)
     out["_meta"]["ability_compile_summary"] = summarize_compile(out)
     return out
+
+
+def mark_signature_from_deck_requirements(pack: dict[str, Any]) -> None:
+    """``deck_requirements.card`` 所列 = Signature（含署名弱点）：ignore_deckbuilding。
+
+    不计 deck size 由运行时 ``counts_toward_deck_size`` 推导：
+    Permanent / is_weakness / ignore_deckbuilding → 不计；Myriad 仍计。
+    """
+    for _code, card in pack.items():
+        if _code == "_meta" or not isinstance(card, dict):
+            continue
+        if card.get("card_type") != "investigator":
+            continue
+        req = card.get("deck_requirements") or {}
+        cards_req = req.get("card") if isinstance(req, dict) else None
+        if not isinstance(cards_req, dict):
+            continue
+        for sig_code in cards_req.keys():
+            target = pack.get(str(sig_code))
+            if isinstance(target, dict):
+                target["ignore_deckbuilding"] = True
+                ## 署名资产/事件等；弱点另有 is_weakness，二者都 size-exempt。
+                target["signature"] = True
 
 
 def main() -> None:

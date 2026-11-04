@@ -156,6 +156,48 @@ static func test_xp05_interlude_shell() -> bool:
 	return (not rec.experience_window_open) and rec.unspent_xp == 3
 
 
+static func test_xp07_size_exempt_purchase_no_remove() -> bool:
+	## Permanent / Signature 购入不要求 −1；Myriad 计入 size 须 −1。
+	var rec := _roland_record(5)
+	## deck 已满 size（4 filler + 1 gun 稍后）；先清到 5 张 filler。
+	rec.deck.clear()
+	for i in 5:
+		var fid := "sz_%d" % i
+		_reg(fid, {"card_type": "asset", "title": "Sz%d" % i, "level": 0, "faction_code": "guardian"})
+		rec.deck.append(DeckCardView.from_registry(StringName(fid)))
+	_reg("perm_p", {
+		"card_type": "asset", "title": "PermP", "level": 0, "faction_code": "guardian",
+		"permanent": true,
+	})
+	_reg("sig_p", {
+		"card_type": "asset", "title": "SigP", "level": 0, "faction_code": "guardian",
+		"ignore_deckbuilding": true, "signature": true,
+	})
+	_reg("myr_p", {
+		"card_type": "asset", "title": "MyrP", "level": 0, "faction_code": "guardian",
+		"myriad": true,
+	})
+	InvestigatorCampaignSystem.begin_experience_window(rec, 10)
+	var perm_offer := InvestigatorCampaignSystem.quote_purchase(rec, &"perm_p")
+	var perm_opt: Dictionary = perm_offer["options"][0]
+	var c_perm := InvestigatorCampaignSystem.commit_purchase(rec, perm_opt)
+	if not bool(c_perm.get("ok", false)):
+		return false
+	if rec.counted_deck_size() != 5:
+		return false
+	var sig_view := DeckCardView.from_registry(&"sig_p")
+	rec.add_bearer_card(sig_view)  ## 或 Signature：不计 size
+	if rec.counted_deck_size() != 5:
+		return false
+	## Myriad 计入 → 满 size 时无 remove 应失败。
+	var myr_offer := InvestigatorCampaignSystem.quote_purchase(rec, &"myr_p")
+	if not bool(myr_offer.get("ok", false)):
+		return false
+	var myr_opt: Dictionary = myr_offer["options"][0]
+	var c_myr := InvestigatorCampaignSystem.commit_purchase(rec, myr_opt)
+	return not bool(c_myr.get("ok", true))
+
+
 static func test_xp06_myriad_copy_limit() -> bool:
 	var profile := DeckbuildingProfile.from_options(
 		[{"faction": ["guardian", "neutral"], "level": {"min": 0, "max": 5}}],

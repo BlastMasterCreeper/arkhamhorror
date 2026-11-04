@@ -29,3 +29,19 @@ func deck_as_array() -> Array:
 	for c in deck:
 		out.append(c)
 	return out
+
+
+## Bearer / 剧情奖励入组：忽略 options，且不计 deck size（Grimoire Bearer）。
+func add_bearer_card(card: DeckCardView) -> void:
+	if card == null:
+		return
+	card.ignore_deckbuilding = true
+	deck.append(card)
+
+
+func counted_deck_size() -> int:
+	var n := 0
+	for c in deck:
+		if c.counts_toward_deck_size():
+			n += 1
+	return n
