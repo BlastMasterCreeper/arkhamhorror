@@ -203,14 +203,41 @@ quote_purchase(target_def, deck, unspent_xp, modifiers…) → PurchaseOffer
 | 点 | 规则 | 引擎落点 |
 |---|---|---|
 | Sheet | 每卡一张 upgrade sheet；1 XP = 勾 1 格；一项 upgrade 须勾满其全部格才算购得 | `CustomizationSheet` 状态挂在 **调查员拥有** 的该 title 上（非单张实例） |
-| Level | `ceil(已勾格数 / 2)`；最多 10 格 → level ≤5 | 动态 level；**购卡准入按勾选后 level** 验 Profile（FAQ：勾超选项会非法） |
+| Level | `ceil(已勾格数 / 2)`；最多 10 格 → level ≤5 | 动态 level |
 | 已在牌组上勾选 | 算 **upgrading**（DtRH / Arcane Research 等升级种修饰生效） | Offer 种 = `CUSTOM_CHECK`（∈ upgrade 种谓词） |
 | 新买带勾选 | 只付勾选所需 XP；算 **purchasing a new card, not upgrading** | Offer 种 = `NEW_CARD`（可附初始勾选载荷）；**无**升级种减价 |
 | 清空 | 最后一份离开牌组 → sheet 清空；回购当新卡空白 sheet | exile / 移除钩 |
 | 回购 | 付 sheet 所示费用，**或**继续往 sheet 花钱免费加回一份（FAQ） | 报价第二路径 |
 | 「When you purchase [this]」 | 选 trait / 记名等到 sheet（Raven Quill、Living Ink…） | 绑 NEW_CARD 事件，写 sheet 元数据 |
 
-ArkhamDB：`customization_options[]`（每项含 `xp` 格数等）、卡面 `Customizable.`；导入须 hydrate sheet schema，运行时 `CampaignInvestigatorRecord.customization_sheets: Dictionary`。
+ArkhamDB：`customization_options[]`（`xp` / `text_change` / `real_traits` / `tags` / `real_slot` / …）；导入 hydrate；`CampaignInvestigatorRecord.customization_sheets`。
+
+##### 有效卡面投影（勾选会改构筑身份 — 硬门槛）
+
+定制项不只改能力正文，还会改 **DeckCardView 用于准入的字段**。ArkhamDB 锚例：
+
+| `text_change` / 字段 | 效果 | 构筑后果例 |
+|---|---|---|
+| `trait` + `real_traits` | **替换**特性行（如 Hunter's Armor → 含 Relic；Runic Axe → 含 Weapon/Relic） | 新进「[[Relic]] / [[Weapon]] / [[Spell]]…」类 ALLOW；或触发 FORBID（如 Lily 禁 Firearm——若勾出相关特性） |
+| `append`/`insert` + `tags` | 正文追加并打标（如 Glory → `hd`/`hh`） | 新进 Carolyn「heal horror」/`hh`、Vincent `hd` 等 **tag 带** |
+| 勾格升高 level | `ceil(n/2)` | 可能超出副职/选型 level 上限 → **整张变非法** |
+| `real_slot` / `cost` / `deck_limit` / `health`… | 槽位、费用、副本上限等 | 槽不直接改 options；`deck_limit` 影响同名上限 |
+
+因此 **禁止**用印刷版 `DeckCardView` 验定制后的牌组。流程：
+
+```text
+base definition
+  ⊕ CustomizationSheet（已购满的 options）
+  → EffectiveDeckCardView（traits / tags / level / slot / …）
+  → CardAccessMatcher / DeckLegality（FAQ 1.15 重新有序配位）
+```
+
+含义：
+
+1. **CUSTOM_CHECK dry-run**：假设勾上目标项（及其中间格）后，投影所有该 title 副本 → 整副 `validate_deck`；失败则该勾选不可提交（XP 不够或勾后非法）。  
+2. **配位可能换带**：勾前占 LIMIT「other」坑的卡，勾出 Spell/Relic 后可能改吃无限 ALLOW，**释放** LIMIT 名额（反之 level 超限则整卡 NONE/FORBIDDEN）。  
+3. **list_accessible / 购新带勾**：候选费用与合法性按「买时勾选后的投影」算，不是空白 L0 印刷面。  
+4. 对 **tag 带**调查员，append 带来的 `hd`/`hh`/`pa`… 与印刷 `tags` 同等生效。
 
 ```text
 XpSpendKind（完整）:
@@ -218,7 +245,6 @@ XpSpendKind（完整）:
   UPGRADE         — 同 title 印刷品换级（非 customizable sheet）
   CUSTOM_CHECK    — 已有 customizable 的 sheet 勾选（upgrading 谓词）
 ```
-
 ### 7.3 min-1：绑在「购新卡」种，不绑升级种
 
 | 来源 | NEW_CARD 种 | UPGRADE 种 |
@@ -372,7 +398,7 @@ DeckLegality
 | **P5 多职阶 + atleast** | FAQ 1.16；Lola / 5U-21 | 谱系 H |
 | **P6 购卡接线** | `list_accessible` + `quote_purchase` dry-run | 与 §7.2 报价合并；动态 options 修饰 |
 | **P6b Exceptional** | 费用 ×2 + 副本上限 1；UPGRADE 倍差 OQ-11-10 | 导入 `exceptional` 关键词；Offer / validate |
-| **P6c Customizable** | `CustomizationSheet` + CUSTOM_CHECK / 带勾 NEW_CARD | hydrate `customization_options`；level 动态；exile 清空 |
+| **P6c Customizable** | `CustomizationSheet` + **EffectiveDeckCardView** 投影 | hydrate options；勾选后重算 traits/tags/level 再走 Matcher；exile 清空 |
 
 **CampaignInvestigatorRecord 增补**（示意）：
 
@@ -544,3 +570,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.7 | **§7.6–7.7** Deckbuilding Options 分类（ArkhamDB 普查）+ 分阶段实现计划；FAQ 1.15/1.16；DB-01–07 |
 | 2026-11-04 | v0.8 | **§7.7** 落地 `rules/deckbuilding/*` + 导入字段 + DB-01..07 headless |
 | 2026-11-04 | v0.9 | **§7.2.1** Exceptional / Customizable 纳入报价待接；P6b/P6c；OQ-11-10 |
+| 2026-11-04 | v0.10 | **§7.2.1** 定制勾选 → EffectiveDeckCardView（traits/tags/level）；准入必须投影后重配位 |
