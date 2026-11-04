@@ -123,8 +123,7 @@ static func test_xp03_dtrh_modifier() -> bool:
 	_reg("sk0", {"card_type": "event", "title": "Search", "level": 0, "faction_code": "seeker"})
 	_reg("sk1", {"card_type": "event", "title": "Search", "level": 1, "faction_code": "seeker"})
 	rec.deck.append(DeckCardView.from_registry(&"sk0"))
-	var mods: Array = [XpCostCalculator.modifier_dtrh(2)]
-	InvestigatorCampaignSystem.begin_experience_window(rec, 10, mods)
+	InvestigatorCampaignSystem.begin_experience_window(rec, 10, {"dtrh": 2})
 	var offer := InvestigatorCampaignSystem.quote_purchase(rec, &"sk1")
 	var new_xp := -1
 	var up_xp := -1
@@ -134,7 +133,103 @@ static func test_xp03_dtrh_modifier() -> bool:
 		if opt.get("kind") == XpCostCalculator.KIND_UPGRADE:
 			up_xp = int(opt.get("xp"))
 	## 购新卡 base max(1,1)=1 + DtRH +1 → 2；升级 base 1 −1 → 0。
-	return new_xp == 2 and up_xp == 0
+	## 再 quote 一次：预览不吞次数，升级仍为 0。
+	var offer2 := InvestigatorCampaignSystem.quote_purchase(rec, &"sk1")
+	var up2 := -1
+	for opt in offer2.get("options", []):
+		if opt.get("kind") == XpCostCalculator.KIND_UPGRADE:
+			up2 = int(opt.get("xp"))
+	return new_xp == 2 and up_xp == 0 and up2 == 0
+
+
+static func test_xp09_arcane_research_spell_only() -> bool:
+	## Arcane Research：仅源卡带 Spell 的升级 −1；购新 Spell 不减。
+	var rec := _roland_record(5)
+	_reg(
+		"sp0g",
+		{
+			"card_type": "event",
+			"title": "Shrivelling",
+			"level": 0,
+			"faction_code": "guardian",
+			"traits": ["spell"],
+		}
+	)
+	_reg(
+		"sp2g",
+		{
+			"card_type": "event",
+			"title": "Shrivelling",
+			"level": 2,
+			"faction_code": "guardian",
+			"traits": ["spell"],
+		}
+	)
+	_reg("gun0", {"card_type": "asset", "title": "Gun", "level": 0, "faction_code": "guardian"})
+	_reg("gun2", {"card_type": "asset", "title": "Gun", "level": 2, "faction_code": "guardian"})
+	rec.deck.append(DeckCardView.from_registry(&"sp0g"))
+	rec.deck.append(DeckCardView.from_registry(&"gun0"))
+	InvestigatorCampaignSystem.begin_experience_window(rec, 10, {"arcane_research": true})
+	var spell_offer := InvestigatorCampaignSystem.quote_purchase(rec, &"sp2g")
+	var gun_offer := InvestigatorCampaignSystem.quote_purchase(rec, &"gun2")
+	var spell_up := -1
+	var spell_new := -1
+	for opt in spell_offer.get("options", []):
+		if opt.get("kind") == XpCostCalculator.KIND_UPGRADE:
+			spell_up = int(opt.get("xp"))
+		if opt.get("kind") == XpCostCalculator.KIND_NEW_CARD:
+			spell_new = int(opt.get("xp"))
+	var gun_up := -1
+	for opt in gun_offer.get("options", []):
+		if opt.get("kind") == XpCostCalculator.KIND_UPGRADE:
+			gun_up = int(opt.get("xp"))
+	## Spell 升级 2−0=2 −1 AR → 1；购新 Spell 不减 → 2；Gun 升级无 AR → 2。
+	return spell_up == 1 and spell_new == 2 and gun_up == 2
+
+
+static func test_xp10_pelt_and_size_refill() -> bool:
+	## Pelt：下一次购新 −1；SIZE_REFILL：undersize L0 = 0 且 DtRH 不加价。
+	var rec := _roland_record(5)
+	## 人为缩到 3 张（exile 后 undersize）。
+	while rec.deck.size() > 3:
+		rec.deck.pop_back()
+	_reg("l0", {"card_type": "asset", "title": "L0", "level": 0, "faction_code": "guardian"})
+	_reg("l1", {"card_type": "asset", "title": "L1Card", "level": 1, "faction_code": "guardian"})
+	InvestigatorCampaignSystem.begin_experience_window(
+		rec, 5, {"dtrh": 2, "pelt": 1}
+	)
+	var refill_offer := InvestigatorCampaignSystem.quote_purchase(rec, &"l0")
+	var has_refill := false
+	for opt in refill_offer.get("options", []):
+		if opt.get("kind") == XpCostCalculator.KIND_SIZE_REFILL and int(opt.get("xp")) == 0:
+			has_refill = true
+			var c := InvestigatorCampaignSystem.commit_purchase(rec, opt)
+			if not bool(c.get("ok", false)):
+				return false
+	if not has_refill:
+		return false
+	## 仍可能 undersize；再补到满后再测 Pelt。
+	while _count_size(rec) < 5:
+		var o2 := InvestigatorCampaignSystem.quote_purchase(rec, &"l0")
+		var done := false
+		for opt in o2.get("options", []):
+			if opt.get("kind") == XpCostCalculator.KIND_SIZE_REFILL:
+				InvestigatorCampaignSystem.commit_purchase(rec, opt)
+				done = true
+				break
+		if not done:
+			break
+	## 满尺寸后购 L1：base 1 + DtRH 1 − Pelt 1 → 1。
+	var offer_l1 := InvestigatorCampaignSystem.quote_purchase(rec, &"l1")
+	var xp_l1 := -1
+	for opt in offer_l1.get("options", []):
+		if opt.get("kind") == XpCostCalculator.KIND_NEW_CARD:
+			xp_l1 = int(opt.get("xp"))
+	return xp_l1 == 1
+
+
+static func _count_size(rec: CampaignInvestigatorRecord) -> int:
+	return rec.counted_deck_size()
 
 
 static func test_xp04_list_accessible() -> bool:

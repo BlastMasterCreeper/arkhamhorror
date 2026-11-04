@@ -25,15 +25,21 @@ static func bind_investigator_choices(
 
 ## 幕间步骤 1：Count XP 后打开购卡窗。
 ## 可直接传 earned_xp；或传 victory_points + guide_delta，并消费 record 上排队的个人 bonus。
+## modifiers 可为已构建 Array，或 build_modifiers 规格 Dictionary（dtrh/arcane_research/pelt）。
 static func begin_experience_window(
 	record: CampaignInvestigatorRecord,
 	earned_xp: int,
-	modifiers: Array = []
+	modifiers: Variant = []
 ) -> void:
 	if record == null:
 		return
 	record.unspent_xp += maxi(0, earned_xp)
-	record.xp_modifiers = modifiers.duplicate()
+	if modifiers is Dictionary:
+		record.xp_modifiers = XpCostCalculator.build_modifiers(modifiers as Dictionary)
+	elif modifiers is Array:
+		record.xp_modifiers = (modifiers as Array).duplicate()
+	else:
+		record.xp_modifiers = []
 	record.experience_window_open = true
 
 
@@ -109,14 +115,39 @@ static func quote_purchase(
 	var options: Array = []
 	var mods: Array = record.xp_modifiers
 
-	## NEW_CARD
+	var undersized := _count_for_size(record) < profile.deck_size
+
+	## FAQ 1.18 SIZE_REFILL：undersize 时 L0 补牌 0 XP（DtRH 不加价）。
+	if (
+		undersized
+		and target.level == 0
+		and target.counts_toward_deck_size()
+		and not (target.exceptional and _title_count(record, target.title) >= 1)
+	):
+		var refill_check := DeckLegality.can_add_card(record.deck_as_array(), target, profile)
+		if bool(refill_check.get("ok", false)):
+			options.append(
+				{
+					"kind": XpCostCalculator.KIND_SIZE_REFILL,
+					"xp": 0,
+					"target": target,
+					"source": null,
+					"remove_ids": [],
+					"affordable": true,
+					"size_refill": true,
+				}
+			)
+
+	## NEW_CARD（满尺寸或非 L0 refill 路径；报价不消耗修饰器次数）。
 	var new_check := DeckLegality.can_add_card(record.deck_as_array(), target, profile)
 	if bool(new_check.get("ok", false)):
-		## Exceptional 已有同名 → 拒。
 		if target.exceptional and _title_count(record, target.title) >= 1:
 			pass
+		elif undersized and target.level == 0 and target.counts_toward_deck_size():
+			## 与 SIZE_REFILL 重复时不另报全价 NEW_CARD。
+			pass
 		else:
-			var xp_new := XpCostCalculator.cost_new_card(target, mods)
+			var xp_new := XpCostCalculator.cost_new_card(target, mods, false)
 			options.append(
 				{
 					"kind": XpCostCalculator.KIND_NEW_CARD,
@@ -145,7 +176,7 @@ static func quote_purchase(
 		)
 		if not bool(up_check.get("ok", false)):
 			continue
-		var xp_up := XpCostCalculator.cost_upgrade(target, src, mods)
+		var xp_up := XpCostCalculator.cost_upgrade(target, src, mods, false)
 		options.append(
 			{
 				"kind": XpCostCalculator.KIND_UPGRADE,
@@ -170,15 +201,22 @@ static func commit_purchase(record: CampaignInvestigatorRecord, choice: Dictiona
 		target = DeckCardView.from_registry(StringName(str(choice.get("target_def"))))
 	if target == null:
 		return {"ok": false, "reason": "missing_target"}
-	var xp := int(choice.get("xp", -1))
 	var source: DeckCardView = choice.get("source")
 	var mods: Array = record.xp_modifiers
-	if xp < 0:
-		if kind == XpCostCalculator.KIND_UPGRADE and source != null:
-			xp = XpCostCalculator.cost_upgrade(target, source, mods)
-		else:
-			xp = XpCostCalculator.cost_new_card(target, mods)
-			kind = XpCostCalculator.KIND_NEW_CARD
+	## 提交时重算并消耗修饰器次数（不以报价快照为准，防重复报价吞次数）。
+	var xp := 0
+	if kind == XpCostCalculator.KIND_SIZE_REFILL or bool(choice.get("size_refill", false)):
+		kind = XpCostCalculator.KIND_SIZE_REFILL
+		xp = XpCostCalculator.cost_size_refill(target)
+		if xp < 0:
+			return {"ok": false, "reason": "refill_requires_level_0"}
+		if _count_for_size(record) >= record.profile().deck_size:
+			return {"ok": false, "reason": "deck_not_undersized"}
+	elif kind == XpCostCalculator.KIND_UPGRADE and source != null:
+		xp = XpCostCalculator.cost_upgrade(target, source, mods, true)
+	else:
+		xp = XpCostCalculator.cost_new_card(target, mods, true)
+		kind = XpCostCalculator.KIND_NEW_CARD
 	if xp > record.unspent_xp:
 		return {"ok": false, "reason": "insufficient_xp"}
 
@@ -202,6 +240,7 @@ static func commit_purchase(record: CampaignInvestigatorRecord, choice: Dictiona
 		else:
 			for rid in remove_ids:
 				_remove_one(record, StringName(str(rid)))
+	## SIZE_REFILL：undersize 补入，不移除。
 
 	record.deck.append(target)
 	## Myriad：购一张可再 +≤2 同 level 0 XP 副本；**仍计入 size**，每张额外副本也须维持尺寸。

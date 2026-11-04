@@ -456,7 +456,8 @@ API：`DeckbuildingChoiceFlow.list_choices` → 提示列表；`apply_answers` /
 | **P6a list_accessible** | 卡池过滤目录 | 接 CardRegistry + Profile |
 | **P6b Exceptional** | 费用 ×2 + 副本上限 1；UPGRADE 倍差 OQ-11-10 | 导入 `exceptional`；Offer / validate |
 | **P6d Myriad / Permanent / Signature** | Myriad 副本 3（**计** size）；Permanent/Signature/弱点/Bearer **不计** size；Signature ignore options | `counts_toward_deck_size`；requirements 打标 |
-| **P6e XP 修饰器** | DtRH / Arcane Research / Pelt… | 按种叠加减价；FAQ 1.37 当窗生效 |
+| **P6e XP 修饰器** | DtRH / Arcane Research / Pelt；报价不吞次数、提交才消耗 | `build_modifiers`；叠用顺序 DtRH→AR→Pelt |
+| **P6e′ size refill** | FAQ 1.18 Exile 等 undersize → L0 补牌 0 XP；**DtRH 不加价** | `KIND_SIZE_REFILL` |
 | **P6f 幕间壳** | Experience 官方 3 步入口；Count 含 VD + guide + 个人 bonus | `ExperienceCount`；02111 / 06160 通道 |
 | **P6c Customizable** | **延后**（投影改 traits/tags/level，子系统大） | 见 §7.2.1；不阻塞 P6–P6b/d |
 
@@ -638,3 +639,4 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.13 | **§7.5.1** `counts_toward_deck_size`：Permanent / Signature / 弱点 / Bearer 不计；**Myriad 计**；DB-08/09 |
 | 2026-11-04 | v0.14 | **§7.7.1** 副职阶/尺寸/特性 = 选调查员后附带玩家选择；`DeckbuildingChoiceFlow`；DB-05 |
 | 2026-11-04 | v0.15 | **§7.1.1** Count XP：VD Victory（02111）∪ guide ± ∪ 个人 When earning（06160 / Obol）；`ExperienceCount` |
+| 2026-11-04 | v0.16 | **P6e** Arcane Research / Pelt + DtRH 叠用；**SIZE_REFILL** FAQ 1.18；报价 preview 不耗次数；XP-09/10 |
