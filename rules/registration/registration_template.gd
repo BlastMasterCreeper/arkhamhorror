@@ -203,7 +203,8 @@ static func hidden_in_hand(controller_id: StringName, card_id: StringName) -> Re
 	return t
 
 
-## G3 动态 keyword · `WHILE_DRAWN_CARD_RESOLVING(card_id)` — G5 evaluate 后 Unregister；G4 peril 不清除。
+## 印刷 WHEN / G3 gains 共用 KEYWORD 标记 · `WHILE_DRAWN_CARD_RESOLVING(card_id)`。
+## 幂等；G4 peril 不清除；AFTER 开火后 Unregister。
 static func gained_keyword_drawn_card_resolving(
 	card_id: StringName,
 	keyword: StringName

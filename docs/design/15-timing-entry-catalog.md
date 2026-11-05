@@ -1383,18 +1383,18 @@ func reveal_encounter_step(card_id: StringName, drawer_id: StringName) -> void:
 **涌动** = 抽到并结算后挂上的 **延时效果**（Grimoire：*After an investigator draws and resolves*）。印刷 `surge` 与 G3 内「gains surge」**不叠加**：至多再开 **一条** 抽 1 张的新指令。详 [06 §3.1–3.2](06-registration-buff-model.md#32-gained-characteristics动态特征--总纲--已裁决)。
 
 ```text
+揭示后 WHEN（KeywordMount · priority 105）:
+  印刷 surge → Register KEYWORD(surge)（幂等）
 G3 revelation:
-  · 效果步「X gains surge」→ Register KEYWORD(surge) on card_id
+  · 效果步「X gains surge」→ 同标记幂等（已挂则 no-op）
   · 12126：G3 入口 clue==0 → Register + 跳过 intellect 分支
   · 12124：仅玩家选「伤害+horror」分支时 Register（无印刷 surge）
   · 12160：place doom 步未 CREATED → Register（after_step if · 07 §3.3）
-
 本条 AFTER 之后（KeywordConsumer）:
   nest seq.keyword.surge
-  should_surge = CardRegistry.has_surge(def_id)
-              OR RegistrationStore.has_keyword_buff(card_id, &"surge")
+  should_surge = RegistrationStore.has_keyword_buff(card_id, &"surge")  # 只认武装，不懒读
   if should_surge: nest seq.draw.encounter（amount=1）
-  Unregister KEYWORD(surge) for card_id   # 动态标记；印刷 surge 不 Register
+  Unregister KEYWORD(surge) for card_id
 ```
 
 | 卡码 | 印刷 Surge | 动态 surge | G5 结果 |

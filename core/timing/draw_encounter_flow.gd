@@ -175,6 +175,7 @@ static func _run_priority_queue(
 	}
 	var steps: Array[Dictionary] = []
 	if do_reveal:
+		## as_drawn 路径：揭示 → WHEN 挂印刷关键词（涌动）→ 险境…
 		steps.append({
 			"priority": EncounterDrawPriority.REVEAL_TO_DRAWER,
 			"fn": _step_reveal_to_drawer.bind(ctx),
@@ -182,6 +183,10 @@ static func _run_priority_queue(
 		steps.append({
 			"priority": EncounterDrawPriority.REVEAL_PUBLIC,
 			"fn": _step_reveal_public_or_hidden.bind(ctx),
+		})
+		steps.append({
+			"priority": EncounterDrawPriority.KEYWORD_MOUNT_WHEN,
+			"fn": _step_keyword_mount_when.bind(ctx),
 		})
 	steps.append_array([
 		{
@@ -234,16 +239,34 @@ static func _step_reveal_public_or_hidden(ctx: Dictionary) -> void:
 	game_ctx.mutator.reveal_to_all(card_id)
 
 
+## 印刷关键词 WHEN 挂载（涌动 KEYWORD 标记）；gains 仍走效果 GRANT，幂等。
+static func _step_keyword_mount_when(ctx: Dictionary) -> void:
+	var game_ctx: GameContext = ctx.get("game_ctx")
+	var drawer_id: StringName = ctx.get("drawer_id", &"")
+	var card_id: StringName = ctx.get("card_id", &"")
+	var def_id: StringName = ctx.get("def_id", &"")
+	KeywordMount.mount_at(
+		game_ctx,
+		KeywordProfileTable.FLOW_DRAW_ENCOUNTER,
+		KeywordProfileTable.SLOT_WHEN,
+		card_id,
+		drawer_id,
+		def_id
+	)
+
+
 static func _step_peril_register(ctx: Dictionary) -> void:
 	var game_ctx: GameContext = ctx.get("game_ctx")
 	var drawer_id: StringName = ctx.get("drawer_id", &"")
 	var card_id: StringName = ctx.get("card_id", &"")
 	var def_id: StringName = ctx.get("def_id", &"")
-	EncounterPeril.register_if_peril(
+	KeywordMount.mount_at(
 		game_ctx,
-		drawer_id,
+		KeywordProfileTable.FLOW_DRAW_ENCOUNTER,
+		KeywordProfileTable.SLOT_G2,
 		card_id,
-		CardRegistry.has_keyword(def_id, &"peril")
+		drawer_id,
+		def_id
 	)
 
 

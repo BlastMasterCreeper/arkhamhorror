@@ -41,9 +41,7 @@ static func consume_at(
 	for profile in KeywordProfileTable.profiles_for_slot(slot):
 		if profile.buff_type != &"LISTENER" or profile.consume_flow_id == &"":
 			continue
-		if not EffectiveCharacteristicQuery.has_effective_keyword(
-			game_ctx, card_id, def_id, profile.keyword
-		):
+		if not _armed_for_consume(game_ctx, card_id, def_id, profile.keyword):
 			continue
 		if catalog == null or not catalog.has_flow(profile.consume_flow_id):
 			continue
@@ -65,13 +63,31 @@ static func evaluate_keyword(
 	card_id: StringName,
 	keyword: StringName
 ) -> bool:
-	var def_id := _definition_id(game_ctx, card_id)
-	var has_kw := EffectiveCharacteristicQuery.has_effective_keyword(
+	## 涌动开火只认武装标记；其它仍查 effective（印刷 ∪ gained）。
+	var armed := false
+	if keyword == &"surge":
+		armed = KeywordMount.is_surge_armed(game_ctx, card_id)
+		KeywordMount.unmount_gained_for_card(game_ctx, card_id)
+	else:
+		var def_id := _definition_id(game_ctx, card_id)
+		armed = EffectiveCharacteristicQuery.has_effective_keyword(
+			game_ctx, card_id, def_id, keyword
+		)
+	return armed
+
+
+## 涌动：Registration 武装；其它 LISTENER：effective 特征（进场挂载等后续收口）。
+static func _armed_for_consume(
+	game_ctx: GameContext,
+	card_id: StringName,
+	def_id: StringName,
+	keyword: StringName
+) -> bool:
+	if keyword == &"surge":
+		return KeywordMount.is_surge_armed(game_ctx, card_id)
+	return EffectiveCharacteristicQuery.has_effective_keyword(
 		game_ctx, card_id, def_id, keyword
 	)
-	if keyword == &"surge":
-		EncounterGainedKeyword.unregister_for_card(game_ctx, card_id)
-	return has_kw
 
 
 static func _definition_id(game_ctx: GameContext, card_id: StringName) -> StringName:

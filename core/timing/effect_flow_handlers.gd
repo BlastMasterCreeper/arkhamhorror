@@ -379,15 +379,43 @@ static func register_buff(game_ctx: GameContext, params: Dictionary) -> Dictiona
 	var template: Variant = params.get("template", null)
 	if template is not RegistrationTemplate:
 		return {"ok": false, "error": "invalid_template"}
-	var reg_id := game_ctx.registrations.register(template as RegistrationTemplate)
+	var tpl := template as RegistrationTemplate
+	## 涌动等 KEYWORD 标记幂等：印刷 WHEN 已挂 + gains 再挂 → 不叠第二条。
+	var skip_kw := _keyword_already_armed(game_ctx, tpl)
+	if skip_kw != &"":
+		_log(game_ctx, "effect:register_idempotent", {"keyword": skip_kw, "card": tpl.drawn_card_id})
+		return {"ok": true, "reg_id": &"", "idempotent": true, "keyword": skip_kw}
+	var reg_id := game_ctx.registrations.register(tpl)
 	_log(game_ctx, "effect:register", {"reg": reg_id})
 	if game_ctx.memory != null:
 		game_ctx.memory.set_referent(
-			(template as RegistrationTemplate).controller_id,
+			tpl.controller_id,
 			&"last_register_id",
 			reg_id
 		)
 	return {"ok": reg_id != &"", "reg_id": reg_id}
+
+
+## 若模板只挂 KEYWORD 且该卡已有同名标记 → 返回 keyword；否则 &""。
+static func _keyword_already_armed(game_ctx: GameContext, tpl: RegistrationTemplate) -> StringName:
+	if tpl == null or tpl.drawn_card_id == &"" or tpl.buffs.is_empty():
+		return &""
+	var only_keywords := true
+	var keyword: StringName = &""
+	for buff in tpl.buffs:
+		if buff.type != AhcEnums.BuffType.KEYWORD or buff.keyword == &"":
+			only_keywords = false
+			break
+		if keyword == &"":
+			keyword = buff.keyword
+		elif keyword != buff.keyword:
+			only_keywords = false
+			break
+	if not only_keywords or keyword == &"":
+		return &""
+	if game_ctx.registrations.has_keyword_buff(tpl.drawn_card_id, keyword):
+		return keyword
+	return &""
 
 
 static func unregister_buff(game_ctx: GameContext, params: Dictionary) -> Dictionary:

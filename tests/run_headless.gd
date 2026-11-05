@@ -304,6 +304,9 @@ func _initialize() -> void:
 	_run_test("ADB-19 compile raising suspicions", _test_adb_compile_raising_suspicions)
 	_run_test("ENC-SURGE-06 raising suspicions places doom", _test_enc_surge_12160_places_doom)
 	_run_test("ENC-SURGE-07 raising suspicions no target gains surge", _test_enc_surge_12160_no_target_gained)
+	_run_test("ENC-SURGE-08 printed mounts keyword at when", _test_enc_surge_printed_mounts_at_when)
+	_run_test("ENC-SURGE-09 printed plus gains is idempotent", _test_enc_surge_printed_plus_gains_idempotent)
+	_run_test("ENC-SURGE-10 unarm cancels surge fire", _test_enc_surge_unarm_skips_fire)
 	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
 	_run_test("KW-OCC-01 keyword listener occasions table", _test_kw_occ_profile_table)
 	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
@@ -6741,6 +6744,68 @@ func _test_enc_surge_12160_no_target_gained() -> bool:
 	if not h.resolve_encounter_revelation(card_id):
 		return false
 	return h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+
+
+func _test_enc_surge_printed_mounts_at_when() -> bool:
+	## 印刷涌动：揭示后 WHEN 挂 KEYWORD；抽完后标记已卸、仍抽了第二张。
+	var h := RuleTestHarness.new(42)
+	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_surge_when", [&"surge"])
+	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_after_print", [])
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var cards: Array = res.get("cards", [])
+	return (
+		cards.size() == 2
+		and cards[0] == first
+		and cards[1] == second
+		and int(res.get("surge_depth", 0)) == 1
+		and not h.ctx.registrations.has_keyword_buff(first, &"surge")
+	)
+
+
+func _test_enc_surge_printed_plus_gains_idempotent() -> bool:
+	## 印刷 + 显现 gains → 仍只武装一次 → surge_depth 1。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"enc_print_and_gain", {"card_type": &"treachery", "keywords": [&"surge"]})
+	CardRegistry.register_revelation(
+		&"enc_print_and_gain",
+		&"revelation:0",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.grant_keyword(bind.card_id, &"surge")
+	)
+	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_and_gain", [&"surge"])
+	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_idem", [])
+	var before_regs := h.ctx.registrations.count()
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var cards: Array = res.get("cards", [])
+	return (
+		cards.size() == 2
+		and cards[0] == first
+		and cards[1] == second
+		and int(res.get("surge_depth", 0)) == 1
+		and h.ctx.registrations.count() == before_regs
+	)
+
+
+func _test_enc_surge_unarm_skips_fire() -> bool:
+	## 取消全部效果：卸 KEYWORD 后 AFTER 不再涌动（不懒读印刷）。
+	var h := RuleTestHarness.new(42)
+	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_surge_disarm", [&"surge"])
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_disarm", [])
+	h.ctx.mutator.enter_limbo(first, &"inv_1")
+	KeywordMount.mount_surge_printed_if_absent(h.ctx, first, &"enc_surge_disarm")
+	if not KeywordMount.is_surge_armed(h.ctx, first):
+		return false
+	KeywordMount.unmount_gained_for_card(h.ctx, first)
+	var kw := KeywordConsumer.consume_after_drawn_card(h.ctx, &"inv_1", first)
+	return (
+		not bool(kw.get("surged", false))
+		and int(kw.get("surge_depth", 0)) == 0
+		and (kw.get("cards", []) as Array).is_empty()
+	)
 
 
 func _test_gain_effective_keyword() -> bool:

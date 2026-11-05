@@ -149,18 +149,22 @@ enum BuffType {
 
 **涌动** = 抽到并结算后挂上的 **延时效果**（Grimoire：*After … draws and resolves*）。印刷 `surge` 与 G3 内「gains surge」**不叠加**：至多再开 **一条** 抽 1 张的新指令。**不是** 本条抽牌指令队列里的下一圈 G1。
 
-| 来源 | 引擎表示 | 延时 evaluate |
+| 来源 | 引擎表示 | 武装 / 开火 |
 |---|---|---|
-| 牌面印刷 **Surge** | `CardDefinition.keywords` | `CardRegistry.has_surge(def_id)` |
-| 效果 **gains surge** | Register **KEYWORD 标记**（无 Composition payload） | `RegistrationStore.has_keyword_buff(card_id, &"surge")` |
+| 牌面印刷 **Surge** | `CardDefinition.keywords` → **WHEN** `KeywordMount` 挂 **KEYWORD 标记** | `RegistrationStore.has_keyword_buff` |
+| 效果 **gains surge** | 同模板 Register **KEYWORD 标记**（幂等；已挂则 no-op） | 同上 |
 
-**动态 surge 生命周期**：**`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — 与本张遭遇 **结算期间** 绑定（抽出起至本条抽取后）；涌动再抽是新指令，无上一张 surge 标记。
+**拥有查询**仍可用 `EffectiveCharacteristicQuery`（印刷 ∪ gained）。**AFTER 开火只认武装标记**——不懒读 Definition；取消全部效果卸标记后不再抽。
 
-**G3 内 Register 时机**：显现 composition 执行到「gains surge」效果步时 Register；**12124 Cosmic Evils** 仅在选择「受伤害+horror」分支时 Register；**12126 Forbidden Secrets** 在 G3 **入口**判定 `clue == 0` 时 Register 并 **跳过** intellect 分支；**12160 Raising Suspicions** 在 place-doom 步 **未 CREATED** 后 Register（`after_step` 条件，见 [07 §3.3](07-composition.md)）。
+**KEYWORD 标记生命周期**：**`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — 与本张遭遇结算绑定；开火后 Unregister；涌动再抽是新指令。
+
+**挂载时机**：
+- **印刷**：`seq.draw.encounter` 队列 **KEYWORD_MOUNT_WHEN（105）**（揭示之后、险境之前）经 `KeywordMount.mount_at(…, SLOT_WHEN)`。
+- **gains**：显现 composition「gains surge」→ `seq.effect.register`（幂等）。**12124** 仅伤+恐分支；**12126** 无线索时；**12160** place-doom 未 CREATED 后。
 
 **Clues（已裁决）**：*your clues* 默认 = 调查员卡上 clue（`clues_on_card`）。
 
-**本条 AFTER 之后**：`KeywordConsumer` @ `AFTER_DRAWN_CARD` → nest `seq.keyword.surge` → 若 `printed OR dynamic` 则再 nest `seq.draw.encounter`（amount=1）→ **Unregister** 本张动态 surge 标记。
+**本条 AFTER 之后**：`KeywordConsumer` @ `AFTER_DRAWN_CARD` → nest `seq.keyword.surge` → 若 **武装** 则 nest `seq.draw.encounter`（amount=1）→ **Unregister** 标记。
 
 ### 3.2 Gained characteristics（动态特征 · 总纲 · 已裁决）
 
@@ -325,7 +329,7 @@ listener_trigger = 若表征含 LISTENER，Catalog emit 名（无则 —）
 
 1. **印刷 vs gained 共享 `consumer_slot`**，只改 `mount_moment` 与 `representation` 来源。  
 2. **`AT_DRAW_G2` 不是 keyword 通用挂载点** — 仅 **早生效** keyword（Peril）使用。  
-3. **晚判定 keyword**（Surge）：印刷 = `LAZY_AT_CONSUMER` 或进场/抽出后挂 **LISTENER**；gained = `AT_GRANT` + **KEYWORD 标记**（只表示拥有）再编译同一 LISTENER。Listener 开火时 nest `seq.draw.encounter`。当前 `KeywordConsumer` 是这条延时 LISTENER 的竖切，不是第四种 Buff。  
+3. **晚判定 keyword**（Surge）：印刷 = 抽出后 **WHEN** 挂 **KEYWORD 标记**（与 gained 同模板，幂等）；gained = `AT_GRANT` 同标记。AFTER 由 `KeywordConsumer` 开火 nest `seq.draw.encounter`（竖切 LISTENER，不是第四种 Buff）。**禁止** AFTER 懒读 Definition。  
 4. **G4 `unregister_by_drawn_card` 只卸 RESTRICTION**（Peril）；**不卸** KEYWORD 标记（涌动须留到 LISTENER 开火）。  
 5. 新 keyword **先定编译成哪一种（或几种）Buff**（§3.2.5），再加 `KeywordProfile`。**猎物 / 生成是指令，不进本表。** **禁止**为每个 keyword 新建 BuffType；**禁止**写进父管线优先队列；**禁止**为单卡 proliferate `seq.check_*`。
 
@@ -444,7 +448,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Alert** 警戒 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ 未进 `keywords[]` |
 | **Elusive** 逃逸 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ 未进 `keywords[]` |
 | **Doomed** 厄运降临 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 击败（非 discard） | 当前密谋 +1 毁灭 | ✅ 未进 `keywords[]` |
-| **Surge** 涌动 | 印刷 lazy；gained `AT_GRANT` | 绑本条抽取；开火后卸标记 | 本条抽取 **AFTER**（已结算） | nest `seq.draw.encounter` amount=1 | ✅ `KeywordConsumer` 竖切 |
+| **Surge** 涌动 | 印刷 **WHEN** 挂 KEYWORD；gained `AT_GRANT` 幂等 | 绑本条抽取；开火后卸标记 | 本条抽取 **AFTER**（已结算） | nest `seq.draw.encounter` amount=1 | ✅ `KeywordMount` + `KeywordConsumer` |
 | **Starting** 起始 | `AT_SETUP` / 换牌后 | `UNTIL_FIRED` | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | 无 |
 | **Swarming** | `AFTER_ENTER_PLAY` | `UNTIL_FIRED` | 进场结算之后 | 垫 **X** 张 swarm 牌 | Core 无 |
 
