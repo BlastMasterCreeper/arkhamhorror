@@ -69,7 +69,7 @@ class TimingOffer:
 |---|---|
 | **卡背 ≠ 正面 cardtype** | 卡背只定无文本背面 / 牌库外观；能力包仍按正面类型（§17.6） |
 | **抽取 ≠ 入手** | 遭遇库抽 **不**加入手牌；调查员库抽才 *add to hand* |
-| **隐私 Hidden** | 仍是遭遇卡背路径：抽取后揭示结算；**显现体内**才秘密入手 |
+| **隐秘 Hidden** | 遭遇卡背路径：先对抽取者揭示，Hidden 检测不公开；**显现体内**秘密入手 |
 | **玩家库·遭遇类型弱点** | 库中为 **玩家卡背**（不可辨）；抽出后按 **ENCOUNTER 能力包** 揭示结算 → 显现挂在 **揭示**（`seq.encounter.revelation`），**不**入手、**不**走 `seq.enter_hand` |
 
 - Grimoire *Drawing Cards*：调查员库 → hand；遭遇库 → 1.4 resolve（无 add to hand）。
@@ -337,21 +337,22 @@ Grimoire 规范流程
 | 段 | Priority | 说明 |
 |---|---|---|
 | G1 pop → emit | — | 离库进 LIMBO；打开 `ENCOUNTER_CARD_DRAWN` / WHEN |
-| **揭示** | **110** | **最高·自动**；隐私不公开。不可见时不结算险境 |
-| 险境 | **100** | Register RESTRICTION；只需 **&lt; 揭示** 且 **&gt; 玩家反应 / 显现** |
-| 玩家 When/Fast | **95** | 抽取时反应；04028「抽到后、结算效果前」 |
+| **对抽取者揭示** | **110** | **最高·自动**；抽取者可知牌面。不可见时不结算险境 |
+| **Hidden 检测 / 公开** | **108** | **无** Hidden → `reveal_to_all`；**有** Hidden（隐秘）→ 保持仅抽取者可知 |
+| 险境 | **100** | Register RESTRICTION；&lt; 公开揭示，&gt; 玩家反应 / 显现 |
+| 玩家 When/Fast | **95** | 公开后他人可取消显现等；04028「抽到后、结算效果前」 |
 | 显现 | **90** | nest 显现类（非 Forced） |
 | G4 enemy / treachery | **80** | spawn 默认/指令 或 discard |
 | AFTER(card) | **75** | 「抽取后」= 这条指令整段结算完毕 |
 | 涌动（延时） | 本条 AFTER **之后** | 另开一条抽牌指令；**不**在本队列再抽 G1 |
 
-**已裁决（2026-11-05）**：揭示进抽取时队列且最高优先、自动执行 → **不必纠结 WHEN 开窗瞬间是否可见**。`WHEN_HEADER` / would draw 时仍不可见即可。隐私同理（揭示步改为不公开）。
+**已裁决（2026-11-05）**：最高优先是 **对抽取者揭示**；其后 **多一道 Hidden 检测**——无隐秘才向全体公开，此时其他玩家可发起取消显现。隐秘则不公开。`WHEN_HEADER` / would 时仍不可见。
 
 **禁止**：为 Grimoire 段落 **proliferate** 平行 `seq.encounter.check_peril` 等 **命名流程**（handler 内 nest + `composition.execute(register)` 即可）；把 **已由子时点触发的 Register/显现** 压进内联（漏 slot / provenance）。
 
 #### 4.0.5.1 险境 / 显现 / 涌动：同锚点、异优先级（已裁决）
 
-G1 pop 后打开 **`ENCOUNTER_CARD_DRAWN`** 队列；由 **FrameworkPriority** 排序（§4.0.5.2）。**揭示 110 最高且自动**；险境 100（&lt; 揭示，&gt; 95/90）；**「抽取时」玩家窗 = 95**；显现 90；G4 = 80；**「抽取后」= 75**。**涌动不在本队列**。
+G1 pop 后打开 **`ENCOUNTER_CARD_DRAWN`** 队列；由 **FrameworkPriority** 排序（§4.0.5.2）。**对抽取者揭示 110** → **Hidden 检测/公开 108** → 险境 100 → **「抽取时」玩家窗 95**（公开后可取消显现）→ 显现 90 → G4 80 → **「抽取后」75**。**涌动不在本队列**。
 
 #### 4.0.5.1a 险境 vs 显现（Buff 类型对照 · 保留）
 
@@ -372,9 +373,10 @@ G1 pop 后打开 **`ENCOUNTER_CARD_DRAWN`** 队列；由 **FrameworkPriority** �
 
 ```text
 ENCOUNTER_CARD_DRAWN 队列
-  110 nest/步 揭示（自动·最高）
+  110 对抽取者揭示（自动·最高）
+  108 Hidden 检测：无 → 全体公开；有（隐秘）→ 不公开
   100 nest 险境 Register RESTRICTION
-   95 玩家 When / Fast
+   95 玩家 When / Fast（公开后可取消显现）
    90 nest 显现
    80 G4 …
 ```
@@ -391,9 +393,10 @@ ENCOUNTER_CARD_DRAWN 队列
 
 | 结算体 | Buff / 类型 | FrameworkPriority | Grimoire | 生命周期 / 备注 |
 |---|---|---|---|---|
-| **揭示** | Audience（非 CREATED） | **110** `REVEAL` | — | **最高·自动**；隐私不公开；先于一切结算 |
-| **险境 Register** | RESTRICTION | **100** `PERIL_KEYWORD` | G2 | 只需 &lt; 揭示且 &gt; 95/90；`WHILE_DRAWN_CARD_RESOLVING` — G4 完 Unregister |
-| 玩家 When draw / Fast | LISTENER / TRIGGERED | **95** | When；04028 | 揭示与险境已过；显现未到 |
+| **对抽取者揭示** | Audience（非 CREATED） | **110** `REVEAL_TO_DRAWER` | — | **最高·自动**；抽取者可知 |
+| **Hidden 检测 / 公开** | Audience | **108** `REVEAL_PUBLIC` | — | 无隐秘 → ALL；有隐秘 → 仅抽取者。公开后他人可取消显现 |
+| **险境 Register** | RESTRICTION | **100** `PERIL_KEYWORD` | G2 | &lt; 108 且 &gt; 95/90；`WHILE_DRAWN_CARD_RESOLVING` — G4 完 Unregister |
+| 玩家 When draw / Fast | LISTENER / TRIGGERED | **95** | When；04028 | 公开与险境已过；显现未到；可取消显现 |
 | **显现** | Composition | **90** `REVELATION` | G3 | 独立类；不是「抽取时」反应窗 |
 | **G4 类型落点** | L0 Composition | **80** `ENCOUNTER_TYPE_RESOLVE` | G4 | 见下表；**含** 敌人进场 + treachery discard |
 | emit **AFTER(card)** | — | **75** | 抽取后 | 这条指令的同时抽出组 G4 完；**涌动尚未发起** |
@@ -414,9 +417,10 @@ ENCOUNTER_CARD_DRAWN 队列
 ```text
 G1 pop → LIMBO → emit ENCOUNTER_CARD_DRAWN / offer WHEN
   priority_queue.dequeue_all():
-    110 reveal（自动·最高；隐私不公开）
+    110 reveal_to_drawer（自动·最高）
+    108 Hidden 检测 → 无则 reveal_to_all（公开后可取消显现）
     100 peril Register
-     95 player When / Fast（抽取时；04028）
+     95 player When / Fast（04028；取消显现）
      90 revelation
      80 G4: treachery discard | enemy spawn
          → Unregister peril(card_id)
@@ -980,7 +984,7 @@ func reveal_encounter_drawn(card_id: StringName) -> void:
 |---|---|---|
 | — | **E0** 意图 / push 帧 | 引擎信封；魔典无对应步 |
 | **G1 Draw** | **E1** `collect_one_step`（pop → LIMBO） | 离库；**揭示不在此** |
-| — | **揭示** priority **110** | 抽取时队列最高·自动；魔典无独立步；隐私不公开 |
+| — | **对抽取者揭示** **110** → **Hidden 检测** **108** | 最高对抽取者；无隐秘才全体公开；魔典无独立步 |
 | **G2 Check peril** | **E3** nest Register RESTRICTION **100** | &lt; 揭示且 &gt; 玩家反应/显现 |
 | **G3 Revelation** | **E4** nest `seq.encounter.revelation` | treachery 在 **limbo**（暂存区）结算 |
 | **G4 Spawn / discard** | **E5** nest spawn / 内联 discard | 二分，非并行 |
@@ -1000,9 +1004,10 @@ E1  G1 · Draw（内联 collect）
     ← Would→When 发起 impact = 离库（揭示进队列）
 
 emit ENCOUNTER_CARD_DRAWN · 卡牌结算队列按 FrameworkPriority：
-    110  揭示（自动·最高；隐私不公开）
+    110  对抽取者揭示（自动·最高）
+    108  Hidden 检测：无 → 全体公开；有（隐秘）→ 不公开
     100  E3 G2 nest Register RESTRICTION（peril）
-     95  抽取时 · Fast / [reaction] / 04028
+     95  抽取时 · Fast / [reaction] / 04028（公开后可取消显现）
      90  E4 G3 nest revelation
      80  E5 G4 nest spawn / finalize_limbo_if_still（treachery）→ Unregister peril
 
@@ -1036,7 +1041,7 @@ E7  pop 帧
 ```text
 [WOULD] 本条指令 · N 张仍在 DECK（不可见）
 同时抽出 → emit ENCOUNTER_CARD_DRAWN（一组）
-  按抽出顺序 dequeue：110 揭示 → 100 peril → 95 When → 90 revelation → 80 spawn|discard
+  dequeue：110 对抽取者揭示 → 108 Hidden/公开 → 100 peril → 95 When → 90 revelation → 80 G4
   → 75 AFTER 本条指令抽取后
 涌动延时 → 另开抽牌指令
 ```
@@ -1046,9 +1051,10 @@ E7  pop 帧
 ```gdscript
 # core/timing/encounter_draw_priority.gd
 class EncounterDrawPriority:
-    const REVEAL := 110            # 最高·自动；隐私不公开
-    const PERIL_REGISTER := 100    # < 揭示，> 玩家反应 / 显现
-    const PLAYER_WHEN_DRAW := 95
+    const REVEAL_TO_DRAWER := 110  # 最高·对抽取者
+    const REVEAL_PUBLIC := 108     # Hidden 检测；无则全体公开
+    const PERIL_REGISTER := 100
+    const PLAYER_WHEN_DRAW := 95   # 公开后可取消显现
     const REVELATION := 90
     const G4_TYPE_RESOLVE := 80
     const AFTER_CARD := 75
@@ -1272,13 +1278,18 @@ func dispatch_treachery(card_id: StringName, drawer_id: StringName) -> void:
 
 **规则出处**：Grimoire p.14 · *Hidden*；Dream-Eaters 修订见 [`arkhamdb-rules-reference.md`](../reference/arkhamdb-rules-reference.md) · *Hidden*。
 
-**中文裁定名**：**隐私**（英文卡牌关键词 **`Hidden`**）。`CardDefinition.keywords` / 代码仍用 `&"hidden"`；Domain 真值 `CardInstance.is_hidden`。
+**中文裁定名**：**隐秘**（英文关键词 **`Hidden`**；旧称「隐私」弃用）。`CardDefinition.keywords` / 代码仍用 `&"hidden"`；Domain 真值 `CardInstance.is_hidden`。
+
+#### 抽取时揭示（与 Hidden 检测）
+
+1. **110** 对抽取者揭示（抽取者可知牌面）。  
+2. **108** 读 Hidden：若 **无** 隐秘 → `reveal_to_all`；其他玩家随即可在 **95** 窗发起取消显现等。若 **有** 隐秘 → **不**向他人公开，显现仍秘密结算。
 
 #### 规则译文（Grimoire + Dream-Eaters FAQ）
 
-带 **隐私** 关键词的遭遇牌或弱点，具有 **显现（Revelation）能力**，将该牌 **秘密** 加入调查员手牌——**不得**向其他调查员公开该牌或其文本。
+带 **隐秘** 关键词的遭遇牌或弱点，具有 **显现（Revelation）能力**，将该牌 **秘密** 加入调查员手牌——**不得**向其他调查员公开该牌或其文本。
 
-隐私牌在调查员 **手牌** 期间：
+隐秘牌在调查员 **手牌** 期间：
 
 | 条目 | 规则 |
 |---|---|

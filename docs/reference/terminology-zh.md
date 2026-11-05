@@ -19,7 +19,7 @@
 | **Reveal (card)** | **揭示（卡牌）** | L0 `AtomRevealCard` |
 | **Augury** | **占兆** | 混乱标记揭示区；id `augury`；≠ 卡牌 LIMBO。口语「预兆」指同一概念 |
 | **Player Interaction** | **玩家交互** | `PlayerInteractionGate` |
-| **Hidden** | **隐私** | 秘密入手；见 [grimoire-glossary-extract §隐私](grimoire-glossary-extract.md) |
+| **Hidden** | **隐秘** | ≠ 旧译「隐私」；先对抽取者揭示，再检测是否公开；秘密入手见 15 §17.4.3 |
 | **Forced Ability** | **强制能力** | `Forced –`；引擎直执 |
 | **Free triggered ability** | **免费触发能力** | 魔典 `[free]`；ArkhamDB 玩家牌常标 `[fast]`；Player Window |
 | **Reaction triggered ability** | **反应触发能力** | `[reaction]` |
