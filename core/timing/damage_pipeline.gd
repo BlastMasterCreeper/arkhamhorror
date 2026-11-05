@@ -5,7 +5,7 @@ extends RefCounted
 ## - **有分配** `seq.effect.deal.assignable`：伤/恐可同入参；Assign 后 **同时** Apply。
 ## - **无分配** `seq.effect.deal`：已定 legs / 单点，无 Assign。
 ## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（DamageAssigner 原流程读取）。
-## - **WOULD / WHEN 均在 Apply 之前**（栈相位 PreImpact）。
+## -  **WHEN_HEADER / WHEN 均在 Apply 之前**（栈相位 PreImpact）。
 ## Assign = PI：`PlayerInteractionGate.ask_assign_*`（逾期 / headless → 默认腿表）。
 
 
@@ -18,7 +18,7 @@ const PENDING_HORROR_DIRECT := &"pending_horror_direct"
 const PENDING_HORROR_LEGS := &"pending_horror_legs"
 
 
-## 单 kind 有分配：Assign → WOULD/WHEN → Apply。
+## 单 kind 有分配：Assign → WHEN_HEADER/WHEN → Apply。
 static func deal_investigator(
 	game_ctx: GameContext,
 	inv_id: StringName,
@@ -31,7 +31,7 @@ static func deal_investigator(
 	return deal_investigator_bundle(game_ctx, inv_id, amount, 0, is_direct, false)
 
 
-## 伤+恐同手续：各自 Assign，一次 WOULD/WHEN，再 **同时** Apply。
+## 伤+恐同手续：各自 Assign，一次 WHEN_HEADER/WHEN，再 **同时** Apply。
 static func deal_investigator_bundle(
 	game_ctx: GameContext,
 	inv_id: StringName,
@@ -62,7 +62,7 @@ static func deal_investigator_bundle(
 		game_ctx, inv_id, d_req, direct_damage, d_legs, h_req, direct_horror, h_legs
 	)
 	if game_ctx.sequences != null:
-		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WOULD)
+		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN_HEADER)
 		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN)
 	## 分通道读回（伤=PRIMARY 当 d_req>0；恐=HORROR 通道）。
 	var final_d := 0
@@ -119,7 +119,7 @@ static func apply_investigator_legs(
 	)
 
 
-## 已定伤/恐腿（可单边空）：一次 WOULD/WHEN，再同时 Apply。
+## 已定伤/恐腿（可单边空）：一次 WHEN_HEADER/WHEN，再同时 Apply。
 static func apply_investigator_bundle_legs(
 	game_ctx: GameContext,
 	inv_id: StringName,
@@ -147,7 +147,7 @@ static func apply_investigator_bundle_legs(
 		horror_legs if h_req > 0 else []
 	)
 	if game_ctx.sequences != null:
-		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WOULD)
+		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN_HEADER)
 		game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN)
 	var final_d := 0
 	var final_d_legs: Array = []

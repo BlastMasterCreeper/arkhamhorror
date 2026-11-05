@@ -466,11 +466,11 @@ func _initialize() -> void:
 	_run_test("TIMING-ZONE-01 would-deck when-hand-or-limbo", _test_draw_when_zones)
 	_run_test("TIM-01 draw investigator SPLIT zones", _test_tim_draw_investigator_split)
 	_run_test("TIM-02 draw encounter SPLIT zones", _test_tim_draw_encounter_split)
-	_run_test("TIM-DMG-01 WOULD then WHEN before Apply", _test_tim_dmg_apply_slots)
-	_run_test("TIM-DMG-02 WOULD reduce_pending before Apply", _test_tim_dmg_prevent)
+	_run_test("TIM-DMG-01 WHEN_HEADER then WHEN before Apply", _test_tim_dmg_apply_slots)
+	_run_test("TIM-DMG-02 WHEN_HEADER reduce_pending before Apply", _test_tim_dmg_prevent)
 	_run_test("TIM-DMG-03 WHEN increase_pending adds delta K", _test_tim_dmg_increase_pending)
 	_run_test("TIM-DMG-04 increase_pending keeps reserved legs", _test_tim_dmg_increase_keeps_legs)
-	_run_test("TIM-DMG-05 outbound WOULD before Apply", _test_tim_dmg_outbound_preimpact)
+	_run_test("TIM-DMG-05 outbound WHEN_HEADER before Apply", _test_tim_dmg_outbound_preimpact)
 	_run_test("TIM-DMG-06 outbound reduce_pending", _test_tim_dmg_outbound_reduce)
 	_run_test("ASN-01 PRIOR_FILL horror to asset first", _test_asn_prior_fill)
 	_run_test("ASN-02 MIN_TO_SUBJECT damage if able", _test_asn_min_to_subject)
@@ -10240,7 +10240,7 @@ func _test_draw_when_zones() -> bool:
 
 
 func _test_tim_draw_investigator_split() -> bool:
-	## TIM-01：信封 WOULD 时仍在 DECK；中段 WHEN 时已在 HAND；显现在 WHEN 之后。
+	## TIM-01：信封 WHEN_HEADER 时仍在 DECK；中段 WHEN 时已在 HAND；显现在 WHEN 之后。
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"tim_plain")
@@ -10266,7 +10266,7 @@ func _test_tim_draw_investigator_split() -> bool:
 	var after_i := -1
 	for i in range(trace.size()):
 		var line := str(trace[i])
-		if line.begins_with("WOULD:draw_investigator@"):
+		if line.begins_with("WHEN_HEADER:draw_investigator@"):
 			would_i = i
 		elif line.begins_with("WHEN:draw_investigator@"):
 			when_i = i
@@ -10283,7 +10283,7 @@ func _test_tim_draw_investigator_split() -> bool:
 		and when_i >= 0
 		and resolve_i >= 0
 		and after_i >= 0
-		## 信封 WOULD → RESOLVE → 砖块 WHEN → AFTER
+		## 信封 WHEN_HEADER → RESOLVE → 砖块 WHEN → AFTER
 		and would_i < resolve_i
 		and resolve_i < when_i
 		and when_i < after_i
@@ -10291,7 +10291,7 @@ func _test_tim_draw_investigator_split() -> bool:
 
 
 func _test_tim_draw_encounter_split() -> bool:
-	## TIM-02：WOULD 时仍在 DECK；WHEN 时已在 LIMBO；显现尚未开始。
+	## TIM-02：WHEN_HEADER 时仍在 DECK；WHEN 时已在 LIMBO；显现尚未开始。
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"tim_enc_plain")
@@ -10326,7 +10326,7 @@ func _test_tim_draw_encounter_split() -> bool:
 	var resolve_i := -1
 	for i in range(trace.size()):
 		var line := str(trace[i])
-		if line.begins_with("WOULD:draw_encounter@"):
+		if line.begins_with("WHEN_HEADER:draw_encounter@"):
 			would_i = i
 		elif line.begins_with("WHEN:draw_encounter@"):
 			when_i = i
@@ -10347,7 +10347,7 @@ func _test_tim_draw_encounter_split() -> bool:
 
 
 func _test_tim_dmg_apply_slots() -> bool:
-	## TIM-DMG-01：Assign 非时点；WOULD→WHEN 均在 Apply 前（pending、未写入）；AFTER 时已写入。
+	## TIM-DMG-01：Assign 非时点；WHEN_HEADER→WHEN 均在 Apply 前（pending、未写入）；AFTER 时已写入。
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -10386,7 +10386,7 @@ func _test_tim_dmg_apply_slots() -> bool:
 	var after_i := -1
 	for i in range(trace.size()):
 		var line := str(trace[i])
-		if line.begins_with("WOULD:damage@"):
+		if line.begins_with("WHEN_HEADER:damage@"):
 			would_i = i
 		elif line.begins_with("WHEN:damage@"):
 			when_i = i
@@ -10414,7 +10414,7 @@ func _test_tim_dmg_apply_slots() -> bool:
 
 
 func _test_tim_dmg_prevent() -> bool:
-	## TIM-DMG-02：WOULD 内 reduce_pending → Apply 写入量减少；WHEN 仍见已降低的 pending。
+	## TIM-DMG-02：WHEN_HEADER 内 reduce_pending → Apply 写入量减少；WHEN 仍见已降低的 pending。
 	var h := RuleTestHarness.new(42)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var when_pending := {"n": -1}
@@ -10524,7 +10524,7 @@ func _asn_leg_amount(legs: Array, bearer: StringName, id: StringName) -> int:
 
 
 func _test_tim_dmg_outbound_preimpact() -> bool:
-	## TIM-DMG-05：已定敌腿 WOULD→WHEN 在 Apply 前（pending 未写入）。
+	## TIM-DMG-05：已定敌腿 WHEN_HEADER→WHEN 在 Apply 前（pending 未写入）。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
@@ -10570,7 +10570,7 @@ func _test_tim_dmg_outbound_preimpact() -> bool:
 
 
 func _test_tim_dmg_outbound_reduce() -> bool:
-	## TIM-DMG-06：外向 WOULD reduce_pending → Apply 量减少。
+	## TIM-DMG-06：外向 WHEN_HEADER reduce_pending → Apply 量减少。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false

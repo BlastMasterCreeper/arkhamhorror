@@ -64,10 +64,10 @@
 
 | # | 项 | 说明 |
 |---|---|---|
-| T1 | **WOULD** | 该次流程 PreImpact（抽牌：这条指令尚未发生；任何一张 pop 前牌在 **DECK**）— **`seq.draw.*` SPLIT 已接** |
+| T1 | **WHEN_HEADER** | when 的 would 头窗 / PreImpact（抽牌：指令尚未发生；pop 前牌在 **DECK**）— **`seq.draw.*` SPLIT 已接**；**不是**独立 timing |
 | T2 | **WHEN** | 发起 impact 之后的打断槽（抽牌：抽取步骤；同一指令的 N 张已同时抽到，不覆盖显现 / G4） |
 | T3 | **AFTER** | 该次流程整段结算完毕（抽牌：同时抽出组的显现 / G4 都完。涌动是之后的延时，另开指令） |
-| T4 | `TimingCatalog` 行 | `(sequence_id, WOULD\|WHEN\|AFTER)`；抽牌按卡面转译钉语义；**v1 未实现** |
+| T4 | `TimingCatalog` 行 | `(sequence_id, WHEN[+header]\|AFTER)` → 运行时 `WHEN_HEADER\|WHEN\|AFTER`；**v1 未实现** |
 | T5 | Listener 键 | `after_timing` 与 `RegistrationStore` 订阅一致 |
 
 ### 3.3 RESOLVE 砖块
@@ -176,14 +176,14 @@
 
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
-| **父 Would / When** | 卡面 draw 转译：Would = 整段 PreImpact（信封头）；When = 抽取步骤砖块后（15 §3） | ✅ `split_timing`：信封 WOULD + 中段 `offer_slot(WHEN)`（TIM-01/02） |
-| **伤害 PreImpact 槽** | Assign = **PI**；**WOULD→WHEN 均在 Apply 前**；**取消/additional 钉 WOULD**（WHEN take 预留、现无生产卡；07 §4）；`increase_pending`+`assign_delta`；外向/已定腿同构 `DealPreImpact` | ✅ 承伤 pipeline + 外向 `DealPreImpact`（TIM-DMG-01–06） |
-| **发起 impact** | Would 与 When **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
+| **父 when 头 / When** | 卡面 draw：would 头 = 整段 PreImpact（`WHEN_HEADER`）；When = 抽取步骤砖块后（15 §3） | ✅ `split_timing`：信封 WHEN_HEADER + 中段 `offer_slot(WHEN)`（TIM-01/02） |
+| **伤害 PreImpact 槽** | Assign = **PI**；**WHEN_HEADER→WHEN 均在 Apply 前**；**取消/additional 钉头窗**（WHEN take 预留、现无生产卡；07 §4）；`increase_pending`+`assign_delta`；外向/已定腿同构 `DealPreImpact` | ✅ 承伤 pipeline + 外向 `DealPreImpact`（TIM-DMG-01–06） |
+| **发起 impact** | WHEN_HEADER 与 WHEN **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |
 | **AFTER 顺序** | 子树 pop 后父 AFTER | 部分（stack pop ✅；defer ❌） |
 
-**Invariant**：Eligibility 订阅 **`(sequence_id, slot)`** 时，**子 kind 不继承父** unless 显式 tags。抽牌 When **不**用栈默认「RESOLVE 前 WHEN」代替抽取步骤 When。Would = 这次抽取 PreImpact。After = 结算完毕。
+**Invariant**：Eligibility 订阅 **`(sequence_id, slot[, when_header])`** 时，**子 kind 不继承父** unless 显式 tags。抽牌 When **不**用栈默认「RESOLVE 前 WHEN」代替抽取步骤 When。WHEN_HEADER = 这次抽取 when 的 would 头。After = 结算完毕。
 
 **实例对照表** → [15 §16.3.1](15-timing-entry-catalog.md)（`seq.draw.investigator`）。
 
@@ -321,7 +321,7 @@
 | OQ-SEQ-01 | v1 是否实现完整 `TimingCatalog` 类型，或 stack 内 hardcode 政策表 |
 | OQ-SEQ-02 | `seq.action.draw` 与 `seq.draw.investigator` 是否同一 RUN + 不同 params/tags |
 | OQ-SEQ-03 | **修订 2026-09-28**：卡牌正文 = Composition（不为每张卡 nest `seq.card…` / 不统一包 `seq.resolve.effect.*`）。**禁止真空**：Initiation resolve 必须在 **已压栈** 父手续内解释树（I2 硬门槛）；旧文「直接 `composition.execute`」废止。调用抽牌/检定等：仅 §4.0.5「是」时 nest；玩家选择走 Gate（16 §3.1）。 |
-| OQ-SEQ-04 | SPLIT 的 When 由 seq 政策表在抽取步骤砖块边界 emit；Would = 这次抽取 PreImpact。见 15 §3.1、§6。 |
+| OQ-SEQ-04 | SPLIT 的 When 由 seq 政策表在抽取步骤砖块边界 emit；WHEN_HEADER = 这次抽取 when 的 would 头。见 15 §3.1、§6。 |
 | OQ-SEQ-05 | AFTER **defer**（15 §7 仅 SUBSEQUENCE 无 post brick）实现策略 |
 
 ---
@@ -330,6 +330,7 @@
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-05 | v0.4.36 | T1/§4.4：`WOULD` → `WHEN_HEADER`（when 的 would 头；非独立 timing） |
 | 2026-10-27 | v0.4.35 | §4.4：取消/additional 钉 WOULD；WHEN take 预留无生产卡 |
 | 2026-10-26 | v0.4.34 | §5：deal 双通道腿；AFTER 伤/恐/和或条件；GRANT 无印刷不设上限 |
 | 2026-10-26 | v0.4.33 | §4.4：外向/已定 deal 腿 PreImpact（`DealPreImpact`） |

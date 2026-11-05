@@ -79,12 +79,13 @@ class AbilitySpec:
 
 class AbilityHook:
     var sequence_id: StringName           # RuleSequence / 事件族 id（见 15）
-    var slot: TimingSlot                  # WOULD | WHEN | AFTER
+    var slot: TimingSlot                  # WHEN | AFTER（印刷 timing）
+    var when_header: bool = false         # true = 卡面 when you would … → SequencePhase.WHEN_HEADER
     var tier: AbilityTier                 # FORCED | TRIGGERED | REVELATION | LISTENER
 ```
 
-> **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot)`，见 [15 §2–§3](15-timing-entry-catalog.md)。  
-> 卡面 would / when / after draw **转译**为 `(seq.draw.*, WOULD\|WHEN\|AFTER)`：Would = 这次抽取 PreImpact；When = 抽取步骤；After = 整段结算完毕。显现 / G4 ≠ 「抽取时」。
+> **v0.3 兼容**：旧字段 `event_family` + `SequencePhase` 迁移为 `(sequence_id, slot[, when_header])`，见 [15 §2–§3](15-timing-entry-catalog.md)。  
+> 卡面 would / when / after draw **转译**：would = when 的头窗（`WHEN_HEADER`）；when = 抽取步骤；after = 整段结算完毕。显现 / G4 ≠ 「抽取时」。**would 不是第三 timing。**
 
 | 部分 | 引擎含义 | 参与订阅？ | 参与门槛？ |
 |---|---|---|---|
