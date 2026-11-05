@@ -33,7 +33,7 @@ enum AbilityKind {
 |---|---|---|
 | Constant | 引擎 | 查询 modifier 时 |
 | Forced | 引擎 | timing point 自动 |
-| Revelation | 引擎 | 玩家：**入手** `seq.enter_hand`（不绑 draw）；遭遇：priority 90 `seq.encounter.revelation`；weakness 路由见 [11 §10](11-investigator-campaign.md) |
+| Revelation | 引擎 | **卡背两钩**：遭遇卡背＝抽取并揭示 → `seq.encounter.revelation`；玩家卡背＝入手 → `seq.enter_hand`；见 [15 §2](15-timing-entry-catalog.md)、[11 §10](11-investigator-campaign.md) |
 | Free `[free]` | 玩家 | Player Window 或文本指定 |
 | Reaction `[reaction]` | 玩家 | when/at/after 条件 |
 | Action `[action]` | 玩家 | Activate action |
@@ -412,14 +412,15 @@ enum SequenceHandler.Tier { FORCED, FRAMEWORK, TRIGGERED, REVELATION, LISTENER }
 
 显现 **不是** 流程上的 Forced，也 **不** 并入 §8.1 同窗口 FORCED 批。`AbilityKind.REVELATION` 与 `SequenceHandler.Tier.REVELATION` 是 **独立优先级类**。
 
-**玩家显现绑入手，不绑抽取**：控制者已知牌面后，在 `seq.enter_hand` 结算显现。抽取只是常见入手途径；抽牌 **When 打断槽**（Fast / `[reaction]` When you draw，FrameworkPriority **95** `PLAYER_WHEN_DRAW`）之后 nest 入手，入手再触发显现（FrameworkPriority **90** `REVELATION`）——显现 **不是**「抽取时」窗内，也 **不是** draw 订阅：
+**显现挂载按卡背**（纠正）：遭遇卡背在抽取并揭示后 nest；玩家卡背在进入手牌后 nest。抽牌 When 槽（Fast / `[reaction]` When you draw，FrameworkPriority **95**）**不是**显现窗：
 
 | 入口 | 命名流程 | 档位 / 钩 |
 |---|---|---|
-| 遭遇 G3 | `seq.encounter.revelation` | 90 · LIMBO 已知牌面；**非** enter_hand |
-| 玩家入手（任意途径） | `seq.enter_hand` 内显现 nest | 入手 TC；provenance = `seq.enter_hand` |
+| 遭遇卡背 · 揭示后 G3 | `seq.encounter.revelation` | 90 · LIMBO 已知牌面 |
+| 玩家卡背 · 入手 | `seq.enter_hand` | 入手 TC；provenance = `seq.enter_hand` |
+| 玩家库·遭遇类型弱点 | 同上遭遇揭示入口 | 玩家卡背在库；抽出后走 ENCOUNTER 包 |
 
-**禁止**：把显现收进 When-draw Forced 批；把玩家显现订到 `seq.draw.*`；用 *as if just drawn* 当触发条件（它只是结算口径）。Fast 在 When-draw 槽内是 **打出发起**，不是 TRIGGERED 对 Forced 的全局倒置。
+**禁止**：把显现收进 When-draw Forced 批；把玩家卡背显现订到 `seq.draw.*`；把遭遇卡背显现订到 `seq.enter_hand`；用 *as if just drawn* 当触发条件。Fast 在 When-draw 槽内是 **打出发起**，不是 TRIGGERED 对 Forced 的全局倒置。
 
 ### 8.2 同类内顺序（仅同 tier · 玩家自排）
 

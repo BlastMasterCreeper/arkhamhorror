@@ -228,6 +228,7 @@ static func _step_peril_register(ctx: Dictionary) -> void:
 	)
 
 
+## 遭遇结算揭示后的显现：遭遇卡背典型路径；亦含玩家库·遭遇类型弱点（玩家卡背、不入手）。
 static func _step_revelation(ctx: Dictionary) -> void:
 	var game_ctx: GameContext = ctx.get("game_ctx")
 	var drawer_id: StringName = ctx.get("drawer_id", &"")

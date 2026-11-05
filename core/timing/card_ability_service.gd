@@ -29,7 +29,7 @@ func resolve_revelations(
 	if game_ctx == null or game_ctx.composition == null:
 		return false
 	## I2：显现体只在已压栈入口 seq 内解释。
-	## 玩家：seq.enter_hand（绑入手，不绑 draw）；遭遇：seq.encounter.revelation。
+	## 玩家卡背入手 → seq.enter_hand；遭遇卡背抽取并揭示 → seq.encounter.revelation。
 	if game_ctx.sequences == null or game_ctx.sequences.depth() <= 0:
 		push_error("CardAbilityService.resolve_revelations: no sequence frame; vacuum refused")
 		return false

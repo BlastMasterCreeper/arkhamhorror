@@ -15,7 +15,7 @@ static func _register_flows(
 	mutator: StateMutator,
 	card_abilities: CardAbilityService
 ) -> void:
-	## 玩家显现入口：绑入手（任意途径），不绑抽取。draw / add / search 均 nest 本 flow。
+	## 玩家卡背显现入口：进入手牌（任意途径）。遭遇卡背不走本 flow。
 	catalog.register_nest_batch(
 		&"seq.enter_hand",
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -740,7 +740,7 @@ static func _resolve_encounter_spawn(
 	return {"spawned": false, "discarded": false, "error": result.get("error", &"")}
 
 
-## 玩家牌显现：按进入手牌顺序 nest；flow_id / TC 均为 enter_hand（与是否经 draw 无关）。
+## 玩家卡背显现：入手时 nest。遭遇卡背即使误入本 batch 也不在此结算显现。
 static func _nest_enter_hand_revelations(
 	game_ctx: GameContext,
 	params: Dictionary,
@@ -765,7 +765,13 @@ static func _nest_enter_hand_revelations(
 		return {"revelations": resolved}
 	for card_id in ordered_cards:
 		var cid := card_id as StringName
-		if abilities.has_revelation(game_ctx, cid):
+		var def_id := _definition_id_of(game_ctx, cid)
+		## 仅玩家卡背：遭遇卡背显现挂在抽取并揭示（seq.encounter.revelation）。
+		if (
+			def_id != &""
+			and CardRegistry.has_player_back(def_id)
+			and abilities.has_revelation(game_ctx, cid)
+		):
 			if game_ctx.sequences == null:
 				push_error("seq.enter_hand: no ResolutionSequenceStack; vacuum refused")
 			else:
@@ -780,6 +786,15 @@ static func _nest_enter_hand_revelations(
 				resolved.append(cid)
 		_finalize_enter_hand_limbo(game_ctx, controller_id, cid)
 	return {"revelations": resolved}
+
+
+static func _definition_id_of(game_ctx: GameContext, card_id: StringName) -> StringName:
+	if game_ctx == null or game_ctx.state == null:
+		return &""
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card == null:
+		return &""
+	return card.id.definition_id
 
 
 static func _finalize_enter_hand_limbo(

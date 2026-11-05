@@ -367,7 +367,7 @@ static func has_triggered(definition_id: StringName) -> bool:
 	return not triggered_units_at(definition_id).is_empty()
 
 
-## 物理入手落点 zone（HAND 或 LIMBO）。玩家显现入口是 seq.enter_hand，与是否经 draw 无关。
+## 物理入手落点 zone（HAND 或 LIMBO）。玩家卡背显现入口是 seq.enter_hand。
 static func enter_hand_zone(definition_id: StringName) -> AhcEnums.Zone:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	return data.get("enter_zone", AhcEnums.Zone.HAND) as AhcEnums.Zone

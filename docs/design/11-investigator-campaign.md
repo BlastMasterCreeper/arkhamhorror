@@ -542,9 +542,10 @@ var deckbuilding_choices: Dictionary  # faction_1 → guardian, trait_choice →
 |---|---|
 | **Weakness** | 卡**子类型**（缺陷/诅咒/伤/敌人/故事线等）；与 asset/event/skill/**enemy/treachery** 等 **cardtype 正交** |
 | **Revelation** | **能力类型**（**Revelation –**）；可在 encounter 牌、weakness、Dilemma 等上出现；**按 `has_revelation` 判定**，非 weakness 子类型 |
-| **玩家显现钩** | **进入手牌**（任意途径）→ `seq.enter_hand`；**不绑**抽取。*as if just drawn* 只是结算口径 |
-| **调查员抽取** | 离库 → HAND；再 nest `seq.enter_hand`（若有玩家显现） |
-| **遭遇抽取** | 离库 → **LIMBO** 结算；**默认不入手**；仅隐私显现体内秘密入手 |
+| **显现挂载（卡背）** | **遭遇卡背**：抽取并揭示 → `seq.encounter.revelation`；**玩家卡背**：进入手牌 → `seq.enter_hand` |
+| **调查员抽取** | 离库 → HAND；**玩家卡背**再 nest `seq.enter_hand` |
+| **遭遇抽取** | 离库 → **LIMBO** + 揭示；显现走遭遇入口；**默认不入手**；仅隐私显现体内秘密入手 |
+| **玩家库·遭遇类型弱点** | 玩家卡背在库中；抽出后 ENCOUNTER 包揭示结算 → 显现挂揭示，不入手 |
 
 ### 10.1 抽出结算 = 卡面能力（类型默认能力包）
 
