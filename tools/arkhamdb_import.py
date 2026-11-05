@@ -32,6 +32,9 @@ KEYWORD_LINE_PATTERNS = [
     ("retaliate", re.compile(r"\bRetaliate\b", re.I)),
     ("massive", re.compile(r"\bMassive\b", re.I)),
     ("hidden", re.compile(r"\bHidden\b", re.I)),
+    ("exceptional", re.compile(r"\bExceptional\b", re.I)),
+    ("myriad", re.compile(r"\bMyriad\b", re.I)),
+    ("permanent", re.compile(r"\bPermanent\b", re.I)),
 ]
 
 ABILITY_HINT_PATTERNS = [
@@ -79,6 +82,55 @@ def parse_traits(raw: str | None) -> list[str]:
     return out
 
 
+def parse_tags(raw: Any) -> list[str]:
+    """ArkhamDB tags: ``hd.hh.`` string or list → ``['hd','hh']``."""
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        return [str(t).strip().lower() for t in raw if str(t).strip()]
+    out: list[str] = []
+    for part in re.split(r"[.\s]+", str(raw)):
+        t = part.strip().lower()
+        if t:
+            out.append(t)
+    return out
+
+
+def _card_factions(card: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for key in ("faction_code", "faction2_code", "faction3_code"):
+        v = card.get(key) or ""
+        if v and v not in out:
+            out.append(str(v))
+    return out
+
+
+def normalize_deck_requirements(raw: Any) -> dict[str, Any]:
+    """Accept ArkhamDB dict or ``size:30, card:…, random:…`` string."""
+    if isinstance(raw, dict):
+        return dict(raw)
+    if not isinstance(raw, str) or not raw.strip():
+        return {}
+    out: dict[str, Any] = {"card": {}, "random": []}
+    for part in raw.split(","):
+        p = part.strip()
+        if not p:
+            continue
+        if p.startswith("size:"):
+            out["size"] = int(p[5:])
+        elif p.startswith("card:"):
+            code = p[5:].strip()
+            out.setdefault("card", {})[code] = {code: code}
+        elif p.startswith("random:"):
+            # random:subtype:basicweakness
+            bits = p.split(":")
+            if len(bits) >= 3:
+                out.setdefault("random", []).append({"target": bits[1], "value": bits[2]})
+    if "size" not in out:
+        out["size"] = 30
+    return out
+
+
 def extract_keywords(card: dict[str, Any], text: str) -> list[str]:
     """关键词来自卡面文本行；`permanent` 可用 JSON 字段。
 
@@ -90,6 +142,10 @@ def extract_keywords(card: dict[str, Any], text: str) -> list[str]:
     keywords: list[str] = []
     if card.get("permanent"):
         keywords.append("permanent")
+    if card.get("exceptional"):
+        keywords.append("exceptional")
+    if card.get("myriad"):
+        keywords.append("myriad")
     lines = [ln.strip() for ln in (text or "").split("\n") if ln.strip()]
     for line in lines[:8]:
         # 能力体开始后不再当关键词行（避免 Flavor/规则句误伤）
@@ -371,6 +427,23 @@ def convert_card(card: dict[str, Any]) -> dict[str, Any] | None:
         "ability_hints": extract_ability_hints(text),
         "text": text,
     }
+    factions = _card_factions(card)
+    if factions:
+        out["factions"] = factions
+    if card.get("xp") is not None:
+        out["level"] = int(card["xp"])
+        out["xp"] = int(card["xp"])
+    if card.get("exceptional") or "exceptional" in keywords:
+        out["exceptional"] = True
+    if card.get("myriad") or "myriad" in keywords:
+        out["myriad"] = True
+    tags = parse_tags(card.get("tags"))
+    if tags:
+        out["tags"] = tags
+    if card.get("deck_options"):
+        out["deck_options"] = card["deck_options"]
+    if card.get("deck_requirements"):
+        out["deck_requirements"] = normalize_deck_requirements(card["deck_requirements"])
     if "doom" in card and card.get("doom") is not None:
         out["doom"] = int(card["doom"])
     if card.get("back_text"):
@@ -430,8 +503,32 @@ def import_pack(pack_name: str) -> dict[str, Any]:
             continue
         out[card["code"]] = converted
         out["_meta"]["count"] += 1
+    mark_signature_from_deck_requirements(out)
     out["_meta"]["ability_compile_summary"] = summarize_compile(out)
     return out
+
+
+def mark_signature_from_deck_requirements(pack: dict[str, Any]) -> None:
+    """``deck_requirements.card`` 所列 = Signature（含署名弱点）：ignore_deckbuilding。
+
+    不计 deck size 由运行时 ``counts_toward_deck_size`` 推导：
+    Permanent / is_weakness / ignore_deckbuilding → 不计；Myriad 仍计。
+    """
+    for _code, card in pack.items():
+        if _code == "_meta" or not isinstance(card, dict):
+            continue
+        if card.get("card_type") != "investigator":
+            continue
+        req = card.get("deck_requirements") or {}
+        cards_req = req.get("card") if isinstance(req, dict) else None
+        if not isinstance(cards_req, dict):
+            continue
+        for sig_code in cards_req.keys():
+            target = pack.get(str(sig_code))
+            if isinstance(target, dict):
+                target["ignore_deckbuilding"] = True
+                ## 署名资产/事件等；弱点另有 is_weakness，二者都 size-exempt。
+                target["signature"] = True
 
 
 def main() -> None:

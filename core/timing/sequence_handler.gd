@@ -37,10 +37,11 @@ static func when_forced(kind: StringName, fn: Callable) -> SequenceHandler:
 	return h
 
 
+## 订 when 的 would 头窗（SequencePhase.WHEN_HEADER）；非第三 timing。
 static func would_forced(kind: StringName, fn: Callable) -> SequenceHandler:
 	var h := SequenceHandler.new()
 	h.match_kind = kind
-	h.phase = AhcEnums.SequencePhase.WOULD
+	h.phase = AhcEnums.SequencePhase.WHEN_HEADER
 	h.tier = Tier.FORCED
 	h.callback = fn
 	return h
@@ -71,7 +72,7 @@ static func after_take_damage_or_horror(fn: Callable) -> SequenceHandler:
 
 
 ## 将受到伤害时（WHEN · 非取消「when you take」）。
-## 栈会 offer WHEN；**现无生产卡消费者**——取消/防止/additional 一律走 would_take_*。
+## 栈会 offer WHEN；**现无生产卡消费者**——取消/防止/additional 一律走 would_take_*（订 WHEN_HEADER）。
 static func when_take_damage(fn: Callable) -> SequenceHandler:
 	return _take_handler(AhcEnums.SequencePhase.WHEN, &"damage", fn)
 
@@ -84,17 +85,17 @@ static func when_take_damage_or_horror(fn: Callable) -> SequenceHandler:
 	return _take_handler(AhcEnums.SequencePhase.WHEN, &"either", fn)
 
 
-## 将要受到伤害时（WOULD · cancel / prevent / reduce / additional 改量）。
+## 将要受到伤害时（WHEN_HEADER = when 的 would 头 · cancel / prevent / reduce / additional）。
 static func would_take_damage(fn: Callable) -> SequenceHandler:
-	return _take_handler(AhcEnums.SequencePhase.WOULD, &"damage", fn)
+	return _take_handler(AhcEnums.SequencePhase.WHEN_HEADER, &"damage", fn)
 
 
 static func would_take_horror(fn: Callable) -> SequenceHandler:
-	return _take_handler(AhcEnums.SequencePhase.WOULD, &"horror", fn)
+	return _take_handler(AhcEnums.SequencePhase.WHEN_HEADER, &"horror", fn)
 
 
 static func would_take_damage_or_horror(fn: Callable) -> SequenceHandler:
-	return _take_handler(AhcEnums.SequencePhase.WOULD, &"either", fn)
+	return _take_handler(AhcEnums.SequencePhase.WHEN_HEADER, &"either", fn)
 
 
 static func _take_handler(

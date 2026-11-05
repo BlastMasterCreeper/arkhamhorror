@@ -37,7 +37,7 @@ static func _register_flows(
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			return DrawEncounterFlow.run(game_ctx, drawer_id),
-		true ## SPLIT：WOULD/WHEN 在抽取砖块边界 emit（15 §3.1）
+		true ## SPLIT：WHEN_HEADER/WHEN 在抽取砖块边界 emit（15 §3.1）
 	)
 	## 已持有实例 → 遭遇侧能力体系（与抽库后卡面结算同体；非来源重定向）。
 	## `as_drawn=false`：Act/Agenda 遭遇类型背面等 — 进场/显现，不触发 when-drawn。
@@ -84,7 +84,7 @@ static func _register_flows(
 			return TriggeringCondition.draw_investigator(inv_id, amount, tags),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return _resolve_draw_investigator(game_ctx, params, mutator, catalog),
-		true ## SPLIT：WOULD/WHEN 在抽取砖块边界 emit（15 §3.1）
+		true ## SPLIT：WHEN_HEADER/WHEN 在抽取砖块边界 emit（15 §3.1）
 	)
 	## M4：正式 id = seq.effect.gain_resource；旧 id 保留为别名。
 	var gain_build := func(params: Dictionary) -> TriggeringCondition:

@@ -78,7 +78,7 @@ func is_self_response_blocked(source_id: StringName) -> bool:
 	return source_id in _causation_stack
 
 
-## `split_timing`：信封头 **WOULD**（抽牌第一块前）。
+## `split_timing`：先开 **WHEN_HEADER**（when 的 would 头窗 · 抽牌第一块前）。
 ## `no_envelope_slot`：信封不开槽（伤害等：时点只挂 Apply 砖，见 `offer_slot`）。
 func run(
 	trigger: TriggeringCondition,
@@ -89,7 +89,7 @@ func run(
 	_push_frame(trigger)
 	if not no_envelope_slot:
 		if split_timing:
-			_run_response_loop(AhcEnums.SequencePhase.WOULD)
+			_run_response_loop(AhcEnums.SequencePhase.WHEN_HEADER)
 		else:
 			_run_response_loop(AhcEnums.SequencePhase.WHEN)
 	_run_phase(AhcEnums.SequencePhase.RESOLVE, resolve_fn)
@@ -106,16 +106,16 @@ func nest(
 	run(trigger, resolve_fn, split_timing, no_envelope_slot)
 
 
-## RESOLVE 砖块边界打开 WOULD / WHEN（当前帧，不 push）。
-## 抽牌：信封 WOULD + 入手后 WHEN；伤害：Apply 前 WOULD→WHEN（均 PreImpact）。
+## RESOLVE 砖块边界打开 WHEN_HEADER / WHEN（当前帧，不 push）。
+## 抽牌：信封 WHEN_HEADER + 入手后 WHEN；伤害：Apply 前头窗→WHEN（均 PreImpact）。
 func offer_slot(phase: AhcEnums.SequencePhase) -> void:
 	if _frames.is_empty():
 		return
 	if (
-		phase != AhcEnums.SequencePhase.WOULD
+		phase != AhcEnums.SequencePhase.WHEN_HEADER
 		and phase != AhcEnums.SequencePhase.WHEN
 	):
-		push_warning("ResolutionSequenceStack.offer_slot: only WOULD/WHEN (%s)" % phase)
+		push_warning("ResolutionSequenceStack.offer_slot: only WHEN_HEADER/WHEN (%s)" % phase)
 		return
 	var frame := _frames[_frames.size() - 1]
 	var previous_phase := frame.phase

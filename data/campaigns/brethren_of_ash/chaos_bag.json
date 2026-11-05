@@ -1,0 +1,29 @@
+{
+  "campaign_id": "brethren_of_ash",
+  "title": "Brethren of Ash",
+  "source": "AHC100 Campaign Guide · Assemble the campaign chaos bag",
+  "scenarios": ["spreading_flames"],
+  "symbol_tokens": [
+    "skull",
+    "skull",
+    "cultist",
+    "tablet",
+    "elder_thing",
+    "auto_fail",
+    "elder_sign"
+  ],
+  "difficulties": {
+    "easy": {
+      "numeric": [1, 1, 0, 0, 0, -1, -1, -1, -2, -2]
+    },
+    "standard": {
+      "numeric": [1, 0, 0, -1, -1, -1, -2, -2, -3, -4]
+    },
+    "hard": {
+      "numeric": [0, 0, 0, -1, -1, -2, -2, -3, -3, -4, -5]
+    },
+    "expert": {
+      "numeric": [0, -1, -1, -2, -2, -3, -3, -4, -4, -5, -6, -8]
+    }
+  }
+}

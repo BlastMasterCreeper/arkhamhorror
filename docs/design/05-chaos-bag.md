@@ -73,7 +73,7 @@ class ChaosBag:
 
 **封印（Seal）· Domain**：`seq.effect.seal` / `seq.effect.release_seal`（`SealFlow`）。挂 `TokenBag.sealed`；离场 `ZoneMoveFlow` 立即释放回袋。Premonition 式「作刚揭示」= `ChaosRevealReplaceAbility.sealed_host_card_id` + `queue_sealed_reveal_instead`。
 
-**关键词 Seal = 打出额外费用**：`SealSpec`（`CardRegistry.seal_spec`）→ Initiation L6 `can_pay` 查袋；进场 `ZoneMoveFlow` → `SealFlow.pay_keyword_on_enter` nest `seq.effect.seal`。袋无指定标记 → 不能打出。
+**关键词 Seal（Domain，非费用）**：`SealSpec` → 打出合法性 `can_satisfy`（袋无指定标记 → `seal_unsatisfied`，**不**进 CostPipeline）；进场 `ZoneMoveFlow` → `SealFlow.apply_on_enter_play` nest `seq.effect.seal`。
 
 ### 2.3 ScenarioReferenceDefinition
 
@@ -102,6 +102,18 @@ class ChaosBagSystem:
     func persist_to_campaign() -> ChaosBagSnapshot
     func restore_from_campaign(snapshot: ChaosBagSnapshot) -> void
 ```
+
+### 3.1 开局组装（已落地 · SETUP_06）
+
+| 构件 | 作用 |
+|---|---|
+| `ChaosBagCatalog` | Campaign Guide 袋表；`data/campaigns/brethren_of_ash/chaos_bag.json` |
+| 四档难度 | `easy` / `standard` / `hard` / `expert`（`easy_standard`→standard；`hard_expert`→hard） |
+| 参考卡带 | `reference_band` → `easy_standard` \| `hard_expert`（与袋四档正交） |
+| `InvestigatorSetupFlow.assemble_chaos_bag` | Framework `SETUP_06`；快照优先，否则按难度建袋 |
+| `CampaignState.chaos_bag_snapshot` | 跨冒险延续；`begin_scenario` 结束回写 |
+
+符号表（Brethren of Ash / Spreading Flames 开局）：Skull×2、Cultist、Tablet、Elder Thing、Auto-fail、Elder Sign（与数字列一并入袋）。剧本 Log 修饰改袋仍走后续 `apply_campaign_modifiers`（未竖切）。
 
 ---
 
@@ -387,6 +399,7 @@ class ChaosBagSnapshot:
 | 2026-10-19 | v0.13 | §4.2 尾：去掉「整次检定 Cancel」伪缺口（OQ-04-04） |
 | 2026-10-19 | v0.14 | §2/§9：Seal Domain（seal / release_seal / 作刚揭示）；BAG-SEAL 竖切 |
 | 2026-10-19 | v0.15 | Seal 关键词：L6 门槛 + 进场 `pay_keyword_on_enter`；BAG-SEAL-06..09 |
+| 2026-11-05 | v0.16 | Seal **移出** CostPipeline：合法性 `seal_unsatisfied` + `apply_on_enter_play` |
 | 2026-10-19 | v0.16 | §8 Elder Sign：调查员符号能力 + Joe 12004 竖切（ES-01..05） |
 | 2026-10-19 | v0.17 | §8.1 Bless/Curse 符号能力 + chaos_token_pool；裁决 OQ-05-04；BC-01..05 |
 | 2026-10-19 | v0.18 | Bless/Curse 拆出 `BlessCurseRules`（规则自带；非参考卡） |

@@ -10,6 +10,32 @@ var _failed := 0
 
 func _initialize() -> void:
 	print("=== AHC LCG headless tests ===")
+	_run_test("DB-01 Roland seeker level band", DeckbuildingTestHelper.test_db01_roland_seeker_levels)
+	_run_test("DB-02 Zoey offclass limit multiclass", DeckbuildingTestHelper.test_db02_zoey_offclass_limit_and_multiclass)
+	_run_test("DB-03 Carolyn heal tag weapon forbid", DeckbuildingTestHelper.test_db03_carolyn_heal_tag_and_weapon_forbid)
+	_run_test("DB-04 Tony secondary class choice", DeckbuildingTestHelper.test_db04_tony_secondary_class_choice)
+	_run_test("DB-05 Mandy deck size choice", DeckbuildingTestHelper.test_db05_mandy_deck_size_choice)
+	_run_test("DB-06 Lola atleast factions", DeckbuildingTestHelper.test_db06_lola_atleast)
+	_run_test("DB-07 purchase dry-run limit full", DeckbuildingTestHelper.test_db07_purchase_dry_run_limit_full)
+	_run_test("DB-08 size exempt signature weakness permanent bearer", DeckbuildingTestHelper.test_db08_size_exempt_signature_weakness_permanent_bearer)
+	_run_test("DB-09 myriad counts toward deck size", DeckbuildingTestHelper.test_db09_myriad_counts_toward_size)
+	_run_test("XP-01 quote new and upgrade", CampaignPurchaseTestHelper.test_xp01_quote_new_and_upgrade)
+	_run_test("XP-02 exceptional cost and copy", CampaignPurchaseTestHelper.test_xp02_exceptional_cost_and_copy)
+	_run_test("XP-03 DtRH modifier", CampaignPurchaseTestHelper.test_xp03_dtrh_modifier)
+	_run_test("XP-04 list accessible", CampaignPurchaseTestHelper.test_xp04_list_accessible)
+	_run_test("XP-05 interlude shell", CampaignPurchaseTestHelper.test_xp05_interlude_shell)
+	_run_test("XP-06 myriad copy limit", CampaignPurchaseTestHelper.test_xp06_myriad_copy_limit)
+	_run_test("XP-07 size exempt purchase no remove", CampaignPurchaseTestHelper.test_xp07_size_exempt_purchase_no_remove)
+	_run_test("XP-08 count VD and personal bonus", CampaignPurchaseTestHelper.test_xp08_count_vd_and_personal_bonus)
+	_run_test("XP-09 arcane research spell only", CampaignPurchaseTestHelper.test_xp09_arcane_research_spell_only)
+	_run_test("XP-10 pelt and size refill", CampaignPurchaseTestHelper.test_xp10_pelt_and_size_refill)
+	_run_test("CAMP-01 select and opening deck", CampaignSetupTestHelper.test_camp01_select_and_opening_deck)
+	_run_test("CAMP-02 replace investigator", CampaignSetupTestHelper.test_camp02_replace_investigator)
+	_run_test("CAMP-03 prepare scenario", CampaignSetupTestHelper.test_camp03_prepare_scenario)
+	_run_test("CAMP-04 unresolved choice blocks", CampaignSetupTestHelper.test_camp04_unresolved_choice_blocks)
+	_run_test("CAMP-05 begin scenario e2e", CampaignSetupTestHelper.test_camp05_begin_scenario_e2e)
+	_run_test("BAG-01 brethren bag sizes", CampaignSetupTestHelper.test_bag01_brethren_sizes)
+	_run_test("BAG-02 snapshot persists", CampaignSetupTestHelper.test_bag02_snapshot_persists_across_scenarios)
 	_run_test("PHYS-01 set-aside to deck shuffle", PhysicalTestHelper.test_set_aside_to_deck_shuffle)
 	_run_test("PHYS-02 marker transfer pool to card", PhysicalTestHelper.test_marker_transfer_pool_to_card)
 	_run_test("PHYS-03 augury reveal and return", PhysicalTestHelper.test_augury_reveal_and_return)
@@ -344,7 +370,7 @@ func _initialize() -> void:
 	_run_test("BAG-SEAL-03 leave play releases", _test_bag_seal_leave_play_release)
 	_run_test("BAG-SEAL-04 seq.effect.seal nest", _test_bag_seal_catalog_nest)
 	_run_test("BAG-SEAL-05 sealed reveal instead", _test_bag_seal_reveal_instead)
-	_run_test("BAG-SEAL-06 keyword cost gate blocks play", _test_bag_seal_keyword_cost_gate)
+	_run_test("BAG-SEAL-06 keyword legality blocks play", _test_bag_seal_keyword_legality_gate)
 	_run_test("BAG-SEAL-07 keyword play seals on enter", _test_bag_seal_keyword_play_enter)
 	_run_test("BAG-SEAL-08 keyword choice seals one", _test_bag_seal_keyword_choice)
 	_run_test("BAG-SEAL-09 put into play seals via zone", _test_bag_seal_keyword_zone_enter)
@@ -440,11 +466,11 @@ func _initialize() -> void:
 	_run_test("TIMING-ZONE-01 would-deck when-hand-or-limbo", _test_draw_when_zones)
 	_run_test("TIM-01 draw investigator SPLIT zones", _test_tim_draw_investigator_split)
 	_run_test("TIM-02 draw encounter SPLIT zones", _test_tim_draw_encounter_split)
-	_run_test("TIM-DMG-01 WOULD then WHEN before Apply", _test_tim_dmg_apply_slots)
-	_run_test("TIM-DMG-02 WOULD reduce_pending before Apply", _test_tim_dmg_prevent)
+	_run_test("TIM-DMG-01 WHEN_HEADER then WHEN before Apply", _test_tim_dmg_apply_slots)
+	_run_test("TIM-DMG-02 WHEN_HEADER reduce_pending before Apply", _test_tim_dmg_prevent)
 	_run_test("TIM-DMG-03 WHEN increase_pending adds delta K", _test_tim_dmg_increase_pending)
 	_run_test("TIM-DMG-04 increase_pending keeps reserved legs", _test_tim_dmg_increase_keeps_legs)
-	_run_test("TIM-DMG-05 outbound WOULD before Apply", _test_tim_dmg_outbound_preimpact)
+	_run_test("TIM-DMG-05 outbound WHEN_HEADER before Apply", _test_tim_dmg_outbound_preimpact)
 	_run_test("TIM-DMG-06 outbound reduce_pending", _test_tim_dmg_outbound_reduce)
 	_run_test("ASN-01 PRIOR_FILL horror to asset first", _test_asn_prior_fill)
 	_run_test("ASN-02 MIN_TO_SUBJECT damage if able", _test_asn_min_to_subject)
@@ -8375,7 +8401,7 @@ func _test_bag_seal_reveal_instead() -> bool:
 	return ok
 
 
-func _test_bag_seal_keyword_cost_gate() -> bool:
+func _test_bag_seal_keyword_legality_gate() -> bool:
 	var h := RuleTestHarness.new(42)
 	CardRegistry.register_definition(
 		&"seal_skull_asset",
@@ -8402,7 +8428,7 @@ func _test_bag_seal_keyword_cost_gate() -> bool:
 	var res := h.ctx.actions.play_card(&"inv_1", card_id)
 	return (
 		not res.ok
-		and res.error == "cannot_pay"
+		and res.error == "seal_unsatisfied"
 		and inv.hand.has(card_id)
 		and card.zone == AhcEnums.Zone.HAND
 		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()
@@ -10214,7 +10240,7 @@ func _test_draw_when_zones() -> bool:
 
 
 func _test_tim_draw_investigator_split() -> bool:
-	## TIM-01：信封 WOULD 时仍在 DECK；中段 WHEN 时已在 HAND；显现在 WHEN 之后。
+	## TIM-01：信封 WHEN_HEADER 时仍在 DECK；中段 WHEN 时已在 HAND；显现在 WHEN 之后。
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"tim_plain")
@@ -10240,7 +10266,7 @@ func _test_tim_draw_investigator_split() -> bool:
 	var after_i := -1
 	for i in range(trace.size()):
 		var line := str(trace[i])
-		if line.begins_with("WOULD:draw_investigator@"):
+		if line.begins_with("WHEN_HEADER:draw_investigator@"):
 			would_i = i
 		elif line.begins_with("WHEN:draw_investigator@"):
 			when_i = i
@@ -10257,7 +10283,7 @@ func _test_tim_draw_investigator_split() -> bool:
 		and when_i >= 0
 		and resolve_i >= 0
 		and after_i >= 0
-		## 信封 WOULD → RESOLVE → 砖块 WHEN → AFTER
+		## 信封 WHEN_HEADER → RESOLVE → 砖块 WHEN → AFTER
 		and would_i < resolve_i
 		and resolve_i < when_i
 		and when_i < after_i
@@ -10265,7 +10291,7 @@ func _test_tim_draw_investigator_split() -> bool:
 
 
 func _test_tim_draw_encounter_split() -> bool:
-	## TIM-02：WOULD 时仍在 DECK；WHEN 时已在 LIMBO；显现尚未开始。
+	## TIM-02：WHEN_HEADER 时仍在 DECK；WHEN 时已在 LIMBO；显现尚未开始。
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"tim_enc_plain")
@@ -10300,7 +10326,7 @@ func _test_tim_draw_encounter_split() -> bool:
 	var resolve_i := -1
 	for i in range(trace.size()):
 		var line := str(trace[i])
-		if line.begins_with("WOULD:draw_encounter@"):
+		if line.begins_with("WHEN_HEADER:draw_encounter@"):
 			would_i = i
 		elif line.begins_with("WHEN:draw_encounter@"):
 			when_i = i
@@ -10321,7 +10347,7 @@ func _test_tim_draw_encounter_split() -> bool:
 
 
 func _test_tim_dmg_apply_slots() -> bool:
-	## TIM-DMG-01：Assign 非时点；WOULD→WHEN 均在 Apply 前（pending、未写入）；AFTER 时已写入。
+	## TIM-DMG-01：Assign 非时点；WHEN_HEADER→WHEN 均在 Apply 前（pending、未写入）；AFTER 时已写入。
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -10360,7 +10386,7 @@ func _test_tim_dmg_apply_slots() -> bool:
 	var after_i := -1
 	for i in range(trace.size()):
 		var line := str(trace[i])
-		if line.begins_with("WOULD:damage@"):
+		if line.begins_with("WHEN_HEADER:damage@"):
 			would_i = i
 		elif line.begins_with("WHEN:damage@"):
 			when_i = i
@@ -10388,7 +10414,7 @@ func _test_tim_dmg_apply_slots() -> bool:
 
 
 func _test_tim_dmg_prevent() -> bool:
-	## TIM-DMG-02：WOULD 内 reduce_pending → Apply 写入量减少；WHEN 仍见已降低的 pending。
+	## TIM-DMG-02：WHEN_HEADER 内 reduce_pending → Apply 写入量减少；WHEN 仍见已降低的 pending。
 	var h := RuleTestHarness.new(42)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var when_pending := {"n": -1}
@@ -10498,7 +10524,7 @@ func _asn_leg_amount(legs: Array, bearer: StringName, id: StringName) -> int:
 
 
 func _test_tim_dmg_outbound_preimpact() -> bool:
-	## TIM-DMG-05：已定敌腿 WOULD→WHEN 在 Apply 前（pending 未写入）。
+	## TIM-DMG-05：已定敌腿 WHEN_HEADER→WHEN 在 Apply 前（pending 未写入）。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
@@ -10544,7 +10570,7 @@ func _test_tim_dmg_outbound_preimpact() -> bool:
 
 
 func _test_tim_dmg_outbound_reduce() -> bool:
-	## TIM-DMG-06：外向 WOULD reduce_pending → Apply 量减少。
+	## TIM-DMG-06：外向 WHEN_HEADER reduce_pending → Apply 量减少。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
