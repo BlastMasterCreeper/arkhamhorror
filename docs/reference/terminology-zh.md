@@ -17,6 +17,7 @@
 | **state primitive** | **状态原语** | L0 三类 GameState 写入 |
 | **effect** | **效果** | dry-run 可 CREATED |
 | **Reveal (card)** | **揭示（卡牌）** | L0 `AtomRevealCard` |
+| **Augury** | **占兆** | 混乱标记揭示区；id `augury`；≠ 卡牌 LIMBO。口语「预兆」指同一概念 |
 | **Player Interaction** | **玩家交互** | `PlayerInteractionGate` |
 | **Hidden** | **隐私** | 秘密入手；见 [grimoire-glossary-extract §隐私](grimoire-glossary-extract.md) |
 | **Forced Ability** | **强制能力** | `Forced –`；引擎直执 |
@@ -33,14 +34,14 @@
 | **Fight** | **攻击** | Fight action；`seq.action.fight`；≠ 敌人 perform attack |
 | **Evade (action)** | **躲避** | 行动种类；`seq.action.evade`；≠「闪避」「规避」；≠ 躲避尝试 / 躲避效果 |
 | **Evasion attempt** | **躲避尝试** | 躲避行动等衍生的技能检定（通常敏捷）；≠ 自动躲避 |
-| **Evade (effect)** | **躲避效果** | `seq.effect.evade` 核（横置+解除交战）。卡面「evade」作效果词多用于**时点**；**执行**体用自动躲避 |
+| **Evade (effect)** | **躲避效果** | `seq.effect.evade` 核（耗尽+解除交战）。卡面「evade」作效果词多用于**时点**；**执行**体用自动躲避 |
 | **Automatically evade** | **自动躲避** | 卡面**执行**躲避效果的措辞；同核 `mode=automatic`（无检定）；≠ 自动成功的尝试 |
 | **Investigate** | **调查** | `seq.action.investigate` |
 | **Engage** | **接战** | 主动交战；`seq.action.engage` / `seq.engage` |
 | **Move** | **移动** | 狭义地点变更且**遵守连接**；`seq.effect.move` + `move_kind=move`；≠ 移动到地点；≠ 广义区划转移；≠ 地点交换 |
 | **Move to (a location)** | **移动到地点** | 狭义地点变更但**无视连接**；同核 `move_kind=move_to` |
-| **Exhaust** | **横置** | 改平放区卡牌/在场敌人 `exhausted`；`seq.effect.exhaust`；≠ 费用中的 exhaust |
-| **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
+| **Exhaust** | **耗尽** | 语义译（≠ 官方「横置」）；`seq.effect.exhaust`；形容 **耗尽的**；≠ 费用中的 exhaust |
+| **Ready** | **就绪** | 语义译（≠ 官方「重整」）；`seq.effect.ready`；Upkeep 4.3；形容 **就绪的**（`!exhausted`） |
 | **Doom** | **毁灭** | doom 标记；密谋推进 |
 | **Scenario** | **冒险** | 一场冒险；≠ **场景（Act）**；≠ 「测试场景」 |
 | **Scenario Reference Card** | **冒险参考卡** | 本场符号效果表；`ScenarioReferenceDefinition` |
@@ -67,11 +68,11 @@
 | English | 简中（规范） | 备注 |
 |---------|-------------|------|
 | **Attack of Opportunity** | **借机攻击** | AOO；`AttackKind.OPPORTUNITY` |
-| **Retaliate** | **反击** | Fight 失败 vs **未横置**带 retaliate → **ST.7 apply 完成后**攻击；不横置 |
-| **Alert** | **警戒** | Evade 失败 vs **未横置**带 alert → **ST.7 apply 完成后**攻击；可不 engaged；不横置 |
+| **Retaliate** | **反击** | Fight 失败 vs **就绪的**带 retaliate → **ST.7 apply 完成后**攻击；不耗尽 |
+| **Alert** | **警戒** | Evade 失败 vs **就绪的**带 alert → **ST.7 apply 完成后**攻击；可不 engaged；不耗尽 |
 | **Hunter** | **猎手** | Enemy Phase 3.2 向最近调查员移动 |
 | **Patrol** | **巡逻** | Enemy Phase 3.2 向 designated target 移动 |
-| **Massive** | **庞大** | **未横置**时虚拟交战同地点全体；**永不**进威胁区 |
+| **Massive** | **庞大** | **就绪的**时虚拟交战同地点全体；**永不**进威胁区 |
 | **Elusive** | **逃逸** | 敌人 **攻击**（含借机）或被 **攻击**（Fight）resolve 后 flee |
 | **Doomed** | **厄运降临** | 敌人 **被击败**（defeat）时当前密谋 +1 **毁灭**；discard 不算 defeat |
 | **Aloof** | **冷漠** | 不自动 engage |
@@ -89,9 +90,9 @@
 | Skill | **投入**检定；不能 **打出** |
 | Evade 四层 | **躲避**行动 ≠ **躲避尝试** ≠ **躲避效果** ≠ **自动躲避**；效果入口含成功尝试与自动躲避；自动躲避 ≠ 自动成功的尝试 |
 | Evade | **躲避**；≠ 闪避 / 规避 |
-| Exhaust / Ready | **横置** / **重整**；未横置 = `!exhausted`；≠ 耗尽 / 疲劳 / 竖置 / 就绪 |
+| Exhaust / Ready | **耗尽** / **就绪**；形容 **耗尽的 / 就绪的**（勿「已耗尽」）；≠ 官方功能译横置/重整 |
 | Fight action vs enemy attack | 调查员 **攻击**行动 ≠ 敌人 **perform attack**（借机攻击 / 反击 / 警戒 / 阶段攻击） |
-| Retaliate vs Alert | **反击** / **警戒** 均在 **ST.7 apply 完成后**（post-ST7）；均须敌人 **未横置**；≠ ST.7 `on_fail` 内的失败转嫁 |
+| Retaliate vs Alert | **反击** / **警戒** 均在 **ST.7 apply 完成后**（post-ST7）；均须敌人 **就绪的**；≠ ST.7 `on_fail` 内的失败转嫁 |
 | Doom | **毁灭**；≠ 厄运 |
 | Campaign / Scenario / Act / Agenda | **剧本** / **冒险** / **场景** / **密谋**。**冒险参考卡** = Scenario Reference Card。≠ **冒险卡牌**；≠ 「测试场景」。Campaign ≠「战役」 |
 | Encounter vs Scenario card | FAQ 常混用；三轴：正面 **cardtype** / **卡背类型** / **遭遇组**。剧情支援 = 有遭遇组 + 玩家正面类型（卡背常为遭遇卡背） |

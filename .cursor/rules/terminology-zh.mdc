@@ -38,10 +38,10 @@ alwaysApply: true
 | **timed confirmation** | **有限期确认** | PI：期内确认目标/分支；逾期用默认选择；≠ nest/内联 |
 | **Evade (action)** | **躲避** | 行动种类（基础/指定）；`seq.action.evade`；≠「闪避」「规避」；≠ 躲避尝试 / 躲避效果 |
 | **Evasion attempt** | **躲避尝试** | 躲避行动（等）衍生的技能检定，通常敏捷 vs 敌人 evade；**≠** 自动躲避 |
-| **Evade (effect)** | **躲避效果** | `seq.effect.evade` 核（横置+解除交战）。卡面「evade」作效果词多用于**时点**；**执行**体用自动躲避 |
+| **Evade (effect)** | **躲避效果** | `seq.effect.evade` 核（耗尽+解除交战）。卡面「evade」作效果词多用于**时点**；**执行**体用自动躲避 |
 | **Automatically evade** | **自动躲避** | 卡面**执行**躲避效果的措辞；同核 `mode=automatic`（无检定）；≠ 自动成功的尝试 |
-| **Exhaust** | **横置** | 平放区卡牌/在场敌人；`seq.effect.exhaust`；`exhausted` = 已横置；≠ 费用 exhaust |
-| **Ready** | **重整** | 同上反向；`seq.effect.ready`；Upkeep 4.3；**未横置** = `!exhausted` |
+| **Exhaust** | **耗尽** | 语义译（≠ 官方功能译「横置」）；`seq.effect.exhaust`；形容 **耗尽的**（`exhausted`）；≠ 费用 exhaust |
+| **Ready** | **就绪** | 语义译（≠ 官方「重整」）；`seq.effect.ready`；Upkeep 4.3；形容 **就绪的**（`!exhausted`） |
 | **Doom** | **毁灭** | 场景/密谋/敌人等上的 doom 标记；密谋推进相关 |
 | **Scenario** | **冒险** | 一场冒险；≠ **场景（Act）**；≠ 文档「测试场景」 |
 | **Scenario Reference Card** | **冒险参考卡** | 本场符号效果表（Skull/Cultist…）；`ScenarioReferenceDefinition` |
@@ -54,11 +54,11 @@ alwaysApply: true
 | **Move** | **移动** | 狭义地点变更且**遵守连接**；`seq.effect.move` + `move_kind=move`；行动外壳 `seq.action.move`；≠移动到地点；≠广义区划转移；≠地点交换 |
 | **Move to (a location)** | **移动到地点** | 狭义地点变更但**无视连接**；同核 `move_kind=move_to` |
 | **Attack of Opportunity** | **借机攻击** | AOO；`AttackKind.OPPORTUNITY`；付完 action cost 后、主体效果前 |
-| **Retaliate** | **反击** | 敌人关键词；Fight 检定失败 vs **未横置**带 retaliate → **ST.7 apply 完成后** `perform_attack(RETALIATE)`；不横置 |
-| **Alert** | **警戒** | 敌人关键词；Evade 检定失败 vs **未横置**带 alert → **ST.7 apply 完成后** `perform_attack(ALERT)`；不要求 engaged；不横置 |
+| **Retaliate** | **反击** | 敌人关键词；Fight 检定失败 vs **就绪的**带 retaliate → **ST.7 apply 完成后** `perform_attack(RETALIATE)`；不耗尽 |
+| **Alert** | **警戒** | 敌人关键词；Evade 检定失败 vs **就绪的**带 alert → **ST.7 apply 完成后** `perform_attack(ALERT)`；不要求 engaged；不耗尽 |
 | **Hunter** | **猎手** | 敌人关键词；Enemy Phase 3.2 向最近调查员移动 1 步 |
 | **Patrol** | **巡逻** | 敌人关键词；Enemy Phase 3.2 向 designated target 移动 1 步 |
-| **Massive** | **庞大** | 敌人关键词；**未横置**时虚拟交战同地点全体；**永不**进威胁区 |
+| **Massive** | **庞大** | 敌人关键词；**就绪的**时虚拟交战同地点全体；**永不**进威胁区 |
 | **Elusive** | **逃逸** | 敌人 **攻击**或被**攻击** resolve 后 flee；**借机攻击**属前者（敌人攻击） |
 | **Aloof** | **冷漠** | 敌人关键词；不自动 engage；spawn 默认 unengaged |
 | **Permanent** | **永久** | 关键词；开局放入场、不计牌组规模；≠「常驻」 |
@@ -103,10 +103,10 @@ alwaysApply: true
 - **显现（Revelation）** ≠ **弱点（Weakness 子类型）**；**挂载看卡背**（遭遇卡背×揭示 / 玩家卡背×入手）；能力包仍看正面 cardtype。
 - 避免把 Revelation 写成「揭示」「暴露」等非规范译法（除非引用第三方非官方文本并标明）。
 - **Skill 不能打出**：`FORBID_PLAY` 仅 asset/event；skill 走 `FORBID_COMMIT_TO_TEST`。险境与卡面 cannot 均经 **RESTRICTION Register**，无独立 Policy。
-- **躲避四层勿混**：躲避行动 ≠ 躲避尝试（检定）≠ 躲避效果（核：横置+解除交战）≠ 自动躲避（卡面**执行**入口，无检定）。卡面「evade」作效果词多用于**时点**；执行体用自动躲避。自动躲避 **≠** 自动成功的躲避尝试。
-- **躲避（Evade）** ≠ 闪避/规避；**横置（Exhaust）** ≠ 耗尽/疲劳（中文表述用「横置」）。
-- **重整（Ready）** = 将横置卡变为未横置（Framework 4.3 等）；**未横置** = `!exhausted`；≠「竖置」「就绪」。
-- **反击（Retaliate）** / **警戒（Alert）**：均在 skill test **全部 ST.7 结果 apply 完成后**（post-ST7、ST.8 前）才 `perform_attack`；均要求敌人 **未横置**；**不属于** ST.7 `on_fail` 链。见 [08 §6.4](docs/design/08-enemy-engagement.md)。
+- **躲避四层勿混**：躲避行动 ≠ 躲避尝试（检定）≠ 躲避效果（核：耗尽+解除交战）≠ 自动躲避（卡面**执行**入口，无检定）。卡面「evade」作效果词多用于**时点**；执行体用自动躲避。自动躲避 **≠** 自动成功的躲避尝试。
+- **躲避（Evade）** ≠ 闪避/规避。
+- **耗尽（Exhaust）** / **就绪（Ready）**：语义译，≠ 官方功能译「横置 / 重整」。动词用耗尽/就绪；形容用 **耗尽的 / 就绪的**（勿写「已耗尽」）。`exhausted` ↔ 耗尽的；`!exhausted` ↔ 就绪的。
+- **反击（Retaliate）** / **警戒（Alert）**：均在 skill test **全部 ST.7 结果 apply 完成后**（post-ST7、ST.8 前）才 `perform_attack`；均要求敌人 **就绪的**；**不属于** ST.7 `on_fail` 链。见 [08 §6.4](docs/design/08-enemy-engagement.md)。
 - **失败转嫁**（Fight fail redirect）在 **ST.7 `on_fail`** 内结算，先于 post-ST7 的反击/警戒。
 - **攻击（Fight action）** ≠ 敌人 **perform attack**（含借机攻击 / 反击 / 警戒 / 阶段攻击）。
 - **毁灭（Doom）** = doom 标记；≠「厄运」等非规范译法（对话/文档）。
