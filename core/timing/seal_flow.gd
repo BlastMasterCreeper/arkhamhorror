@@ -204,21 +204,21 @@ static func _token_matches_spec(tok: ChaosToken, spec: SealSpec) -> bool:
 			return false
 
 
-## 进场后支付关键词 Seal：搜袋封印；失败则 ok=false（打出路径应已 can_satisfy）。
-static func pay_keyword_on_enter(game_ctx: GameContext, card_id: StringName) -> Dictionary:
+## 进场 Domain：关键词 Seal 搜袋封印到已在场宿主（非费用支付）。
+## 打出前合法性已 `can_satisfy`；此处失败仅异常路径。
+static func apply_on_enter_play(game_ctx: GameContext, card_id: StringName) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null or card_id == &"":
 		return {"ok": false, "error": "no_context"}
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return {"ok": false, "error": "host_missing"}
 	var spec: SealSpec = CardRegistry.seal_spec(card.id.definition_id)
-	if spec == null or not spec.as_play_cost:
+	if spec == null or not spec.on_enter_play:
 		return {"ok": true, "skipped": true}
 	var bag: ChaosBag = game_ctx.state.chaos_bag
 	if not can_satisfy(bag, spec):
 		return {"ok": false, "error": "seal_unsatisfied", "host": card_id}
 	var params := _params_from_spec(spec, card_id, card.controller_id)
-	## 效果序列：经命名流程 nest（已压栈场合用 nest；离场清理仍直调）。
 	var result: Dictionary
 	if (
 		game_ctx.sequence_catalog != null
@@ -240,6 +240,11 @@ static func pay_keyword_on_enter(game_ctx: GameContext, card_id: StringName) -> 
 	return result
 
 
+## 兼容旧名。
+static func pay_keyword_on_enter(game_ctx: GameContext, card_id: StringName) -> Dictionary:
+	return apply_on_enter_play(game_ctx, card_id)
+
+
 static func _params_from_spec(
 	spec: SealSpec,
 	host: StringName,
@@ -249,7 +254,7 @@ static func _params_from_spec(
 		"host_card_id": host,
 		"card_id": host,
 		"controller_id": controller_id,
-		"as_keyword_cost": true,
+		"as_enter_play_keyword": true,
 	}
 	match spec.mode:
 		SealSpec.MODE_RANDOM:

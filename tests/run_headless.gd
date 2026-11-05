@@ -370,7 +370,7 @@ func _initialize() -> void:
 	_run_test("BAG-SEAL-03 leave play releases", _test_bag_seal_leave_play_release)
 	_run_test("BAG-SEAL-04 seq.effect.seal nest", _test_bag_seal_catalog_nest)
 	_run_test("BAG-SEAL-05 sealed reveal instead", _test_bag_seal_reveal_instead)
-	_run_test("BAG-SEAL-06 keyword cost gate blocks play", _test_bag_seal_keyword_cost_gate)
+	_run_test("BAG-SEAL-06 keyword legality blocks play", _test_bag_seal_keyword_legality_gate)
 	_run_test("BAG-SEAL-07 keyword play seals on enter", _test_bag_seal_keyword_play_enter)
 	_run_test("BAG-SEAL-08 keyword choice seals one", _test_bag_seal_keyword_choice)
 	_run_test("BAG-SEAL-09 put into play seals via zone", _test_bag_seal_keyword_zone_enter)
@@ -8401,7 +8401,7 @@ func _test_bag_seal_reveal_instead() -> bool:
 	return ok
 
 
-func _test_bag_seal_keyword_cost_gate() -> bool:
+func _test_bag_seal_keyword_legality_gate() -> bool:
 	var h := RuleTestHarness.new(42)
 	CardRegistry.register_definition(
 		&"seal_skull_asset",
@@ -8428,7 +8428,7 @@ func _test_bag_seal_keyword_cost_gate() -> bool:
 	var res := h.ctx.actions.play_card(&"inv_1", card_id)
 	return (
 		not res.ok
-		and res.error == "cannot_pay"
+		and res.error == "seal_unsatisfied"
 		and inv.hand.has(card_id)
 		and card.zone == AhcEnums.Zone.HAND
 		and h.ctx.state.chaos_bag.sealed_tokens.is_empty()

@@ -216,12 +216,12 @@ apply_cost_modifiers(intent)
   → ExhaustCostEvaluator
   → DiscardCostEvaluator
   → MarkerCostEvaluator（doom、线索…）
-  → SealKeywordCost（袋内有 SealSpec 候选；支付在进场序列）
   → CustomCostEvaluator（卡脚本）
   → 全部 can_pay → pay
 ```
 
-**Seal 关键词**：L6 只做门槛（`SealFlow.can_satisfy`）；真正搜袋封印在 ENTER_PLAY（`SealFlow.pay_keyword_on_enter` → nest `seq.effect.seal`）。见 [05 §2](05-chaos-bag.md)、[06-buff §3.2.5 B](06-registration-buff-model.md)。
+**Seal 关键词不进 L6**：袋内候选是打出合法性（`_play_card_pre_error` → `seal_unsatisfied`）；进场 Domain `SealFlow.apply_on_enter_play` nest `seq.effect.seal`。见 [05 §2](05-chaos-bag.md)、[06-buff §3.2.5 B](06-registration-buff-model.md)。  
+（纸面虽写 additional cost，引擎不把搜袋封印当作资源/行动类费用支付。）
 
 ### 5.6 能力形态 · 过哪些关
 
