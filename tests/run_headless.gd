@@ -307,6 +307,7 @@ func _initialize() -> void:
 	_run_test("ENC-SURGE-08 printed mounts keyword at when", _test_enc_surge_printed_mounts_at_when)
 	_run_test("ENC-SURGE-09 printed plus gains is idempotent", _test_enc_surge_printed_plus_gains_idempotent)
 	_run_test("ENC-SURGE-10 unarm cancels surge fire", _test_enc_surge_unarm_skips_fire)
+	_run_test("ENC-SURGE-11 interrupt keyword disarms surge", _test_enc_surge_interrupt_keyword_disarm)
 	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
 	_run_test("KW-OCC-01 keyword listener occasions table", _test_kw_occ_profile_table)
 	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
@@ -6806,6 +6807,30 @@ func _test_enc_surge_unarm_skips_fire() -> bool:
 		and int(kw.get("surge_depth", 0)) == 0
 		and (kw.get("cards", []) as Array).is_empty()
 	)
+
+
+func _test_enc_surge_interrupt_keyword_disarm() -> bool:
+	## InterruptTarget.KEYWORD cancel/ignore → 卸涌动武装；取消显现（SEQUENCE）不经此。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_surge_kw_intr", [&"surge"])
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_kw_intr", [])
+	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
+	KeywordMount.mount_surge_printed_if_absent(h.ctx, card_id, &"enc_surge_kw_intr")
+	if not KeywordMount.is_surge_armed(h.ctx, card_id):
+		return false
+	var cancel_res := h.ctx.effects.apply_interrupt_cancel(
+		InterruptTarget.for_keyword(&"surge", {"card_id": card_id})
+	)
+	if not bool(cancel_res.get("ok", false)) or KeywordMount.is_surge_armed(h.ctx, card_id):
+		return false
+	KeywordMount.mount_surge_printed_if_absent(h.ctx, card_id, &"enc_surge_kw_intr")
+	var ignore_res := h.ctx.effects.apply_interrupt_ignore(
+		InterruptTarget.for_keyword(&"surge", {"card_id": card_id})
+	)
+	if not bool(ignore_res.get("ok", false)) or KeywordMount.is_surge_armed(h.ctx, card_id):
+		return false
+	var kw := KeywordConsumer.consume_after_drawn_card(h.ctx, &"inv_1", card_id)
+	return not bool(kw.get("surged", false)) and int(kw.get("surge_depth", 0)) == 0
 
 
 func _test_gain_effective_keyword() -> bool:
