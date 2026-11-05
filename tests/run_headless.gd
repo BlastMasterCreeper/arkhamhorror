@@ -10947,10 +10947,18 @@ func _test_asn_gate_among() -> bool:
 
 
 func _test_revelation_own_priority_class() -> bool:
-	## 抽取步骤：When 95 在 Forced 之后、显现后续步骤 90 之前。
+	## 揭示 110 > 险境 100 > When 95 > 显现 90。
+	if EncounterDrawPriority.REVEAL != 110:
+		return false
+	if EncounterDrawPriority.PERIL_REGISTER != 100:
+		return false
 	if EncounterDrawPriority.PLAYER_WHEN_DRAW != 95:
 		return false
 	if EncounterDrawPriority.REVELATION != 90:
+		return false
+	if EncounterDrawPriority.REVEAL <= EncounterDrawPriority.PERIL_REGISTER:
+		return false
+	if EncounterDrawPriority.PERIL_REGISTER <= EncounterDrawPriority.PLAYER_WHEN_DRAW:
 		return false
 	if EncounterDrawPriority.PLAYER_WHEN_DRAW <= EncounterDrawPriority.REVELATION:
 		return false

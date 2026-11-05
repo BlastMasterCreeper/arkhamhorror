@@ -115,9 +115,14 @@ AbilitySpec
 
 ## 显现（Revelation）
 
-- **入口 seq**（规则手续）：遭遇 `seq.encounter.revelation`；玩家入手 `seq.enter_hand`（不区分 draw/add 来源）。
-- **卡面体**：该 ability 的 **Composition**；在入口 seq 的 RESOLVE 里 execute。显现后 LIMBO 弃置等仍在 **入口命名流程** 内 RESOLVE。
-- 顺序占位：`EnterHandTimingPolicy`；跨类优先级见 06 §8。
+- **挂载按卡背（纠正）**：
+  - **遭遇卡背**：抽取该牌且 **揭示信息** → `seq.encounter.revelation`（默认 LIMBO，不入手）。
+  - **玩家卡背**：进入手牌（任意途径）→ `seq.enter_hand`。
+- **抽取 ≠ 入手**：调查员库抽才 *add to hand*；遭遇库抽进 LIMBO 结算。
+- **隐私 Hidden**：遭遇卡背路径；显现**体内**才秘密入手。
+- **玩家库·遭遇类型弱点**：库中玩家卡背；抽出后 ENCOUNTER 包揭示 → 显现挂揭示，不挂入手。
+- **卡面体**：Composition；在入口 seq 的 RESOLVE 里 execute。禁止把玩家卡背显现订到 `seq.draw.*`，禁止把遭遇卡背显现订到 `seq.enter_hand`。
+- 顺序占位：`EnterHandTimingPolicy`（仅玩家卡背入手显现）；跨类优先级见 06 §8。
 
 ## 翻译硬门槛（DoD · 已裁决 2026-09-28）
 

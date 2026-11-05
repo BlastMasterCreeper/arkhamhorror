@@ -69,6 +69,7 @@ static func draw_empty_piles_defeated(
 	return t
 
 
+## 玩家卡背进入手牌（任意途径）。仅玩家卡背显现订此 TC（遭遇卡背订揭示结算）。
 static func enter_hand(
 	controller_id: StringName,
 	card_id: StringName,

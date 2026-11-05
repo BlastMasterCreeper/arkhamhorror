@@ -589,7 +589,7 @@ on_card_leave_play(card)
 | 地点 Constant / `[free]` | 地点揭示进场 | 地点离场 / 被替换 | `WHILE_IN_PLAY` | PLAY |
 | 密谋（Agenda）/ 场景（Act）Forced、Constant | 成为当前卡（`seq.setup` 或推进后进场） | **翻面离场**（a 面卸 `WHILE_IN_PLAY`；效果造的 `DURATION`/`UNTIL_FIRED` **保留**） | `WHILE_IN_PLAY` | PLAY |
 | 调查员卡能力 | `seq.setup`（调查员开局即在场） | 淘汰 **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
-| **显现** Revelation | **不**长期 Register；抽到时 nest `seq.encounter.revelation` / `seq.enter_hand` | 子流程 pop | 无 | LIMBO / 入手瞬间 |
+| **显现** Revelation | **不**长期 Register；玩家 **入手** nest `seq.enter_hand`；遭遇 nest `seq.encounter.revelation`（**不绑** draw） | 子流程 pop | 无 | LIMBO / 入手瞬间 |
 | 隐私牌上的 Constant / Forced / `[reaction]` | **ENTER_HAND**（与 Hidden 同时） | **LEAVE_HAND** | `WHILE_HIDDEN_IN_HAND` | **HAND** |
 | Fast 事件「Play when/after …」 | **不**挂场上 LISTENER；`PLAY_FAST_TIMING`，种类仍是 `PLAY_CARD` | 打出后进 limbo 结算 | 无 | **HAND** |
 | 效果创造的延时 | 效果 `GRANT` / Register 砖 | `FIRED` | `UNTIL_FIRED` | 不绑源卡 zone |
@@ -597,7 +597,7 @@ on_card_leave_play(card)
 | 绑定 被召唤前 | `seq.setup` **ENTER_SET_ASIDE** | **LEAVE_SET_ASIDE** | `WHILE_SET_ASIDE` | **SET_ASIDE** |
 | 牌库里尚未抽出的弱点 Forced | **不** Register | 抽出后再按 cardtype 走显现/进场 | — | DECK（未武装） |
 
-**显现 vs 监听**：显现是抽牌流程里的一次性 nest，不是 `WHILE_IN_PLAY` LISTENER。不要在 `ENTER_PLAY` 给 treachery 挂显现。
+**显现 vs 监听**：显现是入手 / 遭遇显现入口里的一次性 nest（不绑抽取），不是 `WHILE_IN_PLAY` LISTENER。不要在 `ENTER_PLAY` 给 treachery 挂显现。
 
 ##### 接线（已有流程里调 Store，不另开钩名）
 

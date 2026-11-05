@@ -24,8 +24,11 @@ When a player is instructed to draw one or more encounter cards, those cards are
 | 规则 | 引擎含义 |
 |---|---|
 | `draw one or more` = **一条指令** | `DrawInstruction { amount, source }`；不是 N 次独立 triggering condition |
-| 单次 ability / game step 抽 ≥2 张 | **`SimultaneousEffectGroup`**：牌库顶 → 手牌 **同时** 完成；见 [01 §5.3](../design/01-game-state-zones.md) |
-| 多张带 Revelation 的牌 | 全部入手后，按 **进入手牌顺序** 依次 nest / resolve（Grimoire p.10；与是否为 weakness 无关） |
+| 调查员库抽 → *added to their hand* | `seq.draw.investigator`：离库 → 揭示 → **HAND**；再 nest `seq.enter_hand`（玩家显现） |
+| 遭遇库抽 → *resolved following* 1.4 | `seq.draw.encounter`：离库 → **LIMBO**；险境 / 显现 / G4。**默认不入手** |
+| 单次 ability / game step 抽 ≥2 张（调查员） | **同时**入手；多张玩家显现按 **进入手牌顺序**；见 [01 §5.3](../design/01-game-state-zones.md) |
+| 多张遭遇同时抽出 | 同时进 LIMBO，再按抽出顺序结算显现 / G4（**非** enter_hand） |
+| 隐私 Hidden | 仅显现**体内**秘密入手；抽取步骤本身仍先落 LIMBO |
 | 抽牌中牌库空 | shuffle discard → deck，**与** horror（若适用）**同时**；然后 **完成本次 draw**（非终止整批） |
 | Draw **行动** | 见 **Draw Action**（每次仅 1 张）；与「指令抽 N 张」区分 |
 

@@ -55,7 +55,8 @@ static func _run_core(game_ctx: GameContext, inv_id: StringName, amount: int) ->
 			mutator.reveal_to_controller(card_id, inv_id)
 		for card_id in drawn:
 			mutator.commit_enter_hand(card_id, inv_id)
-	## SPLIT WHEN：抽取步骤完成（HAND）；显现 nest 在 bootstrap 返回后。
+	## SPLIT WHEN：抽取步骤完成（HAND · 控制者已知牌面）。
+	## 玩家显现不在此槽；bootstrap 随后 nest seq.enter_hand（绑入手）。
 	_offer_draw_slot(game_ctx, AhcEnums.SequencePhase.WHEN)
 	return _result_from_memory(memory, inv_id, false)
 

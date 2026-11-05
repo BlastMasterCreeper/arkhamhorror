@@ -185,7 +185,7 @@ static func shuffle_discard_into_deck(inv_id: StringName) -> CompositionNode:
 	return n
 
 
-## D3 · enter_hand（HAND 或 LIMBO，按卡定义）。
+## 物理入手 L0（HAND 或 LIMBO）；显现另经 seq.enter_hand。
 static func commit_enter_hand(card_id: StringName, inv_id: StringName) -> CompositionNode:
 	var n := CompositionNode.new()
 	n.kind = AhcEnums.CompositionNodeKind.ATOM
