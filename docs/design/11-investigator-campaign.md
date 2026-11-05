@@ -536,12 +536,14 @@ var deckbuilding_choices: Dictionary  # faction_1 → guardian, trait_choice →
 
 ## 10. Weakness 与 Revelation（分流）
 
-> **规则来源**：Grimoire *Weakness* — resolved differently depending upon **cardtype**。
+> **规则来源**：Grimoire *Weakness* — resolved differently depending upon **cardtype**；*Revelation* — weakness **enters hand by any means**。
 
 | 维度 | 说明 |
 |---|---|
 | **Weakness** | 卡**子类型**（缺陷/诅咒/伤/敌人/故事线等）；与 asset/event/skill/**enemy/treachery** 等 **cardtype 正交** |
 | **Revelation** | **能力类型**（**Revelation –**）；可在 encounter 牌、weakness、Dilemma 等上出现；**按 `has_revelation` 判定**，非 weakness 子类型 |
+| **玩家显现钩** | **进入手牌**（任意途径）→ `seq.enter_hand`；**不绑**抽取。*as if just drawn* 只是结算口径 |
+| **抽取** | 从次序未知的牌库落到 HAND/LIMBO；抽牌后可 nest 入手，但显现本身订在入手 |
 
 ### 10.1 抽出结算 = 卡面能力（类型默认能力包）
 
@@ -550,29 +552,30 @@ Weakness 是子类型；**结算键是卡面能力体系**（类型给出默认�
 | cardtype（默认能力包） | Grimoire 行为摘要 | 引擎 |
 |---|---|---|
 | **Enemy / Treachery / Location**（ENCOUNTER 包） | 遭遇侧能力；地点常显现入场 | `seq.encounter.resolve_card` |
-| **Asset**（INVESTIGATOR 包） | Revelation（若有）→ **add to hand** → 作 asset | `seq.draw.investigator` D2–D3 + `seq.enter_hand` |
+| **Asset**（INVESTIGATOR 包） | **入手**（若有显现 → `seq.enter_hand`）→ 作 asset | 物理入手 +（有显现时）`seq.enter_hand`；draw 只是常见途径 |
 | **Event** | 同上 → 作 event | 同上 |
 | **Skill** | 同上 → 作 skill | 同上 |
 
 ```text
 卡面能力 / 类型默认包
   ├── ENEMY / TREACHERY / LOCATION → ENCOUNTER 包（揭示·险境·显现·spawn/discard/地点进场）
-  ├── ASSET              → INVESTIGATOR 包 → hand → play asset
-  ├── EVENT              → INVESTIGATOR 包 → hand → play event
-  └── SKILL              → INVESTIGATOR 包 → hand → commit skill
+  ├── ASSET              → INVESTIGATOR 包 → hand（显现绑入手）→ play asset
+  ├── EVENT              → INVESTIGATOR 包 → hand（显现绑入手）→ play event
+  └── SKILL              → INVESTIGATOR 包 → hand（显现绑入手）→ commit skill
 Weakness 子类型只调 owner / bearer / 剧本残留，不另开管线
 可抽遭遇类型 = 诡计 / 敌人 / 地点（前两者为遭遇库大宗）
 ```
 
 ### 10.2 与 Revelation / 无显现
 
-| 情况 | Draw / 入手时 |
+| 情况 | 行为 |
 |---|---|
-| Encounter cardtype weakness | **encounter** E2–E6；**非** 调查员 D3 enter_hand |
-| Player cardtype weakness，**无** Revelation | D3 进 hand；**无** `seq.enter_hand` nest |
-| Player cardtype（含 weakness），**有** Revelation | D3 `nest_batch seq.enter_hand`（[15 §16](15-timing-entry-catalog.md)） |
-| 非 draw 入手（任意 weakness） | Grimoire *as if just drawn* → 上表对应管线 |
-| Bearer |  scenario 中加入 deck/hand/threat **不占** deck size |
+| Encounter cardtype weakness | **encounter** E2–E6；**非** `seq.enter_hand` |
+| Player cardtype，**无** Revelation | 进 hand；跳过显现 nest |
+| Player cardtype（含 weakness / Dilemma），**有** Revelation | **任意入手** → `nest_batch seq.enter_hand`（[15 §16](15-timing-entry-catalog.md)） |
+| 经 draw 入手 | 抽取步骤完成后 nest `seq.enter_hand`（显现仍绑入手，不绑 draw WHEN） |
+| 非 draw 入手（search / add / put into hand…） | **同一** `seq.enter_hand`；Grimoire *as if just drawn* = 结算口径，不是重跑 draw |
+| Bearer | scenario 中加入 deck/hand/threat **不占** deck size |
 
 ### 10.3 引擎判定（禁止混用）
 

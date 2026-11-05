@@ -69,6 +69,7 @@ static func draw_empty_piles_defeated(
 	return t
 
 
+## 玩家牌进入手牌（任意途径）。玩家显现订此 TC，不订 draw。
 static func enter_hand(
 	controller_id: StringName,
 	card_id: StringName,

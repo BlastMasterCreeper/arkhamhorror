@@ -15,6 +15,7 @@ static func _register_flows(
 	mutator: StateMutator,
 	card_abilities: CardAbilityService
 ) -> void:
+	## 玩家显现入口：绑入手（任意途径），不绑抽取。draw / add / search 均 nest 本 flow。
 	catalog.register_nest_batch(
 		&"seq.enter_hand",
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -672,6 +673,7 @@ static func _resolve_draw_investigator(
 	var drawn: Array = result.get("drawn", [])
 	if game_ctx != null and game_ctx.memory != null:
 		game_ctx.memory.set_referent(inv_id, &"last_draw_count", drawn.size())
+	## 抽取完成后 nest 入手：显现订在 enter_hand（已知牌面），provenance 不挂 draw。
 	var nest := catalog.nest_batch(
 		game_ctx,
 		&"seq.enter_hand",
@@ -679,7 +681,7 @@ static func _resolve_draw_investigator(
 			"controller_id": inv_id,
 			"card_ids": drawn,
 			"source_tags": source_tags,
-			"provenance_flow_id": &"seq.draw.investigator",
+			"provenance_flow_id": &"seq.enter_hand",
 		}
 	)
 	result["revelations"] = nest.get("revelations", [])
@@ -737,6 +739,7 @@ static func _resolve_encounter_spawn(
 	return {"spawned": false, "discarded": false, "error": result.get("error", &"")}
 
 
+## 玩家牌显现：按进入手牌顺序 nest；flow_id / TC 均为 enter_hand（与是否经 draw 无关）。
 static func _nest_enter_hand_revelations(
 	game_ctx: GameContext,
 	params: Dictionary,
@@ -745,7 +748,8 @@ static func _nest_enter_hand_revelations(
 	var controller_id: StringName = params.get("controller_id", &"")
 	var card_ids: Array = params.get("card_ids", [])
 	var source_tags: Array = params.get("source_tags", [])
-	var provenance_flow_id: StringName = params.get("provenance_flow_id", &"seq.enter_hand")
+	## 显现 provenance 固定挂入手入口；忽略把 draw 当 hook 的误传。
+	var provenance_flow_id: StringName = &"seq.enter_hand"
 	var tags: Array[StringName] = []
 	for tag in source_tags:
 		tags.append(tag as StringName)

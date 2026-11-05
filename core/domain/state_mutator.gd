@@ -290,7 +290,7 @@ func expose_hidden_card(card_id: StringName) -> bool:
 	return reveal_to_all(card_id)
 
 
-## D3：按卡定义进入 HAND 或 LIMBO。
+## 物理入手：按卡定义进入 HAND 或 LIMBO（不含显现；显现经 seq.enter_hand nest）。
 func commit_enter_hand(card_id: StringName, inv_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:

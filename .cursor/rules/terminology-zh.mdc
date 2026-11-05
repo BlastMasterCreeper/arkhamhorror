@@ -11,7 +11,7 @@ alwaysApply: true
 
 | English | 简中（规范） | 备注 |
 |---------|-------------|------|
-| **Revelation** | **显现** | 官方简中；能力类型 `Revelation –`；≠ weakness 子类型 |
+| **Revelation** | **显现** | 官方简中；能力类型 `Revelation –`；≠ weakness 子类型；**玩家显现绑入手**（`seq.enter_hand`），不绑抽取；遭遇走 `seq.encounter.revelation` |
 | Surge | 涌动 | 项目文档已用（如 setup 显现/涌动） |
 | Peril | 险境 | 遭遇帧内持续 Cannot（04 §4） |
 | **Play (card)** | **打出** | **仅 asset / event** 从 hand 进入 play / 结算；≠ skill |

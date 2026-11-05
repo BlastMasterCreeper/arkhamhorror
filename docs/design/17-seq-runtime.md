@@ -9,7 +9,7 @@
 
 定义一条 **`seq.*` 要在游戏里真正跑起来**，除 handler 内 RESOLVE 砖块外，还必须具备哪些 **运行时横切件**；并列出 **当前实现缺口**（相对完整 LCG 回合）。
 
-**命名流程（named flow / `seq.*`）** = 规则书里那套 **有名字、可复用、带时点** 的手续：`SequenceCatalog` 条目 + `ResolutionSequenceStack` 上的 WOULD / WHEN → RESOLVE → AFTER + 可 `nest` 子 flow。抽牌、遭遇抽牌、检定、行动内核、入手/显现入口、共享 Cancel/Instead 都是命名流程。
+**命名流程（named flow / `seq.*`）** = 规则书里那套 **有名字、可复用、带时点** 的手续：`SequenceCatalog` 条目 + `ResolutionSequenceStack` 上的 WHEN_HEADER / WHEN → RESOLVE → AFTER + 可 `nest` 子 flow。抽牌、遭遇抽牌、检定、行动内核、**入手（玩家显现入口）** / 遭遇显现入口、共享 Cancel/Instead 都是命名流程。玩家显现绑 `seq.enter_hand`，不绑 `seq.draw.*`。
 
 **不是命名流程**：卡牌正文（译效果组合）、打出（`PLAY_CARD`）。能力只 **订阅** 某条 seq 的槽当 hook；effect 仍是 Composition。禁止为每张卡登记 `seq.card…`。与效果组合的逐项对照见 [07-composition §1.2](07-composition.md#12-与命名流程对照)。
 
@@ -65,8 +65,8 @@
 | # | 项 | 说明 |
 |---|---|---|
 | T1 | **WHEN_HEADER** | when 的 would 头窗 / PreImpact（抽牌：指令尚未发生；pop 前牌在 **DECK**）— **`seq.draw.*` SPLIT 已接**；**不是**独立 timing |
-| T2 | **WHEN** | 发起 impact 之后的打断槽（抽牌：抽取步骤；同一指令的 N 张已同时抽到，不覆盖显现 / G4） |
-| T3 | **AFTER** | 该次流程整段结算完毕（抽牌：同时抽出组的显现 / G4 都完。涌动是之后的延时，另开指令） |
+| T2 | **WHEN** | 发起 impact 之后的打断槽（抽牌：抽取步骤；同一指令的 N 张已同时抽到；玩家显现尚未 nest / 遭遇 G3–G4 尚未走） |
+| T3 | **AFTER** | 该次流程整段结算完毕（抽牌：入手显现 nest / G4 都完。涌动是之后的延时，另开指令） |
 | T4 | `TimingCatalog` 行 | `(sequence_id, WHEN[+header]\|AFTER)` → 运行时 `WHEN_HEADER\|WHEN\|AFTER`；**v1 未实现** |
 | T5 | Listener 键 | `after_timing` 与 `RegistrationStore` 订阅一致 |
 
@@ -210,7 +210,7 @@
 | `seq.encounter.resolve_card` | 已持有实例 → 遭遇侧能力体系 | setup / 弃牌再结算 / 调查员库抽出的 enemy·treachery；**非**来源重定向 |
 | `seq.keyword.surge` | 涌动 LISTENER 开火：卸标记并 nest 新的遭遇抽牌 | `KeywordConsumer` @ `seq.draw.encounter` AFTER；06 §3.2.6 |
 | `seq.draw.empty_piles_defeated` | 两堆空 defeated（因果 nest） | nest from D1 内联 collect |
-| `seq.enter_hand` | 显现 batch | nest from investigator |
+| `seq.enter_hand` | 玩家入手 + 显现（绑入手，不绑 draw） | nest from draw / add / search… |
 | `seq.effect.gain_resource` | 获资源 + MODIFIER | `ResourceGainService`、可框架；旧 `seq.gain_resource` 别名 |
 | `seq.effect.move` | 狭义移动（四主体） | `MoveFlow`；行动 / 卡面 / Hunter·Patrol·Elusive nest |
 | `seq.effect.exhaust` | 横置 | `ExhaustReadyFlow`；平放区卡 / 在场敌 |

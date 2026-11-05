@@ -1,8 +1,9 @@
 class_name EnterHandTimingPolicy
 extends RefCounted
 
-## `enter_hand` 时点下显现的 **REVELATION 类内** 顺序占位（独立类，**不是** FORCED 子类，见 06 §8.1.1）。
-## When 打断槽（Fast / [reaction] When you draw）与显现 nest **不同档** FrameworkPriority；不由本类表达。
+## 玩家显现绑 `seq.enter_hand`（不绑抽取）；本类只管 **REVELATION 类内** 牌序/单元序占位。
+## 独立类，**不是** FORCED 子类，见 06 §8.1.1。
+## When-draw 打断槽（Fast / [reaction]）与入手显现 nest **不同档** FrameworkPriority；不由本类表达。
 ## 设计师尚未最终裁定；调整 `RulesConfig.enter_hand_timing` 即可切换。
 
 

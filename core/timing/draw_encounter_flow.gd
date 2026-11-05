@@ -121,7 +121,8 @@ static func _resolve_one_card(
 		return _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
 	_reveal_encounter_drawn(game_ctx, card_id, drawer_id, def_id)
 	_emit_encounter_card_drawn(game_ctx, drawer_id, card_id)
-	## SPLIT WHEN：抽取步骤完成（LIMBO）；显现 / G4 在后续队列（15 §3 / §17）。
+	## SPLIT WHEN：抽取步骤完成（LIMBO · 已知牌面）。遭遇显现不绑 draw WHEN；
+	## 后续队列 nest seq.encounter.revelation（非 enter_hand）。见 15 §3 / §17。
 	_offer_draw_slot(game_ctx, AhcEnums.SequencePhase.WHEN)
 	if game_ctx.sequences != null:
 		var trigger := TriggeringCondition.encounter_card_drawn(drawer_id, card_id)
