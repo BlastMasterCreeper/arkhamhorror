@@ -1,7 +1,8 @@
 class_name DrawEncounterFlow
 extends RefCounted
 
-## seq.draw.encounter · 抽取步骤 + 卡牌结算队列。关键词消费经 KeywordConsumer nest。
+## seq.draw.encounter · 抽取步骤（离库→LIMBO，默认不入手）+ 卡牌结算队列。
+## 仅 Hidden 显现体内秘密入手。关键词消费经 KeywordConsumer nest。
 
 
 static func run(game_ctx: GameContext, drawer_id: StringName) -> Dictionary:
@@ -121,8 +122,8 @@ static func _resolve_one_card(
 		return _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
 	_reveal_encounter_drawn(game_ctx, card_id, drawer_id, def_id)
 	_emit_encounter_card_drawn(game_ctx, drawer_id, card_id)
-	## SPLIT WHEN：抽取步骤完成（LIMBO · 已知牌面）。遭遇显现不绑 draw WHEN；
-	## 后续队列 nest seq.encounter.revelation（非 enter_hand）。见 15 §3 / §17。
+	## SPLIT WHEN：抽取步骤完成 — 牌在 LIMBO，默认未入手。
+	## 遭遇显现 nest seq.encounter.revelation（非 enter_hand）；仅 Hidden 显现体内秘密入手。
 	_offer_draw_slot(game_ctx, AhcEnums.SequencePhase.WHEN)
 	if game_ctx.sequences != null:
 		var trigger := TriggeringCondition.encounter_card_drawn(drawer_id, card_id)

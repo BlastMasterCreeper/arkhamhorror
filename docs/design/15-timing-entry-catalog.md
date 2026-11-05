@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-buff-model.md](06-registration-buff-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
 > **符号记法**：[ArkhamDB 标准](../reference/arkham-symbol-notation.md)  
-> **状态**：v0.6.22 · 2026-11-05 — 玩家显现绑 `seq.enter_hand`（不绑抽取）；would = when 头窗
+> **状态**：v0.6.23 · 2026-11-05 — 遭遇抽 ≠ 入手；玩家显现绑入手；would = when 头窗
 
 ---
 
@@ -51,28 +51,32 @@ class TimingOffer:
 - **after** 仍是整段结算完。
 - 引擎相位名：`SequencePhase.WHEN_HEADER`（旧名 `WOULD`）；轨迹标签 `WHEN_HEADER`；条件串可保留 `would_*`。
 
-### 已裁决（2026-11-05）：显现绑入手，不绑抽取
+### 已裁决（2026-11-05）：抽取 ≠ 入手；玩家显现绑入手
 
 | 概念 | 绑什么 | 不绑什么 |
 |---|---|---|
-| **抽取**（draw） | 从次序未知的牌库取出并落到目标区（HAND / LIMBO） | 显现能力本身 |
+| **调查员抽牌** | 离库 → 揭示 → **物理入手（HAND）** | 显现本身（入手后再 nest） |
+| **遭遇抽牌** | 离库 →（通常）公开揭示 → **LIMBO**；再险境 / 显现 / G4 | **不**加入手牌；**不**走 `seq.enter_hand` |
 | **玩家牌显现** | **进入手牌**（任意途径）→ `seq.enter_hand`；控制者须已知牌面 | `seq.draw.*` 的 WHEN/AFTER |
-| **遭遇显现** | LIMBO 已知牌面 → `seq.encounter.revelation` | `seq.enter_hand`（Hidden 秘密入手是显现**体内**动作） |
+| **遭遇显现** | LIMBO 已知牌面 → `seq.encounter.revelation` | `seq.enter_hand` |
+| **隐私 Hidden** | 显现**体内**秘密入手（`commit_hidden_enter_hand`） | 抽取步骤本身不入手；非隐私遭遇永不因「抽到」入手 |
 
-- Grimoire：*When a weakness card **enters** an investigator’s hand **by any means*** → resolve revelation *as if just drawn*。  
-  **触发** = 入手；*as if just drawn* 只是结算口径，不是触发条件。
-- 卡面区划进入同型先例：06113 *when … **would enter** your discard pile*（`WHEN_HEADER` + 进弃牌堆），不是 draw。
-- 抽牌管线在物理入手后 **nest** `seq.enter_hand`：那是「抽完后的入手触发」，不是「显现订在抽取时」。
+- Grimoire *Drawing Cards*：调查员库抽 → *added to their hand*；遭遇库抽 → *resolved following* 1.4（**无** “add to hand”）。
+- Grimoire *Revelation*：弱点 *enters … hand by any means* → 显现；*as if just drawn* 只是结算口径。
+- 隐私：带 Hidden 的显现能力才把牌 **秘密加入手牌**（§17.4.3）；这是显现体，不是抽取步骤。
+- 卡面区划进入先例：06113 *would enter discard*（`WHEN_HEADER` + 进弃牌），不是 draw。
+- **仅**调查员抽：物理入手后 nest `seq.enter_hand`（入手触发显现，不是「显现订在抽取时」）。
 
 **卡面时点描述不细 → 转译钉语义**：卡面「draw」写得粗，转译时把指称钉死，不把显现 / G4 / 涌动吞进「抽取时」。
 
 | 卡面 / 魔典说法 | 转译到 | 精确语义 |
 |---|---|---|
-| **抽取步骤**（引擎） | 遭遇 **G1 Draw**；调查员 **离库 + 揭示 + 物理入手** | 不是 G2–G5；不是显现本身（显现走入手 / 遭遇显现入口） |
+| **抽取步骤 · 调查员** | 离库 + 揭示 + **物理入手** | 不是显现 nest；不是 G2–G5 |
+| **抽取步骤 · 遭遇** | G1 离库 +（非 Hidden）公开揭示 → **LIMBO** | **不**入手；不是 G2–G5 / 显现本身 |
 | **将要抽取** / when you would draw | `(seq.draw.*, WHEN + header)` → `WHEN_HEADER` | 这次抽取的 PreImpact（整次尚未发生；pop 前 · 牌在 DECK） |
 | **抽取时** / when you draw | `(seq.draw.*, WHEN)` | **抽取步骤**已完成（调查员 HAND / 遭遇 LIMBO）；显现与 G4 尚未开始 |
-| **抽取后** / after you draw | `(seq.draw.*, AFTER)` | **这条抽牌指令**整段结算完毕（同时抽出的那些牌，入手显现 / G4 都做完）。涌动不是本条指令的下一张，见 §3.2 |
-| **进入手牌** / enters … hand | `(seq.enter_hand, …)` | 玩家牌显现钩；与是否经 draw 无关 |
+| **抽取后** / after you draw | `(seq.draw.*, AFTER)` | **这条抽牌指令**整段结算完毕（调查员：入手显现完；遭遇：G4 完）。涌动不是本条指令的下一张，见 §3.2 |
+| **进入手牌** / enters … hand | `(seq.enter_hand, …)` | **仅玩家牌显现钩**；遭遇抽默认不触发 |
 | **将要进入弃牌堆**（例 06113） | 广义移动进弃牌的 `WHEN_HEADER` + Instead | 区划进入；不是 draw |
 
 `seq.draw.*` 仍可作管线。订阅只认上表转译结果，不跟卡面模糊「draw」走。
@@ -103,12 +107,15 @@ class TimingOffer:
 ```text
 [WHEN_HEADER]  when you would draw · 指令尚未发生 · 牌在 DECK
    │
-   ├── 抽取步骤：同一指令的 N 张同时离库 / 揭示 / 入手或进 LIMBO
+   ├── 抽取步骤（同时）：
+   │     调查员库 → 揭示 → HAND
+   │     遭遇库   →（非 Hidden）揭示 → LIMBO（默认不入手）
    │
-[WHEN]         when you draw · 这 N 张已经抽到（HAND 或 LIMBO）
+[WHEN]         when you draw · 已抽到（HAND 或 LIMBO）
 
 ── 卡面若把这些也叫「draw」，转译时不算「抽取时」──
-按抽出顺序结算各张显现 / G2 险境 / G4 进场或弃置
+调查员：nest seq.enter_hand（入手显现）
+遭遇：按抽出顺序 险境 → 显现（LIMBO；仅 Hidden 显现体内秘密入手）→ G4
 
 [AFTER]        after you draw · 这条指令整段结算完毕
                同时抽出的那些牌都已收完
@@ -131,9 +138,9 @@ class TimingOffer:
 |---|---|---|---|---|---|
 | `seq.draw.investigator` | **DECK** | D1 pop + D2 reveal + D3 物理 `commit_enter_hand` | **HAND** | nest `seq.enter_hand`（**入手**触发显现） | 入手 nest 完（常 D5 pop） |
 | `seq.draw.encounter` 默认 | **DECK** | G1 pop + reveal（Hidden 跳过公开 E2） | **LIMBO** | 险境 100（先于 When）→ 显现 90 → G4 80 | G4 完、75 档 |
-| Hidden 遭遇 | **DECK** | G1 pop（跳过公开 reveal） | **LIMBO** | G3 秘密入手才进 HAND；G4 跳过默认 discard | 同上 |
+| Hidden 遭遇 | **DECK** | G1 pop（跳过公开 reveal） | **LIMBO**（仍未入手） | G3 显现**体内**才秘密入手；G4 跳过默认 discard | 同上 |
 
-遭遇 **险境 Register** 属 **卡牌结算过程**（须在 When 窗内已生效），FrameworkPriority **高于** When，故排在 When **之前** dequeue；仍由 G1 commit 打开 `ENCOUNTER_CARD_DRAWN` 队列。**不是**抽取步骤本身。When 槽上默认遭遇牌 **已经在 LIMBO**（离库、未进场、未入手）。
+遭遇 **险境 Register** 属 **卡牌结算过程**（须在 When 窗内已生效），FrameworkPriority **高于** When，故排在 When **之前** dequeue；仍由 G1 commit 打开 `ENCOUNTER_CARD_DRAWN` 队列。**不是**抽取步骤本身。When 槽上默认遭遇牌 **已经在 LIMBO**（离库、未进场、**未入手**）。**禁止**把遭遇抽译成「加入手牌」。
 
 **禁止**：为 reveal / pop / 入手另开一条带独立 timing 的 `seq.*`；把 WHEN 拉成覆盖显现 / G4 的长区间；另造「G1 would timing」或「步骤 After」；在 WHEN_HEADER 槽 pop 离库（那会让「将要抽」时牌已不在牌库）。
 
@@ -666,8 +673,9 @@ class TimingCatalog:
 
 ## 16. 调查员抽牌：`seq.draw.investigator`（规范流程）
 
-> **定义**：将一张或多张牌从牌库顶经 **信息揭示** 移入手牌的过程（Grimoire **Drawing Cards**）。  
-> **一次指令**（`amount` 张）= **一次** `sequences.run`；`amount ≥ 2` 且同一 ability/game step → **同时** reveal + 入手（非 N 次独立 push）。  
+> **定义（调查员）**：从调查员牌库顶经 **信息揭示** **加入手牌**（Grimoire **Drawing Cards** · *added to their hand*）。  
+> **遭遇抽**另见 §17：进 **LIMBO** 结算，**默认不入手**。  
+> **一次指令**（`amount` 张）= **一次** `sequences.run`；调查员 `amount ≥ 2` 且同一 ability/game step → **同时** reveal + 入手（非 N 次独立 push）。  
 > **Draw 行动** = `amount = 1` 的特例（外壳见 [03-action-system §6.1](03-action-system.md)）。
 
 ### 16.1 牌面可见性（Domain）

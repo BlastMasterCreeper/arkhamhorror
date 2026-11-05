@@ -30,6 +30,7 @@ static func _register_flows(
 			var inv_id: StringName = params.get("inv_id", &"")
 			return DrawSubflowHandlers.resolve_empty_piles_defeated(game_ctx, inv_id)
 	)
+	## 遭遇抽：离库 → LIMBO 结算；默认不入手（仅 Hidden 显现体内秘密入手）。
 	catalog.register_run(
 		&"seq.draw.encounter",
 		func(params: Dictionary) -> TriggeringCondition:

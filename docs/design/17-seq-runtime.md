@@ -9,7 +9,7 @@
 
 定义一条 **`seq.*` 要在游戏里真正跑起来**，除 handler 内 RESOLVE 砖块外，还必须具备哪些 **运行时横切件**；并列出 **当前实现缺口**（相对完整 LCG 回合）。
 
-**命名流程（named flow / `seq.*`）** = 规则书里那套 **有名字、可复用、带时点** 的手续：`SequenceCatalog` 条目 + `ResolutionSequenceStack` 上的 WHEN_HEADER / WHEN → RESOLVE → AFTER + 可 `nest` 子 flow。抽牌、遭遇抽牌、检定、行动内核、**入手（玩家显现入口）** / 遭遇显现入口、共享 Cancel/Instead 都是命名流程。玩家显现绑 `seq.enter_hand`，不绑 `seq.draw.*`。
+**命名流程（named flow / `seq.*`）** = 规则书里那套 **有名字、可复用、带时点** 的手续：`SequenceCatalog` 条目 + `ResolutionSequenceStack` 上的 WHEN_HEADER / WHEN → RESOLVE → AFTER + 可 `nest` 子 flow。抽牌、遭遇抽牌、检定、行动内核、**入手（玩家显现入口）** / 遭遇显现入口、共享 Cancel/Instead 都是命名流程。玩家显现绑 `seq.enter_hand`，不绑 `seq.draw.*`。**遭遇抽默认不入手**（LIMBO → `seq.encounter.revelation`）；仅隐私显现体内秘密入手。
 
 **不是命名流程**：卡牌正文（译效果组合）、打出（`PLAY_CARD`）。能力只 **订阅** 某条 seq 的槽当 hook；effect 仍是 Composition。禁止为每张卡登记 `seq.card…`。与效果组合的逐项对照见 [07-composition §1.2](07-composition.md#12-与命名流程对照)。
 
