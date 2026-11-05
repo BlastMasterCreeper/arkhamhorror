@@ -67,7 +67,7 @@ alwaysApply: true
 | **Swarming** | **蜂拥** | 关键词 Swarming X；进场后垫 X 张 facedown swarm |
 | **Myriad** | **多重** | 构筑关键词；同名额外副本不计经验 |
 | **Prey** | **猎物** | 敌人指令（`*Prey –`*）；engage / Hunter 等距 tie-break；**不 nest** |
-| **Hidden** | **隐私** | 关键词；秘密入手；见 [grimoire-glossary-extract §隐私](docs/reference/grimoire-glossary-extract.md) |
+| **Hidden** | **隐秘** | 关键词（≠ 官方/旧译「隐私」）；抽取时先对抽取者揭示，再检测 Hidden——无则全体公开（他人可取消显现），有则不公开；秘密入手见 15 §17.4.3 |
 | **Forced Ability** | **强制能力** | `Forced –`；引擎直执，无 Initiation 选用 |
 | **Free triggered ability** | **免费触发能力** | 魔典 `[free]`；ArkhamDB 玩家牌文本常标 `[fast]`；Player Window 内发起 |
 | **Reaction triggered ability** | **反应触发能力** | `[reaction]`；when/after 时点选用 |

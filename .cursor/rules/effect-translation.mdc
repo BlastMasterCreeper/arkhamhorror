@@ -119,7 +119,7 @@ AbilitySpec
   - **遭遇卡背**：抽取该牌且 **揭示信息** → `seq.encounter.revelation`（默认 LIMBO，不入手）。
   - **玩家卡背**：进入手牌（任意途径）→ `seq.enter_hand`。
 - **抽取 ≠ 入手**：调查员库抽才 *add to hand*；遭遇库抽进 LIMBO 结算。
-- **隐私 Hidden**：遭遇卡背路径；显现**体内**才秘密入手。
+- **隐秘 Hidden**：抽取时先对抽取者揭示，再检测——无隐秘才全体公开（他人可取消显现）；有隐秘则不公开；显现**体内**秘密入手。
 - **玩家库·遭遇类型弱点**：库中玩家卡背；抽出后 ENCOUNTER 包揭示 → 显现挂揭示，不挂入手。
 - **卡面体**：Composition；在入口 seq 的 RESOLVE 里 execute。禁止把玩家卡背显现订到 `seq.draw.*`，禁止把遭遇卡背显现订到 `seq.enter_hand`。
 - 顺序占位：`EnterHandTimingPolicy`（仅玩家卡背入手显现）；跨类优先级见 06 §8。

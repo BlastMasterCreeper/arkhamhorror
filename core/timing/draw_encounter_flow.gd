@@ -121,8 +121,8 @@ static func _resolve_one_card(
 		## 已翻到 Face B；跳过揭示步（禁止 reveal_to_all 把 face 打回 A）。
 		return _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id, false)
 	_emit_encounter_card_drawn(game_ctx, drawer_id, card_id)
-	## SPLIT WHEN：pop 后打开窗；揭示是队列最高优先 nest（自动），不纠结开窗瞬间可见性。
-	## would 时仍不可见。险境 < 揭示，且 > 玩家反应 / 显现。
+	## SPLIT WHEN：pop 后开窗。揭示分两档——先对抽取者，再 Hidden 检测决定是否公开。
+	## 公开后他人可在 95 窗取消显现；隐秘则不公开。would 时仍不可见。
 	_offer_draw_slot(game_ctx, AhcEnums.SequencePhase.WHEN)
 	if game_ctx.sequences != null:
 		var trigger := TriggeringCondition.encounter_card_drawn(drawer_id, card_id)
@@ -141,20 +141,6 @@ static func _offer_draw_slot(game_ctx: GameContext, phase: AhcEnums.SequencePhas
 	if game_ctx == null or game_ctx.sequences == null:
 		return
 	game_ctx.sequences.offer_slot(phase)
-
-
-static func _reveal_encounter_drawn(
-	game_ctx: GameContext,
-	card_id: StringName,
-	_drawer_id: StringName,
-	def_id: StringName
-) -> void:
-	if game_ctx == null or game_ctx.mutator == null:
-		return
-	if CardRegistry.is_hidden(def_id):
-		game_ctx.mutator.hide_from_all(card_id)  # 隐私 · 揭示步不公开
-		return
-	game_ctx.mutator.reveal_to_all(card_id)
 
 
 static func _emit_encounter_card_drawn(
@@ -190,8 +176,12 @@ static func _run_priority_queue(
 	var steps: Array[Dictionary] = []
 	if do_reveal:
 		steps.append({
-			"priority": EncounterDrawPriority.REVEAL,
-			"fn": _step_reveal.bind(ctx),
+			"priority": EncounterDrawPriority.REVEAL_TO_DRAWER,
+			"fn": _step_reveal_to_drawer.bind(ctx),
+		})
+		steps.append({
+			"priority": EncounterDrawPriority.REVEAL_PUBLIC,
+			"fn": _step_reveal_public_or_hidden.bind(ctx),
 		})
 	steps.append_array([
 		{
@@ -221,12 +211,27 @@ static func _run_priority_queue(
 	return outcome
 
 
-## 抽取时队列最高优先：自动揭示（隐私不公开）。不可见时不得结算险境。
-static func _step_reveal(ctx: Dictionary) -> void:
+## 最高优先：对抽取者揭示。不可见时不得结算险境。
+static func _step_reveal_to_drawer(ctx: Dictionary) -> void:
+	var game_ctx: GameContext = ctx.get("game_ctx")
+	var drawer_id: StringName = ctx.get("drawer_id", &"")
+	var card_id: StringName = ctx.get("card_id", &"")
+	if game_ctx == null or game_ctx.mutator == null or card_id == &"" or drawer_id == &"":
+		return
+	game_ctx.mutator.reveal_to_controller(card_id, drawer_id)
+
+
+## Hidden 检测：无隐秘 → 向全体公开（他人此后可取消显现）；有隐秘 → 保持仅抽取者可知。
+static func _step_reveal_public_or_hidden(ctx: Dictionary) -> void:
 	var game_ctx: GameContext = ctx.get("game_ctx")
 	var card_id: StringName = ctx.get("card_id", &"")
 	var def_id: StringName = ctx.get("def_id", &"")
-	_reveal_encounter_drawn(game_ctx, card_id, &"", def_id)
+	if game_ctx == null or game_ctx.mutator == null or card_id == &"":
+		return
+	if CardRegistry.is_hidden(def_id):
+		## 已对抽取者揭示；不向他人公开。
+		return
+	game_ctx.mutator.reveal_to_all(card_id)
 
 
 static func _step_peril_register(ctx: Dictionary) -> void:

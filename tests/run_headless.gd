@@ -10947,8 +10947,10 @@ func _test_asn_gate_among() -> bool:
 
 
 func _test_revelation_own_priority_class() -> bool:
-	## 揭示 110 > 险境 100 > When 95 > 显现 90。
-	if EncounterDrawPriority.REVEAL != 110:
+	## 对抽取者 110 > Hidden/公开 108 > 险境 100 > When 95 > 显现 90。
+	if EncounterDrawPriority.REVEAL_TO_DRAWER != 110:
+		return false
+	if EncounterDrawPriority.REVEAL_PUBLIC != 108:
 		return false
 	if EncounterDrawPriority.PERIL_REGISTER != 100:
 		return false
@@ -10956,7 +10958,9 @@ func _test_revelation_own_priority_class() -> bool:
 		return false
 	if EncounterDrawPriority.REVELATION != 90:
 		return false
-	if EncounterDrawPriority.REVEAL <= EncounterDrawPriority.PERIL_REGISTER:
+	if EncounterDrawPriority.REVEAL_TO_DRAWER <= EncounterDrawPriority.REVEAL_PUBLIC:
+		return false
+	if EncounterDrawPriority.REVEAL_PUBLIC <= EncounterDrawPriority.PERIL_REGISTER:
 		return false
 	if EncounterDrawPriority.PERIL_REGISTER <= EncounterDrawPriority.PLAYER_WHEN_DRAW:
 		return false
