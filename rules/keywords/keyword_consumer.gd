@@ -63,31 +63,21 @@ static func evaluate_keyword(
 	card_id: StringName,
 	keyword: StringName
 ) -> bool:
-	## 涌动开火只认武装标记；其它仍查 effective（印刷 ∪ gained）。
-	var armed := false
-	if keyword == &"surge":
-		armed = KeywordMount.is_surge_armed(game_ctx, card_id)
+	## 开火只认武装标记；涌动开火后卸抽牌期标记。
+	var armed := KeywordMount.is_keyword_armed(game_ctx, card_id, keyword)
+	if keyword == &"surge" and armed:
 		KeywordMount.unmount_gained_for_card(game_ctx, card_id)
-	else:
-		var def_id := _definition_id(game_ctx, card_id)
-		armed = EffectiveCharacteristicQuery.has_effective_keyword(
-			game_ctx, card_id, def_id, keyword
-		)
 	return armed
 
 
-## 涌动：Registration 武装；其它 LISTENER：effective 特征（进场挂载等后续收口）。
+## LISTENER 消费：只认 Registration KEYWORD 武装（进场 WHEN 已挂；不懒读 Definition）。
 static func _armed_for_consume(
 	game_ctx: GameContext,
 	card_id: StringName,
-	def_id: StringName,
+	_def_id: StringName,
 	keyword: StringName
 ) -> bool:
-	if keyword == &"surge":
-		return KeywordMount.is_surge_armed(game_ctx, card_id)
-	return EffectiveCharacteristicQuery.has_effective_keyword(
-		game_ctx, card_id, def_id, keyword
-	)
+	return KeywordMount.is_keyword_armed(game_ctx, card_id, keyword)
 
 
 static func _definition_id(game_ctx: GameContext, card_id: StringName) -> StringName:

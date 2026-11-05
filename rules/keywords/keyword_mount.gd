@@ -1,12 +1,22 @@
 class_name KeywordMount
 extends RefCounted
 
-## 06 §3.2.5–§3.2.7 · 按 KeywordProfile 在已有 seq 砖挂载关键词 Buff。
-## 拥有 ≠ 行为：gained / 印刷涌动先挂 KEYWORD 标记（幂等）；AFTER 由 KeywordConsumer 开火。
+## 06 §3.2.5–§3.2.7 · 按 KeywordProfile 在已有 seq 砖 / 区划别名挂载关键词 Buff。
+## 拥有 ≠ 行为：先挂 KEYWORD 标记（幂等）；LISTENER 开火由 KeywordConsumer / 专属 resolver 读武装。
 ## 禁止真空 Register；一律 nest seq.effect.register。
 
 
-## 在已有流程砖挂载：遍历 profiles_for_register(flow_id, slot)。
+const _IN_PLAY_LISTENERS: Array[StringName] = [
+	&"hunter",
+	&"patrol",
+	&"retaliate",
+	&"alert",
+	&"elusive",
+	&"doomed",
+]
+
+
+## 在已有流程砖 / 区划别名挂载：遍历 profiles_for_register(flow_id, slot)。
 static func mount_at(
 	game_ctx: GameContext,
 	flow_id: StringName,
@@ -23,17 +33,32 @@ static func mount_at(
 		_mount_profile(game_ctx, profile, card_id, drawer_id, def_id)
 
 
-## 效果 gains keyword · 幂等 KEYWORD 标记（印刷已挂则 no-op）。
+## 效果 gains keyword · 按 profile lifetime 选模板；幂等。
 static func mount_gained(
 	game_ctx: GameContext,
 	card_id: StringName,
 	keyword: StringName,
 	_provenance: AbilityUnitRef = null
 ) -> void:
-	EncounterGainedKeyword.register_if_absent(game_ctx, card_id, keyword)
+	if game_ctx == null or card_id == &"" or keyword == &"":
+		return
+	if is_keyword_armed(game_ctx, card_id, keyword):
+		return
+	var template := template_for_grant(card_id, keyword)
+	CompositionMount.register_effect(game_ctx, template, &"", card_id)
 
 
-## 印刷涌动：WHEN 面已知后挂 KEYWORD；与 gains 共用同一标记 → 不叠 LISTENER。
+## gains / 印刷挂载共用的 Register 模板。
+static func template_for_grant(card_id: StringName, keyword: StringName) -> RegistrationTemplate:
+	var profile := KeywordProfileTable.profile_for(keyword)
+	if profile != null and profile.lifetime_kind == KeywordProfileTable.LIFE_IN_PLAY:
+		return RegistrationTemplate.keyword_while_in_play(card_id, keyword)
+	if _IN_PLAY_LISTENERS.has(keyword):
+		return RegistrationTemplate.keyword_while_in_play(card_id, keyword)
+	return RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword)
+
+
+## 印刷涌动：WHEN 面已知后挂 KEYWORD；与 gains 共用同一标记 → 不叠。
 static func mount_surge_printed_if_absent(
 	game_ctx: GameContext,
 	card_id: StringName,
@@ -43,19 +68,28 @@ static func mount_surge_printed_if_absent(
 		return
 	if not CardRegistry.has_keyword(def_id, &"surge"):
 		return
-	EncounterGainedKeyword.register_if_absent(game_ctx, card_id, &"surge")
+	mount_gained(game_ctx, card_id, &"surge")
 
 
-## 开火后 / 取消全部效果：卸本张抽牌结算期 KEYWORD 标记。
+## 开火后 / 取消全部效果：卸本张抽牌结算期 KEYWORD 标记（涌动）。
 static func unmount_gained_for_card(game_ctx: GameContext, card_id: StringName) -> void:
 	EncounterGainedKeyword.unregister_for_card(game_ctx, card_id)
 
 
-## 涌动是否已武装（Registration KEYWORD）——AFTER 开火只认此，不懒读 Definition。
-static func is_surge_armed(game_ctx: GameContext, card_id: StringName) -> bool:
-	if game_ctx == null or game_ctx.registrations == null or card_id == &"":
+## 任意 lifetime 上是否已有该 KEYWORD 武装标记。
+static func is_keyword_armed(
+	game_ctx: GameContext,
+	card_id: StringName,
+	keyword: StringName
+) -> bool:
+	if game_ctx == null or game_ctx.registrations == null or card_id == &"" or keyword == &"":
 		return false
-	return game_ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return game_ctx.registrations.has_keyword_buff(card_id, keyword)
+
+
+## 涌动是否已武装（抽牌结算期标记）。
+static func is_surge_armed(game_ctx: GameContext, card_id: StringName) -> bool:
+	return is_keyword_armed(game_ctx, card_id, &"surge")
 
 
 static func _mount_profile(
@@ -69,7 +103,6 @@ static func _mount_profile(
 		return
 	match profile.keyword:
 		&"surge":
-			## LISTENER 延时：WHEN 挂 KEYWORD 标记；gains 同路径幂等。
 			mount_surge_printed_if_absent(game_ctx, card_id, def_id)
 		&"peril":
 			EncounterPeril.register_if_peril(
@@ -78,9 +111,34 @@ static func _mount_profile(
 				card_id,
 				CardRegistry.has_keyword(def_id, &"peril")
 			)
+		&"aloof":
+			if _printed_in_play(def_id, &"aloof"):
+				AloofStatus.ensure_forbid_attack(game_ctx, card_id)
+		&"hunter", &"patrol", &"retaliate", &"alert", &"elusive", &"doomed":
+			if _printed_in_play(def_id, profile.keyword):
+				mount_gained(game_ctx, card_id, profile.keyword)
 		_:
-			## 其它关键词仍走既有专属门面（冷漠 / 猎手…）；本服务按 profile 逐步收口。
 			pass
+
+
+static func _printed_in_play(def_id: StringName, keyword: StringName) -> bool:
+	match keyword:
+		&"hunter":
+			return CardRegistry.is_hunter(def_id)
+		&"patrol":
+			return CardRegistry.is_patrol(def_id)
+		&"retaliate":
+			return CardRegistry.is_retaliate(def_id)
+		&"alert":
+			return CardRegistry.is_alert(def_id)
+		&"elusive":
+			return CardRegistry.is_elusive(def_id)
+		&"doomed":
+			return CardRegistry.is_doomed(def_id)
+		&"aloof":
+			return CardRegistry.is_aloof(def_id)
+		_:
+			return CardRegistry.has_keyword(def_id, keyword)
 
 
 static func _definition_id(game_ctx: GameContext, card_id: StringName) -> StringName:

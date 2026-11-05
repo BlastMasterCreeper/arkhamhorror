@@ -129,7 +129,7 @@ static func zone_is_in_play(zone: AhcEnums.Zone) -> bool:
 
 
 static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> void:
-	## Domain：Uses 进场放 typed token；Seal 关键词进场封印；再装触发能力。
+	## Domain：Uses 进场放 typed token；Seal；KeywordMount（猎手/巡逻/反击…）；再装触发能力。
 	if game_ctx == null or card_id == &"":
 		return
 	var card := game_ctx.state.registry.get_card(card_id) if game_ctx.state != null else null
@@ -137,6 +137,14 @@ static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> voi
 		return
 	_apply_uses_on_enter(game_ctx, card)
 	_apply_seal_on_enter(game_ctx, card_id)
+	KeywordMount.mount_at(
+		game_ctx,
+		&"",
+		KeywordProfileTable.SLOT_ENTER_PLAY,
+		card_id,
+		&"",
+		card.id.definition_id
+	)
 	if game_ctx.triggered_abilities == null:
 		return
 	if not CardRegistry.has_triggered(card.id.definition_id):

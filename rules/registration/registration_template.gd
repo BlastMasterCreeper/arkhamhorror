@@ -217,6 +217,16 @@ static func gained_keyword_drawn_card_resolving(
 	return t
 
 
+## 进场 LISTENER 拥有标记 · `WHILE_IN_PLAY`（猎手/巡逻/反击/警戒/逃逸/厄运…）；离场卸。
+static func keyword_while_in_play(card_id: StringName, keyword: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
+	t.drawn_card_id = card_id
+	t.buffs.append(BuffSpec.keyword_buff(keyword))
+	return t
+
+
 ## @deprecated 使用 peril_drawn_card_resolving
 static func peril_encounter_frame(drawer_id: StringName, frame_id: StringName) -> RegistrationTemplate:
 	return peril_drawn_card_resolving(drawer_id, frame_id)

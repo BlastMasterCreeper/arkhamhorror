@@ -308,6 +308,10 @@ func _initialize() -> void:
 	_run_test("ENC-SURGE-09 printed plus gains is idempotent", _test_enc_surge_printed_plus_gains_idempotent)
 	_run_test("ENC-SURGE-10 unarm cancels surge fire", _test_enc_surge_unarm_skips_fire)
 	_run_test("ENC-SURGE-11 interrupt keyword disarms surge", _test_enc_surge_interrupt_keyword_disarm)
+	_run_test("KW-MOUNT-01 enter play arms hunter", _test_kw_mount_enter_play_arms_hunter)
+	_run_test("KW-MOUNT-02 leave play clears hunter arm", _test_kw_mount_leave_play_clears)
+	_run_test("KW-MOUNT-03 unarm skips hunter consume", _test_kw_mount_unarm_skips_hunter)
+	_run_test("KW-MOUNT-04 enter play arms retaliate", _test_kw_mount_enter_play_arms_retaliate)
 	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
 	_run_test("KW-OCC-01 keyword listener occasions table", _test_kw_occ_profile_table)
 	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
@@ -6831,6 +6835,74 @@ func _test_enc_surge_interrupt_keyword_disarm() -> bool:
 		return false
 	var kw := KeywordConsumer.consume_after_drawn_card(h.ctx, &"inv_1", card_id)
 	return not bool(kw.get("surged", false)) and int(kw.get("surge_depth", 0)) == 0
+
+
+func _test_kw_mount_enter_play_arms_hunter() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_kw_hunter_arm",
+		&"test_loc",
+		{"keywords": [&"hunter"], "enemy": {"damage": 1}}
+	)
+	return enemy_id != &"" and KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"hunter")
+
+
+func _test_kw_mount_leave_play_clears() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_kw_hunter_leave",
+		&"test_loc",
+		{"keywords": [&"hunter"], "enemy": {"damage": 1}}
+	)
+	if enemy_id == &"" or not KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"hunter"):
+		return false
+	h.ctx.registrations.on_card_leave_play(enemy_id)
+	return not KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"hunter")
+
+
+func _test_kw_mount_unarm_skips_hunter() -> bool:
+	## 卸武装后 3.2 消费不 nest 猎手（不懒读印刷）。
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_setup_move_test_graph(h)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_kw_hunter_disarm",
+		&"loc_a",
+		{"keywords": [&"hunter"], "enemy": {"damage": 1}}
+	)
+	if enemy_id == &"":
+		return false
+	h.ctx.registrations.on_card_leave_play(enemy_id)
+	var fired := KeywordConsumer.consume_at(
+		h.ctx, KeywordProfileTable.SLOT_ENEMY_3_2, &"", enemy_id
+	)
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	return (
+		not bool(fired.get("moved", false))
+		and enemy != null
+		and enemy.location_tag == &"loc_a"
+	)
+
+
+func _test_kw_mount_enter_play_arms_retaliate() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_kw_ret_arm",
+		&"test_loc",
+		{"keywords": [&"retaliate"], "enemy": {"damage": 1}}
+	)
+	return (
+		enemy_id != &""
+		and KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"retaliate")
+		and not KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"alert")
+	)
 
 
 func _test_gain_effective_keyword() -> bool:

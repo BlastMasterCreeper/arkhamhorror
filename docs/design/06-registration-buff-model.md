@@ -433,7 +433,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 |---|---|---|---|---|---|
 | **Peril** 险境 | `AT_DRAW_G2` | `WHILE_DRAWN_CARD_RESOLVING` | `FORBID_PLAY` / `TRIGGER` / `COMMIT`（非 drawer） | L4 | ✅ |
 | **Hidden** 隐私 | `AT_REVELATION` | 在手直至 expose | `FORBID_LEAVE_HAND`；另写 Domain `is_hidden` / FaceAudience | REST-E-MOVE；E4 秘密入手 | 运行时有；导入把 ArkhamDB `hidden` 旗标误当本词 |
-| **Aloof** 冷漠 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ |
+| **Aloof** 冷漠 | `AT_ENTER_PLAY` → `KeywordMount` → `AloofStatus` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ `KeywordMount` |
 | **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 永不进威胁区；虚拟交战同地点全体 | Engage / AOO 读交战；**3.3 攻击路径见 §3.2.7 REPLACE** | ✅ |
 | **Permanent** 永久（对局） | `AT_SETUP` 开场进场 | 直至卡面允许离场 | `FORBID_MOVE` 离场 | REST-E-MOVE | △ Domain 旗标 |
 | **Unique** 独特 | 打出/进场前查询 | in-play 期间 | 同名已在场 → 拒绝进场 | Initiation L5 | 待接线 |
@@ -442,12 +442,12 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 | 关键词 | mount | Lifetime | trigger | 开火 payload | 现状 |
 |---|---|---|---|---|---|
-| **Hunter** 猎手 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | `(seq.enemy.3_2, ENEMY_3_2)` · pri **10** | nest `seq.keyword.hunter`（移 1 步；等距读 Prey） | ✅ §3.2.7 |
-| **Patrol** 巡逻 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 同锚 · pri **20** | nest `seq.keyword.patrol`（向括号目标移 1 步） | ✅ §3.2.7 |
-| **Retaliate** 反击 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | `perform_attack(RETALIATE)` | ✅ |
-| **Alert** 警戒 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ 未进 `keywords[]` |
-| **Elusive** 逃逸 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ 未进 `keywords[]` |
-| **Doomed** 厄运降临 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 击败（非 discard） | 当前密谋 +1 毁灭 | ✅ 未进 `keywords[]` |
+| **Hunter** 猎手 | `AT_ENTER_PLAY` → `KeywordMount` KEYWORD 标记 | `WHILE_IN_PLAY` | `(seq.enemy.3_2, ENEMY_3_2)` · pri **10** | nest `seq.keyword.hunter`（只认武装） | ✅ `KeywordMount` |
+| **Patrol** 巡逻 | 同上 | `WHILE_IN_PLAY` | 同锚 · pri **20** | nest `seq.keyword.patrol` | ✅ `KeywordMount` |
+| **Retaliate** 反击 | 同上 | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | `perform_attack(RETALIATE)`（只认武装） | ✅ `KeywordMount` |
+| **Alert** 警戒 | 同上 | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ `KeywordMount` |
+| **Elusive** 逃逸 | 同上 | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ `KeywordMount` |
+| **Doomed** 厄运降临 | 同上 | `WHILE_IN_PLAY` | 击败（非 discard） | 当前密谋 +1 毁灭 | ✅ `KeywordMount` |
 | **Surge** 涌动 | 印刷 **WHEN** 挂 KEYWORD；gained `AT_GRANT` 幂等 | 绑本条抽取；开火后卸标记 | 本条抽取 **AFTER**（已结算） | nest `seq.draw.encounter` amount=1 | ✅ `KeywordMount` + `KeywordConsumer` |
 | **Starting** 起始 | `AT_SETUP` / 换牌后 | `UNTIL_FIRED` | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | 无 |
 | **Swarming** | `AFTER_ENTER_PLAY` | `UNTIL_FIRED` | 进场结算之后 | 垫 **X** 张 swarm 牌 | Core 无 |

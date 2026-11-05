@@ -10,9 +10,9 @@ extends RefCounted
 static func try_on_defeat(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null or enemy_id == &"":
 		return {"ok": true, "triggered": false}
-	var def_id := _definition_id(game_ctx, enemy_id)
-	if not CardRegistry.is_doomed(def_id):
+	if not KeywordMount.is_keyword_armed(game_ctx, enemy_id, &"doomed"):
 		return {"ok": true, "triggered": false}
+	var def_id := _definition_id(game_ctx, enemy_id)
 	var placed := EncounterAgendaDoomPlacement.place_on_current_agenda(game_ctx, true)
 	if game_ctx.log != null:
 		game_ctx.log.log(
