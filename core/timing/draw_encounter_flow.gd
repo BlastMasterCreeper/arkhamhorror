@@ -118,23 +118,22 @@ static func _resolve_one_card(
 	var outcome := {"revelations": [], "spawn_failed_discards": []}
 	if not as_drawn:
 		## FAQ：密谋/场景翻到遭遇类型背面 — 进场+显现，不触发 when-drawn。
-		## 已翻到 Face B（遭遇印刷面）；禁止 reveal_to_all（会把 face 打回 A）。
-		return _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
-	_reveal_encounter_drawn(game_ctx, card_id, drawer_id, def_id)
+		## 已翻到 Face B；跳过揭示步（禁止 reveal_to_all 把 face 打回 A）。
+		return _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id, false)
 	_emit_encounter_card_drawn(game_ctx, drawer_id, card_id)
-	## SPLIT WHEN：抽取步骤完成 — 牌在 LIMBO，默认未入手。
-	## 遭遇显现 nest seq.encounter.revelation（非 enter_hand）；仅 Hidden 显现体内秘密入手。
+	## SPLIT WHEN：pop 后打开窗；揭示是队列最高优先 nest（自动），不纠结开窗瞬间可见性。
+	## would 时仍不可见。险境 < 揭示，且 > 玩家反应 / 显现。
 	_offer_draw_slot(game_ctx, AhcEnums.SequencePhase.WHEN)
 	if game_ctx.sequences != null:
 		var trigger := TriggeringCondition.encounter_card_drawn(drawer_id, card_id)
 		game_ctx.sequences.nest(
 			trigger,
 			func() -> void:
-				var result := _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
+				var result := _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id, true)
 				outcome.merge(result, true)
 		)
 	else:
-		outcome = _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id)
+		outcome = _run_priority_queue(game_ctx, frame, drawer_id, card_id, def_id, true)
 	return outcome
 
 
@@ -147,13 +146,13 @@ static func _offer_draw_slot(game_ctx: GameContext, phase: AhcEnums.SequencePhas
 static func _reveal_encounter_drawn(
 	game_ctx: GameContext,
 	card_id: StringName,
-	drawer_id: StringName,
+	_drawer_id: StringName,
 	def_id: StringName
 ) -> void:
 	if game_ctx == null or game_ctx.mutator == null:
 		return
 	if CardRegistry.is_hidden(def_id):
-		game_ctx.mutator.hide_from_all(card_id)  # 隐私 · E2 不公开
+		game_ctx.mutator.hide_from_all(card_id)  # 隐私 · 揭示步不公开
 		return
 	game_ctx.mutator.reveal_to_all(card_id)
 
@@ -176,7 +175,8 @@ static func _run_priority_queue(
 	frame: EncounterResolutionFrame,
 	drawer_id: StringName,
 	card_id: StringName,
-	def_id: StringName
+	def_id: StringName,
+	do_reveal: bool = true
 ) -> Dictionary:
 	var outcome := {"revelations": [], "spawn_failed_discards": []}
 	var ctx := {
@@ -187,7 +187,13 @@ static func _run_priority_queue(
 		"def_id": def_id,
 		"outcome": outcome,
 	}
-	var steps: Array[Dictionary] = [
+	var steps: Array[Dictionary] = []
+	if do_reveal:
+		steps.append({
+			"priority": EncounterDrawPriority.REVEAL,
+			"fn": _step_reveal.bind(ctx),
+		})
+	steps.append_array([
 		{
 			"priority": EncounterDrawPriority.PERIL_REGISTER,
 			"fn": _step_peril_register.bind(ctx),
@@ -204,7 +210,7 @@ static func _run_priority_queue(
 			"priority": EncounterDrawPriority.AFTER_CARD,
 			"fn": _step_after_card.bind(ctx),
 		},
-	]
+	])
 	steps.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return int(a.get("priority", 0)) > int(b.get("priority", 0))
 	)
@@ -213,6 +219,14 @@ static func _run_priority_queue(
 		if fn.is_valid():
 			fn.call()
 	return outcome
+
+
+## 抽取时队列最高优先：自动揭示（隐私不公开）。不可见时不得结算险境。
+static func _step_reveal(ctx: Dictionary) -> void:
+	var game_ctx: GameContext = ctx.get("game_ctx")
+	var card_id: StringName = ctx.get("card_id", &"")
+	var def_id: StringName = ctx.get("def_id", &"")
+	_reveal_encounter_drawn(game_ctx, card_id, &"", def_id)
 
 
 static func _step_peril_register(ctx: Dictionary) -> void:

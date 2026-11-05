@@ -2,7 +2,7 @@
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-buff-model.md](06-registration-buff-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
 > **符号记法**：[ArkhamDB 标准](../reference/arkham-symbol-notation.md)  
-> **状态**：v0.6.24 · 2026-11-05 — 显现挂载：遭遇卡背×揭示 / 玩家卡背×入手
+> **状态**：v0.6.25 · 2026-11-05 — 抽取时队列：揭示最高优先；险境次之
 
 ---
 
@@ -336,18 +336,22 @@ Grimoire 规范流程
 
 | 段 | Priority | 说明 |
 |---|---|---|
-| E1+E2 Draw | emit timing | G1 → `ENCOUNTER_CARD_DRAWN` |
-| E3 peril | **100** | Register RESTRICTION |
-| E4 显现 | **90** | nest 显现类（非 Forced） |
-| E5 enemy / treachery | **80** | spawn 默认/指令 或 discard |
+| G1 pop → emit | — | 离库进 LIMBO；打开 `ENCOUNTER_CARD_DRAWN` / WHEN |
+| **揭示** | **110** | **最高·自动**；隐私不公开。不可见时不结算险境 |
+| 险境 | **100** | Register RESTRICTION；只需 **&lt; 揭示** 且 **&gt; 玩家反应 / 显现** |
+| 玩家 When/Fast | **95** | 抽取时反应；04028「抽到后、结算效果前」 |
+| 显现 | **90** | nest 显现类（非 Forced） |
+| G4 enemy / treachery | **80** | spawn 默认/指令 或 discard |
 | AFTER(card) | **75** | 「抽取后」= 这条指令整段结算完毕 |
-| 涌动（延时） | 本条 AFTER **之后** | 挂载的延时：另开一条抽牌指令；**不**在本队列再抽 G1 |
+| 涌动（延时） | 本条 AFTER **之后** | 另开一条抽牌指令；**不**在本队列再抽 G1 |
+
+**已裁决（2026-11-05）**：揭示进抽取时队列且最高优先、自动执行 → **不必纠结 WHEN 开窗瞬间是否可见**。`WHEN_HEADER` / would draw 时仍不可见即可。隐私同理（揭示步改为不公开）。
 
 **禁止**：为 Grimoire 段落 **proliferate** 平行 `seq.encounter.check_peril` 等 **命名流程**（handler 内 nest + `composition.execute(register)` 即可）；把 **已由子时点触发的 Register/显现** 压进内联（漏 slot / provenance）。
 
 #### 4.0.5.1 险境 / 显现 / 涌动：同锚点、异优先级（已裁决）
 
-G1 commit 打开 **`ENCOUNTER_CARD_DRAWN`** 队列；Grimoire G2–G4 由 **FrameworkPriority** 排序（§4.0.5.2）。**「抽取时」只等于该队列的 When 95**，不是整条队列。显现 = **独立类**（非 Forced；When 之后的结算剩余 90）；险境 = Register RESTRICTION（卡牌结算、先于 When）；**敌人进场（默认 / 指令 Spawn）与 treachery discard = 同档 priority 80**，指令只改 spawn 分支。**「抽取后」= 75 档**（G4 完）。**涌动不在本队列**：它是抽取并结算后挂上的延时，另开一条抽牌指令（§3.2）。
+G1 pop 后打开 **`ENCOUNTER_CARD_DRAWN`** 队列；由 **FrameworkPriority** 排序（§4.0.5.2）。**揭示 110 最高且自动**；险境 100（&lt; 揭示，&gt; 95/90）；**「抽取时」玩家窗 = 95**；显现 90；G4 = 80；**「抽取后」= 75**。**涌动不在本队列**。
 
 #### 4.0.5.1a 险境 vs 显现（Buff 类型对照 · 保留）
 
@@ -367,9 +371,12 @@ G1 commit 打开 **`ENCOUNTER_CARD_DRAWN`** 队列；Grimoire G2–G4 由 **Fram
 **Grimoire 读法**：peril 只规定区间内限制 **成立**，未规定 Register 时刻；引擎在 **peril 检测子时点** nest Register 以满足不变量。RESTRICTION **生效**仍靠 L4 查询，不靠 nest 开窗给玩家响应。
 
 ```text
-resolve_card_body（时间线相近）
-  E2 reveal ──then──► nest E3 Register RESTRICTION（peril 子时点 · 结算）
-                           ──then──► nest E4 revelation（显现子时点 · 结算）
+ENCOUNTER_CARD_DRAWN 队列
+  110 nest/步 揭示（自动·最高）
+  100 nest 险境 Register RESTRICTION
+   95 玩家 When / Fast
+   90 nest 显现
+   80 G4 …
 ```
 
 **勿混淆**：E3 nest 的是 **Register 这段结算**，不是另开 Grimoire 命名 `seq.*`；与 E4 nest 显现 **同型**（子时点 → 独立结算入栈），Buff 类型不同（RESTRICTION vs 显现 Composition）。
@@ -384,9 +391,10 @@ resolve_card_body（时间线相近）
 
 | 结算体 | Buff / 类型 | FrameworkPriority | Grimoire | 生命周期 / 备注 |
 |---|---|---|---|---|
-| **险境 Register** | RESTRICTION | **100** `PERIL_KEYWORD` | G2 | **`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — G4 完 Unregister |
-| 玩家 When draw [reaction] | LISTENER / TRIGGERED | **95** | When 示例 | peril 已生效 |
-| **显现** | Composition | **90** `REVELATION` | G3 | 独立类；抽取步骤之后的 **后续步骤**，不是「抽取时」 |
+| **揭示** | Audience（非 CREATED） | **110** `REVEAL` | — | **最高·自动**；隐私不公开；先于一切结算 |
+| **险境 Register** | RESTRICTION | **100** `PERIL_KEYWORD` | G2 | 只需 &lt; 揭示且 &gt; 95/90；`WHILE_DRAWN_CARD_RESOLVING` — G4 完 Unregister |
+| 玩家 When draw / Fast | LISTENER / TRIGGERED | **95** | When；04028 | 揭示与险境已过；显现未到 |
+| **显现** | Composition | **90** `REVELATION` | G3 | 独立类；不是「抽取时」反应窗 |
 | **G4 类型落点** | L0 Composition | **80** `ENCOUNTER_TYPE_RESOLVE` | G4 | 见下表；**含** 敌人进场 + treachery discard |
 | emit **AFTER(card)** | — | **75** | 抽取后 | 这条指令的同时抽出组 G4 完；**涌动尚未发起** |
 | **涌动（延时）** | DELAYED / keyword | 本条 AFTER **之后** | *After … draws and resolves* | 挂载的延时 → **另开** `seq.draw.encounter`；**不**在本队 dequeue |
@@ -404,14 +412,15 @@ resolve_card_body（时间线相近）
 | **Enemy** | 无合法 location | spawn 失败 | `discard_spawn_failed`（owner 堆） |
 
 ```text
-G1 Draw commit → emit ENCOUNTER_CARD_DRAWN
+G1 pop → LIMBO → emit ENCOUNTER_CARD_DRAWN / offer WHEN
   priority_queue.dequeue_all():
+    110 reveal（自动·最高；隐私不公开）
     100 peril Register
-    95  player When draw（抽取时）
-    90  revelation（独立类 · 结算剩余）
-    80  G4: treachery discard | enemy spawn（instruction 分支在 handler 内）
+     95 player When / Fast（抽取时；04028）
+     90 revelation
+     80 G4: treachery discard | enemy spawn
          → Unregister peril(card_id)
-    75  AFTER(card) 抽取后（这条指令整段结算完毕）
+     75 AFTER(card) 抽取后
 涌动延时（若有）→ 另开一条抽牌指令（不在本队列）
 ```
 
@@ -970,8 +979,9 @@ func reveal_encounter_drawn(card_id: StringName) -> void:
 | Grimoire | 引擎 | 说明 |
 |---|---|---|
 | — | **E0** 意图 / push 帧 | 引擎信封；魔典无对应步 |
-| **G1 Draw** | **E1** `collect_one_step` + **E2** `reveal_encounter` | E2 为 G1 的 **L0 子步**（公开牌面）；魔典 **无** 独立 reveal 步；Hidden **跳过** E2 |
-| **G2 Check peril** | **E3** nest Register RESTRICTION | **紧接 G1**，在 G3 **之前**（Framework step 2） |
+| **G1 Draw** | **E1** `collect_one_step`（pop → LIMBO） | 离库；**揭示不在此** |
+| — | **揭示** priority **110** | 抽取时队列最高·自动；魔典无独立步；隐私不公开 |
+| **G2 Check peril** | **E3** nest Register RESTRICTION **100** | &lt; 揭示且 &gt; 玩家反应/显现 |
 | **G3 Revelation** | **E4** nest `seq.encounter.revelation` | treachery 在 **limbo**（暂存区）结算 |
 | **G4 Spawn / discard** | **E5** nest spawn / 内联 discard | 二分，非并行 |
 | **涌动（延时）** | 本条 AFTER 之后另开 `seq.draw.encounter` | **不是** 本条 E1 循环；神话 1.4 抽 1 张时看起来像 G5 |
@@ -984,15 +994,15 @@ E0  遭遇抽牌意图成立（push 帧前）
 [WOULD]  这次抽取 PreImpact（pop 前）
 
 E1  G1 · Draw（内联 collect）
-    · pop_encounter_deck_top → bind 牌实例
+    · pop_encounter_deck_top → LIMBO
     · 空库 → shuffle_encounter_discard（无 horror）
     · 两堆皆空 → RULES_GAP（OQ-ENC-01）
-    · E2 reveal_encounter — G1 子步（Hidden 跳过；非独立 Grimoire 步）
-    ← 以上 = 抽取步骤的发起 impact（Would→When）
+    ← Would→When 发起 impact = 离库（揭示进队列）
 
 emit ENCOUNTER_CARD_DRAWN · 卡牌结算队列按 FrameworkPriority：
-    100  E3 G2 nest Register RESTRICTION（peril · 卡牌结算，先于 When）
-     95  [WHEN] 抽取时 · Fast / [reaction] When you draw
+    110  揭示（自动·最高；隐私不公开）
+    100  E3 G2 nest Register RESTRICTION（peril）
+     95  抽取时 · Fast / [reaction] / 04028
      90  E4 G3 nest revelation
      80  E5 G4 nest spawn / finalize_limbo_if_still（treachery）→ Unregister peril
 
@@ -1024,9 +1034,9 @@ E7  pop 帧
 **peril 不跨涌动（已裁决）**：本张 G4 完即 Unregister；涌动再抽是新指令，无上一张 peril。
 
 ```text
-[WOULD] 本条指令 · N 张仍在 DECK
+[WOULD] 本条指令 · N 张仍在 DECK（不可见）
 同时抽出 → emit ENCOUNTER_CARD_DRAWN（一组）
-  按抽出顺序 dequeue 各张：100 peril → 95 When（整组抽到之后开一次）→ 90 revelation → 80 spawn|discard
+  按抽出顺序 dequeue：110 揭示 → 100 peril → 95 When → 90 revelation → 80 spawn|discard
   → 75 AFTER 本条指令抽取后
 涌动延时 → 另开抽牌指令
 ```
@@ -1034,14 +1044,14 @@ E7  pop 帧
 #### 17.3.2 FrameworkPriority 配置（占位）
 
 ```gdscript
-# rules/config/encounter_draw_priority.gd — 设计师可调；默认对齐 Grimoire G2–G4
-class EncounterDrawPriorityPolicy:
-    const PERIL_KEYWORD := 100
+# core/timing/encounter_draw_priority.gd
+class EncounterDrawPriority:
+    const REVEAL := 110            # 最高·自动；隐私不公开
+    const PERIL_REGISTER := 100    # < 揭示，> 玩家反应 / 显现
     const PLAYER_WHEN_DRAW := 95
     const REVELATION := 90
-    const ENCOUNTER_TYPE_RESOLVE := 80
-    const AFTER_CARD_RESOLVED := 75   # 抽取后 = 这条指令整段结算完毕
-    # 涌动不在本队列。实现仍可能暂留 SURGE_KEYWORD := 70，属缺口（§3.2）。
+    const G4_TYPE_RESOLVE := 80
+    const AFTER_CARD := 75
 ```
 
 **配置入口**：`RulesConfig.encounter_draw_priority`（与 `enter_hand_timing` 同型占位）。
