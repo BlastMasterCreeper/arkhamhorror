@@ -573,7 +573,15 @@ static func is_permanent(definition_id: StringName) -> bool:
 	return has_keyword(definition_id, &"permanent")
 
 
-## 独特：标题特征，不是关键词（转发 UniqueTitle）。
+## 起始（Starting）关键词 · 玩家轴；setup 后从牌库检索入手。
+static func is_starting(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("starting", false):
+		return true
+	return has_keyword(definition_id, &"starting")
+
+
+## 独特：可挂载标题特征，不是关键词（转发 UniqueTitle）。
 static func is_unique(definition_id: StringName) -> bool:
 	return UniqueTitle.is_unique(definition_id)
 

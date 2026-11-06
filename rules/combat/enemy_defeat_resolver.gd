@@ -115,9 +115,9 @@ static func _clear_engagement(game_ctx: GameContext, enemy_id: StringName) -> vo
 
 
 static func _route_after_defeat(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
-	## 去向：Victory/复仇指示 → 胜利区；否则按所有者（遭遇弃牌 / 玩家弃牌 / 无主→置一边）。
-	var def_id := _definition_id(game_ctx, enemy_id)
-	if CardRegistry.routes_to_victory_display(def_id):
+	## 去向：胜利/复仇特征（印刷∪挂载）→ 胜利区；否则按所有者（遭遇弃牌 / 玩家弃牌 / 无主→置一边）。
+	if CharacteristicMount.routes_to_victory_display(game_ctx, enemy_id):
+		CharacteristicMount.stamp_victory_earned(game_ctx, enemy_id)
 		var moved := _route_to_victory_display(game_ctx, enemy_id)
 		return {"victory_display": moved, "dest": &"victory_display"}
 	return _route_to_discard(game_ctx, enemy_id)

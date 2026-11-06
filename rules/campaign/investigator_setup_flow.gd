@@ -120,10 +120,12 @@ static func assemble_chaos_bag(game_ctx: GameContext) -> Dictionary:
 	return {"ok": true, "source": source, "size": tokens.size()}
 
 
-## SETUP_04 · Shuffle investigator decks。
+## SETUP_04 · 永久进场 → 挂载起始 → Shuffle investigator decks。
 static func shuffle_decks(game_ctx: GameContext) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
+	place_permanents(game_ctx)
+	StartingKeyword.mount_printed_in_decks(game_ctx)
 	var shuffled: Array[StringName] = []
 	for inv_id in game_ctx.state.registry.all_investigator_ids():
 		var inv := game_ctx.state.registry.get_investigator(inv_id)
@@ -138,6 +140,37 @@ static func shuffle_decks(game_ctx: GameContext) -> Dictionary:
 			AhcEnums.LogCategory.SCENARIO, "setup:shuffle_decks", {"investigators": shuffled}
 		)
 	return {"ok": true, "shuffled": shuffled}
+
+
+## 永久卡从牌库放入场（Grimoire Permanent · 开局进场，不计抽牌）。
+static func place_permanents(game_ctx: GameContext) -> Dictionary:
+	var placed: Array = []
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false, "placed": placed}
+	for inv_id in game_ctx.state.registry.all_investigator_ids():
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv == null:
+			continue
+		var from_deck: Array[StringName] = inv.deck.duplicate()
+		for card_id in from_deck:
+			var card := game_ctx.state.registry.get_card(card_id)
+			if card == null or card.id == null:
+				continue
+			if not CardRegistry.is_permanent(card.id.definition_id):
+				continue
+			inv.deck.erase(card_id)
+			card.zone = AhcEnums.Zone.PLAY_AREA
+			card.owner_id = inv_id
+			card.controller_id = inv_id
+			if not inv.play_area.has(card_id):
+				inv.play_area.append(card_id)
+			ZoneMoveFlow.notify_zone_set(
+				game_ctx, card_id, AhcEnums.Zone.DECK, AhcEnums.Zone.PLAY_AREA
+			)
+			placed.append({"investigator_id": inv_id, "card_id": card_id})
+	if game_ctx.log != null and not placed.is_empty():
+		game_ctx.log.log(AhcEnums.LogCategory.SCENARIO, "setup:place_permanents", {"placed": placed})
+	return {"ok": true, "placed": placed}
 
 
 ## SETUP_07 · Starting resources（各 5）。
@@ -220,10 +253,16 @@ static func opening_hands(game_ctx: GameContext, opts: Dictionary = {}) -> Dicti
 		results.append(
 			{"id": inv_id, "hand_size": inv.hand.size(), "weaknesses_redrawn": set_aside_weak.size()}
 		)
+	## 起手+mulligan 之后：检索各 1 张 Starting。
+	var starting := StartingKeyword.fire_after_opening_hands(game_ctx)
 	game_ctx.state.setup_opening_hands_applied = true
 	if game_ctx.log != null:
-		game_ctx.log.log(AhcEnums.LogCategory.SCENARIO, "setup:opening_hands", {"results": results})
-	return {"ok": true, "results": results}
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"setup:opening_hands",
+			{"results": results, "starting": starting.get("pulled", [])}
+		)
+	return {"ok": true, "results": results, "starting": starting}
 
 
 static func _is_weakness_card(game_ctx: GameContext, card_id: StringName) -> bool:

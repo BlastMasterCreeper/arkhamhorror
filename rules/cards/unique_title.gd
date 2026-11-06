@@ -1,7 +1,8 @@
 class_name UniqueTitle
 extends RefCounted
 
-## 独特（Unique）：标题前 `[unique]` 特征，**不是关键词**。
+## 独特（Unique）：**可挂载特征**（与 Victory 同属 CharacteristicMount），**不是关键词**。
+## 本类：印刷/标题检测 + 同名查询；武装标记由 CharacteristicMount 挂载。
 ## Grimoire：同名（by title）至多一场一份；打出/进场前拒绝。
 ## 遭遇独特 vs 玩家同名冲突（进场同时弃玩家卡）另案，不在本查询。
 
@@ -47,7 +48,7 @@ static func _strip_star(title: String) -> String:
 	return title.substr(i).strip_edges()
 
 
-## 场上是否已有同名独特卡（任意控制器）。
+## 场上是否已有同名独特卡（任意控制器）。印刷 ∪ 挂载独特特征。
 static func unique_title_already_in_play(
 	game_ctx: GameContext,
 	definition_id: StringName,
@@ -64,9 +65,8 @@ static func unique_title_already_in_play(
 		var card := game_ctx.state.registry.get_card(card_id)
 		if card == null or not ZoneMoveFlow.zone_is_in_play(card.zone):
 			continue
-		var other_def := card.id.definition_id
-		if not is_unique(other_def):
+		if not CharacteristicMount.has_effective_unique(game_ctx, card_id):
 			continue
-		if comparable_title(other_def) == want:
+		if comparable_title(card.id.definition_id) == want:
 			return true
 	return false

@@ -116,6 +116,14 @@ static func forbid_attack_aloof(enemy_id: StringName) -> RestrictionPayload:
 	return p
 
 
+## 永久：禁止该卡离场（REST-E-MOVE）。
+static func forbid_leave_play(card_id: StringName) -> RestrictionPayload:
+	var p := RestrictionPayload.new()
+	p.kind = AhcEnums.RestrictionKind.FORBID_LEAVE_PLAY
+	p.drawn_card_id = card_id
+	return p
+
+
 ## 分摊约束工厂见 `assign_include_candidate` 等；WHILE_IN_PLAY 挂载用 RegistrationTemplate。
 
 

@@ -145,6 +145,7 @@ static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> voi
 		&"",
 		card.id.definition_id
 	)
+	CharacteristicMount.mount_at_enter_play(game_ctx, card_id, card.id.definition_id)
 	if game_ctx.triggered_abilities == null:
 		return
 	if not CardRegistry.has_triggered(card.id.definition_id):

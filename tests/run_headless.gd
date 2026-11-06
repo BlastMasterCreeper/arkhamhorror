@@ -322,6 +322,12 @@ func _initialize() -> void:
 	_run_test("KW-FAST-03 play after is FAST_TIMING", _test_kw_fast_play_timing_form)
 	_run_test("UNIQUE-01 title trait blocks second copy", _test_unique_title_blocks_play)
 	_run_test("UNIQUE-02 not a keyword profile", _test_unique_not_keyword_profile)
+	_run_test("CHAR-01 victory not a keyword profile", _test_victory_not_keyword_profile)
+	_run_test("CHAR-02 enter play mounts unique+victory", _test_char_mount_enter_play)
+	_run_test("CHAR-03 gained victory routes to display", _test_char_gained_victory_routes)
+	_run_test("CHAR-04 gained unique blocks same title", _test_char_gained_unique_blocks_play)
+	_run_test("PERM-01 permanent forbids leave play", _test_permanent_forbid_leave_play)
+	_run_test("START-01 after opening hands pulls starting", _test_starting_search_after_hands)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -7122,6 +7128,153 @@ func _test_kw_occ_peril_finalize() -> bool:
 
 func _test_unique_not_keyword_profile() -> bool:
 	return KeywordProfileTable.profile_for(&"unique") == null
+
+
+func _test_victory_not_keyword_profile() -> bool:
+	return (
+		KeywordProfileTable.profile_for(&"victory") == null
+		and KeywordProfileTable.profile_for(&"vengeance") == null
+	)
+
+
+func _test_char_mount_enter_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	CardRegistry.register_definition(
+		&"char_unique_vic",
+		{
+			"card_type": &"asset",
+			"title": "[unique]CharVic",
+			"is_unique": true,
+			"victory": 2,
+			"resource_cost": 0,
+		}
+	)
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"char_unique_vic")
+	return (
+		card_id != &""
+		and CharacteristicMount.is_armed(h.ctx, card_id, CharacteristicMount.CHAR_UNIQUE)
+		and CharacteristicMount.is_armed(h.ctx, card_id, CharacteristicMount.CHAR_VICTORY)
+		and CharacteristicMount.effective_victory_points(h.ctx, card_id) == 2
+	)
+
+
+func _test_char_gained_victory_routes() -> bool:
+	## 印刷无胜利；gains Victory 2 → 击败进胜利区并计分。
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_gain_vic",
+		&"test_loc",
+		{"enemy": {"damage": 1, "health": 1}}
+	)
+	if enemy_id == &"":
+		return false
+	CharacteristicMount.mount_gained(h.ctx, enemy_id, CharacteristicMount.CHAR_VICTORY, 2)
+	if not CharacteristicMount.routes_to_victory_display(h.ctx, enemy_id):
+		return false
+	var routed := EnemyDefeatResolver.finalize_leave_play(h.ctx, enemy_id, &"en_gain_vic")
+	return (
+		bool(routed.get("victory_display", false))
+		and h.ctx.state.victory_display.has(enemy_id)
+		and h.ctx.state.total_victory_points() == 2
+	)
+
+
+func _test_char_gained_unique_blocks_play() -> bool:
+	## 场上非印刷独特卡 gains Unique → 同名印刷独特无法打出（与 Victory 同挂载路径）。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"plain_naomi",
+		{"card_type": &"asset", "title": "Naomi", "resource_cost": 0}
+	)
+	CardRegistry.register_definition(
+		&"unique_naomi",
+		{"card_type": &"asset", "title": "[unique]Naomi", "is_unique": true, "resource_cost": 0}
+	)
+	var plain_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"plain_naomi")
+	if plain_id == &"":
+		return false
+	CharacteristicMount.mount_gained(h.ctx, plain_id, CharacteristicMount.CHAR_UNIQUE, 0)
+	if not CharacteristicMount.has_effective_unique(h.ctx, plain_id):
+		return false
+	var second := h.ctx.state.registry.allocate_instance_id(&"card")
+	var c2 := CardInstance.new()
+	c2.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, second, &"unique_naomi")
+	c2.owner_id = &"inv_1"
+	c2.controller_id = &"inv_1"
+	c2.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(c2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(second)
+	var play2 := h.ctx.actions.play_card(&"inv_1", second)
+	return (
+		not play2.ok
+		and str(play2.get("error", "")) == "unique_in_play"
+		and inv.hand.has(second)
+	)
+
+
+func _test_permanent_forbid_leave_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	CardRegistry.register_definition(
+		&"perm_asset",
+		{"card_type": &"asset", "permanent": true, "resource_cost": 0, "title": "Perm"}
+	)
+	var card_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"perm_asset")
+	if card_id == &"":
+		return false
+	if not RestrictionEvaluator.blocks_leave_play(card_id, h.ctx.registrations):
+		return false
+	var moved := h.ctx.mutator.move_card(card_id, CardSlot.discard_top(&"inv_1"))
+	var card := h.ctx.state.registry.get_card(card_id)
+	return not moved and card != null and card.zone == AhcEnums.Zone.PLAY_AREA
+
+
+func _test_starting_search_after_hands() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"start_asset",
+		{
+			"card_type": &"asset",
+			"starting": true,
+			"keywords": [&"starting"],
+			"resource_cost": 0,
+			"title": "Start Me",
+		}
+	)
+	CardRegistry.register_definition(
+		&"plain_filler",
+		{"card_type": &"asset", "resource_cost": 0, "title": "Filler"}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	## 牌库：5 张 filler + 1 Starting（放底，起手抽不到）。
+	for i in range(5):
+		var fid := h.ctx.state.registry.allocate_instance_id(&"card")
+		var fc := CardInstance.new()
+		fc.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, fid, &"plain_filler")
+		fc.owner_id = &"inv_1"
+		fc.controller_id = &"inv_1"
+		fc.zone = AhcEnums.Zone.DECK
+		h.ctx.state.registry.register_card(fc)
+		inv.deck.append(fid)
+	var sid := h.ctx.state.registry.allocate_instance_id(&"card")
+	var sc := CardInstance.new()
+	sc.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, sid, &"start_asset")
+	sc.owner_id = &"inv_1"
+	sc.controller_id = &"inv_1"
+	sc.zone = AhcEnums.Zone.DECK
+	h.ctx.state.registry.register_card(sc)
+	inv.deck.append(sid)
+	h.ctx.config.setup_run_player_steps = true
+	InvestigatorSetupFlow.shuffle_decks(h.ctx)
+	if not KeywordMount.is_keyword_armed(h.ctx, sid, &"starting"):
+		return false
+	## 起手抽 5 filler；Starting 仍在库。
+	InvestigatorSetupFlow.opening_hands(h.ctx, {"skip_mulligan": true})
+	return inv.hand.has(sid) and not inv.deck.has(sid)
 
 
 func _test_unique_title_blocks_play() -> bool:

@@ -227,6 +227,42 @@ static func keyword_while_in_play(card_id: StringName, keyword: StringName) -> R
 	return t
 
 
+## 起始（Starting）· `WHILE_IN_DECK` KEYWORD 标记；离库卸。
+static func keyword_while_in_deck(card_id: StringName, keyword: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_DECK
+	t.drawn_card_id = card_id
+	t.buffs.append(BuffSpec.keyword_buff(keyword))
+	return t
+
+
+## 可挂载特征（独特 / 胜利 / 复仇）· `WHILE_IN_PLAY`；离场卸。
+static func characteristic_while_in_play(
+	card_id: StringName,
+	characteristic: StringName,
+	scalar: int = 0
+) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
+	t.drawn_card_id = card_id
+	t.buffs.append(BuffSpec.characteristic_buff(characteristic, scalar))
+	return t
+
+
+## 永久 · 禁离场 RESTRICTION · `WHILE_IN_PLAY`。
+static func permanent_forbid_leave_play(card_id: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
+	t.drawn_card_id = card_id
+	t.buffs.append(
+		BuffSpec.restriction_buff(RestrictionPayload.forbid_leave_play(card_id))
+	)
+	return t
+
+
 ## @deprecated 使用 peril_drawn_card_resolving
 static func peril_encounter_frame(drawer_id: StringName, frame_id: StringName) -> RegistrationTemplate:
 	return peril_drawn_card_resolving(drawer_id, frame_id)

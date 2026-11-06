@@ -295,6 +295,38 @@ func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
 	return false
 
 
+func has_characteristic_buff(card_id: StringName, characteristic: StringName) -> bool:
+	if card_id == &"" or characteristic == &"":
+		return false
+	for reg in _entries:
+		if reg.drawn_card_id != card_id:
+			continue
+		for buff in reg.buffs:
+			if (
+				buff.type == AhcEnums.BuffType.CHARACTERISTIC
+				and buff.characteristic == characteristic
+			):
+				return true
+	return false
+
+
+## 同 characteristic 多条取最大标量（Victory X）。
+func characteristic_scalar(card_id: StringName, characteristic: StringName) -> int:
+	if card_id == &"" or characteristic == &"":
+		return 0
+	var best := 0
+	for reg in _entries:
+		if reg.drawn_card_id != card_id:
+			continue
+		for buff in reg.buffs:
+			if (
+				buff.type == AhcEnums.BuffType.CHARACTERISTIC
+				and buff.characteristic == characteristic
+			):
+				best = maxi(best, buff.scalar)
+	return best
+
+
 func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:
 	if card_id == &"":
 		return
