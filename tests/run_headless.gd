@@ -318,6 +318,10 @@ func _initialize() -> void:
 	_run_test("KW-OCC-03 leave hand unregisters hidden not in-play", _test_kw_occ_leave_hand_scoped)
 	_run_test("KW-OCC-04 peril finalize is not leave play", _test_kw_occ_peril_finalize)
 	_run_test("KW-FAST-01 play forms stay PLAY_CARD", _test_kw_fast_play_form)
+	_run_test("KW-FAST-02 fast play zeros action and aoo", _test_kw_fast_play_no_action)
+	_run_test("KW-FAST-03 play after is FAST_TIMING", _test_kw_fast_play_timing_form)
+	_run_test("UNIQUE-01 title trait blocks second copy", _test_unique_title_blocks_play)
+	_run_test("UNIQUE-02 not a keyword profile", _test_unique_not_keyword_profile)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -6921,6 +6925,8 @@ func _test_kw_occ_profile_table() -> bool:
 		return false
 	if KeywordProfileTable.profile_for(&"spawn") != null:
 		return false
+	if KeywordProfileTable.profile_for(&"unique") != null:
+		return false
 	var surge := KeywordProfileTable.profile_for(&"surge")
 	if surge == null:
 		return false
@@ -7112,6 +7118,90 @@ func _test_kw_occ_peril_finalize() -> bool:
 	store.on_leave_deck(&"starting_missing")
 	store.on_leave_set_aside(&"bonded_missing")
 	return store.count() == 2 and store.has_keyword_buff(&"treachery", &"surge")
+
+
+func _test_unique_not_keyword_profile() -> bool:
+	return KeywordProfileTable.profile_for(&"unique") == null
+
+
+func _test_unique_title_blocks_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"unique_ally_a",
+		{"card_type": &"asset", "title": "[unique]Naomi", "is_unique": true, "resource_cost": 0}
+	)
+	CardRegistry.register_definition(
+		&"unique_ally_b",
+		{"card_type": &"asset", "title": "[unique]Naomi", "is_unique": true, "resource_cost": 0}
+	)
+	var first := h.ctx.state.registry.allocate_instance_id(&"card")
+	var c1 := CardInstance.new()
+	c1.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, first, &"unique_ally_a")
+	c1.owner_id = &"inv_1"
+	c1.controller_id = &"inv_1"
+	c1.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(c1)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(first)
+	var play1 := h.ctx.actions.play_card(&"inv_1", first)
+	if not play1.ok or c1.zone != AhcEnums.Zone.PLAY_AREA:
+		return false
+	var second := h.ctx.state.registry.allocate_instance_id(&"card")
+	var c2 := CardInstance.new()
+	c2.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, second, &"unique_ally_b")
+	c2.owner_id = &"inv_1"
+	c2.controller_id = &"inv_1"
+	c2.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(c2)
+	inv.hand.append(second)
+	var play2 := h.ctx.actions.play_card(&"inv_1", second)
+	return not play2.ok and str(play2.get("error", "")) == "unique_in_play" and inv.hand.has(second)
+
+
+func _test_kw_fast_play_no_action() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"fast_asset_window",
+		{
+			"card_type": &"asset",
+			"resource_cost": 0,
+			"text": "Fast. Limit 1 per investigator.",
+			"keywords": [&"fast"],
+		}
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var card := CardInstance.new()
+	card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"fast_asset_window")
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	inv.actions_remaining = 0
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	return (
+		res.ok
+		and card.zone == AhcEnums.Zone.PLAY_AREA
+		and inv.actions_remaining == 0
+		and CardRegistry.play_form_for(&"fast_asset_window") == KeywordProfileTable.PLAY_FAST_WINDOW
+	)
+
+
+func _test_kw_fast_play_timing_form() -> bool:
+	CardRegistry.register_definition(
+		&"fast_event_timing",
+		{
+			"card_type": &"event",
+			"resource_cost": 1,
+			"text": "Fast. Play after an enemy attacks you.\nDiscover 1 clue.",
+		}
+	)
+	return (
+		CardRegistry.is_fast(&"fast_event_timing")
+		and CardRegistry.has_play_timing_point(&"fast_event_timing")
+		and CardRegistry.play_form_for(&"fast_event_timing") == KeywordProfileTable.PLAY_FAST_TIMING
+	)
 
 
 func _test_kw_fast_play_form() -> bool:

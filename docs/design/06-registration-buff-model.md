@@ -436,7 +436,8 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Aloof** 冷漠 | `AT_ENTER_PLAY` → `KeywordMount` → `AloofStatus` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ `KeywordMount` |
 | **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 永不进威胁区；虚拟交战同地点全体 | Engage / AOO 读交战；**3.3 攻击路径见 §3.2.7 REPLACE** | ✅ |
 | **Permanent** 永久（对局） | `AT_SETUP` 开场进场 | 直至卡面允许离场 | `FORBID_MOVE` 离场 | REST-E-MOVE | △ Domain 旗标 |
-| **Unique** 独特 | 打出/进场前查询 | in-play 期间 | 同名已在场 → 拒绝进场 | Initiation L5 | 待接线 |
+
+**不是关键词**：**独特（Unique / `[unique]`）** = 标题特征。打出/进场前 `UniqueTitle` 查同名在场 → 拒绝；**不**进 `KeywordProfileTable` / `KeywordMount`。
 
 **C2 · LISTENER**（Catalog emit；延时用 `UNTIL_FIRED`）
 
@@ -506,7 +507,7 @@ Servant of Flame：Hunter. Prey (lowest [agility]). Retaliate. Victory 2.
 
 1. 导入：首行 `Name.` → `keywords[]`；`Spawn –` / `Prey –` / 括号 → 对应 Spec，**不**进 keywords。
 2. `KeywordProfile.buff_types` → AbilityCompiler 模板 Register；**禁止**新 BuffType。
-3. RESTRICTION 模板：险境为样板；隐私、冷漠、庞大、永久、独特共用 mount。
+3. RESTRICTION 模板：险境为样板；隐私、冷漠、庞大、永久共用 mount。独特不是关键词。
 4. LISTENER 模板：3.2 猎手/巡逻收 emit；反击/警戒/逃逸已有内核；涌动竖切收成 After-draw LISTENER。
 5. 快速：打出形式（`play_form`），种类仍是 `PLAY_CARD`，不 Register LISTENER。
 6. 参数 Spec：Uses / Seal 补齐；Patrol 括号已有测试路径。
@@ -576,8 +577,8 @@ on_card_leave_play(card)
 | **Starting** 起始 | LISTENER 延时 | `seq.setup` 开局（牌在库） | 同流程换牌后砖 **AFTER** = `FIRED` | `WHILE_IN_DECK` + `UNTIL_FIRED` | **DECK** |
 | **Permanent** 永久 | RESTRICTION | `seq.setup` 放入场 = **ENTER_PLAY**（**不是**从手打出） | 仅卡面允许离场或拥有者淘汰 | `WHILE_IN_PLAY` | PLAY |
 | **Fast.** 快速 | 打出形式 | **不** Register LISTENER | — | 无 | **HAND**；种类始终 `PLAY_CARD` |
-| **Unique** 独特 | RESTRICTION | 第一份 copy **ENTER_PLAY** | 该 copy **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | **Uses / Victory / Seal** | L0 / Domain | 进场放记 / 击败改去向 / 打出封印 | Uses 随离场清 token；Seal 离场释放 | 不走 LISTENER | PLAY 或击败瞬间 |
+| **独特（非关键词）** | 标题特征 | 进场前 Initiation 查同名 | — | — | — |
 | **Bonded** 绑定 | 构筑 + `WHILE_SET_ASIDE` | `seq.setup` **ENTER_SET_ASIDE** | 宿主打出后 **LEAVE_SET_ASIDE** | `WHILE_SET_ASIDE` | **SET_ASIDE** |
 | **Exceptional / Myriad** 多重 / Reward / Researched / Customizable | 构筑 | **不** Register | — | 无 | 对局不武装 |
 

@@ -240,11 +240,9 @@ static func _all() -> Array[KeywordProfile]:
 		&"", SLOT_LEAVE_PLAY,
 		ZONE_PLAY, LIFE_IN_PLAY
 	))
-	profiles.append(_row(
-		&"unique", BUFF_RESTRICTION,
-		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
-	))
+	## 独特（Unique / [unique]）是标题特征，不是关键词 — 勿登记本表；见 UniqueTitle。
 	## 快速 · 打出 Initiation 档（非 LISTENER；勿与 ArkhamDB [fast]=免费触发符号合并）
+	## 玩家轴：只改 play_form（窗口/花费）；不挂 KeywordMount。
 	profiles.append(_row(&"fast", BUFF_INITIATION, &"", &"", &"", &"", ZONE_HAND, &""))
 	## L0 / Domain
 	profiles.append(_row(

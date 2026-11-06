@@ -85,6 +85,10 @@ static func _to_registry_dict(src: Dictionary, definition_id: StringName) -> Dic
 		"massive": "massive" in keywords,
 		"doomed": "doomed" in keywords or _text_has_doomed(str(src.get("text", ""))),
 		"permanent": bool(src.get("permanent", false)),
+		## 独特是标题特征，不是 keywords[]。
+		"is_unique": bool(src.get("is_unique", false)) or UniqueTitle.title_marks_unique(
+			str(src.get("title", ""))
+		),
 		"victory": int(src.get("victory", 0)),
 		"back_text": str(src.get("back_text", "")),
 		"back_name": str(src.get("back_name", "")),
