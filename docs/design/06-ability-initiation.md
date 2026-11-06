@@ -494,7 +494,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 
 - **快速** 打出：无时点 → Player Window / 期间限制（窗口对称 `[free]`）；有时点 → when/after 槽（窗口对称 `[reaction]`）。种类仍是打出。见 §4.2。
 - 无 Fast 的 event/asset：仅能用 Play action 打出（花费对称 `[action]`）。种类仍是打出。
-- Asset：slots 可用、unique 不在场
+- Asset：slots 可用；**独特**（标题 `[unique]`，非关键词）同名不在场
 - Activate：来源合法、exhausted 否（若 cost 含 exhaust）
 - Target 存在且 valid
 

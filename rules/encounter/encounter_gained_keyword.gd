@@ -1,7 +1,8 @@
 class_name EncounterGainedKeyword
 extends RefCounted
 
-## 动态 keyword · G3 Register · G5 evaluate · 06 §3.1–§3.2
+## 动态 / 印刷关键词 KEYWORD 标记门面 → KeywordMount.mount_gained。
+## 幂等；开火见 KeywordMount / KeywordConsumer。
 
 
 static func register_if_absent(
@@ -10,23 +11,7 @@ static func register_if_absent(
 	keyword: StringName,
 	provenance: AbilityUnitRef = null
 ) -> void:
-	if game_ctx == null or card_id == &"" or keyword == &"":
-		return
-	if game_ctx.registrations.has_keyword_buff(card_id, keyword):
-		return
-	var template := RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword)
-	if game_ctx.sequence_catalog == null:
-		push_error("EncounterGainedKeyword: sequence_catalog missing; vacuum refused")
-		return
-	game_ctx.sequence_catalog.nest(
-		game_ctx,
-		&"seq.effect.register",
-		{
-			"controller_id": &"",
-			"card_id": card_id,
-			"template": template,
-		}
-	)
+	KeywordMount.mount_gained(game_ctx, card_id, keyword, provenance)
 
 
 static func register_surge(

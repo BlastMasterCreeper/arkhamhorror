@@ -246,10 +246,9 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 
 
 ## 卡面 gains keyword · nest `seq.effect.register`（不是真空 REGISTER）。
+## 模板按 KeywordProfile lifetime（进场 WHILE_IN_PLAY / 抽牌结算期）。
 static func grant_keyword(card_id: StringName, keyword: StringName) -> CompositionNode:
-	return nest_effect_register(
-		RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword)
-	)
+	return nest_effect_register(KeywordMount.template_for_grant(card_id, keyword))
 
 
 ## L1 · must choose（07 §3.3 · 16 §7.2.1）：resolve 前 dry-run 过滤 FIZZLE 分支。

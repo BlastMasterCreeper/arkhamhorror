@@ -10,12 +10,14 @@ extends RefCounted
 const REVEAL_TO_DRAWER: int = 110
 ## Hidden 检测：无 Hidden → 向全体公开；有 Hidden → 保持仅抽取者可知。
 const REVEAL_PUBLIC: int = 108
+## 关键词 WHEN 挂载（印刷涌动 KEYWORD 标记等）；面已知后、险境前。
+const KEYWORD_MOUNT_WHEN: int = 105
 const PERIL_REGISTER: int = 100
 const PLAYER_WHEN_DRAW: int = 95
 const REVELATION: int = 90
 const G4_TYPE_RESOLVE: int = 80
 const AFTER_CARD: int = 75
-## 涌动不再进本队列；消费槽见 KeywordProfileTable.SLOT_AFTER_DRAWN_CARD → seq.keyword.surge。
+## 涌动开火不进本队列；AFTER 后 KeywordConsumer → seq.keyword.surge。
 
 ## 兼容旧名：整段「揭示档」取顶格（对抽取者揭示）。
 const REVEAL: int = REVEAL_TO_DRAWER

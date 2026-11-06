@@ -304,12 +304,24 @@ func _initialize() -> void:
 	_run_test("ADB-19 compile raising suspicions", _test_adb_compile_raising_suspicions)
 	_run_test("ENC-SURGE-06 raising suspicions places doom", _test_enc_surge_12160_places_doom)
 	_run_test("ENC-SURGE-07 raising suspicions no target gains surge", _test_enc_surge_12160_no_target_gained)
+	_run_test("ENC-SURGE-08 printed mounts keyword at when", _test_enc_surge_printed_mounts_at_when)
+	_run_test("ENC-SURGE-09 printed plus gains is idempotent", _test_enc_surge_printed_plus_gains_idempotent)
+	_run_test("ENC-SURGE-10 unarm cancels surge fire", _test_enc_surge_unarm_skips_fire)
+	_run_test("ENC-SURGE-11 interrupt keyword disarms surge", _test_enc_surge_interrupt_keyword_disarm)
+	_run_test("KW-MOUNT-01 enter play arms hunter", _test_kw_mount_enter_play_arms_hunter)
+	_run_test("KW-MOUNT-02 leave play clears hunter arm", _test_kw_mount_leave_play_clears)
+	_run_test("KW-MOUNT-03 unarm skips hunter consume", _test_kw_mount_unarm_skips_hunter)
+	_run_test("KW-MOUNT-04 enter play arms retaliate", _test_kw_mount_enter_play_arms_retaliate)
 	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
 	_run_test("KW-OCC-01 keyword listener occasions table", _test_kw_occ_profile_table)
 	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
 	_run_test("KW-OCC-03 leave hand unregisters hidden not in-play", _test_kw_occ_leave_hand_scoped)
 	_run_test("KW-OCC-04 peril finalize is not leave play", _test_kw_occ_peril_finalize)
 	_run_test("KW-FAST-01 play forms stay PLAY_CARD", _test_kw_fast_play_form)
+	_run_test("KW-FAST-02 fast play zeros action and aoo", _test_kw_fast_play_no_action)
+	_run_test("KW-FAST-03 play after is FAST_TIMING", _test_kw_fast_play_timing_form)
+	_run_test("UNIQUE-01 title trait blocks second copy", _test_unique_title_blocks_play)
+	_run_test("UNIQUE-02 not a keyword profile", _test_unique_not_keyword_profile)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -6743,6 +6755,160 @@ func _test_enc_surge_12160_no_target_gained() -> bool:
 	return h.ctx.registrations.has_keyword_buff(card_id, &"surge")
 
 
+func _test_enc_surge_printed_mounts_at_when() -> bool:
+	## 印刷涌动：揭示后 WHEN 挂 KEYWORD；抽完后标记已卸、仍抽了第二张。
+	var h := RuleTestHarness.new(42)
+	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_surge_when", [&"surge"])
+	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_after_print", [])
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var cards: Array = res.get("cards", [])
+	return (
+		cards.size() == 2
+		and cards[0] == first
+		and cards[1] == second
+		and int(res.get("surge_depth", 0)) == 1
+		and not h.ctx.registrations.has_keyword_buff(first, &"surge")
+	)
+
+
+func _test_enc_surge_printed_plus_gains_idempotent() -> bool:
+	## 印刷 + 显现 gains → 仍只武装一次 → surge_depth 1。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"enc_print_and_gain", {"card_type": &"treachery", "keywords": [&"surge"]})
+	CardRegistry.register_revelation(
+		&"enc_print_and_gain",
+		&"revelation:0",
+		func(bind: AbilityBindContext) -> CompositionNode:
+			return CompositionNode.grant_keyword(bind.card_id, &"surge")
+	)
+	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_and_gain", [&"surge"])
+	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_idem", [])
+	var before_regs := h.ctx.registrations.count()
+	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	if not res.get("ok", false):
+		return false
+	var cards: Array = res.get("cards", [])
+	return (
+		cards.size() == 2
+		and cards[0] == first
+		and cards[1] == second
+		and int(res.get("surge_depth", 0)) == 1
+		and h.ctx.registrations.count() == before_regs
+	)
+
+
+func _test_enc_surge_unarm_skips_fire() -> bool:
+	## 取消全部效果：卸 KEYWORD 后 AFTER 不再涌动（不懒读印刷）。
+	var h := RuleTestHarness.new(42)
+	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_surge_disarm", [&"surge"])
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_disarm", [])
+	h.ctx.mutator.enter_limbo(first, &"inv_1")
+	KeywordMount.mount_surge_printed_if_absent(h.ctx, first, &"enc_surge_disarm")
+	if not KeywordMount.is_surge_armed(h.ctx, first):
+		return false
+	KeywordMount.unmount_gained_for_card(h.ctx, first)
+	var kw := KeywordConsumer.consume_after_drawn_card(h.ctx, &"inv_1", first)
+	return (
+		not bool(kw.get("surged", false))
+		and int(kw.get("surge_depth", 0)) == 0
+		and (kw.get("cards", []) as Array).is_empty()
+	)
+
+
+func _test_enc_surge_interrupt_keyword_disarm() -> bool:
+	## InterruptTarget.KEYWORD cancel/ignore → 卸涌动武装；取消显现（SEQUENCE）不经此。
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_surge_kw_intr", [&"surge"])
+	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_kw_intr", [])
+	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
+	KeywordMount.mount_surge_printed_if_absent(h.ctx, card_id, &"enc_surge_kw_intr")
+	if not KeywordMount.is_surge_armed(h.ctx, card_id):
+		return false
+	var cancel_res := h.ctx.effects.apply_interrupt_cancel(
+		InterruptTarget.for_keyword(&"surge", {"card_id": card_id})
+	)
+	if not bool(cancel_res.get("ok", false)) or KeywordMount.is_surge_armed(h.ctx, card_id):
+		return false
+	KeywordMount.mount_surge_printed_if_absent(h.ctx, card_id, &"enc_surge_kw_intr")
+	var ignore_res := h.ctx.effects.apply_interrupt_ignore(
+		InterruptTarget.for_keyword(&"surge", {"card_id": card_id})
+	)
+	if not bool(ignore_res.get("ok", false)) or KeywordMount.is_surge_armed(h.ctx, card_id):
+		return false
+	var kw := KeywordConsumer.consume_after_drawn_card(h.ctx, &"inv_1", card_id)
+	return not bool(kw.get("surged", false)) and int(kw.get("surge_depth", 0)) == 0
+
+
+func _test_kw_mount_enter_play_arms_hunter() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_kw_hunter_arm",
+		&"test_loc",
+		{"keywords": [&"hunter"], "enemy": {"damage": 1}}
+	)
+	return enemy_id != &"" and KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"hunter")
+
+
+func _test_kw_mount_leave_play_clears() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_kw_hunter_leave",
+		&"test_loc",
+		{"keywords": [&"hunter"], "enemy": {"damage": 1}}
+	)
+	if enemy_id == &"" or not KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"hunter"):
+		return false
+	h.ctx.registrations.on_card_leave_play(enemy_id)
+	return not KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"hunter")
+
+
+func _test_kw_mount_unarm_skips_hunter() -> bool:
+	## 卸武装后 3.2 消费不 nest 猎手（不懒读印刷）。
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_setup_move_test_graph(h)
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_kw_hunter_disarm",
+		&"loc_a",
+		{"keywords": [&"hunter"], "enemy": {"damage": 1}}
+	)
+	if enemy_id == &"":
+		return false
+	h.ctx.registrations.on_card_leave_play(enemy_id)
+	var fired := KeywordConsumer.consume_at(
+		h.ctx, KeywordProfileTable.SLOT_ENEMY_3_2, &"", enemy_id
+	)
+	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
+	return (
+		not bool(fired.get("moved", false))
+		and enemy != null
+		and enemy.location_tag == &"loc_a"
+	)
+
+
+func _test_kw_mount_enter_play_arms_retaliate() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_kw_ret_arm",
+		&"test_loc",
+		{"keywords": [&"retaliate"], "enemy": {"damage": 1}}
+	)
+	return (
+		enemy_id != &""
+		and KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"retaliate")
+		and not KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"alert")
+	)
+
+
 func _test_gain_effective_keyword() -> bool:
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_surge", [&"surge"])
@@ -6758,6 +6924,8 @@ func _test_kw_occ_profile_table() -> bool:
 	if KeywordProfileTable.profile_for(&"prey") != null:
 		return false
 	if KeywordProfileTable.profile_for(&"spawn") != null:
+		return false
+	if KeywordProfileTable.profile_for(&"unique") != null:
 		return false
 	var surge := KeywordProfileTable.profile_for(&"surge")
 	if surge == null:
@@ -6950,6 +7118,90 @@ func _test_kw_occ_peril_finalize() -> bool:
 	store.on_leave_deck(&"starting_missing")
 	store.on_leave_set_aside(&"bonded_missing")
 	return store.count() == 2 and store.has_keyword_buff(&"treachery", &"surge")
+
+
+func _test_unique_not_keyword_profile() -> bool:
+	return KeywordProfileTable.profile_for(&"unique") == null
+
+
+func _test_unique_title_blocks_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"unique_ally_a",
+		{"card_type": &"asset", "title": "[unique]Naomi", "is_unique": true, "resource_cost": 0}
+	)
+	CardRegistry.register_definition(
+		&"unique_ally_b",
+		{"card_type": &"asset", "title": "[unique]Naomi", "is_unique": true, "resource_cost": 0}
+	)
+	var first := h.ctx.state.registry.allocate_instance_id(&"card")
+	var c1 := CardInstance.new()
+	c1.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, first, &"unique_ally_a")
+	c1.owner_id = &"inv_1"
+	c1.controller_id = &"inv_1"
+	c1.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(c1)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(first)
+	var play1 := h.ctx.actions.play_card(&"inv_1", first)
+	if not play1.ok or c1.zone != AhcEnums.Zone.PLAY_AREA:
+		return false
+	var second := h.ctx.state.registry.allocate_instance_id(&"card")
+	var c2 := CardInstance.new()
+	c2.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, second, &"unique_ally_b")
+	c2.owner_id = &"inv_1"
+	c2.controller_id = &"inv_1"
+	c2.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(c2)
+	inv.hand.append(second)
+	var play2 := h.ctx.actions.play_card(&"inv_1", second)
+	return not play2.ok and str(play2.get("error", "")) == "unique_in_play" and inv.hand.has(second)
+
+
+func _test_kw_fast_play_no_action() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"fast_asset_window",
+		{
+			"card_type": &"asset",
+			"resource_cost": 0,
+			"text": "Fast. Limit 1 per investigator.",
+			"keywords": [&"fast"],
+		}
+	)
+	var card_id := h.ctx.state.registry.allocate_instance_id(&"card")
+	var card := CardInstance.new()
+	card.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, card_id, &"fast_asset_window")
+	card.owner_id = &"inv_1"
+	card.controller_id = &"inv_1"
+	card.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(card)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(card_id)
+	inv.actions_remaining = 0
+	var res := h.ctx.actions.play_card(&"inv_1", card_id)
+	return (
+		res.ok
+		and card.zone == AhcEnums.Zone.PLAY_AREA
+		and inv.actions_remaining == 0
+		and CardRegistry.play_form_for(&"fast_asset_window") == KeywordProfileTable.PLAY_FAST_WINDOW
+	)
+
+
+func _test_kw_fast_play_timing_form() -> bool:
+	CardRegistry.register_definition(
+		&"fast_event_timing",
+		{
+			"card_type": &"event",
+			"resource_cost": 1,
+			"text": "Fast. Play after an enemy attacks you.\nDiscover 1 clue.",
+		}
+	)
+	return (
+		CardRegistry.is_fast(&"fast_event_timing")
+		and CardRegistry.has_play_timing_point(&"fast_event_timing")
+		and CardRegistry.play_form_for(&"fast_event_timing") == KeywordProfileTable.PLAY_FAST_TIMING
+	)
 
 
 func _test_kw_fast_play_form() -> bool:

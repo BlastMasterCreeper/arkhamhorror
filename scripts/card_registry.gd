@@ -573,6 +573,43 @@ static func is_permanent(definition_id: StringName) -> bool:
 	return has_keyword(definition_id, &"permanent")
 
 
+## 独特：标题特征，不是关键词（转发 UniqueTitle）。
+static func is_unique(definition_id: StringName) -> bool:
+	return UniqueTitle.is_unique(definition_id)
+
+
+## 快速关键词（规则书 Fast.）；≠ ArkhamDB 文本 `[fast]` 免费触发符号。
+static func is_fast(definition_id: StringName) -> bool:
+	if has_keyword(definition_id, &"fast"):
+		return true
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if bool(data.get("fast", false)):
+		return true
+	return _text_has_fast_keyword(str(data.get("text", "")))
+
+
+## 打出正文是否带 Play when/after 时点（→ PLAY_FAST_TIMING）。
+static func has_play_timing_point(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	var text := str(data.get("text", "")).strip_edges().to_lower()
+	if text.is_empty():
+		return false
+	return text.find("play when") >= 0 or text.find("play after") >= 0
+
+
+## 玩家轴打出形式（窗口/花费对称）；种类仍是 PLAY_CARD。
+static func play_form_for(definition_id: StringName) -> StringName:
+	return KeywordProfileTable.play_form(is_fast(definition_id), has_play_timing_point(definition_id))
+
+
+static func _text_has_fast_keyword(text: String) -> bool:
+	var t := text.strip_edges()
+	if t.is_empty():
+		return false
+	var lower := t.to_lower()
+	return lower.begins_with("fast.") or lower.begins_with("fast ")
+
+
 static func card_type(definition_id: StringName) -> StringName:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	return data.get("card_type", &"treachery") as StringName

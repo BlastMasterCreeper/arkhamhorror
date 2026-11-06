@@ -238,6 +238,9 @@ func _play_card_pre_error(intent: InitiationIntent, ctx: GameContext) -> StringN
 		var spec: SealSpec = CardRegistry.seal_spec(card.id.definition_id)
 		if not SealFlow.can_satisfy(ctx.state.chaos_bag, spec):
 			return &"seal_unsatisfied"
+	## 独特：标题特征（非关键词）；同名已在场则拒打出。
+	if UniqueTitle.unique_title_already_in_play(ctx, card.id.definition_id, intent.card_id):
+		return &"unique_in_play"
 	return &""
 
 

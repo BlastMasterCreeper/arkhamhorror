@@ -66,6 +66,10 @@ func interrupt_cancel_dispatch(target: InterruptTarget) -> Dictionary:
 				)
 				return {"ok": true, "flow_id": target.flow_id, "cancelled": true}
 			return {"ok": false, "error": "missing_cancel_bind"}
+		InterruptTarget.Kind.KEYWORD:
+			## 取消全部效果等：卸武装 KEYWORD 标记（涌动 AFTER 不再开火）。
+			## 取消显现仍走 SEQUENCE，不经此分支。
+			return _disarm_keyword_target(target, &"cancel")
 		_:
 			return {"ok": false, "error": "cancel_kind_mismatch", "kind": target.kind}
 
@@ -88,11 +92,38 @@ func interrupt_ignore_dispatch(target: InterruptTarget) -> Dictionary:
 		InterruptTarget.Kind.COST:
 			return {"ok": false, "error": "cost_ignore_not_wired"}
 		InterruptTarget.Kind.KEYWORD:
-			return {"ok": false, "error": "keyword_ignore_not_wired", "keyword": target.keyword}
+			## 涌动：Ignore = 卸武装（延时 LISTENER 竖切，等同取消开火）。
+			## 反击/警戒等仍待 IgnoreMask；非 surge 暂 not_wired。
+			if target.keyword != &"" and target.keyword != &"surge":
+				return {"ok": false, "error": "keyword_ignore_not_wired", "keyword": target.keyword}
+			return _disarm_keyword_target(target, &"ignore")
 		InterruptTarget.Kind.CHAOS_TOKEN:
 			return {"ok": false, "error": "chaos_ignore_not_wired"}
 		_:
 			return {"ok": false, "error": "ignore_kind_mismatch", "kind": target.kind}
+
+
+## 卸本张抽牌结算期 KEYWORD 武装（scope/bind.card_id）。
+func _disarm_keyword_target(target: InterruptTarget, mode: StringName) -> Dictionary:
+	var card_id: StringName = target.scope.get("card_id", &"") as StringName
+	if card_id == &"":
+		card_id = target.bind.get("card_id", &"") as StringName
+	if card_id == &"":
+		return {"ok": false, "error": "missing_keyword_card", "keyword": target.keyword}
+	var was_armed := KeywordMount.is_surge_armed(_game_ctx, card_id)
+	KeywordMount.unmount_gained_for_card(_game_ctx, card_id)
+	_log.log(
+		AhcEnums.LogCategory.ABILITY,
+		"effect:keyword_disarmed",
+		{"mode": mode, "keyword": target.keyword, "card_id": card_id, "was_armed": was_armed}
+	)
+	return {
+		"ok": true,
+		"keyword": target.keyword if target.keyword != &"" else &"surge",
+		"card_id": card_id,
+		"disarmed": was_armed,
+		"mode": mode,
+	}
 
 
 func apply_interrupt_cancel(target: InterruptTarget) -> Dictionary:

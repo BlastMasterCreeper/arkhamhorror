@@ -28,8 +28,7 @@ static func _try_flee(
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null or enemy.exhausted:
 		return {"ok": true, "fled": false}
-	var def_id := _definition_id(game_ctx, enemy_id)
-	if not CardRegistry.is_elusive(def_id):
+	if not KeywordMount.is_keyword_armed(game_ctx, enemy_id, &"elusive"):
 		return {"ok": true, "fled": false}
 	var from_loc := enemy.location_tag
 	_disengage_all(game_ctx, enemy_id)

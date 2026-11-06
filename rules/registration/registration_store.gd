@@ -283,11 +283,10 @@ func _find_engagement_reg_id(enemy_id: StringName, investigator_id: StringName) 
 
 
 func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
+	## 任意 lifetime：抽牌结算期涌动标记 ∪ 进场 WHILE_IN_PLAY 猎手等。
 	if card_id == &"" or keyword == &"":
 		return false
 	for reg in _entries:
-		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
-			continue
 		if reg.drawn_card_id != card_id:
 			continue
 		for buff in reg.buffs:

@@ -20,6 +20,8 @@ var provokes_aoo: bool = false
 var aoo_action_type: AhcEnums.ActionType = AhcEnums.ActionType.ACTIVATE
 ## 一次行动可具有多种行动类型（如 Activate+Parley）；借机攻击按全集判断。
 var action_types: Array = []
+## 打出形式：PLAY_ACTION / PLAY_FAST_WINDOW / PLAY_FAST_TIMING（仅 PLAY_CARD）。
+var play_form: StringName = &""
 
 
 static func create(controller_id: StringName, composition: CompositionNode) -> InitiationIntent:
@@ -57,7 +59,8 @@ static func play_card(
 	card_id: StringName,
 	resource_cost: int = 0,
 	action_cost: int = 0,
-	composition: CompositionNode = null
+	composition: CompositionNode = null,
+	play_form: StringName = &""
 ) -> InitiationIntent:
 	var intent := InitiationIntent.new()
 	intent.kind = Kind.PLAY_CARD
@@ -66,7 +69,17 @@ static func play_card(
 	intent.composition = composition
 	intent.resource_cost = resource_cost
 	intent.action_cost = action_cost
-	intent.action_types = [AhcEnums.ActionType.ACTIVATE]
-	intent.aoo_action_type = AhcEnums.ActionType.ACTIVATE
-	intent.provokes_aoo = AttackOfOpportunityResolver.provokes_for_types(intent.action_types)
+	intent.play_form = play_form
+	## 快速打出：不耗 Play action、不借机（对称免费/反应）。无 Fast 仍对称激活。
+	if (
+		play_form == KeywordProfileTable.PLAY_FAST_WINDOW
+		or play_form == KeywordProfileTable.PLAY_FAST_TIMING
+	):
+		intent.action_cost = 0
+		intent.action_types = []
+		intent.provokes_aoo = false
+	else:
+		intent.action_types = [AhcEnums.ActionType.ACTIVATE]
+		intent.aoo_action_type = AhcEnums.ActionType.ACTIVATE
+		intent.provokes_aoo = AttackOfOpportunityResolver.provokes_for_types(intent.action_types)
 	return intent

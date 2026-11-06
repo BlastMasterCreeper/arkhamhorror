@@ -41,9 +41,7 @@ static func consume_at(
 	for profile in KeywordProfileTable.profiles_for_slot(slot):
 		if profile.buff_type != &"LISTENER" or profile.consume_flow_id == &"":
 			continue
-		if not EffectiveCharacteristicQuery.has_effective_keyword(
-			game_ctx, card_id, def_id, profile.keyword
-		):
+		if not _armed_for_consume(game_ctx, card_id, def_id, profile.keyword):
 			continue
 		if catalog == null or not catalog.has_flow(profile.consume_flow_id):
 			continue
@@ -65,13 +63,21 @@ static func evaluate_keyword(
 	card_id: StringName,
 	keyword: StringName
 ) -> bool:
-	var def_id := _definition_id(game_ctx, card_id)
-	var has_kw := EffectiveCharacteristicQuery.has_effective_keyword(
-		game_ctx, card_id, def_id, keyword
-	)
-	if keyword == &"surge":
-		EncounterGainedKeyword.unregister_for_card(game_ctx, card_id)
-	return has_kw
+	## 开火只认武装标记；涌动开火后卸抽牌期标记。
+	var armed := KeywordMount.is_keyword_armed(game_ctx, card_id, keyword)
+	if keyword == &"surge" and armed:
+		KeywordMount.unmount_gained_for_card(game_ctx, card_id)
+	return armed
+
+
+## LISTENER 消费：只认 Registration KEYWORD 武装（进场 WHEN 已挂；不懒读 Definition）。
+static func _armed_for_consume(
+	game_ctx: GameContext,
+	card_id: StringName,
+	_def_id: StringName,
+	keyword: StringName
+) -> bool:
+	return KeywordMount.is_keyword_armed(game_ctx, card_id, keyword)
 
 
 static func _definition_id(game_ctx: GameContext, card_id: StringName) -> StringName:

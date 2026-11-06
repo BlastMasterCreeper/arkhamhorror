@@ -53,7 +53,7 @@
 | 记法 | 含义 |
 |---|---|
 | `[per_investigator]` | Per investigator（× 起始调查员人数） |
-| `[unique]` | Unique 关键词（标题前星标） |
+| `[unique]` | 独特（标题特征，**不是关键词**；标题前星标） |
 | `[codex]` | Codex 条目（`[codex] X`） |
 | `[guardian]` `[seeker]` `[rogue]` `[mystic]` `[survivor]` | 职业图标 |
 

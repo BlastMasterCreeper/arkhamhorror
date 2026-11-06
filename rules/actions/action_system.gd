@@ -52,12 +52,14 @@ func play_card(investigator_id: StringName, card_id: StringName) -> Dictionary:
 		return {"ok": false, "error": "not_in_hand"}
 	var def_id := card.id.definition_id
 	var on_play := CardRegistry.build_on_play_composition(_game_ctx, investigator_id, card_id)
+	var form := CardRegistry.play_form_for(def_id)
 	var intent := InitiationIntent.play_card(
 		investigator_id,
 		card_id,
 		CardRegistry.resource_cost(def_id),
 		CardRegistry.action_cost(def_id),
-		on_play
+		on_play,
+		form
 	)
 	var res := _initiation.initiate(intent, _game_ctx)
 	if res.ok:

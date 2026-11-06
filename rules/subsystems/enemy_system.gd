@@ -235,9 +235,7 @@ func _materialize_enemy(
 	enemy.aloof = CardRegistry.is_aloof(def_id)
 	enemy.massive = CardRegistry.has_keyword(def_id, &"massive") or bool(stats.get("massive", false))
 	_state.registry.register_enemy(enemy)
-	## 冷漠：Domain 拥有 + FORBID_ATTACK Register（Fight 入口读）。
-	if enemy.aloof:
-		AloofStatus.ensure_forbid_attack(game_ctx, card_id)
+	## 冷漠 FORBID_ATTACK：进场 KeywordMount @ ENTER_PLAY（notify_zone_set）。
 	return {"ok": true}
 
 

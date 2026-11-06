@@ -393,7 +393,8 @@ class InterruptTarget:
 |---|---|
 | IMPACT（`pending_id`） | 已接 `PendingResolutionStore` |
 | SEQUENCE（`flow_id` + bind） | 已接 `RulesMemory.cancel_sequence` → G3 跳过 composition |
-| COST / KEYWORD / CHAOS_TOKEN | 待接 Initiation / keyword / chaos 子系统 |
+| KEYWORD（`surge` + `scope.card_id`） | 已接：cancel/ignore → `KeywordMount` 卸武装标记（AFTER 不抽）；反击等 IgnoreMask 仍待 |
+| COST / CHAOS_TOKEN | 待接 Initiation / chaos 子系统 |
 
 ### 6.0.1 样例：Ward of Protection（Cancel · SEQUENCE）
 

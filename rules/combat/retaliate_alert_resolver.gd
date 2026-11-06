@@ -59,13 +59,8 @@ static func _can_trigger(
 		return false
 	if not enemy.is_at_location(inv.location_tag):
 		return false
-	var def_id := _definition_id(game_ctx, enemy_id)
-	match keyword:
-		&"retaliate":
-			return CardRegistry.is_retaliate(def_id)
-		&"alert":
-			return CardRegistry.is_alert(def_id)
-	return false
+	## 进场 KeywordMount 武装；不懒读 Definition。
+	return KeywordMount.is_keyword_armed(game_ctx, enemy_id, keyword)
 
 
 static func _perform(
@@ -95,10 +90,3 @@ static func _perform(
 			}
 		)
 	return {"ok": true, "triggered": true, "kind": kind}
-
-
-static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:
-	var card := game_ctx.state.registry.get_card(enemy_id)
-	if card == null:
-		return enemy_id
-	return card.id.definition_id

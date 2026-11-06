@@ -203,7 +203,8 @@ static func hidden_in_hand(controller_id: StringName, card_id: StringName) -> Re
 	return t
 
 
-## G3 动态 keyword · `WHILE_DRAWN_CARD_RESOLVING(card_id)` — G5 evaluate 后 Unregister；G4 peril 不清除。
+## 印刷 WHEN / G3 gains 共用 KEYWORD 标记 · `WHILE_DRAWN_CARD_RESOLVING(card_id)`。
+## 幂等；G4 peril 不清除；AFTER 开火后 Unregister。
 static func gained_keyword_drawn_card_resolving(
 	card_id: StringName,
 	keyword: StringName
@@ -211,6 +212,16 @@ static func gained_keyword_drawn_card_resolving(
 	var t := RegistrationTemplate.new()
 	t.controller_id = &""
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
+	t.drawn_card_id = card_id
+	t.buffs.append(BuffSpec.keyword_buff(keyword))
+	return t
+
+
+## 进场 LISTENER 拥有标记 · `WHILE_IN_PLAY`（猎手/巡逻/反击/警戒/逃逸/厄运…）；离场卸。
+static func keyword_while_in_play(card_id: StringName, keyword: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
 	t.drawn_card_id = card_id
 	t.buffs.append(BuffSpec.keyword_buff(keyword))
 	return t

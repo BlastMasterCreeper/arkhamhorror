@@ -1,19 +1,15 @@
 class_name SurgeKeywordFlow
 extends RefCounted
 
-## seq.keyword.surge · 抽取并结算后的关键词消费：卸标记，再 nest 一条新的遭遇抽牌。
+## seq.keyword.surge · 抽取并结算后的关键词消费：只认武装 KEYWORD 标记（不懒读 Definition）。
+## 印刷在 WHEN 挂载；gains 幂等补挂；取消全部效果卸标记后此处不发火。
 
 
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var drawer_id: StringName = params.get("drawer_id", &"")
 	var card_id: StringName = params.get("card_id", &"")
-	var def_id: StringName = params.get("def_id", &"")
-	if def_id == &"":
-		def_id = _definition_id(game_ctx, card_id)
-	var should_surge := EffectiveCharacteristicQuery.has_effective_keyword(
-		game_ctx, card_id, def_id, &"surge"
-	)
-	EncounterGainedKeyword.unregister_for_card(game_ctx, card_id)
+	var should_surge := KeywordMount.is_surge_armed(game_ctx, card_id)
+	KeywordMount.unmount_gained_for_card(game_ctx, card_id)
 	if not should_surge:
 		return _empty_result()
 	if game_ctx == null or game_ctx.sequence_catalog == null:
@@ -58,15 +54,6 @@ static func _empty_result() -> Dictionary:
 		"spawn_failed_discards": [] as Array[StringName],
 		"shuffles": 0,
 	}
-
-
-static func _definition_id(game_ctx: GameContext, card_id: StringName) -> StringName:
-	if game_ctx == null or game_ctx.state == null:
-		return &""
-	var card := game_ctx.state.registry.get_card(card_id)
-	if card == null:
-		return &""
-	return card.id.definition_id
 
 
 static func _append_ids(dst: Array[StringName], src: Variant) -> void:
