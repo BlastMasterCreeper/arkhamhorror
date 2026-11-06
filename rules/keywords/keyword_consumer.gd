@@ -70,6 +70,64 @@ static func evaluate_keyword(
 	return armed
 
 
+## REPLACE 竖切（庞大）：按 slot 收集 TIER_REPLACE；武装则 nest consume_flow（redirect payload）。
+## 返回 redirected=true 时父 RESOLVE 体被替换，不再跑原攻击叶。
+static func try_redirect(
+	game_ctx: GameContext,
+	slot: StringName,
+	card_id: StringName,
+	params: Dictionary = {}
+) -> Dictionary:
+	var out := {"redirected": false, "ok": true, "attacks": 0}
+	if game_ctx == null or card_id == &"":
+		return out
+	var def_id := _definition_id(game_ctx, card_id)
+	var catalog := game_ctx.sequence_catalog
+	for profile in KeywordProfileTable.profiles_for_slot(slot):
+		if profile.category_tier != KeywordProfileTable.TIER_REPLACE:
+			continue
+		if profile.consume_flow_id == &"":
+			continue
+		if not _armed_for_consume(game_ctx, card_id, def_id, profile.keyword):
+			continue
+		## 庞大：仅 PHASE 攻击 redirect；AOO 等仍单次。
+		if profile.keyword == &"massive":
+			var attack_kind: int = int(params.get("attack_kind", AhcEnums.AttackKind.OPPORTUNITY))
+			if attack_kind != AhcEnums.AttackKind.PHASE:
+				continue
+		if catalog == null or not catalog.has_flow(profile.consume_flow_id):
+			continue
+		## redirect payload：替换目标 = 当前攻击序列；替换体 = profile.consume_flow_id。
+		var redirect := {
+			"target": ReplacementTarget.sequence(
+				KeywordProfileTable.FLOW_ENEMY_ATTACK,
+				{"enemy_id": card_id, "card_id": card_id}
+			),
+			"replacement_flow_id": profile.consume_flow_id,
+			"keyword": profile.keyword,
+		}
+		var nested: Dictionary = catalog.nest(
+			game_ctx,
+			profile.consume_flow_id,
+			{
+				"drawer_id": params.get("drawer_id", &""),
+				"card_id": card_id,
+				"enemy_id": card_id,
+				"def_id": def_id,
+				"redirect": redirect,
+			}
+		)
+		out["redirected"] = true
+		out["ok"] = bool(nested.get("ok", true))
+		out["attacks"] = int(nested.get("attacks", 0))
+		out["interrupted"] = bool(nested.get("interrupted", false))
+		out["redirect"] = redirect
+		_merge_nested(out, nested)
+		## 同 slot 只取一条 REPLACE（fire_priority 已排序）。
+		break
+	return out
+
+
 ## LISTENER 消费：只认 Registration KEYWORD 武装（进场 WHEN 已挂；不懒读 Definition）。
 static func _armed_for_consume(
 	game_ctx: GameContext,

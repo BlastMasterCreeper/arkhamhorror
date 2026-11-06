@@ -237,6 +237,16 @@ static func keyword_while_in_deck(card_id: StringName, keyword: StringName) -> R
 	return t
 
 
+## 绑定（Bonded）· `WHILE_SET_ASIDE` KEYWORD 标记；离开 set-aside 卸。
+static func keyword_while_set_aside(card_id: StringName, keyword: StringName) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = &""
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_SET_ASIDE
+	t.drawn_card_id = card_id
+	t.buffs.append(BuffSpec.keyword_buff(keyword))
+	return t
+
+
 ## 可挂载特征（独特 / 胜利 / 复仇）· `WHILE_IN_PLAY`；离场卸。
 static func characteristic_while_in_play(
 	card_id: StringName,

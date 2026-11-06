@@ -671,7 +671,7 @@ mount（进场 / G2 / …）
 | **Surge** | 抽牌 WHEN / GRANT | `(seq.draw.encounter, AFTER_DRAWN_CARD)` | DELAYED | 10 | `seq.keyword.surge` |
 | **Hunter** | ENTER_PLAY | `(seq.enemy.3_2, ENEMY_3_2)` | LISTENER | **10** | `seq.keyword.hunter` |
 | **Patrol** | ENTER_PLAY | `(seq.enemy.3_2, ENEMY_3_2)` | LISTENER | **20** | `seq.keyword.patrol` |
-| **Massive** | ENTER_PLAY | `(seq.enemy.attack, ATTACK)` · PHASE kind | **REPLACE** | 10 | `seq.keyword.massive`（PHASE→batch；AOO 不替换为多目标） |
+| **Massive** | ENTER_PLAY → KEYWORD 武装 | `(seq.enemy.attack, ATTACK)` · PHASE kind | **REPLACE** | 10 | redirect payload → nest `seq.keyword.massive`（PHASE→batch；AOO 不 redirect） |
 | **Retaliate** | ENTER_PLAY | `(seq.skill_test, POST_ST7_FAIL)` · Fight 失败 | LISTENER | 10 | attack（竖切） |
 | **Alert** | ENTER_PLAY | `(seq.skill_test, POST_ST7_FAIL)` · Evade 失败 | LISTENER | 20 | attack（竖切） |
 | **Elusive** | ENTER_PLAY | `(seq.enemy.attack, AFTER_ATTACK)`（含被 Fight） | LISTENER | 10 | flee+exhaust |

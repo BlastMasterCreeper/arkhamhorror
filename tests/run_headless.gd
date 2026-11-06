@@ -328,6 +328,10 @@ func _initialize() -> void:
 	_run_test("CHAR-04 gained unique blocks same title", _test_char_gained_unique_blocks_play)
 	_run_test("PERM-01 permanent forbids leave play", _test_permanent_forbid_leave_play)
 	_run_test("START-01 after opening hands pulls starting", _test_starting_search_after_hands)
+	_run_test("BONDED-01 setup set-aside arms keyword", _test_bonded_setup_set_aside)
+	_run_test("BONDED-02 bonded not deck size", _test_bonded_not_deck_size)
+	_run_test("MASSIVE-01 enter play arms keyword", _test_massive_enter_play_arms)
+	_run_test("MASSIVE-02 phase attack redirects via REPLACE", _test_massive_phase_redirect)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -7233,6 +7237,106 @@ func _test_permanent_forbid_leave_play() -> bool:
 	return not moved and card != null and card.zone == AhcEnums.Zone.PLAY_AREA
 
 
+func _test_bonded_setup_set_aside() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"bonded_hope",
+		{
+			"card_type": &"asset",
+			"bonded": true,
+			"keywords": [&"bonded"],
+			"resource_cost": 0,
+			"title": "Hope",
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var bid := h.ctx.state.registry.allocate_instance_id(&"card")
+	var bc := CardInstance.new()
+	bc.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, bid, &"bonded_hope")
+	bc.owner_id = &"inv_1"
+	bc.controller_id = &"inv_1"
+	bc.zone = AhcEnums.Zone.DECK
+	h.ctx.state.registry.register_card(bc)
+	inv.deck.append(bid)
+	InvestigatorSetupFlow.place_bonded(h.ctx)
+	return (
+		not inv.deck.has(bid)
+		and h.ctx.state.set_aside.has(bid)
+		and bc.zone == AhcEnums.Zone.SET_ASIDE
+		and KeywordMount.is_keyword_armed(h.ctx, bid, &"bonded")
+	)
+
+
+func _test_bonded_not_deck_size() -> bool:
+	var view := DeckCardView.from_definition_dict(
+		{"card_type": &"asset", "bonded": true, "keywords": [&"bonded"], "title": "Hope"},
+		&"bonded_hope"
+	)
+	return view.bonded and not view.counts_toward_deck_size()
+
+
+func _test_massive_enter_play_arms() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_massive_arm",
+		&"test_loc",
+		{"keywords": [&"massive"], "enemy": {"damage": 1}}
+	)
+	return enemy_id != &"" and KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"massive")
+
+
+func _test_massive_phase_redirect() -> bool:
+	## PHASE 攻击经 KeywordConsumer.try_redirect → seq.keyword.massive（非父 handler 内联）。
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	GameBootstrap.setup_test_location(h.ctx, &"mass_redir")
+	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv1.location_tag = &"mass_redir"
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"mass_redir", {})
+	var enemy_id := _spawn_enemy_at(
+		h,
+		&"en_massive_redir",
+		&"mass_redir",
+		{"keywords": [&"massive"], "enemy": {"damage": 1, "horror": 0}}
+	)
+	if enemy_id == &"" or not KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"massive"):
+		return false
+	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
+	inv1.damage_taken = 0
+	inv2.damage_taken = 0
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"order:massive_phase_attacks", "pick": [&"inv_1", &"inv_2"]},
+	])
+	var redirected := KeywordConsumer.try_redirect(
+		h.ctx,
+		KeywordProfileTable.SLOT_ATTACK,
+		enemy_id,
+		{"attack_kind": AhcEnums.AttackKind.PHASE}
+	)
+	if not bool(redirected.get("redirected", false)):
+		return false
+	var redirect: Dictionary = redirected.get("redirect", {})
+	var target: ReplacementTarget = redirect.get("target", null) as ReplacementTarget
+	var aoo := KeywordConsumer.try_redirect(
+		h.ctx,
+		KeywordProfileTable.SLOT_ATTACK,
+		enemy_id,
+		{"attack_kind": AhcEnums.AttackKind.OPPORTUNITY}
+	)
+	return (
+		int(redirected.get("attacks", 0)) == 2
+		and inv1.damage_taken == 1
+		and inv2.damage_taken == 1
+		and target != null
+		and target.kind == ReplacementTarget.Kind.SEQUENCE
+		and target.flow_id == KeywordProfileTable.FLOW_ENEMY_ATTACK
+		and redirect.get("replacement_flow_id", &"") == KeywordProfileTable.FLOW_KEYWORD_MASSIVE
+		and not bool(aoo.get("redirected", false))
+	)
+
+
 func _test_starting_search_after_hands() -> bool:
 	var h := RuleTestHarness.new(42)
 	CardRegistry.register_definition(
@@ -11945,7 +12049,7 @@ func _test_en09_massive_phase_both() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
 		{"prompt_id": &"order:massive_phase_attacks", "pick": [&"inv_1", &"inv_2"]},
 	])
-	## 经 3.3 基础手续；庞大 REPLACE → seq.keyword.massive（非平行 massive 流程）。
+	## 经 3.3 基础手续；庞大 REPLACE redirect → seq.keyword.massive（非平行 massive 流程）。
 	var result := h.ctx.enemy_phase.run_phase_attacks(h.ctx, &"inv_1")
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
@@ -11953,6 +12057,7 @@ func _test_en09_massive_phase_both() -> bool:
 		and inv1.damage_taken == 2
 		and inv2.damage_taken == 2
 		and enemy.exhausted
+		and KeywordMount.is_keyword_armed(h.ctx, enemy_id, &"massive")
 		and h.ctx.sequence_catalog.has_flow(&"seq.keyword.massive")
 		and not h.ctx.sequence_catalog.has_flow(&"seq.enemy.massive_phase_attacks")
 	)

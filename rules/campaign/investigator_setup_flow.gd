@@ -120,11 +120,12 @@ static func assemble_chaos_bag(game_ctx: GameContext) -> Dictionary:
 	return {"ok": true, "source": source, "size": tokens.size()}
 
 
-## SETUP_04 · 永久进场 → 挂载起始 → Shuffle investigator decks。
+## SETUP_04 · 永久进场 → 绑定置一边 → 挂载起始 → Shuffle investigator decks。
 static func shuffle_decks(game_ctx: GameContext) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	place_permanents(game_ctx)
+	place_bonded(game_ctx)
 	StartingKeyword.mount_printed_in_decks(game_ctx)
 	var shuffled: Array[StringName] = []
 	for inv_id in game_ctx.state.registry.all_investigator_ids():
@@ -140,6 +141,45 @@ static func shuffle_decks(game_ctx: GameContext) -> Dictionary:
 			AhcEnums.LogCategory.SCENARIO, "setup:shuffle_decks", {"investigators": shuffled}
 		)
 	return {"ok": true, "shuffled": shuffled}
+
+
+## 绑定卡从牌库置一边（Grimoire Bonded · 不计牌组；宿主打出后再召唤）。
+static func place_bonded(game_ctx: GameContext) -> Dictionary:
+	var placed: Array = []
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false, "placed": placed}
+	for inv_id in game_ctx.state.registry.all_investigator_ids():
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv == null:
+			continue
+		var from_deck: Array[StringName] = inv.deck.duplicate()
+		for card_id in from_deck:
+			var card := game_ctx.state.registry.get_card(card_id)
+			if card == null or card.id == null:
+				continue
+			if not CardRegistry.is_bonded(card.id.definition_id):
+				continue
+			inv.deck.erase(card_id)
+			if game_ctx.mutator != null:
+				game_ctx.mutator.move_to_set_aside(card_id)
+			else:
+				card.zone = AhcEnums.Zone.SET_ASIDE
+				if not game_ctx.state.set_aside.has(card_id):
+					game_ctx.state.set_aside.append(card_id)
+			KeywordMount.mount_at(
+				game_ctx,
+				KeywordProfileTable.FLOW_SETUP,
+				KeywordProfileTable.SLOT_ENTER_SET_ASIDE,
+				card_id,
+				&"",
+				card.id.definition_id
+			)
+			## 无 profile register 命中时仍幂等挂载。
+			KeywordMount.mount_bonded_if_absent(game_ctx, card_id, card.id.definition_id)
+			placed.append({"investigator_id": inv_id, "card_id": card_id})
+	if game_ctx.log != null and not placed.is_empty():
+		game_ctx.log.log(AhcEnums.LogCategory.SCENARIO, "setup:place_bonded", {"placed": placed})
+	return {"ok": true, "placed": placed}
 
 
 ## 永久卡从牌库放入场（Grimoire Permanent · 开局进场，不计抽牌）。

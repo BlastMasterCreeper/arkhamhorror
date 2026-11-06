@@ -13,6 +13,7 @@ const _IN_PLAY_LISTENERS: Array[StringName] = [
 	&"alert",
 	&"elusive",
 	&"doomed",
+	&"massive",
 ]
 
 
@@ -114,13 +115,15 @@ static func _mount_profile(
 		&"aloof":
 			if _printed_in_play(def_id, &"aloof"):
 				AloofStatus.ensure_forbid_attack(game_ctx, card_id)
-		&"hunter", &"patrol", &"retaliate", &"alert", &"elusive", &"doomed":
+		&"hunter", &"patrol", &"retaliate", &"alert", &"elusive", &"doomed", &"massive":
 			if _printed_in_play(def_id, profile.keyword):
 				mount_gained(game_ctx, card_id, profile.keyword)
 		&"permanent":
 			mount_permanent_if_absent(game_ctx, card_id, def_id)
 		&"starting":
 			mount_starting_if_absent(game_ctx, card_id, def_id)
+		&"bonded":
+			mount_bonded_if_absent(game_ctx, card_id, def_id)
 		_:
 			pass
 
@@ -167,6 +170,26 @@ static func mount_starting_if_absent(
 	)
 
 
+## 玩家轴 · 绑定：set-aside 挂 KEYWORD 标记（幂等）。
+static func mount_bonded_if_absent(
+	game_ctx: GameContext,
+	card_id: StringName,
+	def_id: StringName
+) -> void:
+	if game_ctx == null or card_id == &"":
+		return
+	if not CardRegistry.is_bonded(def_id):
+		return
+	if is_keyword_armed(game_ctx, card_id, &"bonded"):
+		return
+	CompositionMount.register_effect(
+		game_ctx,
+		RegistrationTemplate.keyword_while_set_aside(card_id, &"bonded"),
+		&"",
+		card_id
+	)
+
+
 static func _printed_in_play(def_id: StringName, keyword: StringName) -> bool:
 	match keyword:
 		&"hunter":
@@ -183,6 +206,8 @@ static func _printed_in_play(def_id: StringName, keyword: StringName) -> bool:
 			return CardRegistry.is_doomed(def_id)
 		&"aloof":
 			return CardRegistry.is_aloof(def_id)
+		&"massive":
+			return CardRegistry.is_massive(def_id)
 		&"permanent":
 			return CardRegistry.is_permanent(def_id)
 		_:

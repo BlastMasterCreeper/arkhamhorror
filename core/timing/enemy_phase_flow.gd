@@ -103,33 +103,6 @@ static func _enemies_attacking_investigator(
 	return out
 
 
-static func _has_massive(game_ctx: GameContext, enemy_id: StringName) -> bool:
-	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-	if enemy != null and enemy.massive:
-		return true
-	var card := game_ctx.state.registry.get_card(enemy_id)
-	if card == null:
-		return false
-	return CardRegistry.is_massive(card.id.definition_id)
-
-
-static func _resolve_massive_replacement(
-	game_ctx: GameContext,
-	enemy_id: StringName
-) -> Dictionary:
-	## 对一般攻击效果的 REPLACE：nest seq.keyword.massive。
-	if (
-		game_ctx.sequence_catalog != null
-		and game_ctx.sequence_catalog.has_flow(&"seq.keyword.massive")
-	):
-		return game_ctx.sequence_catalog.nest(
-			game_ctx,
-			&"seq.keyword.massive",
-			{"card_id": enemy_id, "enemy_id": enemy_id}
-		)
-	return MassiveEngagement.resolve_phase_batch(game_ctx, enemy_id)
-
-
 static func resolve_location(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	return EnemyLocationTarget.resolve(game_ctx, params)
 
@@ -144,8 +117,8 @@ static func move(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 
 
 static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	## 一般敌人攻击效果。庞大在 **敌军阶段攻击**（PHASE）上 REPLACE 为 batch；
-	## AOO 等其它 kind 仍单次命中（魔典：借机只打触发者）。
+	## 一般敌人攻击效果。ATTACK 槽 REPLACE（庞大）以 redirect payload 替换本叶；
+	## AOO 等非 PHASE 不 redirect（魔典：借机只打触发者）。
 	if game_ctx == null or game_ctx.combat == null:
 		return {"ok": false}
 	var enemy_id: StringName = params.get("enemy_id", &"")
@@ -158,8 +131,14 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if enemy == null:
 		return {"ok": false}
 	var attack_kind: int = int(params.get("attack_kind", AhcEnums.AttackKind.OPPORTUNITY))
-	if _has_massive(game_ctx, enemy_id) and attack_kind == AhcEnums.AttackKind.PHASE:
-		return _resolve_massive_replacement(game_ctx, enemy_id)
+	var redirected := KeywordConsumer.try_redirect(
+		game_ctx,
+		KeywordProfileTable.SLOT_ATTACK,
+		enemy_id,
+		params
+	)
+	if bool(redirected.get("redirected", false)):
+		return redirected
 	if target == &"":
 		return {"ok": true, "skipped": true}
 	var exhaust_after: bool = bool(params.get("exhaust_after", false))
