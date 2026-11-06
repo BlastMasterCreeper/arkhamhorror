@@ -582,7 +582,7 @@ on_card_leave_play(card)
 | **Hunter / Patrol** | LISTENER | **ENTER_PLAY** | **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | **Retaliate / Alert / Elusive** 逃逸 | LISTENER | **ENTER_PLAY** | **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | **Doomed** 厄运降临 | LISTENER | **ENTER_PLAY** | 击败内核开火后随 **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
-| **Swarming** 集群 | LISTENER 延时 | **ENTER_PLAY** | 进场父流程 **AFTER** = `FIRED` | `UNTIL_FIRED` | PLAY |
+| **Swarming** 集群（官方：蜂拥） | LISTENER 延时 | **ENTER_PLAY** | 进场父流程 **AFTER** = `FIRED` | `UNTIL_FIRED` | PLAY |
 | **Starting** 起始 | LISTENER 延时 | `seq.setup` 开局（牌在库） | 同流程换牌后砖 **AFTER** = `FIRED` | `WHILE_IN_DECK` + `UNTIL_FIRED` | **DECK** |
 | **Permanent** 永久 | RESTRICTION | `seq.setup` 放入场 = **ENTER_PLAY**（**不是**从手打出） | 仅卡面允许离场或拥有者淘汰 | `WHILE_IN_PLAY` | PLAY |
 | **Fast.** 快速 | 打出形式 | **不** Register LISTENER | — | 无 | **HAND**；种类始终 `PLAY_CARD` |
@@ -1544,7 +1544,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 | 2026-09-21 | v0.4.17 | §4：卡面创建 Buff = nest `seq.effect.register`；管线 Register 仍是父 seq 砖 |
 | 2026-09-21 | v0.4.16 | 打出始终 `PLAY_CARD`；Fast 编译 `play_form`（窗口/花费对称），不收成 `ABILITY` |
 | 2026-09-21 | v0.4.15 | **Fast.** 打出与支援触发对称：无 Fast≈激活、无时点≈免费、有时点≈反应；非单独成本政策 |
-| 2026-09-21 | v0.4.14 | **§3.2.6** 注册/注销绑已有 `seq.*` 砖或 zone 变迁；禁止 `PERIL_CHECK` 等独立场合节点；译名：永久 / 绑定 / 独特 / 集群（旧译蜂拥） / 多重 |
+| 2026-09-21 | v0.4.14 | **§3.2.6** 注册/注销绑已有 `seq.*` 砖或 zone 变迁；禁止 `PERIL_CHECK` 等独立场合节点；译名：永久 / 绑定 / 独特 / 集群（官方蜂拥） / 多重 |
 | 2026-09-21 | v0.4.13 | **§3.2.6** 关键词/能力 LISTENER 注册与注销场合；不只有进场/离场 |
 | 2026-09-21 | v0.4.12 | **§3.2.5** 分表：指令 / 参数 / 关键词三种 Buff 的实现路径 |
 | 2026-09-21 | v0.4.11 | **§3.2.5** 关键词编译为三种 Buff；猎物/生成为指令，不进 KeywordProfile |
