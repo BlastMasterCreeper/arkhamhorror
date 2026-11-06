@@ -175,7 +175,8 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 
 | 内容 | 归类 | 说明 |
 |---|---|---|
-| Victory X、Bearer、My Collection | 静态 / 路由元数据 | defeat、weakness、构筑 |
+| Bearer、My Collection | 静态 / 路由元数据 | weakness、构筑 |
+| Unique / Victory X / Vengeance X | **可挂载特征**（非关键词） | `CharacteristicMount` · CHARACTERISTIC；击败改去向见 [06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决) |
 | 🧣 per investigator | 印刷值缩放 | setup 乘数 |
 | Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff（[06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)） | RESTRICTION / LISTENER / MODIFIER；KEYWORD 标记只表示拥有 |
 | 技能图标 `[willpower]` 等 | `skills_icons` | commit / 检定，见 [04](04-skill-test-engine.md) |
@@ -190,10 +191,11 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 | **参数** 括号 / X / type | **①** | 挂在指令或关键词的 Spec 上；handler 内读 |
 | **关键词** 对局行为 | **③** | 编译为 `MODIFIER` / `RESTRICTION` / `LISTENER` |
 | **Fast.** 快速 | 打出形式（非能力） | 窗口/花费对称触发；种类始终 `PLAY_CARD`（[06 §4.2](06-ability-initiation.md#42-打出与触发对称fast打出-不是-能力)） |
-| Uses / Victory / Seal | L0 / Domain | 仍是关键词，不走三种 Buff |
+| Uses / Seal | L0 / Domain | 关键词，不走三种 Buff |
+| Unique / Victory / Vengeance | 可挂载特征 | **不是关键词**；`CharacteristicMount` |
 | 构筑关键词 | 11 | 对局不消费 |
 
-**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 BuffType。LISTENER 注册/注销绑已有 `seq.*` 砖或 zone 变迁，禁止 `PERIL_CHECK` 一类独立场合节点。见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)。
+**禁止**：把猎物/生成写进 KeywordProfile；把独特/胜利/复仇写进 KeywordProfile；为括号单独 nest；为关键词新增 BuffType。LISTENER 注册/注销绑已有 `seq.*` 砖或 zone 变迁，禁止 `PERIL_CHECK` 一类独立场合节点。见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)。
 
 ---
 

@@ -386,15 +386,16 @@ class KeywordMountService:
 卡面印刷
  ├─ 指令   Spawn – / Prey –     → CardDefinition.*Spec → ② 内核 Resolver
  ├─ 参数   括号 / X / type      → 挂在指令或关键词的 Spec 上 → handler 内同步读
+ ├─ 可挂载特征（非关键词）      → CHARACTERISTIC（独特 / 胜利 / 复仇）
  └─ 关键词                      → 拥有（印刷 ∪ KEYWORD 标记）
       ├─ RESTRICTION            Eligibility / Intent 查询
       ├─ LISTENER               Catalog emit → Composition（延时 = UNTIL_FIRED）
       ├─ MODIFIER               ModifierEngine / Initiation 成本
-      ├─ L0 / Domain            Uses 放 token、Victory 改去向、Seal 封印
+      ├─ L0 / Domain            Uses 放 token、Seal 封印
       └─ 构筑                   11；对局不消费
 ```
 
-**禁止**：为关键词新增 BuffType；把指令/参数写成 keyword 或 nest `seq.keyword.*`；把所有关键词塞进 `AFTER_DRAWN_CARD`。
+**禁止**：为关键词新增 BuffType；把指令/参数写成 keyword 或 nest `seq.keyword.*`；把所有关键词塞进 `AFTER_DRAWN_CARD`；把独特/胜利/复仇登记进 `KeywordProfileTable`。
 
 ##### A. 指令（不是关键词）
 
