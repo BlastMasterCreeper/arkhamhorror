@@ -581,6 +581,42 @@ static func is_starting(definition_id: StringName) -> bool:
 	return has_keyword(definition_id, &"starting")
 
 
+## 绑定（Bonded）· 玩家轴；setup 置一边，不计牌组规模。
+static func is_bonded(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("bonded", false):
+		return true
+	return has_keyword(definition_id, &"bonded")
+
+
+static func is_exceptional(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("exceptional", false):
+		return true
+	return has_keyword(definition_id, &"exceptional")
+
+
+static func is_myriad(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("myriad", false):
+		return true
+	return has_keyword(definition_id, &"myriad")
+
+
+static func is_reward(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("reward", false):
+		return true
+	return has_keyword(definition_id, &"reward")
+
+
+static func is_researched(definition_id: StringName) -> bool:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.get("researched", false):
+		return true
+	return has_keyword(definition_id, &"researched")
+
+
 ## 独特：可挂载标题特征，不是关键词（转发 UniqueTitle）。
 static func is_unique(definition_id: StringName) -> bool:
 	return UniqueTitle.is_unique(definition_id)

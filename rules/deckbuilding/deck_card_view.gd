@@ -18,12 +18,17 @@ var ignore_deckbuilding: bool = false
 var is_weakness: bool = false
 var exceptional: bool = false
 var myriad: bool = false
+var bonded: bool = false
+var reward: bool = false
+var researched: bool = false
 
 
 ## 是否计入 investigator Deck Size（Rulebook *Deck Customization* + Permanent / Bearer）。
-## Myriad **计入**；Permanent / 弱点 / Signature·Bearer（ignore_deckbuilding）**不计入**。
+## Myriad **计入**；Permanent / Bonded / 弱点 / Signature·Bearer（ignore_deckbuilding）**不计入**。
 func counts_toward_deck_size() -> bool:
 	if permanent:
+		return false
+	if bonded:
 		return false
 	if is_weakness:
 		return false
@@ -43,6 +48,9 @@ static func from_definition_dict(data: Dictionary, definition_id: StringName = &
 	v.is_weakness = bool(data.get("is_weakness", false))
 	v.exceptional = bool(data.get("exceptional", false))
 	v.myriad = bool(data.get("myriad", false))
+	v.bonded = bool(data.get("bonded", false))
+	v.reward = bool(data.get("reward", false))
+	v.researched = bool(data.get("researched", false))
 	v.factions = _string_names(data.get("factions", []))
 	if v.factions.is_empty():
 		var fc := str(data.get("faction_code", ""))
@@ -63,7 +71,7 @@ static func from_definition_dict(data: Dictionary, definition_id: StringName = &
 			var un := StringName(str(u).to_lower())
 			if un != &"" and not v.uses_types.has(un):
 				v.uses_types.append(un)
-	## keywords 数组回填 permanent / exceptional / myriad / weakness。
+	## keywords 数组回填 permanent / exceptional / myriad / bonded / reward / researched / weakness。
 	var kws: Variant = data.get("keywords", [])
 	if kws is Array:
 		for kw in kws as Array:
@@ -74,6 +82,12 @@ static func from_definition_dict(data: Dictionary, definition_id: StringName = &
 				v.exceptional = true
 			elif k == "myriad":
 				v.myriad = true
+			elif k == "bonded":
+				v.bonded = true
+			elif k == "reward":
+				v.reward = true
+			elif k == "researched":
+				v.researched = true
 			elif k == "weakness" or k == "basicweakness":
 				v.is_weakness = true
 	## subtype_code 回填弱点（导入字段）。
