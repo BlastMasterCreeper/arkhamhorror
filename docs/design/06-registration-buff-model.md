@@ -484,9 +484,11 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 | 特征 | 落地 | 实现路径 | 现状 |
 |---|---|---|---|
-| **Unique** 独特 | `ENTER_PLAY` → CHARACTERISTIC | `UniqueTitle` + `CharacteristicMount` | ✅ |
-| **Victory X** | `ENTER_PLAY` → CHARACTERISTIC 标量；击败改去向 | `CharacteristicMount`；计分可盖章 | ✅ |
+| **Unique** 独特 | `ENTER_PLAY` / gains → CHARACTERISTIC | 印刷检测 `UniqueTitle`；武装与 gains 均 `CharacteristicMount`；同名查询读有效独特 | ✅ |
+| **Victory X** | `ENTER_PLAY` / gains → CHARACTERISTIC 标量 | 同挂载入口；击败改去向；计分可盖章 | ✅ |
 | **Vengeance X** | 同 Victory 去向，计分语义相反 | 同上 | ✅ |
+
+> **同一挂载面**：独特与胜利都是可挂载特征——印刷进场与 `gains …` 共用 `CharacteristicMount.mount_gained`；**禁止**为二者分叉第二套 Store / Policy。
 | **Exceptional / Myriad（多重） / Reward / Researched / Bonded（绑定） / Customizable** | 构筑 | [11](11-investigator-campaign.md) | Collector 有 Reward |
 
 **不是关键词、也不是指令/参数**：Exile（能力）、`[fast]` / `[reaction]` / `[action]`、Forced、Revelation、Bearer。

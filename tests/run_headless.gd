@@ -325,6 +325,7 @@ func _initialize() -> void:
 	_run_test("CHAR-01 victory not a keyword profile", _test_victory_not_keyword_profile)
 	_run_test("CHAR-02 enter play mounts unique+victory", _test_char_mount_enter_play)
 	_run_test("CHAR-03 gained victory routes to display", _test_char_gained_victory_routes)
+	_run_test("CHAR-04 gained unique blocks same title", _test_char_gained_unique_blocks_play)
 	_run_test("PERM-01 permanent forbids leave play", _test_permanent_forbid_leave_play)
 	_run_test("START-01 after opening hands pulls starting", _test_starting_search_after_hands)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
@@ -7178,6 +7179,40 @@ func _test_char_gained_victory_routes() -> bool:
 		bool(routed.get("victory_display", false))
 		and h.ctx.state.victory_display.has(enemy_id)
 		and h.ctx.state.total_victory_points() == 2
+	)
+
+
+func _test_char_gained_unique_blocks_play() -> bool:
+	## 场上非印刷独特卡 gains Unique → 同名印刷独特无法打出（与 Victory 同挂载路径）。
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(
+		&"plain_naomi",
+		{"card_type": &"asset", "title": "Naomi", "resource_cost": 0}
+	)
+	CardRegistry.register_definition(
+		&"unique_naomi",
+		{"card_type": &"asset", "title": "[unique]Naomi", "is_unique": true, "resource_cost": 0}
+	)
+	var plain_id := GameBootstrap.add_asset_to_play(h.ctx, &"inv_1", &"plain_naomi")
+	if plain_id == &"":
+		return false
+	CharacteristicMount.mount_gained(h.ctx, plain_id, CharacteristicMount.CHAR_UNIQUE, 0)
+	if not CharacteristicMount.has_effective_unique(h.ctx, plain_id):
+		return false
+	var second := h.ctx.state.registry.allocate_instance_id(&"card")
+	var c2 := CardInstance.new()
+	c2.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, second, &"unique_naomi")
+	c2.owner_id = &"inv_1"
+	c2.controller_id = &"inv_1"
+	c2.zone = AhcEnums.Zone.HAND
+	h.ctx.state.registry.register_card(c2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.hand.append(second)
+	var play2 := h.ctx.actions.play_card(&"inv_1", second)
+	return (
+		not play2.ok
+		and str(play2.get("error", "")) == "unique_in_play"
+		and inv.hand.has(second)
 	)
 
 
