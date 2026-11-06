@@ -314,6 +314,8 @@ enum RestrictionKind {
 	## 冷漠（Aloof）：未交战时不能被 Fight。挂 WHILE_IN_PLAY；已交战则 Evaluator 放行。
 	## 禁自动交战仍由 spawn / auto-engage 读拥有（Domain/keyword），不经本 Kind。
 	FORBID_ATTACK,
+	## 永久（Permanent）：禁止离场（REST-E-MOVE）。卡面明示允许离场时另开豁免；默认拦。
+	FORBID_LEAVE_PLAY,
 	## 伤害/恐惧 Assign（分摊）约束：原流程（DamageAssigner）读取；非 LISTENER / Cancel。
 	## payload 见 RestrictionPayload.assign_* + AssignConstraintOp。
 	ASSIGN_CONSTRAINT,
@@ -342,7 +344,8 @@ enum AssignDirectScope {
 	BOTH,
 }
 
-enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }
+## CHARACTERISTIC：可挂载非关键词特征（独特 / 胜利 / 复仇…）；≠ KEYWORD 表。
+enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD, CHARACTERISTIC }
 
 enum CompositionNodeKind { SEQ, ATOM, REGISTER, IF, CHOICE, OPTIONAL, REPEAT, FOR_EACH }
 

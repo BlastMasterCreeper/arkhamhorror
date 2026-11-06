@@ -49,6 +49,8 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	var from_zone := card.zone
 	if _would_leave_hand(card, to) and _blocks_leave_hand(card_id):
 		return false
+	if _would_leave_play(card, to) and _blocks_leave_play(card_id):
+		return false
 	if _would_leave_hand(card, to):
 		var holder_id := card.controller_id
 		if holder_id == &"":
@@ -434,6 +436,8 @@ func move_to_set_aside(card_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
+	if ZoneMoveFlow.zone_is_in_play(card.zone) and _blocks_leave_play(card_id):
+		return false
 	var from_zone := card.zone
 	_clear_card_from_piles(card)
 	_state.set_aside.erase(card_id)
@@ -448,6 +452,8 @@ func move_to_set_aside(card_id: StringName) -> bool:
 func remove_from_game(card_id: StringName) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
+		return false
+	if ZoneMoveFlow.zone_is_in_play(card.zone) and _blocks_leave_play(card_id):
 		return false
 	var from_zone := card.zone
 	_clear_card_from_piles(card)
@@ -759,6 +765,28 @@ func _blocks_leave_hand(card_id: StringName) -> bool:
 	if _registrations == null:
 		return false
 	return RestrictionEvaluator.blocks_leave_hand(card_id, _registrations)
+
+
+func _would_leave_play(card: CardInstance, to: CardSlot) -> bool:
+	if not ZoneMoveFlow.zone_is_in_play(card.zone):
+		return false
+	return not ZoneMoveFlow.zone_is_in_play(_destination_zone(to))
+
+
+func _destination_zone(to: CardSlot) -> AhcEnums.Zone:
+	if to == null:
+		return AhcEnums.Zone.REMOVED_FROM_GAME
+	if to.owner_id == &"encounter":
+		return AhcEnums.Zone.DISCARD
+	if to.owner_id == &"victory_display":
+		return AhcEnums.Zone.VICTORY_DISPLAY
+	return _zone_for_pile(to.pile)
+
+
+func _blocks_leave_play(card_id: StringName) -> bool:
+	if _registrations == null:
+		return false
+	return RestrictionEvaluator.blocks_leave_play(card_id, _registrations)
 
 
 func _mirror_move_card(card: CardInstance, to: CardSlot) -> void:

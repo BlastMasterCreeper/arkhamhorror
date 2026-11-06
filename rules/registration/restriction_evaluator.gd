@@ -7,6 +7,7 @@ enum Intent {
 	TRIGGER,
 	COMMIT_TO_TEST,
 	LEAVE_HAND,
+	LEAVE_PLAY,
 	DISCOVER_CLUE,
 	SPEND_CLUE,
 	FIGHT,
@@ -27,6 +28,10 @@ static func blocks_trigger(actor_id: StringName, store: RegistrationStore) -> bo
 
 static func blocks_leave_hand(card_id: StringName, store: RegistrationStore) -> bool:
 	return block_reason(Intent.LEAVE_HAND, &"", store, null, card_id) != &""
+
+
+static func blocks_leave_play(card_id: StringName, store: RegistrationStore) -> bool:
+	return block_reason(Intent.LEAVE_PLAY, &"", store, null, card_id) != &""
 
 
 static func blocks_discover_clue(investigator_id: StringName, store: RegistrationStore) -> bool:
@@ -134,6 +139,12 @@ static func _matches(
 			if leave_hand_card_id == &"" or payload.drawn_card_id != leave_hand_card_id:
 				return &""
 			return &"restriction_forbid_leave_hand"
+		AhcEnums.RestrictionKind.FORBID_LEAVE_PLAY:
+			if intent != Intent.LEAVE_PLAY:
+				return &""
+			if leave_hand_card_id == &"" or payload.drawn_card_id != leave_hand_card_id:
+				return &""
+			return &"restriction_forbid_leave_play"
 		AhcEnums.RestrictionKind.FORBID_DISCOVER_CLUE:
 			if intent != Intent.DISCOVER_CLUE:
 				return &""

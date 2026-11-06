@@ -117,8 +117,54 @@ static func _mount_profile(
 		&"hunter", &"patrol", &"retaliate", &"alert", &"elusive", &"doomed":
 			if _printed_in_play(def_id, profile.keyword):
 				mount_gained(game_ctx, card_id, profile.keyword)
+		&"permanent":
+			mount_permanent_if_absent(game_ctx, card_id, def_id)
+		&"starting":
+			mount_starting_if_absent(game_ctx, card_id, def_id)
 		_:
 			pass
+
+
+## 玩家轴 · 永久：进场挂 FORBID_LEAVE_PLAY（幂等）。
+static func mount_permanent_if_absent(
+	game_ctx: GameContext,
+	card_id: StringName,
+	def_id: StringName
+) -> void:
+	if game_ctx == null or card_id == &"":
+		return
+	if not CardRegistry.is_permanent(def_id):
+		return
+	if game_ctx.registrations != null and RestrictionEvaluator.blocks_leave_play(
+		card_id, game_ctx.registrations
+	):
+		return
+	CompositionMount.register_effect(
+		game_ctx,
+		RegistrationTemplate.permanent_forbid_leave_play(card_id),
+		&"",
+		card_id
+	)
+
+
+## 玩家轴 · 起始：在库挂 KEYWORD 标记（幂等）；开火见 StartingKeyword。
+static func mount_starting_if_absent(
+	game_ctx: GameContext,
+	card_id: StringName,
+	def_id: StringName
+) -> void:
+	if game_ctx == null or card_id == &"":
+		return
+	if not CardRegistry.is_starting(def_id):
+		return
+	if is_keyword_armed(game_ctx, card_id, &"starting"):
+		return
+	CompositionMount.register_effect(
+		game_ctx,
+		RegistrationTemplate.keyword_while_in_deck(card_id, &"starting"),
+		&"",
+		card_id
+	)
 
 
 static func _printed_in_play(def_id: StringName, keyword: StringName) -> bool:
@@ -137,6 +183,8 @@ static func _printed_in_play(def_id: StringName, keyword: StringName) -> bool:
 			return CardRegistry.is_doomed(def_id)
 		&"aloof":
 			return CardRegistry.is_aloof(def_id)
+		&"permanent":
+			return CardRegistry.is_permanent(def_id)
 		_:
 			return CardRegistry.has_keyword(def_id, keyword)
 

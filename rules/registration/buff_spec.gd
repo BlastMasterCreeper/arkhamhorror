@@ -6,6 +6,9 @@ var modifier: ModifierPayload = null
 var restriction: RestrictionPayload = null
 var listener: ListenerPayload = null
 var keyword: StringName = &""
+## CHARACTERISTIC：unique / victory / vengeance…；标量供 Victory X。
+var characteristic: StringName = &""
+var scalar: int = 0
 
 
 static func modifier_buff(payload: ModifierPayload) -> BuffSpec:
@@ -33,4 +36,12 @@ static func keyword_buff(keyword: StringName) -> BuffSpec:
 	var b := BuffSpec.new()
 	b.type = AhcEnums.BuffType.KEYWORD
 	b.keyword = keyword
+	return b
+
+
+static func characteristic_buff(characteristic: StringName, scalar: int = 0) -> BuffSpec:
+	var b := BuffSpec.new()
+	b.type = AhcEnums.BuffType.CHARACTERISTIC
+	b.characteristic = characteristic
+	b.scalar = scalar
 	return b

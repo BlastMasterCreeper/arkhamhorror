@@ -234,22 +234,21 @@ static func _all() -> Array[KeywordProfile]:
 		SLOT_ATTACK, FLOW_KEYWORD_MASSIVE,
 		FLOW_ENEMY_ATTACK, 10, TIER_REPLACE
 	))
+	## 玩家轴 · 永久：进场挂 FORBID_LEAVE_PLAY；开场由 setup 放入场。
 	profiles.append(_row(
 		&"permanent", BUFF_RESTRICTION,
-		FLOW_SETUP, SLOT_ENTER_PLAY,
+		&"", SLOT_ENTER_PLAY,
 		&"", SLOT_LEAVE_PLAY,
 		ZONE_PLAY, LIFE_IN_PLAY
 	))
-	## 独特（Unique / [unique]）是标题特征，不是关键词 — 勿登记本表；见 UniqueTitle。
+	## 独特 / 胜利 / 复仇 = 可挂载特征（CHARACTERISTIC），不是关键词 — 见 CharacteristicMount。
 	## 快速 · 打出 Initiation 档（非 LISTENER；勿与 ArkhamDB [fast]=免费触发符号合并）
 	## 玩家轴：只改 play_form（窗口/花费）；不挂 KeywordMount。
 	profiles.append(_row(&"fast", BUFF_INITIATION, &"", &"", &"", &"", ZONE_HAND, &""))
-	## L0 / Domain
+	## L0 / Domain（Uses / Seal；胜利去向读 CharacteristicMount）
 	profiles.append(_row(
 		&"uses", BUFF_DOMAIN, &"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, &""
 	))
-	profiles.append(_row(&"victory", BUFF_DOMAIN, &"", SLOT_DEFEAT, &"", &"", ZONE_PLAY, &""))
-	profiles.append(_row(&"vengeance", BUFF_DOMAIN, &"", SLOT_DEFEAT, &"", &"", ZONE_PLAY, &""))
 	profiles.append(_row(
 		&"seal", BUFF_DOMAIN, &"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, &""
 	))

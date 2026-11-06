@@ -372,8 +372,8 @@ static func _leave_asset(game_ctx: GameContext, params: Dictionary) -> Dictionar
 	var owner_id: StringName = card.owner_id
 	var dest := &""
 	var moved := false
-	var def_id := card.id.definition_id if card.id != null else &""
-	if CardRegistry.routes_to_victory_display(def_id):
+	if CharacteristicMount.routes_to_victory_display(game_ctx, card_id):
+		CharacteristicMount.stamp_victory_earned(game_ctx, card_id)
 		moved = game_ctx.mutator.move_card(card_id, CardSlot.victory_display())
 		dest = &"victory_display"
 	elif game_ctx.state.registry.get_investigator(owner_id) != null:

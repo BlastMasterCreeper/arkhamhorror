@@ -47,7 +47,7 @@ static func _strip_star(title: String) -> String:
 	return title.substr(i).strip_edges()
 
 
-## 场上是否已有同名独特卡（任意控制器）。
+## 场上是否已有同名独特卡（任意控制器）。印刷 ∪ 挂载独特特征。
 static func unique_title_already_in_play(
 	game_ctx: GameContext,
 	definition_id: StringName,
@@ -64,9 +64,8 @@ static func unique_title_already_in_play(
 		var card := game_ctx.state.registry.get_card(card_id)
 		if card == null or not ZoneMoveFlow.zone_is_in_play(card.zone):
 			continue
-		var other_def := card.id.definition_id
-		if not is_unique(other_def):
+		if not CharacteristicMount.has_effective_unique(game_ctx, card_id):
 			continue
-		if comparable_title(other_def) == want:
+		if comparable_title(card.id.definition_id) == want:
 			return true
 	return false

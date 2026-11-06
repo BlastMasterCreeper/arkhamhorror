@@ -417,7 +417,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | Prey `(lowest [agility])` 等 | **指令** Prey – | `PreyInstructionSpec` 比较/过滤 | `PreyResolver.best_match` | 等距或同地点子集内比较；并列 Lead | ✅ |
 | Patrol `(地点 / 目标)` | **关键词** 巡逻 | `PatrolTargetSpec` | 3.2 LISTENER handler 内 `PatrolTargetResolver` | **不是** 第三条指令；括号不 Register | △ 测试合成 |
 | Uses `(X type)` 的 X 与 type | **关键词** Uses | `UsesSpec {count, type}` | 进场 L0 放 token；能力 cost 扣同 type | 禁止把 ammo 当成 charges | Domain `uses` 有；Spec 未模块化 |
-| Victory **X** | **关键词** Victory | 标量 `victory: int` | 击败 / 冒险结束改去向 | 不是 Buff | ✅ |
+| Victory **X** | **可挂载特征**（非关键词） | 标量 `victory: int` | 击败 / 冒险结束改去向 | CHARACTERISTIC 挂载 | ✅ |
 | Swarming **X** | **关键词** Swarming | 标量 count | 延时 LISTENER payload | 垫 X 张 facedown swarm | Core 无 |
 | Seal 选哪个 token | **关键词** Seal | `SealSpec` / mode=choice | 打出合法性查袋 + 进场 `apply_on_enter_play` | `CHAOS_PICK` | ✅ |
 
@@ -435,9 +435,9 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Hidden** 隐私 | `AT_REVELATION` | 在手直至 expose | `FORBID_LEAVE_HAND`；另写 Domain `is_hidden` / FaceAudience | REST-E-MOVE；E4 秘密入手 | 运行时有；导入把 ArkhamDB `hidden` 旗标误当本词 |
 | **Aloof** 冷漠 | `AT_ENTER_PLAY` → `KeywordMount` → `AloofStatus` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ `KeywordMount` |
 | **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 永不进威胁区；虚拟交战同地点全体 | Engage / AOO 读交战；**3.3 攻击路径见 §3.2.7 REPLACE** | ✅ |
-| **Permanent** 永久（对局） | `AT_SETUP` 开场进场 | 直至卡面允许离场 | `FORBID_MOVE` 离场 | REST-E-MOVE | △ Domain 旗标 |
+| **Permanent** 永久（对局） | `AT_SETUP` 开场进场 → `KeywordMount` | 直至卡面允许离场 | `FORBID_LEAVE_PLAY` | REST-E-MOVE | ✅ |
 
-**不是关键词**：**独特（Unique / `[unique]`）** = 标题特征。打出/进场前 `UniqueTitle` 查同名在场 → 拒绝；**不**进 `KeywordProfileTable` / `KeywordMount`。
+**不是关键词（可挂载特征）**：**独特（Unique / `[unique]`）**、**胜利（Victory X）**、**复仇（Vengeance X）** → `CharacteristicMount`（`BuffType.CHARACTERISTIC`）于 `ENTER_PLAY` 挂载；打出前 `UniqueTitle` 查同名；击败读有效胜利/复仇改去向。**不**进 `KeywordProfileTable` / `KeywordMount`。
 
 **C2 · LISTENER**（Catalog emit；延时用 `UNTIL_FIRED`）
 
@@ -450,7 +450,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Elusive** 逃逸 | 同上 | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ `KeywordMount` |
 | **Doomed** 厄运降临 | 同上 | `WHILE_IN_PLAY` | 击败（非 discard） | 当前密谋 +1 毁灭 | ✅ `KeywordMount` |
 | **Surge** 涌动 | 印刷 **WHEN** 挂 KEYWORD；gained `AT_GRANT` 幂等 | 绑本条抽取；开火后卸标记 | 本条抽取 **AFTER**（已结算） | nest `seq.draw.encounter` amount=1 | ✅ `KeywordMount` + `KeywordConsumer` |
-| **Starting** 起始 | `AT_SETUP` / 换牌后 | `UNTIL_FIRED` | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | 无 |
+| **Starting** 起始 | `AT_SETUP` 挂 `WHILE_IN_DECK` | 离库卸 | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | ✅ `StartingKeyword` |
 | **Swarming** | `AFTER_ENTER_PLAY` | `UNTIL_FIRED` | 进场结算之后 | 垫 **X** 张 swarm 牌 | Core 无 |
 
 涌动不是新 BuffType。`KeywordConsumer` 只是该 LISTENER 尚未接入 TimingCatalog 时的竖切。
@@ -476,10 +476,16 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | 关键词 | 落地 | 实现路径 | 现状 |
 |---|---|---|---|
 | **Uses (X)** | L0 进场放 typed token | 读 **B** 的 `UsesSpec`；扣 uses 走能力 cost | Domain 有 |
-| **Victory X** | Domain 去向 | 击败敌人 / 冒险结束已揭示无线索地点 → 胜利展示区 | ✅ |
-| **Vengeance X** | 同去向，计分语义相反 | 与 Victory 共用展示区 | Core 无 |
 | **Seal** | L0 封印混乱标记 | 打出合法性查袋 + 进场 nest `seq.effect.seal`（非 CostPipeline）；离场释放；作刚揭示替换 | Domain ✅ |
-| **Permanent** 永久（牌组规模） | 构筑 | 不计 deck size；开场进场见 C1 | △ |
+| **Permanent** 永久（牌组规模） | 构筑 | 不计 deck size；开场进场见 C1 | ✅ |
+
+**C4b · 可挂载特征（非关键词）**
+
+| 特征 | 落地 | 实现路径 | 现状 |
+|---|---|---|---|
+| **Unique** 独特 | `ENTER_PLAY` → CHARACTERISTIC | `UniqueTitle` + `CharacteristicMount` | ✅ |
+| **Victory X** | `ENTER_PLAY` → CHARACTERISTIC 标量；击败改去向 | `CharacteristicMount`；计分可盖章 | ✅ |
+| **Vengeance X** | 同 Victory 去向，计分语义相反 | 同上 | ✅ |
 | **Exceptional / Myriad（多重） / Reward / Researched / Bonded（绑定） / Customizable** | 构筑 | [11](11-investigator-campaign.md) | Collector 有 Reward |
 
 **不是关键词、也不是指令/参数**：Exile（能力）、`[fast]` / `[reaction]` / `[action]`、Forced、Revelation、Bearer。
@@ -491,7 +497,7 @@ Servant of Flame：Hunter. Prey (lowest [agility]). Retaliate. Victory 2.
   猎手     → LISTENER @ 3.2
   猎物     → 指令 Spec（3.2 等距 / auto engage 读）
   反击     → LISTENER post-ST7
-  Victory 2 → Domain 标量，击败改去向
+  Victory 2 → CHARACTERISTIC 标量，击败改去向
 
 巡逻敌人：Patrol (Miskatonic Quad). Prey (fewest remaining health).
   巡逻     → LISTENER @ 3.2
@@ -577,8 +583,8 @@ on_card_leave_play(card)
 | **Starting** 起始 | LISTENER 延时 | `seq.setup` 开局（牌在库） | 同流程换牌后砖 **AFTER** = `FIRED` | `WHILE_IN_DECK` + `UNTIL_FIRED` | **DECK** |
 | **Permanent** 永久 | RESTRICTION | `seq.setup` 放入场 = **ENTER_PLAY**（**不是**从手打出） | 仅卡面允许离场或拥有者淘汰 | `WHILE_IN_PLAY` | PLAY |
 | **Fast.** 快速 | 打出形式 | **不** Register LISTENER | — | 无 | **HAND**；种类始终 `PLAY_CARD` |
-| **Uses / Victory / Seal** | L0 / Domain | 进场放记 / 击败改去向 / 打出封印 | Uses 随离场清 token；Seal 离场释放 | 不走 LISTENER | PLAY 或击败瞬间 |
-| **独特（非关键词）** | 标题特征 | 进场前 Initiation 查同名 | — | — | — |
+| **Uses / Seal** | L0 / Domain | 进场放记 / 打出封印 | Uses 随离场清 token；Seal 离场释放 | 不走 LISTENER | PLAY |
+| **独特 / 胜利 / 复仇（非关键词）** | CHARACTERISTIC | `ENTER_PLAY` 挂载；击败读有效标量 | 离场卸；计分可盖章 | — | PLAY |
 | **Bonded** 绑定 | 构筑 + `WHILE_SET_ASIDE` | `seq.setup` **ENTER_SET_ASIDE** | 宿主打出后 **LEAVE_SET_ASIDE** | `WHILE_SET_ASIDE` | **SET_ASIDE** |
 | **Exceptional / Myriad** 多重 / Reward / Researched / Customizable | 构筑 | **不** Register | — | 无 | 对局不武装 |
 

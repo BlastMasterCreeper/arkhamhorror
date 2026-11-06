@@ -70,7 +70,7 @@ func total_victory_points() -> int:
 		var card := registry.get_card(card_id)
 		if card == null:
 			continue
-		total += CardRegistry.victory_points(card.id.definition_id)
+		total += CharacteristicMount.scored_victory_points(card)
 	return total
 
 
