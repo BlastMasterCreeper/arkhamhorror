@@ -140,7 +140,7 @@ enum Zone {
 | **FREE** | 独立区（play / threat / location_area…） | 无宿主叠放 | 场上支援、威胁区敌人 |
 | **BESIDE** | 宿主实体**旁**的独立 flat 区 | `beside_host_id`；**不**叠在宿主下 | 旁置地点/密谋/行动/场景实体的指示物牌、探索辅堆等 |
 | **ATTACHED** | 叠在宿主上并重叠（Grimoire *attach*） | `attached_to`；宿主离场默认带走弃置 | 附着地点的 treachery、武器附着等 |
-| **UNDER** | 垫在宿主**之下**（可正面/背面） | `under_host_id` + 序；**不是** attach | 集群垫群牌、部分「放这张卡下」 |
+| **UNDER** | 垫在宿主**之下**（可正面/背面） | `under_host_id` + 序；**不是** attach | 集群：群牌垫在**主体敌人**下；及其他「放这张卡下」 |
 | **DECK_ORDERED** | 有序牌堆（Shape.DECK） | 库/弃的序 | 调查员库、遭遇库、部分特殊有序堆 |
 
 ```text
