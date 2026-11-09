@@ -50,9 +50,11 @@ class EnemyState:
 | **交战** | ENGAGEMENT Buff +（真实交战时）包装进入威胁区 | `seq.engage`；**仅**场上区域 → 威胁区（`from=in_play`） |
 | **生成 engaged** | 场外（牌库等）→ 威胁区 + Buff | `spawn_engaged`；**不**压 `seq.engage`（`from=out_of_play`） |
 
-纸面 *After … engages you* / *After you engage an enemy* 订 **进入威胁区** AFTER（`match_kind=enter_threat_area`）：交战包装与生成 engaged 都会进入威胁区故都能开火；`placement=grant` 与庞大虚拟交战 **不**进入 → 不开火。蜂拥：主体与每张进入的集群卡牌各一次（for-each）。**While engaged** 仍读 ENGAGEMENT Buff。
+纸面 *After … engages you* / *After you engage an enemy* 订 **进入威胁区** AFTER（`match_kind=enter_threat_area`），**不是** `seq.engage` 手续 AFTER。
 
-**术语**：**`spawn_engaged`** = 场外进威胁区且已 engaged（**不是**交战手续）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标后走 `seq.engage`；**`Engage action`** = 调查员行动。三者 **不可** 混用。
+**锚例 · 深潜者（Deep One）**：Forced *After Young Deep One engages you* — 若如实只订交战手续 AFTER，则 **抽取 `spawn_engaged`（场外→威胁区）不会触发**，与设计预期不符。因此纸面「engages you」听 **进入威胁区**：交战包装（场上→威胁区）与生成 engaged（场外→威胁区）都能开火；`placement=grant` 与庞大虚拟交战 **不**进入 → 不开火（Zoey FAQ）。蜂拥：主体与每张进入的集群卡牌各一次（for-each）。**While engaged** 仍读 ENGAGEMENT Buff。
+
+**术语**：**`spawn_engaged`** = 场外进威胁区且已 engaged（**手续上不是** `seq.engage`，但纸面 engages 文案仍因进入威胁区触发）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标后走 `seq.engage`；**`Engage action`** = 调查员行动。三者 **不可** 混用。
 
 ### 3.1 命名流程 `seq.engage`（已收口）
 

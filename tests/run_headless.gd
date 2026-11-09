@@ -430,6 +430,7 @@ func _initialize() -> void:
 	_run_test("THREAT-05 compile 12164 match enter_threat_area", _test_threat_compile_12164_match)
 	_run_test("THREAT-06 engage wraps in_play enter_threat", _test_threat_engage_from_in_play)
 	_run_test("THREAT-07 spawn_engaged from out_of_play", _test_threat_spawn_from_out_of_play)
+	_run_test("THREAT-08 Deep One spawn fires engages-you Forced", _test_threat_deep_one_spawn_fires)
 	_run_test("M4-01 effect.gain_resource registered with alias", _test_m4_gain_resource_rename)
 	_run_test("ACT-16 fight fail redirects to engaged holder", _test_act_fight_fail_redirect)
 	_run_test("AOO-01 resource provokes damage", _test_aoo_resource)
@@ -9631,7 +9632,7 @@ func _test_threat_massive_does_not_fire() -> bool:
 	)
 
 
-## Deep One / Rogue Gangster 式：spawn_engaged 进威胁区后开火。
+## 生成进威胁区后开火（与 THREAT-08 深潜者同路径）。
 func _test_threat_spawn_engaged_fires() -> bool:
 	var h := RuleTestHarness.new(42)
 	CardRegistry.register_definition(&"eta_deep", {"card_type": &"enemy"})
@@ -9692,7 +9693,7 @@ func _test_threat_engage_from_in_play() -> bool:
 	)
 
 
-## 生成 engaged：进入威胁区 from=out_of_play（场外→威胁区），不压 seq.engage。
+## 生成 engaged：from=out_of_play；手续不压 seq.engage。
 func _test_threat_spawn_from_out_of_play() -> bool:
 	var h := RuleTestHarness.new(42)
 	CardRegistry.register_definition(&"eta_spawn", {"card_type": &"enemy"})
@@ -9714,6 +9715,43 @@ func _test_threat_spawn_from_out_of_play() -> bool:
 		and inv.threat_area.has(card_id)
 		and seen["from"] == EnterThreatAreaFlow.FROM_OUT_OF_PLAY
 		and int(seen["count"]) >= 1
+	)
+
+
+## 深潜者锚：纸面 After X engages you 订 enter_threat_area。
+## 若只订 seq.engage AFTER，抽取 spawn_engaged 不会触发 — 不符合预期。
+func _test_threat_deep_one_spawn_fires() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"deep_one_eta", {"card_type": &"enemy"})
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(h.ctx, &"deep_one_eta")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 5
+	## 误订交战手续 AFTER：生成路径不应开火。
+	var engage_only := TriggeredAbilityDescriptor.forced(
+		&"engage",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.nest_lose_resources(&"inv_1", 1),
+		card_id,
+		&"deep_one_eta"
+	)
+	h.ctx.triggered_abilities.register(engage_only)
+	## 正确：订进入威胁区 AFTER（深潜者 / Rogue Gangster 纸面）。
+	var paper := TriggeredAbilityDescriptor.forced(
+		&"enter_threat_area",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.nest_lose_resources(&"inv_1", 1),
+		card_id,
+		&"deep_one_eta"
+	)
+	h.ctx.triggered_abilities.register(paper)
+	var res := h.ctx.enemy.spawn_engaged(h.ctx, card_id, &"inv_1")
+	## 只应扣 1（enter_threat Forced）；engage 手续 Forced 不响生成。
+	return (
+		bool(res.get("ok", false))
+		and inv.threat_area.has(card_id)
+		and inv.resource_pool == 4
 	)
 
 

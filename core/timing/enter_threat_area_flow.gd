@@ -4,20 +4,20 @@ extends RefCounted
 ## 进入威胁区 · `seq.effect.enter_threat_area`。
 ##
 ## **区划原语**：把敌人放进某调查员威胁区（可被 AFTER 听到）。
-## 与交战（`seq.engage`）正交：
-## - **交战** = ENGAGEMENT Buff 包装 + 本流程（仅 **场上 → 威胁区**）
-## - **生成 engaged** = 场外（牌库等）→ 威胁区 + Buff；**不**压 `seq.engage`
-## - **单纯进入威胁区**（诡计进威胁区等）也可 nest 本条，不必伴随交战
+## 与交战手续（`seq.engage`）正交，但纸面「engages you」订 **本条** AFTER：
+## - **交战包装**：Buff + nest 本流程（`from=in_play`，场上 → 威胁区）
+## - **生成 engaged**：场外（牌库）→ 威胁区 + Buff（`from=out_of_play`）；**不**压 `seq.engage`
+## - **深潜者锚**：若只订交战手续 AFTER，抽取生成不会触发 Forced — 不符合预期
+## - grant / 庞大不进入威胁区 → 不开火
 ##
-## 纸面「After … engages you / After you engage …」订本条 AFTER（`match_kind=
-## enter_threat_area`）：听区划进入，不听交战手续完成 / 不听 grant·庞大。
+## `match_kind=enter_threat_area`。
 
 
 const FLOW: StringName = &"seq.effect.enter_threat_area"
 
 ## 来源：交战包装（场上区域 → 威胁区）。
 const FROM_IN_PLAY: StringName = &"in_play"
-## 来源：生成等（场外 → 威胁区）；不是交战。
+## 来源：生成 engaged 等（场外 → 威胁区）；手续不是 seq.engage，纸面 engages 仍听本 AFTER。
 const FROM_OUT_OF_PLAY: StringName = &"out_of_play"
 
 
