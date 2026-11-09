@@ -14,6 +14,14 @@ static func deck_top(inv_id: StringName) -> CardSlot:
 	return s
 
 
+static func deck_bottom(inv_id: StringName) -> CardSlot:
+	var s := CardSlot.new()
+	s.pile = AhcEnums.PileKind.INV_DECK
+	s.owner_id = inv_id
+	s.insert = AhcEnums.InsertMode.BOTTOM
+	return s
+
+
 static func hand_bottom(inv_id: StringName) -> CardSlot:
 	var s := CardSlot.new()
 	s.pile = AhcEnums.PileKind.INV_HAND

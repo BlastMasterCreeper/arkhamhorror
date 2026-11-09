@@ -269,6 +269,9 @@ static func _eligible(game_ctx: GameContext, params: Dictionary) -> bool:
 			var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 			if enemy == null:
 				return false
+			## 主体仍有集群卡牌：不可击败（可超生命承伤）。
+			if SwarmDamage.host_blocks_defeat(game_ctx, enemy_id):
+				return false
 			if cause == CAUSE_DAMAGE_CAP:
 				return enemy.damage >= enemy.health
 			return true

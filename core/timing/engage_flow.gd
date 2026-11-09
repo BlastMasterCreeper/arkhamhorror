@@ -167,6 +167,8 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 	## enter_threat：Register Buff + 移入威胁区；grant：仅 Register Buff（视为交战，区划不变）。
 	var move_into_threat := placement != PLACEMENT_GRANT
 	game_ctx.enemy.apply_engage(enemy_id, inv_id, move_into_threat, game_ctx)
+	## 蜂拥同步轴：接战整包同时结算。
+	SwarmPack.sync_engagement(game_ctx, enemy_id)
 	return {
 		"ok": true,
 		"enemy_id": enemy_id,

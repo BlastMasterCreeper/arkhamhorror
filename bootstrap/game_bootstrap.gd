@@ -364,6 +364,15 @@ static func add_encounter_enemy_to_deck(
 		enemy_block = enemy_block.duplicate()
 		enemy_block["health"] = int(opts.get("health", 1))
 		extra["enemy"] = enemy_block
+	if opts.has("swarming"):
+		extra["swarming"] = int(opts.get("swarming", 0))
+		if int(extra["swarming"]) > 0 and not keywords.has(&"swarming"):
+			keywords = keywords.duplicate()
+			keywords.append(&"swarming")
+	if opts.has("is_unique"):
+		extra["is_unique"] = bool(opts.get("is_unique", false))
+	if opts.has("title"):
+		extra["title"] = opts.get("title")
 	return add_encounter_card_to_deck(ctx, definition_id, keywords, extra)
 
 

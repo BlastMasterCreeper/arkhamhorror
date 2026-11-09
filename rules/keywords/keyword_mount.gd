@@ -118,6 +118,8 @@ static func _mount_profile(
 		&"hunter", &"patrol", &"retaliate", &"alert", &"elusive", &"doomed", &"massive":
 			if _printed_in_play(def_id, profile.keyword):
 				mount_gained(game_ctx, card_id, profile.keyword)
+		&"swarming":
+			mount_swarming_if_absent(game_ctx, card_id, def_id)
 		&"permanent":
 			mount_permanent_if_absent(game_ctx, card_id, def_id)
 		&"starting":
@@ -126,6 +128,31 @@ static func _mount_profile(
 			mount_bonded_if_absent(game_ctx, card_id, def_id)
 		_:
 			pass
+
+
+## 遭遇轴 · 蜂拥：进场挂延时 KEYWORD；集群卡牌永不挂。
+static func mount_swarming_if_absent(
+	game_ctx: GameContext,
+	card_id: StringName,
+	def_id: StringName
+) -> void:
+	if game_ctx == null or card_id == &"":
+		return
+	if VirtualCard.is_swarm_card_id(game_ctx, card_id):
+		return
+	if not CardRegistry.is_swarming(def_id):
+		return
+	## 独特主体：不挂、不垫。
+	if UniqueTitle.is_unique(def_id) or CharacteristicMount.has_effective_unique(game_ctx, card_id):
+		return
+	if is_keyword_armed(game_ctx, card_id, &"swarming"):
+		return
+	CompositionMount.register_effect(
+		game_ctx,
+		RegistrationTemplate.keyword_while_in_play(card_id, &"swarming"),
+		&"",
+		card_id
+	)
 
 
 ## 玩家轴 · 永久：进场挂 FORBID_LEAVE_PLAY（幂等）。
@@ -208,6 +235,8 @@ static func _printed_in_play(def_id: StringName, keyword: StringName) -> bool:
 			return CardRegistry.is_aloof(def_id)
 		&"massive":
 			return CardRegistry.is_massive(def_id)
+		&"swarming":
+			return CardRegistry.is_swarming(def_id)
 		&"permanent":
 			return CardRegistry.is_permanent(def_id)
 		_:

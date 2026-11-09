@@ -204,9 +204,11 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		last["from"] = hop.get("from_location", from_id)
 		last["to"] = to_loc
 		last["to_location"] = to_loc
+		SwarmPack.sync_location(game_ctx, enemy_id)
 		if to_loc != &"" and do_auto_engage:
 			var engage := EngageFlow.nest_after_area_change(game_ctx, to_loc, enemy_id)
 			last["engaged_investigator"] = engage.get("investigator_id", &"")
+			SwarmPack.sync_engagement(game_ctx, enemy_id)
 			var moved_enemy := game_ctx.state.registry.get_enemy(enemy_id)
 			if moved_enemy != null and moved_enemy.massive:
 				MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
@@ -246,9 +248,12 @@ static func _move_enemy_direct(
 		"mode": mode,
 		"move_kind": move_kind,
 	})
+	## 蜂拥同步轴：地点整包对齐。
+	SwarmPack.sync_location(game_ctx, enemy_id)
 	if do_auto_engage:
 		var engage := EngageFlow.nest_after_area_change(game_ctx, dest_id, enemy_id)
 		out["engaged_investigator"] = engage.get("investigator_id", &"")
+		SwarmPack.sync_engagement(game_ctx, enemy_id)
 		if enemy.massive:
 			MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
 	_log_move(game_ctx, SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
