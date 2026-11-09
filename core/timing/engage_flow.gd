@@ -10,9 +10,9 @@ extends RefCounted
 ## 交战状态 = RestrictionKind.ENGAGEMENT Buff（赋予/注销）。
 ## 交战 ≠ 进入威胁区：本手续在 `placement=enter_threat` 时 **包装** nest
 ## `seq.effect.enter_threat_area`（`from=in_play` = 场上→威胁区）。`grant` 只 Buff。
-## 生成 engaged（场外→威胁区）走 `spawn_engaged`，不压本条。
+## 生成 engaged（场外→威胁区）走 `SpawnFlow.engaged`，不压本条。
 ## 纸面「交战后」订进入威胁区 AFTER，不订本手续完成。
-## 禁止另铸 `seq.enemy.auto_engage` 等按场合拆名。
+## 禁止另铸 `seq.enemy.auto_engage`；禁止经 EnemySystem 再包一层交战 API。
 
 
 const MODE_AUTO: StringName = &"auto"
@@ -23,7 +23,7 @@ const PLACEMENT_GRANT: StringName = &"grant"
 
 
 static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	if game_ctx == null or game_ctx.enemy == null:
+	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	var normalized := _normalize_params(params)
 	match normalized["mode"] as StringName:
@@ -57,15 +57,108 @@ static func nest_after_area_change(
 	return game_ctx.sequence_catalog.nest(game_ctx, &"seq.engage", params)
 
 
+## Register Buff；`write_engaged_with` 时写 Domain engaged_with（威胁区另走 EnterThreatAreaFlow）。
+static func apply_status(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	inv_id: StringName,
+	write_engaged_with: bool = true
+) -> void:
+	if game_ctx == null or game_ctx.state == null:
+		return
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if enemy == null or inv == null:
+		return
+	EngagementStatus.grant(game_ctx, enemy_id, inv_id)
+	if not write_engaged_with:
+		return
+	if enemy.engaged_with != &"" and enemy.engaged_with != inv_id:
+		var prev := game_ctx.state.registry.get_investigator(enemy.engaged_with)
+		if prev:
+			prev.threat_area.erase(enemy_id)
+	enemy.engaged_with = inv_id
+
+
+static func auto_at_location(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	location_tag: StringName,
+	def_id: StringName = &"",
+	write_engaged_with: bool = true
+) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false, "error": "no_context"}
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return {"ok": false, "error": "unknown_enemy"}
+	if enemy.massive:
+		MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
+		return {"ok": true, "skipped": true, "massive": true}
+	if EngagementStatus.is_engaged(game_ctx, enemy_id):
+		return {"ok": true, "skipped": true}
+	if enemy.exhausted or enemy.auto_engage_suppressed:
+		return {"ok": true, "skipped": true}
+	if (
+		game_ctx.registrations != null
+		and game_ctx.registrations.read_suppress_auto_engage(enemy_id)
+	):
+		return {"ok": true, "skipped": true, "restricted_by_suppress_auto_engage": true}
+	var candidates := _investigators_at_location(game_ctx, location_tag)
+	if candidates.is_empty():
+		return {"ok": true, "skipped": true}
+	if def_id == &"":
+		def_id = _definition_id(game_ctx, enemy_id)
+	var target := _pick_engage_target(game_ctx, candidates, def_id, enemy_id)
+	apply_status(game_ctx, enemy_id, target, write_engaged_with)
+	return {"ok": true, "enemy_id": enemy_id, "investigator_id": target}
+
+
+static func disengage(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	exhaust: bool = false,
+	trigger_area_change: bool = true
+) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false, "error": "no_context"}
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return {"ok": false, "error": "unknown_enemy"}
+	var location_tag := enemy.location_tag
+	EngagementStatus.clear(game_ctx, enemy_id)
+	if enemy.engaged_with != &"":
+		var prev := game_ctx.state.registry.get_investigator(enemy.engaged_with)
+		if prev:
+			prev.threat_area.erase(enemy_id)
+	enemy.engaged_with = &""
+	if exhaust:
+		ExhaustReadyFlow.nest_or_run_exhaust(
+			game_ctx,
+			{
+				"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+				"enemy_id": enemy_id,
+				"trigger_area_change": false,
+			}
+		)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"enemy:disengage",
+			{"enemy_id": enemy_id, "location_tag": location_tag, "exhausted": enemy.exhausted}
+		)
+	if trigger_area_change and location_tag != &"":
+		return nest_after_area_change(game_ctx, location_tag, enemy_id, &"engagement")
+	return {"ok": true, "enemy_id": enemy_id, "location_tag": location_tag}
+
+
 static func _normalize_params(params: Dictionary) -> Dictionary:
 	var out := params.duplicate()
-	## 历史 `source` / `mode=action` → effect（行动交战 = 效果交战）。
 	var raw: StringName = out.get("mode", out.get("source", MODE_AUTO)) as StringName
 	var mode := MODE_AUTO
 	if raw == MODE_AUTO or raw == &"":
 		mode = MODE_AUTO
 	else:
-		## effect、action、以及其它明示交战入口 → effect
 		mode = MODE_EFFECT
 	out["mode"] = mode
 	out.erase("source")
@@ -141,10 +234,7 @@ static func _auto_engage_enemy(
 	location_tag: StringName
 ) -> Dictionary:
 	var def_id := _definition_id(game_ctx, enemy_id)
-	## Buff + engaged_with；威胁区由本流程 nest enter_threat_area（场上→威胁区）。
-	var result := game_ctx.enemy.auto_engage_at_location(
-		game_ctx, enemy_id, location_tag, def_id, true
-	)
+	var result := auto_at_location(game_ctx, enemy_id, location_tag, def_id, true)
 	if result.get("investigator_id", &"") == &"":
 		return {}
 	return {
@@ -170,10 +260,8 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 		return {"ok": false, "reason": &"already_engaged", "error": "already_engaged"}
 	if require_same and not enemy.is_at_location(inv.location_tag):
 		return {"ok": false, "reason": &"wrong_location", "error": "wrong_location"}
-	## grant：仅 Buff。enter_threat：Buff + nest 进入威胁区（场上→威胁区）。
 	var move_into_threat := placement != PLACEMENT_GRANT
-	game_ctx.enemy.apply_engage(enemy_id, inv_id, move_into_threat, game_ctx)
-	## 蜂拥：先对齐 Buff/engaged_with，再逐个进入威胁区。
+	apply_status(game_ctx, enemy_id, inv_id, move_into_threat)
 	SwarmPack.sync_engagement(game_ctx, enemy_id)
 	if move_into_threat:
 		EnterThreatAreaFlow.enter_pack_if_needed(
@@ -199,6 +287,33 @@ static func _sync_and_enter_threat(
 	EnterThreatAreaFlow.enter_pack_if_needed(
 		game_ctx, enemy_id, investigator_id, EnterThreatAreaFlow.FROM_IN_PLAY
 	)
+
+
+static func _investigators_at_location(
+	game_ctx: GameContext,
+	location_tag: StringName
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for inv_id in game_ctx.state.registry.all_investigator_ids():
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv != null and inv.location_tag == location_tag:
+			out.append(inv.id)
+	return out
+
+
+static func _pick_engage_target(
+	game_ctx: GameContext,
+	candidates: Array[StringName],
+	def_id: StringName,
+	source_enemy_id: StringName = &""
+) -> StringName:
+	if candidates.size() == 1:
+		return candidates[0]
+	var prey := CardRegistry.prey_spec(def_id)
+	var pick := PreyResolver.best_match(prey, game_ctx, candidates, source_enemy_id)
+	if pick != &"":
+		return pick
+	return PreyResolver.lead_pick(game_ctx, candidates, &"pick:engage_tie")
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:

@@ -738,7 +738,7 @@ static func _resolve_encounter_spawn(
 	var drawer_id: StringName = params.get("drawer_id", &"")
 	var card_id: StringName = params.get("card_id", &"")
 	var from_hand: bool = bool(params.get("from_hand", false))
-	if game_ctx == null or game_ctx.enemy == null or card_id == &"":
+	if game_ctx == null or game_ctx.state == null or card_id == &"":
 		return {"spawned": false, "discarded": false}
 	if from_hand:
 		if game_ctx.mutator == null:
@@ -746,7 +746,7 @@ static func _resolve_encounter_spawn(
 		EncounterPrivacy.unregister_for_card(game_ctx, card_id)
 		if not game_ctx.mutator.prepare_hand_card_for_encounter_spawn(card_id, drawer_id):
 			return {"spawned": false, "discarded": false, "error": &"invalid_hand_spawn"}
-	var result := game_ctx.enemy.spawn_from_encounter_draw(game_ctx, card_id, drawer_id)
+	var result := SpawnFlow.from_encounter_draw(game_ctx, card_id, drawer_id)
 	if result.get("discarded", false):
 		return {"spawned": false, "discarded": true, "card_id": card_id}
 	if result.get("ok", false) and result.has("enemy_id"):

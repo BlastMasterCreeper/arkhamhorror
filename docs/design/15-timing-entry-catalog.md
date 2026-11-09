@@ -1161,7 +1161,7 @@ func spawn_from_encounter_draw(enemy_id: StringName, drawer_id: StringName) -> v
 |---|---|---|
 | **来源** | **规则流程**（Framework） | **卡牌描述**（printed Spawn） |
 | **编译** | **无** 卡面字段；priority 80 handler 内固定分支 | 导入时编译 → **`SpawnInstructionSpec`**（非 Ability） |
-| **运行时** | `EnemySystem.spawn_default_from_draw` | `composition.execute(spawn_composition)` 或 `spawn_with_spec` |
+| **运行时** | `SpawnFlow.default_from_draw` | `SpawnFlow.from_encounter_draw`（读 `SpawnInstructionSpec`） |
 | **时点** | 同 **`ENCOUNTER_CARD_DRAWN` · priority 80** | **同左** — 指令 **不** 另订 timing hook |
 | **Hook** | 无卡面 AbilityHook | **无独立** `(sequence_id, slot)` — 由框架 G4 **调用** 卡面编译体 |
 
@@ -1173,9 +1173,9 @@ func spawn_from_encounter_draw(enemy_id: StringName, drawer_id: StringName) -> v
   → 可选 Composition 子树：ChoiceLocation · ResolveTargets
 
 Framework G4（priority 80）→  固定后缀（规则流程，非卡面）
-  → spawn_at_location(enemy, loc)
-  → if not Aloof: auto_engage_at_location
-  → if 无合法 loc: discard_spawn_failed
+  → SpawnFlow.at_location(enemy, loc)
+  → if not Aloof: EngageFlow.nest_after_area_change
+  → if 无合法 loc: SpawnFlow.discard_failed
 ```
 
 **与显现（Revelation）对照**：显现 = 完整 Forced **Composition**（priority 90）；Spawn 指令 = **受限卡面 spec**（主要是 **WHERE**）+ **Framework 标准后缀**（进场态 / engage / 失败 discard）。**不是** 把 Spawn 文本译成独立 `seq.*` timing entry。
@@ -1202,17 +1202,8 @@ class SpawnInstructionSpec:   # 非 AbilitySpec
 
 ```gdscript
 func resolve_g4_enemy(enemy_id: StringName, drawer_id: StringName) -> void:
-    var spec := CardRegistry.spawn_spec(card.definition_id)
-    if spec.mode == SpawnMode.FRAMEWORK_DEFAULT:
-        EnemySystem.spawn_default_from_draw(enemy_id, drawer_id)
-    else:
-        var loc := SpawnLocationResolver.resolve(spec.selector, drawer_id, game_ctx)
-        if loc == null:
-            EnemySystem.discard_spawn_failed(enemy_id)
-            return
-        EnemySystem.spawn_at_location(enemy_id, loc)
-        if not card.aloof(enemy_id):
-            EnemySystem.auto_engage_at_location(enemy_id, loc)
+    ## seq.encounter.spawn → SpawnFlow.from_encounter_draw
+    SpawnFlow.from_encounter_draw(game_ctx, enemy_id, drawer_id)
     unregister_peril_for_card(card_id)
 ```
 

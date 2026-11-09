@@ -7,7 +7,17 @@
 
 ## 1. 目标
 
-管理敌人 **Spawn、Engagement、移动、攻击** 及关键词：Aloof、Hunter、Patrol、Prey、Massive、Retaliate、Alert、Elusive、Doomed。
+敌人相关能力按命名流程 / Flow 落地（**不**经 `EnemySystem` 语义 API）：
+
+| 能力 | 入口 |
+|---|---|
+| 生成 | `seq.encounter.spawn` → `SpawnFlow` |
+| 交战 / 脱离 | `seq.engage` / `EngageFlow` |
+| 进入威胁区 | `seq.effect.enter_threat_area` |
+| 移动 / 攻击 / 关键词 | 各自 `seq.*` / Keyword Flow |
+| 横置·重整 / 伤·败 | `ExhaustReadyFlow` / `EnemyDefeatResolver` |
+
+`EnemySystem`（`GameContext.enemy`）仅作挂点，无业务方法。
 
 > **简中对照**：冷漠 / 猎手 / 巡逻 / 猎物 / 庞大 / **反击** / **警戒** 等见 [`reference/terminology-zh.md`](../reference/terminology-zh.md)。
 
@@ -348,43 +358,39 @@ func apply_fight_fail_redirect(attacker: StringName, enemy_id: StringName, fight
 
 | 模式 | 何时 | 行为 | 是否调用 `engage()` / auto engage |
 |---|---|---|---|
-| **`spawn_engaged(drawer)`** | Encounter draw，**无** `Spawn –` 文本，**非 Aloof** | `location := drawer.location`；`engaged_with := drawer`；进 **threat area** | **否** — 单 L0 原子 |
-| **`spawn_at_location` + `auto_engage_at_location`** | 有 `Spawn –` 文本，或效果 spawn 到 location | 先进合法 location；若非 Aloof → 按 §3 Engagement 选调查员 engage | **是** — auto engage 子流程 |
-| **`spawn_at_location`（Aloof）** | Aloof，任意 spawn 路径 | 进 location，**unengaged**，不进 threat area | **否** |
+| **`SpawnFlow.engaged(drawer)`** | Encounter draw，**无** `Spawn –` 文本，**非 Aloof** | 场外→威胁区 + Buff（nest enter-threat `from=out_of_play`） | **否** — 不压 `seq.engage` |
+| **`SpawnFlow.at_location` + `EngageFlow.nest_after_area_change`** | 有 `Spawn –` 文本，或效果 spawn 到 location | 先进合法 location；若非 Aloof → 按 §3 Engagement 选调查员 engage | **是** — auto engage 子流程 |
+| **`SpawnFlow.at_location`（Aloof）** | Aloof，任意 spawn 路径 | 进 location，**unengaged**，不进 threat area | **否** |
 
 **Engage action**（[03 §6](03-action-system.md)）与上表 **无关** — 仅调查员花费 action 手动 engage。
 
-### 7.2 算法（`EnemySystem.spawn_from_encounter_draw`）
+### 7.2 算法（`SpawnFlow.from_encounter_draw`）
 
 ```
 1. Parse spawn instruction（或 ability override）
 2. 若 instruction 为空（Framework 1.4 默认 draw）:
      if aloof:
-       spawn_at_location(drawer.location)   # unengaged
+       SpawnFlow.at_location(drawer.location)   # unengaged
      else:
-       spawn_engaged(drawer)                # 原子；≠ auto engage
+       SpawnFlow.engaged(drawer)                # 场外→威胁区；≠ seq.engage
    else:
      loc := 选合法 location（drawer 选若多选）
-     if 无法 spawn → discard_to_owner_pile(enemy)   # 不 enter play；见 §7.4
-     spawn_at_location(loc)
+     if 无法 spawn → SpawnFlow.discard_failed(enemy)   # 不 enter play；见 §7.4
+     SpawnFlow.at_location(loc)
      if not aloof:
-       auto_engage_at_location(loc)         # Lead / Prey，见 §3
+       EngageFlow.nest_after_area_change(loc)   # Lead / Prey，见 §3
 3. Massive / 其他关键词在 spawn 提交后由 register 同步
 ```
 
 ```gdscript
-## L0 原子：无 Spawn 文本的 encounter draw（非 Aloof）
-func spawn_engaged(enemy_id: StringName, drawer_id: StringName) -> void:
-    var loc := drawer_location(drawer_id)
-    place_in_play(enemy_id, loc)
-    enemy.engaged_with = drawer_id
-    add_to_threat_area(drawer_id, enemy_id)
-    # 禁止 nest ActionSystem.engage 或 auto_engage_at_location
+## SpawnFlow.engaged：无 Spawn 文本的 encounter draw（非 Aloof）
+## Register Buff + nest seq.effect.enter_threat_area(from=out_of_play)
+## 禁止 nest seq.engage / auto_engage_at_location
 ```
 
 ### 7.3 与 G4 / priority 80 的对应
 
-遭遇抽牌 **G4** → `ENCOUNTER_CARD_DRAWN` priority **80** → **nest `seq.encounter.spawn`** → `spawn_from_encounter_draw`（**非** 与 draw 平行的 timing entry）。**无 Spawn 文本** = 默认生成；**有 Spawn –** = 指令生成（改 location / engage 路径）。见 [15 §4.0.5.2](15-timing-entry-catalog.md)、[15 §17.4.1](15-timing-entry-catalog.md)。
+遭遇抽牌 **G4** → `ENCOUNTER_CARD_DRAWN` priority **80** → **nest `seq.encounter.spawn`** → `SpawnFlow.from_encounter_draw`（**非** 与 draw 平行的 timing entry）。**无 Spawn 文本** = 默认生成；**有 Spawn –** = 指令生成（改 location / engage 路径）。见 [15 §4.0.5.2](15-timing-entry-catalog.md)、[15 §17.4.1](15-timing-entry-catalog.md)。
 
 ### 7.5 敌人指令译法摘要（Spawn / Prey）
 

@@ -110,9 +110,9 @@ static func resolve(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var exhaust_changed := bool(exhaust_res.get("changed", false))
 	var disengage_res := {"ok": true, "skipped": true}
 	var disengaged := false
-	if was_engaged and game_ctx.enemy != null:
+	if was_engaged:
 		## 组内脱离：不触发区域变更 After（组后再 nest auto-engage）。
-		disengage_res = game_ctx.enemy.disengage(game_ctx, enemy_id, false, false)
+		disengage_res = EngageFlow.disengage(game_ctx, enemy_id, false, false)
 		disengaged = bool(disengage_res.get("ok", false))
 	## 组 commit 后：脱离带来的同地点 auto-engage（敌已横置 → 不会重接自己）。
 	if was_engaged and disengaged and location_tag != &"":

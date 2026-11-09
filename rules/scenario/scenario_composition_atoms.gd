@@ -9,10 +9,7 @@ static func discard_all_enemies_in_play(game_ctx: GameContext) -> bool:
 		return false
 	var ids := game_ctx.state.registry.all_enemy_ids().duplicate()
 	for enemy_id in ids:
-		if game_ctx.enemy != null:
-			game_ctx.enemy.discard_enemy_from_play(game_ctx, enemy_id)
-		else:
-			EnemyDefeatResolver.discard_from_play(game_ctx, enemy_id)
+		EnemyDefeatResolver.discard_from_play(game_ctx, enemy_id)
 	if game_ctx.log != null and not ids.is_empty():
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,

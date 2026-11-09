@@ -2313,7 +2313,7 @@ func _test_prey_nearest_to_enemy_trait() -> bool:
 		&"cult_anchor",
 		{"traits": [&"Humanoid", &"Cultist"]}
 	)
-	var spawned := h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_anchor")
+	var spawned := SpawnFlow.at_location(h.ctx, cult_id, &"loc_a", &"cult_anchor")
 	if not spawned.get("ok", false):
 		return false
 	if not CardRegistry.card_has_trait(h.ctx.state.registry.get_card(cult_id), &"Cultist"):
@@ -2339,7 +2339,7 @@ func _test_prey_tie_opens_lead_pick() -> bool:
 		&"cult_tie",
 		{"traits": [&"Cultist"]}
 	)
-	if not h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_tie").get("ok", false):
+	if not SpawnFlow.at_location(h.ctx, cult_id, &"loc_a", &"cult_tie").get("ok", false):
 		return false
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
 		{"prompt_id": &"pick:prey_tie", "pick": &"inv_2"},
@@ -2384,7 +2384,7 @@ func _test_sc34_narogath_prey_nearest_cultist() -> bool:
 		&"cult_for_narogath",
 		{"traits": [&"Humanoid", &"Cultist"]}
 	)
-	if not h.ctx.enemy.spawn_at_location(h.ctx, cult_id, &"loc_a", &"cult_for_narogath").get(
+	if not SpawnFlow.at_location(h.ctx, cult_id, &"loc_a", &"cult_for_narogath").get(
 		"ok", false
 	):
 		return false
@@ -2438,7 +2438,7 @@ func _test_sc31_masked_hunter_forbid_clears() -> bool:
 	if not RestrictionEvaluator.blocks_discover_clue(&"inv_1", h.ctx.registrations):
 		return false
 	## 横置脱离：避免同地点 auto-engage 立刻再挂上限制。
-	h.ctx.enemy.disengage(h.ctx, hunter_id, true, false)
+	EngageFlow.disengage(h.ctx, hunter_id, true, false)
 	var after := h.ctx.sequence_catalog.run(
 		h.ctx,
 		&"seq.effect.discover_clue",
@@ -5562,7 +5562,7 @@ func _test_adb_12132_defeat_horror() -> bool:
 		&"12132",
 		{"enemy": {"fight": 1, "evade": 1, "health": 1, "damage": 1, "horror": 0}}
 	)
-	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, enemy_id, &"test_loc")
+	var spawn := SpawnFlow.at_location(h.ctx, enemy_id, &"test_loc")
 	if not spawn.get("ok", false):
 		return false
 	## 致死伤 → defeat → Forced WHEN 同地点各 1 恐惧。
@@ -5616,7 +5616,7 @@ func _test_adb_12122_discard_asset() -> bool:
 		&"12122",
 		{"enemy": {"fight": 2, "evade": 2, "health": 2, "damage": 1, "horror": 0}}
 	)
-	var spawn := h.ctx.enemy.spawn_engaged(h.ctx, enemy_id, &"inv_1")
+	var spawn := SpawnFlow.engaged(h.ctx, enemy_id, &"inv_1")
 	if not spawn.get("ok", false):
 		return false
 	h.ctx.enemy_phase.run_phase_attacks(h.ctx, &"inv_1")
@@ -9535,7 +9535,7 @@ func _test_engage_disengage_clears_buff() -> bool:
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
 	if not h.engage_action({"enemy_id": &"enemy_1"}).ok:
 		return false
-	h.ctx.enemy.disengage(h.ctx, &"enemy_1", false, false)
+	EngageFlow.disengage(h.ctx, &"enemy_1", false, false)
 	return (
 		not EngagementStatus.is_engaged_with(h.ctx, &"enemy_1", &"inv_1")
 		and not h.ctx.registrations.has_engagement(&"enemy_1", &"inv_1")
@@ -9648,7 +9648,7 @@ func _test_threat_spawn_engaged_fires() -> bool:
 		&"eta_deep"
 	)
 	h.ctx.triggered_abilities.register(desc)
-	var res := h.ctx.enemy.spawn_engaged(h.ctx, card_id, &"inv_1")
+	var res := SpawnFlow.engaged(h.ctx, card_id, &"inv_1")
 	return (
 		bool(res.get("ok", false))
 		and inv.threat_area.has(card_id)
@@ -9708,7 +9708,7 @@ func _test_threat_spawn_from_out_of_play() -> bool:
 			seen["from"] = t.payload.get("from", &"") as StringName
 			seen["count"] = int(seen["count"]) + 1
 	h.ctx.sequences.register_handler(probe)
-	var res := h.ctx.enemy.spawn_engaged(h.ctx, card_id, &"inv_1")
+	var res := SpawnFlow.engaged(h.ctx, card_id, &"inv_1")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
 		bool(res.get("ok", false))
@@ -9746,7 +9746,7 @@ func _test_threat_deep_one_spawn_fires() -> bool:
 		&"deep_one_eta"
 	)
 	h.ctx.triggered_abilities.register(paper)
-	var res := h.ctx.enemy.spawn_engaged(h.ctx, card_id, &"inv_1")
+	var res := SpawnFlow.engaged(h.ctx, card_id, &"inv_1")
 	## 只应扣 1（enter_threat Forced）；engage 手续 Forced 不响生成。
 	return (
 		bool(res.get("ok", false))
@@ -10618,7 +10618,7 @@ func _test_g5_weakness_enemy_owner_discard() -> bool:
 	)
 	var card := h.ctx.state.registry.get_card(card_id)
 	card.owner_id = &"inv_1"
-	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	var spawn := SpawnFlow.at_location(h.ctx, card_id, &"test_loc")
 	if not spawn.get("ok", false):
 		return false
 	var res := DefeatFlow.defeat_enemy_effect(h.ctx, card_id)
@@ -10641,7 +10641,7 @@ func _test_g5_vengeance_to_victory_display() -> bool:
 		{"health": 1, "vengeance": 2}
 	)
 	CardRegistry.patch_definition(&"en_vengeance_g5", {"vengeance": 2, "health": 1})
-	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	var spawn := SpawnFlow.at_location(h.ctx, card_id, &"test_loc")
 	if not spawn.get("ok", false):
 		return false
 	var res := DefeatFlow.defeat_enemy_effect(h.ctx, card_id)
@@ -10685,7 +10685,7 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
 		h.ctx, &"enc_zm_discard", {"health": 1}
 	)
-	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, &"test_loc")
+	var spawn := SpawnFlow.at_location(h.ctx, card_id, &"test_loc")
 	if not spawn.get("ok", false):
 		return false
 	var store := h.ctx.registrations
@@ -12246,7 +12246,7 @@ func _spawn_enemy_at(
 	opts: Dictionary = {}
 ) -> StringName:
 	var card_id := GameBootstrap.add_encounter_enemy_to_deck(h.ctx, definition_id, opts)
-	var spawn := h.ctx.enemy.spawn_at_location(h.ctx, card_id, location_tag)
+	var spawn := SpawnFlow.at_location(h.ctx, card_id, location_tag)
 	if not spawn.get("ok", false):
 		return &""
 	return card_id
@@ -12439,7 +12439,7 @@ func _test_en06_disengage_reselects() -> bool:
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	enemy.engaged_with = &"inv_1"
 	inv1.threat_area.append(enemy_id)
-	var result := h.ctx.enemy.disengage(h.ctx, enemy_id, false, true)
+	var result := EngageFlow.disengage(h.ctx, enemy_id, false, true)
 	var inv2 := h.ctx.state.registry.get_investigator(&"inv_2")
 	return (
 		bool(result.get("ok", true))
@@ -12455,7 +12455,7 @@ func _test_en08_massive_spawn_virtual() -> bool:
 	var card_id := GameBootstrap.add_encounter_enemy_to_deck(
 		h.ctx, &"en_massive_spawn", {"keywords": [&"massive"]}
 	)
-	var spawn := h.ctx.enemy.spawn_default_from_draw(h.ctx, card_id, &"inv_1", false, &"en_massive_spawn")
+	var spawn := SpawnFlow.default_from_draw(h.ctx, card_id, &"inv_1", false, &"en_massive_spawn")
 	if not spawn.get("ok", false):
 		return false
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -12550,7 +12550,14 @@ func _test_en11_ready_triggers_engage() -> bool:
 	enemy.exhausted = true
 	enemy.engaged_with = &""
 	inv.threat_area.erase(enemy_id)
-	var result := h.ctx.enemy.set_enemy_exhausted(h.ctx, enemy_id, false, true)
+	var result := ExhaustReadyFlow.nest_or_run_ready(
+		h.ctx,
+		{
+			"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+			"enemy_id": enemy_id,
+			"trigger_area_change": true,
+		}
+	)
 	return (
 		bool(result.get("ok", false))
 		and not enemy.exhausted
@@ -12571,7 +12578,7 @@ func _test_en12_evade_ready_reengage() -> bool:
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	if not (res.ok and res.success and enemy.exhausted and enemy.engaged_with == &""):
 		return false
-	h.ctx.enemy.ready_all_exhausted_enemies(h.ctx)
+	ExhaustReadyFlow.ready_all_in_play(h.ctx)
 	return enemy.engaged_with == &"inv_1" and inv.threat_area.has(&"enemy_1")
 
 
@@ -12943,7 +12950,7 @@ func _test_en24_discard_enemy_skips_doomed() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var discard := h.ctx.enemy.discard_enemy_from_play(h.ctx, enemy_id)
+	var discard := EnemyDefeatResolver.discard_from_play(h.ctx, enemy_id)
 	return (
 		discard.get("discarded", false)
 		and h.ctx.state.doom_on_agenda == 0
@@ -13023,7 +13030,7 @@ func _test_en27_discard_victory_not_to_display() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var discard := h.ctx.enemy.discard_enemy_from_play(h.ctx, enemy_id)
+	var discard := EnemyDefeatResolver.discard_from_play(h.ctx, enemy_id)
 	return (
 		discard.get("discarded", false)
 		and h.ctx.state.registry.get_enemy(enemy_id) == null
