@@ -206,7 +206,7 @@
 
 只分 **框架自动** 与 **效果交战**。基础 Engage 行动 = 调查员自带能力 → 外壳 nest **`mode=effect`**（与卡面效果同路径）。溯源靠序列栈，**不**另做 source / initiation 专轴。
 
-交战状态 = ENGAGEMENT Buff。威胁区 = 区划占位（检测用，不是 Buff）。`enter_threat` 常伴随移入威胁区；`grant` 只 Register Buff。纸面「交战后」反应/Forced 订 **`seq.effect.enter_threat_area`**（进入威胁区后），不订 `seq.engage` AFTER。
+交战状态 = ENGAGEMENT Buff。威胁区 = 区划占位（检测用，不是 Buff）。`seq.engage` 的 `enter_threat` = Buff + nest **`seq.effect.enter_threat_area`（`from=in_play`，场上→威胁区）**；`grant` 只 Buff。生成 engaged = 场外→威胁区（`from=out_of_play`），不压 `seq.engage`。纸面「交战后」订进入威胁区 AFTER。
 
 | 键 | 值 | 含义 |
 |---|---|---|

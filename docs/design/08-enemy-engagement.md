@@ -42,9 +42,17 @@ class EnemyState:
 
 **威胁区 ≠ 交战状态**：威胁区是 **区域占位信息**（敌人卡是否位于某调查员威胁区 — 可检测/查询）。交战状态是 **ENGAGEMENT Buff**（可赋予/注销）。二者脱钩：常态真实交战常伴随「移入威胁区」的区划变化，之后检测会显示在威胁区；「视为交战」只 Register Buff，卡可仍在地点上，检测威胁区不必为真。**庞大** 永不进威胁区，虚拟交战见 §6.6。
 
-**交战后时点 = 进入威胁区后**（已裁决）：纸面 *After … engages you* / *After you engage an enemy* 订 **`seq.effect.enter_threat_area`** 的 AFTER（`match_kind=enter_threat_area`），**不是** `seq.engage` 手续完成。`spawn_engaged` 原子进威胁区后同样 announce；`placement=grant` 与庞大虚拟交战 **不** announce。蜂拥包：主体与每张已进威胁区的集群卡牌各一次（for-each）。**While engaged** 等状态句仍读 ENGAGEMENT Buff。
+**进入威胁区 ≠ 交战**（已裁决）：
 
-**术语**：**`spawn_engaged`** = 进场时已是 engaged 状态（L0 一次提交）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标；**`Engage action`** = 调查员行动。三者 **不可** 混用。
+| 概念 | 是什么 | 流程 |
+|---|---|---|
+| **进入威胁区** | 区划：敌人进入某调查员威胁区 | `seq.effect.enter_threat_area`（`from=in_play` \| `out_of_play`） |
+| **交战** | ENGAGEMENT Buff +（真实交战时）包装进入威胁区 | `seq.engage`；**仅**场上区域 → 威胁区（`from=in_play`） |
+| **生成 engaged** | 场外（牌库等）→ 威胁区 + Buff | `spawn_engaged`；**不**压 `seq.engage`（`from=out_of_play`） |
+
+纸面 *After … engages you* / *After you engage an enemy* 订 **进入威胁区** AFTER（`match_kind=enter_threat_area`）：交战包装与生成 engaged 都会进入威胁区故都能开火；`placement=grant` 与庞大虚拟交战 **不**进入 → 不开火。蜂拥：主体与每张进入的集群卡牌各一次（for-each）。**While engaged** 仍读 ENGAGEMENT Buff。
+
+**术语**：**`spawn_engaged`** = 场外进威胁区且已 engaged（**不是**交战手续）；**`auto_engage_at_location`** = 已在 location 的 unengaged 敌人按 Engagement 规则选目标后走 `seq.engage`；**`Engage action`** = 调查员行动。三者 **不可** 混用。
 
 ### 3.1 命名流程 `seq.engage`（已收口）
 
@@ -64,8 +72,8 @@ class EnemyState:
 
 | `placement` | 交战状态 Buff | 区划 |
 |---|---|---|
-| `enter_threat`（真实交战） | Register | 常伴随 **移入威胁区**（状态原语）；之后检测「在威胁区」为真 |
-| `grant`（视为交战） | Register | **不**做移入；检测「在威胁区」可仍为假 |
+| `enter_threat`（真实交战） | Register | nest **`seq.effect.enter_threat_area`**（`from=in_play`，场上→威胁区） |
+| `grant`（视为交战） | Register | **不** nest 进入威胁区；检测「在威胁区」可仍为假 |
 
 赋予：`seq.engage` / `spawn_engaged` → `EngagementStatus.grant`。  
 注销：`disengage` / 敌人离场（`WHILE_IN_PLAY`）→ `EngagementStatus.clear`。  
@@ -73,7 +81,7 @@ class EnemyState:
 
 溯源靠序列栈；**不**另做 source / initiation 专轴。
 
-`spawn_engaged` 仍是 **L0 原子进场**（移入威胁区 + Register Buff），不压 `seq.engage`。庞大见 §6.6。
+`spawn_engaged`：Register Buff + nest 进入威胁区（`from=out_of_play`），**不**压 `seq.engage`。庞大见 §6.6。
 
 **多调查员同地点**：走 **`auto_engage_at_location`**（**②** `seq.engage` mode=auto）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
 

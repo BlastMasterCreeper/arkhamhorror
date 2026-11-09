@@ -122,10 +122,15 @@ static func _pad_one(
 	game_ctx.state.registry.register_enemy(enemy)
 	SwarmPack.bind_swarm(game_ctx, host_id, proxy_id)
 	if host.engaged_with != &"":
-		var eng := game_ctx.state.registry.get_investigator(host.engaged_with)
-		if eng != null and not eng.threat_area.has(proxy_id):
-			eng.threat_area.append(proxy_id)
+		## 集群卡牌从牌库垫出 = 场外→威胁区（不是交战手续）。
 		EngagementStatus.grant(game_ctx, proxy_id, host.engaged_with)
+		enemy.engaged_with = host.engaged_with
+		EnterThreatAreaFlow.enter_if_needed(
+			game_ctx,
+			proxy_id,
+			host.engaged_with,
+			EnterThreatAreaFlow.FROM_OUT_OF_PLAY
+		)
 	## 个体轴关键词可共享挂载；同步轴关键词也共享，结算时合并。
 	_mount_shared_keywords(game_ctx, host_id, proxy_id)
 	return proxy_id

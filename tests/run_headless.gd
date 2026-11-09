@@ -428,6 +428,8 @@ func _initialize() -> void:
 	_run_test("THREAT-03 massive virtual does not fire enter_threat_area", _test_threat_massive_does_not_fire)
 	_run_test("THREAT-04 spawn_engaged fires enter_threat_area", _test_threat_spawn_engaged_fires)
 	_run_test("THREAT-05 compile 12164 match enter_threat_area", _test_threat_compile_12164_match)
+	_run_test("THREAT-06 engage wraps in_play enter_threat", _test_threat_engage_from_in_play)
+	_run_test("THREAT-07 spawn_engaged from out_of_play", _test_threat_spawn_from_out_of_play)
 	_run_test("M4-01 effect.gain_resource registered with alias", _test_m4_gain_resource_rename)
 	_run_test("ACT-16 fight fail redirects to engaged holder", _test_act_fight_fail_redirect)
 	_run_test("AOO-01 resource provokes damage", _test_aoo_resource)
@@ -9664,6 +9666,54 @@ func _test_threat_compile_12164_match() -> bool:
 		and str(entry.get("phase", "")).to_upper() == "AFTER"
 		and entry.get("status", "") == "full"
 		and CardRegistry.has_triggered(&"12164")
+	)
+
+
+## 交战包装：进入威胁区 from=in_play（场上→威胁区）。
+func _test_threat_engage_from_in_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var seen := {"from": &""}
+	var probe := SequenceHandler.after_forced(
+		&"enter_threat_area", func() -> void: pass
+	)
+	probe.callback = func() -> void:
+		var t: TriggeringCondition = h.ctx.sequences.current_trigger()
+		seen["from"] = t.payload.get("from", &"") as StringName if t != null else &""
+	h.ctx.sequences.register_handler(probe)
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and inv.threat_area.has(&"enemy_1")
+		and seen["from"] == EnterThreatAreaFlow.FROM_IN_PLAY
+	)
+
+
+## 生成 engaged：进入威胁区 from=out_of_play（场外→威胁区），不压 seq.engage。
+func _test_threat_spawn_from_out_of_play() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"eta_spawn", {"card_type": &"enemy"})
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(h.ctx, &"eta_spawn")
+	var seen := {"from": &"", "count": 0}
+	var probe := SequenceHandler.after_forced(
+		&"enter_threat_area", func() -> void: pass
+	)
+	probe.callback = func() -> void:
+		var t: TriggeringCondition = h.ctx.sequences.current_trigger()
+		if t != null:
+			seen["from"] = t.payload.get("from", &"") as StringName
+			seen["count"] = int(seen["count"]) + 1
+	h.ctx.sequences.register_handler(probe)
+	var res := h.ctx.enemy.spawn_engaged(h.ctx, card_id, &"inv_1")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and inv.threat_area.has(card_id)
+		and seen["from"] == EnterThreatAreaFlow.FROM_OUT_OF_PLAY
+		and int(seen["count"]) >= 1
 	)
 
 
