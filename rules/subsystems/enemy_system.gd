@@ -7,7 +7,8 @@ extends RefCounted
 ## - 交战 / 脱离 → `EngageFlow` / `seq.engage`
 ## - 进入威胁区 → `EnterThreatAreaFlow` / `seq.effect.enter_threat_area`
 ## - 横置/重整 → `ExhaustReadyFlow`
-## - 伤/败 → `EnemyDefeatResolver` / `seq.effect.defeat`
+## - 伤/败 → `DefeatFlow` / `seq.effect.defeat`
+## - 攻击效果 → `EnemyAttackFlow` / `seq.enemy.attack`
 ## - 敌军阶段 → `EnemyPhaseService`
 ## 本类不再提供 spawn_* / apply_engage / deal_damage 等语义方法。
 

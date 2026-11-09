@@ -474,7 +474,7 @@ static func _discard_card_instance(
 		return false
 	## 场上敌人：先清交战再按归属路由（不算 defeat）。
 	if game_ctx.state != null and game_ctx.state.registry.get_enemy(card_id) != null:
-		var routed := EnemyDefeatResolver.discard_from_play(game_ctx, card_id)
+		var routed := DefeatFlow.discard_from_play(game_ctx, card_id)
 		return bool(routed.get("ok", false))
 	if card.owner_id == &"encounter":
 		return EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
@@ -690,7 +690,7 @@ static func _deal_non_elite_with_health_at_attached(
 		var card := game_ctx.state.registry.get_card(enemy_id)
 		if card != null and _has_elite_trait(card.id.definition_id):
 			continue
-		var result := EnemyDefeatResolver.deal_damage(game_ctx, enemy_id, amount)
+		var result := DefeatFlow.deal_damage(game_ctx, enemy_id, amount)
 		if bool(result.get("ok", false)):
 			dealt += amount
 	return dealt

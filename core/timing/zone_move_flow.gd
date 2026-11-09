@@ -307,7 +307,7 @@ static func _discard_attachment_instance(game_ctx: GameContext, card: CardInstan
 	if inv_id == &"":
 		inv_id = card.owner_id
 	if game_ctx.state != null and game_ctx.state.registry.get_enemy(card_id) != null:
-		var routed := EnemyDefeatResolver.discard_from_play(game_ctx, card_id)
+		var routed := DefeatFlow.discard_from_play(game_ctx, card_id)
 		return bool(routed.get("ok", false))
 	if card.owner_id == &"encounter":
 		return EncounterCardDiscard.discard_from_investigator_to_encounter_pile(

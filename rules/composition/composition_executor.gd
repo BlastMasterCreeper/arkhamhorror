@@ -1007,7 +1007,7 @@ func _execute_deal_damage_enemy(node: CompositionNode) -> bool:
 	if enemy_id == &"":
 		return false
 	var amount := maxi(node.marker_delta, 1)
-	var result := EnemyDefeatResolver.deal_damage(_game_ctx, enemy_id, amount)
+	var result := DefeatFlow.deal_damage(_game_ctx, enemy_id, amount)
 	var ok := bool(result.get("ok", false))
 	if ok:
 		_last_step_enemy_id = enemy_id

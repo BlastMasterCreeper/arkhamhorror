@@ -2,12 +2,15 @@ class_name AttackOfOpportunityResolver
 extends RefCounted
 
 var _state: GameStateStore
-var _combat: CombatResolver
+var _game_ctx: GameContext = null
 
 
-func _init(state: GameStateStore, combat: CombatResolver) -> void:
+func _init(state: GameStateStore) -> void:
 	_state = state
-	_combat = combat
+
+
+func bind_game_context(ctx: GameContext) -> void:
+	_game_ctx = ctx
 
 
 static func provokes(action_type: AhcEnums.ActionType) -> bool:
@@ -46,18 +49,17 @@ func resolve_for_types(
 		return {"ok": true, "attacks": 0, "restricted_by_skip_aoo": true}
 	var enemies := get_ready_engaged_enemies(investigator_id)
 	var count := 0
-	var ctx: GameContext = _combat.game_context() if _combat != null else null
 	for enemy_id in enemies:
 		if _state.registry.get_enemy(enemy_id) == null:
 			continue
 		var attack := EnemyAttack.build_from_enemy(
-			ctx,
+			_game_ctx,
 			enemy_id,
 			investigator_id,
 			false,
 			AhcEnums.AttackKind.OPPORTUNITY
 		)
-		_combat.perform_attack(attack)
+		EnemyAttackFlow.perform(_game_ctx, attack)
 		count += 1
 	return {"ok": true, "attacks": count}
 

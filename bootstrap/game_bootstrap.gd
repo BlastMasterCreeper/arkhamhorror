@@ -61,10 +61,8 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.skill_tests = SkillTestEngine.new(
 		ctx.state, ctx.events, ctx.log, ctx.modifiers, ctx.mutator, ctx.timing
 	)
-	ctx.combat = CombatResolver.new(ctx.state, ctx.log, ctx.timing)
-	ctx.combat.bind_game_context(ctx)
 	ctx.framework = FrameworkFlowEngine.new(
-		ctx.state, ctx.events, ctx.log, ctx.config, ctx.scenario, ctx.enemy, ctx.registrations
+		ctx.state, ctx.events, ctx.log, ctx.config, ctx.scenario, ctx.registrations
 	)
 	ctx.framework.bind_game_context(ctx)
 	ctx.actions = ActionSystem.new(
@@ -74,7 +72,6 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.log,
 		ctx.framework,
 		ctx.skill_tests,
-		ctx.combat,
 		ctx.mutator
 	)
 	ctx.actions.bind_game_context(ctx)

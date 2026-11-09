@@ -69,7 +69,7 @@ static func _perform(
 	investigator_id: StringName,
 	kind: AhcEnums.AttackKind
 ) -> Dictionary:
-	if game_ctx.combat == null:
+	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false, "triggered": false}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
@@ -77,7 +77,7 @@ static func _perform(
 	var strike := EnemyAttack.build_from_enemy(
 		game_ctx, enemy_id, investigator_id, false, kind
 	)
-	game_ctx.combat.perform_attack(strike)
+	EnemyAttackFlow.perform(game_ctx, strike)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
