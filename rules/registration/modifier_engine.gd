@@ -195,7 +195,7 @@ static func _settle_attack_determined(game_ctx: GameContext, plan: AmountPlan) -
 		for entry in legs_payload:
 			var eid: StringName = entry.get("id", &"")
 			var amt := int(entry.get("amount", 0))
-			var result := EnemyDefeatResolver.deal_damage(game_ctx, eid, amt)
+			var result := DefeatFlow.deal_damage(game_ctx, eid, amt)
 			if bool(result.get("ok", false)):
 				settled += amt
 	return {

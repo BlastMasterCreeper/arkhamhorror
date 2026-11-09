@@ -19,7 +19,6 @@ func _init(
 	log: GameLog,
 	framework: FrameworkFlowEngine = null,
 	skill_tests: SkillTestEngine = null,
-	combat: CombatResolver = null,
 	mutator: StateMutator = null
 ) -> void:
 	_state = state
@@ -27,8 +26,7 @@ func _init(
 	_initiation = initiation
 	_log = log
 	_framework = framework
-	if combat:
-		_aoo = AttackOfOpportunityResolver.new(state, combat)
+	_aoo = AttackOfOpportunityResolver.new(state)
 	_mutator = mutator
 
 
@@ -36,6 +34,8 @@ func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
 	if ctx:
 		_action_sequences = ctx.action_sequences
+		if _aoo != null:
+			_aoo.bind_game_context(ctx)
 
 
 ## REST-E-PLAY：打出 asset/event — 经 Initiation Sequence（Grimoire V）。

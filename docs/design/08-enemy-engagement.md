@@ -199,7 +199,7 @@ AOO、Retaliate、Alert、敌人阶段攻击 **不是**「只有攻击」——�
 |---|---|---|
 | **触发条件** | 何种游戏事件使该攻击**有资格**发生 | 是（各 kind 独立规则） |
 | **时点** | 在 Framework / Skill Test 的**哪一步**插入 | 是 |
-| **攻击效果** | deal damage/horror、exhaust、Elusive 等 | **否** — 统一 `perform_attack()` |
+| **攻击效果** | deal damage/horror、exhaust、Elusive 等 | **否** — 统一 `EnemyAttackFlow.perform()` |
 
 ```gdscript
 # ── 攻击效果层（统一）──
@@ -213,7 +213,7 @@ class EnemyAttack:
     var horror: int
     var exhaust_after: bool
 
-func perform_attack(attack: EnemyAttack) -> void:
+func EnemyAttackFlow.perform(attack: EnemyAttack) -> void:
     damage_pipeline.deal(attack.damage, attack.horror, attack.target)
     timing_bus.emit("enemy_attack_completed", attack)   # 可触发 After enemy attacks you 等
     if attack.exhaust_after:

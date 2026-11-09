@@ -1740,7 +1740,7 @@ func _test_sc20_objective_servant_defeated_advance() -> bool:
 	if enemy == null:
 		return false
 	enemy.damage = enemy.health
-	var defeat := EnemyDefeatResolver.defeat(h.ctx, servant_id)
+	var defeat := DefeatFlow.defeat(h.ctx, servant_id)
 	return (
 		defeat.get("defeated", false)
 		and h.ctx.state.current_act_number == 5
@@ -2702,7 +2702,7 @@ func _test_mod_enemy_damage_then_pipeline() -> bool:
 	)
 	if strike.damage != 2:
 		return false
-	h.ctx.combat.perform_attack(strike)
+	EnemyAttackFlow.perform(h.ctx, strike)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return inv.damage_taken == 2
 
@@ -2723,7 +2723,7 @@ func _test_mod_enemy_attack_increase_pending() -> bool:
 	var strike := EnemyAttack.build_from_enemy(
 		h.ctx, &"enemy_ip", &"inv_1", false, AhcEnums.AttackKind.PHASE
 	)
-	h.ctx.combat.perform_attack(strike)
+	EnemyAttackFlow.perform(h.ctx, strike)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return when_n["n"] == 4 and inv.damage_taken == 4
 
@@ -5566,7 +5566,7 @@ func _test_adb_12132_defeat_horror() -> bool:
 	if not spawn.get("ok", false):
 		return false
 	## 致死伤 → defeat → Forced WHEN 同地点各 1 恐惧。
-	var defeat := EnemyDefeatResolver.deal_damage(h.ctx, enemy_id, 1)
+	var defeat := DefeatFlow.deal_damage(h.ctx, enemy_id, 1)
 	return (
 		bool(defeat.get("defeated", false))
 		and inv1.horror_taken == 1
@@ -7196,7 +7196,7 @@ func _test_char_gained_victory_routes() -> bool:
 	CharacteristicMount.mount_gained(h.ctx, enemy_id, CharacteristicMount.CHAR_VICTORY, 2)
 	if not CharacteristicMount.routes_to_victory_display(h.ctx, enemy_id):
 		return false
-	var routed := EnemyDefeatResolver.finalize_leave_play(h.ctx, enemy_id, &"en_gain_vic")
+	var routed := DefeatFlow.finalize_leave_play(h.ctx, enemy_id, &"en_gain_vic")
 	return (
 		bool(routed.get("victory_display", false))
 		and h.ctx.state.victory_display.has(enemy_id)
@@ -7432,7 +7432,7 @@ func _test_swarm_host_blocks_defeat() -> bool:
 		&"test_loc",
 		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 2}}
 	)
-	var res := EnemyDefeatResolver.deal_damage(h.ctx, host_id, 5)
+	var res := DefeatFlow.deal_damage(h.ctx, host_id, 5)
 	var host := h.ctx.state.registry.get_enemy(host_id)
 	return (
 		bool(res.get("ok", false))
@@ -7461,7 +7461,7 @@ func _test_swarm_excess_spill_pi() -> bool:
 	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
 		{"prompt_id": &"swarm:spill_excess", "pick": host_id},
 	])
-	var res := EnemyDefeatResolver.deal_damage(h.ctx, sid, 2)
+	var res := DefeatFlow.deal_damage(h.ctx, sid, 2)
 	var spill: Dictionary = res.get("spill", {})
 	return (
 		bool(res.get("defeated", false))
@@ -7487,7 +7487,7 @@ func _test_swarm_excess_spill_default() -> bool:
 	if swarms.is_empty():
 		return false
 	var sid: StringName = swarms[0]
-	var res := EnemyDefeatResolver.deal_damage(h.ctx, sid, 2)
+	var res := DefeatFlow.deal_damage(h.ctx, sid, 2)
 	return (
 		bool(res.get("defeated", false))
 		and h.ctx.state.registry.get_enemy(sid) == null
@@ -7511,7 +7511,7 @@ func _test_swarm_leave_deck_bottom() -> bool:
 		return false
 	var sid: StringName = swarms[0]
 	var bottom_before := inv.deck.size()
-	EnemyDefeatResolver.deal_damage(h.ctx, sid, 1)
+	DefeatFlow.deal_damage(h.ctx, sid, 1)
 	if h.ctx.state.registry.get_enemy(sid) != null:
 		return false
 	var card := h.ctx.state.registry.get_card(sid)
@@ -10426,7 +10426,7 @@ func _test_g5_defeat_cancel_no_leave() -> bool:
 		&"seq.enemy.defeat",
 		{"card_id": enemy_id}
 	)
-	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
+	var res := DefeatFlow.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
 	return (
 		bool(res.get("cancelled", false))
 		and not bool(res.get("defeated", false))
@@ -10450,7 +10450,7 @@ func _test_g5_damage_cap_retriggers() -> bool:
 		&"seq.enemy.defeat",
 		{"card_id": enemy_id}
 	)
-	var cancelled := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
+	var cancelled := DefeatFlow.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_DAMAGE_CAP)
 	if not bool(cancelled.get("cancelled", false)):
 		return false
 	if h.ctx.state.registry.get_enemy(enemy_id) == null:
@@ -10476,7 +10476,7 @@ func _test_g5_effect_defeat() -> bool:
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	## 伤未满血仍可被卡面击败。
 	enemy.damage = 0
-	var res := EnemyDefeatResolver.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_EFFECT)
+	var res := DefeatFlow.defeat(h.ctx, enemy_id, DefeatFlow.CAUSE_EFFECT)
 	return (
 		bool(res.get("defeated", false))
 		and h.ctx.state.registry.get_enemy(enemy_id) == null
@@ -10522,7 +10522,7 @@ func _test_g5_enemy_attack_damage_cap() -> bool:
 	var attack := EnemyAttack.enemy_strike(
 		&"enemy_atk", &"inv_1", 2, 0, false, AhcEnums.AttackKind.PHASE
 	)
-	h.ctx.combat.perform_attack(attack)
+	EnemyAttackFlow.perform(h.ctx, attack)
 	return inv.eliminated and inv.damage_taken >= inv.health
 
 
@@ -10692,7 +10692,7 @@ func _test_zm_enemy_discard_leave_play() -> bool:
 	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, card_id)
 	if store.count() != 1:
 		return false
-	var res := EnemyDefeatResolver.discard_from_play(h.ctx, card_id)
+	var res := DefeatFlow.discard_from_play(h.ctx, card_id)
 	return (
 		bool(res.get("ok", false))
 		and store.count() == 0
@@ -12950,7 +12950,7 @@ func _test_en24_discard_enemy_skips_doomed() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var discard := EnemyDefeatResolver.discard_from_play(h.ctx, enemy_id)
+	var discard := DefeatFlow.discard_from_play(h.ctx, enemy_id)
 	return (
 		discard.get("discarded", false)
 		and h.ctx.state.doom_on_agenda == 0
@@ -13030,7 +13030,7 @@ func _test_en27_discard_victory_not_to_display() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var discard := EnemyDefeatResolver.discard_from_play(h.ctx, enemy_id)
+	var discard := DefeatFlow.discard_from_play(h.ctx, enemy_id)
 	return (
 		discard.get("discarded", false)
 		and h.ctx.state.registry.get_enemy(enemy_id) == null

@@ -41,7 +41,7 @@ static func apply(
 			if kind == &"horror":
 				## 敌人通常无神智通道；明确 horror 腿跳过。
 				return 0
-			var er := EnemyDefeatResolver.deal_damage(game_ctx, subject_id, amount)
+			var er := DefeatFlow.deal_damage(game_ctx, subject_id, amount)
 			return amount if bool(er.get("ok", false)) else 0
 		KIND_CARD:
 			var cr: Dictionary

@@ -49,7 +49,8 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	}
 
 
-func engage(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
+func engage(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
+	## catalog 缺失回退：与 seq.action.engage → nest seq.engage 同核（禁平行 L0）。
 	var inv := _state.registry.get_investigator(inv_id)
 	if inv == null:
 		return {"ok": false, "error": "unknown_investigator"}
@@ -60,8 +61,16 @@ func engage(_game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Di
 	var target_err := _validate_engage_target(inv, enemy)
 	if target_err != "":
 		return {"ok": false, "error": target_err}
-	_apply_engage(inv_id, enemy_id)
-	return {"ok": true, "enemy_id": enemy_id}
+	return EngageFlow.resolve(
+		game_ctx,
+		{
+			"mode": EngageFlow.MODE_EFFECT,
+			"placement": EngageFlow.PLACEMENT_ENTER_THREAT,
+			"require_same_location": true,
+			"enemy_id": enemy_id,
+			"investigator_id": inv_id,
+		}
+	)
 
 
 func move(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
@@ -189,20 +198,6 @@ func _validate_engage_target(inv: InvestigatorState, enemy: EnemyState) -> Strin
 	if enemy.is_engaged_with(inv.id):
 		return "already_engaged"
 	return ""
-
-
-func _apply_engage(inv_id: StringName, enemy_id: StringName) -> void:
-	var enemy := _state.registry.get_enemy(enemy_id)
-	var inv := _state.registry.get_investigator(inv_id)
-	if enemy == null or inv == null:
-		return
-	if enemy.engaged_with != &"" and enemy.engaged_with != inv_id:
-		var prev := _state.registry.get_investigator(enemy.engaged_with)
-		if prev:
-			prev.threat_area.erase(enemy_id)
-	enemy.engaged_with = inv_id
-	if not inv.threat_area.has(enemy_id):
-		inv.threat_area.append(enemy_id)
 
 
 func _commits_from_extra(extra: Dictionary) -> Array[CommittedCard]:

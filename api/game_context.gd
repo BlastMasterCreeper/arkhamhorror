@@ -27,7 +27,6 @@ var modifiers: ModifierEngine
 var composition: CompositionExecutor
 var listeners: ListenerDispatcher
 var legality: InitiationLegalityChecker
-var combat: CombatResolver
 var sequences: ResolutionSequenceStack
 var memory: RulesMemory
 var sequence_catalog: SequenceCatalog

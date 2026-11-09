@@ -9,7 +9,6 @@ var _state: GameStateStore
 var _events: EventRecordLog
 var _log: GameLog
 var _scenario: ScenarioSystem
-var _enemy: EnemySystem
 var _registrations: RegistrationStore
 var _game_ctx: GameContext = null
 
@@ -31,14 +30,12 @@ func _init(
 	log: GameLog,
 	_config: RulesConfig,
 	scenario: ScenarioSystem = null,
-	enemy: EnemySystem = null,
 	registrations: RegistrationStore = null
 ) -> void:
 	_state = state
 	_events = events
 	_log = log
 	_scenario = scenario
-	_enemy = enemy
 	_registrations = registrations
 
 

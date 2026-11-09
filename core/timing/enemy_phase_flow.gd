@@ -40,7 +40,7 @@ static func phase_attacks_for(
 ) -> Dictionary:
 	## Framework 3.3 固定攻击手续：枚举交战敌人 → nest 一般攻击 seq.enemy.attack。
 	## 庞大 REPLACE 挂在攻击效果上，不挂在本框架手续上。
-	if game_ctx == null or game_ctx.state == null or game_ctx.combat == null:
+	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	var inv := game_ctx.state.registry.get_investigator(investigator_id)
 	if inv == null:
@@ -119,7 +119,7 @@ static func move(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	## 一般敌人攻击效果。ATTACK 槽 REPLACE（庞大）以 redirect payload 替换本叶；
 	## AOO 等非 PHASE 不 redirect（魔典：借机只打触发者）。
-	if game_ctx == null or game_ctx.combat == null:
+	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	var enemy_id: StringName = params.get("enemy_id", &"")
 	var target: StringName = params.get(
@@ -149,7 +149,7 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		exhaust_after,
 		attack_kind as AhcEnums.AttackKind
 	)
-	game_ctx.combat.perform_attack(strike)
+	EnemyAttackFlow.perform(game_ctx, strike)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,
