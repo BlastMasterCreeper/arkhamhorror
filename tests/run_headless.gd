@@ -2319,7 +2319,7 @@ func _test_prey_nearest_to_enemy_trait() -> bool:
 	if not CardRegistry.card_has_trait(h.ctx.state.registry.get_card(cult_id), &"Cultist"):
 		return false
 	var spec := PreyInstructionSpec.nearest_to_enemy_trait(&"Cultist")
-	var pick := PreyResolver.best_match(
+	var pick := PreyQuery.best_match(
 		spec, h.ctx, [&"inv_1", &"inv_2"], &"hunter_self"
 	)
 	return pick == &"inv_1"
@@ -2346,7 +2346,7 @@ func _test_prey_tie_opens_lead_pick() -> bool:
 	])
 	var before_events := h.ctx.events.get_records().size() if h.ctx.events != null else 0
 	var spec := PreyInstructionSpec.nearest_to_enemy_trait(&"Cultist")
-	var pick := PreyResolver.best_match(spec, h.ctx, [&"inv_1", &"inv_2"], &"src")
+	var pick := PreyQuery.best_match(spec, h.ctx, [&"inv_1", &"inv_2"], &"src")
 	var saw_pi := false
 	if h.ctx.events != null:
 		var records := h.ctx.events.get_records()
@@ -4985,11 +4985,11 @@ func _test_adb_compile_12113() -> bool:
 
 func _test_adb_engage_types_provoke_aoo() -> bool:
 	## Engage 不在借机豁免类型内（仅 Fight/Evade/Parley/Resign）。
-	if not AttackOfOpportunityResolver.provokes_for_types(
+	if not AttackOfOpportunityTrigger.provokes_for_types(
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
 	):
 		return false
-	if AttackOfOpportunityResolver.provokes_for_types(
+	if AttackOfOpportunityTrigger.provokes_for_types(
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.FIGHT]
 	):
 		return false
@@ -10008,7 +10008,7 @@ func _test_g1_elusive_flee_nests_move() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var flee := ElusiveResolver.try_flee_was_attacked(h.ctx, enemy_id)
+	var flee := ElusiveTrigger.try_flee_was_attacked(h.ctx, enemy_id)
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		bool(flee.get("ok", false))

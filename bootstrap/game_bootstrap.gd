@@ -54,7 +54,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.state, ctx.events, ctx.effects, ctx.composition
 	)
 	ctx.triggered_abilities = TriggeredAbilityService.new()
-	ctx.scenario = ScenarioSystem.new(ctx.state, ctx.log)
+	ctx.scenario = ScenarioService.new(ctx.state, ctx.log)
 	ctx.scenario.bind_context(ctx)
 	ctx.enemy = EnemySystem.new(ctx.state, ctx.log)
 	ctx.enemy.bind_context(ctx)
@@ -65,7 +65,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.state, ctx.events, ctx.log, ctx.config, ctx.scenario, ctx.registrations
 	)
 	ctx.framework.bind_game_context(ctx)
-	ctx.actions = ActionSystem.new(
+	ctx.actions = ActionPipeline.new(
 		ctx.state,
 		ctx.events,
 		ctx.initiation,

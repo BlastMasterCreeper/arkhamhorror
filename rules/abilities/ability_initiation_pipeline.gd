@@ -7,7 +7,7 @@ var _effects: EffectResolutionGraph
 var _composition: CompositionExecutor
 var _legality: InitiationLegalityChecker = InitiationLegalityChecker.new()
 var _cost: InitiationCostPipeline
-var _aoo: AttackOfOpportunityResolver
+var _aoo: AttackOfOpportunityTrigger
 var _game_ctx: GameContext
 
 
@@ -29,7 +29,7 @@ func bind_game_context(ctx: GameContext) -> void:
 	if ctx == null:
 		return
 	_cost = InitiationCostPipeline.new(ctx.state, ctx.modifiers, ctx.mutator)
-	_aoo = AttackOfOpportunityResolver.new(ctx.state)
+	_aoo = AttackOfOpportunityTrigger.new(ctx.state)
 	_aoo.bind_game_context(ctx)
 
 

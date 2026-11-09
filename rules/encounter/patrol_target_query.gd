@@ -1,4 +1,4 @@
-class_name PatrolTargetResolver
+class_name PatrolTargetQuery
 extends RefCounted
 
 ## 同步解析 Patrol designated target → 地点 tag（① · 不 nest）。

@@ -403,8 +403,8 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 | 指令 | 提供 | Spec | 读参内核（②） | 实现路径 | 现状 |
 |---|---|---|---|---|---|
-| **Spawn –** | **WHERE** 进场地点 | `SpawnInstructionSpec` | G4 / enters play · `SpawnLocationResolver` | 导入编译 Spec；无文本 → `FRAMEWORK_DEFAULT`；有文本 → 同内核改落点；L0 进场在 spawn 砖块 | ✅ |
-| **Prey –** | **WHO** 交战/等距人选 | `PreyInstructionSpec` | `auto_engage_at_location`；猎手 LISTENER 等距分支 · `PreyResolver` | 导入编译 Spec；**不**进 G4 落点；**禁止** LISTENER / Buff | ✅ |
+| **Spawn –** | **WHERE** 进场地点 | `SpawnInstructionSpec` | G4 / enters play · `SpawnLocationQuery` | 导入编译 Spec；无文本 → `FRAMEWORK_DEFAULT`；有文本 → 同内核改落点；L0 进场在 spawn 砖块 | ✅ |
+| **Prey –** | **WHO** 交战/等距人选 | `PreyInstructionSpec` | `auto_engage_at_location`；猎手 LISTENER 等距分支 · `PreyQuery` | 导入编译 Spec；**不**进 G4 落点；**禁止** LISTENER / Buff | ✅ |
 
 无 Spawn 文本不是「缺指令」，是默认生成。猎物对 spawn location **无效果**。
 
@@ -414,9 +414,9 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 | 参数 | 挂在 | Spec | 谁读 | 实现路径 | 现状 |
 |---|---|---|---|---|---|
-| Spawn 地点选择器（farthest empty / named / …） | **指令** Spawn – | `SpawnInstructionSpec.selector` | `SpawnLocationResolver` | 与指令同一 Spec，不另开类型 | ✅ |
-| Prey `(lowest [agility])` 等 | **指令** Prey – | `PreyInstructionSpec` 比较/过滤 | `PreyResolver.best_match` | 等距或同地点子集内比较；并列 Lead | ✅ |
-| Patrol `(地点 / 目标)` | **关键词** 巡逻 | `PatrolTargetSpec` | 3.2 LISTENER handler 内 `PatrolTargetResolver` | **不是** 第三条指令；括号不 Register | △ 测试合成 |
+| Spawn 地点选择器（farthest empty / named / …） | **指令** Spawn – | `SpawnInstructionSpec.selector` | `SpawnLocationQuery` | 与指令同一 Spec，不另开类型 | ✅ |
+| Prey `(lowest [agility])` 等 | **指令** Prey – | `PreyInstructionSpec` 比较/过滤 | `PreyQuery.best_match` | 等距或同地点子集内比较；并列 Lead | ✅ |
+| Patrol `(地点 / 目标)` | **关键词** 巡逻 | `PatrolTargetSpec` | 3.2 LISTENER handler 内 `PatrolTargetQuery` | **不是** 第三条指令；括号不 Register | △ 测试合成 |
 | Uses `(X type)` 的 X 与 type | **关键词** Uses | `UsesSpec {count, type}` | 进场 L0 放 token；能力 cost 扣同 type | 禁止把 ammo 当成 charges | Domain `uses` 有；Spec 未模块化 |
 | Victory **X** | **可挂载特征**（非关键词） | 标量 `victory: int` | 击败 / 冒险结束改去向 | CHARACTERISTIC 挂载 | ✅ |
 | Swarming **X** | **关键词** Swarming | 标量 count | 延时 LISTENER payload | 垫 X 张 facedown swarm | Core 无 |
@@ -1314,14 +1314,14 @@ class AmountPlan:
 
 | 入口 ID | 子系统 | 检查时机 | 典型 Intent |
 |---|---|---|---|
-| **REST-E-PLAY** | `ActionSystem` play asset/event | 付 cost / commit play 前 | `PLAY` |
+| **REST-E-PLAY** | `ActionPipeline` play asset/event | 付 cost / commit play 前 | `PLAY` |
 | **REST-E-TRIGGER** | `EligibilityPipeline` L4 | COLLECT / PRE_INITIATE | `TRIGGER` |
 | **REST-E-DRAW** | `CompositionExecutor` draw atom | execute 前 | `DRAW` |
 | **REST-E-COMMIT** | `SkillTestEngine.commit_card` | commit 前 | `COMMIT_TO_TEST` |
-| **REST-E-ACTION** | `ActionSystem.execute` | 耗 action、发起 basic action 前 | `MOVE` `ENGAGE` `FIGHT` …（待扩） |
+| **REST-E-ACTION** | `ActionPipeline.execute` | 耗 action、发起 basic action 前 | `MOVE` `ENGAGE` `FIGHT` …（待扩） |
 | **REST-E-EFFECT** | `EffectResolutionGraph` step 4 / Composition 等价点 | submit `EffectRequest` 前 | 按 `EffectOp`→Intent（待接） |
 | **REST-E-ACTIVATE** | Asset `[action]` / `[free]` initiation | Pre-restrictions | `ACTIVATE`（待 enum） |
-| **REST-E-AOO** | `AttackOfOpportunityResolver` @ INIT_2B | 付完 cost、跑借机前 | —（读 `SKIP_AOO` 供 **原流程分支**） |
+| **REST-E-AOO** | `AttackOfOpportunityTrigger` @ INIT_2B | 付完 cost、跑借机前 | —（读 `SKIP_AOO` 供 **原流程分支**） |
 | **REST-E-AUTO-ENGAGE** | `EnemySystem.auto_engage_at_location` | 区域变更后自动交战前 | —（读 `SUPPRESS_AUTO_ENGAGE`：跳过 Prey/Lead 自动交战） |
 
 L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **同一 Intent** 均可；payload / `drawer_id` 豁免在 `_matches` 内处理。
@@ -1340,7 +1340,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | Intent（`RestrictionEvaluator`） | 对齐 | 典型 `RestrictionKind` | Grimoire / 卡面来源 | 入口 | 状态 |
 |---|---|---|---|---|---|
 | `DRAW` | 抽牌 | `FORBID_DRAW` | peril 无关；卡面「不能抽牌」 | REST-E-DRAW | **已实现** |
-| `PLAY` | 打出 asset/event | `FORBID_PLAY` | peril E3；immune play | REST-E-PLAY | Kind **已实现**；**ActionSystem 待接** |
+| `PLAY` | 打出 asset/event | `FORBID_PLAY` | peril E3；immune play | REST-E-PLAY | Kind **已实现**；**ActionPipeline 待接** |
 | `TRIGGER` | initiate 能力 | `FORBID_TRIGGER` | peril E3；[reaction]/Forced | REST-E-TRIGGER | **已实现** · COLLECT L4 + Initiation |
 | `COMMIT_TO_TEST` | commit skill | `FORBID_COMMIT_TO_TEST` | peril E3 | REST-E-COMMIT | **已实现** |
 | `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
@@ -1352,7 +1352,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
 | `MOVE` | 移动行动 / 效果移动调查员 | `FORBID_MOVE` | 「不能离开地点」 | REST-E-ACTION / REST-E-EFFECT | 待 enum + 接线 |
 | `ENGAGE` | engage 行动 | `FORBID_ENGAGE` | aloof 等（常配合 Condition） | REST-E-ACTION | 待 |
-| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION：`BasicActionResolver` / implicit | **已实现** · `AloofStatus.ensure_forbid_attack` @ 进场 |
+| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION：`BasicActionHandlers` / implicit | **已实现** · `AloofStatus.ensure_forbid_attack` @ 进场 |
 | `INVESTIGATE` | investigate 行动 | `FORBID_INVESTIGATE` | 地点规则 | REST-E-ACTION | 待 |
 | `EVADE` | evade 行动 | `FORBID_EVADE` | — | REST-E-ACTION | 待 |
 | `ACTIVATE` | 启动 asset 能力 | `FORBID_ACTIVATE` | 「不能启动」 | REST-E-ACTIVATE | 待 |
@@ -1392,8 +1392,8 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 | Composition draw atom / `seq.draw.investigator` 等价点 | REST-E-DRAW | `FORBID_DRAW` | 拦 Intent | **已实现** |
 | `SkillTestEngine.commit_card`（检定 ST 投入；非独立 `seq.commit`） | REST-E-COMMIT | `FORBID_COMMIT_TO_TEST` | 拦 Intent | **已实现** |
 | `StateMutator.move_card`（离手；隐私等） | REST-E-MOVE | `FORBID_LEAVE_HAND` | 拦 Intent | **已实现** |
-| `seq.action.fight` / `BasicActionResolver.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行 | **已实现** |
-| Initiation INIT_2B · `AttackOfOpportunityResolver` | REST-E-AOO | `SKIP_AOO` | 原流程读取分支 | **已实现** |
+| `seq.action.fight` / `BasicActionHandlers.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行 | **已实现** |
+| Initiation INIT_2B · `AttackOfOpportunityTrigger` | REST-E-AOO | `SKIP_AOO` | 原流程读取分支 | **已实现** |
 | `EnemySystem.auto_engage_at_location`（常由 `seq.engage` mode=auto / 区域变更后触发） | REST-E-AUTO-ENGAGE | `SUPPRESS_AUTO_ENGAGE` | 原流程读取分支 | **已实现** |
 | `DamagePipeline.deal_investigator` Assign（`DamageAssigner`） | REST-E-ASSIGN | `ASSIGN_CONSTRAINT` | 原流程读取（候选/先验/最小/最大） | **已实现** |
 | `AbilityInitiationPipeline` / Action play·trigger 前 | REST-E-PLAY / REST-E-TRIGGER | `FORBID_PLAY` / `FORBID_TRIGGER` | 拦 Intent | Kind 有；接线见 §16.4.2 |

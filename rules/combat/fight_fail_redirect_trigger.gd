@@ -1,4 +1,4 @@
-class_name FightFailRedirectResolver
+class_name FightFailRedirectTrigger
 extends RefCounted
 
 ## Fight 失败转嫁 · Grimoire *Fight Action* / 08 §6.6。

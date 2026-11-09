@@ -1,4 +1,4 @@
-class_name AttackOfOpportunityResolver
+class_name AttackOfOpportunityTrigger
 extends RefCounted
 
 var _state: GameStateStore

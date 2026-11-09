@@ -33,7 +33,7 @@
                             │ 门面 API（禁止直接改 State）
 ┌───────────────────────────▼─────────────────────────────┐
 │  Rules Layer                                             │
-│  FrameworkFlowEngine · ActionSystem · SkillTestEngine    │
+│  FrameworkFlowEngine · ActionPipeline · SkillTestEngine    │
 │  AbilityInitiationPipeline · EffectResolutionGraph       │
 └───────────────────────────┬─────────────────────────────┘
                             │ 读写 Domain
@@ -148,7 +148,7 @@ class GameContext:
 ### 4.3 脚本访问约束
 
 - `CardScript` 通过构造函数注入 `GameContext` + `CardInstance`。
-- Script **不得** 持有 `GameStateStore` 裸引用；所有变更经 `EffectBuilder.submit()` 或 `ActionSystem.request()`。
+- Script **不得** 持有 `GameStateStore` 裸引用；所有变更经 `EffectBuilder.submit()` 或 `ActionPipeline.request()`。
 - 嵌套检定时，`GameContext.skill_test_stack` 栈顶为当前检定上下文。
 
 ---
@@ -359,14 +359,14 @@ class EventRecord:
 | [00-framework-step-index.md](design/00-framework-step-index.md) | FrameworkStep / ST / Initiation 完整索引 |
 | [01-game-state-zones.md](design/01-game-state-zones.md) | GameStateStore、区域、实体 |
 | [02-framework-flow.md](design/02-framework-flow.md) | FrameworkFlowEngine |
-| [03-action-system.md](design/03-action-system.md) | ActionSystem、AOO |
+| [03-action-system.md](design/03-action-system.md) | ActionPipeline、AOO |
 | [04-skill-test-engine.md](design/04-skill-test-engine.md) | SkillTestEngine |
 | [05-chaos-bag.md](design/05-chaos-bag.md) | ChaosBagSystem |
 | [06-ability-initiation.md](design/06-ability-initiation.md) | AbilitySystem、Initiation |
 | [07-effect-resolution.md](design/07-effect-resolution.md) | EffectResolutionGraph |
 | [08-enemy-engagement.md](design/08-enemy-engagement.md) | EnemySystem |
 | [09-location-graph.md](design/09-location-graph.md) | LocationGraph |
-| [10-scenario-encounter.md](design/10-scenario-encounter.md) | ScenarioSystem |
+| [10-scenario-encounter.md](design/10-scenario-encounter.md) | ScenarioService |
 | [11-investigator-campaign.md](design/11-investigator-campaign.md) | Investigator、Campaign |
 | [12-card-script-api.md](design/12-card-script-api.md) | CardScript API |
 | [open-questions-master.md](open-questions-master.md) | 规则疑点汇总 |

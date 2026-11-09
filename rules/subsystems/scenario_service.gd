@@ -1,4 +1,4 @@
-class_name ScenarioSystem
+class_name ScenarioService
 extends RefCounted
 
 var _state: GameStateStore

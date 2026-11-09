@@ -1,4 +1,4 @@
-class_name BasicActionResolver
+class_name BasicActionHandlers
 extends RefCounted
 
 var _state: GameStateStore
@@ -124,7 +124,7 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 		ModifierEngine.settle_amount_plan(game_ctx, plan)
 	test.on_fail = func(_ctx: SkillTestContext) -> void:
 		var fight_damage: int = int(extra.get("fight_damage", 1))
-		FightFailRedirectResolver.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
+		FightFailRedirectTrigger.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,

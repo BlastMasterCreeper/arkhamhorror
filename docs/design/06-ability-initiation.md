@@ -39,7 +39,7 @@ enum AbilityKind {
 | Action `[action]` | 玩家 | Activate action |
 | Keyword | 引擎 | 规则 shorthand；**③** 编译 REGISTER/LISTENER（险境、涌动、Hunter/Patrol 移动…）；Patrol 括号 = **①** `PatrolTargetSpec`（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)）。**Fast.** 快速 **不是** 本表独立 AbilityKind 消费者：打出走 §4.2 与触发对称的 Initiation |
 | **Spawn – 指令** | — | **非本表** — `CardDefinition.spawn_instruction`；G4 内联读 WHERE（[07 §0.1](07-effect-primitives.md#01-规则参数字段ruleparameter--信息型卡面描述)、[15 §17.4.1b](15-timing-entry-catalog.md)） |
-| **Prey – 指令** | — | **非本表** — `CardDefinition.prey_instruction`（**①**）；**②** engage / **③** Hunter 等距 handler 内 `PreyResolver`；**不 nest**（[07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)） |
+| **Prey – 指令** | — | **非本表** — `CardDefinition.prey_instruction`（**①**）；**②** engage / **③** Hunter 等距 handler 内 `PreyQuery`；**不 nest**（[07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)） |
 
 ---
 
@@ -318,7 +318,7 @@ Initiation 各步 **完整写入 EventRecord**，与 Framework 同级（已裁�
 | Pre | Cost feasibility | **L6** `CostPipeline`（含 modifier 后） |
 | 1 | Apply cost modifiers | L6 前半 |
 | 2 | Pay costs | L6 支付 |
-| 2b | AOO | `AttackOfOpportunityResolver` |
+| 2b | AOO | `AttackOfOpportunityTrigger` |
 | 3 | Commence play / ability | Limbo, enter play |
 | 4 | Resolve effects | `CompositionExecutor`（见 [07-composition](07-composition.md)） |
 

@@ -26,7 +26,7 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var spec := CardRegistry.patrol_spec(def_id)
 	if spec == null:
 		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
-	var target_loc := PatrolTargetResolver.resolve(spec, game_ctx, enemy_id)
+	var target_loc := PatrolTargetQuery.resolve(spec, game_ctx, enemy_id)
 	if target_loc == &"" or enemy.location_tag == target_loc:
 		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
 	var body := MoveFlow.nest_or_run(

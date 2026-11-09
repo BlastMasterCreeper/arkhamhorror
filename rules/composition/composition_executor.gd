@@ -819,7 +819,7 @@ func _execute_nest_enemy_move(node: CompositionNode) -> bool:
 		return false
 	if _last_resolved_location == &"":
 		return false
-	var enemy_id := NearestEnemyResolver.pick_nearest_enemy_toward_investigator(
+	var enemy_id := NearestEnemyQuery.pick_nearest_enemy_toward_investigator(
 		_game_ctx, node.inv_id, node.trait_exclude, false
 	)
 	if enemy_id == &"":
@@ -1648,7 +1648,7 @@ func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool
 	else:
 		if _game_ctx.skill_tests == null:
 			return false
-		var resolver := BasicActionResolver.new(_state, _game_ctx.skill_tests)
+		var resolver := BasicActionHandlers.new(_state, _game_ctx.skill_tests)
 		move_result = resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
 		if bool(move_result.get("ok", false)):
 			EngageFlow.nest_after_area_change(_game_ctx, dest_id)

@@ -50,7 +50,7 @@ static func action_ability(
 		intent.action_types = [aoo_action_type]
 	else:
 		intent.action_types = action_types.duplicate()
-	intent.provokes_aoo = AttackOfOpportunityResolver.provokes_for_types(intent.action_types)
+	intent.provokes_aoo = AttackOfOpportunityTrigger.provokes_for_types(intent.action_types)
 	return intent
 
 
@@ -81,5 +81,5 @@ static func play_card(
 	else:
 		intent.action_types = [AhcEnums.ActionType.ACTIVATE]
 		intent.aoo_action_type = AhcEnums.ActionType.ACTIVATE
-		intent.provokes_aoo = AttackOfOpportunityResolver.provokes_for_types(intent.action_types)
+		intent.provokes_aoo = AttackOfOpportunityTrigger.provokes_for_types(intent.action_types)
 	return intent

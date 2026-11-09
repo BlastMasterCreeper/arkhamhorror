@@ -52,7 +52,7 @@ static func attach_limbo_to_nearest_location_without(
 		var card := game_ctx.state.registry.get_card(card_id)
 		if card != null:
 			exclude = card.id.definition_id
-	var location_id := NearestLocationResolver.pick_nearest_without_attachment(
+	var location_id := NearestLocationQuery.pick_nearest_without_attachment(
 		game_ctx, drawer_id, exclude
 	)
 	if location_id == &"":

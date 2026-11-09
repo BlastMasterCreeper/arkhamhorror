@@ -35,11 +35,11 @@ static func pick_nearest_investigator(
 	if best.size() == 1:
 		return best[0]
 	var prey := CardRegistry.prey_spec(def_id)
-	var pick := PreyResolver.best_match(prey, game_ctx, best, enemy_id)
+	var pick := PreyQuery.best_match(prey, game_ctx, best, enemy_id)
 	if pick != &"":
 		return pick
 	## 无 Prey / 过滤空：等距并列 → Lead PICK_TARGET。
-	return PreyResolver.lead_pick(game_ctx, best, &"pick:hunter_target_tie")
+	return PreyQuery.lead_pick(game_ctx, best, &"pick:hunter_target_tie")
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:

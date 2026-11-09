@@ -1,4 +1,4 @@
-class_name ElusiveResolver
+class_name ElusiveTrigger
 extends RefCounted
 
 ## 逃逸（Elusive）· Grimoire / 08 §6.5

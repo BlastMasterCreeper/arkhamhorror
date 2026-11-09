@@ -136,7 +136,7 @@ class FrameworkFlowEngine:
     func open_player_window(w: PlayerWindow) -> void
     func close_player_window_and_continue() -> void
 
-    # 外部请求（由 ActionSystem 等调用）
+    # 外部请求（由 ActionPipeline 等调用）
     func request_investigator_action(action: ActionRequest) -> Result
     func request_advance_act() -> Result
     func request_scenario_end(resolution: int) -> Result
@@ -174,7 +174,7 @@ func begin_round() -> void:
 ### 5.1 Mythos 1.2–1.3
 
 - 1.2：current agenda +1 doom
-- 1.3：若 `doom_in_play >= agenda_threshold` → `ScenarioSystem.advance_agenda()`
+- 1.3：若 `doom_in_play >= agenda_threshold` → `ScenarioService.advance_agenda()`
 
 **注意**：除非卡牌另说，议程**仅**在 1.3 推进（Grimoire Doom）。
 
@@ -188,12 +188,12 @@ func begin_round() -> void:
 4. Spawn enemy / discard treachery
 5. Surge → 递归从 step 1
 
-委托 `ScenarioSystem.resolve_encounter_draw(inv)`。
+委托 `ScenarioService.resolve_encounter_draw(inv)`。
 
 ### 5.3 Investigation 2.2.x
 
 - 2.2：调查员自选顺序；`actions_remaining = 3 + bonus - penalty`
-- 2.2.1：`ActionSystem.execute`；若 actions > 0 且玩家选择继续 → 回到 `PW_BEFORE_ACTION`
+- 2.2.1：`ActionPipeline.execute`；若 actions > 0 且玩家选择继续 → 回到 `PW_BEFORE_ACTION`
 - 2.2.2：forfeit 剩余 actions；标记 turn 结束
 
 ### 5.4 Enemy Phase（3.1–3.4 · 基础流程，非空壳）
@@ -332,9 +332,9 @@ func trigger_resolution(r: int) -> void:
 
 ```
 FrameworkFlowEngine
-  ├─► ActionSystem        (INV_2_2_1)
+  ├─► ActionPipeline        (INV_2_2_1)
   ├─► SkillTestEngine     (嵌套于 Action/Encounter)
-  ├─► ScenarioSystem      (MYTHOS_1_4, agenda advance)
+  ├─► ScenarioService      (MYTHOS_1_4, agenda advance)
   ├─► EnemySystem         (ENEMY_3_2, 3_3)
   ├─► InvestigatorSystem  (UPKEEP 4.4–4.5)
   └─► TimingBus           (每 step enter/exit)

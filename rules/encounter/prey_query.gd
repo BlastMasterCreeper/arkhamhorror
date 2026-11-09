@@ -1,4 +1,4 @@
-class_name PreyResolver
+class_name PreyQuery
 extends RefCounted
 
 
