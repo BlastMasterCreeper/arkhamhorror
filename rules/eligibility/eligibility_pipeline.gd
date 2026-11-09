@@ -90,7 +90,7 @@ static func _gate_l1(handler: SequenceHandler, game_ctx: GameContext) -> GateRep
 		return GateReport.ok(1)
 	if game_ctx.state.removed_from_game.has(handler.source_id):
 		return GateReport.fail(1, &"source_removed")
-	## 与 TriggeredAbilityService 可安装区对齐：含当前密谋/场景与地点。
+	## 与 TriggeredAbilityPipeline 可安装区对齐：含当前密谋/场景与地点。
 	match card.zone:
 		AhcEnums.Zone.PLAY_AREA, AhcEnums.Zone.THREAT_AREA, AhcEnums.Zone.HAND, \
 		AhcEnums.Zone.LIMBO, AhcEnums.Zone.ATTACHED, AhcEnums.Zone.LOCATION_AREA, \

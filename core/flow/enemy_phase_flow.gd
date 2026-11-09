@@ -104,7 +104,7 @@ static func _enemies_attacking_investigator(
 
 
 static func resolve_location(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	return EnemyLocationTarget.resolve(game_ctx, params)
+	return EnemyLocationQuery.resolve(game_ctx, params)
 
 
 static func move(game_ctx: GameContext, params: Dictionary) -> Dictionary:

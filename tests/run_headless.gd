@@ -1882,17 +1882,17 @@ func _test_sc25_fire_revelation_no_target_discards() -> bool:
 	h.run_setup()
 	if not CardRegistry.has_revelation(&"12129"):
 		return false
-	var aside := ScenarioSetAsideService.find_cards(h.ctx, &"12129")
+	var aside := ScenarioSetAside.find_cards(h.ctx, &"12129")
 	if aside.is_empty():
 		return false
 	var first: StringName = aside[0]
-	ScenarioSetAsideService.remove_from_set_aside(h.ctx, first)
+	ScenarioSetAside.remove_from_set_aside(h.ctx, first)
 	if not EncounterAttachment.attach_limbo_to_location(h.ctx, first, &"12113"):
 		return false
 	var second: StringName = aside[1] if aside.size() > 1 else &""
 	if second == &"":
 		return false
-	ScenarioSetAsideService.remove_from_set_aside(h.ctx, second)
+	ScenarioSetAside.remove_from_set_aside(h.ctx, second)
 	h.ctx.state.encounter_discard.append(second)
 	var card := h.ctx.state.registry.get_card(second)
 	if card != null:

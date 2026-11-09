@@ -822,7 +822,7 @@ seq.enter_hand                 # NEST_BATCH · 所有「进入手牌」来源共
   for card_id in card_ids (按顺序):
     if has_revelation(card_id):
       nest TriggeringCondition.enter_hand
-      CardAbilityService.resolve_revelations(flow_id=seq.enter_hand, defer=true)
+      CardAbilityPipeline.resolve_revelations(flow_id=seq.enter_hand, defer=true)
     finalize_limbo_discard   # 每张牌：仍 limbo → 落堆（与遭遇 G4 同原语）
 ```
 
@@ -937,7 +937,7 @@ var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
 | L0：`pop_deck_top`、`shuffle_discard_into_deck`、`commit_enter_hand`、`reveal_to_controller` | `seq.draw.encounter` |
 | L1：`DrawInvestigatorComposition`（`shuffle_and_horror`、`reveal_batch`、`enter_hand_batch`） | 设计别名 `seq.action.gain_resource` → 代码 `seq.gain_resource` 对齐（可选） |
 | `SequenceCatalog`：`seq.draw.investigator`、`seq.draw.empty_piles_defeated`、`seq.enter_hand`、`seq.gain_resource` | `TimingCatalog` 索引表（§17） |
-| `DrawInvestigatorFlow` + `DrawSubflowHandlers`；`DrawInvestigatorService` → `catalog.run` | D1 per-card instance bind（当前以 `card_id` + pending 列表） |
+| `DrawInvestigatorFlow` + `DrawSubflowFlowHandlers`；`DrawInvestigatorService` → `catalog.run` | D1 per-card instance bind（当前以 `card_id` + pending 列表） |
 | `CardRegistry.register_revelation` → Composition；ENT-01～03 测试 | 遭遇显现走 `seq.encounter.revelation`，**不**共用 `seq.enter_hand` |
 | `StateMutator.execute_draw_instruction` dry-run 回退（`run_mutator_only`） | |
 
@@ -1565,10 +1565,10 @@ static func resolve_card_body(
 	catalog: SequenceCatalog
 ) -> Dictionary
 
-class_name DrawEncounterSubflowHandlers
+class_name DrawEncounterSubflowFlowHandlers
 extends RefCounted
 
-## E1 内联 collect（对标 DrawSubflowHandlers.collect_one_step）。
+## E1 内联 collect（对标 DrawSubflowFlowHandlers.collect_one_step）。
 
 static func collect_one_step(
 	game_ctx: GameContext,
@@ -1604,7 +1604,7 @@ func draw_encounter_cards(
 }
 ```
 
-`DrawEncounterSubflowHandlers.collect_one_step` / `DrawEncounterFlow.resolve_card_body` — 对标调查员 D1 内联 + D2–D3 编排。
+`DrawEncounterSubflowFlowHandlers.collect_one_step` / `DrawEncounterFlow.resolve_card_body` — 对标调查员 D1 内联 + D2–D3 编排。
 
 ### 17.10 TriggeringCondition 与 ApplicationContext tags
 
@@ -1652,7 +1652,7 @@ collect_one_step:  empty deck → shuffle now → pop
 nested effect:   empty deck → flag defer → on subtree pop → shuffle → 若效果还需 draw 则再 collect
 ```
 
-### 17.12 CardAbilityService：遭遇 vs 玩家显现
+### 17.12 CardAbilityPipeline：遭遇 vs 玩家显现
 
 | 方法 | 用于 | flow_id | finalize |
 |---|---|---|---|
@@ -1674,8 +1674,8 @@ abilities.resolve_revelations(
 |---|---|
 | `EncounterResolutionFrame`（`core/timing/encounter_resolution_frame.gd`） | `DrawEncounterFlow` + `DrawEncounterComposition` |
 | `ResolutionSequenceStack` nest / run | L0：`pop_encounter_deck_top`、`reveal_to_all`、`shuffle_encounter_discard` |
-| `DrawInvestigatorFlow` / `DrawSubflowHandlers` **内联/nest 样板** | `DrawEncounterSubflowHandlers.collect_one_step` |
-| `CardAbilityService.resolve_revelations` | 遭遇路径 `defer_limbo_finalize=true` |
+| `DrawInvestigatorFlow` / `DrawSubflowFlowHandlers` **内联/nest 样板** | `DrawEncounterSubflowFlowHandlers.collect_one_step` |
+| `CardAbilityPipeline.resolve_revelations` | 遭遇路径 `defer_limbo_finalize=true` |
 | `DrawInvestigatorService` facade | `DrawEncounterService` + Catalog 登记（§17.4） |
 | `ScenarioService.resolve_encounter_draw`（**仅 log**） | Mythos 1.4 → `catalog.run` |
 | `FrameworkFlowEngine` Mythos 1.4 | `EncounterPeril.apply_e3_check`（内联）、spawn nest |
@@ -1821,7 +1821,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | `SequenceCatalog` + `SequenceCatalogBootstrap`（draw 子 flow、`seq.enter_hand`、`seq.gain_resource`） | **`seq.draw.encounter` 全家桶**（§17.4） |
 | `ResolutionSequenceStack` push/pop/nest + `SequenceCatalog.nest` / `nest_batch` | `EncounterResolutionFrame` |
 | `DrawInvestigatorService` / `ResourceGainService` 薄 facade → `catalog.run` | `DrawEncounterFlow` / `DrawEncounterComposition` |
-| `CardAbilityService` + `CardRegistry.register_revelation` | `resolve_encounter_revelations`（或复用 + flow_id 分支） |
+| `CardAbilityPipeline` + `CardRegistry.register_revelation` | `resolve_encounter_revelations`（或复用 + flow_id 分支） |
 | `EnterHandTimingPolicy`（显现顺序占位，默认 SOURCE_ORDER） | L0 遭遇 pop/shuffle；`ScenarioService.resolve_encounter_draw` |
 | | §18 完整 Timing 索引表 |
 | | ENC-01～15 测试 |

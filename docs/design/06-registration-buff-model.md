@@ -1352,7 +1352,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
 | `MOVE` | 移动行动 / 效果移动调查员 | `FORBID_MOVE` | 「不能离开地点」 | REST-E-ACTION / REST-E-EFFECT | 待 enum + 接线 |
 | `ENGAGE` | engage 行动 | `FORBID_ENGAGE` | aloof 等（常配合 Condition） | REST-E-ACTION | 待 |
-| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION：`BasicActionHandlers` / implicit | **已实现** · `AloofStatus.ensure_forbid_attack` @ 进场 |
+| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION：`BasicActionFlowHandlers` / implicit | **已实现** · `AloofStatus.ensure_forbid_attack` @ 进场 |
 | `INVESTIGATE` | investigate 行动 | `FORBID_INVESTIGATE` | 地点规则 | REST-E-ACTION | 待 |
 | `EVADE` | evade 行动 | `FORBID_EVADE` | — | REST-E-ACTION | 待 |
 | `ACTIVATE` | 启动 asset 能力 | `FORBID_ACTIVATE` | 「不能启动」 | REST-E-ACTIVATE | 待 |
@@ -1392,7 +1392,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 | Composition draw atom / `seq.draw.investigator` 等价点 | REST-E-DRAW | `FORBID_DRAW` | 拦 Intent | **已实现** |
 | `SkillTestEngine.commit_card`（检定 ST 投入；非独立 `seq.commit`） | REST-E-COMMIT | `FORBID_COMMIT_TO_TEST` | 拦 Intent | **已实现** |
 | `StateMutator.move_card`（离手；隐私等） | REST-E-MOVE | `FORBID_LEAVE_HAND` | 拦 Intent | **已实现** |
-| `seq.action.fight` / `BasicActionHandlers.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行 | **已实现** |
+| `seq.action.fight` / `BasicActionFlowHandlers.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行 | **已实现** |
 | Initiation INIT_2B · `AttackOfOpportunityTrigger` | REST-E-AOO | `SKIP_AOO` | 原流程读取分支 | **已实现** |
 | `EnemySystem.auto_engage_at_location`（常由 `seq.engage` mode=auto / 区域变更后触发） | REST-E-AUTO-ENGAGE | `SUPPRESS_AUTO_ENGAGE` | 原流程读取分支 | **已实现** |
 | `DamagePipeline.deal_investigator` Assign（`DamageAssigner`） | REST-E-ASSIGN | `ASSIGN_CONSTRAINT` | 原流程读取（候选/先验/最小/最大） | **已实现** |

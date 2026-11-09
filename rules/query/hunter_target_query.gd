@@ -1,4 +1,4 @@
-class_name EnemyHunterTarget
+class_name HunterTargetQuery
 extends RefCounted
 
 ## Hunter / 向调查员移动 · 等距 → Prey → Lead（08 §4）。
@@ -20,7 +20,7 @@ static func pick_nearest_investigator(
 		var inv := game_ctx.state.registry.get_investigator(inv_id)
 		if inv == null or inv.location_tag == &"":
 			continue
-		var dist := EnemyPathfinding.shortest_path_distance(
+		var dist := EnemyPathQuery.shortest_path_distance(
 			enemy.location_tag, inv.location_tag, game_ctx
 		)
 		if dist < 0:

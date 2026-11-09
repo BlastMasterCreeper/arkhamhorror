@@ -1,4 +1,4 @@
-class_name EnemyLocationTarget
+class_name EnemyLocationQuery
 extends RefCounted
 
 ## 卡面/规则文本目标 → 地点 tag（移动的直接目标永远是地点）。

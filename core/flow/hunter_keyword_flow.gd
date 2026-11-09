@@ -17,10 +17,10 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null or enemy.exhausted or EngagementStatus.is_engaged(game_ctx, enemy_id):
 		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
-	var target_inv := EnemyHunterTarget.pick_nearest_investigator(game_ctx, enemy_id)
+	var target_inv := HunterTargetQuery.pick_nearest_investigator(game_ctx, enemy_id)
 	if target_inv == &"":
 		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
-	var loc := EnemyLocationTarget.resolve(
+	var loc := EnemyLocationQuery.resolve(
 		game_ctx, {"target": "investigator_location", "drawer_id": target_inv}
 	)
 	if not bool(loc.get("ok", false)):

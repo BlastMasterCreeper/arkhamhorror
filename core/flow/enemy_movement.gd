@@ -1,7 +1,8 @@
 class_name EnemyMovement
 extends RefCounted
 
-## 敌人移动 1 步（交战由区域变化后的 seq.engage 嵌套响应处理）。
+## 流程体附属 L0：敌人移动 1 步（由 `MoveFlow` / 猎手等调用；非独立 seq）。
+## 交战由区域变化后的 `seq.engage` 嵌套响应处理。
 
 
 static func move_one_step_toward_location(
@@ -25,7 +26,7 @@ static func move_one_step_toward_location(
 	if enemy.location_tag == target_location_tag:
 		result["ok"] = true
 		return result
-	var next_hop := EnemyPathfinding.pick_next_hop_toward(
+	var next_hop := EnemyPathQuery.pick_next_hop_toward(
 		enemy.location_tag, target_location_tag, game_ctx
 	)
 	if next_hop == &"":

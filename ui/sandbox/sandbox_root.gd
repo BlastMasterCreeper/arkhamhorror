@@ -235,7 +235,7 @@ func _act_draw_encounter() -> void:
 
 func _act_draw_fire_discard() -> void:
 	_run_safe("弃牌顶抽 Fire!", func() -> Dictionary:
-		var ok := ScenarioCompositionAtoms.lead_draw_topmost_encounter_discard_copy(
+		var ok := ScenarioCompositionFlowHandlers.lead_draw_topmost_encounter_discard_copy(
 			_ctx, &"12129"
 		)
 		return {"ok": ok}

@@ -86,7 +86,7 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 	if restriction_reason != &"":
 		return {"ok": false, "error": RestrictionEvaluator.api_error(restriction_reason)}
 	## 隐式目标（Fight/Evade/Investigate）：付费前 U–V；空合法集 → 发起失败。
-	var target_res := ImplicitActionTargets.resolve(
+	var target_res := ImplicitActionTargetQuery.resolve(
 		action_type, _game_ctx, investigator_id, extra
 	)
 	if not bool(target_res.get("ok", true)):

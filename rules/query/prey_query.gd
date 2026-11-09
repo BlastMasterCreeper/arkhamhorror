@@ -179,7 +179,7 @@ static func _min_distance_to_locations(
 ) -> int:
 	var best := -1
 	for loc in location_tags:
-		var dist := EnemyPathfinding.shortest_path_distance(from_tag, loc, game_ctx)
+		var dist := EnemyPathQuery.shortest_path_distance(from_tag, loc, game_ctx)
 		if dist < 0:
 			continue
 		if best < 0 or dist < best:

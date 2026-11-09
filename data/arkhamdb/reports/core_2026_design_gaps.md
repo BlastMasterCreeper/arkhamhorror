@@ -47,7 +47,7 @@ Core 2026 卡面含大量 `+N [skill]`、`+N damage`、`-N cost` 类文本；需
 ## 5. 待人工译码优先队列（建议）
 
 1. 全部 `<b>Revelation</b>` treachery（遭遇管线 ENT/ENC）
-2. `[reaction]` / `[action]` 资产（TriggeredAbilityService + Initiation）
+2. `[reaction]` / `[action]` 资产（TriggeredAbilityPipeline + Initiation）
 3. Spawn/Prey 敌人
 4. Hidden / Surge / Peril 关键词遭遇
 5. Agenda/Act `forced` 场景能力（场景脚本，非卡牌 Initiation）

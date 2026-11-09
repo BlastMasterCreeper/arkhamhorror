@@ -33,7 +33,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.registrations.bind_stat_projections(ctx.stat_projections)
 	ctx.mutator = StateMutator.new(ctx.state)
 	ctx.mutator.bind_registration_store(ctx.registrations)
-	ctx.card_abilities = CardAbilityService.new(ctx.mutator)
+	ctx.card_abilities = CardAbilityPipeline.new(ctx.mutator)
 	ctx.sequence_catalog = SequenceCatalog.new()
 	SequenceCatalogBootstrap.register_builtin(ctx.sequence_catalog, ctx.mutator, ctx.card_abilities)
 	ctx.resource_gain = ResourceGainService.new(ctx.sequence_catalog)
@@ -53,7 +53,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.initiation = AbilityInitiationPipeline.new(
 		ctx.state, ctx.events, ctx.effects, ctx.composition
 	)
-	ctx.triggered_abilities = TriggeredAbilityService.new()
+	ctx.triggered_abilities = TriggeredAbilityPipeline.new()
 	ctx.scenario = ScenarioService.new(ctx.state, ctx.log)
 	ctx.scenario.bind_context(ctx)
 	ctx.enemy = EnemySystem.new(ctx.state, ctx.log)

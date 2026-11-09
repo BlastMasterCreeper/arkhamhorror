@@ -19,7 +19,7 @@ static func candidates_without_attachment(
 	for loc_id in _locations_in_play(game_ctx):
 		if _location_has_attachment_definition(game_ctx, loc_id, attachment_definition_id):
 			continue
-		var dist := EnemyPathfinding.shortest_path_distance(from, loc_id, game_ctx)
+		var dist := EnemyPathQuery.shortest_path_distance(from, loc_id, game_ctx)
 		if dist < 0:
 			continue
 		if dist < best_dist:

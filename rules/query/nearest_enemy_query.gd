@@ -27,7 +27,7 @@ static func candidates_without_doom(
 			continue
 		if enemy.location_tag == &"":
 			continue
-		var dist := EnemyPathfinding.shortest_path_distance(from, enemy.location_tag, game_ctx)
+		var dist := EnemyPathQuery.shortest_path_distance(from, enemy.location_tag, game_ctx)
 		if dist < 0:
 			continue
 		if dist < best_dist:
@@ -86,7 +86,7 @@ static func candidates_toward_investigator(
 		var def_id := _definition_id(game_ctx, enemy_id)
 		if _has_excluded_trait(def_id, trait_exclude):
 			continue
-		var dist := EnemyPathfinding.shortest_path_distance(from, enemy.location_tag, game_ctx)
+		var dist := EnemyPathQuery.shortest_path_distance(from, enemy.location_tag, game_ctx)
 		if dist < 0:
 			continue
 		if dist < best_dist:
