@@ -402,6 +402,14 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EngageFlow.resolve(game_ctx, params)
 	)
+	## 进入威胁区时点信封（纸面 After engages / After you engage 订此 AFTER）。
+	catalog.register_run(
+		&"seq.effect.enter_threat_area",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.enter_threat_area(params),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EnterThreatAreaFlow.resolve(game_ctx, params)
+	)
 	catalog.register_run(
 		&"seq.enemy.attack",
 		func(params: Dictionary) -> TriggeringCondition:

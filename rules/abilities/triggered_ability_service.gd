@@ -372,6 +372,21 @@ func _trigger_applies(descriptor: TriggeredAbilityDescriptor) -> bool:
 	if descriptor.match_kind == &"enemy_attack":
 		var attacker_id: StringName = trigger.payload.get("enemy_id", &"") as StringName
 		return attacker_id != &"" and attacker_id == descriptor.source_id
+	## 进入威胁区：敌人 Forced 仅本实例；玩家反应仅「你」= 威胁区主人。
+	if descriptor.match_kind == &"enter_threat_area":
+		var entered_id: StringName = trigger.payload.get("enemy_id", &"") as StringName
+		var threat_inv: StringName = trigger.payload.get(
+			"investigator_id", trigger.controller_id
+		) as StringName
+		if CardRegistry.card_type(descriptor.definition_id) == &"enemy":
+			return entered_id != &"" and entered_id == descriptor.source_id
+		if (
+			descriptor.controller_id != &""
+			and threat_inv != &""
+			and descriptor.controller_id != threat_inv
+		):
+			return false
+		return entered_id != &""
 	## you take：承伤主体 = 能力控制者（嵌套击败完成后父 deal AFTER 再开火）。
 	if descriptor.match_kind == &"damage" and descriptor.take_self:
 		if (

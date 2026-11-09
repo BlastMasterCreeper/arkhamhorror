@@ -423,6 +423,11 @@ func _initialize() -> void:
 	_run_test("ENGAGE-01 grant buff without moving into threat area", _test_engage_grant_cross_location)
 	_run_test("ENGAGE-02 enter_threat moves into threat area and buff", _test_engage_enter_threat_buff)
 	_run_test("ENGAGE-03 disengage clears engagement buff", _test_engage_disengage_clears_buff)
+	_run_test("THREAT-01 engage action fires enter_threat_area", _test_threat_engage_action_fires)
+	_run_test("THREAT-02 grant engage does not fire enter_threat_area", _test_threat_grant_does_not_fire)
+	_run_test("THREAT-03 massive virtual does not fire enter_threat_area", _test_threat_massive_does_not_fire)
+	_run_test("THREAT-04 spawn_engaged fires enter_threat_area", _test_threat_spawn_engaged_fires)
+	_run_test("THREAT-05 compile 12164 match enter_threat_area", _test_threat_compile_12164_match)
 	_run_test("M4-01 effect.gain_resource registered with alias", _test_m4_gain_resource_rename)
 	_run_test("ACT-16 fight fail redirects to engaged holder", _test_act_fight_fail_redirect)
 	_run_test("AOO-01 resource provokes damage", _test_aoo_resource)
@@ -4696,6 +4701,8 @@ func _test_adb_compile_12164_lose_or_attack() -> bool:
 		and (steps[0] as Dictionary).get("template", "") == "lose_resources"
 		and then_entry.get("template", "") == "nest_enemy_attack"
 		and then_entry.get("enemy", "") == "source"
+		and entry.get("match_kind", "") == "enter_threat_area"
+		and str(entry.get("phase", "")).to_upper() == "AFTER"
 	)
 
 
@@ -9529,6 +9536,134 @@ func _test_engage_disengage_clears_buff() -> bool:
 	return (
 		not EngagementStatus.is_engaged_with(h.ctx, &"enemy_1", &"inv_1")
 		and not h.ctx.registrations.has_engagement(&"enemy_1", &"inv_1")
+	)
+
+
+## Zoey / Hunter's Instinct 式：订 enter_threat_area，交战行动进威胁区后开火。
+func _test_threat_engage_action_fires() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.prepare_action_phase():
+		return false
+	CardRegistry.register_definition(&"eta_zoey", {"card_type": &"asset"})
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 5
+	var desc := TriggeredAbilityDescriptor.forced(
+		&"enter_threat_area",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.nest_lose_resources(&"inv_1", 1),
+		&"eta_zoey_src",
+		&"eta_zoey"
+	)
+	h.ctx.triggered_abilities.register(desc)
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_1", &"test_loc", 2, 2)
+	var res := h.engage_action({"enemy_id": &"enemy_1"})
+	return res.ok and inv.resource_pool == 4 and inv.threat_area.has(&"enemy_1")
+
+
+## grant 只 Register 交战 Buff，不进威胁区 → 不开火。
+func _test_threat_grant_does_not_fire() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"eta_zoey_g", {"card_type": &"asset"})
+	GameBootstrap.setup_test_location(h.ctx, &"loc_far")
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_far", &"loc_far", 2, 2)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 5
+	var desc := TriggeredAbilityDescriptor.forced(
+		&"enter_threat_area",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.nest_lose_resources(&"inv_1", 1),
+		&"eta_zoey_g_src",
+		&"eta_zoey_g"
+	)
+	h.ctx.triggered_abilities.register(desc)
+	var res := h.ctx.sequence_catalog.nest(
+		h.ctx,
+		&"seq.engage",
+		{
+			"mode": EngageFlow.MODE_EFFECT,
+			"placement": EngageFlow.PLACEMENT_GRANT,
+			"require_same_location": false,
+			"enemy_id": &"enemy_far",
+			"investigator_id": &"inv_1",
+		}
+	)
+	return (
+		res.ok
+		and EngagementStatus.is_engaged_with(h.ctx, &"enemy_far", &"inv_1")
+		and not inv.threat_area.has(&"enemy_far")
+		and inv.resource_pool == 5
+	)
+
+
+## 庞大虚拟交战永不进威胁区 → Zoey 式能力不响应（FAQ）。
+func _test_threat_massive_does_not_fire() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"eta_zoey_m", {"card_type": &"asset"})
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
+	GameBootstrap.setup_test_enemy(
+		h.ctx, &"enemy_mass", &"test_loc", 2, 2, &"", false, true
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 5
+	var desc := TriggeredAbilityDescriptor.forced(
+		&"enter_threat_area",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.nest_lose_resources(&"inv_1", 1),
+		&"eta_zoey_m_src",
+		&"eta_zoey_m"
+	)
+	h.ctx.triggered_abilities.register(desc)
+	## 区域变更式自动交战：庞大只 sync，不进威胁区。
+	var res := EngageFlow.nest_after_area_change(h.ctx, &"test_loc", &"enemy_mass")
+	return (
+		bool(res.get("ok", false))
+		and not inv.threat_area.has(&"enemy_mass")
+		and MassiveEngagement.is_virtually_engaged_with(
+			h.ctx.state.registry.get_enemy(&"enemy_mass"), &"inv_1", h.ctx
+		)
+		and inv.resource_pool == 5
+	)
+
+
+## Deep One / Rogue Gangster 式：spawn_engaged 进威胁区后开火。
+func _test_threat_spawn_engaged_fires() -> bool:
+	var h := RuleTestHarness.new(42)
+	CardRegistry.register_definition(&"eta_deep", {"card_type": &"enemy"})
+	var card_id := GameBootstrap.add_encounter_enemy_to_deck(h.ctx, &"eta_deep")
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	inv.resource_pool = 5
+	var desc := TriggeredAbilityDescriptor.forced(
+		&"enter_threat_area",
+		AhcEnums.SequencePhase.AFTER,
+		&"inv_1",
+		CompositionNode.nest_lose_resources(&"inv_1", 1),
+		card_id,
+		&"eta_deep"
+	)
+	h.ctx.triggered_abilities.register(desc)
+	var res := h.ctx.enemy.spawn_engaged(h.ctx, card_id, &"inv_1")
+	return (
+		bool(res.get("ok", false))
+		and inv.threat_area.has(card_id)
+		and inv.resource_pool == 4
+	)
+
+
+func _test_threat_compile_12164_match() -> bool:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/core_2026_encounter.json")
+	var compiled := CardRegistry.compiled_abilities(&"12164")
+	if compiled.is_empty():
+		return false
+	var entry: Dictionary = compiled[0]
+	return (
+		entry.get("match_kind", "") == "enter_threat_area"
+		and str(entry.get("phase", "")).to_upper() == "AFTER"
+		and entry.get("status", "") == "full"
+		and CardRegistry.has_triggered(&"12164")
 	)
 
 

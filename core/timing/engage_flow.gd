@@ -7,8 +7,9 @@ extends RefCounted
 ## - **auto**：框架区域变更后的自动交战（Prey/Lead；冷漠/横置跳过）
 ## - **effect**：效果交战（卡面 nest、以及基础 Engage 行动外壳 nest）
 ##
-## 交战状态 = RestrictionKind.ENGAGEMENT Buff（赋予/注销）。
+	## 交战状态 = RestrictionKind.ENGAGEMENT Buff（赋予/注销）。
 ## 威胁区 = 区划占位，只做检测；enter_threat 常伴随移入威胁区，grant 不移入。
+## 纸面「交战后」时点 → 进入威胁区后（`seq.effect.enter_threat_area`）；grant / 庞大不 announce。
 ## 禁止另铸 `seq.enemy.auto_engage` 等按场合拆名。
 
 
@@ -103,6 +104,11 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 		if one.get("investigator_id", &"") != &"":
 			engaged.append(one)
 			last_inv = one.get("investigator_id", &"") as StringName
+			_sync_and_announce_entered(
+				game_ctx,
+				focus_enemy,
+				last_inv
+			)
 	else:
 		MassiveEngagement.sync_at_location(game_ctx, location_tag)
 		for enemy_id in game_ctx.state.registry.all_enemy_ids():
@@ -119,6 +125,11 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 			if one.get("investigator_id", &"") != &"":
 				engaged.append(one)
 				last_inv = one.get("investigator_id", &"") as StringName
+				_sync_and_announce_entered(
+					game_ctx,
+					enemy_id,
+					last_inv
+				)
 	return {
 		"ok": true,
 		"mode": MODE_AUTO,
@@ -169,6 +180,8 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 	game_ctx.enemy.apply_engage(enemy_id, inv_id, move_into_threat, game_ctx)
 	## 蜂拥同步轴：接战整包同时结算。
 	SwarmPack.sync_engagement(game_ctx, enemy_id)
+	if move_into_threat:
+		_announce_pack_entered(game_ctx, enemy_id, inv_id)
 	return {
 		"ok": true,
 		"enemy_id": enemy_id,
@@ -178,6 +191,23 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 		"engagement_buff": true,
 		"moved_into_threat_area": move_into_threat,
 	}
+
+
+static func _sync_and_announce_entered(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	investigator_id: StringName
+) -> void:
+	SwarmPack.sync_engagement(game_ctx, enemy_id)
+	_announce_pack_entered(game_ctx, enemy_id, investigator_id)
+
+
+static func _announce_pack_entered(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	investigator_id: StringName
+) -> void:
+	EnterThreatAreaFlow.announce_pack_in_threat(game_ctx, enemy_id, investigator_id)
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:

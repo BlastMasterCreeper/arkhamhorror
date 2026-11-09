@@ -55,6 +55,39 @@ TRIGGER_PHRASE_MAP: list[tuple[re.Pattern[str], str, str]] = [
         "enemy_attack",
         "AFTER",
     ),
+    ## 纸面 engages / you engage → 进入威胁区后（非 seq.engage 手续 AFTER）。
+    (
+        re.compile(
+            r"^After .+ engages you(?:[, ].+)?\.?$",
+            re.I,
+        ),
+        "enter_threat_area",
+        "AFTER",
+    ),
+    (
+        re.compile(
+            r"^After an enemy engages you(?:[, ].+)?\.?$",
+            re.I,
+        ),
+        "enter_threat_area",
+        "AFTER",
+    ),
+    (
+        re.compile(
+            r"^After you engage an enemy(?:[, ].+)?\.?$",
+            re.I,
+        ),
+        "enter_threat_area",
+        "AFTER",
+    ),
+    (
+        re.compile(
+            r"^After you become engaged(?: with .+)?(?:[, ].+)?\.?$",
+            re.I,
+        ),
+        "enter_threat_area",
+        "AFTER",
+    ),
     (
         re.compile(
             r"^When you would reveal a chaos token(?:[, ]+spend \d+ charges?)?\.?$",

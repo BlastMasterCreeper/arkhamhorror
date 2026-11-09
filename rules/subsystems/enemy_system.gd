@@ -111,8 +111,10 @@ func spawn_engaged(game_ctx: GameContext, card_id: StringName, drawer_id: String
 	enemy.engaged_with = drawer_id
 	if not inv.threat_area.has(card_id):
 		inv.threat_area.append(card_id)
-	_mark_card_in_play(game_ctx, card_id)
 	EngagementStatus.grant(game_ctx, card_id, drawer_id)
+	## 进场通知可垫蜂拥；之后再 announce 进入威胁区（Forced 已 install）。
+	_mark_card_in_play(game_ctx, card_id)
+	EnterThreatAreaFlow.announce_pack_in_threat(game_ctx, card_id, drawer_id)
 	_log.log(
 		AhcEnums.LogCategory.SCENARIO,
 		"spawn_engaged",
