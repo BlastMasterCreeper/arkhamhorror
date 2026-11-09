@@ -447,6 +447,20 @@ static func is_massive(definition_id: StringName) -> bool:
 	return has_keyword(definition_id, &"massive")
 
 
+static func is_swarming(definition_id: StringName) -> bool:
+	return swarming_count(definition_id) > 0
+
+
+## Swarming X：定义字段 `swarming` 优先；否则 keywords 含 swarming 时默认 1。
+static func swarming_count(definition_id: StringName) -> int:
+	var data: Dictionary = _definitions.get(definition_id, {})
+	if data.has("swarming"):
+		return maxi(0, int(data.get("swarming", 0)))
+	if has_keyword(definition_id, &"swarming"):
+		return 1
+	return 0
+
+
 static func is_doomed(definition_id: StringName) -> bool:
 	var data: Dictionary = _definitions.get(definition_id, {})
 	if data.get("doomed", false):

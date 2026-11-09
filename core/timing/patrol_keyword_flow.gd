@@ -12,6 +12,9 @@ static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var enemy_id: StringName = params.get("card_id", params.get("enemy_id", &""))
 	if enemy_id == &"":
 		return {"ok": false, "moved": false, "reason": &"missing_enemy"}
+	## 蜂拥：巡逻与猎手同 — 仅主体结算一次整包移动。
+	if SwarmPack.is_swarm_card(game_ctx, enemy_id):
+		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id, "swarm_coalesce": true}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null or enemy.exhausted or EngagementStatus.is_engaged(game_ctx, enemy_id):
 		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}

@@ -332,6 +332,14 @@ func _initialize() -> void:
 	_run_test("BONDED-02 bonded not deck size", _test_bonded_not_deck_size)
 	_run_test("MASSIVE-01 enter play arms keyword", _test_massive_enter_play_arms)
 	_run_test("MASSIVE-02 phase attack redirects via REPLACE", _test_massive_phase_redirect)
+	_run_test("SWARM-01 pad proxies from donor deck", _test_swarm_pad_from_deck)
+	_run_test("SWARM-02 swarm cards do not re-swarm", _test_swarm_no_recursion)
+	_run_test("SWARM-03 host over health not defeated", _test_swarm_host_blocks_defeat)
+	_run_test("SWARM-04 excess spill via PI (manual pick)", _test_swarm_excess_spill_pi)
+	_run_test("SWARM-04b excess spill default when no confirm", _test_swarm_excess_spill_default)
+	_run_test("SWARM-05 leave to owner deck bottom", _test_swarm_leave_deck_bottom)
+	_run_test("SWARM-06 unique host skips pad", _test_swarm_unique_skips_pad)
+	_run_test("SWARM-07 sync exhaust pack", _test_swarm_sync_exhaust)
 	_run_test("ENC-11 encounter revelation nests catalog", _test_enc_revelation_nest)
 	_run_test("ENC-21 encounter spawn nests catalog", _test_enc_spawn_nest)
 	_run_test("ENC-22 hidden enemy secret hand no spawn", _test_enc_hidden_enemy_no_spawn)
@@ -7335,6 +7343,217 @@ func _test_massive_phase_redirect() -> bool:
 		and redirect.get("replacement_flow_id", &"") == KeywordProfileTable.FLOW_KEYWORD_MASSIVE
 		and not bool(aoo.get("redirected", false))
 	)
+
+
+func _swarm_fill_donor_deck(h: RuleTestHarness, count: int = 3) -> void:
+	CardRegistry.register_definition(
+		&"swarm_proxy_filler",
+		{"card_type": &"asset", "resource_cost": 0, "title": "Proxy Filler"}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	for _i in range(count):
+		var fid := h.ctx.state.registry.allocate_instance_id(&"card")
+		var fc := CardInstance.new()
+		fc.id = EntityId.create(AhcEnums.EntityKind.PLAYER_CARD, fid, &"swarm_proxy_filler")
+		fc.owner_id = &"inv_1"
+		fc.controller_id = &"inv_1"
+		fc.zone = AhcEnums.Zone.DECK
+		h.ctx.state.registry.register_card(fc)
+		inv.deck.append(fid)
+
+
+func _test_swarm_pad_from_deck() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_swarm_fill_donor_deck(h, 3)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var deck_before := inv.deck.size()
+	var host_id := _spawn_enemy_at(
+		h,
+		&"en_swarm_pad",
+		&"test_loc",
+		{
+			"keywords": [&"swarming"],
+			"swarming": 2,
+			"enemy": {"fight": 3, "evade": 2, "health": 2, "damage": 1},
+		}
+	)
+	if host_id == &"":
+		return false
+	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	if swarms.size() != 2:
+		return false
+	if inv.deck.size() != deck_before - 2:
+		return false
+	for sid in swarms:
+		if not VirtualCard.is_swarm_card_id(h.ctx, sid):
+			return false
+		var se := h.ctx.state.registry.get_enemy(sid)
+		if se == null or se.fight != 3 or se.health != 2:
+			return false
+		if KeywordMount.is_keyword_armed(h.ctx, sid, &"swarming"):
+			return false
+	var counts: Dictionary = SwarmPack.owner_swarm_counts(h.ctx, host_id)
+	return int(counts.get(&"inv_1", 0)) == 2 and not KeywordMount.is_keyword_armed(h.ctx, host_id, &"swarming")
+
+
+func _test_swarm_no_recursion() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_swarm_fill_donor_deck(h, 5)
+	var host_id := _spawn_enemy_at(
+		h,
+		&"en_swarm_norecur",
+		&"test_loc",
+		{"keywords": [&"swarming"], "swarming": 2, "enemy": {"health": 1}}
+	)
+	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	## 集群卡牌不得再垫；总数仍为 2。
+	return swarms.size() == 2
+
+
+func _test_swarm_host_blocks_defeat() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_swarm_fill_donor_deck(h, 2)
+	var host_id := _spawn_enemy_at(
+		h,
+		&"en_swarm_tank",
+		&"test_loc",
+		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 2}}
+	)
+	var res := EnemyDefeatResolver.deal_damage(h.ctx, host_id, 5)
+	var host := h.ctx.state.registry.get_enemy(host_id)
+	return (
+		bool(res.get("ok", false))
+		and not bool(res.get("defeated", false))
+		and host != null
+		and host.damage == 5
+		and bool(res.get("host_blocked", false))
+	)
+
+
+func _test_swarm_excess_spill_pi() -> bool:
+	## 溢出经 PI 手动点选主体（不是强制自动）。
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_swarm_fill_donor_deck(h, 2)
+	var host_id := _spawn_enemy_at(
+		h,
+		&"en_swarm_spill_pi",
+		&"test_loc",
+		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 1}}
+	)
+	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	if swarms.is_empty():
+		return false
+	var sid: StringName = swarms[0]
+	h.ctx.interaction.resolver = ScriptingChoiceResolver.new([
+		{"prompt_id": &"swarm:spill_excess", "pick": host_id},
+	])
+	var res := EnemyDefeatResolver.deal_damage(h.ctx, sid, 2)
+	var spill: Dictionary = res.get("spill", {})
+	return (
+		bool(res.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(sid) == null
+		and int(res.get("excess", 0)) == 1
+		and spill.get("to", &"") == host_id
+	)
+
+
+func _test_swarm_excess_spill_default() -> bool:
+	## 未确认时走默认（自动模式可挂在这条路径上）。
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_swarm_fill_donor_deck(h, 2)
+	h.ctx.interaction.resolver = null
+	var host_id := _spawn_enemy_at(
+		h,
+		&"en_swarm_spill_def",
+		&"test_loc",
+		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 1}}
+	)
+	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	if swarms.is_empty():
+		return false
+	var sid: StringName = swarms[0]
+	var res := EnemyDefeatResolver.deal_damage(h.ctx, sid, 2)
+	return (
+		bool(res.get("defeated", false))
+		and h.ctx.state.registry.get_enemy(sid) == null
+		and int(res.get("excess", 0)) == 1
+	)
+
+
+func _test_swarm_leave_deck_bottom() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_swarm_fill_donor_deck(h, 1)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var host_id := _spawn_enemy_at(
+		h,
+		&"en_swarm_leave",
+		&"test_loc",
+		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 1}}
+	)
+	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	if swarms.is_empty():
+		return false
+	var sid: StringName = swarms[0]
+	var bottom_before := inv.deck.size()
+	EnemyDefeatResolver.deal_damage(h.ctx, sid, 1)
+	if h.ctx.state.registry.get_enemy(sid) != null:
+		return false
+	var card := h.ctx.state.registry.get_card(sid)
+	return (
+		card != null
+		and card.zone == AhcEnums.Zone.DECK
+		and inv.deck.has(sid)
+		and inv.deck.size() == bottom_before + 1
+		and inv.deck[inv.deck.size() - 1] == sid
+	)
+
+
+func _test_swarm_unique_skips_pad() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_swarm_fill_donor_deck(h, 3)
+	var host_id := _spawn_enemy_at(
+		h,
+		&"en_swarm_unique",
+		&"test_loc",
+		{
+			"keywords": [&"swarming"],
+			"swarming": 2,
+			"is_unique": true,
+			"title": "[unique] Rare Bug",
+			"enemy": {"health": 1},
+		}
+	)
+	return host_id != &"" and SwarmPack.swarm_ids(h.ctx, host_id).is_empty()
+
+
+func _test_swarm_sync_exhaust() -> bool:
+	var h := RuleTestHarness.new(42)
+	h.run_setup()
+	_swarm_fill_donor_deck(h, 2)
+	var host_id := _spawn_enemy_at(
+		h,
+		&"en_swarm_exh",
+		&"test_loc",
+		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 2}}
+	)
+	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	if swarms.is_empty():
+		return false
+	var sid: StringName = swarms[0]
+	ExhaustReadyFlow.nest_or_run_exhaust(
+		h.ctx,
+		{"target_kind": ExhaustReadyFlow.TARGET_ENEMY, "enemy_id": host_id, "trigger_area_change": false}
+	)
+	var host := h.ctx.state.registry.get_enemy(host_id)
+	var swarm := h.ctx.state.registry.get_enemy(sid)
+	return host != null and swarm != null and host.exhausted and swarm.exhausted
 
 
 func _test_starting_search_after_hands() -> bool:

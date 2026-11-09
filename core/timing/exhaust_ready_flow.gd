@@ -144,6 +144,8 @@ static func _set_enemy(
 	if card != null and _is_flat_zone(card.zone):
 		card.exhausted = to_exhausted
 		_mirror_exhausted(game_ctx, card, to_exhausted)
+	## 蜂拥同步轴：横置/重整整包同时。
+	SwarmPack.sync_exhausted(game_ctx, enemy_id)
 	var out := {
 		"ok": true,
 		"changed": true,
@@ -170,6 +172,7 @@ static func _set_enemy(
 		var engage := EngageFlow.nest_after_area_change(
 			game_ctx, enemy.location_tag, enemy_id, &"ready"
 		)
+		SwarmPack.sync_engagement(game_ctx, enemy_id)
 		out["engaged_investigator"] = engage.get("investigator_id", &"")
 	return out
 

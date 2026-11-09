@@ -16,6 +16,7 @@ const FLOW_KEYWORD_SURGE: StringName = &"seq.keyword.surge"
 const FLOW_KEYWORD_HUNTER: StringName = &"seq.keyword.hunter"
 const FLOW_KEYWORD_PATROL: StringName = &"seq.keyword.patrol"
 const FLOW_KEYWORD_MASSIVE: StringName = &"seq.keyword.massive"
+const FLOW_KEYWORD_SWARMING: StringName = &"seq.keyword.swarming"
 const FLOW_ENEMY_3_2: StringName = &"seq.enemy.3_2"
 const FLOW_ENEMY_ATTACK: StringName = &"seq.enemy.attack"
 const FLOW_ENEMY_DEFEAT: StringName = &"seq.enemy.defeat"
@@ -170,7 +171,7 @@ static func _all() -> Array[KeywordProfile]:
 		&"", SLOT_ENTER_PLAY,
 		&"", SLOT_FIRED,
 		ZONE_PLAY, LIFE_UNTIL_FIRED,
-		&"", &"",
+		SLOT_FIRED, FLOW_KEYWORD_SWARMING,
 		FLOW_ENCOUNTER_SPAWN, 10, TIER_DELAYED
 	))
 	## LISTENER · 进场挂载；开火锚在固定框架/攻击/检定流程（非流程内联管理体）

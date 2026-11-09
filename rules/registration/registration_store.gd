@@ -347,6 +347,25 @@ func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:
 		unregister(id)
 
 
+## 卸某张卡上指定 KEYWORD（任意 lifetime；蜂拥开火后卸延时标记）。
+func unregister_keyword_buffs(card_id: StringName, keyword: StringName) -> void:
+	if card_id == &"" or keyword == &"":
+		return
+	var to_remove: Array[StringName] = []
+	for reg in _entries:
+		if reg.drawn_card_id != card_id:
+			continue
+		var hit := false
+		for buff in reg.buffs:
+			if buff.type == AhcEnums.BuffType.KEYWORD and buff.keyword == keyword:
+				hit = true
+				break
+		if hit:
+			to_remove.append(reg.id)
+	for id in to_remove:
+		unregister(id)
+
+
 func unregister_by_hidden_in_hand_card(card_id: StringName) -> void:
 	on_leave_hand(card_id)
 

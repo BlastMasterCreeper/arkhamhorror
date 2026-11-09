@@ -572,6 +572,16 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return MassiveKeywordFlow.run(game_ctx, params)
 	)
+	catalog.register_run(
+		&"seq.keyword.swarming",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_swarming", card_id, [&"keyword", &"swarming"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SwarmingKeywordFlow.run(game_ctx, params)
+	)
 
 
 static func _register_interrupt_flows(catalog: SequenceCatalog) -> void:

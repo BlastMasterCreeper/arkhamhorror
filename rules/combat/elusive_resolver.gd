@@ -31,7 +31,10 @@ static func _try_flee(
 	if not KeywordMount.is_keyword_armed(game_ctx, enemy_id, &"elusive"):
 		return {"ok": true, "fled": false}
 	var from_loc := enemy.location_tag
-	_disengage_all(game_ctx, enemy_id)
+	## 逃逸含移动/解除/横置 → 蜂拥同步轴：以触发个体为源，整包一起逃。
+	var pack := SwarmPack.pack_ids(game_ctx, enemy_id)
+	for mid in pack:
+		_disengage_all(game_ctx, mid)
 	var dest := _pick_flee_destination(game_ctx, from_loc)
 	var fled := false
 	if dest != &"" and dest != from_loc:
@@ -48,7 +51,10 @@ static func _try_flee(
 			}
 		)
 		fled = bool(move_res.get("ok", false)) and bool(move_res.get("moved", false))
-	_disengage_all(game_ctx, enemy_id)
+		SwarmPack.sync_location(game_ctx, enemy_id)
+	for mid in pack:
+		_disengage_all(game_ctx, mid)
+	SwarmPack.sync_engagement(game_ctx, enemy_id)
 	enemy = game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": true, "fled": fled}
@@ -60,6 +66,7 @@ static func _try_flee(
 			"trigger_area_change": false,
 		}
 	)
+	SwarmPack.sync_exhausted(game_ctx, enemy_id)
 	if game_ctx.log != null:
 		game_ctx.log.log(
 			AhcEnums.LogCategory.SCENARIO,

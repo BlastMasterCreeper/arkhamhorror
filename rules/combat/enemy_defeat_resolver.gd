@@ -14,6 +14,9 @@ static func deal_damage(
 	enemy_id: StringName,
 	amount: int
 ) -> Dictionary:
+	## 蜂拥包：主体超限不击败；集群卡牌击败后超额可溢出（PI/自动）。
+	if SwarmPack.pack_ids(game_ctx, enemy_id).size() > 1 or SwarmPack.is_swarm_card(game_ctx, enemy_id):
+		return SwarmDamage.deal_damage(game_ctx, enemy_id, amount)
 	if game_ctx == null or game_ctx.state == null or enemy_id == &"" or amount <= 0:
 		return {"ok": false, "defeated": false}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
@@ -53,6 +56,9 @@ static func finalize_leave_play(
 		return {"ok": false, "defeated": false}
 	if game_ctx.state.registry.get_enemy(enemy_id) == null:
 		return {"ok": false, "defeated": false}
+	## 集群卡牌离场：不再按一般敌人击败去向；牌库底规则覆盖。
+	if SwarmPack.is_swarm_card(game_ctx, enemy_id):
+		return _finalize_swarm_leave(game_ctx, enemy_id)
 	_clear_engagement(game_ctx, enemy_id)
 	DoomedResolver.try_on_defeat(game_ctx, enemy_id)
 	var routed := _route_after_defeat(game_ctx, enemy_id)
@@ -94,6 +100,35 @@ static func discard_from_play(game_ctx: GameContext, enemy_id: StringName) -> Di
 			{"enemy_id": enemy_id}
 		)
 	return {"ok": true, "discarded": true, "enemy_id": enemy_id}
+
+
+static func _finalize_swarm_leave(game_ctx: GameContext, swarm_id: StringName) -> Dictionary:
+	_clear_engagement(game_ctx, swarm_id)
+	SwarmPack.unbind_swarm(game_ctx, swarm_id)
+	var card := game_ctx.state.registry.get_card(swarm_id)
+	var owner_id: StringName = &""
+	if card != null:
+		owner_id = card.owner_id
+		## 保持不可见进所有者牌库底。
+		if card.face_visibility != null:
+			card.face_visibility.audience = AhcEnums.FaceAudience.HIDDEN_ALL
+		if game_ctx.mutator != null and owner_id != &"" and game_ctx.state.registry.get_investigator(owner_id) != null:
+			game_ctx.mutator.move_card(swarm_id, CardSlot.deck_bottom(owner_id))
+	game_ctx.state.registry.unregister_enemy(swarm_id)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"swarm:leave_to_deck_bottom",
+			{"swarm_id": swarm_id, "owner_id": owner_id}
+		)
+	return {
+		"ok": true,
+		"defeated": true,
+		"enemy_id": swarm_id,
+		"swarm_card": true,
+		"dest": &"owner_deck_bottom",
+		"subject": DefeatFlow.SUBJECT_ENEMY,
+	}
 
 
 static func _clear_engagement(game_ctx: GameContext, enemy_id: StringName) -> void:
