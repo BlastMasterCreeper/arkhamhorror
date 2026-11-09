@@ -107,12 +107,14 @@ func spawn_engaged(game_ctx: GameContext, card_id: StringName, drawer_id: String
 	var inv := _state.registry.get_investigator(drawer_id)
 	if enemy == null or inv == null:
 		return {"ok": false, "error": "spawn_materialize_failed"}
-	## 移入威胁区（区划）+ Register 交战状态 Buff。
-	enemy.engaged_with = drawer_id
-	if not inv.threat_area.has(card_id):
-		inv.threat_area.append(card_id)
-	_mark_card_in_play(game_ctx, card_id)
+	## 交战状态 Buff（生成 engaged ≠ seq.engage：场外→威胁区，不压交战手续）。
 	EngagementStatus.grant(game_ctx, card_id, drawer_id)
+	enemy.engaged_with = drawer_id
+	## 进场通知可垫蜂拥（集群卡牌各自 out_of_play 进威胁区）；主体随后进入。
+	_mark_card_in_play(game_ctx, card_id)
+	EnterThreatAreaFlow.enter_pack_if_needed(
+		game_ctx, card_id, drawer_id, EnterThreatAreaFlow.FROM_OUT_OF_PLAY
+	)
 	_log.log(
 		AhcEnums.LogCategory.SCENARIO,
 		"spawn_engaged",
@@ -150,7 +152,8 @@ func auto_engage_at_location(
 	game_ctx: GameContext,
 	enemy_id: StringName,
 	location_tag: StringName,
-	def_id: StringName = &""
+	def_id: StringName = &"",
+	move_into_threat: bool = true
 ) -> Dictionary:
 	var enemy := _state.registry.get_enemy(enemy_id)
 	if enemy == null:
@@ -173,7 +176,8 @@ func auto_engage_at_location(
 	if candidates.is_empty():
 		return {"ok": true, "skipped": true}
 	var target := _pick_engage_target(game_ctx, candidates, def_id, enemy_id)
-	_apply_engage(game_ctx, enemy_id, target, true)
+	## EngageFlow 传入 move_into_threat=false：只 Buff，由流程 nest 进入威胁区。
+	_apply_engage(game_ctx, enemy_id, target, move_into_threat)
 	return {"ok": true, "enemy_id": enemy_id, "investigator_id": target}
 
 
@@ -375,7 +379,10 @@ func _apply_engage(
 	var inv := _state.registry.get_investigator(inv_id)
 	if enemy == null or inv == null:
 		return
-	## 一律 Register 交战状态 Buff；enter_threat 时再移入威胁区（区划）。
+	## 一律 Register 交战状态 Buff。
+	## enter_threat=true：写下 engaged_with；**威胁区占位**由 `EnterThreatAreaFlow` 负责
+	## （交战包装 nest from=in_play；生成 from=out_of_play）。
+	## enter_threat=false（grant）：只 Buff，不写 engaged_with、不改威胁区。
 	EngagementStatus.grant(game_ctx, enemy_id, inv_id)
 	if not enter_threat:
 		return
@@ -384,5 +391,3 @@ func _apply_engage(
 		if prev:
 			prev.threat_area.erase(enemy_id)
 	enemy.engaged_with = inv_id
-	if not inv.threat_area.has(enemy_id):
-		inv.threat_area.append(enemy_id)

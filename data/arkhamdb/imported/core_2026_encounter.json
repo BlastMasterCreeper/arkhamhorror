@@ -3132,7 +3132,7 @@
         "register_as": "forced",
         "ability_id": "forced:0",
         "ability_kind": "forced",
-        "status": "effect_only",
+        "status": "full",
         "trigger": "After Rogue Gangster engages you",
         "template": "seq",
         "steps": [
@@ -3151,7 +3151,10 @@
               "target": "controller"
             }
           }
-        ]
+        ],
+        "match_kind": "enter_threat_area",
+        "phase": "AFTER",
+        "timing": "after_enter_threat_area"
       }
     ],
     "prey_instruction": {

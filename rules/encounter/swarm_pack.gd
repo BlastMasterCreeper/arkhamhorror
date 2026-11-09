@@ -139,20 +139,27 @@ static func sync_engagement(game_ctx: GameContext, source_id: StringName) -> voi
 		var other := game_ctx.state.registry.get_enemy(mid)
 		if other == null:
 			continue
-		## 清出所有威胁区再按主体对齐。
-		for inv_id in game_ctx.state.registry.all_investigator_ids():
-			var inv := game_ctx.state.registry.get_investigator(inv_id)
-			if inv != null:
-				inv.threat_area.erase(mid)
 		other.engaged_with = engaged_with
 		other.location_tag = src.location_tag
-		if engaged_with != &"":
-			var eng := game_ctx.state.registry.get_investigator(engaged_with)
-			if eng != null and not eng.threat_area.has(mid):
-				eng.threat_area.append(mid)
-			EngagementStatus.grant(game_ctx, mid, engaged_with)
-		else:
+		if engaged_with == &"":
+			## 脱离：清威胁区占位 + Buff。
+			for inv_id in game_ctx.state.registry.all_investigator_ids():
+				var inv := game_ctx.state.registry.get_investigator(inv_id)
+				if inv != null:
+					inv.threat_area.erase(mid)
 			EngagementStatus.clear(game_ctx, mid)
+		else:
+			## 对齐 Buff；威胁区由 EnterThreatAreaFlow 进入（已在则 enter_if_needed 跳过）。
+			for inv_id in game_ctx.state.registry.all_investigator_ids():
+				if inv_id == engaged_with:
+					continue
+				var inv := game_ctx.state.registry.get_investigator(inv_id)
+				if inv != null:
+					inv.threat_area.erase(mid)
+			EngagementStatus.grant(game_ctx, mid, engaged_with)
+			EnterThreatAreaFlow.enter_if_needed(
+				game_ctx, mid, engaged_with, EnterThreatAreaFlow.FROM_IN_PLAY
+			)
 	_sync_depth -= 1
 
 

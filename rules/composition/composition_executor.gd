@@ -1317,6 +1317,10 @@ func _execute_engage_target_inline(node: CompositionNode) -> bool:
 	if not enemy.is_at_location(inv.location_tag):
 		return false
 	_game_ctx.enemy.apply_engage(enemy_id, inv_id, true, _game_ctx)
+	## 交战内联仍须走进入威胁区（场上→威胁区），纸面 AFTER 才能听到。
+	EnterThreatAreaFlow.enter_if_needed(
+		_game_ctx, enemy_id, inv_id, EnterThreatAreaFlow.FROM_IN_PLAY
+	)
 	_last_step_enemy_id = enemy_id
 	_last_step_engaged_investigator = inv_id
 	_last_step_created = true

@@ -8,7 +8,10 @@ extends RefCounted
 ## - **effect**：效果交战（卡面 nest、以及基础 Engage 行动外壳 nest）
 ##
 ## 交战状态 = RestrictionKind.ENGAGEMENT Buff（赋予/注销）。
-## 威胁区 = 区划占位，只做检测；enter_threat 常伴随移入威胁区，grant 不移入。
+## 交战 ≠ 进入威胁区：本手续在 `placement=enter_threat` 时 **包装** nest
+## `seq.effect.enter_threat_area`（`from=in_play` = 场上→威胁区）。`grant` 只 Buff。
+## 生成 engaged（场外→威胁区）走 `spawn_engaged`，不压本条。
+## 纸面「交战后」订进入威胁区 AFTER，不订本手续完成。
 ## 禁止另铸 `seq.enemy.auto_engage` 等按场合拆名。
 
 
@@ -103,6 +106,7 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 		if one.get("investigator_id", &"") != &"":
 			engaged.append(one)
 			last_inv = one.get("investigator_id", &"") as StringName
+			_sync_and_enter_threat(game_ctx, focus_enemy, last_inv)
 	else:
 		MassiveEngagement.sync_at_location(game_ctx, location_tag)
 		for enemy_id in game_ctx.state.registry.all_enemy_ids():
@@ -119,6 +123,7 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 			if one.get("investigator_id", &"") != &"":
 				engaged.append(one)
 				last_inv = one.get("investigator_id", &"") as StringName
+				_sync_and_enter_threat(game_ctx, enemy_id, last_inv)
 	return {
 		"ok": true,
 		"mode": MODE_AUTO,
@@ -136,8 +141,9 @@ static func _auto_engage_enemy(
 	location_tag: StringName
 ) -> Dictionary:
 	var def_id := _definition_id(game_ctx, enemy_id)
+	## Buff + engaged_with；威胁区由本流程 nest enter_threat_area（场上→威胁区）。
 	var result := game_ctx.enemy.auto_engage_at_location(
-		game_ctx, enemy_id, location_tag, def_id
+		game_ctx, enemy_id, location_tag, def_id, true
 	)
 	if result.get("investigator_id", &"") == &"":
 		return {}
@@ -164,11 +170,15 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 		return {"ok": false, "reason": &"already_engaged", "error": "already_engaged"}
 	if require_same and not enemy.is_at_location(inv.location_tag):
 		return {"ok": false, "reason": &"wrong_location", "error": "wrong_location"}
-	## enter_threat：Register Buff + 移入威胁区；grant：仅 Register Buff（视为交战，区划不变）。
+	## grant：仅 Buff。enter_threat：Buff + nest 进入威胁区（场上→威胁区）。
 	var move_into_threat := placement != PLACEMENT_GRANT
 	game_ctx.enemy.apply_engage(enemy_id, inv_id, move_into_threat, game_ctx)
-	## 蜂拥同步轴：接战整包同时结算。
+	## 蜂拥：先对齐 Buff/engaged_with，再逐个进入威胁区。
 	SwarmPack.sync_engagement(game_ctx, enemy_id)
+	if move_into_threat:
+		EnterThreatAreaFlow.enter_pack_if_needed(
+			game_ctx, enemy_id, inv_id, EnterThreatAreaFlow.FROM_IN_PLAY
+		)
 	return {
 		"ok": true,
 		"enemy_id": enemy_id,
@@ -178,6 +188,17 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 		"engagement_buff": true,
 		"moved_into_threat_area": move_into_threat,
 	}
+
+
+static func _sync_and_enter_threat(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	investigator_id: StringName
+) -> void:
+	SwarmPack.sync_engagement(game_ctx, enemy_id)
+	EnterThreatAreaFlow.enter_pack_if_needed(
+		game_ctx, enemy_id, investigator_id, EnterThreatAreaFlow.FROM_IN_PLAY
+	)
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:

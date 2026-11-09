@@ -675,6 +675,36 @@ static func engage(
 	return t
 
 
+## 进入威胁区（区划）。纸面 engages / you engage → 本 kind AFTER。
+## `from=in_play`：交战包装（场上→威胁区）；`from=out_of_play`：生成等（场外→威胁区）。
+static func enter_threat_area(
+	params: Dictionary,
+	after_timing: StringName = &"after_enter_threat_area"
+) -> TriggeringCondition:
+	var t := TriggeringCondition.new()
+	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
+	var inv_id: StringName = params.get(
+		"investigator_id", params.get("controller_id", &"")
+	) as StringName
+	var from: StringName = params.get("from", &"in_play") as StringName
+	if from == &"":
+		from = &"in_play"
+	t.id = StringName(
+		"enter_threat_%s_%s_%d" % [enemy_id, inv_id, Time.get_ticks_msec()]
+	)
+	t.kind = &"enter_threat_area"
+	t.controller_id = inv_id
+	t.tags = [&"enter_threat_area", &"threat_area", from]
+	t.after_timing = after_timing
+	t.payload = {
+		"enemy_id": enemy_id,
+		"investigator_id": inv_id,
+		"controller_id": inv_id,
+		"from": from,
+	}
+	return t
+
+
 static func enemy_attack(
 	enemy_id: StringName,
 	target_investigator: StringName,
