@@ -184,8 +184,8 @@ func _advance_enemy_attacks() -> void:
 		return
 	var inv: StringName = investigators_remaining_this_phase[0]
 	investigators_remaining_this_phase.remove_at(0)
-	if _enemy:
-		_enemy.resolve_phase_attacks_for(inv)
+	if _game_ctx != null and _game_ctx.enemy_phase != null:
+		_game_ctx.enemy_phase.run_phase_attacks(_game_ctx, inv)
 	if investigators_remaining_this_phase.is_empty():
 		_goto(AhcEnums.FrameworkStep.ENEMY_3_4_PHASE_ENDS)
 	else:
@@ -304,8 +304,8 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_ROUND)
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_2_HUNTER_PATROL_MOVE:
-		if _enemy:
-			_enemy.enemy_phase_3_2_moves()
+		if _game_ctx != null and _game_ctx.enemy_phase != null:
+			_game_ctx.enemy_phase.run_3_2(_game_ctx)
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_3_ENGAGED_ATTACKS:
 		## 仅开 3.3 基础攻击遍（玩家顺序）；Massive 在 phase_attacks 内替换，无平行遍。
 		investigators_remaining_this_phase = player_order.duplicate()

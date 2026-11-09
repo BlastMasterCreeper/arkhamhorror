@@ -56,14 +56,14 @@ static func spawn_set_aside_enemy_at(
 	enemy_definition_id: StringName,
 	location_id: StringName
 ) -> Dictionary:
-	if game_ctx == null or game_ctx.enemy == null:
+	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	var cards := find_cards(game_ctx, enemy_definition_id)
 	if cards.is_empty():
 		return {"ok": false, "reason": &"missing_set_aside_enemy"}
 	var card_id: StringName = cards[0]
 	remove_from_set_aside(game_ctx, card_id)
-	var spawn := game_ctx.enemy.spawn_at_location(
+	var spawn := SpawnFlow.at_location(
 		game_ctx, card_id, location_id, enemy_definition_id
 	)
 	if spawn.get("ok", false):

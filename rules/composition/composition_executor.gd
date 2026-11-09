@@ -1020,7 +1020,7 @@ func _execute_deal_damage_enemy(node: CompositionNode) -> bool:
 
 
 func _execute_disengage_enemy(node: CompositionNode) -> bool:
-	if _game_ctx == null or _game_ctx.enemy == null:
+	if _game_ctx == null or _game_ctx.state == null:
 		return false
 	var inv_id := _ability_controller(_resolve_inv(node))
 	var enemy_id := _resolve_enemy_spec(node, inv_id)
@@ -1029,7 +1029,7 @@ func _execute_disengage_enemy(node: CompositionNode) -> bool:
 	var enemy := _state.registry.get_enemy(enemy_id) if _state != null else null
 	if enemy == null or enemy.engaged_with == &"":
 		return false
-	var result := _game_ctx.enemy.disengage(_game_ctx, enemy_id, false, false)
+	var result := EngageFlow.disengage(_game_ctx, enemy_id, false, false)
 	var ok := bool(result.get("ok", false))
 	if ok:
 		_last_step_enemy_id = enemy_id
@@ -1302,7 +1302,7 @@ func _execute_move_enemy_to_inline(node: CompositionNode) -> bool:
 
 ## 同帧内联交战（L0 apply_engage）。
 func _execute_engage_target_inline(node: CompositionNode) -> bool:
-	if _game_ctx == null or _game_ctx.enemy == null:
+	if _game_ctx == null or _game_ctx.state == null:
 		return false
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"":
@@ -1316,7 +1316,7 @@ func _execute_engage_target_inline(node: CompositionNode) -> bool:
 		return false
 	if not enemy.is_at_location(inv.location_tag):
 		return false
-	_game_ctx.enemy.apply_engage(enemy_id, inv_id, true, _game_ctx)
+	EngageFlow.apply_status(_game_ctx, enemy_id, inv_id, true)
 	## 交战内联仍须走进入威胁区（场上→威胁区），纸面 AFTER 才能听到。
 	EnterThreatAreaFlow.enter_if_needed(
 		_game_ctx, enemy_id, inv_id, EnterThreatAreaFlow.FROM_IN_PLAY

@@ -324,10 +324,9 @@ static func _nest_encounter_spawn(
 		if nest_result.get("discarded", false):
 			(outcome.get("spawn_failed_discards", []) as Array).append(card_id)
 		return
-	if game_ctx.enemy != null:
-		var result := game_ctx.enemy.spawn_from_encounter_draw(game_ctx, card_id, drawer_id)
-		if result.get("discarded", false):
-			(outcome.get("spawn_failed_discards", []) as Array).append(card_id)
+	var result := SpawnFlow.from_encounter_draw(game_ctx, card_id, drawer_id)
+	if result.get("discarded", false):
+		(outcome.get("spawn_failed_discards", []) as Array).append(card_id)
 
 
 static func _step_g4_resolve(ctx: Dictionary) -> void:

@@ -132,21 +132,7 @@ static func _finalize_swarm_leave(game_ctx: GameContext, swarm_id: StringName) -
 
 
 static func _clear_engagement(game_ctx: GameContext, enemy_id: StringName) -> void:
-	if game_ctx.enemy != null:
-		game_ctx.enemy.disengage(game_ctx, enemy_id, false, false)
-		return
-	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
-	if enemy == null:
-		return
-	if enemy.engaged_with != &"":
-		var prev := game_ctx.state.registry.get_investigator(enemy.engaged_with)
-		if prev != null:
-			prev.threat_area.erase(enemy_id)
-	for inv_id in game_ctx.state.registry.all_investigator_ids():
-		var inv := game_ctx.state.registry.get_investigator(inv_id)
-		if inv != null:
-			inv.threat_area.erase(enemy_id)
-	enemy.engaged_with = &""
+	EngageFlow.disengage(game_ctx, enemy_id, false, false)
 
 
 static func _route_after_defeat(game_ctx: GameContext, enemy_id: StringName) -> Dictionary:
