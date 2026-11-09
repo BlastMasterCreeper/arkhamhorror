@@ -1,4 +1,4 @@
-class_name CardAbilityService
+class_name CardAbilityPipeline
 extends RefCounted
 
 var _mutator: StateMutator
@@ -31,7 +31,7 @@ func resolve_revelations(
 	## I2：显现体只在已压栈入口 seq 内解释。
 	## 玩家卡背入手 → seq.enter_hand；遭遇卡背抽取并揭示 → seq.encounter.revelation。
 	if game_ctx.sequences == null or game_ctx.sequences.depth() <= 0:
-		push_error("CardAbilityService.resolve_revelations: no sequence frame; vacuum refused")
+		push_error("CardAbilityPipeline.resolve_revelations: no sequence frame; vacuum refused")
 		return false
 	var card := _get_card(game_ctx, card_id)
 	if card == null:

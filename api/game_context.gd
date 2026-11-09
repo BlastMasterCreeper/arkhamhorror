@@ -36,8 +36,8 @@ var draw_encounter: DrawEncounterService
 var mythos: MythosService
 var enemy_phase: EnemyPhaseService
 var action_sequences: ActionSequenceService
-var card_abilities: CardAbilityService
-var triggered_abilities: TriggeredAbilityService
+var card_abilities: CardAbilityPipeline
+var triggered_abilities: TriggeredAbilityPipeline
 
 var stat_projections: StatProjectionStore
 var stat_emitter: GameStatEmitter

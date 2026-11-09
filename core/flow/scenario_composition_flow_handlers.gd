@@ -1,4 +1,4 @@
-class_name ScenarioCompositionAtoms
+class_name ScenarioCompositionFlowHandlers
 extends RefCounted
 
 ## 场景域通用 Composition 原子 · set-aside / 地点 / 清场 / R#（非 act_agenda 专用）。
@@ -25,7 +25,7 @@ static func put_locations_into_play(
 ) -> bool:
 	var placed := false
 	for loc_id in location_ids:
-		if ScenarioSetAsideService.put_location_into_play(game_ctx, loc_id).get("ok", false):
+		if ScenarioSetAside.put_location_into_play(game_ctx, loc_id).get("ok", false):
 			placed = true
 	return placed
 
@@ -35,7 +35,7 @@ static func spawn_set_aside_enemy_at(
 	enemy_definition_id: StringName,
 	location_id: StringName
 ) -> bool:
-	return ScenarioSetAsideService.spawn_set_aside_enemy_at(
+	return ScenarioSetAside.spawn_set_aside_enemy_at(
 		game_ctx, enemy_definition_id, location_id
 	).get("ok", false)
 
@@ -46,7 +46,7 @@ static func attach_set_aside_to_host(
 	host_card_id: StringName,
 	count: int = 1
 ) -> bool:
-	return ScenarioSetAsideService.attach_set_aside_to_location(
+	return ScenarioSetAside.attach_set_aside_to_location(
 		game_ctx, definition_id, host_card_id, count
 	).get("ok", false)
 
@@ -56,7 +56,7 @@ static func discard_set_aside_to_encounter_discard(
 	definition_id: StringName,
 	count: int = -1
 ) -> bool:
-	return ScenarioSetAsideService.discard_set_aside_to_encounter_discard(
+	return ScenarioSetAside.discard_set_aside_to_encounter_discard(
 		game_ctx, definition_id, count
 	).get("ok", false)
 
@@ -195,7 +195,7 @@ static func heal_and_set_aside_enemy(
 				enemy.engaged_with = &""
 			enemy.location_tag = &""
 		card.zone = AhcEnums.Zone.SET_ASIDE
-		ScenarioSetAsideService.remove_from_set_aside(game_ctx, enemy_id)
+		ScenarioSetAside.remove_from_set_aside(game_ctx, enemy_id)
 		if not game_ctx.state.set_aside.has(enemy_id):
 			game_ctx.state.set_aside.append(enemy_id)
 		moved = true
@@ -241,11 +241,11 @@ static func put_story_asset_from_set_aside(
 	var owner := _resolve_controller(game_ctx, controller_id)
 	if owner == &"":
 		return false
-	var cards := ScenarioSetAsideService.find_cards(game_ctx, definition_id)
+	var cards := ScenarioSetAside.find_cards(game_ctx, definition_id)
 	if cards.is_empty():
 		return false
 	var card_id: StringName = cards[0]
-	ScenarioSetAsideService.remove_from_set_aside(game_ctx, card_id)
+	ScenarioSetAside.remove_from_set_aside(game_ctx, card_id)
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return false

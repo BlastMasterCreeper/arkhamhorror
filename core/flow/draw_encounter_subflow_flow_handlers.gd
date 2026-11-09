@@ -1,4 +1,4 @@
-class_name DrawEncounterSubflowHandlers
+class_name DrawEncounterSubflowFlowHandlers
 extends RefCounted
 
 ## E1 内联 collect：遭遇牌库 pop；空库洗弃（无 horror）；两堆皆空 RULES_GAP。

@@ -72,10 +72,10 @@ static func ensure_on_encounter_deck_top(ctx: GameContext, definition_id: String
 			ctx.state.encounter_deck.insert(0, cid)
 			return
 	# set-aside
-	var aside := ScenarioSetAsideService.find_cards(ctx, definition_id)
+	var aside := ScenarioSetAside.find_cards(ctx, definition_id)
 	if not aside.is_empty():
 		var card_id: StringName = aside[0]
-		ScenarioSetAsideService.remove_from_set_aside(ctx, card_id)
+		ScenarioSetAside.remove_from_set_aside(ctx, card_id)
 		var c := ctx.state.registry.get_card(card_id)
 		if c != null:
 			c.zone = AhcEnums.Zone.DECK

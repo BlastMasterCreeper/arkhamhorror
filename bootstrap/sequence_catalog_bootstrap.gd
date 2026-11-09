@@ -5,7 +5,7 @@ extends RefCounted
 static func register_builtin(
 	catalog: SequenceCatalog,
 	mutator: StateMutator,
-	card_abilities: CardAbilityService
+	card_abilities: CardAbilityPipeline
 ) -> void:
 	_register_flows(catalog, mutator, card_abilities)
 
@@ -13,7 +13,7 @@ static func register_builtin(
 static func _register_flows(
 	catalog: SequenceCatalog,
 	mutator: StateMutator,
-	card_abilities: CardAbilityService
+	card_abilities: CardAbilityPipeline
 ) -> void:
 	## 玩家卡背显现入口：进入手牌（任意途径）。遭遇卡背不走本 flow。
 	catalog.register_nest_batch(
@@ -28,7 +28,7 @@ static func _register_flows(
 			return TriggeringCondition.draw_empty_piles_defeated(inv_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var inv_id: StringName = params.get("inv_id", &"")
-			return DrawSubflowHandlers.resolve_empty_piles_defeated(game_ctx, inv_id)
+			return DrawSubflowFlowHandlers.resolve_empty_piles_defeated(game_ctx, inv_id)
 	)
 	## 遭遇抽：离库 → LIMBO 结算；默认不入手（仅 Hidden 显现体内秘密入手）。
 	catalog.register_run(
@@ -710,7 +710,7 @@ static func _resolve_draw_investigator(
 static func _resolve_encounter_revelation(
 	game_ctx: GameContext,
 	params: Dictionary,
-	abilities: CardAbilityService
+	abilities: CardAbilityPipeline
 ) -> Dictionary:
 	var drawer_id: StringName = params.get("drawer_id", &"")
 	var card_id: StringName = params.get("card_id", &"")
@@ -762,7 +762,7 @@ static func _resolve_encounter_spawn(
 static func _nest_enter_hand_revelations(
 	game_ctx: GameContext,
 	params: Dictionary,
-	abilities: CardAbilityService
+	abilities: CardAbilityPipeline
 ) -> Dictionary:
 	var controller_id: StringName = params.get("controller_id", &"")
 	var card_ids: Array = params.get("card_ids", [])

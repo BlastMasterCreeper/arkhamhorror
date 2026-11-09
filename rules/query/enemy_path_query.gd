@@ -1,4 +1,4 @@
-class_name EnemyPathfinding
+class_name EnemyPathQuery
 extends RefCounted
 
 ## 朝目标地点移动 1 步 · 尽量执行（缩短距离优先；无法缩短仍须移动；并列由队长选）。

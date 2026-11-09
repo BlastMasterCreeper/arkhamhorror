@@ -1,4 +1,4 @@
-class_name BasicActionHandlers
+class_name BasicActionFlowHandlers
 extends RefCounted
 
 var _state: GameStateStore

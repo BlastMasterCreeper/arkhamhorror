@@ -514,23 +514,23 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"nest_draw_investigator":
 			return _execute_nest_draw_investigator(node)
 		&"discard_all_enemies_in_play":
-			return ScenarioCompositionAtoms.discard_all_enemies_in_play(_game_ctx)
+			return ScenarioCompositionFlowHandlers.discard_all_enemies_in_play(_game_ctx)
 		&"put_locations_into_play":
-			return ScenarioCompositionAtoms.put_locations_into_play(
+			return ScenarioCompositionFlowHandlers.put_locations_into_play(
 				_game_ctx, node.location_ids
 			)
 		&"spawn_set_aside_enemy_at":
-			return ScenarioCompositionAtoms.spawn_set_aside_enemy_at(
+			return ScenarioCompositionFlowHandlers.spawn_set_aside_enemy_at(
 				_game_ctx, node.definition_id, node.location_target
 			)
 		&"attach_set_aside_to_host":
-			return ScenarioCompositionAtoms.attach_set_aside_to_host(
+			return ScenarioCompositionFlowHandlers.attach_set_aside_to_host(
 				_game_ctx, node.definition_id, node.card_id, node.atom_count
 			)
 		&"attach_limbo_to_nearest_location_without", &"nest_attach":
 			return _execute_nest_attach(node)
 		&"discard_set_aside_to_encounter_discard":
-			return ScenarioCompositionAtoms.discard_set_aside_to_encounter_discard(
+			return ScenarioCompositionFlowHandlers.discard_set_aside_to_encounter_discard(
 				_game_ctx, node.definition_id, node.atom_count
 			)
 		&"nest_scenario_resolution":
@@ -539,35 +539,35 @@ func _execute_atom(node: CompositionNode) -> bool:
 				resolution = ScenarioResolutionParser.parse(
 					CardRegistry.back_text(node.definition_id)
 				)
-			return ScenarioCompositionAtoms.trigger_scenario_resolution(
+			return ScenarioCompositionFlowHandlers.trigger_scenario_resolution(
 				_game_ctx, resolution, node.definition_id
 			)
 		&"defeat_surviving_non_resigned":
-			return ScenarioCompositionAtoms.defeat_surviving_non_resigned(
+			return ScenarioCompositionFlowHandlers.defeat_surviving_non_resigned(
 				_game_ctx, node.marker_delta, node.draw_amount
 			)
 		&"heal_and_set_aside_enemy":
-			return ScenarioCompositionAtoms.heal_and_set_aside_enemy(
+			return ScenarioCompositionFlowHandlers.heal_and_set_aside_enemy(
 				_game_ctx, node.definition_id
 			)
 		&"remove_location_from_game":
-			return ScenarioCompositionAtoms.remove_location_from_game(
+			return ScenarioCompositionFlowHandlers.remove_location_from_game(
 				_game_ctx, node.card_id
 			)
 		&"put_story_asset_from_set_aside":
-			return ScenarioCompositionAtoms.put_story_asset_from_set_aside(
+			return ScenarioCompositionFlowHandlers.put_story_asset_from_set_aside(
 				_game_ctx, node.definition_id, node.location_target
 			)
 		&"place_clues_on_location":
-			return ScenarioCompositionAtoms.place_clues_on_location(
+			return ScenarioCompositionFlowHandlers.place_clues_on_location(
 				_game_ctx, node.location_target, node.atom_count
 			)
 		&"lead_search_draw_encounter_copies":
-			return ScenarioCompositionAtoms.lead_search_draw_encounter_copies(
+			return ScenarioCompositionFlowHandlers.lead_search_draw_encounter_copies(
 				_game_ctx, node.definition_id, bool(node.flag_value)
 			)
 		&"lead_draw_topmost_encounter_discard_copy":
-			return ScenarioCompositionAtoms.lead_draw_topmost_encounter_discard_copy(
+			return ScenarioCompositionFlowHandlers.lead_draw_topmost_encounter_discard_copy(
 				_game_ctx, node.definition_id
 			)
 		_:
@@ -1648,7 +1648,7 @@ func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool
 	else:
 		if _game_ctx.skill_tests == null:
 			return false
-		var resolver := BasicActionHandlers.new(_state, _game_ctx.skill_tests)
+		var resolver := BasicActionFlowHandlers.new(_state, _game_ctx.skill_tests)
 		move_result = resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
 		if bool(move_result.get("ok", false)):
 			EngageFlow.nest_after_area_change(_game_ctx, dest_id)

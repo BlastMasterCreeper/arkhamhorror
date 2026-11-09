@@ -168,7 +168,7 @@ python tools/analyze_arkhamdb_cards.py
 - [x] 模板编译 → `compiled_abilities` JSON + `ArkhamDbAbilityCompiler` → `CardRegistry.register_revelation` / `register_triggered`（字段与 A/B/C/D 构件见 [20-card-translation-schema](20-card-translation-schema.md)）
 - [x] 首批模板：`take_horror` / `take_damage` / `lose_resources` / `lose_all_resources` / `enter_threat_area` / `gain_resources`
 - [x] Core 2026 统计：分段存档；模板可表达子集已编译（`ability_compile_summary` in `_meta`）
-- [x] Forced → `TriggeredAbilityService` 直执；`TRIGGER_PHRASE_MAP` → `match_kind`/`phase`；锚 12125 / 12108 ✅
+- [x] Forced → `TriggeredAbilityPipeline` 直执；`TRIGGER_PHRASE_MAP` → `match_kind`/`phase`；锚 12125 / 12108 ✅
 - [x] Reaction → `register_triggered` + Initiation + `ask_use_ability`；锚 12145 ✅（ADB-30～32）
 - [x] take damage/horror 时点：`would`/`when`/`after` + `affliction_filter`/`take_self`；锚 12060 Jim Culver ✅（ADB-73/74）
 - [ ] Action → `register_triggered` + Activate（分段已存，待模板/脚本）
@@ -202,8 +202,8 @@ Gained characteristics 统计：[`core_2026_gained_characteristics.md`](../data/
 | ArkhamDB 现象 | 已有引擎 | 缺口 |
 |---|---|---|
 | 打出 asset/event | `Initiation` + `play_card` | on_play 编译（部分） |
-| Revelation treachery | `CardAbilityService` + G3/G4 | Phase 3 模板编译 + 注册 ✅（部分） |
-| Forced | `TriggeredAbilityService` 直执 | `TRIGGER_PHRASE_MAP` + `register_triggered` ✅（12125 / 12108） |
+| Revelation treachery | `CardAbilityPipeline` + G3/G4 | Phase 3 模板编译 + 注册 ✅（部分） |
+| Forced | `TriggeredAbilityPipeline` 直执 | `TRIGGER_PHRASE_MAP` + `register_triggered` ✅（12125 / 12108） |
 | Reaction/Action | Initiation + ResponseWindow | Reaction 竖切 ✅（12145）；Action 分段已存，待 Activate |
 | Spawn/Prey | `SpawnInstructionSpec` / `PreyInstructionSpec` | Phase 2 编译 + 运行时解析 ✅ |
 | Hidden | E4 + `FORBID_LEAVE_HAND` | 从 `hidden` 字段批量 |

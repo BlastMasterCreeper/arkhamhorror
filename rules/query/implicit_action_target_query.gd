@@ -1,4 +1,4 @@
-class_name ImplicitActionTargets
+class_name ImplicitActionTargetQuery
 extends RefCounted
 
 ## 基础 Fight / Evade / Investigate 隐式目标：U–S → V → Gate。

@@ -1,4 +1,4 @@
-class_name DrawSubflowHandlers
+class_name DrawSubflowFlowHandlers
 extends RefCounted
 
 ## D1 内联收集步 + 按卡面能力包分流 + `seq.draw.empty_piles_defeated` resolve。

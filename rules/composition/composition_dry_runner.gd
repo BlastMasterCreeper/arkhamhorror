@@ -661,15 +661,15 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 		&"nest_effect_unregister":
 			return node.pending_id != &""
 		&"discard_all_enemies_in_play":
-			return ScenarioCompositionAtoms.dry_discard_all_enemies_in_play(sim)
+			return ScenarioCompositionFlowHandlers.dry_discard_all_enemies_in_play(sim)
 		&"put_locations_into_play":
-			return ScenarioCompositionAtoms.dry_put_locations_into_play(sim, node.location_ids)
+			return ScenarioCompositionFlowHandlers.dry_put_locations_into_play(sim, node.location_ids)
 		&"spawn_set_aside_enemy_at":
-			return ScenarioCompositionAtoms.dry_spawn_set_aside_enemy_at(
+			return ScenarioCompositionFlowHandlers.dry_spawn_set_aside_enemy_at(
 				sim, node.definition_id, node.location_target
 			)
 		&"attach_set_aside_to_host":
-			return ScenarioCompositionAtoms.dry_attach_set_aside_to_host(
+			return ScenarioCompositionFlowHandlers.dry_attach_set_aside_to_host(
 				sim, node.definition_id, node.card_id, node.atom_count
 			)
 		&"attach_limbo_to_nearest_location_without", &"nest_attach":
@@ -704,7 +704,7 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				return false
 			return not draw_inv.deck.is_empty() or not draw_inv.discard.is_empty()
 		&"discard_set_aside_to_encounter_discard":
-			return ScenarioCompositionAtoms.dry_discard_set_aside_to_encounter_discard(
+			return ScenarioCompositionFlowHandlers.dry_discard_set_aside_to_encounter_discard(
 				sim, node.definition_id, node.atom_count
 			)
 		&"nest_scenario_resolution":
@@ -713,23 +713,23 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 				resolution = ScenarioResolutionParser.parse(
 					CardRegistry.back_text(node.definition_id)
 				)
-			return ScenarioCompositionAtoms.dry_trigger_scenario_resolution(resolution)
+			return ScenarioCompositionFlowHandlers.dry_trigger_scenario_resolution(resolution)
 		&"defeat_surviving_non_resigned":
-			return ScenarioCompositionAtoms.dry_defeat_surviving_non_resigned(sim)
+			return ScenarioCompositionFlowHandlers.dry_defeat_surviving_non_resigned(sim)
 		&"heal_and_set_aside_enemy":
-			return ScenarioCompositionAtoms.dry_heal_and_set_aside_enemy(sim, node.definition_id)
+			return ScenarioCompositionFlowHandlers.dry_heal_and_set_aside_enemy(sim, node.definition_id)
 		&"remove_location_from_game":
-			return ScenarioCompositionAtoms.dry_remove_location_from_game(sim, node.card_id)
+			return ScenarioCompositionFlowHandlers.dry_remove_location_from_game(sim, node.card_id)
 		&"put_story_asset_from_set_aside":
-			return ScenarioCompositionAtoms.dry_put_story_asset_from_set_aside(sim, node.definition_id)
+			return ScenarioCompositionFlowHandlers.dry_put_story_asset_from_set_aside(sim, node.definition_id)
 		&"place_clues_on_location":
-			return ScenarioCompositionAtoms.dry_place_clues_on_location(sim, node.location_target)
+			return ScenarioCompositionFlowHandlers.dry_place_clues_on_location(sim, node.location_target)
 		&"lead_search_draw_encounter_copies":
-			return ScenarioCompositionAtoms.dry_lead_search_draw_encounter_copies(
+			return ScenarioCompositionFlowHandlers.dry_lead_search_draw_encounter_copies(
 				sim, node.definition_id
 			)
 		&"lead_draw_topmost_encounter_discard_copy":
-			return ScenarioCompositionAtoms.dry_lead_draw_topmost_encounter_discard_copy(
+			return ScenarioCompositionFlowHandlers.dry_lead_draw_topmost_encounter_discard_copy(
 				sim, node.definition_id
 			)
 		_:

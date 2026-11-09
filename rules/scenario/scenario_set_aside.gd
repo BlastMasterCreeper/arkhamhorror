@@ -1,4 +1,4 @@
-class_name ScenarioSetAsideService
+class_name ScenarioSetAside
 extends RefCounted
 
 ## Set-aside 区操作 · act/agenda b 面与 setup 共用。

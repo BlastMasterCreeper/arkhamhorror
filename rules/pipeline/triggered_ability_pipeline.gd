@@ -1,4 +1,4 @@
-class_name TriggeredAbilityService
+class_name TriggeredAbilityPipeline
 extends RefCounted
 
 var _ctx: GameContext
@@ -265,7 +265,7 @@ func _execute_composition_on_stack(descriptor: TriggeredAbilityDescriptor) -> vo
 		descriptor.id,
 		descriptor.source_id
 	):
-		push_error("TriggeredAbilityService: seq.ability.resolve failed; composition not executed")
+		push_error("TriggeredAbilityPipeline: seq.ability.resolve failed; composition not executed")
 
 
 func _resolve_via_initiation(descriptor: TriggeredAbilityDescriptor) -> Dictionary:
