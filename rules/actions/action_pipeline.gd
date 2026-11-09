@@ -1,4 +1,4 @@
-class_name ActionSystem
+class_name ActionPipeline
 extends RefCounted
 
 var _state: GameStateStore
@@ -6,7 +6,7 @@ var _events: EventRecordLog
 var _initiation: AbilityInitiationPipeline
 var _log: GameLog
 var _framework: FrameworkFlowEngine
-var _aoo: AttackOfOpportunityResolver
+var _aoo: AttackOfOpportunityTrigger
 var _mutator: StateMutator
 var _action_sequences: ActionSequenceService
 var _game_ctx: GameContext
@@ -26,7 +26,7 @@ func _init(
 	_initiation = initiation
 	_log = log
 	_framework = framework
-	_aoo = AttackOfOpportunityResolver.new(state)
+	_aoo = AttackOfOpportunityTrigger.new(state)
 	_mutator = mutator
 
 

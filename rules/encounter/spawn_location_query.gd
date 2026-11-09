@@ -1,4 +1,4 @@
-class_name SpawnLocationResolver
+class_name SpawnLocationQuery
 extends RefCounted
 
 

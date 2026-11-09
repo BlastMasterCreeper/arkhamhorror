@@ -49,7 +49,7 @@ static func resolve_basic_action(
 		return {"ok": false, "error": "basic_actions_unavailable"}
 	var inv_id: StringName = params.get("inv_id", &"")
 	var extra: Dictionary = params.get("extra", {})
-	var resolver := BasicActionResolver.new(game_ctx.state, game_ctx.skill_tests)
+	var resolver := BasicActionHandlers.new(game_ctx.state, game_ctx.skill_tests)
 	match action_type:
 		AhcEnums.ActionType.MOVE:
 			## 行动外壳 → nest 狭义移动内核（与 draw/gain/engage 对称）。

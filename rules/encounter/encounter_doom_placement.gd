@@ -11,7 +11,7 @@ static func place_on_nearest_enemy_without_doom(
 ) -> bool:
 	return _place_on_enemy(
 		game_ctx,
-		NearestEnemyResolver.pick_nearest_enemy_without_doom(game_ctx, drawer_id),
+		NearestEnemyQuery.pick_nearest_enemy_without_doom(game_ctx, drawer_id),
 		drawer_id,
 		card_id
 	)
@@ -28,7 +28,7 @@ static func place_on_nearest_enemy_without_doom_from_origin(
 		exclude.append(origin_id)
 	return _place_on_enemy(
 		game_ctx,
-		NearestEnemyResolver.pick_nearest_enemy_without_doom(
+		NearestEnemyQuery.pick_nearest_enemy_without_doom(
 			game_ctx, origin_id, picker_id, exclude
 		),
 		picker_id,

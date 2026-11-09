@@ -476,13 +476,13 @@ PlayerWindow open → 刷新 eligible 清单 → 主表倒计时（仅当发起�
 
 ### 7.4 伤害 · 目标 · Action 入口
 
-`EffectResolutionGraph` / `DamageWrapper` / `ActionSystem`：
+`EffectResolutionGraph` / `DamageWrapper` / `ActionPipeline`：
 
 1. 枚举 **合法目标集**（Domain + cannot）
 2. `ask(PICK_TARGET | PICK_MULTI | ASSIGN_DAMAGE | ASSIGN_HORROR | TIE_BREAK)`
 3. `StateMutator` / Initiation resolve
 
-**Assign 合法性**在 Domain；**怎么分**在 Interaction。`ActionRequest.targets` 可由 UI 预填或经 `PICK_TARGET` 在 `ActionSystem.execute` 内补问。
+**Assign 合法性**在 Domain；**怎么分**在 Interaction。`ActionRequest.targets` 可由 UI 预填或经 `PICK_TARGET` 在 `ActionPipeline.execute` 内补问。
 
 ---
 
@@ -593,7 +593,7 @@ seq.encounter.revelation
 | P1 | ST.2 `COMMIT_TO_TEST` + 检定窗；白名单 `[free]` 入池 `×n`（锚 01017） | ✅ `pw_intent_batch` + PW-BATCH-01；检定窗可 list/enqueue free |
 | P2 | §7.3.4 窗温度 / `wake_only_eligible` / 阶段免打扰 | **交互层**（规则语义不变；本竖切只定方向） |
 | P2 | 标识符重命名 `willingness_*`→`ResponsePool`、`PlayerWindowIntentPool`→`InitiationPool` | 待接（语义以 §7.0 为准） |
-| P2 | `ActionSystem`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
+| P2 | `ActionPipeline`：`PLAY_CARD` / `PICK_TARGET` | 待接 |
 | P2 | `PAY_COST` / `PAY_X` 接 CostPipeline | 待接 |
 | P2 | Damage：**Assign = 静态 PI 会话**（候选+约束→增减耗尽→确认；期间重算可分配性）/ `CHOOSE_TRAUMA` | 契约已裁 07 §4；Gate 接线待接；防伤钉 WOULD |
 | P2 | `TIE_BREAK` / `ORDER_ATTACKS` / Hunter spawn | 待接 |

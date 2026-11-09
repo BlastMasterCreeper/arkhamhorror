@@ -45,7 +45,7 @@ static func perform(game_ctx: GameContext, attack: EnemyAttack) -> void:
 				"trigger_area_change": false,
 			}
 		)
-	ElusiveResolver.try_flee_after_enemy_attack(game_ctx, attack.enemy_id)
+	ElusiveTrigger.try_flee_after_enemy_attack(game_ctx, attack.enemy_id)
 
 
 static func _deal_via_seq(game_ctx: GameContext, attack: EnemyAttack) -> void:

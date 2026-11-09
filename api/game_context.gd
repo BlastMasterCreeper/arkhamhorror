@@ -14,11 +14,11 @@ var ability_response_prefs: AbilityResponsePreferences
 ## 玩家时间段窗意图池（16 §7.3）。
 var player_window_intents: PlayerWindowIntentPool
 
-var actions: ActionSystem
+var actions: ActionPipeline
 var skill_tests: SkillTestEngine
 var initiation: AbilityInitiationPipeline
 var effects: EffectResolutionGraph
-var scenario: ScenarioSystem
+var scenario: ScenarioService
 var enemy: EnemySystem
 
 var registrations: RegistrationStore

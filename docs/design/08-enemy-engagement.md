@@ -95,7 +95,7 @@ class EnemyState:
 
 `spawn_engaged`：Register Buff + nest 进入威胁区（`from=out_of_play`），**不**压 `seq.engage`。庞大见 §6.6。
 
-**多调查员同地点**：走 **`auto_engage_at_location`**（**②** `seq.engage` mode=auto）；**①** `PreyResolver` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
+**多调查员同地点**：走 **`auto_engage_at_location`**（**②** `seq.engage` mode=auto）；**①** `PreyQuery` 在 kernel 内同步选 WHO（**不** nest Prey）。无 Prey 或并列 → Lead 选。
 
 ```gdscript
 func auto_engage_at_location(enemy_id: StringName, location: EntityId) -> void:
@@ -107,7 +107,7 @@ func auto_engage_at_location(enemy_id: StringName, location: EntityId) -> void:
     if candidates.size() == 1:
         target = candidates[0]
     else:
-        var prey_pick := PreyResolver.best_match(def.prey_instruction, candidates)  # ① 同步读
+        var prey_pick := PreyQuery.best_match(def.prey_instruction, candidates)  # ① 同步读
         target = prey_pick if prey_pick != &"" else ui.lead_investigator_choose(candidates)
     engage_l0(enemy_id, target)   # 效果在 engage，不在 Prey
 ```
@@ -116,7 +116,7 @@ func auto_engage_at_location(enemy_id: StringName, location: EntityId) -> void:
 
 ## 4. Prey 与 Hunter 目标（已裁决 OQ-08-01）
 
-> **Prey 指令** = `CardDefinition.prey_instruction`（RR *enemy instruction* · **① 规则参数**）。**不执行任何效果** — **禁止** nest、LISTENER、Register；仅在 **② engage 内核** 与 **③ Hunter 移动 LISTENER 的等距分支** 内 **`PreyResolver` 同步读**。见 [07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)。
+> **Prey 指令** = `CardDefinition.prey_instruction`（RR *enemy instruction* · **① 规则参数**）。**不执行任何效果** — **禁止** nest、LISTENER、Register；仅在 **② engage 内核** 与 **③ Hunter 移动 LISTENER 的等距分支** 内 **`PreyQuery` 同步读**。见 [07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)。
 
 | 消费点 | 内核 | Prey 作用 |
 |---|---|---|
@@ -133,7 +133,7 @@ Hunter 移动 / 选最近调查员时：
 ```gdscript
 func choose_hunter_target(enemy: EntityId) -> EntityId:
     var equidistant := investigators_at_minimum_path_distance(enemy)
-    var prey_matches := PreyResolver.filter_candidates(enemy_def_id, equidistant)
+    var prey_matches := PreyQuery.filter_candidates(enemy_def_id, equidistant)
     if prey_matches.size() == 1:
         return prey_matches[0]
     if prey_matches.size() > 1:
@@ -182,7 +182,7 @@ seq.enemy.3_2（框架基础手续）
 | 关键词 | 编译 / 开火 | 参数（①） |
 |---|---|---|
 | Hunter | **③** LISTENER → `seq.keyword.hunter` | 无卡面 Spec |
-| Patrol | **③** LISTENER → `seq.keyword.patrol` | `PatrolTargetSpec` · handler 内 `PatrolTargetResolver` |
+| Patrol | **③** LISTENER → `seq.keyword.patrol` | `PatrolTargetSpec` · handler 内 `PatrolTargetQuery` |
 | 移动后遇 investigator | **②** | `auto_engage_at_location`（内读 Prey） |
 
 **不移动**：exhausted、已 engaged、hunter 已在有 investigator 地点；patrol 已在 designated target；card ability 阻挡。
@@ -225,7 +225,7 @@ func EnemyAttackFlow.perform(attack: EnemyAttack) -> void:
 # ── 触发 + 时点层（分化）──
 # 各 Resolver 只负责「是否触发、何时触发」，满足后构造 EnemyAttack 并调用 perform_attack()
 
-class AttackOfOpportunityResolver:   # 见 03-action-system §5
+class AttackOfOpportunityTrigger:   # 见 03-action-system §5
     func check_trigger(action: ActionRequest) -> bool: ...
     func resolve_timing(action: ActionRequest) -> void: ...  # cost 付完后、action 效果前
 
@@ -339,9 +339,9 @@ Grimoire *Fight Action*：攻击检定 **失败** 时，若目标敌人与 **另
 3. 魔典 *Massive* 另列专条：对庞大敌人攻击失败时，**不向与该庞大敌人虚拟交战的其他调查员** 造成上述转嫁伤害（Grimoire p.16）。
 
 ```gdscript
-## Fight ST.7 on_fail — 见 `FightFailRedirectResolver.try_redirect`
+## Fight ST.7 on_fail — 见 `FightFailRedirectTrigger.try_redirect`
 func apply_fight_fail_redirect(attacker: StringName, enemy_id: StringName, fight_damage: int = 1) -> void:
-    FightFailRedirectResolver.try_redirect(game_ctx, attacker, enemy_id, fight_damage)
+    FightFailRedirectTrigger.try_redirect(game_ctx, attacker, enemy_id, fight_damage)
 ```
 
 **与反击（Retaliate）区分**：二者 **先后**、非同时 —— 转嫁在 **ST.7 apply**（`on_fail`）；反击在 **ST.7 全部 apply 完成后**（post-ST7）对 **攻击者** `perform_attack(RETALIATE)`。庞大 + retaliate 时，反击仍可能命中攻击者；本节仅约束 **转嫁给其他虚拟交战调查员** 的伤害。
@@ -396,8 +396,8 @@ func apply_fight_fail_redirect(attacker: StringName, enemy_id: StringName, fight
 
 | 指令 | 档 | 提供 | 读参位置 | 禁止 |
 |---|---|---|---|---|
-| **Spawn –** | **①** | WHERE | **②** spawn 内核 · G4 · `SpawnLocationResolver` | Ability / LISTENER / 独立 timing |
-| **Prey –** | **①** | WHO | **②** `auto_engage_at_location`；**③** Hunter 等距 handler 内 `PreyResolver` | nest / LISTENER / G4 spawn 分支读 Prey |
+| **Spawn –** | **①** | WHERE | **②** spawn 内核 · G4 · `SpawnLocationQuery` | Ability / LISTENER / 独立 timing |
+| **Prey –** | **①** | WHO | **②** `auto_engage_at_location`；**③** Hunter 等距 handler 内 `PreyQuery` | nest / LISTENER / G4 spawn 分支读 Prey |
 
 Spawn 细则 [15 §17.4.1b](15-timing-entry-catalog.md)；Prey [15 §17.4.1c](15-timing-entry-catalog.md)、[07 §0.1.2](07-effect-primitives.md#012-敌人指令spawn-与-prey已裁决)。
 
@@ -431,7 +431,7 @@ func discard_spawn_failed(enemy_id: StringName) -> void:
 
 - Damage >= health → defeated → encounter discard（或 weakness owner discard）；**Victory X > 0** → `victory_display`（`EnemyDefeatResolver`）
 - Victory X → victory display（discard 不算 defeat，不进 victory display）
-- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）；实现见 `DoomedResolver` / `EnemyDefeatResolver`
+- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）；实现见 `DoomedTrigger` / `EnemyDefeatResolver`
 
 ---
 

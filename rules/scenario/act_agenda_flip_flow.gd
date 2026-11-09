@@ -41,7 +41,9 @@ static func _flip(game_ctx: GameContext, is_agenda: bool) -> Dictionary:
 	_mirror_flip(game_ctx, card, AhcEnums.CardFace.B)
 	var encounter_back := CardRegistry.has_encounter_cardtype_back(def_id)
 	var back := CardRegistry.back_text(def_id)
-	var back_result := ActAgendaBackResolver.resolve(game_ctx, def_id, back, card_id, is_agenda)
+	var back_result := ActAgendaBackFlow.resolve_back(
+		game_ctx, def_id, card_id, is_agenda, back
+	)
 	var resolution: int = int(back_result.get("resolution", -1))
 	## 遭遇类型背面：按抽取规则进场/显现/弃置，**不** RFG（仍晋升下一张）。
 	## 普通指令背面：结算后 advancing 卡 removed from game。

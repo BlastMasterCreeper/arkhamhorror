@@ -205,8 +205,8 @@
 
 | flow_id | 用途 | 入口 |
 |---|---|---|
-| `seq.draw.investigator` | 调查员抽牌 D* | `DrawInvestigatorService`、`ActionSystem` DRAW、`Composition` draw |
-| `seq.draw.encounter` | 遭遇抽牌（抽取步骤 + 卡牌结算；不含涌动） | `DrawEncounterService`、Mythos 1.4 `ScenarioSystem` |
+| `seq.draw.investigator` | 调查员抽牌 D* | `DrawInvestigatorService`、`ActionPipeline` DRAW、`Composition` draw |
+| `seq.draw.encounter` | 遭遇抽牌（抽取步骤 + 卡牌结算；不含涌动） | `DrawEncounterService`、Mythos 1.4 `ScenarioService` |
 | `seq.encounter.resolve_card` | 已持有实例 → 遭遇侧能力体系 | setup / 弃牌再结算 / 调查员库抽出的 enemy·treachery；**非**来源重定向 |
 | `seq.keyword.surge` | 涌动 LISTENER 开火：卸标记并 nest 新的遭遇抽牌 | `KeywordConsumer` @ `seq.draw.encounter` AFTER；06 §3.2.6 |
 | `seq.draw.empty_piles_defeated` | 两堆空 defeated（因果 nest） | nest from D1 内联 collect |
@@ -273,7 +273,7 @@
 | 缺口 | 需要 |
 |---|---|
 | **`seq.action.*` wrapper** | 耗 action、AOO 时序、source_tags |
-| **draw RESTRICTION** | `ActionSystem` / flow 入口查 06 §16 |
+| **draw RESTRICTION** | `ActionPipeline` / flow 入口查 06 §16 |
 | **`seq.encounter.*`** | revelation、spawn（nest）；peril / discard **内联**于 resolve_card_body |
 | **EnterHand CONTROLLER_CHOICE** | 多弱点显现序 → 16 §5.6 ORDER_CARDS |
 | **PlayerInteraction** | 16 §12 清单（与 W3 同步） |

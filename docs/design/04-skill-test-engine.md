@@ -283,7 +283,7 @@ Player Window 仍可出现；COLLECT / Initiation 在 **L4** 经 `RestrictionEva
 | 入口 | 检查时机 | Intent |
 |---|---|---|
 | **EligibilityPipeline L4** | COLLECT / PRE_INITIATE | `PLAY` / `TRIGGER` |
-| **ActionSystem.play_asset / play_event** | 付 cost 前 | `PLAY` |
+| **ActionPipeline.play_asset / play_event** | 付 cost 前 | `PLAY` |
 | **SkillTestEngine.commit_card** | commit 前 | `COMMIT_TO_TEST` |
 | **CompositionExecutor draw atom** | execute 前 | `DRAW` |
 | **EffectResolutionGraph** step 4 | submit 前 | 按 op 映射 Intent（§16.4.3） |
@@ -307,7 +307,7 @@ if reason != &"":
 | ID | 场景 | 预期 |
 |---|---|---|
 | ST-06 / PERIL-01 | E3 Register 后队友 commit | `peril_no_assist` |
-| PERIL-02 | 队友 play asset | `restriction_forbid_play`（待接 ActionSystem） |
+| PERIL-02 | 队友 play asset | `restriction_forbid_play`（待接 ActionPipeline） |
 | PERIL-03 | 队友 [reaction] | L4 `FORBID_TRIGGER` fail |
 | PERIL-04 | Surge 第二圈无 peril 关键词 | **无** 上一张 RESTRICTION；新 card_id 单独 Register |
 | PERIL-05 | G4 完、G5 Surge 前 | peril Unregister；他人 commit **允许** |
@@ -355,7 +355,7 @@ seq.draw.encounter → resolve_card_body (内联)
 | `core/timing/encounter_resolution_frame.gd` | 帧 + peril 粘性镜像 |
 | `rules/skill_test/skill_test_engine.gd` | commit → RestrictionEvaluator |
 
-**待接**：ActionSystem play、Eligibility L4、EffectGraph step 4（同一 evaluator）。
+**待接**：ActionPipeline play、Eligibility L4、EffectGraph step 4（同一 evaluator）。
 
 ---
 
@@ -409,7 +409,7 @@ class SkillTestAPI:
 
 ---
 
-## 8. 与 ActionSystem 集成
+## 8. 与 ActionPipeline 集成
 
 | 行动 | 检定 |
 |---|---|

@@ -1,4 +1,4 @@
-class_name RetaliateAlertResolver
+class_name RetaliateAlertTrigger
 extends RefCounted
 
 ## 反击（Retaliate）/ 警戒（Alert）触发 + 时点层（08 §6 · OQ-03-02）。
@@ -35,12 +35,12 @@ static func resolve_post_st7(game_ctx: GameContext, test: SkillTestContext) -> v
 	var performer := test.performing_investigator
 	if test.success:
 		if test.skill == AhcEnums.SkillType.COMBAT:
-			ElusiveResolver.try_flee_was_attacked(game_ctx, test.target_enemy_id)
+			ElusiveTrigger.try_flee_was_attacked(game_ctx, test.target_enemy_id)
 		return
 	match test.skill:
 		AhcEnums.SkillType.COMBAT:
 			try_retaliate(game_ctx, test.target_enemy_id, performer)
-			ElusiveResolver.try_flee_was_attacked(game_ctx, test.target_enemy_id)
+			ElusiveTrigger.try_flee_was_attacked(game_ctx, test.target_enemy_id)
 		AhcEnums.SkillType.AGILITY:
 			try_alert(game_ctx, test.target_enemy_id, performer)
 

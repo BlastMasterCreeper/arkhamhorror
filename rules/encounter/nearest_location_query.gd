@@ -1,4 +1,4 @@
-class_name NearestLocationResolver
+class_name NearestLocationQuery
 extends RefCounted
 
 ## 最近地点 · 等距时由 drawer 选目标（16 §7.2.1）。

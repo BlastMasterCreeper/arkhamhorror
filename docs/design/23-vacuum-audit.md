@@ -35,7 +35,7 @@
 
 | API | 判定 | 说明 |
 |---|---|---|
-| `DrawInvestigatorFlow.run_mutator_only` | **VACUUM** | 自造无栈 `GameContext`，再走 `_run_core` → execute；Composition atom `draw` / ActionSystem 未绑服务时可达 |
+| `DrawInvestigatorFlow.run_mutator_only` | **VACUUM** | 自造无栈 `GameContext`，再走 `_run_core` → execute；Composition atom `draw` / ActionPipeline 未绑服务时可达 |
 
 ---
 
@@ -78,7 +78,7 @@
 
 1. ~~**`CompositionExecutor.execute` 硬门槛**~~：**已落地** — `depth() > 0` 否则 `push_error` 并返回 false（I2-01）  
 2. ~~**删除 Mount / Initiation / Triggered 裸 execute 回退**~~：**已落地** — Catalog 缺失 = 错误；Register / Engagement / gained-keyword / SKIP_AOO 同理  
-3. ~~**隔离 `run_mutator_only`**~~：**已落地** — 仅 dry-run/sim；生产 draw atom / ActionSystem 禁 mutator 旁路  
+3. ~~**隔离 `run_mutator_only`**~~：**已落地** — 仅 dry-run/sim；生产 draw atom / ActionPipeline 禁 mutator 旁路  
 4. ~~**`CardAbilityService.resolve_revelations`**~~：**已落地** — 断言已压栈  
 5. ~~**清糖残留**~~：**已落地** — executor 拒 `nest_move_connecting` ATOM；`CompositionNode.draw` → `nest_draw_investigator`；测试 helper 经 Mount
 

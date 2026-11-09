@@ -121,7 +121,7 @@ RR *enemy instructions (spawn and prey)* — 引擎 **均为 ① 规则参数**�
 |---|---|---|
 | **提供** | **WHERE** | **WHO**（同地点 / 等距多选时） |
 | **Spec** | `SpawnInstructionSpec` | `PreyInstructionSpec` |
-| **读参内核（②）** | **Spawn 内核** · G4 / enters play · `SpawnLocationResolver` | **Engage 内核** · `auto_engage_at_location` · Hunter **等距**分支 · `PreyResolver` |
+| **读参内核（②）** | **Spawn 内核** · G4 / enters play · `SpawnLocationQuery` | **Engage 内核** · `auto_engage_at_location` · Hunter **等距**分支 · `PreyQuery` |
 | **执行效果？** | 否（参数）；L0 进场在 spawn 砖块 | **否** — 仅排序/过滤候选 |
 | **nest Prey/Spawn？** | G4 **规则砖块** nest（非 Spec nest） | **禁止** — 无独立结算体 |
 | **魔典** | *spawn instruction resolves as enemy enters play* | *Prey has no immediate effect on spawn location* |
@@ -134,21 +134,21 @@ class CardDefinition:
 
 **Spawn**：无 Spawn 文本 → spawn 内核 **默认生成**；有 Spawn – → 同内核读 spec 改 location。**唯一**在规则砖块内读 **印刷指令** 的敌人字段（G4 族）。
 
-**Prey**：**不** 进入 G4 spawn 分支；**不** 编译 LISTENER。仅在 **auto engage**（敌人已在 location、多调查员须选 engage 目标）及 **Hunter 等距**（**③** 移动 LISTENER 的 handler **内**一行 `PreyResolver`）同步读 spec。
+**Prey**：**不** 进入 G4 spawn 分支；**不** 编译 LISTENER。仅在 **auto engage**（敌人已在 location、多调查员须选 engage 目标）及 **Hunter 等距**（**③** 移动 LISTENER 的 handler **内**一行 `PreyQuery`）同步读 spec。
 
 ```text
 G4 spawn 砖块（②）
-  … SpawnLocationResolver(spec) … spawn_at_location …
+  … SpawnLocationQuery(spec) … spawn_at_location …
   if not aloof:
     auto_engage_at_location(enemy, loc)     # ② engage 内核
       candidates := investigators_at(loc)
-      target := PreyResolver.best_match(prey_instruction, candidates)  # ① 同步读
+      target := PreyQuery.best_match(prey_instruction, candidates)  # ① 同步读
       … engage L0 …                         # 效果在 engage，不在 Prey
 
 seq.enemy.3_2 RESOLVE hunter LISTENER（③）
   … move …
   if equidistant.size() > 1:
-    pick := PreyResolver.best_match(prey_instruction, equidistant)  # ① 内联，非 Prey nest
+    pick := PreyQuery.best_match(prey_instruction, equidistant)  # ① 内联，非 Prey nest
 ```
 
 **Prey 标签**：魔典条目或写 keyword ability；**引擎裁定为指令**（与 Spawn 同列），**不** 译 LISTENER / 关键词 Buff — **标签 + 括号** → `PreyInstructionSpec`（**①**）。
@@ -158,7 +158,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 | 轨 | 归类 | 引擎 |
 |---|---|---|
 | **Patrol 移动** | **③** LISTENER @ `(seq.enemy.3_2, WHEN)` | AbilityCompiler 共享模板；L0 move 1 步 |
-| **Patrol (…)** 括号 | **①** `PatrolTargetSpec` | LISTENER handler **内** `PatrolTargetResolver` — **不** 为括号 nest |
+| **Patrol (…)** 括号 | **①** `PatrolTargetSpec` | LISTENER handler **内** `PatrolTargetQuery` — **不** 为括号 nest |
 
 **禁止**：Prey / Patrol 括号 **独立** nest；把 Prey 当 Forced；Patrol 括号单独 Register。
 

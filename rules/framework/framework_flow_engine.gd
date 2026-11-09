@@ -8,7 +8,7 @@ signal round_began(round_number: int)
 var _state: GameStateStore
 var _events: EventRecordLog
 var _log: GameLog
-var _scenario: ScenarioSystem
+var _scenario: ScenarioService
 var _registrations: RegistrationStore
 var _game_ctx: GameContext = null
 
@@ -29,7 +29,7 @@ func _init(
 	events: EventRecordLog,
 	log: GameLog,
 	_config: RulesConfig,
-	scenario: ScenarioSystem = null,
+	scenario: ScenarioService = null,
 	registrations: RegistrationStore = null
 ) -> void:
 	_state = state

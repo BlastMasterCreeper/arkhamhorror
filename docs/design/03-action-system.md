@@ -1,4 +1,4 @@
-# 03 — 行动系统 (ActionSystem)
+# 03 — 行动系统 (ActionPipeline)
 
 > **依赖**：[02-framework-flow.md](02-framework-flow.md), [06-ability-initiation.md](06-ability-initiation.md)  
 > **规则来源**：Grimoire Draw/Fight/... Action entries; Attack of Opportunity (p.38)
@@ -138,7 +138,7 @@ Grimoire p.38 顺序：
 4. 全部 AOO 完成后，才 resolve 原 action 效果
 
 ```gdscript
-class AttackOfOpportunityResolver:
+class AttackOfOpportunityTrigger:
     func provokes(request: ActionRequest) -> bool: ...       # 触发条件
     func resolve(inv: StringName, provoking_request: ActionRequest) -> void:
         var enemies := state.get_ready_engaged_enemies(inv)
@@ -282,10 +282,10 @@ func is_valid_activate_source(inv: StringName, card: EntityId) -> bool:
 
 ---
 
-## 8. ActionSystem API
+## 8. ActionPipeline API
 
 ```gdscript
-class ActionSystem:
+class ActionPipeline:
     func can_take_action(req: ActionRequest) -> Result
     func execute(req: ActionRequest) -> Result
     func get_available_actions(inv: StringName) -> Array[ActionType]

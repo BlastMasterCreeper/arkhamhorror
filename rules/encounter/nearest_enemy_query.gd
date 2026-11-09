@@ -1,4 +1,4 @@
-class_name NearestEnemyResolver
+class_name NearestEnemyQuery
 extends RefCounted
 
 ## 最近敌人 · 等距时由当前交互玩家（drawer / controller）选目标。

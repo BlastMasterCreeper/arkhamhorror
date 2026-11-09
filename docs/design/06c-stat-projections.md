@@ -194,7 +194,7 @@ StatProjection 只认 **结构化 EventKind**；GameLog 字符串不可 fold。
 | EventKind | 写入点 | payload 必含 |
 |---|---|---|
 | `TURN_BEGIN` / `TURN_END` | Framework INV 2.2 | `turn_id`, `inv_id` |
-| `ACTION_SPEND` | ActionSystem / Initiation 付 action 成功 | `inv_id`, `pool`, `spend_kind`, `action_type`, `source_id`, `tags` |
+| `ACTION_SPEND` | ActionPipeline / Initiation 付 action 成功 | `inv_id`, `pool`, `spend_kind`, `action_type`, `source_id`, `tags` |
 | `ACTION_SPEND_VOID` | 行动 rollback | 原 spend 引用 |
 | `ACTION_GRANT` | additional action | `pool_id`, `qualifier`, `amount`, `inv_id` |
 | `ABILITY_COMMENCED` | Initiation commence | `ability_id`, `inv_id` |
@@ -261,7 +261,7 @@ v1 可 L3/L5 均走 StatProjection；优化时再拆 LimitCounter。
 |---|---|---|
 | P1 | `StatKey` / `StatQuery` / `EvaluationContext` / `EventIndex` turn_span | **已实现** · `core/stats/*` |
 | P2 | `StatProjectionStore` attach/detach/ensure_hot/on_event | **已实现** · `stat_projection_store.gd` |
-| P3 | Emitter：`TURN_*` + `ACTION_SPEND` 写入 EventRecord | **已实现** · `game_stat_emitter.gd` + Framework + ActionSystem |
+| P3 | Emitter：`TURN_*` + `ACTION_SPEND` 写入 EventRecord | **已实现** · `game_stat_emitter.gd` + Framework + ActionPipeline |
 | P4 | `Condition.matches_with_snapshot` + `EligibilityCollector` | **竖切** · 完整 EligibilityPipeline 待接 |
 | P5 | `AbilityCompiler` 抽出 stat_queries | 待做 |
 | P6 | 测试 STAT-01～04 | **已通过** |

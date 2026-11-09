@@ -310,10 +310,10 @@ static func _pick_engage_target(
 	if candidates.size() == 1:
 		return candidates[0]
 	var prey := CardRegistry.prey_spec(def_id)
-	var pick := PreyResolver.best_match(prey, game_ctx, candidates, source_enemy_id)
+	var pick := PreyQuery.best_match(prey, game_ctx, candidates, source_enemy_id)
 	if pick != &"":
 		return pick
-	return PreyResolver.lead_pick(game_ctx, candidates, &"pick:engage_tie")
+	return PreyQuery.lead_pick(game_ctx, candidates, &"pick:engage_tie")
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:

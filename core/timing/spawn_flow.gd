@@ -24,7 +24,7 @@ static func from_encounter_draw(
 	## Spawn – Engaged with Prey：全体调查员中按 Prey 选 WHO，再 engaged。
 	if spec.selector_kind == SpawnInstructionSpec.SelectorKind.ENGAGED_WITH_PREY:
 		return _engaged_with_prey(game_ctx, card_id, drawer_id, def_id)
-	var location_tag := SpawnLocationResolver.resolve(spec, drawer_id, game_ctx)
+	var location_tag := SpawnLocationQuery.resolve(spec, drawer_id, game_ctx)
 	if location_tag == &"":
 		return discard_failed(game_ctx, card_id)
 	var spawn_res := at_location(game_ctx, card_id, location_tag, def_id)
@@ -200,7 +200,7 @@ static func _engaged_with_prey(
 		if inv != null and not inv.eliminated:
 			candidates.append(inv_id)
 	var prey := CardRegistry.prey_spec(def_id)
-	var target := PreyResolver.best_match(prey, game_ctx, candidates, card_id)
+	var target := PreyQuery.best_match(prey, game_ctx, candidates, card_id)
 	if target == &"":
 		target = drawer_id
 	if target == &"":

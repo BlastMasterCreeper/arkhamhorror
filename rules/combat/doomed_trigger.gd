@@ -1,4 +1,4 @@
-class_name DoomedResolver
+class_name DoomedTrigger
 extends RefCounted
 
 ## 厄运降临（Doomed）· Grimoire / 08 §8
