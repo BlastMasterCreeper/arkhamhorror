@@ -1,4 +1,4 @@
-class_name InvestigatorCampaignSystem
+class_name InvestigatorCampaignPipeline
 extends RefCounted
 
 ## Experience 购卡窗：报价 / 提交 / 候选目录 / 幕间入口。

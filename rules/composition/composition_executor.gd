@@ -318,7 +318,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"commit_hidden_enter_hand":
 			_mutator.commit_hidden_enter_hand(node.card_id, node.inv_id)
 			if _game_ctx != null:
-				EncounterPrivacy.register_leave_hand_restriction(
+				KeywordMount.register_hidden_leave_hand(
 					_game_ctx, node.card_id, node.inv_id
 				)
 			_log.log(
@@ -354,7 +354,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return true
 		&"discard_encounter_from_hand":
 			if _game_ctx != null:
-				EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
+				ZoneMoveFlow.discard_encounter_from_investigator(
 					_game_ctx, node.card_id, node.inv_id
 				)
 			_log.log(
@@ -1099,7 +1099,7 @@ func _execute_eliminate(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" or _game_ctx == null:
 		return false
-	var result := InvestigatorElimination.eliminate(_game_ctx, inv_id)
+	var result := DefeatFlow.eliminate_investigator(_game_ctx, inv_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:eliminate",
@@ -1113,7 +1113,7 @@ func _execute_resign_inline(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" or _game_ctx == null:
 		return false
-	var result := InvestigatorElimination.resign(_game_ctx, inv_id)
+	var result := DefeatFlow.resign_investigator(_game_ctx, inv_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:resign",
@@ -1136,7 +1136,7 @@ func _execute_nest_resign(node: CompositionNode) -> bool:
 			_game_ctx, &"seq.effect.resign", {"investigator_id": inv_id}
 		)
 	else:
-		result = InvestigatorElimination.resign(_game_ctx, inv_id)
+		result = DefeatFlow.resign_investigator(_game_ctx, inv_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:nest_resign",

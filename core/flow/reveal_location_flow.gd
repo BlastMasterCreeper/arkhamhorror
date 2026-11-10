@@ -1,7 +1,7 @@
-class_name LocationEnterRules
+class_name RevealLocationFlow
 extends RefCounted
 
-## 规则自带：调查员进入地点。
+## seq.effect.reveal_location · 调查员进入未揭示地点 → 翻开 + 放印刷线索。
 ## 未揭示 → 翻开 + 按印刷 clue value（× per investigator）从 token pool 放线索。
 ## 已揭示 → 不再放线索（首次进入已处理）。
 ## **不是**关键词；**不是**卡面 Forced。

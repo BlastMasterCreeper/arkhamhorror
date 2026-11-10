@@ -32,7 +32,7 @@ static func put_location_into_play(
 	if loc == null:
 		return {"ok": false, "reason": &"unknown_location"}
 	if reveal and not loc.revealed:
-		LocationEnterRules.reveal_and_place_clues(
+		RevealLocationFlow.reveal_and_place_clues(
 			game_ctx, {"location_id": location_id}
 		)
 	var card := game_ctx.state.registry.get_card(location_id)

@@ -106,7 +106,7 @@ static func _damage_determined_bundle(
 	)
 	var result: Dictionary
 	if use_pipeline:
-		result = DamagePipeline.apply_investigator_bundle_legs(
+		result = DealInvestigatorPipeline.apply_investigator_bundle_legs(
 			game_ctx,
 			inv_id,
 			damage_legs,
@@ -117,7 +117,7 @@ static func _damage_determined_bundle(
 		result["target"] = &"controller"
 	else:
 		var scope: StringName = inv_id if inv_id != &"" else &"deal_out"
-		result = DealPreImpact.apply_bundle(game_ctx, damage_legs, horror_legs, scope)
+		result = DealOutboundPipeline.apply_bundle(game_ctx, damage_legs, horror_legs, scope)
 		result["target"] = target
 		result["multi"] = true
 	var applied := int(result.get("amount", 0))
@@ -147,7 +147,7 @@ static func _damage_investigator_determined_legs(
 	is_direct: bool,
 	legs: Array
 ) -> Dictionary:
-	var result := DamagePipeline.apply_investigator_legs(
+	var result := DealInvestigatorPipeline.apply_investigator_legs(
 		game_ctx, inv_id, kind, 0, is_direct, legs
 	)
 	var applied := int(result.get("amount", 0))
@@ -188,7 +188,7 @@ static func _damage_legs(
 ) -> Dictionary:
 	## 已定主体腿：PreImpact WOULD→WHEN→Apply（与承伤对称）。
 	var scope: StringName = inv_id if inv_id != &"" else &"deal_out"
-	var pre := DealPreImpact.apply_legs(game_ctx, kind, legs, scope)
+	var pre := DealOutboundPipeline.apply_legs(game_ctx, kind, legs, scope)
 	var applied := int(pre.get("amount", 0))
 	var final_legs: Array = pre.get("legs", []) as Array
 	var subjects: Array[StringName] = []
@@ -355,21 +355,32 @@ static func place_doom(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var placed := false
 	match target:
 		&"nearest_enemy_without_doom":
-			placed = EncounterDoomPlacement.place_on_nearest_enemy_without_doom(
-				game_ctx, origin_id, card_id
+			placed = _doom_on_enemy(
+				game_ctx,
+				NearestEnemyQuery.pick_nearest_enemy_without_doom(game_ctx, origin_id),
+				origin_id,
+				card_id
 			)
 		&"nearest_enemy_without_doom_to_source":
-			placed = EncounterDoomPlacement.place_on_nearest_enemy_without_doom_from_origin(
-				game_ctx, card_id, origin_id, card_id
+			var exclude: Array = []
+			if card_id != &"":
+				exclude.append(card_id)
+			placed = _doom_on_enemy(
+				game_ctx,
+				NearestEnemyQuery.pick_nearest_enemy_without_doom(
+					game_ctx, card_id, origin_id, exclude
+				),
+				origin_id,
+				card_id
 			)
 		_:
-			placed = EncounterDoomPlacement.place_on_source(game_ctx, card_id, amount)
+			placed = _doom_on_source(game_ctx, card_id, amount)
 	return {"ok": placed, "target": target, "amount": amount if placed else 0}
 
 
 static func place_clue(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var inv_id := _controller_id(game_ctx, params)
-	var placed := InvestigatorCluePlacement.place_one_on_investigator_location(game_ctx, inv_id)
+	var placed := _clue_one_on_investigator_location(game_ctx, inv_id)
 	return {"ok": placed, "inv_id": inv_id}
 
 
@@ -477,7 +488,7 @@ static func _discard_card_instance(
 		var routed := DefeatFlow.discard_from_play(game_ctx, card_id)
 		return bool(routed.get("ok", false))
 	if card.owner_id == &"encounter":
-		return EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
+		return ZoneMoveFlow.discard_encounter_from_investigator(
 			game_ctx, card_id, inv_id if inv_id != &"" else card.controller_id
 		)
 	if game_ctx.state != null and game_ctx.state.registry.get_investigator(card.owner_id) != null:
@@ -656,7 +667,7 @@ static func _apply_to_investigator(
 	is_direct: bool = false
 ) -> int:
 	## 仅 non_elite 等已定扫场回退；规范承伤走 damage.assignable。
-	var result := DamagePipeline.deal_investigator(
+	var result := DealInvestigatorPipeline.deal_investigator(
 		game_ctx,
 		inv_id,
 		kind,
@@ -753,3 +764,52 @@ static func _controller_id(game_ctx: GameContext, params: Dictionary) -> StringN
 static func _log(game_ctx: GameContext, event: String, payload: Dictionary) -> void:
 	if game_ctx != null and game_ctx.log != null:
 		game_ctx.log.log(AhcEnums.LogCategory.CARD, event, payload)
+
+static func _doom_on_source(game_ctx: GameContext, card_id: StringName, amount: int = 1) -> bool:
+	if game_ctx == null or game_ctx.state == null or card_id == &"":
+		return false
+	var enemy := game_ctx.state.registry.get_enemy(card_id)
+	if enemy == null:
+		return false
+	enemy.doom += maxi(amount, 1)
+	_log(game_ctx, "encounter:place_doom_source", {"enemy": card_id, "doom": enemy.doom})
+	return true
+
+
+static func _doom_on_enemy(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	drawer_id: StringName,
+	card_id: StringName
+) -> bool:
+	if game_ctx == null or enemy_id == &"":
+		return false
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return false
+	enemy.doom += 1
+	_log(
+		game_ctx,
+		"encounter:place_doom_enemy",
+		{"enemy": enemy_id, "doom": enemy.doom, "drawer": drawer_id, "card": card_id}
+	)
+	return true
+
+
+static func _clue_one_on_investigator_location(game_ctx: GameContext, inv_id: StringName) -> bool:
+	if game_ctx == null or game_ctx.state == null:
+		return false
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null or inv.clues_on_card <= 0 or inv.location_tag == &"":
+		return false
+	var loc := game_ctx.state.registry.get_location(inv.location_tag)
+	if loc == null:
+		return false
+	inv.clues_on_card -= 1
+	loc.clues += 1
+	_log(
+		game_ctx,
+		"encounter:place_clue_on_location",
+		{"inv": inv_id, "location": inv.location_tag, "clues_on_card": inv.clues_on_card}
+	)
+	return true

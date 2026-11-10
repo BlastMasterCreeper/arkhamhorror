@@ -58,8 +58,8 @@
 | **DTO / Spec** | 参数、意图、能力描述、选择规格 | `EffectRequest`、`InitiationIntent`、`SelectionSpec`、`EnemyAttack` |
 | **静态树** | Composition / ST.7 计划树 | `CompositionNode`、`SkillTestSt7Plan` |
 | **局面形** | 实体状态、物理槽、枚举 | `CardInstance`、`InvestigatorState`、`AhcEnums` |
-| **L0 附属** | 仅被 Flow 调用的写局面/域辅助（优先收进对应 `*Flow`，勿增殖） | `EncounterDoomPlacement`、`LocationEnterRules` |
-| **Policy / 表** | 阈值、挂载表、配置谓词 | `AgendaDoomPolicy`、`KeywordProfileTable`、`EnterHandTimingPolicy` |
+| **L0 附属** | 仅被 Flow 调用的写局面/域辅助（优先收进对应 `*Flow`，勿增殖） | `EncounterDoomPlacement`、`RevealLocationFlow` |
+| **Policy / 表** | 阈值、挂载表、配置谓词 | `AgendaDoomQuery`、`KeywordProfileTable`、`EnterHandTimingPolicy` |
 
 **禁止**：为上述标签新建 `*DtoBucket` / `*SpecService` 等职责层；标签只服务阅读。
 
@@ -69,13 +69,12 @@
 
 | 目录 | 放什么 |
 |---|---|
-| `rules/pipeline/` | `*Pipeline` / 行动·发起·场景编排（含原 facade） |
 | `core/flow/` | 对局主路径 `*Flow` / `*FlowHandlers` |
+| `rules/pipeline/` | 稀少聚合入口 `*Pipeline`（行动 / 场景 / 能力装载） |
 | `rules/trigger/` | `*Trigger` |
 | `rules/query/` | `*Query` / `*Status` |
-| `core/timing/` | 栈、Catalog、TimingBus、RulesMemory 等 **底座运行时** |
+| `core/timing/` | 栈、Catalog、TimingBus、RulesMemory、承伤管线等 **底座 / 管线运行时** |
 | `rules/choices/` · `rules/interaction/` · `rules/registration/` | 底座（PI / Buff） |
-| ~~`rules/pipeline/`~~ | **已废弃**（勿再往里加类） |
 
 一时迁不尽的类：以 **class 后缀 / 本表归属** 为准，目录后续再收。
 
@@ -118,3 +117,4 @@
 | 2026-11-10 | v1.1：收掉 per-seq 薄门面；统一 `run_seq`；合并重复薄层 |
 | 2026-11-10 | **v2**：取消门面桶 → 五桶；`ScenarioService` → `ScenarioPipeline`；不成桶只保留标签、不开新职责 |
 | 2026-11-10 | 删除 `EnemyMovement`：并入 `MoveFlow._hop_enemy_one_step_toward`（禁 L0 类膨胀） |
+| 2026-11-10 | 深合并：`SwarmDamage`→`DefeatFlow`；`EncounterGainedKeyword`/`AloofStatus`/`EncounterPeril`/`EncounterPrivacy`→`KeywordMount`；`Hunter`+`Patrol`→`KeywordMovementFlowHandlers`；`DrawEncounterSubflow`→`DrawEncounterFlow`；`DrawSubflow`→`DrawInvestigatorFlow`；`LocationEnterRules`→`RevealLocationFlow`；`InvestigatorCampaignSystem`→`InvestigatorCampaignPipeline`；`DamagePipeline`→`DealInvestigatorPipeline`；`DealPreImpact`→`DealOutboundPipeline`；`AgendaDoomPolicy`→`AgendaDoomQuery`+写入并入 `AgendaAdvanceFlow`；`EncounterCardDiscard`→`ZoneMoveFlow`；`InvestigatorElimination`→`DefeatFlow` |

@@ -129,7 +129,7 @@ func _initialize() -> void:
 	_run_test("MOD-07 discover anon bonus pins primary location", _test_mod_discover_determined_multi)
 	_run_test("MOD-08 zero-amount discover primary still gets anon bonus", _test_mod_discover_zero_primary_bonus)
 	_run_test("MOD-09 shroud modifier lowers investigate difficulty", _test_mod_shroud_investigate)
-	_run_test("MOD-10 enemy ENEMY_DAMAGE then DamagePipeline", _test_mod_enemy_damage_then_pipeline)
+	_run_test("MOD-10 enemy ENEMY_DAMAGE then DealInvestigatorPipeline", _test_mod_enemy_damage_then_pipeline)
 	_run_test("MOD-11 enemy attack WHEN increase_pending", _test_mod_enemy_attack_increase_pending)
 	_run_test("MOD-12 discover named bonus other location", _test_mod_discover_named_bonus)
 	_run_test("MOD-13 attack multi-leg settle one seq", _test_mod_attack_multi_leg_settle_one_seq)
@@ -700,7 +700,7 @@ func _test_f05_mythos_agenda_advance() -> bool:
 		h.framework_step() == AhcEnums.FrameworkStep.MYTHOS_1_3_CHECK_DOOM_THRESHOLD
 		and h.ctx.state.current_agenda_number == 2
 		and h.ctx.state.doom_on_agenda == 0
-		and AgendaDoomPolicy.doom_in_play(h.ctx.state) == 0
+		and AgendaDoomQuery.doom_in_play(h.ctx.state) == 0
 	)
 
 
@@ -2687,7 +2687,7 @@ func _test_mod_shroud_investigate() -> bool:
 
 
 func _test_mod_enemy_damage_then_pipeline() -> bool:
-	## MOD-10：先修敌人攻击伤害量 → DamagePipeline 承伤。
+	## MOD-10：先修敌人攻击伤害量 → DealInvestigatorPipeline 承伤。
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ed", &"test_loc", 2, 2)
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_ed")
@@ -2708,7 +2708,7 @@ func _test_mod_enemy_damage_then_pipeline() -> bool:
 
 
 func _test_mod_enemy_attack_increase_pending() -> bool:
-	## MOD-11：敌人攻击进 DamagePipeline；WHEN 可 increase_pending（02221 同路）。
+	## MOD-11：敌人攻击进 DealInvestigatorPipeline；WHEN 可 increase_pending（02221 同路）。
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_ip", &"test_loc", 2, 2)
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_ip")
@@ -2717,8 +2717,8 @@ func _test_mod_enemy_attack_increase_pending() -> bool:
 	var when_n := {"n": -1}
 	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
 	when_h.callback = func() -> void:
-		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
-		when_n["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		DealInvestigatorPipeline.increase_pending(h.ctx, &"inv_1", 2)
+		when_n["n"] = DealInvestigatorPipeline.pending_amount(h.ctx, &"inv_1")
 	h.ctx.sequences.register_handler(when_h)
 	var strike := EnemyAttack.build_from_enemy(
 		h.ctx, &"enemy_ip", &"inv_1", false, AhcEnums.AttackKind.PHASE
@@ -3376,7 +3376,7 @@ func _test_enc_12124_choice_agenda_advance() -> bool:
 	return (
 		h.ctx.state.current_agenda_number == 2
 		and h.ctx.state.doom_on_agenda == 0
-		and AgendaDoomPolicy.doom_in_play(h.ctx.state) == 0
+		and AgendaDoomQuery.doom_in_play(h.ctx.state) == 0
 	)
 
 
@@ -6655,10 +6655,10 @@ func _test_enc_surge_keyword_survives_g4() -> bool:
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_surge", [])
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
-	EncounterGainedKeyword.register_surge(h.ctx, card_id)
+	KeywordMount.mount_gained(h.ctx, card_id, &"surge")
 	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
 		return false
-	EncounterPeril.unregister_for_card(h.ctx, card_id)
+	KeywordMount.unregister_peril_for_card(h.ctx, card_id)
 	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
 		return false
 	DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
@@ -6944,7 +6944,7 @@ func _test_gain_effective_keyword() -> bool:
 	var def_id := card.id.definition_id
 	if not EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge"):
 		return false
-	EncounterGainedKeyword.register_surge(h.ctx, card_id)
+	KeywordMount.mount_gained(h.ctx, card_id, &"surge")
 	return EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge")
 
 
@@ -7127,7 +7127,7 @@ func _test_kw_occ_peril_finalize() -> bool:
 	var h := RuleTestHarness.new(42)
 	var store := h.ctx.registrations
 	store.register(RegistrationTemplate.peril_drawn_card_resolving(&"inv_1", &"treachery"))
-	EncounterGainedKeyword.register_surge(h.ctx, &"treachery")
+	KeywordMount.mount_gained(h.ctx, &"treachery", &"surge")
 	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, &"hunter_card")
 	if store.count() != 3:
 		return false
@@ -7960,7 +7960,7 @@ func _test_enc_elimination_hidden_hand() -> bool:
 	var draw_res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not draw_res.get("ok", false):
 		return false
-	var elim := InvestigatorElimination.eliminate(h.ctx, &"inv_1")
+	var elim := DefeatFlow.eliminate_investigator(h.ctx, &"inv_1")
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
 	return (
 		elim.get("eliminated", false)
@@ -8264,7 +8264,7 @@ func _test_st_peril_blocks_ally() -> bool:
 	var frame := EncounterResolutionFrame.create(&"inv_1")
 	frame.current_card_id = enc_id
 	h.ctx.memory.push_encounter_frame(frame)
-	EncounterPeril.register_if_peril(h.ctx, &"inv_1", enc_id, true)
+	KeywordMount.register_peril_if_needed(h.ctx, &"inv_1", enc_id, true)
 	var st := SkillTestHelper.new(h.ctx)
 	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
 	h.ctx.skill_tests.begin_test(test, h.ctx)
@@ -8282,7 +8282,7 @@ func _test_peril_frame_blocks_ally() -> bool:
 	var frame := EncounterResolutionFrame.create(&"inv_1")
 	frame.current_card_id = enc_id
 	h.ctx.memory.push_encounter_frame(frame)
-	EncounterPeril.register_if_peril(h.ctx, &"inv_1", enc_id, true)
+	KeywordMount.register_peril_if_needed(h.ctx, &"inv_1", enc_id, true)
 	var st := SkillTestHelper.new(h.ctx)
 	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
 	h.ctx.skill_tests.begin_test(test, h.ctx)
@@ -8294,10 +8294,10 @@ func _test_peril_not_sticky_across_cards() -> bool:
 	var h := RuleTestHarness.new(42)
 	var card_a := &"enc_a"
 	var card_b := &"enc_b"
-	EncounterPeril.register_if_peril(h.ctx, &"inv_1", card_a, true)
+	KeywordMount.register_peril_if_needed(h.ctx, &"inv_1", card_a, true)
 	if h.ctx.registrations.count() != 1:
 		return false
-	EncounterPeril.unregister_for_card(h.ctx, card_a)
+	KeywordMount.unregister_peril_for_card(h.ctx, card_a)
 	return h.ctx.registrations.count() == 0
 
 
@@ -8311,8 +8311,8 @@ func _test_peril_unregister_allows_ally() -> bool:
 	var frame := EncounterResolutionFrame.create(&"inv_1")
 	frame.current_card_id = enc_id
 	h.ctx.memory.push_encounter_frame(frame)
-	EncounterPeril.register_if_peril(h.ctx, &"inv_1", enc_id, true)
-	EncounterPeril.unregister_for_card(h.ctx, enc_id)
+	KeywordMount.register_peril_if_needed(h.ctx, &"inv_1", enc_id, true)
+	KeywordMount.unregister_peril_for_card(h.ctx, enc_id)
 	var st := SkillTestHelper.new(h.ctx)
 	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
 	h.ctx.skill_tests.begin_test(test, h.ctx)
@@ -8324,7 +8324,7 @@ func _setup_peril_for_drawer(h: RuleTestHarness, drawer_id: StringName, enc_id: 
 	var frame := EncounterResolutionFrame.create(drawer_id)
 	frame.current_card_id = enc_id
 	h.ctx.memory.push_encounter_frame(frame)
-	EncounterPeril.register_if_peril(h.ctx, drawer_id, enc_id, true)
+	KeywordMount.register_peril_if_needed(h.ctx, drawer_id, enc_id, true)
 
 
 func _test_peril_register_no_vacuum() -> bool:
@@ -10073,7 +10073,7 @@ func _test_l01_per_investigator_clues() -> bool:
 	GameBootstrap.setup_test_location(
 		h.ctx, &"loc_pi", 3, 2, false, 2
 	)
-	var reveal := LocationEnterRules.reveal_and_place_clues(
+	var reveal := RevealLocationFlow.reveal_and_place_clues(
 		h.ctx, {"location_id": &"loc_pi"}
 	)
 	var loc := h.ctx.state.registry.get_location(&"loc_pi")
@@ -11312,12 +11312,12 @@ func _test_tim_dmg_apply_slots() -> bool:
 	var would_h := SequenceHandler.would_forced(&"damage", func() -> void: pass)
 	would_h.callback = func() -> void:
 		snap["would_dmg"] = inv.damage_taken
-		snap["would_pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		snap["would_pending"] = DealInvestigatorPipeline.pending_amount(h.ctx, &"inv_1")
 	h.ctx.sequences.register_handler(would_h)
 	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
 	when_h.callback = func() -> void:
 		snap["when_dmg"] = inv.damage_taken
-		snap["when_pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		snap["when_pending"] = DealInvestigatorPipeline.pending_amount(h.ctx, &"inv_1")
 	h.ctx.sequences.register_handler(when_h)
 	h.ctx.sequences.register_handler(
 		SequenceHandler.after_forced(
@@ -11372,12 +11372,12 @@ func _test_tim_dmg_prevent() -> bool:
 	h.ctx.sequences.register_handler(
 		SequenceHandler.would_forced(
 			&"damage",
-			func() -> void: DamagePipeline.reduce_pending(h.ctx, &"inv_1", 1)
+			func() -> void: DealInvestigatorPipeline.reduce_pending(h.ctx, &"inv_1", 1)
 		)
 	)
 	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
 	when_h.callback = func() -> void:
-		when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		when_pending["n"] = DealInvestigatorPipeline.pending_amount(h.ctx, &"inv_1")
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
@@ -11399,8 +11399,8 @@ func _test_tim_dmg_increase_pending() -> bool:
 	var when_pending := {"n": -1}
 	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
 	when_h.callback = func() -> void:
-		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
-		when_pending["n"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		DealInvestigatorPipeline.increase_pending(h.ctx, &"inv_1", 2)
+		when_pending["n"] = DealInvestigatorPipeline.pending_amount(h.ctx, &"inv_1")
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
@@ -11425,7 +11425,7 @@ func _test_tim_dmg_increase_keeps_legs() -> bool:
 	var would_h := SequenceHandler.would_forced(&"damage", func() -> void: pass)
 	would_h.callback = func() -> void:
 		## 模拟已确认 Assign：1 资产 + 1 调查员。
-		DamagePipeline.reassign_pending_legs(
+		DealInvestigatorPipeline.reassign_pending_legs(
 			h.ctx,
 			&"inv_1",
 			[
@@ -11436,11 +11436,11 @@ func _test_tim_dmg_increase_keeps_legs() -> bool:
 	h.ctx.sequences.register_handler(would_h)
 	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
 	when_h.callback = func() -> void:
-		DamagePipeline.increase_pending(h.ctx, &"inv_1", 2)
-		var legs := DamagePipeline.pending_legs(h.ctx, &"inv_1")
+		DealInvestigatorPipeline.increase_pending(h.ctx, &"inv_1", 2)
+		var legs := DealInvestigatorPipeline.pending_legs(h.ctx, &"inv_1")
 		snap["asset_n"] = _asn_leg_amount(legs, &"card", card_id)
 		snap["inv_n"] = _asn_leg_amount(legs, &"investigator", &"inv_1")
-		snap["pending"] = DamagePipeline.pending_amount(h.ctx, &"inv_1")
+		snap["pending"] = DealInvestigatorPipeline.pending_amount(h.ctx, &"inv_1")
 	h.ctx.sequences.register_handler(when_h)
 	var res := h.ctx.sequence_catalog.run(
 		h.ctx,
@@ -11486,7 +11486,7 @@ func _test_tim_dmg_outbound_preimpact() -> bool:
 	var would_h := SequenceHandler.would_forced(&"damage", func() -> void: pass)
 	would_h.callback = func() -> void:
 		snap["would_dmg"] = h.ctx.state.registry.get_enemy(&"enemy_pre").damage
-		snap["would_pending"] = DealPreImpact.pending_amount(h.ctx, &"inv_1")
+		snap["would_pending"] = DealOutboundPipeline.pending_amount(h.ctx, &"inv_1")
 	h.ctx.sequences.register_handler(would_h)
 	var when_h := SequenceHandler.when_forced(&"damage", func() -> void: pass)
 	when_h.callback = func() -> void:
@@ -11530,7 +11530,7 @@ func _test_tim_dmg_outbound_reduce() -> bool:
 	h.ctx.sequences.register_handler(
 		SequenceHandler.would_forced(
 			&"damage",
-			func() -> void: DealPreImpact.reduce_pending(h.ctx, &"inv_1", 1)
+			func() -> void: DealOutboundPipeline.reduce_pending(h.ctx, &"inv_1", 1)
 		)
 	)
 	var nest_res: Variant = h.ctx.sequence_catalog.nest(
@@ -11768,7 +11768,7 @@ func _test_asn_pipeline_prior_fill() -> bool:
 			RestrictionPayload.assign_prior_fill(card_id, &"inv_1", &"horror")
 		)
 	)
-	var res := DamagePipeline.deal_investigator(h.ctx, &"inv_1", &"horror", 3, false)
+	var res := DealInvestigatorPipeline.deal_investigator(h.ctx, &"inv_1", &"horror", 3, false)
 	var card := h.ctx.state.registry.get_card(card_id)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var horror_legs: Array = res.get("legs_horror", [])
@@ -11806,7 +11806,7 @@ func _test_asn_grant_capacity() -> bool:
 		return false
 	if DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) != -1:
 		return false
-	var applied := DamagePipeline.apply_investigator_legs(
+	var applied := DealInvestigatorPipeline.apply_investigator_legs(
 		h.ctx,
 		&"inv_1",
 		&"damage",

@@ -90,7 +90,7 @@ class PlayerInteractionGate:
     func ask(request: ChoiceRequest, ctx: GameContext) -> Variant
 ```
 
-`GameContext.interaction` 持有 gate；`CompositionExecutor`、`ResolutionSequenceStack` 响应轮、`DamagePipeline` 等 **只调 gate**，不调 UI。
+`GameContext.interaction` 持有 gate；`CompositionExecutor`、`ResolutionSequenceStack` 响应轮、`DealInvestigatorPipeline` 等 **只调 gate**，不调 UI。
 
 `ask` **同步返回**选定结果（或默认）；**不** push 子 seq，**不**占用 Would/When/After。
 

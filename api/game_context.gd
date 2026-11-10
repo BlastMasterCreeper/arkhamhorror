@@ -51,7 +51,7 @@ func run_seq(flow_id: StringName, params: Dictionary = {}) -> Dictionary:
 func pop_encounter_resolution_frame() -> EncounterResolutionFrame:
 	var frame := memory.pop_encounter_frame() if memory != null else null
 	if frame != null:
-		EncounterPeril.detach_frame(self, frame)
+		KeywordMount.detach_peril_frame(self, frame)
 	return frame
 
 

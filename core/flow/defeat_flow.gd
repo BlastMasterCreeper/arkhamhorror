@@ -175,7 +175,7 @@ static func deal_damage(
 ) -> Dictionary:
 	## 蜂拥包：主体超限不击败；集群卡牌击败后超额可溢出（PI/自动）。
 	if SwarmPack.pack_ids(game_ctx, enemy_id).size() > 1 or SwarmPack.is_swarm_card(game_ctx, enemy_id):
-		return SwarmDamage.deal_damage(game_ctx, enemy_id, amount)
+		return _swarm_deal_damage(game_ctx, enemy_id, amount)
 	if game_ctx == null or game_ctx.state == null or enemy_id == &"" or amount <= 0:
 		return {"ok": false, "defeated": false}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
@@ -430,7 +430,7 @@ static func _eligible(game_ctx: GameContext, params: Dictionary) -> bool:
 			if enemy == null:
 				return false
 			## 主体仍有集群卡牌：不可击败（可超生命承伤）。
-			if SwarmDamage.host_blocks_defeat(game_ctx, enemy_id):
+			if _swarm_host_blocks(game_ctx, enemy_id):
 				return false
 			if cause == CAUSE_DAMAGE_CAP:
 				return enemy.damage >= enemy.health
@@ -511,7 +511,7 @@ static func _leave_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionar
 
 static func _leave_investigator(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	var inv_id: StringName = params.get("investigator_id", &"") as StringName
-	var elim := InvestigatorElimination.eliminate(game_ctx, inv_id)
+	var elim := eliminate_investigator(game_ctx, inv_id)
 	return {
 		"ok": bool(elim.get("eliminated", false)),
 		"defeated": bool(elim.get("defeated", false)),
@@ -605,3 +605,191 @@ static func _enemy_definition_id(game_ctx: GameContext, enemy_id: StringName) ->
 		return card.id.definition_id
 	return enemy_id
 
+## --- 调查员淘汰 / 撤退（原 InvestigatorElimination） ---
+
+## Resign（撤退）：线索留地点 → resigned → eliminate。
+## 卡面编译应展为三步 Composition；本函数供 `seq.effect.resign` / 旧单 Atom 兼容。
+static func resign_investigator(game_ctx: GameContext, inv_id: StringName) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false, "resigned": false}
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null or inv.eliminated:
+		return {"ok": false, "resigned": false}
+	var clues_left := inv.clues_on_card
+	if clues_left > 0 and inv.location_tag != &"":
+		var loc := game_ctx.state.registry.get_location(inv.location_tag)
+		if loc != null:
+			loc.clues += clues_left
+		inv.clues_on_card = 0
+	if game_ctx.mutator != null:
+		game_ctx.mutator.set_flag(inv_id, AhcEnums.FlagField.RESIGNED, true)
+	else:
+		inv.resigned = true
+	var elim := eliminate_investigator(game_ctx, inv_id)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.ACTION,
+			"investigator:resigned",
+			{"inv": inv_id, "clues_left_on_location": clues_left}
+		)
+	return {
+		"ok": bool(elim.get("eliminated", false)),
+		"resigned": true,
+		"eliminated": bool(elim.get("eliminated", false)),
+		"clues_left_on_location": clues_left,
+		"discarded": elim.get("discarded", []),
+	}
+
+
+static func eliminate_investigator(game_ctx: GameContext, inv_id: StringName) -> Dictionary:
+	var discarded: Array[StringName] = []
+	if game_ctx == null or game_ctx.mutator == null:
+		return {"eliminated": false, "defeated": false, "discarded": discarded}
+	if game_ctx.state == null:
+		game_ctx.mutator.set_flag(inv_id, AhcEnums.FlagField.ELIMINATED, true)
+		return {"eliminated": true, "defeated": true, "discarded": discarded}
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null:
+		return {"eliminated": false, "defeated": false, "discarded": discarded}
+	for card_id in inv.threat_area.duplicate():
+		if _is_encounter_card(game_ctx, card_id):
+			if ZoneMoveFlow.discard_encounter_from_investigator(game_ctx, card_id, inv_id):
+				discarded.append(card_id)
+	for card_id in inv.hand.duplicate():
+		if _is_hidden_encounter_in_hand(game_ctx, inv_id, card_id):
+			if ZoneMoveFlow.discard_encounter_from_investigator(game_ctx, card_id, inv_id):
+				discarded.append(card_id)
+	game_ctx.mutator.set_flag(inv_id, AhcEnums.FlagField.ELIMINATED, true)
+	return {"eliminated": true, "defeated": true, "discarded": discarded}
+
+
+static func _is_encounter_card(game_ctx: GameContext, card_id: StringName) -> bool:
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	if card.owner_id == &"encounter":
+		return true
+	return game_ctx.state.registry.get_enemy(card_id) != null
+
+
+static func _is_hidden_encounter_in_hand(
+	game_ctx: GameContext,
+	inv_id: StringName,
+	card_id: StringName
+) -> bool:
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card == null:
+		return false
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null or not inv.hand.has(card_id):
+		return false
+	if not CardRegistry.is_hidden(card.id.definition_id):
+		return false
+	return card.owner_id == &"encounter"
+
+
+## --- 蜂拥伤害（原 SwarmDamage） ---
+
+## 蜂拥伤害：主体可超生命且不可击败；集群卡牌击败后超额伤害经 PI 选目标传递。
+## 自动模式只是 Gate/DefaultResolver 的可选路径，不是强制自动。
+
+
+static func _swarm_host_blocks(game_ctx: GameContext, enemy_id: StringName) -> bool:
+	if game_ctx == null or enemy_id == &"":
+		return false
+	if SwarmPack.is_swarm_card(game_ctx, enemy_id):
+		return false
+	return SwarmPack.has_swarm_cards(game_ctx, enemy_id)
+
+
+## 对敌人造成伤害；处理主体超限与集群溢出。
+static func _swarm_deal_damage(game_ctx: GameContext, enemy_id: StringName, amount: int) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null or enemy_id == &"" or amount <= 0:
+		return {"ok": false, "defeated": false}
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return {"ok": false, "defeated": false}
+	enemy.damage += amount
+	if SwarmPack.is_swarm_card(game_ctx, enemy_id):
+		if enemy.damage < enemy.health:
+			return {"ok": true, "defeated": false, "damage": enemy.damage}
+		var excess := enemy.damage - enemy.health
+		enemy.damage = enemy.health
+		## 退场会解绑；溢出候选须在 leave 前快照。
+		var host_id := SwarmPack.host_of(game_ctx, enemy_id)
+		var spill_candidates := _spill_candidates(game_ctx, host_id, enemy_id)
+		var defeated := check_enemy_damage_cap(game_ctx, enemy_id)
+		var spill := {"ok": true, "spilled": 0}
+		if excess > 0 and bool(defeated.get("defeated", false)):
+			spill = spill_excess(game_ctx, excess, spill_candidates)
+		defeated["excess"] = excess
+		defeated["spill"] = spill
+		return defeated
+	## 主体：可超生命；仍有集群卡牌则不击败。
+	if _swarm_host_blocks(game_ctx, enemy_id):
+		return {
+			"ok": true,
+			"defeated": false,
+			"damage": enemy.damage,
+			"over_health": enemy.damage >= enemy.health,
+			"host_blocked": true,
+		}
+	if enemy.damage < enemy.health:
+		return {"ok": true, "defeated": false, "damage": enemy.damage}
+	return check_enemy_damage_cap(game_ctx, enemy_id)
+
+
+static func _spill_candidates(
+	game_ctx: GameContext,
+	host_id: StringName,
+	from_swarm_id: StringName
+) -> Array:
+	var candidates: Array = []
+	if game_ctx == null or host_id == &"":
+		return candidates
+	for sid in SwarmPack.swarm_ids(game_ctx, host_id):
+		if sid != from_swarm_id and game_ctx.state.registry.get_enemy(sid) != null:
+			candidates.append(sid)
+	if game_ctx.state.registry.get_enemy(host_id) != null:
+		candidates.append(host_id)
+	return candidates
+
+
+## `candidates` 为 leave 前快照。经 PI 选目标；支持自动默认，但不强制自动。
+static func spill_excess(game_ctx: GameContext, excess: int, candidates: Array) -> Dictionary:
+	if game_ctx == null or excess <= 0:
+		return {"ok": true, "spilled": 0}
+	## 过滤 leave 后仍在场的目标。
+	var alive: Array = []
+	for raw in candidates:
+		var cid: StringName = raw as StringName
+		if cid != &"" and game_ctx.state.registry.get_enemy(cid) != null:
+			alive.append(cid)
+	if alive.is_empty():
+		return {"ok": true, "spilled": 0, "remaining": excess}
+	## PI 有限期确认；未确认 / 无 Gate 时才用默认（自动模式可走这条）。
+	var pick: Variant = null
+	if game_ctx.interaction != null:
+		var decider := game_ctx.lead_investigator_id
+		if decider == &"":
+			for inv_id in game_ctx.state.registry.all_investigator_ids():
+				decider = inv_id
+				break
+		pick = game_ctx.interaction.ask_pick_target(
+			alive,
+			decider,
+			&"swarm:spill_excess",
+			game_ctx
+		)
+	if pick == null:
+		pick = alive[0]
+	var target_id: StringName = pick as StringName
+	if target_id == &"":
+		return {"ok": true, "spilled": 0, "remaining": excess}
+	var nested := _swarm_deal_damage(game_ctx, target_id, excess)
+	return {
+		"ok": true,
+		"spilled": excess,
+		"to": target_id,
+		"result": nested,
+	}

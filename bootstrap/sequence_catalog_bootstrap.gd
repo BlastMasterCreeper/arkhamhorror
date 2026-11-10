@@ -28,7 +28,7 @@ static func _register_flows(
 			return TriggeringCondition.draw_empty_piles_defeated(inv_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var inv_id: StringName = params.get("inv_id", &"")
-			return DrawSubflowFlowHandlers.resolve_empty_piles_defeated(game_ctx, inv_id)
+			return DrawInvestigatorFlow.resolve_empty_piles_defeated(game_ctx, inv_id)
 	)
 	## 遭遇抽：离库 → LIMBO 结算；默认不入手（仅 Hidden 显现体内秘密入手）。
 	catalog.register_run(
@@ -179,7 +179,7 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.reveal_location(params),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return LocationEnterRules.reveal_and_place_clues(game_ctx, params)
+			return RevealLocationFlow.reveal_and_place_clues(game_ctx, params)
 	)
 	## 旧 id 别名（敌人卡面 nest）；resolve 强制 subject=enemy。
 	catalog.register_run(
@@ -343,7 +343,7 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 				params.get("investigator_id", params.get("controller_id", &"")) as StringName
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return InvestigatorElimination.resign(
+			return DefeatFlow.resign_investigator(
 				game_ctx,
 				params.get("investigator_id", params.get("controller_id", &"")) as StringName
 			)
@@ -562,7 +562,7 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			var card_id: StringName = params.get("card_id", &"")
 			return TriggeringCondition.keyword_hunter(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return HunterKeywordFlow.run(game_ctx, params)
+			return KeywordMovementFlowHandlers.hunter(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.keyword.patrol",
@@ -570,7 +570,7 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			var card_id: StringName = params.get("card_id", &"")
 			return TriggeringCondition.keyword_patrol(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return PatrolKeywordFlow.run(game_ctx, params)
+			return KeywordMovementFlowHandlers.patrol(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.keyword.massive",
@@ -725,7 +725,7 @@ static func _resolve_encounter_revelation(
 	if CardRegistry.is_hidden(card.id.definition_id) and game_ctx.mutator != null:
 		var ok_hidden := game_ctx.mutator.commit_hidden_enter_hand(card_id, drawer_id)
 		if ok_hidden:
-			EncounterPrivacy.register_leave_hand_restriction(game_ctx, card_id, drawer_id)
+			KeywordMount.register_hidden_leave_hand(game_ctx, card_id, drawer_id)
 			game_ctx.mutator.finalize_limbo_discard(card_id, drawer_id)
 		return {"resolved": ok_hidden}
 	return {"resolved": false}
@@ -743,7 +743,7 @@ static func _resolve_encounter_spawn(
 	if from_hand:
 		if game_ctx.mutator == null:
 			return {"spawned": false, "discarded": false, "error": &"no_mutator"}
-		EncounterPrivacy.unregister_for_card(game_ctx, card_id)
+		KeywordMount.unregister_hidden_for_card(game_ctx, card_id)
 		if not game_ctx.mutator.prepare_hand_card_for_encounter_spawn(card_id, drawer_id):
 			return {"spawned": false, "discarded": false, "error": &"invalid_hand_spawn"}
 	var result := SpawnFlow.from_encounter_draw(game_ctx, card_id, drawer_id)

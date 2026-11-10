@@ -451,7 +451,7 @@ static func setup_test_enemy(
 	enemy.massive = massive
 	ctx.state.registry.register_enemy(enemy)
 	if aloof:
-		AloofStatus.ensure_forbid_attack(ctx, enemy_id)
+		KeywordMount.ensure_aloof_forbid_attack(ctx, enemy_id)
 
 
 ## 01017《体能训练》式免费触发：花 1 资源 → 本次检定 +1 战（批打白名单锚）。

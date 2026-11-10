@@ -72,7 +72,7 @@ static func _deal_via_seq(game_ctx: GameContext, attack: EnemyAttack) -> void:
 			game_ctx, &"seq.effect.damage.assignable", params
 		)
 		return
-	DamagePipeline.deal_investigator_bundle(
+	DealInvestigatorPipeline.deal_investigator_bundle(
 		game_ctx,
 		attack.target_investigator,
 		attack.damage,

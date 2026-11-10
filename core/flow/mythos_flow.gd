@@ -22,14 +22,14 @@ static func place_doom(game_ctx: GameContext) -> Dictionary:
 			"mythos:place_doom",
 			{
 				"doom_on_agenda": game_ctx.state.doom_on_agenda,
-				"doom_in_play": AgendaDoomPolicy.doom_in_play(game_ctx.state),
+				"doom_in_play": AgendaDoomQuery.doom_in_play(game_ctx.state),
 				"threshold": game_ctx.state.agenda_threshold,
 			}
 		)
 	return {
 		"ok": true,
 		"doom_on_agenda": game_ctx.state.doom_on_agenda,
-		"doom_in_play": AgendaDoomPolicy.doom_in_play(game_ctx.state),
+		"doom_in_play": AgendaDoomQuery.doom_in_play(game_ctx.state),
 	}
 
 
@@ -66,7 +66,7 @@ static func place_on_current_agenda(
 			}
 		)
 	if may_advance_agenda:
-		AgendaDoomPolicy.try_nest_advance_if_needed(
+		AgendaAdvanceFlow.try_nest_if_needed(
 			game_ctx, &"card_effect", true
 		)
 	return placed
@@ -75,13 +75,13 @@ static func place_on_current_agenda(
 static func check_doom_threshold(game_ctx: GameContext) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false, "reason": &"invalid_context"}
-	if not AgendaDoomPolicy.meets_threshold(game_ctx.state):
+	if not AgendaDoomQuery.meets_threshold(game_ctx.state):
 		if game_ctx.log != null:
 			game_ctx.log.log(
 				AhcEnums.LogCategory.SCENARIO,
 				"mythos:check_doom_threshold",
 				{
-					"doom_in_play": AgendaDoomPolicy.doom_in_play(game_ctx.state),
+					"doom_in_play": AgendaDoomQuery.doom_in_play(game_ctx.state),
 					"threshold": game_ctx.state.agenda_threshold,
 					"advanced": false,
 				}
@@ -89,9 +89,9 @@ static func check_doom_threshold(game_ctx: GameContext) -> Dictionary:
 		return {
 			"ok": true,
 			"advanced": false,
-			"doom_in_play": AgendaDoomPolicy.doom_in_play(game_ctx.state),
+			"doom_in_play": AgendaDoomQuery.doom_in_play(game_ctx.state),
 		}
-	var advance := AgendaDoomPolicy.try_nest_advance_if_needed(
+	var advance := AgendaAdvanceFlow.try_nest_if_needed(
 		game_ctx, &"mythos_1_3", false
 	)
 	if game_ctx.log != null:
@@ -99,7 +99,7 @@ static func check_doom_threshold(game_ctx: GameContext) -> Dictionary:
 			AhcEnums.LogCategory.SCENARIO,
 			"mythos:check_doom_threshold",
 			{
-				"doom_in_play": AgendaDoomPolicy.doom_in_play(game_ctx.state),
+				"doom_in_play": AgendaDoomQuery.doom_in_play(game_ctx.state),
 				"threshold": game_ctx.state.agenda_threshold,
 				"advanced": bool(advance.get("advanced", false)),
 			}

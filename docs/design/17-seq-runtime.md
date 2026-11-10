@@ -177,7 +177,7 @@
 | 概念 | 规则 | 实现状态 |
 |---|---|---|
 | **父 when 头 / When** | 卡面 draw：would 头 = 整段 PreImpact（`WHEN_HEADER`）；When = 抽取步骤砖块后（15 §3） | ✅ `split_timing`：信封 WHEN_HEADER + 中段 `offer_slot(WHEN)`（TIM-01/02） |
-| **伤害 PreImpact 槽** | Assign = **PI**；**WHEN_HEADER→WHEN 均在 Apply 前**；**取消/additional 钉头窗**（WHEN take 预留、现无生产卡；07 §4）；`increase_pending`+`assign_delta`；外向/已定腿同构 `DealPreImpact` | ✅ 承伤 pipeline + 外向 `DealPreImpact`（TIM-DMG-01–06） |
+| **伤害 PreImpact 槽** | Assign = **PI**；**WHEN_HEADER→WHEN 均在 Apply 前**；**取消/additional 钉头窗**（WHEN take 预留、现无生产卡；07 §4）；`increase_pending`+`assign_delta`；外向/已定腿同构 `DealOutboundPipeline` | ✅ 承伤 pipeline + 外向 `DealOutboundPipeline`（TIM-DMG-01–06） |
 | **发起 impact** | WHEN_HEADER 与 WHEN **之间** 的内联 L0（reveal / 入手 / G1） | ✅ handler 内联 |
 | **子独立 WHEN** | `TriggeringCondition.enter_hand` 每张显现 | ✅ `sequences.nest(enter_hand, …)` |
 | **AFTER merge** | 父 **仅** SUBSEQUENCE 且无 post brick → 只 emit 父 AFTER（15 §7） | **未实现** |
@@ -333,7 +333,7 @@
 | 2026-11-05 | v0.4.36 | T1/§4.4：`WOULD` → `WHEN_HEADER`（when 的 would 头；非独立 timing） |
 | 2026-10-27 | v0.4.35 | §4.4：取消/additional 钉 WOULD；WHEN take 预留无生产卡 |
 | 2026-10-26 | v0.4.34 | §5：deal 双通道腿；AFTER 伤/恐/和或条件；GRANT 无印刷不设上限 |
-| 2026-10-26 | v0.4.33 | §4.4：外向/已定 deal 腿 PreImpact（`DealPreImpact`） |
+| 2026-10-26 | v0.4.33 | §4.4：外向/已定 deal 腿 PreImpact（`DealOutboundPipeline`） |
 | 2026-10-26 | v0.4.32 | §5：deal 多目标混装敌/卡/调查员；Assign `GRANT_CAPACITY` |
 | 2026-10-26 | v0.4.31 | §5：更名 `deal`/`deal.assignable`；伤+恐同条待分配、同时 Apply |
 | 2026-10-26 | v0.4.30 | §5：明示 `kind`=damage\|horror 同两条手续（描述常略写） |

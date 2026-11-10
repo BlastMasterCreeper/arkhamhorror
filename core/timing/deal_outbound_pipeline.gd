@@ -1,8 +1,8 @@
-class_name DealPreImpact
+class_name DealOutboundPipeline
 extends RefCounted
 
-## 外向 / 已定主体腿的 PreImpact：Assign（若有）之后 → WHEN_HEADER → WHEN → Apply。
-## 与调查员承伤 `DamagePipeline` 对称；腿格式 `{ "id", "amount" }`（可混装敌/卡/调查员）。
+## 外向 / 已定主体腿管线：Assign（若有）之后 → WHEN_HEADER → WHEN → Apply。
+## 与调查员承伤 `DealInvestigatorPipeline` 对称；腿格式 `{ "id", "amount" }`（可混装敌/卡/调查员）。
 ## scope_id：RulesMemory 键（通常 controller_id）；嵌套承伤时与 inv pending 分通道。
 
 

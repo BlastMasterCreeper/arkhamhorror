@@ -134,7 +134,7 @@ static func _move_investigator(game_ctx: GameContext, params: Dictionary) -> Dic
 	var enter := {}
 	if bool(params.get("reveal_on_enter", true)):
 		## 规则自带：进未揭示 → 翻开 + 首次放线索。
-		enter = LocationEnterRules.on_investigator_enter(game_ctx, dest_id)
+		enter = RevealLocationFlow.on_investigator_enter(game_ctx, dest_id)
 	if _auto_engage(params, true):
 		EngageFlow.nest_after_area_change(game_ctx, dest_id)
 	_log_move(game_ctx, SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id, {

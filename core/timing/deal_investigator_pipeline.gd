@@ -1,7 +1,7 @@
-class_name DamagePipeline
+class_name DealInvestigatorPipeline
 extends RefCounted
 
-## Dealing Damage/Horror（07-effect-resolution §4）· 已裁决：
+## 调查员承伤/恐管线（07-effect-resolution §4）· Assign → WHEN → Apply：
 ## - **有分配** `seq.effect.deal.assignable`：伤/恐可同入参；Assign 后 **同时** Apply。
 ## - **无分配** `seq.effect.deal`：已定 legs / 单点，无 Assign。
 ## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（DamageAssigner 原流程读取）。

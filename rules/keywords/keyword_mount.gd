@@ -74,7 +74,9 @@ static func mount_surge_printed_if_absent(
 
 ## 开火后 / 取消全部效果：卸本张抽牌结算期 KEYWORD 标记（涌动）。
 static func unmount_gained_for_card(game_ctx: GameContext, card_id: StringName) -> void:
-	EncounterGainedKeyword.unregister_for_card(game_ctx, card_id)
+	if game_ctx == null or card_id == &"":
+		return
+	game_ctx.registrations.unregister_gained_keywords_for_drawn_card(card_id)
 
 
 ## 任意 lifetime 上是否已有该 KEYWORD 武装标记。
@@ -93,6 +95,27 @@ static func is_surge_armed(game_ctx: GameContext, card_id: StringName) -> bool:
 	return is_keyword_armed(game_ctx, card_id, &"surge")
 
 
+## 冷漠印刷进场：FORBID_ATTACK Register（原 AloofStatus）。
+static func ensure_aloof_forbid_attack(game_ctx: GameContext, enemy_id: StringName) -> StringName:
+	if game_ctx == null or game_ctx.registrations == null or enemy_id == &"":
+		return &""
+	if game_ctx.registrations.has_forbid_attack(enemy_id):
+		return &""
+	var template := RegistrationTemplate.aloof_forbid_attack(enemy_id)
+	if (
+		game_ctx.sequence_catalog == null
+		or not game_ctx.sequence_catalog.has_flow(&"seq.effect.register")
+	):
+		push_error("KeywordMount.ensure_aloof_forbid_attack: seq.effect.register missing")
+		return &""
+	var result := game_ctx.sequence_catalog.nest(
+		game_ctx,
+		&"seq.effect.register",
+		{"template": template}
+	)
+	return result.get("reg_id", &"") as StringName
+
+
 static func _mount_profile(
 	game_ctx: GameContext,
 	profile: KeywordProfile,
@@ -106,7 +129,7 @@ static func _mount_profile(
 		&"surge":
 			mount_surge_printed_if_absent(game_ctx, card_id, def_id)
 		&"peril":
-			EncounterPeril.register_if_peril(
+			register_peril_if_needed(
 				game_ctx,
 				drawer_id,
 				card_id,
@@ -114,7 +137,7 @@ static func _mount_profile(
 			)
 		&"aloof":
 			if _printed_in_play(def_id, &"aloof"):
-				AloofStatus.ensure_forbid_attack(game_ctx, card_id)
+				ensure_aloof_forbid_attack(game_ctx, card_id)
 		&"hunter", &"patrol", &"retaliate", &"alert", &"elusive", &"doomed", &"massive":
 			if _printed_in_play(def_id, profile.keyword):
 				mount_gained(game_ctx, card_id, profile.keyword)
@@ -250,3 +273,71 @@ static func _definition_id(game_ctx: GameContext, card_id: StringName) -> String
 	if card == null:
 		return &""
 	return card.id.definition_id
+
+
+## --- 险境 / 隐私（原 EncounterPeril / EncounterPrivacy） ---
+
+static func register_peril_if_needed(
+	game_ctx: GameContext,
+	drawer_id: StringName,
+	card_id: StringName,
+	has_peril_keyword: bool
+) -> void:
+	if not has_peril_keyword or game_ctx == null or card_id == &"":
+		return
+	if game_ctx.registrations.has_peril_for_drawn_card(card_id):
+		return
+	var template := RegistrationTemplate.peril_drawn_card_resolving(drawer_id, card_id)
+	CompositionMount.register_effect(game_ctx, template, drawer_id, card_id)
+
+
+static func unregister_peril_for_card(game_ctx: GameContext, card_id: StringName) -> void:
+	if game_ctx == null or card_id == &"":
+		return
+	game_ctx.registrations.unregister_by_drawn_card(card_id)
+
+
+static func detach_peril_frame(game_ctx: GameContext, frame: EncounterResolutionFrame) -> void:
+	if game_ctx == null or frame == null:
+		return
+	if frame.current_card_id != &"":
+		unregister_peril_for_card(game_ctx, frame.current_card_id)
+
+
+static func peril_active_for_card(game_ctx: GameContext, card_id: StringName) -> bool:
+	if game_ctx == null or card_id == &"":
+		return false
+	return game_ctx.registrations.has_peril_for_drawn_card(card_id)
+
+
+static func sync_peril_test_context(
+	test_ctx: SkillTestContext,
+	game_ctx: GameContext
+) -> void:
+	if test_ctx == null or game_ctx == null or game_ctx.memory == null:
+		return
+	var frame := game_ctx.memory.peek_encounter_frame()
+	if frame == null:
+		return
+	test_ctx.encounter_resolution_id = frame.id
+	test_ctx.peril = peril_active_for_card(game_ctx, frame.current_card_id)
+
+
+static func register_hidden_leave_hand(
+	game_ctx: GameContext,
+	card_id: StringName,
+	controller_id: StringName
+) -> void:
+	if game_ctx == null or card_id == &"" or controller_id == &"":
+		return
+	if game_ctx.registrations.has_hidden_leave_hand_restriction(card_id):
+		return
+	var template := RegistrationTemplate.hidden_in_hand(controller_id, card_id)
+	CompositionMount.register_effect(game_ctx, template, controller_id, card_id)
+
+
+static func unregister_hidden_for_card(game_ctx: GameContext, card_id: StringName) -> void:
+	if game_ctx == null or card_id == &"":
+		return
+	game_ctx.registrations.unregister_by_hidden_in_hand_card(card_id)
+
