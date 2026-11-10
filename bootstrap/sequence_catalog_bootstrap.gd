@@ -562,7 +562,13 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			var card_id: StringName = params.get("card_id", &"")
 			return TriggeringCondition.keyword_hunter(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return KeywordMovementFlowHandlers.hunter(game_ctx, params)
+			var enemy_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return MoveFlow.nest_or_run(
+				game_ctx,
+				MoveFlow.enemy_toward_params(
+					enemy_id, MoveFlow.TOWARD_NEAREST_INVESTIGATOR, "keyword:hunter"
+				)
+			)
 	)
 	catalog.register_run(
 		&"seq.keyword.patrol",
@@ -570,7 +576,14 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			var card_id: StringName = params.get("card_id", &"")
 			return TriggeringCondition.keyword_patrol(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return KeywordMovementFlowHandlers.patrol(game_ctx, params)
+			var enemy_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			var toward := MoveFlow.enemy_toward_params(
+				enemy_id, MoveFlow.TOWARD_PATROL, "keyword:patrol"
+			)
+			var def_id: StringName = params.get("def_id", &"")
+			if def_id != &"":
+				toward["def_id"] = def_id
+			return MoveFlow.nest_or_run(game_ctx, toward)
 	)
 	catalog.register_run(
 		&"seq.keyword.massive",

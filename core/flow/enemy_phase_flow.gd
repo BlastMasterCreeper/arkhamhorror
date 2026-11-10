@@ -7,7 +7,7 @@ extends RefCounted
 
 static func framework_3_2(game_ctx: GameContext) -> Dictionary:
 	## Grimoire 3.2 基础手续：对每个 ready、未交战的敌人，经 KeywordConsumer 开火
-	## Hunter/Patrol LISTENER（seq.keyword.hunter / patrol）。本 handler **不含**移动路径。
+	## Hunter/Patrol LISTENER（seq.keyword.hunter / patrol）只填 toward，移动仍是 seq.effect.move。
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	var moved: Array[StringName] = []
