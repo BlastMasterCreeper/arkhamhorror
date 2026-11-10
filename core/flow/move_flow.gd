@@ -194,9 +194,7 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		"move_kind": move_kind,
 	}
 	for _i in steps:
-		var hop := EnemyMovement.move_one_step_toward_location(
-			game_ctx, enemy_id, target_loc
-		)
+		var hop := _hop_enemy_one_step_toward(game_ctx, enemy_id, target_loc)
 		if not bool(hop.get("moved", false)):
 			break
 		var to_loc: StringName = hop.get("to_location", &"") as StringName
@@ -367,6 +365,41 @@ static func _move_marker(game_ctx: GameContext, params: Dictionary) -> Dictionar
 		"from_location": from_id,
 		"move_kind": move_kind,
 	})
+
+
+## 敌人「移动」寻路一步：选 hop + 写 location_tag（原 EnemyMovement；无独立类）。
+static func _hop_enemy_one_step_toward(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	target_location_tag: StringName
+) -> Dictionary:
+	var result := {
+		"ok": false,
+		"moved": false,
+		"enemy_id": enemy_id,
+		"from_location": &"",
+		"to_location": &"",
+	}
+	if game_ctx == null or game_ctx.state == null or enemy_id == &"":
+		return result
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null or enemy.location_tag == &"":
+		return result
+	result["from_location"] = enemy.location_tag
+	if enemy.location_tag == target_location_tag:
+		result["ok"] = true
+		return result
+	var next_hop := EnemyPathQuery.pick_next_hop_toward(
+		enemy.location_tag, target_location_tag, game_ctx
+	)
+	if next_hop == &"":
+		result["ok"] = true
+		return result
+	enemy.location_tag = next_hop
+	result["moved"] = true
+	result["to_location"] = next_hop
+	result["ok"] = true
+	return result
 
 
 static func _auto_engage(params: Dictionary, default_val: bool) -> bool:

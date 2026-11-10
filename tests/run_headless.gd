@@ -12369,11 +12369,18 @@ func _test_en03_move_must_shorten() -> bool:
 	var enemy_id := _spawn_enemy_at(h, &"en_mv_short", &"mv_a", {})
 	if enemy_id == &"":
 		return false
-	var result := EnemyMovement.move_one_step_toward_location(h.ctx, enemy_id, &"mv_c")
-	return (
-		bool(result.get("moved", false))
-		and result.get("to_location", &"") == &"mv_b"
+	var result := MoveFlow.run(
+		h.ctx,
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": enemy_id,
+			"destination_id": &"mv_c",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"steps": 1,
+			"auto_engage_after": false,
+		}
 	)
+	return bool(result.get("moved", false)) and result.get("to", &"") == &"mv_b"
 
 
 func _test_en04_move_lateral_no_shorten() -> bool:
@@ -12391,8 +12398,18 @@ func _test_en04_move_lateral_no_shorten() -> bool:
 	var enemy_id := _spawn_enemy_at(h, &"en_mv_lat", &"ring_2", {})
 	if enemy_id == &"":
 		return false
-	var result := EnemyMovement.move_one_step_toward_location(h.ctx, enemy_id, &"ring_0")
-	return bool(result.get("moved", false)) and result.get("to_location", &"") == &"ring_3"
+	var result := MoveFlow.run(
+		h.ctx,
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": enemy_id,
+			"destination_id": &"ring_0",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"steps": 1,
+			"auto_engage_after": false,
+		}
+	)
+	return bool(result.get("moved", false)) and result.get("to", &"") == &"ring_3"
 
 
 func _test_en05_move_lead_picks_tie() -> bool:
@@ -12410,8 +12427,18 @@ func _test_en05_move_lead_picks_tie() -> bool:
 	var enemy_id := _spawn_enemy_at(h, &"en_mv_tie", &"fork_enemy", {})
 	if enemy_id == &"":
 		return false
-	var result := EnemyMovement.move_one_step_toward_location(h.ctx, enemy_id, &"fork_goal")
-	return bool(result.get("moved", false)) and result.get("to_location", &"") == &"fork_left"
+	var result := MoveFlow.run(
+		h.ctx,
+		{
+			"subject": MoveFlow.SUBJECT_ENEMY,
+			"enemy_id": enemy_id,
+			"destination_id": &"fork_goal",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"steps": 1,
+			"auto_engage_after": false,
+		}
+	)
+	return bool(result.get("moved", false)) and result.get("to", &"") == &"fork_left"
 
 
 func _test_en06_disengage_reselects() -> bool:

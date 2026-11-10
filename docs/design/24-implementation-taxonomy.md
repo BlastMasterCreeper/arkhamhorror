@@ -58,7 +58,7 @@
 | **DTO / Spec** | 参数、意图、能力描述、选择规格 | `EffectRequest`、`InitiationIntent`、`SelectionSpec`、`EnemyAttack` |
 | **静态树** | Composition / ST.7 计划树 | `CompositionNode`、`SkillTestSt7Plan` |
 | **局面形** | 实体状态、物理槽、枚举 | `CardInstance`、`InvestigatorState`、`AhcEnums` |
-| **L0 附属** | 仅被 Flow 调用的写局面/域辅助 | `EnemyMovement`、`EncounterDoomPlacement`、`LocationEnterRules` |
+| **L0 附属** | 仅被 Flow 调用的写局面/域辅助（优先收进对应 `*Flow`，勿增殖） | `EncounterDoomPlacement`、`LocationEnterRules` |
 | **Policy / 表** | 阈值、挂载表、配置谓词 | `AgendaDoomPolicy`、`KeywordProfileTable`、`EnterHandTimingPolicy` |
 
 **禁止**：为上述标签新建 `*DtoBucket` / `*SpecService` 等职责层；标签只服务阅读。
@@ -95,7 +95,7 @@
 | per-seq 薄 `*Service` | **删除** → `run_seq` | — |
 | `InterruptHandler` / `ReplacementHandler` / `EffectOpExecutor` / `MassiveKeywordFlow` / `EnemySystem` | 并入 FlowHandlers / ERG / MassiveEngagement / 删除 | — |
 
-**保留边界**：`ChoiceResolver*`（底座）、`EnemyMovement`（L0 附属）、`*Status`、`*Engine`、`EffectResolutionGraph`（管线 · pending Cancel/Instead，待再收）。
+**保留边界**：`ChoiceResolver*`（底座）、`*Status`、`*Engine`、`EffectResolutionGraph`（管线 · pending Cancel/Instead，待再收）。
 
 ---
 
@@ -117,3 +117,4 @@
 | 2026-11-09 | v1：六桶 + 后缀硬规则 + 重命名/目录迁移 |
 | 2026-11-10 | v1.1：收掉 per-seq 薄门面；统一 `run_seq`；合并重复薄层 |
 | 2026-11-10 | **v2**：取消门面桶 → 五桶；`ScenarioService` → `ScenarioPipeline`；不成桶只保留标签、不开新职责 |
+| 2026-11-10 | 删除 `EnemyMovement`：并入 `MoveFlow._hop_enemy_one_step_toward`（禁 L0 类膨胀） |
