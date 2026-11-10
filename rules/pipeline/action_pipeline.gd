@@ -8,7 +8,6 @@ var _log: GameLog
 var _framework: FrameworkFlowEngine
 var _aoo: AttackOfOpportunityTrigger
 var _mutator: StateMutator
-var _action_sequences: ActionSequenceService
 var _game_ctx: GameContext
 
 
@@ -32,10 +31,8 @@ func _init(
 
 func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
-	if ctx:
-		_action_sequences = ctx.action_sequences
-		if _aoo != null:
-			_aoo.bind_game_context(ctx)
+	if ctx != null and _aoo != null:
+		_aoo.bind_game_context(ctx)
 
 
 ## REST-E-PLAY：打出 asset/event — 经 Initiation Sequence（Grimoire V）。
@@ -107,12 +104,14 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 	var result := {"ok": true, "aoo_attacks": int(aoo_result.get("attacks", 0))}
 	match action_type:
 		AhcEnums.ActionType.RESOURCE:
-			if _action_sequences and _game_ctx:
-				var gain_result := _action_sequences.gain_resource(
-					_game_ctx,
-					investigator_id,
-					1,
-					[&"resource_action"]
+			if _game_ctx != null:
+				var gain_result := _game_ctx.run_seq(
+					&"seq.action.gain_resource",
+					{
+						"controller_id": investigator_id,
+						"base_amount": 1,
+						"source_tags": [&"resource_action"],
+					}
 				)
 				result["amount"] = gain_result.get("amount", 1)
 			elif _mutator:
@@ -126,12 +125,14 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 			else:
 				return {"ok": false, "error": "resource_unavailable"}
 		AhcEnums.ActionType.DRAW:
-			if _action_sequences and _game_ctx:
-				result = _action_sequences.draw(
-					_game_ctx,
-					investigator_id,
-					1,
-					[&"draw_action"]
+			if _game_ctx != null:
+				result = _game_ctx.run_seq(
+					&"seq.action.draw",
+					{
+						"inv_id": investigator_id,
+						"amount": 1,
+						"source_tags": [&"draw_action"],
+					}
 				)
 			else:
 				## 禁 mutator 抽牌旁路（I2 / run_mutator_only）。
@@ -169,20 +170,23 @@ func _run_resolved_action(
 	investigator_id: StringName,
 	extra: Dictionary
 ) -> Dictionary:
-	if _action_sequences == null or _game_ctx == null:
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
 		return _run_basic_action(action_type, investigator_id, extra)
+	var flow_id := &""
 	match action_type:
 		AhcEnums.ActionType.MOVE:
-			return _action_sequences.move(_game_ctx, investigator_id, extra)
+			flow_id = &"seq.action.move"
 		AhcEnums.ActionType.INVESTIGATE:
-			return _action_sequences.investigate(_game_ctx, investigator_id, extra)
+			flow_id = &"seq.action.investigate"
 		AhcEnums.ActionType.FIGHT:
-			return _action_sequences.fight(_game_ctx, investigator_id, extra)
+			flow_id = &"seq.action.fight"
 		AhcEnums.ActionType.ENGAGE:
-			return _action_sequences.engage(_game_ctx, investigator_id, extra)
+			flow_id = &"seq.action.engage"
 		AhcEnums.ActionType.EVADE:
-			return _action_sequences.evade(_game_ctx, investigator_id, extra)
-	return {"ok": false, "error": "unsupported_action"}
+			flow_id = &"seq.action.evade"
+		_:
+			return {"ok": false, "error": "unsupported_action"}
+	return _game_ctx.run_seq(flow_id, {"inv_id": investigator_id, "extra": extra})
 
 
 func _run_basic_action(

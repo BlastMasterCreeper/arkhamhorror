@@ -3606,7 +3606,7 @@ func _test_trig_forced_after_gain() -> bool:
 	h.ctx.triggered_abilities.register(desc)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	if inv.resource_pool != pool_before + 2:
 		return false
 	return _collect_initiation_steps(h).is_empty()
@@ -3628,7 +3628,7 @@ func _test_trig_reaction_declined() -> bool:
 	h.ctx.triggered_abilities.register(desc)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return inv.resource_pool == pool_before + 1
 
 
@@ -3651,7 +3651,7 @@ func _test_trig_reaction_accepted() -> bool:
 	h.ctx.triggered_abilities.register(desc)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return inv.resource_pool == pool_before + 3
 
 
@@ -3676,7 +3676,7 @@ func _test_trig_peril_blocks() -> bool:
 	])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_2")
 	var pool_before := inv.resource_pool
-	h.ctx.resource_gain.gain(h.ctx, &"inv_2", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_2", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return inv.resource_pool == pool_before + 1
 
 
@@ -3702,7 +3702,7 @@ func _test_rw_willingness_pool_order() -> bool:
 	)
 	h.ctx.sequences.register_handler(react_a)
 	h.ctx.sequences.register_handler(react_b)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return order == ["b", "a"]
 
 
@@ -3736,7 +3736,7 @@ func _test_rw_forced_before_reactions() -> bool:
 			func() -> void: order.append("r2")
 		)
 	)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return order == ["forced", "r1", "r2"]
 
 
@@ -3762,7 +3762,7 @@ func _test_rw_reaction_after_nest() -> bool:
 			h.ctx.sequences.register_handler(react_inner)
 	)
 	h.ctx.sequences.register_handler(react_outer)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return order == ["outer", "inner"]
 
 
@@ -3781,7 +3781,7 @@ func _test_rw_mode_auto_join() -> bool:
 			func() -> void: fired[0] = true
 		)
 	)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return fired[0]
 
 
@@ -3803,7 +3803,7 @@ func _test_rw_mode_auto_decline() -> bool:
 			func() -> void: fired[0] = true
 		)
 	)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return not fired[0]
 
 
@@ -3822,7 +3822,7 @@ func _test_elig_l3_condition_fail() -> bool:
 	)
 	react.collect_condition = Condition.with_tags([&"needs_missing_tag"])
 	h.ctx.sequences.register_handler(react)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return not fired[0]
 
 
@@ -3841,7 +3841,7 @@ func _test_elig_l3_condition_pass() -> bool:
 	)
 	react.collect_condition = Condition.with_tags([&"resource_action"])
 	h.ctx.sequences.register_handler(react)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return fired[0]
 
 
@@ -3862,7 +3862,7 @@ func _test_elig_l4_peril_collect() -> bool:
 			func() -> void: fired[0] = true
 		)
 	)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_2", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_2", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return not fired[0]
 
 
@@ -3881,7 +3881,7 @@ func _test_elig_l5_limit() -> bool:
 	)
 	react.limit_remaining = 0
 	h.ctx.sequences.register_handler(react)
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return not fired[0]
 
 
@@ -4113,7 +4113,7 @@ func _test_trig_install_on_play() -> bool:
 	if not h.ctx.actions.play_card(&"inv_1", card_id).ok:
 		return false
 	var pool_before := inv.resource_pool
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return inv.resource_pool == pool_before + 2
 
 
@@ -4282,7 +4282,7 @@ func _test_adb_12125_forced_discover() -> bool:
 	var loc := h.ctx.state.registry.get_location(&"test_loc")
 	loc.clues = 1
 	var card_id := _adb_add_encounter_treachery_to_deck(h, &"12125")
-	var draw_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var draw_res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not bool(draw_res.get("ok", false)):
 		return false
 	var card := h.ctx.state.registry.get_card(card_id)
@@ -5619,7 +5619,7 @@ func _test_adb_12122_discard_asset() -> bool:
 	var spawn := SpawnFlow.engaged(h.ctx, enemy_id, &"inv_1")
 	if not spawn.get("ok", false):
 		return false
-	h.ctx.enemy_phase.run_phase_attacks(h.ctx, &"inv_1")
+	h.ctx.run_seq(&"seq.enemy.phase_attacks", {"investigator_id": &"inv_1"})
 	var asset_card := h.ctx.state.registry.get_card(asset_id)
 	return (
 		inv.damage_taken == 1
@@ -5934,7 +5934,7 @@ func _test_adb_spawn_farthest_empty_play() -> bool:
 	GameBootstrap.connect_locations(h.ctx, &"loc_b", &"loc_c")
 	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"loc_a")
 	var card_id := _adb_add_encounter_enemy_to_deck(h, &"12099")
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -5952,7 +5952,7 @@ func _test_adb_prey_lowest_agility_play() -> bool:
 	def_data["spawn_instruction"] = SpawnInstructionSpec.at_drawer_location()
 	CardRegistry.register_definition(&"12114", def_data)
 	var card_id := _adb_add_encounter_enemy_to_deck(h, &"12114")
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6320,7 +6320,7 @@ func _test_enc_draw_catalog() -> bool:
 		{"card_type": &"treachery", "keywords": []}
 	)
 	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"plain_treachery")
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -6330,7 +6330,7 @@ func _test_enc_draw_catalog() -> bool:
 func _test_enc_spawn_default_engaged() -> bool:
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_encounter_enemy_to_deck(h.ctx, &"enc_enemy_default")
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6355,7 +6355,7 @@ func _test_enc_default_spawn_drawer_not_prey() -> bool:
 		&"enc_default_drawer",
 		{"prey_instruction": PreyInstructionSpec.highest(AhcEnums.SkillType.WILLPOWER)}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6377,7 +6377,7 @@ func _test_enc_spawn_instruction_at_location() -> bool:
 		&"enc_enemy_instr",
 		{"spawn_instruction": SpawnInstructionSpec.at_named_location(&"loc_b")}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6397,7 +6397,7 @@ func _test_enc_spawn_failed_discard() -> bool:
 		&"enc_enemy_fail",
 		{"spawn_instruction": SpawnInstructionSpec.at_named_location(&"missing_loc")}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6418,7 +6418,7 @@ func _test_enc_spawn_failed_in_result() -> bool:
 		&"enc_spawn_fail_result",
 		{"spawn_instruction": SpawnInstructionSpec.at_named_location(&"missing_loc")}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	var failed: Array = res.get("spawn_failed_discards", [])
 	return (
 		res.get("ok", false)
@@ -6439,7 +6439,7 @@ func _test_enc_weakness_spawn_failed() -> bool:
 			"enemy": {"fight": 2, "evade": 2, "health": 1},
 		}
 	)
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 1, "source_tags": [&"test"]})
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var card := h.ctx.state.registry.get_card(card_id)
 	var failed: Array = res.get("spawn_failed_discards", [])
@@ -6460,7 +6460,7 @@ func _test_enc_spawn_aloof() -> bool:
 		&"enc_enemy_aloof",
 		{"aloof": true}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6485,7 +6485,7 @@ func _test_enc_spawn_aloof_with_instruction() -> bool:
 			"spawn_instruction": SpawnInstructionSpec.at_named_location(&"loc_b"),
 		}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6512,7 +6512,7 @@ func _test_enc_prey_highest_willpower() -> bool:
 			"prey_instruction": PreyInstructionSpec.highest(AhcEnums.SkillType.WILLPOWER),
 		}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6532,7 +6532,7 @@ func _test_enc_no_prey_lead_engages() -> bool:
 		&"enc_no_prey",
 		{"spawn_instruction": SpawnInstructionSpec.at_drawer_location()}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6558,7 +6558,7 @@ func _test_enc_prey_lowest_agility() -> bool:
 			"prey_instruction": PreyInstructionSpec.lowest(AhcEnums.SkillType.AGILITY),
 		}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
@@ -6571,7 +6571,7 @@ func _test_enc_surge_chain() -> bool:
 		h.ctx, &"enc_surge_a", [&"surge"]
 	)
 	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_b", [])
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -6598,7 +6598,7 @@ func _test_enc_peril_surge_not_sticky() -> bool:
 		h.ctx, &"enc_peril_surge", [&"peril", &"surge"]
 	)
 	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_b", [])
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -6622,7 +6622,7 @@ func _test_enc_surge_dynamic_keyword() -> bool:
 	)
 	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_dyn_surge", [])
 	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_b", [])
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -6640,7 +6640,7 @@ func _test_enc_surge_nests_keyword_seq() -> bool:
 	h.ctx.memory.clear_trace()
 	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_surge_a", [&"surge"])
 	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_b", [])
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false) or int(res.get("surge_depth", 0)) != 1:
 		return false
 	var has_surge_seq := false
@@ -6703,7 +6703,7 @@ func _test_enc_surge_12126_no_clues() -> bool:
 	inv.clues_on_card = 0
 	var first := _adb_add_encounter_treachery_to_deck(h, &"12126")
 	var second := _adb_add_encounter_treachery_to_deck(h, &"12127")
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -6758,7 +6758,7 @@ func _test_enc_surge_12160_places_doom() -> bool:
 	GameBootstrap.setup_test_enemy(h.ctx, &"enemy_a", &"test_loc")
 	var first := _adb_add_encounter_treachery_to_deck(h, &"12160")
 	var second := _adb_add_encounter_treachery_to_deck(h, &"12127")
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_a")
@@ -6788,7 +6788,7 @@ func _test_enc_surge_printed_mounts_at_when() -> bool:
 	var h := RuleTestHarness.new(42)
 	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_surge_when", [&"surge"])
 	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_after_print", [])
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -6814,7 +6814,7 @@ func _test_enc_surge_printed_plus_gains_idempotent() -> bool:
 	var first := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_and_gain", [&"surge"])
 	var second := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_idem", [])
 	var before_regs := h.ctx.registrations.count()
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -7724,7 +7724,7 @@ func _test_enc_revelation_nest() -> bool:
 	)
 	GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_rev_horror", [])
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	var revelations: Array = res.get("revelations", [])
 	var trace := h.ctx.memory.phase_trace
 	var has_card_drawn := false
@@ -7748,7 +7748,7 @@ func _test_enc_spawn_nest() -> bool:
 	var h := RuleTestHarness.new(42)
 	h.ctx.memory.clear_trace()
 	var card_id := GameBootstrap.add_encounter_enemy_to_deck(h.ctx, &"enc_spawn_nest")
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	var enemy := h.ctx.state.registry.get_enemy(card_id)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var trace := h.ctx.memory.phase_trace
@@ -7779,7 +7779,7 @@ func _test_enc_hidden_enemy_no_spawn() -> bool:
 		&"enc_hidden_enemy",
 		{"keywords": [&"hidden"], "hidden": true}
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -7811,7 +7811,7 @@ func _test_enc_hidden_enemy_hand_spawn() -> bool:
 		&"enc_hidden_spawn",
 		{"keywords": [&"hidden"], "hidden": true}
 	)
-	var draw_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var draw_res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not draw_res.get("ok", false):
 		return false
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -7857,7 +7857,7 @@ func _test_enc_hidden_secret_hand() -> bool:
 	var card_id := GameBootstrap.add_encounter_card_to_deck(
 		h.ctx, &"enc_hidden_t", [&"hidden"]
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -7882,7 +7882,7 @@ func _test_enc_hidden_forbid_leave_hand() -> bool:
 		&"enc_hidden_no_leave",
 		[&"hidden"]
 	)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	if not h.ctx.registrations.has_hidden_leave_hand_restriction(card_id):
@@ -7910,12 +7910,12 @@ func _test_enc_hidden_treachery_threat_area() -> bool:
 		&"enc_hidden_ta_e",
 		{"keywords": [&"hidden"], "hidden": true}
 	)
-	var t_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var t_res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not t_res.get("ok", false):
 		return false
 	h.ctx.state.encounter_deck.clear()
 	h.ctx.state.encounter_deck.append(enemy_id)
-	var e_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var e_res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not e_res.get("ok", false):
 		return false
 	var state := h.ctx.state
@@ -7934,7 +7934,7 @@ func _test_enc_hidden_treachery_discard_from_hand() -> bool:
 		&"enc_hidden_disc",
 		[&"hidden"]
 	)
-	var draw_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var draw_res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not draw_res.get("ok", false):
 		return false
 	if not h.ctx.registrations.has_hidden_leave_hand_restriction(card_id):
@@ -7957,7 +7957,7 @@ func _test_enc_elimination_hidden_hand() -> bool:
 		&"enc_hidden_elim",
 		[&"hidden"]
 	)
-	var draw_res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var draw_res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not draw_res.get("ok", false):
 		return false
 	var elim := InvestigatorElimination.eliminate(h.ctx, &"inv_1")
@@ -7975,7 +7975,7 @@ func _test_enc_default_reveal_all() -> bool:
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_2", &"test_loc")
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_e2", [])
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var card := h.ctx.state.registry.get_card(card_id)
@@ -7993,7 +7993,7 @@ func _test_enc_shuffle_discard() -> bool:
 	h.ctx.state.encounter_deck.clear()
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var horror_before := inv.horror_taken
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -8017,7 +8017,7 @@ func _test_enc_surge_shuffles_discard() -> bool:
 		h.ctx, &"enc_surge_mid", [&"surge"]
 	)
 	h.ctx.state.encounter_deck = [surge] as Array[StringName]
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	if not res.get("ok", false):
 		return false
 	var cards: Array = res.get("cards", [])
@@ -8039,7 +8039,7 @@ func _test_enc_both_piles_empty() -> bool:
 	var h := RuleTestHarness.new(42)
 	h.ctx.state.encounter_deck.clear()
 	h.ctx.state.encounter_discard.clear()
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	return not res.get("ok", false) and res.get("error", &"") == &"encounter_piles_empty"
 
 
@@ -8060,7 +8060,7 @@ func _test_wkn_asset_weakness_investigator_draw() -> bool:
 	var card_id := GameBootstrap.add_investigator_weakness_to_deck(
 		h.ctx, &"inv_1", &"wkn_asset_rev", &"asset"
 	)
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 1, "source_tags": [&"test"]})
 	if not res.get("ok", false):
 		return false
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -8085,7 +8085,7 @@ func _test_wkn_enemy_weakness_encounter_package() -> bool:
 		&"enemy",
 		{"enemy": {"fight": 2, "evade": 2, "health": 1}},
 	)
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 1, "source_tags": [&"test"]})
 	if not res.get("ok", false):
 		return false
 	var inv1 := h.ctx.state.registry.get_investigator(&"inv_1")
@@ -8118,7 +8118,7 @@ func _test_enc_drawn_location_into_play() -> bool:
 	)
 	if not CardAbilityPackage.uses_encounter_package(h.ctx, card_id):
 		return false
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	var card := h.ctx.state.registry.get_card(card_id)
 	var loc := h.ctx.state.registry.get_location(&"enc_loc_drawn")
 	return (
@@ -11024,7 +11024,7 @@ func _test_act_catalog_registered() -> bool:
 	for flow_id in flows:
 		if not catalog.has_flow(flow_id):
 			return false
-	return h.ctx.action_sequences != null
+	return h.ctx.sequence_catalog != null
 
 
 func _test_act_catalog_gain_after_listener() -> bool:
@@ -11080,7 +11080,7 @@ func _test_draw_two_simultaneous() -> bool:
 	var h := RuleTestHarness.new(42)
 	var a := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"card_a")
 	var b := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"card_b")
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 2, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 2, "source_tags": [&"test"]})
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var drawn: Array = res.get("drawn", [])
 	return (
@@ -11100,7 +11100,7 @@ func _test_draw_two_mid_shuffle() -> bool:
 	var from_disc := GameBootstrap.add_test_card_to_discard(h.ctx, &"inv_1", &"from_disc")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	inv.deck = [top] as Array[StringName]
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 2, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 2, "source_tags": [&"test"]})
 	return (
 		res.ok
 		and res.drew
@@ -11120,7 +11120,7 @@ func _test_ent_revelation_take_horror() -> bool:
 	var before := h.ctx.state.registry.get_card(card_id)
 	if before == null or before.zone != AhcEnums.Zone.DECK:
 		return false
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 1, "source_tags": [&"test"]})
 	var revelations: Array = res.get("revelations", [])
 	var after := h.ctx.state.registry.get_card(card_id)
 	return (
@@ -11139,7 +11139,7 @@ func _test_ent_no_revelation() -> bool:
 	var h := RuleTestHarness.new(42)
 	var card_id := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"plain_weakness")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 1, "source_tags": [&"test"]})
 	var revelations: Array = res.get("revelations", [])
 	return (
 		res.ok
@@ -11155,7 +11155,7 @@ func _test_ent_revelation_order() -> bool:
 	var first := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"rev_take_horror")
 	var second := GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"rev_limbo_discard")
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 2, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 2, "source_tags": [&"test"]})
 	var revelations: Array = res.get("revelations", [])
 	var second_card := h.ctx.state.registry.get_card(second)
 	return (
@@ -11178,7 +11178,7 @@ func _test_draw_when_zones() -> bool:
 	var player_card := h.ctx.state.registry.get_card(player_id)
 	if player_card == null or player_card.zone != AhcEnums.Zone.DECK:
 		return false
-	var player_res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var player_res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 1, "source_tags": [&"test"]})
 	if not player_res.ok or player_card.zone != AhcEnums.Zone.HAND:
 		return false
 	var enc_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"zone_treachery")
@@ -11209,7 +11209,7 @@ func _test_tim_draw_investigator_split() -> bool:
 			func() -> void: zones["when"] = card.zone
 		)
 	)
-	var res := h.ctx.draw_investigator.draw_cards(h.ctx, &"inv_1", 1, [&"test"])
+	var res := h.ctx.run_seq(&"seq.draw.investigator", {"inv_id": &"inv_1", "amount": 1, "source_tags": [&"test"]})
 	var trace := h.ctx.memory.phase_trace
 	var would_i := -1
 	var when_i := -1
@@ -11270,7 +11270,7 @@ func _test_tim_draw_encounter_split() -> bool:
 		when_before_rev[0] = not revelation_started[0]
 	h.ctx.sequences.register_handler(would_enc)
 	h.ctx.sequences.register_handler(when_enc)
-	var res := h.ctx.draw_encounter.draw_one(h.ctx, &"inv_1")
+	var res := h.ctx.run_seq(&"seq.draw.encounter", {"drawer_id": &"inv_1"})
 	var trace := h.ctx.memory.phase_trace
 	var would_i := -1
 	var when_i := -1
@@ -12001,11 +12001,11 @@ func _test_ns_upkeep_resource_modifier() -> bool:
 	c.execute(CompositionTestHelper.upkeep_framework_resource_bonus(&"inv_1", 1))
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	var pool_before := inv.resource_pool
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	if inv.resource_pool != pool_before + 1:
 		return false
 	h.ctx.framework.current_step = AhcEnums.FrameworkStep.UPKEEP_4_4_DRAW_AND_RESOURCE
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"framework", &"upkeep_4_4"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"framework", &"upkeep_4_4"]})
 	return inv.resource_pool == pool_before + 1 + 2
 
 
@@ -12017,7 +12017,7 @@ func _test_ns_gain_after_listener() -> bool:
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	if inv.deck.size() != 1 or inv.hand.size() != 0:
 		return false
-	h.ctx.resource_gain.gain(h.ctx, &"inv_1", 1, [&"resource_action"])
+	h.ctx.run_seq(&"seq.effect.gain_resource", {"controller_id": &"inv_1", "base_amount": 1, "source_tags": [&"resource_action"]})
 	return inv.deck.is_empty() and inv.hand.size() == 1
 
 
@@ -12297,7 +12297,7 @@ func _test_en13_patrol_move() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var result := h.ctx.enemy_phase.run_3_2(h.ctx)
+	var result := h.ctx.run_seq(&"seq.enemy.3_2", {})
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		bool(result.get("ok", false))
@@ -12321,7 +12321,7 @@ func _test_en14_patrol_skip_at_target() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var result := h.ctx.enemy_phase.run_3_2(h.ctx)
+	var result := h.ctx.run_seq(&"seq.enemy.3_2", {})
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		bool(result.get("ok", false))
@@ -12348,7 +12348,7 @@ func _test_en02_phase_attack() -> bool:
 	inv.threat_area.append(enemy_id)
 	inv.damage_taken = 0
 	inv.horror_taken = 0
-	h.ctx.enemy_phase.run_phase_attacks(h.ctx, &"inv_1")
+	h.ctx.run_seq(&"seq.enemy.phase_attacks", {"investigator_id": &"inv_1"})
 	return (
 		inv.damage_taken == 2
 		and inv.horror_taken == 1
@@ -12492,7 +12492,7 @@ func _test_en09_massive_phase_both() -> bool:
 		{"prompt_id": &"order:massive_phase_attacks", "pick": [&"inv_1", &"inv_2"]},
 	])
 	## 经 3.3 基础手续；庞大 REPLACE redirect → seq.keyword.massive（非平行 massive 流程）。
-	var result := h.ctx.enemy_phase.run_phase_attacks(h.ctx, &"inv_1")
+	var result := h.ctx.run_seq(&"seq.enemy.phase_attacks", {"investigator_id": &"inv_1"})
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		int(result.get("attacks", 0)) == 2

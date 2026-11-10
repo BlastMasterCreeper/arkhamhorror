@@ -39,7 +39,7 @@ static func _resolve_deferred_revelations(game_ctx: GameContext) -> int:
 				{"drawer_id": &"setup_14", "card_id": card_id}
 			)
 			count += 1
-		elif game_ctx.draw_encounter != null:
+		else:
 			DrawEncounterFlow.resolve_card(game_ctx, &"setup_14", card_id)
 			count += 1
 	return count

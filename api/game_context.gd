@@ -30,12 +30,6 @@ var legality: InitiationLegalityChecker
 var sequences: ResolutionSequenceStack
 var memory: RulesMemory
 var sequence_catalog: SequenceCatalog
-var resource_gain: ResourceGainService
-var draw_investigator: DrawInvestigatorService
-var draw_encounter: DrawEncounterService
-var mythos: MythosService
-var enemy_phase: EnemyPhaseService
-var action_sequences: ActionSequenceService
 var card_abilities: CardAbilityPipeline
 var triggered_abilities: TriggeredAbilityPipeline
 
@@ -46,6 +40,13 @@ var active_investigator_id: StringName = &""
 var performing_investigator_id: StringName = &""
 var lead_investigator_id: StringName = &""
 var skill_test_stack: Array[SkillTestContext] = []
+
+
+## 对局外开动命名流程的唯一薄入口（禁再为每条 seq 挂 *Service）。
+func run_seq(flow_id: StringName, params: Dictionary = {}) -> Dictionary:
+	if sequence_catalog == null:
+		return {"ok": false, "error": "no_catalog"}
+	return sequence_catalog.run(self, flow_id, params)
 
 
 func pop_encounter_resolution_frame() -> EncounterResolutionFrame:

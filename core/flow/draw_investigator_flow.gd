@@ -11,7 +11,7 @@ static func run(game_ctx: GameContext, inv_id: StringName, amount: int) -> Dicti
 
 
 ## 仅供 dry-run / GameSimulator（无 Catalog、无堆栈）。
-## 生产路径必须走 `DrawInvestigatorService.draw_cards` → `seq.draw.investigator`。
+## 生产路径必须走 `GameContext.run_seq(&"seq.draw.investigator", …)`（或 catalog.nest）。
 static func run_mutator_only(mutator: StateMutator, inv_id: StringName, amount: int) -> Dictionary:
 	var inv := mutator.state().registry.get_investigator(inv_id)
 	if inv == null:

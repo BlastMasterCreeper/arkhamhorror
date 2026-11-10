@@ -1,10 +1,9 @@
 class_name ScenarioService
 extends RefCounted
 
+## Setup / 场景编排门面：组局与推进入口；对局步经 `GameContext.run_seq`，不再挂 per-seq Service。
 var _state: GameStateStore
 var _log: GameLog
-var _draw_encounter: DrawEncounterService = null
-var _mythos: MythosService = null
 var _game_ctx: GameContext = null
 
 
@@ -15,9 +14,6 @@ func _init(state: GameStateStore, log: GameLog) -> void:
 
 func bind_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
-	if ctx != null:
-		_draw_encounter = ctx.draw_encounter
-		_mythos = ctx.mythos
 
 
 func setup_act_agenda_decks(
@@ -115,22 +111,22 @@ func run_setup_game_begins() -> Dictionary:
 
 
 func place_mythos_doom() -> Dictionary:
-	if _game_ctx != null and _mythos != null:
-		return _mythos.place_doom(_game_ctx)
-	return {}
+	if _game_ctx == null:
+		return {}
+	return _game_ctx.run_seq(&"seq.mythos.place_doom", {})
 
 
 func check_agenda_doom_threshold() -> Dictionary:
-	if _game_ctx != null and _mythos != null:
-		return _mythos.check_doom_threshold(_game_ctx)
-	return {}
+	if _game_ctx == null:
+		return {}
+	return _game_ctx.run_seq(&"seq.mythos.check_doom_threshold", {})
 
 
 func advance_act(params: Dictionary = {}) -> Dictionary:
 	if _game_ctx == null:
 		return {"ok": false}
 	if _game_ctx.sequence_catalog != null:
-		return _game_ctx.sequence_catalog.run(_game_ctx, &"seq.act.advance", params)
+		return _game_ctx.run_seq(&"seq.act.advance", params)
 	return ActAdvanceFlow.run(_game_ctx, params)
 
 
@@ -138,7 +134,7 @@ func advance_agenda(params: Dictionary = {}) -> Dictionary:
 	if _game_ctx == null:
 		return {"ok": false}
 	if _game_ctx.sequence_catalog != null:
-		return _game_ctx.sequence_catalog.run(_game_ctx, &"seq.agenda.advance", params)
+		return _game_ctx.run_seq(&"seq.agenda.advance", params)
 	return AgendaAdvanceFlow.run(_game_ctx, params)
 
 
@@ -150,5 +146,5 @@ func check_scenario_end() -> int:
 
 func resolve_encounter_draw(drawer: StringName) -> void:
 	_log.log(AhcEnums.LogCategory.SCENARIO, "encounter_draw", {"drawer": drawer})
-	if _game_ctx != null and _draw_encounter != null:
-		_draw_encounter.draw_one(_game_ctx, drawer)
+	if _game_ctx != null:
+		_game_ctx.run_seq(&"seq.draw.encounter", {"drawer_id": drawer})
