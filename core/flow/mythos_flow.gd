@@ -1,7 +1,7 @@
 class_name MythosFlow
 extends RefCounted
 
-## Mythos 1.2–1.3 命名流程 · 框架步与 ScenarioService 共用。
+## Mythos 1.2–1.3 命名流程 · 框架步与 ScenarioPipeline 共用。
 
 
 static func place_doom(game_ctx: GameContext) -> Dictionary:

@@ -18,7 +18,7 @@ var actions: ActionPipeline
 var skill_tests: SkillTestEngine
 var initiation: AbilityInitiationPipeline
 var effects: EffectResolutionGraph
-var scenario: ScenarioService
+var scenario: ScenarioPipeline
 
 var registrations: RegistrationStore
 var mutator: StateMutator

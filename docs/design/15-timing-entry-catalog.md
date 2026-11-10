@@ -1497,16 +1497,16 @@ seq.draw.investigator RESOLVE (D1 collect_one_step):
 
 ---
 
-### 17.7 与 ScenarioService / Framework 的边界
+### 17.7 与 ScenarioPipeline / Framework 的边界
 
 | 调用方 | 入口 |
 |---|---|
-| Mythos 1.4（每位调查员） | `ScenarioService.resolve_encounter_draw(inv)` → `catalog.run(seq.draw.encounter, {drawer_id, amount: 1})` |
+| Mythos 1.4（每位调查员） | `ScenarioPipeline.resolve_encounter_draw(inv)` → `catalog.run(seq.draw.encounter, {drawer_id, amount: 1})` |
 | 卡牌效果「draw N encounter cards」 | 同上，`amount = N` |
 | Setup 14 game begins | 仅结算 **deferred** 显现；Setup 1–13 **不**进入本管线（OQ-10-01） |
 | Act/Agenda b 面 encounter | nest `seq.encounter.resolve_card`（`as_drawn=false`）：进场+显现同抽取规则；**不** emit/nest `encounter_card_drawn`；无 surge when-drawn 槽 |
 
-`ScenarioService` **不** proliferate 逐步逻辑；只做 framework 步进与 `catalog.run` 委托（对齐 [10 §2](10-scenario-encounter.md)）。
+`ScenarioPipeline` **不** proliferate 逐步逻辑；只做 framework 步进与 `catalog.run` 委托（对齐 [10 §2](10-scenario-encounter.md)）。
 
 ### 17.8 DrawEncounterComposition（L0 / L1）
 
@@ -1677,7 +1677,7 @@ abilities.resolve_revelations(
 | `DrawInvestigatorFlow` / `DrawSubflowFlowHandlers` **内联/nest 样板** | `DrawEncounterSubflowFlowHandlers.collect_one_step` |
 | `CardAbilityPipeline.resolve_revelations` | 遭遇路径 `defer_limbo_finalize=true` |
 | `DrawInvestigatorService` facade | `DrawEncounterService` + Catalog 登记（§17.4） |
-| `ScenarioService.resolve_encounter_draw`（**仅 log**） | Mythos 1.4 → `catalog.run` |
+| `ScenarioPipeline.resolve_encounter_draw`（**仅 log**） | Mythos 1.4 → `catalog.run` |
 | `FrameworkFlowEngine` Mythos 1.4 | `EncounterPeril.apply_e3_check`（内联）、spawn nest |
 
 **推荐竖切（实现顺序）**：
@@ -1685,7 +1685,7 @@ abilities.resolve_revelations(
 ```text
 P-ENC-1  L0 + DrawEncounterComposition + collect_one_step（内联 E1）
 P-ENC-2  EncounterDrawPriorityPolicy + peril Register（WHILE_DRAWN_CARD_RESOLVING）
-P-ENC-3  seq.draw.encounter RUN + DrawEncounterService + ScenarioService 接线
+P-ENC-3  seq.draw.encounter RUN + DrawEncounterService + ScenarioPipeline 接线
 P-ENC-4  revelation nest + priority 80 spawn（默认/指令分支）
 P-ENC-5  Surge priority 70 + peril 不跨 Surge 断言（PERIL-04/05）
 P-ENC-6  seq.encounter.resolve_card（能力包）+ 11 §10
@@ -1822,7 +1822,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | `ResolutionSequenceStack` push/pop/nest + `SequenceCatalog.nest` / `nest_batch` | `EncounterResolutionFrame` |
 | `DrawInvestigatorService` / `ResourceGainService` 薄 facade → `catalog.run` | `DrawEncounterFlow` / `DrawEncounterComposition` |
 | `CardAbilityPipeline` + `CardRegistry.register_revelation` | `resolve_encounter_revelations`（或复用 + flow_id 分支） |
-| `EnterHandTimingPolicy`（显现顺序占位，默认 SOURCE_ORDER） | L0 遭遇 pop/shuffle；`ScenarioService.resolve_encounter_draw` |
+| `EnterHandTimingPolicy`（显现顺序占位，默认 SOURCE_ORDER） | L0 遭遇 pop/shuffle；`ScenarioPipeline.resolve_encounter_draw` |
 | | §18 完整 Timing 索引表 |
 | | ENC-01～15 测试 |
 

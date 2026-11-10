@@ -48,7 +48,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 		ctx.state, ctx.events, ctx.composition
 	)
 	ctx.triggered_abilities = TriggeredAbilityPipeline.new()
-	ctx.scenario = ScenarioService.new(ctx.state, ctx.log)
+	ctx.scenario = ScenarioPipeline.new(ctx.state, ctx.log)
 	ctx.scenario.bind_context(ctx)
 	ctx.skill_tests = SkillTestEngine.new(
 		ctx.state, ctx.events, ctx.log, ctx.modifiers, ctx.mutator, ctx.timing

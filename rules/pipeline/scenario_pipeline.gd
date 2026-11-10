@@ -1,7 +1,7 @@
-class_name ScenarioService
+class_name ScenarioPipeline
 extends RefCounted
 
-## Setup / 场景编排门面：组局与推进入口；对局步经 `GameContext.run_seq`，不再挂 per-seq Service。
+## 场景编排管线：组局 / 推进聚合入口；对局步经 `GameContext.run_seq`（五桶 · Pipeline）。
 var _state: GameStateStore
 var _log: GameLog
 var _game_ctx: GameContext = null
