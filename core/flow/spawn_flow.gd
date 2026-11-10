@@ -3,7 +3,7 @@ extends RefCounted
 
 ## 敌人生成拼装（`seq.encounter.spawn` RESOLVE 用）。
 ## **不是**命名流程 id、也不是交战手续：场外进场 / 进威胁区由本类 + EnterThreatAreaFlow 完成。
-## 禁止对外再挂 EnemySystem.spawn_* 语义 API。
+## 禁止对外再挂平行 spawn_* 语义 API。
 
 
 static func from_encounter_draw(

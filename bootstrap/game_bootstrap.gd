@@ -45,13 +45,11 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.timing.bind_listeners(ctx.listeners)
 	ctx.legality = InitiationLegalityChecker.new()
 	ctx.initiation = AbilityInitiationPipeline.new(
-		ctx.state, ctx.events, ctx.effects, ctx.composition
+		ctx.state, ctx.events, ctx.composition
 	)
 	ctx.triggered_abilities = TriggeredAbilityPipeline.new()
 	ctx.scenario = ScenarioService.new(ctx.state, ctx.log)
 	ctx.scenario.bind_context(ctx)
-	ctx.enemy = EnemySystem.new(ctx.state, ctx.log)
-	ctx.enemy.bind_context(ctx)
 	ctx.skill_tests = SkillTestEngine.new(
 		ctx.state, ctx.events, ctx.log, ctx.modifiers, ctx.mutator, ctx.timing
 	)

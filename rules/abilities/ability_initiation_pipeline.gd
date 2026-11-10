@@ -3,7 +3,6 @@ extends RefCounted
 
 var _state: GameStateStore
 var _events: EventRecordLog
-var _effects: EffectResolutionGraph
 var _composition: CompositionExecutor
 var _legality: InitiationLegalityChecker = InitiationLegalityChecker.new()
 var _cost: InitiationCostPipeline
@@ -14,12 +13,10 @@ var _game_ctx: GameContext
 func _init(
 	state: GameStateStore,
 	events: EventRecordLog,
-	effects: EffectResolutionGraph,
 	composition: CompositionExecutor = null
 ) -> void:
 	_state = state
 	_events = events
-	_effects = effects
 	_composition = composition
 	_cost = InitiationCostPipeline.new(state)
 

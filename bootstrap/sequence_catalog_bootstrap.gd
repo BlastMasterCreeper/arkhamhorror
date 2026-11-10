@@ -578,7 +578,7 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
 			return TriggeringCondition.keyword_massive(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return MassiveKeywordFlow.run(game_ctx, params)
+			return MassiveEngagement.resolve_keyword(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.keyword.swarming",

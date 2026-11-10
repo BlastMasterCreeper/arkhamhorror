@@ -19,7 +19,6 @@ var skill_tests: SkillTestEngine
 var initiation: AbilityInitiationPipeline
 var effects: EffectResolutionGraph
 var scenario: ScenarioService
-var enemy: EnemySystem
 
 var registrations: RegistrationStore
 var mutator: StateMutator

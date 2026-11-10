@@ -280,12 +280,49 @@ func _resolve_request(
 			"blocked_by_restriction": true,
 			"pending_id": pending_id,
 		}
-	var result := EffectOpExecutor.execute(request, _game_ctx)
+	var result := _execute_op(request)
 	if result.get("ok", false):
 		result["pending_id"] = pending_id
 		result["replaced"] = replaced
 		_record_applied(request, pending_id)
 	return result
+
+
+## Pending IMPACT 的 op 落地：仅 DRAW / GAIN → `run_seq`（原 EffectOpExecutor 已并入）。
+func _execute_op(request: EffectRequest) -> Dictionary:
+	if request == null:
+		return {"ok": false, "error": "invalid_request"}
+	if _game_ctx == null or _game_ctx.sequence_catalog == null:
+		match request.op:
+			AhcEnums.EffectOp.DRAW_CARDS:
+				return {"ok": false, "error": "draw_unavailable"}
+			AhcEnums.EffectOp.GAIN_RESOURCE:
+				return {"ok": false, "error": "gain_unavailable"}
+			_:
+				return {"ok": false, "error": "unsupported_op"}
+	var amount := maxi(request.amount, 1)
+	match request.op:
+		AhcEnums.EffectOp.DRAW_CARDS:
+			return _game_ctx.run_seq(
+				&"seq.draw.investigator",
+				{
+					"inv_id": request.controller_id,
+					"amount": amount,
+					"source_tags": [&"effect_draw"],
+				}
+			)
+		AhcEnums.EffectOp.GAIN_RESOURCE:
+			var gain := _game_ctx.run_seq(
+				&"seq.effect.gain_resource",
+				{
+					"controller_id": request.controller_id,
+					"base_amount": amount,
+					"source_tags": [&"effect_gain"],
+				}
+			)
+			return {"ok": true, "amount": int(gain.get("amount", amount))}
+		_:
+			return {"ok": false, "error": "unsupported_op"}
 
 
 func _validate_targets(request: EffectRequest) -> Dictionary:

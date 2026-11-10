@@ -12,7 +12,7 @@ extends RefCounted
 ## `seq.effect.enter_threat_area`（`from=in_play` = 场上→威胁区）。`grant` 只 Buff。
 ## 生成 engaged（场外→威胁区）走 `SpawnFlow.engaged`，不压本条。
 ## 纸面「交战后」订进入威胁区 AFTER，不订本手续完成。
-## 禁止另铸 `seq.enemy.auto_engage`；禁止经 EnemySystem 再包一层交战 API。
+## 禁止另铸 `seq.enemy.auto_engage`；禁止再挂平行交战门面。
 
 
 const MODE_AUTO: StringName = &"auto"

@@ -49,52 +49,7 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	}
 
 
-func engage(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
-	## catalog 缺失回退：与 seq.action.engage → nest seq.engage 同核（禁平行 L0）。
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null:
-		return {"ok": false, "error": "unknown_investigator"}
-	var enemy_id: StringName = extra.get("enemy_id", &"")
-	var enemy := _state.registry.get_enemy(enemy_id)
-	if enemy == null:
-		return {"ok": false, "error": "unknown_enemy"}
-	var target_err := _validate_engage_target(inv, enemy)
-	if target_err != "":
-		return {"ok": false, "error": target_err}
-	return EngageFlow.resolve(
-		game_ctx,
-		{
-			"mode": EngageFlow.MODE_EFFECT,
-			"placement": EngageFlow.PLACEMENT_ENTER_THREAT,
-			"require_same_location": true,
-			"enemy_id": enemy_id,
-			"investigator_id": inv_id,
-		}
-	)
-
-
-func move(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
-	var inv := _state.registry.get_investigator(inv_id)
-	if inv == null:
-		return {"ok": false, "error": "unknown_investigator"}
-	var dest_id: StringName = extra.get("destination_id", &"")
-	var dest := _state.registry.get_location(dest_id)
-	if dest == null:
-		return {"ok": false, "error": "unknown_location"}
-	var current := _state.registry.get_location(inv.location_tag)
-	if current == null:
-		return {"ok": false, "error": "not_at_location"}
-	if not _is_connected(current, dest_id):
-		return {"ok": false, "error": "not_connected"}
-	inv.location_tag = dest_id
-	## 无 Catalog 旁路：仍走规则自带进入揭示。
-	var enter := LocationEnterRules.on_investigator_enter(game_ctx, dest_id)
-	var out := {"ok": true, "destination_id": dest_id}
-	if not enter.is_empty():
-		out["location_enter"] = enter
-		out["location_revealed"] = bool(enter.get("revealed", false))
-		out["clues_placed"] = int(enter.get("clues_placed", 0))
-	return out
+## move / engage 已统一 nest `seq.effect.move` / `seq.engage`；本类只保留检定核。
 
 
 func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dictionary:
@@ -181,22 +136,6 @@ func _validate_fight_target(
 	## 拥有已标 aloof、尚未挂 Register 时的兜底（测试 Domain-only）。
 	if enemy.aloof and not EngagementStatus.is_engaged(game_ctx, enemy.id):
 		return "aloof"
-	return ""
-
-
-func _is_connected(from_loc: LocationState, to_id: StringName) -> bool:
-	if from_loc.id == to_id:
-		return true
-	return from_loc.connections.has(to_id)
-
-
-func _validate_engage_target(inv: InvestigatorState, enemy: EnemyState) -> String:
-	if not enemy.is_at_location(inv.location_tag):
-		return "wrong_location"
-	if enemy.massive:
-		return "massive"
-	if enemy.is_engaged_with(inv.id):
-		return "already_engaged"
 	return ""
 
 

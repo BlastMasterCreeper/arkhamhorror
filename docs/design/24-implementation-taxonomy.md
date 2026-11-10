@@ -43,7 +43,8 @@
 4. **选址/猎物/距离** → `*Query`；交战/冷漠等有效状态 → `*Status` 可保留。  
 5. **开火** → `*Trigger`；禁止再用 `*Resolver` 表示开火或选址。  
 6. **PI 选择** → 保留 `ChoiceResolver` 族（底座交互，≠ Query）。  
-7. **挂点 stub**（如 `EnemySystem`）无业务方法；新代码不要加 `*System` 业务 API。  
+7. **禁止空 `*System` 挂点**；新代码不要加 `*System` 业务 API。  
+
 8. **L0 写局面且仅被 Flow 调用** → 可留短名，但文档归 **流程体附属**；优先收进对应 `*Flow`。
 
 ---
@@ -81,10 +82,15 @@
 | `DrawEncounterSubflowHandlers` | `DrawEncounterSubflowFlowHandlers` | Flow |
 | （此前轮）开火/选址 `*Resolver`、`ActionSystem`、`ScenarioSystem` | `*Trigger` / `*Query` / `ActionPipeline` / `ScenarioService` | taxonomy-rename |
 | `ResourceGainService` / `Draw*Service` / `MythosService` / `EnemyPhaseService` / `ActionSequenceService` | **删除** → `GameContext.run_seq` / `ActionPipeline` / `ScenarioService` | facade-collapse |
+| `InterruptHandler` / `ReplacementHandler` | **并入** `InterruptFlowHandlers` / `ReplacementFlowHandlers` | impl-dedupe |
+| `EffectOpExecutor` | **并入** `EffectResolutionGraph._execute_op` | impl-dedupe |
+| `EncounterAgendaDoomPlacement` | **并入** `MythosFlow.place_on_current_agenda` | impl-dedupe |
+| `MassiveKeywordFlow` | **并入** `MassiveEngagement.resolve_keyword` | impl-dedupe |
+| `EnemySystem` | **删除**（空挂点） | impl-dedupe |
 
 **目录迁移**：`rules/facade/` · `rules/trigger/` · `rules/query/` · `rules/pipeline/` · `core/flow/`；栈/Catalog 留在 `core/timing/`。
 
-**保留**：`ScenarioService`（setup 聚合）、`ChoiceResolver*`、`EnemySystem` stub、`EnemyMovement`（流程体附属 L0）、`*Status`、`*Engine`。
+**保留**：`ScenarioService`（setup 聚合）、`ChoiceResolver*`、`EnemyMovement`（流程体附属 L0）、`*Status`、`*Engine`、`EffectResolutionGraph`（pending Cancel/Instead，待后续再收）。
 
 ---
 
@@ -104,3 +110,4 @@
 |---|---|
 | 2026-11-09 | v1：六桶 + 后缀硬规则 + 本版重命名/目录迁移 |
 | 2026-11-10 | v1.1：收掉 per-seq 薄门面；统一 `GameContext.run_seq` |
+| 2026-11-10 | v1.1+：合并重复薄层（Interrupt/Replace Handler、EffectOp、AgendaDoom 包装、MassiveKeywordFlow、EnemySystem stub）；砍 move/engage 真空旁路 |

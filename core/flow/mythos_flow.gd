@@ -33,6 +33,45 @@ static func place_doom(game_ctx: GameContext) -> Dictionary:
 	}
 
 
+## 卡面 / Doomed：在当前密谋放置 1 doom（经 `seq.mythos.place_doom`）；
+## `may_advance_agenda` 时显式 nest 推进（原 EncounterAgendaDoomPlacement）。
+static func place_on_current_agenda(
+	game_ctx: GameContext,
+	may_advance_agenda: bool = false
+) -> bool:
+	if game_ctx == null or game_ctx.state == null:
+		return false
+	var placed := false
+	if game_ctx.sequence_catalog != null:
+		var result := game_ctx.sequence_catalog.nest(
+			game_ctx, &"seq.mythos.place_doom", {}
+		)
+		placed = bool(result.get("ok", false))
+	elif game_ctx.mutator != null:
+		placed = game_ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.DOOM,
+			1,
+			MarkerSlot.supply(AhcEnums.MarkerKind.DOOM),
+			MarkerSlot.agenda_doom()
+		)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"encounter:place_doom_agenda",
+			{
+				"doom_on_agenda": game_ctx.state.doom_on_agenda,
+				"doom_in_play": game_ctx.state.doom_in_play(),
+				"threshold": game_ctx.state.agenda_threshold,
+				"may_advance": may_advance_agenda,
+			}
+		)
+	if may_advance_agenda:
+		AgendaDoomPolicy.try_nest_advance_if_needed(
+			game_ctx, &"card_effect", true
+		)
+	return placed
+
+
 static func check_doom_threshold(game_ctx: GameContext) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false, "reason": &"invalid_context"}

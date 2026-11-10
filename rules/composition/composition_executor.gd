@@ -1629,29 +1629,23 @@ func _execute_nest_move_marker_to(node: CompositionNode) -> bool:
 func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool:
 	if _game_ctx == null or _state == null:
 		return false
-	var move_result: Dictionary
 	if (
-		_game_ctx.sequence_catalog != null
-		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.move")
+		_game_ctx.sequence_catalog == null
+		or not _game_ctx.sequence_catalog.has_flow(&"seq.effect.move")
 	):
-		move_result = _game_ctx.sequence_catalog.nest(
-			_game_ctx,
-			&"seq.effect.move",
-			{
-				"subject": MoveFlow.SUBJECT_INVESTIGATOR,
-				"investigator_id": inv_id,
-				"destination_id": dest_id,
-				"move_kind": MoveFlow.KIND_MOVE,
-				"auto_engage_after": true,
-			}
-		)
-	else:
-		if _game_ctx.skill_tests == null:
-			return false
-		var resolver := BasicActionFlowHandlers.new(_state, _game_ctx.skill_tests)
-		move_result = resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
-		if bool(move_result.get("ok", false)):
-			EngageFlow.nest_after_area_change(_game_ctx, dest_id)
+		push_error("CompositionExecutor: investigator move requires seq.effect.move")
+		return false
+	var move_result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": inv_id,
+			"destination_id": dest_id,
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": true,
+		}
+	)
 	if not bool(move_result.get("ok", false)):
 		return false
 	_log.log(
@@ -1977,7 +1971,7 @@ func _execute_nest_place_doom(node: CompositionNode) -> bool:
 func _execute_nest_mythos_place_doom(node: CompositionNode) -> bool:
 	if _game_ctx == null:
 		return false
-	return EncounterAgendaDoomPlacement.place_on_current_agenda(
+	return MythosFlow.place_on_current_agenda(
 		_game_ctx, node.may_advance_agenda
 	)
 
