@@ -221,9 +221,16 @@ static func starting_resources(game_ctx: GameContext, amount: int = 5) -> Dictio
 		return {"ok": true, "skipped": true, "reason": &"already_applied"}
 	var gained: Array = []
 	for inv_id in game_ctx.state.registry.all_investigator_ids():
-		if game_ctx.resource_gain != null:
-			var n := game_ctx.resource_gain.gain(game_ctx, inv_id, amount, [&"setup_07"])
-			gained.append({"id": inv_id, "amount": n})
+		if game_ctx.sequence_catalog != null:
+			var res := game_ctx.run_seq(
+				&"seq.effect.gain_resource",
+				{
+					"controller_id": inv_id,
+					"base_amount": amount,
+					"source_tags": [&"setup_07"],
+				}
+			)
+			gained.append({"id": inv_id, "amount": int(res.get("amount", amount))})
 		elif game_ctx.mutator != null:
 			game_ctx.mutator.transfer_marker(
 				AhcEnums.MarkerKind.RESOURCE,
@@ -258,10 +265,13 @@ static func opening_hands(game_ctx: GameContext, opts: Dictionary = {}) -> Dicti
 			if inv.deck.is_empty() and game_ctx.mutator != null:
 				## 空库：让抽牌手续处理（洗弃+horror）；若仍空则停。
 				pass
-			if game_ctx.draw_investigator == null:
+			if game_ctx.sequence_catalog == null:
 				break
 			var before_hand := inv.hand.duplicate()
-			game_ctx.draw_investigator.draw_cards(game_ctx, inv_id, 1, [&"setup_08"])
+			game_ctx.run_seq(
+				&"seq.draw.investigator",
+				{"inv_id": inv_id, "amount": 1, "source_tags": [&"setup_08"]}
+			)
 			var added: Array[StringName] = []
 			for cid in inv.hand:
 				if not before_hand.has(cid):

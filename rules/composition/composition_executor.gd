@@ -6,7 +6,6 @@ var _registrations: RegistrationStore
 var _mutator: StateMutator
 var _log: GameLog
 var _game_ctx: GameContext
-var _draw: DrawInvestigatorService
 var _dry_runner: CompositionDryRunner = CompositionDryRunner.new()
 var _last_step_created: bool = false
 var _last_skill_test_fail_by: int = 0
@@ -30,8 +29,6 @@ func _init(
 
 func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
-	if ctx:
-		_draw = ctx.draw_investigator
 
 
 ## Seq 内上一子步是否 CREATED（after_step If · 07 §3.3 / §4.4）。
@@ -231,11 +228,14 @@ func _execute_atom(node: CompositionNode) -> bool:
 			if RestrictionEvaluator.blocks_draw(node.inv_id, _registrations):
 				_log.log(AhcEnums.LogCategory.CARD, "composition:draw_blocked", {"inv": node.inv_id})
 				return false
-			if _draw == null or _game_ctx == null:
-				push_error("CompositionExecutor: draw atom requires DrawInvestigatorService")
+			if _game_ctx == null or _game_ctx.sequence_catalog == null:
+				push_error("CompositionExecutor: draw atom requires sequence_catalog")
 				return false
 			var amount := maxi(node.draw_amount, 1)
-			_draw.draw_cards(_game_ctx, node.inv_id, amount, [&"composition_draw"])
+			_game_ctx.run_seq(
+				&"seq.draw.investigator",
+				{"inv_id": node.inv_id, "amount": amount, "source_tags": [&"composition_draw"]}
+			)
 			_log.log(AhcEnums.LogCategory.CARD, "composition:draw", {"inv": node.inv_id, "amount": amount})
 			return true
 		&"move_card":

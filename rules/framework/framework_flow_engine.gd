@@ -181,8 +181,8 @@ func _advance_enemy_attacks() -> void:
 		return
 	var inv: StringName = investigators_remaining_this_phase[0]
 	investigators_remaining_this_phase.remove_at(0)
-	if _game_ctx != null and _game_ctx.enemy_phase != null:
-		_game_ctx.enemy_phase.run_phase_attacks(_game_ctx, inv)
+	if _game_ctx != null:
+		_game_ctx.run_seq(&"seq.enemy.phase_attacks", {"investigator_id": inv})
 	if investigators_remaining_this_phase.is_empty():
 		_goto(AhcEnums.FrameworkStep.ENEMY_3_4_PHASE_ENDS)
 	else:
@@ -301,8 +301,8 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 	elif step == AhcEnums.FrameworkStep.UPKEEP_4_6_PHASE_ENDS:
 		_tick_duration(AhcEnums.DurationAnchorKind.THIS_ROUND)
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_2_HUNTER_PATROL_MOVE:
-		if _game_ctx != null and _game_ctx.enemy_phase != null:
-			_game_ctx.enemy_phase.run_3_2(_game_ctx)
+		if _game_ctx != null:
+			_game_ctx.run_seq(&"seq.enemy.3_2", {})
 	elif step == AhcEnums.FrameworkStep.ENEMY_3_3_ENGAGED_ATTACKS:
 		## 仅开 3.3 基础攻击遍（玩家顺序）；Massive 在 phase_attacks 内替换，无平行遍。
 		investigators_remaining_this_phase = player_order.duplicate()
@@ -323,10 +323,16 @@ func _on_enter_step(step: AhcEnums.FrameworkStep) -> void:
 
 func _resolve_upkeep_draw_and_resource() -> void:
 	var tags: Array[StringName] = [&"framework", &"upkeep_4_4"]
-	if _game_ctx != null and _game_ctx.draw_investigator != null and _game_ctx.resource_gain != null:
+	if _game_ctx != null and _game_ctx.sequence_catalog != null:
 		for inv_id in player_order:
-			_game_ctx.draw_investigator.draw_cards(_game_ctx, inv_id, 1, tags)
-			_game_ctx.resource_gain.gain(_game_ctx, inv_id, 1, tags)
+			_game_ctx.run_seq(
+				&"seq.draw.investigator",
+				{"inv_id": inv_id, "amount": 1, "source_tags": tags}
+			)
+			_game_ctx.run_seq(
+				&"seq.effect.gain_resource",
+				{"controller_id": inv_id, "base_amount": 1, "source_tags": tags}
+			)
 		return
 	for inv_id in player_order:
 		if _game_ctx != null and _game_ctx.mutator != null:

@@ -9,7 +9,7 @@ extends RefCounted
 ## - 横置/重整 → `ExhaustReadyFlow`
 ## - 伤/败 → `DefeatFlow` / `seq.effect.defeat`
 ## - 攻击效果 → `EnemyAttackFlow` / `seq.enemy.attack`
-## - 敌军阶段 → `EnemyPhaseService`
+## - 敌军阶段 → `GameContext.run_seq`（`seq.enemy.3_2` / `seq.enemy.phase_attacks`）
 ## 本类不再提供 spawn_* / apply_engage / deal_damage 等语义方法。
 
 
