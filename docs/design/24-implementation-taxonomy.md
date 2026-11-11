@@ -50,7 +50,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 ## 3. 不成桶 — **不必再开职责桶**
 
-不成桶不是第六职责，只是 **不进五桶的东西**。再拆成一等桶会重蹈「空分类」：它们不压栈、不发起、不查询局面规则语义。
+不成桶不是第五职责，只是 **不进四桶的东西**。再拆成一等桶会重蹈「空分类」：它们不压栈、不发起、不查询局面规则语义。
 
 可读性上允许 **标签**（文档/盘点用，非后缀硬规则）：
 
@@ -59,8 +59,8 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | **DTO / Spec** | 参数、意图、能力描述、选择规格 | `EffectRequest`、`InitiationIntent`、`SelectionSpec`、`EnemyAttack` |
 | **静态树** | Composition / ST.7 计划树 | `CompositionNode`、`SkillTestSt7Plan` |
 | **局面形** | 实体状态、物理槽、枚举 | `CardInstance`、`InvestigatorState`、`AhcEnums` |
-| **L0 附属** | 仅被 Flow 调用的写局面/域辅助（优先收进对应 `*Flow`，勿增殖） | `EncounterDoomPlacement`、`RevealLocationFlow` |
-| **Policy / 表** | 阈值、挂载表、配置谓词 | `AgendaDoomQuery`、`KeywordProfileTable`、`EnterHandTimingPolicy` |
+| **L0 附属** | 仅被 Flow 调用的写局面/域辅助（优先收进对应 `*Flow`，勿增殖） | `DamageAssigner`、`SwarmPack`、`ScenarioSetAside` |
+| **Policy / 表** | 阈值、挂载表、配置谓词 | `KeywordProfileTable`、`RuleProfileTable`、`EnterHandTimingPolicy` |
 
 **禁止**：为上述标签新建 `*DtoBucket` / `*SpecService` 等职责层；标签只服务阅读。
 
@@ -110,7 +110,30 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 ---
 
-## 7. 变更记录
+## 7. 全库普查（2026-11-11）
+
+范围：生产 `class_name` **233**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。
+
+| 桶 | 数量 |
+|---|---|
+| 流程体 | 38 |
+| 查询 | 27 |
+| 管线 | 38 |
+| 底座 | 31 |
+| 不成桶 | 99 |
+
+不成桶标签：DTO / Spec 54、局面形 19、Policy / 表 9、L0 附属 8、编译器 6、静态树 3。
+
+`*Trigger` / `*Service` / `*System` 均为 0。`TriggeringCondition`、`TriggeredAbilityDescriptor`、`TriggeredAbilityPipeline` 是时点信封与发起管线。
+
+仍是专用实现类、尚未收成静态规格（本次只登记）：
+
+- `StartingKeyword`：开局检索牌库并入手
+- `BlessCurseRules`：祝福 / 诅咒在技能检定 ST.4 的符号效果
+
+后缀与职责不一致，不因此新开桶：`MassiveEngagement`（流程体）、`StatQuery` / `ModifierQuery`（规格，不读局面）、`SequenceHandler`（Catalog 订阅记录）。另有 13 个只读类没有 `*Query` / `*Status` 后缀。
+
+## 8. 变更记录
 
 | 日期 | 说明 |
 |---|---|
@@ -122,3 +145,4 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | 2026-11-11 | 关键词开火体改静态 nest 规格：`KeywordProfile.effect_*` + `KeywordEffects`；猎手/巡逻/涌动/反击/警戒/毁灭/逃逸不再各写实现类；蜂拥垫牌为 `SwarmPadFlow`，庞大阶段攻击批留在交战域 |
 | 2026-11-10 | 删除 `KeywordMovementFlowHandlers`：猎手/巡逻只填 `toward`，地点变更统一 `MoveFlow` / `seq.effect.move` |
 | 2026-11-10 | 深合并：`SwarmDamage`→`DefeatFlow`；`EncounterGainedKeyword`/`AloofStatus`/`EncounterPeril`/`EncounterPrivacy`→`KeywordMount`；`Hunter`/`Patrol` 目标并入 `MoveFlow.toward`；`DrawEncounterSubflow`→`DrawEncounterFlow`；`DrawSubflow`→`DrawInvestigatorFlow`；`LocationEnterRules`→`RevealLocationFlow`；`InvestigatorCampaignSystem`→`InvestigatorCampaignPipeline`；`DamagePipeline`→`DealInvestigatorPipeline`；`DealPreImpact`→`DealOutboundPipeline`；`AgendaDoomPolicy`→`AgendaDoomQuery`+写入并入 `AgendaAdvanceFlow`；`EncounterCardDiscard`→`ZoneMoveFlow`；`InvestigatorElimination`→`DefeatFlow` |
+| 2026-11-11 | 全库普查：生产 `class_name` 233（不含 tests 7、ui 5）。流程体 38、查询 27、管线 38、底座 31、不成桶 99。`*Trigger` / `*Service` / `*System` 均为 0。仍是专用实现类、未收成规格：`StartingKeyword`、`BlessCurseRules` |

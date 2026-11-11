@@ -1,7 +1,7 @@
 class_name ScenarioPipeline
 extends RefCounted
 
-## 场景编排管线：组局 / 推进聚合入口；对局步经 `GameContext.run_seq`（五桶 · Pipeline）。
+## 场景编排管线：组局 / 推进聚合入口；对局步经 `GameContext.run_seq`（四桶 · Pipeline）。
 var _state: GameStateStore
 var _log: GameLog
 var _game_ctx: GameContext = null
