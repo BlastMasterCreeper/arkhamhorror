@@ -38,6 +38,8 @@ var stat_emitter: GameStatEmitter
 var active_investigator_id: StringName = &""
 var performing_investigator_id: StringName = &""
 var lead_investigator_id: StringName = &""
+## 建局挂上的固定规则 id。未挂载则 RuleMount 不消费。
+var mounted_rules: Dictionary = {}
 var skill_test_stack: Array[SkillTestContext] = []
 
 

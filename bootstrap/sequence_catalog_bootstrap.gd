@@ -660,6 +660,50 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return KeywordEffects.resolve(game_ctx, &"elusive", params)
 	)
+	_register_rule_flows(catalog)
+
+
+static func _register_rule_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.effect.opportunity_attacks",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("investigator_id", &"")
+			return TriggeringCondition.custom(
+				&"opportunity_attacks", inv_id, [&"rule", &"opportunity_attack"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EnemyAttackFlow.opportunity_attacks(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.fight_fail_redirect",
+		func(params: Dictionary) -> TriggeringCondition:
+			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+			return TriggeringCondition.custom(
+				&"fight_fail_redirect", enemy_id, [&"rule", &"fight_fail_redirect"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return DealInvestigatorPipeline.redirect_fight_damage(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.rule.opportunity_attack",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("investigator_id", &"")
+			return TriggeringCondition.custom(
+				&"rule_opportunity_attack", inv_id, [&"rule", &"opportunity_attack"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, RuleProfileTable.RULE_OPPORTUNITY, params)
+	)
+	catalog.register_run(
+		&"seq.rule.fight_fail_redirect",
+		func(params: Dictionary) -> TriggeringCondition:
+			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+			return TriggeringCondition.custom(
+				&"rule_fight_fail_redirect", enemy_id, [&"rule", &"fight_fail_redirect"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, RuleProfileTable.RULE_FIGHT_FAIL, params)
+	)
 
 
 static func _register_interrupt_flows(catalog: SequenceCatalog) -> void:

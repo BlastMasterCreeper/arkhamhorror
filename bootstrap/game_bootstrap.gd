@@ -72,6 +72,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.sequences.bind_game_context(ctx)
 	ctx.effects.bind_game_context(ctx)
 	ZoneMoveFlow.bind_mutator(ctx)
+	RuleMount.mount_builtin(ctx)
 	return ctx
 
 

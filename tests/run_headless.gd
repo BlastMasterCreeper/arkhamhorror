@@ -4985,11 +4985,11 @@ func _test_adb_compile_12113() -> bool:
 
 func _test_adb_engage_types_provoke_aoo() -> bool:
 	## Engage 不在借机豁免类型内（仅 Fight/Evade/Parley/Resign）。
-	if not AttackOfOpportunityTrigger.provokes_for_types(
+	if not RuleProfileTable.provokes_for_types(
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.ENGAGE]
 	):
 		return false
-	if AttackOfOpportunityTrigger.provokes_for_types(
+	if RuleProfileTable.provokes_for_types(
 		[AhcEnums.ActionType.ACTIVATE, AhcEnums.ActionType.FIGHT]
 	):
 		return false

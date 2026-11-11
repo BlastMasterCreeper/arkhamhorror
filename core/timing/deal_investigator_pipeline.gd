@@ -445,6 +445,47 @@ static func _apply_legs(
 					touched_assets.append(id)
 
 
+## Fight 失败转嫁：伤害直接记到威胁区持有者。规格 nest 本写；门在 RuleProfile。
+static func redirect_fight_damage(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": true, "redirected": false}
+	var attacker_id: StringName = params.get("attacker_id", params.get("investigator_id", &""))
+	var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+	var fight_damage: int = int(params.get("fight_damage", 0))
+	var holder_id := ThreatAreaQuery.other_engaged_holder(game_ctx, enemy_id, attacker_id)
+	if holder_id == &"" or fight_damage <= 0:
+		return {"ok": true, "redirected": false}
+	var holder := game_ctx.state.registry.get_investigator(holder_id)
+	if holder == null:
+		return {"ok": true, "redirected": false}
+	if game_ctx.mutator != null:
+		game_ctx.mutator.transfer_marker(
+			AhcEnums.MarkerKind.DAMAGE,
+			fight_damage,
+			MarkerSlot.supply(AhcEnums.MarkerKind.DAMAGE),
+			MarkerSlot.investigator(holder_id, AhcEnums.MarkerKind.DAMAGE)
+		)
+	else:
+		holder.damage_taken += fight_damage
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.DAMAGE,
+			"fight_fail_redirect",
+			{
+				"attacker": attacker_id,
+				"enemy_id": enemy_id,
+				"target": holder_id,
+				"damage": fight_damage,
+			}
+		)
+	return {
+		"ok": true,
+		"redirected": true,
+		"target": holder_id,
+		"damage": fight_damage,
+	}
+
+
 static func _check_caps_after_apply(
 	game_ctx: GameContext,
 	inv_id: StringName,

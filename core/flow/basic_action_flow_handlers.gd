@@ -79,7 +79,16 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 		ModifierEngine.settle_amount_plan(game_ctx, plan)
 	test.on_fail = func(_ctx: SkillTestContext) -> void:
 		var fight_damage: int = int(extra.get("fight_damage", 1))
-		FightFailRedirectTrigger.try_redirect(game_ctx, inv_copy, enemy_id_copy, fight_damage)
+		RuleMount.consume_at(
+			game_ctx,
+			RuleProfileTable.SLOT_FIGHT_FAIL,
+			{
+				"investigator_id": inv_copy,
+				"enemy_id": enemy_id_copy,
+				"card_id": enemy_id_copy,
+				"fight_damage": fight_damage,
+			}
+		)
 	var result := _skill_tests.run_full_test(test, game_ctx, commits)
 	return {
 		"ok": true,
