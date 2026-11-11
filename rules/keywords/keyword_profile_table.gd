@@ -150,14 +150,18 @@ static func play_form(has_fast: bool, has_timing_point: bool) -> StringName:
 static func _all() -> Array[KeywordProfile]:
 	var profiles: Array[KeywordProfile] = []
 	## LISTENER · 涌动：挂载抽牌 WHEN；开火 = 本条 AFTER 之后（DELAYED）
-	profiles.append(_row(
+	var surge := _row(
 		&"surge", BUFF_LISTENER,
 		FLOW_DRAW_ENCOUNTER, SLOT_WHEN,
 		FLOW_DRAW_ENCOUNTER, SLOT_AFTER,
 		ZONE_LIMBO, LIFE_UNTIL_FIRED,
 		SLOT_AFTER_DRAWN_CARD, FLOW_KEYWORD_SURGE,
 		FLOW_DRAW_ENCOUNTER, 10, TIER_DELAYED
-	))
+	)
+	surge.effect_flow_id = FLOW_DRAW_ENCOUNTER
+	surge.effect_params = {"drawer_id": "$drawer_id"}
+	surge.effect_report = &"surge"
+	profiles.append(surge)
 	profiles.append(_row(
 		&"starting", BUFF_LISTENER,
 		FLOW_SETUP, SLOT_SETUP,
@@ -175,18 +179,25 @@ static func _all() -> Array[KeywordProfile]:
 		FLOW_ENCOUNTER_SPAWN, 10, TIER_DELAYED
 	))
 	## LISTENER · 进场挂载；开火锚在固定框架/攻击/检定流程（非流程内联管理体）
-	profiles.append(_row(
+	var hunter := _row(
 		&"hunter", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
 		SLOT_ENEMY_3_2, FLOW_KEYWORD_HUNTER,
 		FLOW_ENEMY_3_2, 10, TIER_LISTENER
-	))
-	profiles.append(_row(
+	)
+	hunter.effect_flow_id = &"seq.effect.move"
+	hunter.effect_params = _enemy_toward(&"nearest_investigator", "keyword:hunter")
+	profiles.append(hunter)
+	var patrol := _row(
 		&"patrol", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
 		SLOT_ENEMY_3_2, FLOW_KEYWORD_PATROL,
 		FLOW_ENEMY_3_2, 20, TIER_LISTENER
-	))
+	)
+	patrol.effect_flow_id = &"seq.effect.move"
+	patrol.effect_params = _enemy_toward(&"patrol", "keyword:patrol")
+	patrol.effect_params["def_id"] = "$def_id"
+	profiles.append(patrol)
 	profiles.append(_row(
 		&"retaliate", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
@@ -266,6 +277,21 @@ static func _all() -> Array[KeywordProfile]:
 	profiles.append(_row(&"researched", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	profiles.append(_row(&"customizable", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	return profiles
+
+
+## 敌人向目标走一步的静态参数。`$card_id` 开火时代入。
+static func _enemy_toward(toward: StringName, log_tag: String) -> Dictionary:
+	return {
+		"subject": &"enemy",
+		"enemy_id": "$card_id",
+		"toward": toward,
+		"move_kind": &"move",
+		"steps": 1,
+		"mode": &"toward",
+		"ready_unengaged": true,
+		"swarm_host_only": true,
+		"log_tag": log_tag,
+	}
 
 
 static func _row(

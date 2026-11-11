@@ -25,3 +25,9 @@ var fire_flow_id: StringName = &""
 var fire_priority: int = 100
 ## 跨类档：与 AbilityCategoryTier / SequenceHandler.Tier 对齐（LISTENER / DELAYED…）。
 var category_tier: StringName = &"LISTENER"
+## 开火体：静态 nest 规格（与卡面 Composition 的 nest 叶同一种语言）。
+## `$card_id` / `$drawer_id` / `$def_id` 在开火时从绑定参数代入。空 = 仍由专属流程解释。
+var effect_flow_id: StringName = &""
+var effect_params: Dictionary = {}
+## `surge`：UNTIL_FIRED 卸标记，并把再抽结果包成涌动报告。
+var effect_report: StringName = &""

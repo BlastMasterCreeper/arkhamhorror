@@ -117,5 +117,6 @@
 | 2026-11-10 | v1.1：收掉 per-seq 薄门面；统一 `run_seq`；合并重复薄层 |
 | 2026-11-10 | **v2**：取消门面桶 → 五桶；`ScenarioService` → `ScenarioPipeline`；不成桶只保留标签、不开新职责 |
 | 2026-11-10 | 删除 `EnemyMovement`：并入 `MoveFlow._hop_enemy_one_step_toward`（禁 L0 类膨胀） |
+| 2026-11-11 | 关键词开火体改静态 nest 规格：`KeywordProfile.effect_*` + `KeywordEffects`；猎手/巡逻/涌动不再各写实现类 |
 | 2026-11-10 | 删除 `KeywordMovementFlowHandlers`：猎手/巡逻只填 `toward`，地点变更统一 `MoveFlow` / `seq.effect.move` |
 | 2026-11-10 | 深合并：`SwarmDamage`→`DefeatFlow`；`EncounterGainedKeyword`/`AloofStatus`/`EncounterPeril`/`EncounterPrivacy`→`KeywordMount`；`Hunter`/`Patrol` 目标并入 `MoveFlow.toward`；`DrawEncounterSubflow`→`DrawEncounterFlow`；`DrawSubflow`→`DrawInvestigatorFlow`；`LocationEnterRules`→`RevealLocationFlow`；`InvestigatorCampaignSystem`→`InvestigatorCampaignPipeline`；`DamagePipeline`→`DealInvestigatorPipeline`；`DealPreImpact`→`DealOutboundPipeline`；`AgendaDoomPolicy`→`AgendaDoomQuery`+写入并入 `AgendaAdvanceFlow`；`EncounterCardDiscard`→`ZoneMoveFlow`；`InvestigatorElimination`→`DefeatFlow` |
