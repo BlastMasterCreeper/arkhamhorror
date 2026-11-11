@@ -440,7 +440,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 **不是关键词（可挂载特征）**：**独特（Unique / `[unique]`）**、**胜利（Victory X）**、**复仇（Vengeance X）** → `CharacteristicMount`（`BuffType.CHARACTERISTIC`）于 `ENTER_PLAY` 挂载；打出前 `UniqueTitle` 查同名；击败读有效胜利/复仇改去向。**不**进 `KeywordProfileTable` / `KeywordMount`。
 
-**开火体不是实现类。** LISTENER 的行为写在 `KeywordProfile.effect_flow_id` + `effect_params`（静态 nest 规格，`$card_id` / `$drawer_id` / `$def_id` 开火时代入）。`KeywordEffects` 在已压栈的 `seq.keyword.*` 里解释并 nest 已有 seq，与卡面 Composition 的 nest 叶同一语言。`seq.keyword.*` 只保留时点锚。尚未收成规格的（蜂拥垫牌、庞大替换、反击/警戒）仍暂留专属流程，新关键词禁止再加 `*KeywordFlow`。
+**开火体不是实现类。** LISTENER 的行为写在 `KeywordProfile.effect_flow_id` / `effect_steps` / `effect_when`（静态 nest 规格，`$card_id` / `$drawer_id` / `$def_id` / `$investigator_id` 开火时代入）。`KeywordEffects` 在已压栈的 `seq.keyword.*` 里解释并 nest 已有 seq，与卡面 Composition 的 nest 叶同一语言。`seq.keyword.*` 只保留时点锚。猎手、巡逻、涌动、反击、警戒、毁灭、蜂拥（垫牌手续 `seq.effect.pad_swarm`）、庞大（阶段攻击批 `seq.effect.massive_phase_batch`）都走这套规格。逃逸仍是多步手续，尚未收成规格。新关键词禁止再加 `*KeywordFlow`。
 
 **C2 · LISTENER**（Catalog emit；延时用 `UNTIL_FIRED`）
 

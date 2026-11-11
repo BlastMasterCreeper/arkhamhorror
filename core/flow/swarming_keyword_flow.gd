@@ -1,8 +1,8 @@
 class_name SwarmingKeywordFlow
 extends RefCounted
 
-## 蜂拥（Swarming X）延时开火：进场结算之后垫 X 张集群卡牌（代理+投影）。
-## 集群卡牌不结算 Swarming；独特主体跳过垫牌；库不足则尽其所能。
+## 蜂拥垫牌手续 `seq.effect.pad_swarm`：进场后垫 X 张集群卡牌（代理+投影）。
+## 关键词入口是规格 nest，本类只做垫牌。集群卡牌不垫；独特主体跳过；库不足则尽其所能。
 
 
 static func run(game_ctx: GameContext, params: Dictionary) -> Dictionary:

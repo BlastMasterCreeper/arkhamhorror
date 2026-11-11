@@ -22,7 +22,8 @@ static func consume_at(
 	game_ctx: GameContext,
 	slot: StringName,
 	drawer_id: StringName,
-	card_id: StringName
+	card_id: StringName,
+	facts: Dictionary = {}
 ) -> Dictionary:
 	var merged := {
 		"ok": true,
@@ -45,14 +46,19 @@ static func consume_at(
 			continue
 		if catalog == null or not catalog.has_flow(profile.consume_flow_id):
 			continue
+		var payload := {
+			"drawer_id": drawer_id,
+			"card_id": card_id,
+			"def_id": def_id,
+		}
+		for fact_key in facts.keys():
+			payload[fact_key] = facts[fact_key]
+		if not KeywordEffects.matches(game_ctx, profile.keyword, payload):
+			continue
 		var nested: Dictionary = catalog.nest(
 			game_ctx,
 			profile.consume_flow_id,
-			{
-				"drawer_id": drawer_id,
-				"card_id": card_id,
-				"def_id": def_id,
-			}
+			payload
 		)
 		_merge_nested(merged, nested)
 	return merged

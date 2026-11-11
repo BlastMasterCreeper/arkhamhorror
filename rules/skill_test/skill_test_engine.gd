@@ -316,8 +316,22 @@ func run_full_test(ctx: SkillTestContext, game_ctx: GameContext = null, commits:
 	close_player_window(ctx)
 	continue_after_reveal_window(ctx)
 	step_apply_results(ctx)
-	if game_ctx != null:
-		RetaliateAlertTrigger.resolve_post_st7(game_ctx, ctx)
+	if game_ctx != null and ctx.target_enemy_id != &"":
+		## 反击 / 警戒：规格门在 KeywordEffects；战斗失败后的逃逸仍是独立手续。
+		if not ctx.success:
+			KeywordConsumer.consume_at(
+				game_ctx,
+				KeywordProfileTable.SLOT_POST_ST7_FAIL,
+				ctx.performing_investigator,
+				ctx.target_enemy_id,
+				{
+					"skill": ctx.skill,
+					"success": ctx.success,
+					"investigator_id": ctx.performing_investigator,
+				}
+			)
+		if ctx.skill == AhcEnums.SkillType.COMBAT:
+			ElusiveTrigger.try_flee_was_attacked(game_ctx, ctx.target_enemy_id)
 	step_end(ctx, game_ctx)
 	var result := SkillTestResult.new()
 	result.context = ctx

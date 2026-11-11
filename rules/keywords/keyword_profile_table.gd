@@ -170,14 +170,17 @@ static func _all() -> Array[KeywordProfile]:
 		&"", &"",
 		FLOW_SETUP, 10, TIER_DELAYED
 	))
-	profiles.append(_row(
+	var swarming := _row(
 		&"swarming", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY,
 		&"", SLOT_FIRED,
 		ZONE_PLAY, LIFE_UNTIL_FIRED,
 		SLOT_FIRED, FLOW_KEYWORD_SWARMING,
 		FLOW_ENCOUNTER_SPAWN, 10, TIER_DELAYED
-	))
+	)
+	swarming.effect_flow_id = &"seq.effect.pad_swarm"
+	swarming.effect_params = {"card_id": "$card_id", "enemy_id": "$card_id"}
+	profiles.append(swarming)
 	## LISTENER · 进场挂载；开火锚在固定框架/攻击/检定流程（非流程内联管理体）
 	var hunter := _row(
 		&"hunter", BUFF_LISTENER,
@@ -198,30 +201,46 @@ static func _all() -> Array[KeywordProfile]:
 	patrol.effect_params = _enemy_toward(&"patrol", "keyword:patrol")
 	patrol.effect_params["def_id"] = "$def_id"
 	profiles.append(patrol)
-	profiles.append(_row(
+	var retaliate := _row(
 		&"retaliate", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
-		SLOT_POST_ST7_FAIL, &"",
+		SLOT_POST_ST7_FAIL, &"seq.keyword.retaliate",
 		FLOW_SKILL_TEST, 10, TIER_LISTENER
-	))
-	profiles.append(_row(
+	)
+	retaliate.effect_flow_id = &"seq.enemy.attack"
+	retaliate.effect_params = _keyword_attack(AhcEnums.AttackKind.RETALIATE)
+	retaliate.effect_when = _fail_ready_here(AhcEnums.SkillType.COMBAT)
+	profiles.append(retaliate)
+	var alert := _row(
 		&"alert", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
-		SLOT_POST_ST7_FAIL, &"",
+		SLOT_POST_ST7_FAIL, &"seq.keyword.alert",
 		FLOW_SKILL_TEST, 20, TIER_LISTENER
-	))
+	)
+	alert.effect_flow_id = &"seq.enemy.attack"
+	alert.effect_params = _keyword_attack(AhcEnums.AttackKind.ALERT)
+	alert.effect_when = _fail_ready_here(AhcEnums.SkillType.AGILITY)
+	profiles.append(alert)
 	profiles.append(_row(
 		&"elusive", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
 		SLOT_AFTER_ATTACK, &"",
 		FLOW_ENEMY_ATTACK, 10, TIER_LISTENER
 	))
-	profiles.append(_row(
+	var doomed := _row(
 		&"doomed", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
-		SLOT_ON_DEFEAT, &"",
+		SLOT_ON_DEFEAT, &"seq.keyword.doomed",
 		FLOW_ENEMY_DEFEAT, 10, TIER_LISTENER
-	))
+	)
+	doomed.effect_steps = [
+		{"flow_id": &"seq.mythos.place_doom", "params": {}},
+		{
+			"flow_id": &"seq.mythos.check_doom_threshold",
+			"params": {"source": &"card_effect", "explicit": true},
+		},
+	]
+	profiles.append(doomed)
 	## RESTRICTION · 险境 = 遭遇抽牌 G2 / G4 已有砖（无 fire_priority；挂载即生效）
 	profiles.append(_row(
 		&"peril", BUFF_RESTRICTION,
@@ -240,12 +259,15 @@ static func _all() -> Array[KeywordProfile]:
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY
 	))
 	## 庞大：RESTRICTION（交战）+ 对一般攻击效果 seq.enemy.attack 的 REPLACE（PHASE→batch）
-	profiles.append(_row(
+	var massive := _row(
 		&"massive", BUFF_RESTRICTION,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
 		SLOT_ATTACK, FLOW_KEYWORD_MASSIVE,
 		FLOW_ENEMY_ATTACK, 10, TIER_REPLACE
-	))
+	)
+	massive.effect_flow_id = &"seq.effect.massive_phase_batch"
+	massive.effect_params = {"enemy_id": "$card_id", "card_id": "$card_id"}
+	profiles.append(massive)
 	## 玩家轴 · 永久：进场挂 FORBID_LEAVE_PLAY；开场由 setup 放入场。
 	profiles.append(_row(
 		&"permanent", BUFF_RESTRICTION,
@@ -277,6 +299,24 @@ static func _all() -> Array[KeywordProfile]:
 	profiles.append(_row(&"researched", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	profiles.append(_row(&"customizable", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	return profiles
+
+
+static func _keyword_attack(kind: AhcEnums.AttackKind) -> Dictionary:
+	return {
+		"enemy_id": "$card_id",
+		"target_investigator": "$investigator_id",
+		"attack_kind": kind,
+		"exhaust_after": false,
+	}
+
+
+static func _fail_ready_here(skill: AhcEnums.SkillType) -> Dictionary:
+	return {
+		"skill": skill,
+		"success": false,
+		"ready": true,
+		"same_location": true,
+	}
 
 
 ## 敌人向目标走一步的静态参数。`$card_id` 开火时代入。

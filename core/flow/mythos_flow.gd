@@ -72,9 +72,14 @@ static func place_on_current_agenda(
 	return placed
 
 
-static func check_doom_threshold(game_ctx: GameContext) -> Dictionary:
+static func check_doom_threshold(
+	game_ctx: GameContext,
+	params: Dictionary = {}
+) -> Dictionary:
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false, "reason": &"invalid_context"}
+	var source: StringName = params.get("source", &"mythos_1_3")
+	var explicit: bool = bool(params.get("explicit", false))
 	if not AgendaDoomQuery.meets_threshold(game_ctx.state):
 		if game_ctx.log != null:
 			game_ctx.log.log(
@@ -92,7 +97,7 @@ static func check_doom_threshold(game_ctx: GameContext) -> Dictionary:
 			"doom_in_play": AgendaDoomQuery.doom_in_play(game_ctx.state),
 		}
 	var advance := AgendaAdvanceFlow.try_nest_if_needed(
-		game_ctx, &"mythos_1_3", false
+		game_ctx, source, explicit
 	)
 	if game_ctx.log != null:
 		game_ctx.log.log(

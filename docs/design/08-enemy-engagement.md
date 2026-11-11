@@ -431,7 +431,7 @@ func discard_spawn_failed(enemy_id: StringName) -> void:
 
 - Damage >= health → defeated → encounter discard（或 weakness owner discard）；**Victory X > 0** → `victory_display`（`EnemyDefeatResolver`）
 - Victory X → victory display（discard 不算 defeat，不进 victory display）
-- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）；实现见 `DoomedTrigger` / `EnemyDefeatResolver`
+- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）；规格 `KeywordProfile` doomed → `seq.mythos.place_doom` 再 `seq.mythos.check_doom_threshold`（`source=card_effect`）
 
 ---
 

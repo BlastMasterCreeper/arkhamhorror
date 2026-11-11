@@ -219,7 +219,13 @@ static func finalize_leave_play(
 	if SwarmPack.is_swarm_card(game_ctx, enemy_id):
 		return _finalize_swarm_leave(game_ctx, enemy_id)
 	_clear_enemy_engagement(game_ctx, enemy_id)
-	DoomedTrigger.try_on_defeat(game_ctx, enemy_id)
+	## 毁灭（Doomed）在注销前开火；弃置不走本帧。
+	KeywordConsumer.consume_at(
+		game_ctx,
+		KeywordProfileTable.SLOT_ON_DEFEAT,
+		&"",
+		enemy_id
+	)
 	var routed := _route_enemy_after_defeat(game_ctx, enemy_id)
 	game_ctx.state.registry.unregister_enemy(enemy_id)
 	if game_ctx.log != null:

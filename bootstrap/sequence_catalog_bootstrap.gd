@@ -481,8 +481,8 @@ static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
 		&"seq.mythos.check_doom_threshold",
 		func(_params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.mythos_check_doom_threshold(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return MythosFlow.check_doom_threshold(game_ctx)
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return MythosFlow.check_doom_threshold(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.agenda.advance",
@@ -573,12 +573,32 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			return KeywordEffects.resolve(game_ctx, &"patrol", params)
 	)
 	catalog.register_run(
+		&"seq.effect.massive_phase_batch",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"massive_phase_batch", card_id, [&"keyword", &"massive"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return MassiveEngagement.resolve_keyword(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.pad_swarm",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"pad_swarm", card_id, [&"keyword", &"swarming"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SwarmingKeywordFlow.run(game_ctx, params)
+	)
+	catalog.register_run(
 		&"seq.keyword.massive",
 		func(params: Dictionary) -> TriggeringCondition:
 			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
 			return TriggeringCondition.keyword_massive(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return MassiveEngagement.resolve_keyword(game_ctx, params)
+			return KeywordEffects.resolve(game_ctx, &"massive", params)
 	)
 	catalog.register_run(
 		&"seq.keyword.swarming",
@@ -588,7 +608,37 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 				&"keyword_swarming", card_id, [&"keyword", &"swarming"]
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return SwarmingKeywordFlow.run(game_ctx, params)
+			return KeywordEffects.resolve(game_ctx, &"swarming", params)
+	)
+	catalog.register_run(
+		&"seq.keyword.retaliate",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_retaliate", card_id, [&"keyword", &"retaliate"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"retaliate", params)
+	)
+	catalog.register_run(
+		&"seq.keyword.alert",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_alert", card_id, [&"keyword", &"alert"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"alert", params)
+	)
+	catalog.register_run(
+		&"seq.keyword.doomed",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_doomed", card_id, [&"keyword", &"doomed"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"doomed", params)
 	)
 
 
