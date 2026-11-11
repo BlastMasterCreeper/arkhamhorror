@@ -45,7 +45,13 @@ static func perform(game_ctx: GameContext, attack: EnemyAttack) -> void:
 				"trigger_area_change": false,
 			}
 		)
-	ElusiveTrigger.try_flee_after_enemy_attack(game_ctx, attack.enemy_id)
+	KeywordConsumer.consume_at(
+		game_ctx,
+		KeywordProfileTable.SLOT_AFTER_ATTACK,
+		&"",
+		attack.enemy_id,
+		{"cause": &"attacks"}
+	)
 
 
 static func _deal_via_seq(game_ctx: GameContext, attack: EnemyAttack) -> void:

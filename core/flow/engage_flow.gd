@@ -152,6 +152,34 @@ static func disengage(
 	return {"ok": true, "enemy_id": enemy_id, "location_tag": location_tag}
 
 
+## 整包解除交战，不触发区域变更自动交战。逃逸规格 nest 本手续。
+static func disengage_pack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false}
+	var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+	if enemy_id == &"":
+		return {"ok": true, "skipped": true}
+	for mid in SwarmPack.pack_ids(game_ctx, enemy_id):
+		_disengage_member(game_ctx, mid)
+	SwarmPack.sync_engagement(game_ctx, enemy_id)
+	return {"ok": true, "enemy_id": enemy_id}
+
+
+static func _disengage_member(game_ctx: GameContext, enemy_id: StringName) -> void:
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return
+	if enemy.massive:
+		MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
+		enemy.engaged_with = &""
+		return
+	for inv_id in game_ctx.state.registry.all_investigator_ids():
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv != null:
+			inv.threat_area.erase(enemy_id)
+	enemy.engaged_with = &""
+
+
 static func _normalize_params(params: Dictionary) -> Dictionary:
 	var out := params.duplicate()
 	var raw: StringName = out.get("mode", out.get("source", MODE_AUTO)) as StringName

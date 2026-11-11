@@ -317,7 +317,7 @@ func run_full_test(ctx: SkillTestContext, game_ctx: GameContext = null, commits:
 	continue_after_reveal_window(ctx)
 	step_apply_results(ctx)
 	if game_ctx != null and ctx.target_enemy_id != &"":
-		## 反击 / 警戒：规格门在 KeywordEffects；战斗失败后的逃逸仍是独立手续。
+		## 反击 / 警戒 / 逃逸：规格门在 KeywordEffects。战斗检定后的逃逸在反击之后。
 		if not ctx.success:
 			KeywordConsumer.consume_at(
 				game_ctx,
@@ -331,7 +331,13 @@ func run_full_test(ctx: SkillTestContext, game_ctx: GameContext = null, commits:
 				}
 			)
 		if ctx.skill == AhcEnums.SkillType.COMBAT:
-			ElusiveTrigger.try_flee_was_attacked(game_ctx, ctx.target_enemy_id)
+			KeywordConsumer.consume_at(
+				game_ctx,
+				KeywordProfileTable.SLOT_AFTER_ATTACK,
+				ctx.performing_investigator,
+				ctx.target_enemy_id,
+				{"cause": &"was_attacked"}
+			)
 	step_end(ctx, game_ctx)
 	var result := SkillTestResult.new()
 	result.context = ctx

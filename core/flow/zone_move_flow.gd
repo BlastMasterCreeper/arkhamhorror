@@ -147,7 +147,7 @@ static func _apply_enter_play(game_ctx: GameContext, card_id: StringName) -> voi
 	)
 	CharacteristicMount.mount_at_enter_play(game_ctx, card_id, card.id.definition_id)
 	## 蜂拥延时：进场挂载完成后开火垫牌（不等同于 nest 进场过程）。
-	SwarmingKeywordFlow.try_fire_after_enter_play(game_ctx, card_id)
+	SwarmPadFlow.try_fire_after_enter_play(game_ctx, card_id)
 	if game_ctx.triggered_abilities == null:
 		return
 	if not CardRegistry.has_triggered(card.id.definition_id):

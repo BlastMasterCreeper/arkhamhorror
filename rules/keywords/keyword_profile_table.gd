@@ -221,12 +221,15 @@ static func _all() -> Array[KeywordProfile]:
 	alert.effect_params = _keyword_attack(AhcEnums.AttackKind.ALERT)
 	alert.effect_when = _fail_ready_here(AhcEnums.SkillType.AGILITY)
 	profiles.append(alert)
-	profiles.append(_row(
+	var elusive := _row(
 		&"elusive", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
-		SLOT_AFTER_ATTACK, &"",
+		SLOT_AFTER_ATTACK, &"seq.keyword.elusive",
 		FLOW_ENEMY_ATTACK, 10, TIER_LISTENER
-	))
+	)
+	elusive.effect_when = {"ready": true}
+	elusive.effect_steps = _elusive_steps()
+	profiles.append(elusive)
 	var doomed := _row(
 		&"doomed", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY, &"", SLOT_LEAVE_PLAY, ZONE_PLAY, LIFE_IN_PLAY,
@@ -299,6 +302,38 @@ static func _all() -> Array[KeywordProfile]:
 	profiles.append(_row(&"researched", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	profiles.append(_row(&"customizable", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	return profiles
+
+
+static func _elusive_steps() -> Array:
+	return [
+		{
+			"flow_id": &"seq.effect.disengage_pack",
+			"params": {"enemy_id": "$card_id"},
+		},
+		{
+			"flow_id": &"seq.effect.move",
+			"params": {
+				"subject": MoveFlow.SUBJECT_ENEMY,
+				"enemy_id": "$card_id",
+				"toward": MoveFlow.TOWARD_FLEE,
+				"move_kind": MoveFlow.KIND_MOVE,
+				"mode": MoveFlow.MODE_DIRECT,
+				"auto_engage": false,
+			},
+		},
+		{
+			"flow_id": &"seq.effect.disengage_pack",
+			"params": {"enemy_id": "$card_id"},
+		},
+		{
+			"flow_id": &"seq.effect.exhaust",
+			"params": {
+				"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+				"enemy_id": "$card_id",
+				"trigger_area_change": false,
+			},
+		},
+	]
 
 
 static func _keyword_attack(kind: AhcEnums.AttackKind) -> Dictionary:

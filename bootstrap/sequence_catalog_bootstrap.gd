@@ -402,6 +402,16 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EngageFlow.resolve(game_ctx, params)
 	)
+	catalog.register_run(
+		&"seq.effect.disengage_pack",
+		func(params: Dictionary) -> TriggeringCondition:
+			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+			return TriggeringCondition.custom(
+				&"disengage_pack", enemy_id, [&"engage", &"disengage"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EngageFlow.disengage_pack(game_ctx, params)
+	)
 	## 进入威胁区时点信封（纸面 After engages / After you engage 订此 AFTER）。
 	catalog.register_run(
 		&"seq.effect.enter_threat_area",
@@ -580,7 +590,7 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 				&"massive_phase_batch", card_id, [&"keyword", &"massive"]
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return MassiveEngagement.resolve_keyword(game_ctx, params)
+			return MassiveEngagement.phase_batch_from_params(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.effect.pad_swarm",
@@ -590,7 +600,7 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 				&"pad_swarm", card_id, [&"keyword", &"swarming"]
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return SwarmingKeywordFlow.run(game_ctx, params)
+			return SwarmPadFlow.run(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.keyword.massive",
@@ -639,6 +649,16 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return KeywordEffects.resolve(game_ctx, &"doomed", params)
+	)
+	catalog.register_run(
+		&"seq.keyword.elusive",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_elusive", card_id, [&"keyword", &"elusive"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"elusive", params)
 	)
 
 

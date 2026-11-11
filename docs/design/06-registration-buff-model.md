@@ -440,7 +440,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 **不是关键词（可挂载特征）**：**独特（Unique / `[unique]`）**、**胜利（Victory X）**、**复仇（Vengeance X）** → `CharacteristicMount`（`BuffType.CHARACTERISTIC`）于 `ENTER_PLAY` 挂载；打出前 `UniqueTitle` 查同名；击败读有效胜利/复仇改去向。**不**进 `KeywordProfileTable` / `KeywordMount`。
 
-**开火体不是实现类。** LISTENER 的行为写在 `KeywordProfile.effect_flow_id` / `effect_steps` / `effect_when`（静态 nest 规格，`$card_id` / `$drawer_id` / `$def_id` / `$investigator_id` 开火时代入）。`KeywordEffects` 在已压栈的 `seq.keyword.*` 里解释并 nest 已有 seq，与卡面 Composition 的 nest 叶同一语言。`seq.keyword.*` 只保留时点锚。猎手、巡逻、涌动、反击、警戒、毁灭、蜂拥（垫牌手续 `seq.effect.pad_swarm`）、庞大（阶段攻击批 `seq.effect.massive_phase_batch`）都走这套规格。逃逸仍是多步手续，尚未收成规格。新关键词禁止再加 `*KeywordFlow`。
+**开火体不是实现类。** LISTENER 的行为写在 `KeywordProfile.effect_flow_id` / `effect_steps` / `effect_when`（静态 nest 规格，`$card_id` / `$drawer_id` / `$def_id` / `$investigator_id` 开火时代入）。`KeywordEffects` 在已压栈的 `seq.keyword.*` 里解释并 nest 已有 seq，与卡面 Composition 的 nest 叶同一语言。`seq.keyword.*` 只保留时点锚。猎手、巡逻、涌动、反击、警戒、毁灭、逃逸（解除交战 → `toward=flee` 的 `seq.effect.move` → 再解除 → 横置）、蜂拥（垫牌手续 `seq.effect.pad_swarm`）、庞大（阶段攻击批 `seq.effect.massive_phase_batch`）都走这套规格。新关键词禁止再加 `*KeywordFlow`。
 
 **C2 · LISTENER**（Catalog emit；延时用 `UNTIL_FIRED`）
 
@@ -448,10 +448,10 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 |---|---|---|---|---|---|
 | **Hunter** 猎手 | `AT_ENTER_PLAY` → `KeywordMount` KEYWORD 标记 | `WHILE_IN_PLAY` | `(seq.enemy.3_2, ENEMY_3_2)` · pri **10** | nest `seq.keyword.hunter`（只认武装） | ✅ `KeywordMount` |
 | **Patrol** 巡逻 | 同上 | `WHILE_IN_PLAY` | 同锚 · pri **20** | nest `seq.keyword.patrol` | ✅ `KeywordMount` |
-| **Retaliate** 反击 | 同上 | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | `perform_attack(RETALIATE)`（只认武装） | ✅ `KeywordMount` |
-| **Alert** 警戒 | 同上 | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ `KeywordMount` |
-| **Elusive** 逃逸 | 同上 | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ `KeywordMount` |
-| **Doomed** 厄运降临 | 同上 | `WHILE_IN_PLAY` | 击败（非 discard） | 当前密谋 +1 毁灭 | ✅ `KeywordMount` |
+| **Retaliate** 反击 | 同上 | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | nest `seq.enemy.attack` kind=RETALIATE | ✅ 规格 |
+| **Alert** 警戒 | 同上 | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | nest `seq.enemy.attack` kind=ALERT | ✅ 规格 |
+| **Elusive** 逃逸 | 同上 | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | 解除 → `toward=flee` → 横置 | ✅ 规格 |
+| **Doomed** 厄运降临 | 同上 | `WHILE_IN_PLAY` | 击败（非 discard） | place_doom + check threshold | ✅ 规格 |
 | **Surge** 涌动 | 印刷 **WHEN** 挂 KEYWORD；gained `AT_GRANT` 幂等 | 绑本条抽取；开火后卸标记 | 本条抽取 **AFTER**（已结算） | nest `seq.draw.encounter` amount=1 | ✅ `KeywordMount` + `KeywordConsumer` |
 | **Starting** 起始 | `AT_SETUP` 挂 `WHILE_IN_DECK` | 离库卸 | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | ✅ `StartingKeyword` |
 | **Swarming** | `AFTER_ENTER_PLAY` | `UNTIL_FIRED` | 进场结算之后 | 垫 **X** 张 swarm 牌 | Core 无 |

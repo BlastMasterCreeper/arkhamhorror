@@ -141,8 +141,8 @@ static func _build_attack_order(
 	return targets.duplicate()
 
 
-## `seq.keyword.massive` REPLACE 体 · 原 MassiveKeywordFlow（薄包装已并入）。
-static func resolve_keyword(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+## `seq.effect.massive_phase_batch` · 阶段攻击批（关键词入口只 nest 本手续）。
+static func phase_batch_from_params(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null:
 		return {"ok": false, "attacks": 0}
 	var enemy_id: StringName = params.get("card_id", params.get("enemy_id", &""))

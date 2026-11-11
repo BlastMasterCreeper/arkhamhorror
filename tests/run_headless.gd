@@ -10008,11 +10008,16 @@ func _test_g1_elusive_flee_nests_move() -> bool:
 	)
 	if enemy_id == &"":
 		return false
-	var flee := ElusiveTrigger.try_flee_was_attacked(h.ctx, enemy_id)
+	var flee := KeywordConsumer.consume_at(
+		h.ctx,
+		KeywordProfileTable.SLOT_AFTER_ATTACK,
+		&"",
+		enemy_id,
+		{"cause": &"was_attacked"}
+	)
 	var enemy := h.ctx.state.registry.get_enemy(enemy_id)
 	return (
 		bool(flee.get("ok", false))
-		and bool(flee.get("fled", false))
 		and bool(flee.get("moved", false))
 		and enemy != null
 		and enemy.location_tag == &"flee_loc"

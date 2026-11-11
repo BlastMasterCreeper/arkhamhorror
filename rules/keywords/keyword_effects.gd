@@ -31,11 +31,16 @@ static func resolve(game_ctx: GameContext, keyword: StringName, bind: Dictionary
 			return _surge_empty(true)
 	if not profile.effect_steps.is_empty():
 		var last := {"ok": true}
+		var any_moved := false
 		for raw in profile.effect_steps:
 			var step: Dictionary = raw
 			var flow_id: StringName = step.get("flow_id", &"")
 			var spec: Dictionary = step.get("params", {})
 			last = _nest(game_ctx, flow_id, _bind_params(spec, bind, card_id))
+			if bool(last.get("moved", false)):
+				any_moved = true
+		if any_moved:
+			last["moved"] = true
 		return last
 	var params := _bind_params(profile.effect_params, bind, card_id)
 	var nested := _nest(game_ctx, profile.effect_flow_id, params)

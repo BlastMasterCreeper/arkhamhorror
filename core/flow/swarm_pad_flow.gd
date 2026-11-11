@@ -1,4 +1,4 @@
-class_name SwarmingKeywordFlow
+class_name SwarmPadFlow
 extends RefCounted
 
 ## 蜂拥垫牌手续 `seq.effect.pad_swarm`：进场后垫 X 张集群卡牌（代理+投影）。

@@ -24,6 +24,7 @@ const MODE_DIRECT := &"direct"
 ## 未给 destination 时，由同一内核按来源填目标地点（不是每种来源一个实现类）。
 const TOWARD_NEAREST_INVESTIGATOR := &"nearest_investigator"
 const TOWARD_PATROL := &"patrol"
+const TOWARD_FLEE := &"flee"
 
 
 static func nest_or_run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -449,6 +450,11 @@ static func _resolve_enemy_destination(
 		if not bool(loc.get("ok", false)):
 			return &""
 		return loc.get("location_tag", &"") as StringName
+	if toward == TOWARD_FLEE:
+		var enemy := game_ctx.state.registry.get_enemy(enemy_id) if game_ctx != null and game_ctx.state != null else null
+		if enemy == null:
+			return &""
+		return FleeDestinationQuery.pick(game_ctx, enemy.location_tag)
 	if toward == TOWARD_PATROL:
 		var def_id: StringName = params.get("def_id", &"") as StringName
 		if def_id == &"" and game_ctx != null and game_ctx.state != null:

@@ -313,8 +313,10 @@ Grimoire：未横置 + elusive 在 **攻击** 或 **被攻击** resolve 之后 �
 
 | 分类 | 含 | 时点 | 实现 |
 |---|---|---|---|
-| 敌人 **攻击** | 阶段 / **借机** / 反击 / 警戒 | `perform_attack` 完成后 | `try_flee_after_enemy_attack` |
-| 敌人 **被攻击** | 调查员 Fight 检定（含失败） | post-ST7（反击之后） | `try_flee_was_attacked` |
+| 敌人 **攻击** | 阶段 / **借机** / 反击 / 警戒 | `perform_attack` 完成后 | `KeywordConsumer` @ `AFTER_ATTACK` |
+| 敌人 **被攻击** | 调查员 Fight 检定（含失败） | post-ST7（反击之后） | 同上，`cause=was_attacked` |
+
+规格 `seq.keyword.elusive`：`seq.effect.disengage_pack` → `seq.effect.move`（`toward=flee`，邻接直达，不自动交战）→ 再解除 → `seq.effect.exhaust`。目的地由 `FleeDestinationQuery` 选空连接地点。
 
 **借机攻击** 是敌人发起的 **攻击**（`AttackKind.OPPORTUNITY`），走上行 hook，**不是**「被攻击」。Fight 才是「被攻击」。
 
