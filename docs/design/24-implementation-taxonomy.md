@@ -112,13 +112,13 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 ## 7. 全库普查（2026-11-11）
 
-范围：生产 `class_name` **233**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。
+范围：生产 `class_name` **232**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。
 
 | 桶 | 数量 |
 |---|---|
 | 流程体 | 38 |
 | 查询 | 27 |
-| 管线 | 38 |
+| 管线 | 37 |
 | 底座 | 31 |
 | 不成桶 | 99 |
 
@@ -126,10 +126,11 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 `*Trigger` / `*Service` / `*System` 均为 0。`TriggeringCondition`、`TriggeredAbilityDescriptor`、`TriggeredAbilityPipeline` 是时点信封与发起管线。
 
-仍是专用实现类、尚未收成静态规格（本次只登记）：
+仍是专用实现类、尚未收成静态规格：
 
 - `StartingKeyword`：开局检索牌库并入手
-- `BlessCurseRules`：祝福 / 诅咒在技能检定 ST.4 的符号效果
+
+祝福 / 诅咒不再是实现类：与参考卡同一份符号效果字典，由 `ScenarioReferenceApplier` 在 ST.4 发起。
 
 后缀与职责不一致，不因此新开桶：`MassiveEngagement`（流程体）、`StatQuery` / `ModifierQuery`（规格，不读局面）、`SequenceHandler`（Catalog 订阅记录）。另有 13 个只读类没有 `*Query` / `*Status` 后缀。
 
@@ -146,3 +147,4 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | 2026-11-10 | 删除 `KeywordMovementFlowHandlers`：猎手/巡逻只填 `toward`，地点变更统一 `MoveFlow` / `seq.effect.move` |
 | 2026-11-10 | 深合并：`SwarmDamage`→`DefeatFlow`；`EncounterGainedKeyword`/`AloofStatus`/`EncounterPeril`/`EncounterPrivacy`→`KeywordMount`；`Hunter`/`Patrol` 目标并入 `MoveFlow.toward`；`DrawEncounterSubflow`→`DrawEncounterFlow`；`DrawSubflow`→`DrawInvestigatorFlow`；`LocationEnterRules`→`RevealLocationFlow`；`InvestigatorCampaignSystem`→`InvestigatorCampaignPipeline`；`DamagePipeline`→`DealInvestigatorPipeline`；`DealPreImpact`→`DealOutboundPipeline`；`AgendaDoomPolicy`→`AgendaDoomQuery`+写入并入 `AgendaAdvanceFlow`；`EncounterCardDiscard`→`ZoneMoveFlow`；`InvestigatorElimination`→`DefeatFlow` |
 | 2026-11-11 | 全库普查：生产 `class_name` 233（不含 tests 7、ui 5）。流程体 38、查询 27、管线 38、底座 31、不成桶 99。`*Trigger` / `*Service` / `*System` 均为 0。仍是专用实现类、未收成规格：`StartingKeyword`、`BlessCurseRules` |
+| 2026-11-13 | 祝福/诅咒改为规则自带符号能力：效果字典与参考卡同形，ST.4 走 `ScenarioReferenceApplier`。删除 `BlessCurseRules`。生产类 232，管线 37 |

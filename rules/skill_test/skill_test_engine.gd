@@ -395,10 +395,7 @@ func _discard_committed(ctx: SkillTestContext) -> void:
 
 
 func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:
-	## ST.4：规则自带 Bless/Curse 先于参考卡 / Elder Sign。
-	if BlessCurseRules.try_apply(ctx, token):
-		return
-	## 参考卡隐式符号能力（空白则跳过印刷条）；Elder Sign 走调查员印刷。
+	## ST.4：祝福/诅咒、参考卡符号、Elder Sign 都经同一套符号能力。
 	ScenarioReferenceApplier.apply_token(_game_ctx, ctx, token, _state)
 
 
