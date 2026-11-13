@@ -453,7 +453,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Elusive** 逃逸 | 同上 | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | 解除 → `toward=flee` → 横置 | ✅ 规格 |
 | **Doomed** 厄运降临 | 同上 | `WHILE_IN_PLAY` | 击败（非 discard） | place_doom + check threshold | ✅ 规格 |
 | **Surge** 涌动 | 印刷 **WHEN** 挂 KEYWORD；gained `AT_GRANT` 幂等 | 绑本条抽取；开火后卸标记 | 本条抽取 **AFTER**（已结算） | nest `seq.draw.encounter` amount=1 | ✅ `KeywordMount` + `KeywordConsumer` |
-| **Starting** 起始 | `AT_SETUP` 挂 `WHILE_IN_DECK` | 离库卸 | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | ✅ `StartingKeyword` |
+| **Starting** 起始 | `AT_SETUP` 挂 `WHILE_IN_DECK` | 离库卸 | 起手+mulligan 之后 | 用 `owner_id` nest `seq.effect.search` 找这张牌，再 `seq.enter_hand` | ✅ 规格 |
 | **Swarming** | `AFTER_ENTER_PLAY` | `UNTIL_FIRED` | 进场结算之后 | 垫 **X** 张 swarm 牌 | Core 无 |
 
 涌动不是新 BuffType。`KeywordConsumer` 只是该 LISTENER 尚未接入 TimingCatalog 时的竖切。

@@ -558,6 +558,16 @@ static func _register_chaos_flows(catalog: SequenceCatalog) -> void:
 
 static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
+		&"seq.keyword.starting",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.custom(
+				&"keyword_starting", card_id, [&"keyword", &"starting"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"starting", params)
+	)
+	catalog.register_run(
 		&"seq.keyword.surge",
 		func(params: Dictionary) -> TriggeringCondition:
 			var drawer_id: StringName = params.get("drawer_id", &"")
@@ -889,14 +899,27 @@ static func _nest_enter_hand_revelations(
 	var policy := EnterHandTimingPolicy.new()
 	if game_ctx != null and game_ctx.config != null:
 		policy = game_ctx.config.enter_hand_timing
+	if card_ids.is_empty() and params.has("card_id"):
+		var single: StringName = params.get("card_id", &"")
+		if single != &"":
+			card_ids = [single]
 	var ordered_cards := policy.order_cards_for_revelation(
 		game_ctx, controller_id, card_ids, params
 	)
 	var resolved: Array[StringName] = []
 	if game_ctx == null:
 		return {"revelations": resolved}
+	var from_limbo := bool(params.get("from_limbo", false))
 	for card_id in ordered_cards:
 		var cid := card_id as StringName
+		if from_limbo:
+			var held := game_ctx.state.registry.get_card(cid) if game_ctx.state != null else null
+			if held == null or held.zone != AhcEnums.Zone.LIMBO:
+				continue
+			if game_ctx.mutator != null:
+				game_ctx.mutator.commit_enter_hand(cid, controller_id)
+			if game_ctx.registrations != null:
+				game_ctx.registrations.on_leave_deck(cid)
 		var def_id := _definition_id_of(game_ctx, cid)
 		## 仅玩家卡背：遭遇卡背显现挂在抽取并揭示（seq.encounter.revelation）。
 		if (

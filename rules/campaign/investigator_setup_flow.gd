@@ -126,7 +126,7 @@ static func shuffle_decks(game_ctx: GameContext) -> Dictionary:
 		return {"ok": false}
 	place_permanents(game_ctx)
 	place_bonded(game_ctx)
-	StartingKeyword.mount_printed_in_decks(game_ctx)
+	KeywordMount.mount_starting_in_decks(game_ctx)
 	var shuffled: Array[StringName] = []
 	for inv_id in game_ctx.state.registry.all_investigator_ids():
 		var inv := game_ctx.state.registry.get_investigator(inv_id)
@@ -303,8 +303,8 @@ static func opening_hands(game_ctx: GameContext, opts: Dictionary = {}) -> Dicti
 		results.append(
 			{"id": inv_id, "hand_size": inv.hand.size(), "weaknesses_redrawn": set_aside_weak.size()}
 		)
-	## 起手+mulligan 之后：检索各 1 张 Starting。
-	var starting := StartingKeyword.fire_after_opening_hands(game_ctx)
+	## 起手+mulligan 之后：每张已武装的起始牌用拥有者 nest 检索并入手。
+	var starting := _fire_starting(game_ctx)
 	game_ctx.state.setup_opening_hands_applied = true
 	if game_ctx.log != null:
 		game_ctx.log.log(
@@ -313,6 +313,37 @@ static func opening_hands(game_ctx: GameContext, opts: Dictionary = {}) -> Dicti
 			{"results": results, "starting": starting.get("pulled", [])}
 		)
 	return {"ok": true, "results": results, "starting": starting}
+
+
+## 每张在库且已武装的起始牌：用卡上的 owner nest 检索并入手。
+static func _fire_starting(game_ctx: GameContext) -> Dictionary:
+	var pulled: Array = []
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false, "pulled": pulled}
+	for inv_id in game_ctx.state.registry.all_investigator_ids():
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv == null:
+			continue
+		var snapshot: Array = inv.deck.duplicate()
+		for raw in snapshot:
+			var card_id := raw as StringName
+			if not KeywordMount.is_keyword_armed(game_ctx, card_id, &"starting"):
+				continue
+			var card := game_ctx.state.registry.get_card(card_id)
+			var owner: StringName = inv_id
+			if card != null and card.owner_id != &"":
+				owner = card.owner_id
+			KeywordConsumer.consume_at(
+				game_ctx,
+				KeywordProfileTable.SLOT_AFTER_OPENING,
+				owner,
+				card_id,
+				{"owner_id": owner}
+			)
+			var owner_inv := game_ctx.state.registry.get_investigator(owner)
+			if owner_inv != null and owner_inv.hand.has(card_id):
+				pulled.append({"investigator_id": owner, "card_id": card_id})
+	return {"ok": true, "pulled": pulled}
 
 
 static func _is_weakness_card(game_ctx: GameContext, card_id: StringName) -> bool:

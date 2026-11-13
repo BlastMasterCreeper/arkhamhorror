@@ -42,6 +42,8 @@ const SLOT_GRANT: StringName = &"GRANT"
 const SLOT_DEFEAT: StringName = &"DEFEAT"
 const SLOT_FIRED: StringName = &"FIRED"
 const SLOT_SETUP: StringName = &"SETUP"
+const SLOT_AFTER_OPENING: StringName = &"AFTER_OPENING_HANDS"
+const FLOW_KEYWORD_STARTING: StringName = &"seq.keyword.starting"
 
 const ZONE_PLAY: StringName = &"PLAY"
 const ZONE_LIMBO: StringName = &"LIMBO"
@@ -162,14 +164,17 @@ static func _all() -> Array[KeywordProfile]:
 	surge.effect_params = {"drawer_id": "$drawer_id"}
 	surge.effect_report = &"surge"
 	profiles.append(surge)
-	profiles.append(_row(
+	var starting := _row(
 		&"starting", BUFF_LISTENER,
 		FLOW_SETUP, SLOT_SETUP,
 		FLOW_SETUP, SLOT_AFTER,
 		ZONE_DECK, LIFE_IN_DECK,
-		&"", &"",
+		SLOT_AFTER_OPENING, FLOW_KEYWORD_STARTING,
 		FLOW_SETUP, 10, TIER_DELAYED
-	))
+	)
+	## 拥有者的牌库里找这张牌，取出后入手。
+	starting.effect_steps = _starting_steps()
+	profiles.append(starting)
 	var swarming := _row(
 		&"swarming", BUFF_LISTENER,
 		&"", SLOT_ENTER_PLAY,
@@ -302,6 +307,29 @@ static func _all() -> Array[KeywordProfile]:
 	profiles.append(_row(&"researched", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	profiles.append(_row(&"customizable", BUFF_DECKBUILDING, &"", &"", &"", &"", &"", &""))
 	return profiles
+
+
+static func _starting_steps() -> Array:
+	return [
+		{
+			"flow_id": &"seq.effect.search",
+			"params": {
+				"controller_id": "$owner_id",
+				"area": SearchFlow.AREA_INVESTIGATOR_DECK,
+				"scope": SearchFlow.SCOPE_ENTIRE,
+				"instance_id": "$card_id",
+				"take_count": 1,
+			},
+		},
+		{
+			"flow_id": &"seq.enter_hand",
+			"params": {
+				"controller_id": "$owner_id",
+				"card_id": "$card_id",
+				"from_limbo": true,
+			},
+		},
+	]
 
 
 static func _elusive_steps() -> Array:

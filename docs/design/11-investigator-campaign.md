@@ -55,7 +55,7 @@ Play/gain asset 无 slot → 选 discard 已有 asset 腾位。
 | Draw empty deck | shuffle discard + 1 horror + draw |
 | Discard empty | defeated + 1 mental trauma |
 | Mulligan | opening hand 可换 once；weakness 重抽不 resolve |
-| Starting | keyword：mulligan 后 search 1 copy 加入 hand |
+| Starting | keyword：mulligan 后用 owner nest `seq.effect.search` 找这张牌，再入手 |
 
 ---
 

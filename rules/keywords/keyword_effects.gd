@@ -20,6 +20,7 @@ static func resolve(game_ctx: GameContext, keyword: StringName, bind: Dictionary
 	if profile == null or (profile.effect_flow_id == &"" and profile.effect_steps.is_empty()):
 		return {"ok": false, "reason": &"no_effect_spec", "keyword": keyword}
 	var card_id: StringName = bind.get("card_id", bind.get("enemy_id", &""))
+	_bind_owner(game_ctx, bind, card_id)
 	if not _when_matches(profile.effect_when, bind, game_ctx, card_id):
 		return {"ok": true, "skipped": true, "triggered": false, "keyword": keyword}
 	if profile.effect_report == &"surge":
@@ -130,10 +131,24 @@ static func _nest(game_ctx: GameContext, flow_id: StringName, params: Dictionary
 		and game_ctx.sequence_catalog != null
 		and game_ctx.sequence_catalog.has_flow(flow_id)
 	):
+		## 入手是 NEST_BATCH，不是 RUN。
+		if flow_id == &"seq.enter_hand":
+			return game_ctx.sequence_catalog.nest_batch(game_ctx, flow_id, params)
 		return game_ctx.sequence_catalog.nest(game_ctx, flow_id, params)
 	if flow_id == &"seq.effect.move":
 		return MoveFlow.run(game_ctx, params)
 	return {"ok": false, "reason": &"missing_flow", "flow_id": flow_id}
+
+
+## 卡能反查拥有者。规格里的 `$owner_id` 用这名调查员当检索控制者。
+static func _bind_owner(game_ctx: GameContext, bind: Dictionary, card_id: StringName) -> void:
+	if str(bind.get("owner_id", "")) != "":
+		return
+	if game_ctx == null or game_ctx.state == null or card_id == &"":
+		return
+	var card := game_ctx.state.registry.get_card(card_id)
+	if card != null and card.owner_id != &"":
+		bind["owner_id"] = card.owner_id
 
 
 static func _bind_params(

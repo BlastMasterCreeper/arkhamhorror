@@ -186,6 +186,9 @@ static func _matches_filter(
 	if card == null:
 		return false
 	var def_id := card.id.definition_id
+	var want_instance: StringName = params.get("instance_id", &"") as StringName
+	if want_instance != &"" and card_id != want_instance:
+		return false
 	var want_def: StringName = params.get("definition_id", &"") as StringName
 	if want_def != &"" and def_id != want_def:
 		return false

@@ -200,7 +200,7 @@ static func mount_permanent_if_absent(
 	)
 
 
-## 玩家轴 · 起始：在库挂 KEYWORD 标记（幂等）；开火见 StartingKeyword。
+## 玩家轴 · 起始：在库挂 KEYWORD 标记（幂等）。开火是 seq.keyword.starting。
 static func mount_starting_if_absent(
 	game_ctx: GameContext,
 	card_id: StringName,
@@ -218,6 +218,21 @@ static func mount_starting_if_absent(
 		&"",
 		card_id
 	)
+
+
+## 洗牌前：每位调查员牌库里的印刷起始牌挂武装。
+static func mount_starting_in_decks(game_ctx: GameContext) -> void:
+	if game_ctx == null or game_ctx.state == null:
+		return
+	for inv_id in game_ctx.state.registry.all_investigator_ids():
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv == null:
+			continue
+		for card_id in inv.deck:
+			var card := game_ctx.state.registry.get_card(card_id)
+			if card == null or card.id == null:
+				continue
+			mount_starting_if_absent(game_ctx, card_id, card.id.definition_id)
 
 
 ## 玩家轴 · 绑定：set-aside 挂 KEYWORD 标记（幂等）。
