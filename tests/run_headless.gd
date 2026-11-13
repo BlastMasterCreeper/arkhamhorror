@@ -9620,12 +9620,12 @@ func _test_threat_massive_does_not_fire() -> bool:
 		&"eta_zoey_m"
 	)
 	h.ctx.triggered_abilities.register(desc)
-	## 区域变更式自动交战：庞大只 sync，不进威胁区。
+	## 区域变更式自动交战：庞大跳过放置，不进威胁区。
 	var res := EngageFlow.nest_after_area_change(h.ctx, &"test_loc", &"enemy_mass")
 	return (
 		bool(res.get("ok", false))
 		and not inv.threat_area.has(&"enemy_mass")
-		and MassiveEngagement.is_virtually_engaged_with(
+		and EngagementStatus.is_virtually_engaged_with(
 			h.ctx.state.registry.get_enemy(&"enemy_mass"), &"inv_1", h.ctx
 		)
 		and inv.resource_pool == 5
@@ -12498,7 +12498,7 @@ func _test_en08_massive_spawn_virtual() -> bool:
 		and enemy.location_tag == inv.location_tag
 		and enemy.engaged_with == &""
 		and not inv.threat_area.has(card_id)
-		and MassiveEngagement.is_virtually_engaged_with(enemy, &"inv_1", h.ctx)
+		and EngagementStatus.is_virtually_engaged_with(enemy, &"inv_1", h.ctx)
 	)
 
 
@@ -12562,7 +12562,7 @@ func _test_en10_massive_interrupt() -> bool:
 		var en := h.ctx.state.registry.get_enemy(eid)
 		if en != null:
 			en.exhausted = true
-	var result := MassiveEngagement.resolve_phase_batch(h.ctx, enemy_id, after_first)
+	var result := EnemyPhaseFlow.resolve_massive_phase_batch(h.ctx, enemy_id, after_first)
 	return (
 		int(result.get("attacks", 0)) == 1
 		and bool(result.get("interrupted", false))

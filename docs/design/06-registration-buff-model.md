@@ -435,7 +435,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Peril** 险境 | `AT_DRAW_G2` | `WHILE_DRAWN_CARD_RESOLVING` | `FORBID_PLAY` / `TRIGGER` / `COMMIT`（非 drawer） | L4 | ✅ |
 | **Hidden** 隐私 | `AT_REVELATION` | 在手直至 expose | `FORBID_LEAVE_HAND`；另写 Domain `is_hidden` / FaceAudience | REST-E-MOVE；E4 秘密入手 | 运行时有；导入把 ArkhamDB `hidden` 旗标误当本词 |
 | **Aloof** 冷漠 | `AT_ENTER_PLAY` → `KeywordMount.ensure_aloof_forbid_attack` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ `KeywordMount` |
-| **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 永不进威胁区；虚拟交战同地点全体 | Engage / AOO 读交战；**3.3 攻击路径见 §3.2.7 REPLACE** | ✅ |
+| **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 拒绝放置进威胁区；未横置时同地点虚拟交战 | Engage / AOO 读交战；阶段攻击批在 `EnemyPhaseFlow`；**3.3 见 §3.2.7 REPLACE** | ✅ |
 | **Permanent** 永久（对局） | `AT_SETUP` 开场进场 → `KeywordMount` | 直至卡面允许离场 | `FORBID_LEAVE_PLAY` | REST-E-MOVE | ✅ |
 
 **不是关键词（可挂载特征）**：**独特（Unique / `[unique]`）**、**胜利（Victory X）**、**复仇（Vengeance X）** → `CharacteristicMount`（`BuffType.CHARACTERISTIC`）于 `ENTER_PLAY` 挂载；打出前 `UniqueTitle` 查同名；击败读有效胜利/复仇改去向。**不**进 `KeywordProfileTable` / `KeywordMount`。

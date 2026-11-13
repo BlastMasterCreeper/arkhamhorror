@@ -65,7 +65,7 @@ static func is_engaged_with(
 	if enemy == null:
 		return false
 	if enemy.massive:
-		return MassiveEngagement.is_virtually_engaged_with(enemy, investigator_id, game_ctx)
+		return is_virtually_engaged_with(enemy, investigator_id, game_ctx)
 	## 迁移兼容：尚无 Buff 时读 Domain。
 	return enemy.engaged_with == investigator_id
 
@@ -87,3 +87,19 @@ static func partner(game_ctx: GameContext, enemy_id: StringName) -> StringName:
 ## 是否已有交战状态（任一伙伴）。
 static func is_engaged(game_ctx: GameContext, enemy_id: StringName) -> bool:
 	return partner(game_ctx, enemy_id) != &""
+
+
+## 未横置的庞大与同地点调查员视为交战。不写威胁区。
+static func is_virtually_engaged_with(
+	enemy: EnemyState,
+	inv_id: StringName,
+	game_ctx: GameContext
+) -> bool:
+	if enemy == null or not enemy.massive or enemy.exhausted:
+		return false
+	if game_ctx == null or game_ctx.state == null:
+		return false
+	var inv := game_ctx.state.registry.get_investigator(inv_id)
+	if inv == null or inv.eliminated or inv.location_tag == &"":
+		return false
+	return inv.location_tag == enemy.location_tag

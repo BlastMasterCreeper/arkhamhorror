@@ -112,11 +112,11 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 ## 7. 全库普查（2026-11-11）
 
-范围：生产 `class_name` **231**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。
+范围：生产 `class_name` **230**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。
 
 | 桶 | 数量 |
 |---|---|
-| 流程体 | 38 |
+| 流程体 | 37 |
 | 查询 | 27 |
 | 管线 | 36 |
 | 底座 | 31 |
@@ -128,7 +128,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 专用实现类已收完。起始牌用卡上的 `owner_id` nest `seq.effect.search`，再 `seq.enter_hand`。祝福 / 诅咒与参考卡同一份符号效果字典，由 `ScenarioReferenceApplier` 在 ST.4 发起。
 
-后缀与职责不一致，不因此新开桶：`MassiveEngagement`（流程体）、`StatQuery` / `ModifierQuery`（规格，不读局面）、`SequenceHandler`（Catalog 订阅记录）。另有 13 个只读类没有 `*Query` / `*Status` 后缀。
+后缀与职责不一致，不因此新开桶：`StatQuery` / `ModifierQuery`（规格，不读局面）、`SequenceHandler`（Catalog 订阅记录）。另有 13 个只读类没有 `*Query` / `*Status` 后缀。
 
 ## 8. 变更记录
 
@@ -145,3 +145,4 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | 2026-11-11 | 全库普查：生产 `class_name` 233（不含 tests 7、ui 5）。流程体 38、查询 27、管线 38、底座 31、不成桶 99。`*Trigger` / `*Service` / `*System` 均为 0。仍是专用实现类、未收成规格：`StartingKeyword`、`BlessCurseRules` |
 | 2026-11-13 | 祝福/诅咒改为规则自带符号能力：效果字典与参考卡同形，ST.4 走 `ScenarioReferenceApplier`。删除 `BlessCurseRules`。生产类 232，管线 37 |
 | 2026-11-13 | 起始：用卡的 `owner_id` nest `seq.effect.search` 再入手。删除 `StartingKeyword`。生产类 231，管线 36 |
+| 2026-11-13 | 删除 `MassiveEngagement`。虚拟交战归 `EngagementStatus`；阶段攻击批归 `EnemyPhaseFlow`；进场/移动/接战不再清威胁区。生产类 230，流程体 37 |

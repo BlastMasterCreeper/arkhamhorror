@@ -243,9 +243,6 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 			var engage := EngageFlow.nest_after_area_change(game_ctx, to_loc, enemy_id)
 			last["engaged_investigator"] = engage.get("investigator_id", &"")
 			SwarmPack.sync_engagement(game_ctx, enemy_id)
-			var moved_enemy := game_ctx.state.registry.get_enemy(enemy_id)
-			if moved_enemy != null and moved_enemy.massive:
-				MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
 	_log_move(
 		game_ctx,
 		SUBJECT_ENEMY,
@@ -289,8 +286,6 @@ static func _move_enemy_direct(
 		var engage := EngageFlow.nest_after_area_change(game_ctx, dest_id, enemy_id)
 		out["engaged_investigator"] = engage.get("investigator_id", &"")
 		SwarmPack.sync_engagement(game_ctx, enemy_id)
-		if enemy.massive:
-			MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
 	_log_move(game_ctx, SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
 		"move_kind": move_kind,
 	})

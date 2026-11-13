@@ -93,7 +93,6 @@ static func auto_at_location(
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
 	if enemy.massive:
-		MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
 		return {"ok": true, "skipped": true, "massive": true}
 	if EngagementStatus.is_engaged(game_ctx, enemy_id):
 		return {"ok": true, "skipped": true}
@@ -169,10 +168,6 @@ static func _disengage_member(game_ctx: GameContext, enemy_id: StringName) -> vo
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return
-	if enemy.massive:
-		MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
-		enemy.engaged_with = &""
-		return
 	for inv_id in game_ctx.state.registry.all_investigator_ids():
 		var inv := game_ctx.state.registry.get_investigator(inv_id)
 		if inv != null:
@@ -214,7 +209,6 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 	if focus_enemy != &"":
 		var focus := game_ctx.state.registry.get_enemy(focus_enemy)
 		if focus != null and focus.massive:
-			MassiveEngagement.sync_at_location(game_ctx, location_tag)
 			return {
 				"ok": true,
 				"mode": MODE_AUTO,
@@ -229,7 +223,6 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 			last_inv = one.get("investigator_id", &"") as StringName
 			_sync_and_enter_threat(game_ctx, focus_enemy, last_inv)
 	else:
-		MassiveEngagement.sync_at_location(game_ctx, location_tag)
 		for enemy_id in game_ctx.state.registry.all_enemy_ids():
 			var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 			if enemy == null or enemy.location_tag != location_tag:

@@ -600,7 +600,7 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 				&"massive_phase_batch", card_id, [&"keyword", &"massive"]
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return MassiveEngagement.phase_batch_from_params(game_ctx, params)
+			return EnemyPhaseFlow.massive_phase_batch(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.effect.pad_swarm",
