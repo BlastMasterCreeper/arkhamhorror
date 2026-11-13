@@ -7,7 +7,7 @@ extends RefCounted
 
 static func framework_3_2(game_ctx: GameContext) -> Dictionary:
 	## Grimoire 3.2 基础手续：对每个 ready、未交战的敌人，经 KeywordConsumer 开火
-	## Hunter/Patrol LISTENER（seq.keyword.hunter / patrol）。本 handler **不含**移动路径。
+	## Hunter/Patrol LISTENER（seq.keyword.hunter / patrol）只填 toward，移动仍是 seq.effect.move。
 	if game_ctx == null or game_ctx.state == null:
 		return {"ok": false}
 	var moved: Array[StringName] = []
@@ -164,6 +164,130 @@ static func attack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			}
 		)
 	return {"ok": true, "enemy_id": enemy_id, "target": target, "attacks": 1}
+
+
+## `seq.effect.massive_phase_batch` · 阶段攻击批。关键词规格只 nest 本手续。
+static func massive_phase_batch(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	if game_ctx == null:
+		return {"ok": false, "attacks": 0}
+	var enemy_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+	if enemy_id == &"":
+		return {"ok": false, "attacks": 0, "reason": &"missing_enemy"}
+	var batch := resolve_massive_phase_batch(game_ctx, enemy_id)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"keyword:massive",
+			{
+				"enemy_id": enemy_id,
+				"attacks": batch.get("attacks", 0),
+				"interrupted": batch.get("interrupted", false),
+			}
+		)
+	batch["ok"] = bool(batch.get("ok", true))
+	return batch
+
+
+## 队长排同地点调查员。每击前若已横置则剩余不发起。全部打完才横置。
+## 批内单次攻击不带 PHASE，避免 REPLACE 再进本批。
+static func resolve_massive_phase_batch(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	after_each_attack: Callable = Callable()
+) -> Dictionary:
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null or not enemy.massive or enemy.exhausted:
+		return {"ok": true, "attacks": 0, "interrupted": false}
+	var order := _massive_attack_order(game_ctx, enemy)
+	if order.is_empty():
+		return {"ok": true, "attacks": 0, "interrupted": false}
+	var resolved := 0
+	var resolved_set: Dictionary = {}
+	var i := 0
+	while i < order.size():
+		if enemy.exhausted:
+			return {
+				"ok": true,
+				"attacks": resolved,
+				"interrupted": true,
+				"enemy_id": enemy_id,
+			}
+		var target: StringName = order[i]
+		if not EngagementStatus.is_virtually_engaged_with(enemy, target, game_ctx):
+			i += 1
+			continue
+		attack(
+			game_ctx,
+			{
+				"enemy_id": enemy_id,
+				"target_investigator": target,
+				"exhaust_after": false,
+			}
+		)
+		resolved += 1
+		resolved_set[target] = true
+		if after_each_attack.is_valid():
+			after_each_attack.call(enemy_id, target)
+		for inv_id in _investigators_at_location(game_ctx, enemy.location_tag):
+			if not resolved_set.has(inv_id) and not order.has(inv_id):
+				order.append(inv_id)
+		i += 1
+	if resolved > 0 and not enemy.exhausted:
+		ExhaustReadyFlow.nest_or_run_exhaust(
+			game_ctx,
+			{
+				"target_kind": ExhaustReadyFlow.TARGET_ENEMY,
+				"enemy_id": enemy_id,
+				"trigger_area_change": false,
+			}
+		)
+	return {
+		"ok": true,
+		"attacks": resolved,
+		"interrupted": false,
+		"enemy_id": enemy_id,
+	}
+
+
+static func _massive_attack_order(
+	game_ctx: GameContext,
+	enemy: EnemyState
+) -> Array[StringName]:
+	var targets := _investigators_at_location(game_ctx, enemy.location_tag)
+	if targets.is_empty():
+		return []
+	if game_ctx.interaction != null:
+		var lead := game_ctx.lead_investigator_id
+		if lead == &"":
+			var ids := game_ctx.state.registry.all_investigator_ids()
+			if not ids.is_empty():
+				lead = ids[0]
+		var ordered: Array = game_ctx.interaction.ask_order_simultaneous(
+			targets,
+			lead,
+			&"order:massive_phase_attacks",
+			game_ctx
+		)
+		var out: Array[StringName] = []
+		for item in ordered:
+			out.append(item as StringName)
+		return out
+	return targets.duplicate()
+
+
+static func _investigators_at_location(
+	game_ctx: GameContext,
+	location_tag: StringName
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if game_ctx == null or game_ctx.state == null or location_tag == &"":
+		return out
+	for inv_id in game_ctx.state.registry.all_investigator_ids():
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv == null or inv.eliminated or inv.location_tag != location_tag:
+			continue
+		out.append(inv_id)
+	return out
 
 
 static func _eligible_for_3_2_move(enemy: EnemyState) -> bool:

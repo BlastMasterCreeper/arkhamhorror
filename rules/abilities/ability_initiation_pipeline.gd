@@ -3,23 +3,19 @@ extends RefCounted
 
 var _state: GameStateStore
 var _events: EventRecordLog
-var _effects: EffectResolutionGraph
 var _composition: CompositionExecutor
 var _legality: InitiationLegalityChecker = InitiationLegalityChecker.new()
 var _cost: InitiationCostPipeline
-var _aoo: AttackOfOpportunityTrigger
 var _game_ctx: GameContext
 
 
 func _init(
 	state: GameStateStore,
 	events: EventRecordLog,
-	effects: EffectResolutionGraph,
 	composition: CompositionExecutor = null
 ) -> void:
 	_state = state
 	_events = events
-	_effects = effects
 	_composition = composition
 	_cost = InitiationCostPipeline.new(state)
 
@@ -29,8 +25,6 @@ func bind_game_context(ctx: GameContext) -> void:
 	if ctx == null:
 		return
 	_cost = InitiationCostPipeline.new(ctx.state, ctx.modifiers, ctx.mutator)
-	_aoo = AttackOfOpportunityTrigger.new(ctx.state)
-	_aoo.bind_game_context(ctx)
 
 
 func can_initiate(intent: InitiationIntent, ctx: GameContext) -> bool:
@@ -83,12 +77,18 @@ func initiate(intent: InitiationIntent, ctx: GameContext) -> Dictionary:
 
 	_events.append_initiation(AhcEnums.InitiationStep.INIT_2B_AOO, hash, payload)
 	var aoo_attacks := 0
-	if intent.provokes_aoo and _aoo != null:
+	if intent.provokes_aoo and ctx != null:
 		var types: Array = intent.action_types
 		if types.is_empty():
 			types = [intent.aoo_action_type]
-		var regs: RegistrationStore = ctx.registrations if ctx != null else null
-		var aoo_result := _aoo.resolve_for_types(intent.controller_id, types, regs)
+		var aoo_result := RuleMount.consume_at(
+			ctx,
+			RuleProfileTable.SLOT_AOO,
+			{
+				"investigator_id": intent.controller_id,
+				"action_types": types,
+			}
+		)
 		aoo_attacks = int(aoo_result.get("attacks", 0))
 
 	if not _passes_dry_run(intent, ctx):

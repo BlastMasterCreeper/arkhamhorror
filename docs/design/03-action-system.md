@@ -316,7 +316,7 @@ class ActionPipeline:
 
 | ID | 裁决 | 日期 |
 |---|---|---|
-| OQ-03-05 | 借机攻击是敌人 **攻击**（非「被攻击」），**会**触发逃逸 → `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 | 2026-06-18 |
+| OQ-03-05 | 借机攻击是敌人 **攻击**（非「被攻击」），**会**触发逃逸 → `perform_attack` 后 `KeywordConsumer` @ `AFTER_ATTACK`。见 08 §6.5。 | 2026-06-18 |
 | OQ-03-01 | **以 Grimoire 为准。** 基础 Fight 目标 = 调查员**当前地点**上的敌人（含 unengaged、自己 threat 区、同地点他人 engaged 的敌人）。特殊卡牌能力可扩展目标范围至地点外。Aloof 未 engage 不可打。 | 2026-05-25 |
 | OQ-03-02 | **攻击效果层**统一 `EnemyAttack` + `AttackKind`（PHASE / OPPORTUNITY / RETALIATE / ALERT），共用 `perform_attack()`，均属 enemy attack。**触发条件与时点**各 kind 独立（AOO→Action 管线、Retaliate/Alert→Skill Test、Phase→Enemy Phase）；不得把 provoke / ST.7 插入逻辑并入 `perform_attack()`。见 08 §6.1。 | 2026-05-25 |
 | OQ-03-03 | **Agenda 无地点概念**；可 Activate agenda 能力，**不**视为 Parley 同地点。见 §6.10。 | 2026-05-25 |

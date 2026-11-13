@@ -66,7 +66,7 @@ static func _investigator_take(
 ) -> Dictionary:
 	if inv_id == &"" or game_ctx.state.registry.get_investigator(inv_id) == null:
 		return {"ok": false, "amount": 0, "error": "unknown_investigator"}
-	var result := DamagePipeline.deal_investigator_bundle(
+	var result := DealInvestigatorPipeline.deal_investigator_bundle(
 		game_ctx,
 		inv_id,
 		damage_amt,
@@ -124,7 +124,7 @@ static func _among_subjects(
 			)
 	## Assign 后 PreImpact（与承伤对称），再 Apply。
 	var scope: StringName = controller_id if controller_id != &"" else &"deal_out"
-	var pre := DealPreImpact.apply_bundle(game_ctx, d_legs, h_legs, scope)
+	var pre := DealOutboundPipeline.apply_bundle(game_ctx, d_legs, h_legs, scope)
 	var applied_d := int(pre.get("damage", 0))
 	var applied_h := int(pre.get("horror", 0))
 	var result := {
@@ -208,7 +208,7 @@ static func _each_at_location(
 			continue
 		if other.location_tag != loc_id:
 			continue
-		var one := DamagePipeline.deal_investigator_bundle(
+		var one := DealInvestigatorPipeline.deal_investigator_bundle(
 			game_ctx, other_id, damage_amt, horror_amt, direct_dmg, direct_hor
 		)
 		applied_d += int(one.get("damage", 0))

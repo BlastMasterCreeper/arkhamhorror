@@ -1,8 +1,29 @@
 class_name EnemyAttackFlow
 extends RefCounted
 
-## 敌人攻击效果核 · `seq.enemy.attack` RESOLVE 体（及 Trigger 直调）。
-## 原 `CombatResolver.perform_attack` 并入此处；触发器只构造 `EnemyAttack` 再交本类。
+## 敌人攻击效果核 · `seq.enemy.attack` 与借机批 `seq.effect.opportunity_attacks`。
+## 借机是否开火由建局挂载的规则规格决定；本类只打已交战且未横置的敌人。
+
+
+static func opportunity_attacks(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false, "attacks": 0}
+	var investigator_id: StringName = params.get("investigator_id", &"")
+	var count := 0
+	for enemy_id in game_ctx.state.registry.all_enemy_ids():
+		var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+		if enemy == null or enemy.exhausted or not enemy.is_engaged_with(investigator_id):
+			continue
+		var attack := EnemyAttack.build_from_enemy(
+			game_ctx,
+			enemy_id,
+			investigator_id,
+			false,
+			AhcEnums.AttackKind.OPPORTUNITY
+		)
+		perform(game_ctx, attack)
+		count += 1
+	return {"ok": true, "attacks": count}
 
 
 static func perform(game_ctx: GameContext, attack: EnemyAttack) -> void:
@@ -45,7 +66,13 @@ static func perform(game_ctx: GameContext, attack: EnemyAttack) -> void:
 				"trigger_area_change": false,
 			}
 		)
-	ElusiveTrigger.try_flee_after_enemy_attack(game_ctx, attack.enemy_id)
+	KeywordConsumer.consume_at(
+		game_ctx,
+		KeywordProfileTable.SLOT_AFTER_ATTACK,
+		&"",
+		attack.enemy_id,
+		{"cause": &"attacks"}
+	)
 
 
 static func _deal_via_seq(game_ctx: GameContext, attack: EnemyAttack) -> void:
@@ -72,7 +99,7 @@ static func _deal_via_seq(game_ctx: GameContext, attack: EnemyAttack) -> void:
 			game_ctx, &"seq.effect.damage.assignable", params
 		)
 		return
-	DamagePipeline.deal_investigator_bundle(
+	DealInvestigatorPipeline.deal_investigator_bundle(
 		game_ctx,
 		attack.target_investigator,
 		attack.damage,

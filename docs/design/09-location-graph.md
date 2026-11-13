@@ -46,7 +46,7 @@ class LocationState:
 
 触发（**不是**关键词、**不是**卡面 Forced）：
 
-- 调查员 **进入** 未揭示地点（`seq.effect.move` / 行动移动 → `LocationEnterRules.on_investigator_enter`）
+- 调查员 **进入** 未揭示地点（`seq.effect.move` / 行动移动 → `RevealLocationFlow.on_investigator_enter`）
 - Setup / 进场已揭示布局（starting location、`put_location_into_play`、遭遇抽到地点）→ 直接 `reveal_and_place_clues`
 - 卡牌能力 instruct reveal → nest `seq.effect.reveal_location`
 
@@ -57,7 +57,7 @@ class LocationState:
 4. （后续）连接变化 / Forced — 未竖切
 ```
 
-实现：`LocationEnterRules` + Catalog `seq.effect.reveal_location`。已揭示再进入 **不**再放线索。
+实现：`RevealLocationFlow` + Catalog `seq.effect.reveal_location`。已揭示再进入 **不**再放线索。
 
 ---
 
@@ -136,7 +136,7 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-09-01 | P1 | ~~Setup vs Move enter 单入口？~~ → **统一** `LocationEnterRules` / `seq.effect.reveal_location`；Move 走 `on_investigator_enter`；setup 已揭示直跑 `reveal_and_place_clues`。 |
+| OQ-09-01 | P1 | ~~Setup vs Move enter 单入口？~~ → **统一** `RevealLocationFlow` / `seq.effect.reveal_location`；Move 走 `on_investigator_enter`；setup 已揭示直跑 `reveal_and_place_clues`。 |
 | OQ-09-02 | P2 | 同 title 多 copy location（罕见）— 仍算 different locations — 如何 instance 化？ |
 | OQ-09-03 | P1 | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ |
 | OQ-09-04 | P2 | Farthest location 计算：blocked path 是否参与？ |
@@ -150,4 +150,4 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
-| 2026-10-19 | v0.2 | §3 落地：进入未揭示翻开 + 首次放线索；`LocationEnterRules`；L-02/L-01 竖切；裁决 OQ-09-01 |
+| 2026-10-19 | v0.2 | §3 落地：进入未揭示翻开 + 首次放线索；`RevealLocationFlow`；L-02/L-01 竖切；裁决 OQ-09-01 |

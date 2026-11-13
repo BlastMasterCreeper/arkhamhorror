@@ -21,6 +21,11 @@ const KIND_MOVE_TO := &"move_to"
 const MODE_TOWARD := &"toward"
 const MODE_DIRECT := &"direct"
 
+## 未给 destination 时，由同一内核按来源填目标地点（不是每种来源一个实现类）。
+const TOWARD_NEAREST_INVESTIGATOR := &"nearest_investigator"
+const TOWARD_PATROL := &"patrol"
+const TOWARD_FLEE := &"flee"
+
 
 static func nest_or_run(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	## 有 Catalog 时 nest 压栈（可被移动时点听到）；否则直跑内核。
@@ -134,7 +139,7 @@ static func _move_investigator(game_ctx: GameContext, params: Dictionary) -> Dic
 	var enter := {}
 	if bool(params.get("reveal_on_enter", true)):
 		## 规则自带：进未揭示 → 翻开 + 首次放线索。
-		enter = LocationEnterRules.on_investigator_enter(game_ctx, dest_id)
+		enter = RevealLocationFlow.on_investigator_enter(game_ctx, dest_id)
 	if _auto_engage(params, true):
 		EngageFlow.nest_after_area_change(game_ctx, dest_id)
 	_log_move(game_ctx, SUBJECT_INVESTIGATOR, inv_id, from_id, dest_id, {
@@ -151,15 +156,46 @@ static func _move_investigator(game_ctx: GameContext, params: Dictionary) -> Dic
 	return out
 
 
+## 关键词 / 阶段 / 卡面共用：敌人沿连接向某地点走 `steps` 步。
+## `toward` 只在没有 destination 时填目标；`ready_unengaged` / `swarm_host_only` 是可选门，不是第二套移动。
+static func enemy_toward_params(
+	enemy_id: StringName,
+	toward: StringName,
+	log_tag: String
+) -> Dictionary:
+	return {
+		"subject": SUBJECT_ENEMY,
+		"enemy_id": enemy_id,
+		"toward": toward,
+		"move_kind": KIND_MOVE,
+		"steps": 1,
+		"mode": MODE_TOWARD,
+		"ready_unengaged": true,
+		"swarm_host_only": true,
+		"log_tag": log_tag,
+	}
+
+
 static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-	var enemy_id: StringName = params.get("enemy_id", &"")
-	var target_loc := _destination(params)
+	var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+	var gated := _enemy_move_gate(game_ctx, enemy_id, params)
+	if not gated.is_empty():
+		return gated
+	var target_loc := _resolve_enemy_destination(game_ctx, enemy_id, params)
 	var move_kind := resolve_move_kind(params)
 	if enemy_id == &"" or target_loc == &"":
+		if params.get("toward", &"") != &"":
+			return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
 		return {"ok": false, "error": "missing_enemy_or_location"}
 	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
+	## 巡逻已在指定地点：不发起步进。
+	if (
+		params.get("toward", &"") == TOWARD_PATROL
+		and enemy.location_tag == target_loc
+	):
+		return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
 	var from_id: StringName = enemy.location_tag
 	if from_id == &"":
 		return {"ok": false, "error": "not_at_location"}
@@ -194,9 +230,7 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		"move_kind": move_kind,
 	}
 	for _i in steps:
-		var hop := EnemyMovement.move_one_step_toward_location(
-			game_ctx, enemy_id, target_loc
-		)
+		var hop := _hop_enemy_one_step_toward(game_ctx, enemy_id, target_loc)
 		if not bool(hop.get("moved", false)):
 			break
 		var to_loc: StringName = hop.get("to_location", &"") as StringName
@@ -209,9 +243,6 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 			var engage := EngageFlow.nest_after_area_change(game_ctx, to_loc, enemy_id)
 			last["engaged_investigator"] = engage.get("investigator_id", &"")
 			SwarmPack.sync_engagement(game_ctx, enemy_id)
-			var moved_enemy := game_ctx.state.registry.get_enemy(enemy_id)
-			if moved_enemy != null and moved_enemy.massive:
-				MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
 	_log_move(
 		game_ctx,
 		SUBJECT_ENEMY,
@@ -220,6 +251,7 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		last.get("to", from_id),
 		{"move_kind": move_kind}
 	)
+	_log_source_tag(game_ctx, params, enemy_id, bool(last.get("moved", false)), target_loc)
 	return last
 
 
@@ -254,8 +286,6 @@ static func _move_enemy_direct(
 		var engage := EngageFlow.nest_after_area_change(game_ctx, dest_id, enemy_id)
 		out["engaged_investigator"] = engage.get("investigator_id", &"")
 		SwarmPack.sync_engagement(game_ctx, enemy_id)
-		if enemy.massive:
-			MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
 	_log_move(game_ctx, SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
 		"move_kind": move_kind,
 	})
@@ -367,6 +397,122 @@ static func _move_marker(game_ctx: GameContext, params: Dictionary) -> Dictionar
 		"from_location": from_id,
 		"move_kind": move_kind,
 	})
+
+
+static func _enemy_move_gate(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	params: Dictionary
+) -> Dictionary:
+	var swarm_host_only := bool(params.get("swarm_host_only", false))
+	var ready_unengaged := bool(params.get("ready_unengaged", false))
+	if not swarm_host_only and not ready_unengaged:
+		return {}
+	if enemy_id == &"":
+		return {"ok": false, "moved": false, "reason": &"missing_enemy"}
+	## 蜂拥：关键词移动只让主体走一次，集群卡牌跳过。
+	if swarm_host_only and SwarmPack.is_swarm_card(game_ctx, enemy_id):
+		return {
+			"ok": true,
+			"moved": false,
+			"skipped": true,
+			"enemy_id": enemy_id,
+			"swarm_coalesce": true,
+		}
+	if ready_unengaged:
+		var enemy := game_ctx.state.registry.get_enemy(enemy_id) if game_ctx != null and game_ctx.state != null else null
+		if enemy == null or enemy.exhausted or EngagementStatus.is_engaged(game_ctx, enemy_id):
+			return {"ok": true, "moved": false, "skipped": true, "enemy_id": enemy_id}
+	return {}
+
+
+static func _resolve_enemy_destination(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	params: Dictionary
+) -> StringName:
+	var explicit := _destination(params)
+	if explicit != &"":
+		return explicit
+	var toward: StringName = params.get("toward", &"") as StringName
+	if toward == TOWARD_NEAREST_INVESTIGATOR:
+		var target_inv := HunterTargetQuery.pick_nearest_investigator(game_ctx, enemy_id)
+		if target_inv == &"":
+			return &""
+		var loc := EnemyLocationQuery.resolve(
+			game_ctx, {"target": "investigator_location", "drawer_id": target_inv}
+		)
+		if not bool(loc.get("ok", false)):
+			return &""
+		return loc.get("location_tag", &"") as StringName
+	if toward == TOWARD_FLEE:
+		var enemy := game_ctx.state.registry.get_enemy(enemy_id) if game_ctx != null and game_ctx.state != null else null
+		if enemy == null:
+			return &""
+		return FleeDestinationQuery.pick(game_ctx, enemy.location_tag)
+	if toward == TOWARD_PATROL:
+		var def_id: StringName = params.get("def_id", &"") as StringName
+		if def_id == &"" and game_ctx != null and game_ctx.state != null:
+			var card := game_ctx.state.registry.get_card(enemy_id)
+			if card != null:
+				def_id = card.id.definition_id
+		var spec := CardRegistry.patrol_spec(def_id)
+		if spec == null:
+			return &""
+		return PatrolTargetQuery.resolve(spec, game_ctx, enemy_id)
+	return &""
+
+
+static func _log_source_tag(
+	game_ctx: GameContext,
+	params: Dictionary,
+	enemy_id: StringName,
+	did_move: bool,
+	target_loc: StringName
+) -> void:
+	var tag := str(params.get("log_tag", ""))
+	if tag == "" or game_ctx == null or game_ctx.log == null:
+		return
+	game_ctx.log.log(
+		AhcEnums.LogCategory.SCENARIO,
+		tag,
+		{"enemy_id": enemy_id, "moved": did_move, "target_location": target_loc}
+	)
+
+
+## 敌人「移动」寻路一步：选 hop + 写 location_tag（原 EnemyMovement；无独立类）。
+static func _hop_enemy_one_step_toward(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	target_location_tag: StringName
+) -> Dictionary:
+	var result := {
+		"ok": false,
+		"moved": false,
+		"enemy_id": enemy_id,
+		"from_location": &"",
+		"to_location": &"",
+	}
+	if game_ctx == null or game_ctx.state == null or enemy_id == &"":
+		return result
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null or enemy.location_tag == &"":
+		return result
+	result["from_location"] = enemy.location_tag
+	if enemy.location_tag == target_location_tag:
+		result["ok"] = true
+		return result
+	var next_hop := EnemyPathQuery.pick_next_hop_toward(
+		enemy.location_tag, target_location_tag, game_ctx
+	)
+	if next_hop == &"":
+		result["ok"] = true
+		return result
+	enemy.location_tag = next_hop
+	result["moved"] = true
+	result["to_location"] = next_hop
+	result["ok"] = true
+	return result
 
 
 static func _auto_engage(params: Dictionary, default_val: bool) -> bool:

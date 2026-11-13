@@ -1,4 +1,4 @@
-# 11 — 调查员、牌组与剧本 (InvestigatorCampaignSystem)
+# 11 — 调查员、牌组与剧本 (InvestigatorCampaignPipeline)
 
 > **依赖**：[01-game-state-zones.md](01-game-state-zones.md), [07-effect-resolution.md](07-effect-resolution.md)  
 > **规则来源**：Grimoire Deckbuilding, Campaign Play, Trauma, Experience, Weakness, Slots
@@ -55,7 +55,7 @@ Play/gain asset 无 slot → 选 discard 已有 asset 腾位。
 | Draw empty deck | shuffle discard + 1 horror + draw |
 | Discard empty | defeated + 1 mental trauma |
 | Mulligan | opening hand 可换 once；weakness 重抽不 resolve |
-| Starting | keyword：mulligan 后 search 1 copy 加入 hand |
+| Starting | keyword：mulligan 后用 owner nest `seq.effect.search` 找这张牌，再入手 |
 
 ---
 
@@ -79,7 +79,7 @@ Grimoire Elimination：removed from game 其 owner 控制物；clues → locatio
 
 ## 6. 剧本状态与开局（CampaignState / CampaignSetup）
 
-> **落地**：`rules/campaign/campaign_state.gd` · `campaign_log.gd` · `campaign_setup.gd` · `investigator_setup_flow.gd`；门面挂在 `InvestigatorCampaignSystem`。测 CAMP-01..05。
+> **落地**：`rules/campaign/campaign_state.gd` · `campaign_log.gd` · `campaign_setup.gd` · `investigator_setup_flow.gd`；门面挂在 `InvestigatorCampaignPipeline`。测 CAMP-01..05。
 
 ```text
 start_campaign(difficulty, flags)
@@ -594,10 +594,10 @@ func is_player_cardtype_weakness(def: CardDefinition) -> bool:
 
 ---
 
-## 11. InvestigatorCampaignSystem API
+## 11. InvestigatorCampaignPipeline API
 
 ```gdscript
-class InvestigatorCampaignSystem:
+class InvestigatorCampaignPipeline:
     func create_investigator(def_id, player_id) -> StringName
     func apply_trauma_at_setup(record: CampaignInvestigatorRecord) -> void
     func mulligan(inv: StringName, cards_to_replace: Array) -> void
@@ -669,7 +669,7 @@ class InvestigatorCampaignSystem:
 | 2026-11-04 | v0.9 | **§7.2.1** Exceptional / Customizable 纳入报价待接；P6b/P6c；OQ-11-10 |
 | 2026-11-04 | v0.10 | **§7.2.1** 定制勾选 → EffectiveDeckCardView（traits/tags/level）；准入必须投影后重配位 |
 | 2026-11-04 | v0.11 | **P6c Customizable 延后**；重排缺口：P6 报价 → Exceptional / Myriad / 修饰器 / 幕间 |
-| 2026-11-04 | v0.12 | **P6–P6b/d/e/f 落地** `InvestigatorCampaignSystem` + XP-01..06；Customizable 仍延后 |
+| 2026-11-04 | v0.12 | **P6–P6b/d/e/f 落地** `InvestigatorCampaignPipeline` + XP-01..06；Customizable 仍延后 |
 | 2026-11-04 | v0.13 | **§7.5.1** `counts_toward_deck_size`：Permanent / Signature / 弱点 / Bearer 不计；**Myriad 计**；DB-08/09 |
 | 2026-11-04 | v0.14 | **§7.7.1** 副职阶/尺寸/特性 = 选调查员后附带玩家选择；`DeckbuildingChoiceFlow`；DB-05 |
 | 2026-11-04 | v0.15 | **§7.1.1** Count XP：VD Victory（02111）∪ guide ± ∪ 个人 When earning（06160 / Obol）；`ExperienceCount` |

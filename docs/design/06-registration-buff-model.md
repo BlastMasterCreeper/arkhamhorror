@@ -273,7 +273,7 @@ class EffectiveCharacteristicQuery:
         # CardDefinition.traits ∪ gained traits
 ```
 
-**P0 竖切**：`has_effective_keyword` + Surge KEYWORD Register/UnRegister · **`draw_encounter_flow` G5** ✅（`EffectiveCharacteristicQuery` · `EncounterGainedKeyword` · ENC-SURGE-02/03 · GAIN-01）
+**P0 竖切**：`has_effective_keyword` + Surge KEYWORD Register/UnRegister · **`draw_encounter_flow` G5** ✅（`EffectiveCharacteristicQuery` · `KeywordMount` · ENC-SURGE-02/03 · GAIN-01）
 
 **P1**：until-EOT `[reaction]` / Forced → Register Gain.`ABILITY` → 衍生 Lifecycle mount（**不是**改叫 LISTENER）。  
 **P2**：trait / icon / 其它 keyword（Retaliate…）→ Gain 标记 + Profile **衍生**行为 Buff。
@@ -434,11 +434,13 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 |---|---|---|---|---|---|
 | **Peril** 险境 | `AT_DRAW_G2` | `WHILE_DRAWN_CARD_RESOLVING` | `FORBID_PLAY` / `TRIGGER` / `COMMIT`（非 drawer） | L4 | ✅ |
 | **Hidden** 隐私 | `AT_REVELATION` | 在手直至 expose | `FORBID_LEAVE_HAND`；另写 Domain `is_hidden` / FaceAudience | REST-E-MOVE；E4 秘密入手 | 运行时有；导入把 ArkhamDB `hidden` 旗标误当本词 |
-| **Aloof** 冷漠 | `AT_ENTER_PLAY` → `KeywordMount` → `AloofStatus` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ `KeywordMount` |
-| **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 永不进威胁区；虚拟交战同地点全体 | Engage / AOO 读交战；**3.3 攻击路径见 §3.2.7 REPLACE** | ✅ |
+| **Aloof** 冷漠 | `AT_ENTER_PLAY` → `KeywordMount.ensure_aloof_forbid_attack` | `WHILE_IN_PLAY` | 禁自动交战；未交战 `FORBID` Fight | Fight / Engage Intent；spawn 内核读拥有以跳过 auto engage | ✅ `KeywordMount` |
+| **Massive** 庞大 | `AT_ENTER_PLAY` | `WHILE_IN_PLAY` | 拒绝放置进威胁区；未横置时同地点虚拟交战 | Engage / AOO 读交战；阶段攻击批在 `EnemyPhaseFlow`；**3.3 见 §3.2.7 REPLACE** | ✅ |
 | **Permanent** 永久（对局） | `AT_SETUP` 开场进场 → `KeywordMount` | 直至卡面允许离场 | `FORBID_LEAVE_PLAY` | REST-E-MOVE | ✅ |
 
 **不是关键词（可挂载特征）**：**独特（Unique / `[unique]`）**、**胜利（Victory X）**、**复仇（Vengeance X）** → `CharacteristicMount`（`BuffType.CHARACTERISTIC`）于 `ENTER_PLAY` 挂载；打出前 `UniqueTitle` 查同名；击败读有效胜利/复仇改去向。**不**进 `KeywordProfileTable` / `KeywordMount`。
+
+**开火体不是实现类。** LISTENER 的行为写在 `KeywordProfile.effect_flow_id` / `effect_steps` / `effect_when`（静态 nest 规格，`$card_id` / `$drawer_id` / `$def_id` / `$investigator_id` 开火时代入）。`KeywordEffects` 在已压栈的 `seq.keyword.*` 里解释并 nest 已有 seq，与卡面 Composition 的 nest 叶同一语言。`seq.keyword.*` 只保留时点锚。猎手、巡逻、涌动、反击、警戒、毁灭、逃逸（解除交战 → `toward=flee` 的 `seq.effect.move` → 再解除 → 横置）、蜂拥（垫牌手续 `seq.effect.pad_swarm`）、庞大（阶段攻击批 `seq.effect.massive_phase_batch`）都走这套规格。新关键词禁止再加 `*KeywordFlow`。固定规则（借机攻击、Fight 失败转嫁）用同一套 `effect_*`，在 `GameBootstrap.create` 由 `RuleMount` 挂上，不另设触发器类。
 
 **C2 · LISTENER**（Catalog emit；延时用 `UNTIL_FIRED`）
 
@@ -446,12 +448,12 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 |---|---|---|---|---|---|
 | **Hunter** 猎手 | `AT_ENTER_PLAY` → `KeywordMount` KEYWORD 标记 | `WHILE_IN_PLAY` | `(seq.enemy.3_2, ENEMY_3_2)` · pri **10** | nest `seq.keyword.hunter`（只认武装） | ✅ `KeywordMount` |
 | **Patrol** 巡逻 | 同上 | `WHILE_IN_PLAY` | 同锚 · pri **20** | nest `seq.keyword.patrol` | ✅ `KeywordMount` |
-| **Retaliate** 反击 | 同上 | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | `perform_attack(RETALIATE)`（只认武装） | ✅ `KeywordMount` |
-| **Alert** 警戒 | 同上 | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | `perform_attack(ALERT)` | ✅ `KeywordMount` |
-| **Elusive** 逃逸 | 同上 | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | disengage → 相邻 → exhaust | ✅ `KeywordMount` |
-| **Doomed** 厄运降临 | 同上 | `WHILE_IN_PLAY` | 击败（非 discard） | 当前密谋 +1 毁灭 | ✅ `KeywordMount` |
+| **Retaliate** 反击 | 同上 | `WHILE_IN_PLAY` | Fight 失败 · post-ST7 | nest `seq.enemy.attack` kind=RETALIATE | ✅ 规格 |
+| **Alert** 警戒 | 同上 | `WHILE_IN_PLAY` | Evade 失败 · post-ST7 | nest `seq.enemy.attack` kind=ALERT | ✅ 规格 |
+| **Elusive** 逃逸 | 同上 | `WHILE_IN_PLAY` | 敌人攻击后 / 被 Fight 后 | 解除 → `toward=flee` → 横置 | ✅ 规格 |
+| **Doomed** 厄运降临 | 同上 | `WHILE_IN_PLAY` | 击败（非 discard） | place_doom + check threshold | ✅ 规格 |
 | **Surge** 涌动 | 印刷 **WHEN** 挂 KEYWORD；gained `AT_GRANT` 幂等 | 绑本条抽取；开火后卸标记 | 本条抽取 **AFTER**（已结算） | nest `seq.draw.encounter` amount=1 | ✅ `KeywordMount` + `KeywordConsumer` |
-| **Starting** 起始 | `AT_SETUP` 挂 `WHILE_IN_DECK` | 离库卸 | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | ✅ `StartingKeyword` |
+| **Starting** 起始 | `AT_SETUP` 挂 `WHILE_IN_DECK` | 离库卸 | 起手+mulligan 之后 | 用 `owner_id` nest `seq.effect.search` 找这张牌，再 `seq.enter_hand` | ✅ 规格 |
 | **Swarming** | `AFTER_ENTER_PLAY` | `UNTIL_FIRED` | 进场结算之后 | 垫 **X** 张 swarm 牌 | Core 无 |
 
 涌动不是新 BuffType。`KeywordConsumer` 只是该 LISTENER 尚未接入 TimingCatalog 时的竖切。
@@ -889,7 +891,7 @@ Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
 | **`DETERMINED`** | 单敌 / 03153 | 腿已定；攻击伤害 = primary | `+=` primary（攻击伤害量） | settle 腿 |
 | **`ASSIGN`** | 04305 | 候选集已定；`amount` = 攻击伤害 | `+= amount` | Assign → legs → settle |
 
-**禁止**：修正里带宿主；默认每腿 +1；把对敌量修混进调查员承伤 `DamagePipeline`。
+**禁止**：修正里带宿主；默认每腿 +1；把对敌量修混进调查员承伤 `DealInvestigatorPipeline`。
 
 ### 6.4 值键增长规则
 
@@ -1168,7 +1170,7 @@ Grimoire 条文 / 卡面效果
 | After you X, do Y / Forced / [reaction] | **LISTENER** | §16.5 |
 | exhausted 不能再 exhaust | **否** | Domain：`set_flag` / exhaust 入口状态检查 |
 | target 不合法不能 initiate | **否** | Eligibility **L7** `CompositionDryRunner` |
-| assign 超过 asset 血量 | **否** | `DamagePipeline.assign` 规则 |
+| assign 超过 asset 血量 | **否** | `DealInvestigatorPipeline.assign` 规则 |
 | deck 不能带两张同名 | **否** | Setup / deckbuild 校验 |
 | Permanent 不能离场 | **混合** | Domain 关键词 + 可能 **MOVE** Intent（§16.4） |
 | Immune to treachery / player card effects | **RESTRICTION** | EffectGraph step 4 + `EffectOp`→Intent |
@@ -1293,8 +1295,8 @@ class AmountPlan:
 |---|---|---|---|
 | 玩家攻击伤害 | 定效果 → 无名改量 → settle | Fight ST.7 `AmountPlan` | ✅ |
 | 发现线索 | 同上；指名 `add_named_bonus` | Investigate ST.7 / 效果步 | ✅ |
-| 敌人攻击伤害/恐惧 | 定攻击 → 修印刷量 → **造成** | `EnemyAttack.build_from_enemy` → `DamagePipeline` | ✅ |
-| 调查员承伤 +K | 先 Assign(N) → `increase_pending` | `DamagePipeline`（含敌人攻击） | ✅ |
+| 敌人攻击伤害/恐惧 | 定攻击 → 修印刷量 → **造成** | `EnemyAttack.build_from_enemy` → `DealInvestigatorPipeline` | ✅ |
+| 调查员承伤 +K | 先 Assign(N) → `increase_pending` | `DealInvestigatorPipeline`（含敌人攻击） | ✅ |
 | 04305 ASSIGN 物化 | 改 `amount` → Assign | `effect_shape=ASSIGN` | ✅ API + Gate（`ask_assign_among`） |
 | 09059/09108 指名发现 | 效果步 `add_named_bonus` | Composition / 能力成功句 | ✅ API（MOD-12） |
 
@@ -1346,13 +1348,13 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `LEAVE_HAND` | 卡牌离开 HAND（move / discard / spawn 等） | `FORBID_LEAVE_HAND` | 隐私（Hidden）E4 | REST-E-MOVE（`StateMutator.move_card`） | **已实现** |
 | —（原流程分支） | 借机不跑 | `SKIP_AOO` | 「This action does not provoke…」 | REST-E-AOO：`read_skip_aoo` | **已实现** · 翻译叶见 [20 §4](20-card-translation-schema.md) |
 | —（原流程分支） | 自动交战不跑 | `SUPPRESS_AUTO_ENGAGE` | 「移入后 engages you」（明示交战，非 Prey/Lead；冷漠/横置仍靠 mode=effect） | REST-E-AUTO-ENGAGE：`read_suppress_auto_engage` | **已实现** · 理由见 [20 §4.2.1](20-card-translation-schema.md) |
-| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include · GRANT_CAPACITY | REST-E-ASSIGN：`DamageAssigner` @ `DamagePipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
+| —（原流程读取） | 伤/恐分摊候选与约束 | `ASSIGN_CONSTRAINT` | 03109 prior-fill · 09007 min · 60232 max-trait · 04015/Bodyguard include · GRANT_CAPACITY | REST-E-ASSIGN：`DamageAssigner` @ `DealInvestigatorPipeline` Assign | **已实现** · [07 §4](07-effect-resolution.md) |
 | —（状态查询） | 成对交战状态 | `ENGAGEMENT` | 真实交战 / 视为交战（威胁区是区划检测，不是本 Buff） | `EngagementStatus` / `has_engagement` | **已实现** · [08 §3.1.1](08-enemy-engagement.md) |
 | `DISCOVER_CLUE` | 发现线索 | `FORBID_DISCOVER_CLUE` | 「While engaged… cannot discover…」（01121b） | REST-E-EFFECT：`DiscoverClueFlow` | **已实现** · 与 ENGAGEMENT 同 Register，脱离卸 |
 | `SPEND_CLUE` | 花费线索 | `FORBID_SPEND_CLUE` | 「…or spend clues」（01121b） | REST-E-EFFECT：`ActAdvanceFlow` / `spend_clues_group` | **已实现** · 同上 |
 | `MOVE` | 移动行动 / 效果移动调查员 | `FORBID_MOVE` | 「不能离开地点」 | REST-E-ACTION / REST-E-EFFECT | 待 enum + 接线 |
 | `ENGAGE` | engage 行动 | `FORBID_ENGAGE` | aloof 等（常配合 Condition） | REST-E-ACTION | 待 |
-| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION：`BasicActionFlowHandlers` / implicit | **已实现** · `AloofStatus.ensure_forbid_attack` @ 进场 |
+| `FIGHT` | fight / 攻击敌人 | `FORBID_ATTACK` | aloof 未 engage | REST-E-ACTION：`BasicActionFlowHandlers` / implicit | **已实现** · `KeywordMount.ensure_aloof_forbid_attack` @ 进场 |
 | `INVESTIGATE` | investigate 行动 | `FORBID_INVESTIGATE` | 地点规则 | REST-E-ACTION | 待 |
 | `EVADE` | evade 行动 | `FORBID_EVADE` | — | REST-E-ACTION | 待 |
 | `ACTIVATE` | 启动 asset 能力 | `FORBID_ACTIVATE` | 「不能启动」 | REST-E-ACTIVATE | 待 |
@@ -1395,7 +1397,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 | `seq.action.fight` / `BasicActionFlowHandlers.fight`（及 implicit 目标诊断） | REST-E-ACTION | `FORBID_ATTACK`（冷漠未交战） | 拦 Intent；已交战 Evaluator 放行 | **已实现** |
 | Initiation INIT_2B · `AttackOfOpportunityTrigger` | REST-E-AOO | `SKIP_AOO` | 原流程读取分支 | **已实现** |
 | `EnemySystem.auto_engage_at_location`（常由 `seq.engage` mode=auto / 区域变更后触发） | REST-E-AUTO-ENGAGE | `SUPPRESS_AUTO_ENGAGE` | 原流程读取分支 | **已实现** |
-| `DamagePipeline.deal_investigator` Assign（`DamageAssigner`） | REST-E-ASSIGN | `ASSIGN_CONSTRAINT` | 原流程读取（候选/先验/最小/最大） | **已实现** |
+| `DealInvestigatorPipeline.deal_investigator` Assign（`DamageAssigner`） | REST-E-ASSIGN | `ASSIGN_CONSTRAINT` | 原流程读取（候选/先验/最小/最大） | **已实现** |
 | `AbilityInitiationPipeline` / Action play·trigger 前 | REST-E-PLAY / REST-E-TRIGGER | `FORBID_PLAY` / `FORBID_TRIGGER` | 拦 Intent | Kind 有；接线见 §16.4.2 |
 | `EffectResolutionGraph` step 4（`EffectRestrictionGate`） | REST-E-EFFECT | 按 `EffectOp`→Intent（§16.4.3） | 拦 Intent | 部分（如 DRAW） |
 | （状态查询，非某 seq 结算兴趣） | — | `ENGAGEMENT` | `EngagementStatus` 成对查询 | **已实现** · 不进本表消费列 |
@@ -1423,7 +1425,7 @@ Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`�
 |---|---|
 | 结构 / 牌组合法性 | Setup、deckbuild |
 | 目标不存在、效果空转 | Eligibility L7 |
-| Assign / prevent / reassign | `DamagePipeline` + Wrapper |
+| Assign / prevent / reassign | `DealInvestigatorPipeline` + Wrapper |
 | Instead 竞争 | `PendingResolution` + initiation_seq |
 | 区域不变量（leave play token→pool） | `StateMutator` / [01 §5](01-game-state-zones.md) |
 | 关键词流程（Surge 再抽） | **G5** nest evaluate + 再抽 G1（**G4 后**；不在 G1 Register） |
@@ -1515,7 +1517,7 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 | 2026-10-26 | v0.4.46 | 明示 horror 与 damage 同两条 seq（`kind`） |
 | 2026-10-26 | v0.4.45 | 伤害拆 `damage.assignable` / `damage`；ASSIGN settle → assignable |
 | 2026-10-26 | v0.4.44 | settle 多目标：一条 seq + `legs[]`；L0 仍单目标（MOD-13/14/15） |
-| 2026-10-26 | v0.4.43 | additional 全路径：敌伤 `ENEMY_DAMAGE` + 攻击进 `DamagePipeline`；指名 `add_named_bonus` |
+| 2026-10-26 | v0.4.43 | additional 全路径：敌伤 `ENEMY_DAMAGE` + 攻击进 `DealInvestigatorPipeline`；指名 `add_named_bonus` |
 | 2026-10-26 | v0.4.42 | §16.3.2：先定效果；无名 additional 只改攻击/发现量；`DETERMINED`/`ASSIGN` |
 | 2026-10-26 | v0.4.41 | §16.3.2：对敌伤 `PIN_PRIMARY` / `ADD_TO_POOL`（由 v0.4.42 收成 effect_shape） |
 | 2026-10-24 | v0.4.40 | incoming additional（02221）：保留 N 腿，仅增量 K @ 合法全合格集 |

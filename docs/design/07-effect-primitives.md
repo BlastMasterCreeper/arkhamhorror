@@ -790,7 +790,7 @@ CompositionExecutor.run(tree)
 | GAIN_RESOURCE | `TransferMarker(POOL_RESOURCE → inv.RESOURCE, n)` |
 | HEAL | `TransferMarker(bearer → POOL_*, n)` + semantic heal |
 | TRANSFER_AFFLICTION | `MarkerTransferBatch` → 若干 `TransferMarker`（每腿 1:1） |
-| DEAL_DAMAGE | `DamagePipeline` → Assign → 若干 `TransferMarker(POOL → bearer)` |
+| DEAL_DAMAGE | `DealInvestigatorPipeline` → Assign → 若干 `TransferMarker(POOL → bearer)` |
 | DISCOVER_CLUE | `TransferMarker(CLUES_ON_LOCATION, n, loc, inv)` |
 | EXHAUST / READY | `SetFlag(EXHAUSTED, true/false)` |
 | MOVE_INVESTIGATOR | `SetRef(LOCATION, loc)` + enter Wrapper 可选 |

@@ -138,7 +138,7 @@ static func _register_location(
 	game_ctx.state.registry.register_location(loc)
 	## 开局已揭示的地点（如 starting）：立刻翻开并放线索（经 transfer_marker）。
 	if in_play and reveal:
-		LocationEnterRules.reveal_and_place_clues(
+		RevealLocationFlow.reveal_and_place_clues(
 			game_ctx, {"location_id": definition_id}
 		)
 	if in_play:

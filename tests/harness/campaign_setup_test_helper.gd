@@ -56,8 +56,8 @@ static func test_camp01_select_and_opening_deck() -> bool:
 		var cid := "pc_a_%d" % i
 		_reg_card(cid, {"title": "P%d" % i, "faction_code": "guardian"})
 		player_ids.append(cid)
-	var state := InvestigatorCampaignSystem.start_campaign(&"test_camp", &"easy_standard")
-	var sel := InvestigatorCampaignSystem.select_investigator(state, &"inv_camp_a", {})
+	var state := InvestigatorCampaignPipeline.start_campaign(&"test_camp", &"easy_standard")
+	var sel := InvestigatorCampaignPipeline.select_investigator(state, &"inv_camp_a", {})
 	if not bool(sel.get("ok", false)):
 		return false
 	var rec: CampaignInvestigatorRecord = sel["record"]
@@ -70,7 +70,7 @@ static func test_camp01_select_and_opening_deck() -> bool:
 		return false
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
-	var built := InvestigatorCampaignSystem.set_opening_deck(
+	var built := InvestigatorCampaignPipeline.set_opening_deck(
 		state, rec, player_ids, {"rng": rng, "basic_weakness_pool": [&"bw_a", &"bw_b"]}
 	)
 	if not bool(built.get("ok", false)):
@@ -80,12 +80,12 @@ static func test_camp01_select_and_opening_deck() -> bool:
 	if rec.counted_deck_size() != 5:
 		return false
 	## Starter 旗标跳过 BW。
-	var state2 := InvestigatorCampaignSystem.start_campaign(
+	var state2 := InvestigatorCampaignPipeline.start_campaign(
 		&"starter", &"easy_standard", {"use_starter_deck_no_random_weakness": true}
 	)
-	var sel2 := InvestigatorCampaignSystem.select_investigator(state2, &"inv_camp_a", {})
+	var sel2 := InvestigatorCampaignPipeline.select_investigator(state2, &"inv_camp_a", {})
 	var rec2: CampaignInvestigatorRecord = sel2["record"]
-	var built2 := InvestigatorCampaignSystem.set_opening_deck(state2, rec2, player_ids, {})
+	var built2 := InvestigatorCampaignPipeline.set_opening_deck(state2, rec2, player_ids, {})
 	return bool(built2.get("ok", false)) and String(built2.get("basic_weakness", "")) == ""
 
 
@@ -94,11 +94,11 @@ static func test_camp02_replace_investigator() -> bool:
 	_reg_inv("inv_new", {"title": "New", "deck_requirements": {"size": 5, "card": {}, "random": []}})
 	for i in 5:
 		_reg_card("rn_%d" % i, {"title": "R%d" % i})
-	var state := InvestigatorCampaignSystem.start_campaign(&"rep")
-	var sel := InvestigatorCampaignSystem.select_investigator(state, &"inv_old", {}, &"p1")
+	var state := InvestigatorCampaignPipeline.start_campaign(&"rep")
+	var sel := InvestigatorCampaignPipeline.select_investigator(state, &"inv_old", {}, &"p1")
 	if not bool(sel.get("ok", false)):
 		return false
-	var rep := InvestigatorCampaignSystem.replace_investigator(state, &"p1", &"inv_new", {})
+	var rep := InvestigatorCampaignPipeline.replace_investigator(state, &"p1", &"inv_new", {})
 	if not bool(rep.get("ok", false)):
 		return false
 	if state.investigators.size() != 1:
@@ -113,8 +113,8 @@ static func test_camp02_replace_investigator() -> bool:
 
 
 static func test_camp03_prepare_scenario() -> bool:
-	var state := InvestigatorCampaignSystem.start_campaign(&"sf", &"hard_expert")
-	var prep := InvestigatorCampaignSystem.prepare_scenario(
+	var state := InvestigatorCampaignPipeline.start_campaign(&"sf", &"hard_expert")
+	var prep := InvestigatorCampaignPipeline.prepare_scenario(
 		state, ScenarioSetupCatalog.SPREADING_FLAMES
 	)
 	if not bool(prep.get("ok", false)):
@@ -150,11 +150,11 @@ static func test_camp04_unresolved_choice_blocks() -> bool:
 			"deck_requirements": {"size": 5, "card": {}, "random": []},
 		}
 	)
-	var state := InvestigatorCampaignSystem.start_campaign(&"ch")
-	var bad := InvestigatorCampaignSystem.select_investigator(state, &"inv_choice", {})
+	var state := InvestigatorCampaignPipeline.start_campaign(&"ch")
+	var bad := InvestigatorCampaignPipeline.select_investigator(state, &"inv_choice", {})
 	if bool(bad.get("ok", true)):
 		return false
-	var good := InvestigatorCampaignSystem.select_investigator(
+	var good := InvestigatorCampaignPipeline.select_investigator(
 		state, &"inv_choice", {"Secondary Class": "survivor"}, &"p2"
 	)
 	return bool(good.get("ok", false)) and state.investigators.size() == 1
@@ -178,19 +178,19 @@ static func test_camp05_begin_scenario_e2e() -> bool:
 		var cid := "pc_e2e_%d" % i
 		_reg_card(cid, {"title": "E%d" % i, "faction_code": "guardian"})
 		player_ids.append(cid)
-	var state := InvestigatorCampaignSystem.start_campaign(&"e2e", &"easy_standard")
-	var sel := InvestigatorCampaignSystem.select_investigator(state, &"inv_camp_e2e", {}, &"p1")
+	var state := InvestigatorCampaignPipeline.start_campaign(&"e2e", &"easy_standard")
+	var sel := InvestigatorCampaignPipeline.select_investigator(state, &"inv_camp_e2e", {}, &"p1")
 	if not bool(sel.get("ok", false)):
 		return false
 	var rec: CampaignInvestigatorRecord = sel["record"]
 	rec.physical_trauma = 1
 	rec.mental_trauma = 0
-	var built := InvestigatorCampaignSystem.set_opening_deck(
+	var built := InvestigatorCampaignPipeline.set_opening_deck(
 		state, rec, player_ids, {"skip_basic_weakness": true}
 	)
 	if not bool(built.get("ok", false)):
 		return false
-	var begun := InvestigatorCampaignSystem.begin_scenario(
+	var begun := InvestigatorCampaignPipeline.begin_scenario(
 		state,
 		ScenarioSetupCatalog.SPREADING_FLAMES,
 		{"seed": 7, "skip_mulligan": true}
@@ -265,18 +265,18 @@ static func test_bag02_snapshot_persists_across_scenarios() -> bool:
 		var cid := "pc_bag_%d" % i
 		_reg_card(cid, {"faction_code": "guardian"})
 		player_ids.append(cid)
-	var state := InvestigatorCampaignSystem.start_campaign(
+	var state := InvestigatorCampaignPipeline.start_campaign(
 		&"brethren_of_ash", &"hard", {}
 	)
-	var sel := InvestigatorCampaignSystem.select_investigator(state, &"inv_bag_persist", {}, &"p1")
+	var sel := InvestigatorCampaignPipeline.select_investigator(state, &"inv_bag_persist", {}, &"p1")
 	if not bool(sel.get("ok", false)):
 		return false
-	var built := InvestigatorCampaignSystem.set_opening_deck(
+	var built := InvestigatorCampaignPipeline.set_opening_deck(
 		state, sel["record"], player_ids, {"skip_basic_weakness": true}
 	)
 	if not bool(built.get("ok", false)):
 		return false
-	var first := InvestigatorCampaignSystem.begin_scenario(
+	var first := InvestigatorCampaignPipeline.begin_scenario(
 		state, ScenarioSetupCatalog.SPREADING_FLAMES, {"seed": 3, "skip_mulligan": true}
 	)
 	if not bool(first.get("ok", false)):

@@ -3,7 +3,7 @@ extends RefCounted
 
 ## 敌人生成拼装（`seq.encounter.spawn` RESOLVE 用）。
 ## **不是**命名流程 id、也不是交战手续：场外进场 / 进威胁区由本类 + EnterThreatAreaFlow 完成。
-## 禁止对外再挂 EnemySystem.spawn_* 语义 API。
+## 禁止对外再挂平行 spawn_* 语义 API。
 
 
 static func from_encounter_draw(
@@ -30,11 +30,8 @@ static func from_encounter_draw(
 	var spawn_res := at_location(game_ctx, card_id, location_tag, def_id)
 	if not spawn_res.get("ok", false):
 		return spawn_res
-	if not aloof:
-		if CardRegistry.is_massive(def_id):
-			MassiveEngagement.sync_for_enemy(game_ctx, card_id)
-		else:
-			EngageFlow.nest_after_area_change(game_ctx, location_tag, card_id)
+	if not aloof and not CardRegistry.is_massive(def_id):
+		EngageFlow.nest_after_area_change(game_ctx, location_tag, card_id)
 	return {"ok": true, "enemy_id": card_id, "location_tag": location_tag}
 
 
@@ -57,11 +54,7 @@ static func default_from_draw(
 		var massive_loc := _drawer_location_tag(game_ctx, drawer_id)
 		if massive_loc == &"":
 			return discard_failed(game_ctx, card_id)
-		var massive_spawn := at_location(game_ctx, card_id, massive_loc, def_id)
-		if not massive_spawn.get("ok", false):
-			return massive_spawn
-		MassiveEngagement.sync_for_enemy(game_ctx, card_id)
-		return {"ok": true, "enemy_id": card_id, "location_tag": massive_loc}
+		return at_location(game_ctx, card_id, massive_loc, def_id)
 	return engaged(game_ctx, card_id, drawer_id)
 
 
@@ -112,9 +105,6 @@ static func at_location(
 	if not materialize.get("ok", false):
 		return materialize
 	mark_card_in_play(game_ctx, card_id)
-	var spawned := game_ctx.state.registry.get_enemy(card_id)
-	if spawned != null and spawned.massive:
-		MassiveEngagement.sync_for_enemy(game_ctx, card_id)
 	_log(
 		game_ctx,
 		"spawn_at_location",

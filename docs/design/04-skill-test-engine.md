@@ -126,7 +126,7 @@ seq.chaos.reveal
 - 多能力「将要揭示」替换：整批仍 **一次** ST.3，再对 resolved 逐枚发符号能力（[05 §4.2](05-chaos-bag.md)）
 - 「Reveal another」→ **仅**再嵌 ST.3→符号能力；不回 ST.2；递归无 PW（OQ-04-01）
 - 整链结束 → `PW_SKILL_TEST_AFTER_REVEAL`（进 ST.5 前一次）
-- 实现：`ScenarioReferenceBinder` 把 JSON 符号条装成参考卡 `symbol_abilities`；`ScenarioReferenceApplier` 于 ST.4 发起（`text_box_blank` 跳过印刷条）
+- 实现：`ScenarioReferenceBinder` 把 JSON 符号条装成参考卡 `symbol_abilities`；`ScenarioReferenceApplier` 于 ST.4 发起（`text_box_blank` 跳过印刷条）。祝福/诅咒是规则自带的同一份效果字典（另加 `return_to_pool`），不挂参考卡
 
 ```gdscript
 func resolve_reveal_chain(handle: SkillTestHandle) -> void:
@@ -298,7 +298,7 @@ if reason != &"":
 
 ### 4.7 SkillTestContext.peril 与 frame 同步
 
-- `begin_test` → `EncounterPeril.sync_test_context_from_frame`：`ctx.peril = frame.peril`（**镜像**，供 Condition）。
+- `begin_test` → `KeywordMount.sync_peril_test_context`：`ctx.peril = frame.peril`（**镜像**，供 Condition）。
 - **commit 裁决**只查 `RestrictionEvaluator`，**禁止**仅读 `ctx.peril`。
 - 嵌套检定：自 frame 复制 `peril` 镜像；RESTRICTION 仍 active 直至 frame pop。
 
@@ -327,7 +327,7 @@ func top_encounter_frame_if_peril() -> EncounterResolutionFrame
 | 时机 | 调用 |
 |---|---|
 | `seq.draw.encounter` RESOLVE 开头 | `push_encounter_frame(...)` |
-| E3 | `EncounterPeril.apply_e3_check(game_ctx, frame, has_peril)` |
+| E3 | `KeywordMount.register_peril_if_needed(game_ctx, frame, has_peril)` |
 | E7 | `GameContext.pop_encounter_resolution_frame()` → pop + Unregister |
 
 ---
@@ -343,7 +343,7 @@ func top_encounter_frame_if_peril() -> EncounterResolutionFrame
 ```text
 seq.draw.encounter → resolve_card_body (内联)
   …
-  EncounterPeril.apply_e3_check(game_ctx, memory.peek_encounter_frame(), has_keyword(peril))
+  KeywordMount.register_peril_if_needed(game_ctx, memory.peek_encounter_frame(), has_keyword(peril))
   …
 ```
 
