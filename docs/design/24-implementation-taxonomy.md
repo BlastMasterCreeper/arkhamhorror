@@ -59,7 +59,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | **DTO / Spec** | 参数、意图、能力描述、选择规格 | `EffectRequest`、`InitiationIntent`、`SelectionSpec`、`EnemyAttack` |
 | **静态树** | Composition / ST.7 计划树 | `CompositionNode`、`SkillTestSt7Plan` |
 | **局面形** | 实体状态、物理槽、枚举 | `CardInstance`、`InvestigatorState`、`AhcEnums` |
-| **L0 附属** | 仅被 Flow 调用的写局面/域辅助（优先收进对应 `*Flow`，勿增殖） | `DamageAssigner`、`SwarmPack`、`ScenarioSetAside` |
+| **L0 附属** | 仅被 Flow 调用的写局面/域辅助（优先收进对应 `*Flow`，勿增殖） | 分摊在 `DealAssignableFlow`；蜂拥包在 `VirtualCard` + 移动/接战/横置；set-aside 在 `ScenarioCompositionFlowHandlers` |
 | **Policy / 表** | 阈值、挂载表、配置谓词 | `KeywordProfileTable`、`RuleProfileTable`、`EnterHandTimingPolicy` |
 
 **禁止**：为上述标签新建 `*DtoBucket` / `*SpecService` 等职责层；标签只服务阅读。
@@ -112,7 +112,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 ## 7. 全库普查（2026-11-11）
 
-范围：生产 `class_name` **230**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。
+范围：生产 `class_name` **227**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。
 
 | 桶 | 数量 |
 |---|---|
@@ -120,9 +120,9 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | 查询 | 27 |
 | 管线 | 36 |
 | 底座 | 31 |
-| 不成桶 | 99 |
+| 不成桶 | 96 |
 
-不成桶标签：DTO / Spec 54、局面形 19、Policy / 表 9、L0 附属 8、编译器 6、静态树 3。
+不成桶标签：DTO / Spec 54、局面形 19、Policy / 表 9、L0 附属 5、编译器 6、静态树 3。
 
 `*Trigger` / `*Service` / `*System` 均为 0。`TriggeringCondition`、`TriggeredAbilityDescriptor`、`TriggeredAbilityPipeline` 是时点信封与发起管线。
 
@@ -146,3 +146,4 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | 2026-11-13 | 祝福/诅咒改为规则自带符号能力：效果字典与参考卡同形，ST.4 走 `ScenarioReferenceApplier`。删除 `BlessCurseRules`。生产类 232，管线 37 |
 | 2026-11-13 | 起始：用卡的 `owner_id` nest `seq.effect.search` 再入手。删除 `StartingKeyword`。生产类 231，管线 36 |
 | 2026-11-13 | 删除 `MassiveEngagement`。虚拟交战归 `EngagementStatus`；阶段攻击批归 `EnemyPhaseFlow`；进场/移动/接战不再清威胁区。生产类 230，流程体 37 |
+| 2026-11-16 | 删除 `SwarmPack`、`DamageAssigner`、`ScenarioSetAside`。蜂拥绑定在 `VirtualCard`，整包对齐在移动/接战/横置；分摊在 `DealAssignableFlow`；set-aside 在 `ScenarioCompositionFlowHandlers`。生产类 227，不成桶 96 |

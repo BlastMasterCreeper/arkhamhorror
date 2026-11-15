@@ -145,7 +145,7 @@ static func _set_enemy(
 		card.exhausted = to_exhausted
 		_mirror_exhausted(game_ctx, card, to_exhausted)
 	## 蜂拥同步轴：横置/重整整包同时。
-	SwarmPack.sync_exhausted(game_ctx, enemy_id)
+	ExhaustReadyFlow.align_pack_exhausted(game_ctx, enemy_id)
 	var out := {
 		"ok": true,
 		"changed": true,
@@ -172,7 +172,7 @@ static func _set_enemy(
 		var engage := EngageFlow.nest_after_area_change(
 			game_ctx, enemy.location_tag, enemy_id, &"ready"
 		)
-		SwarmPack.sync_engagement(game_ctx, enemy_id)
+		EngageFlow.align_pack_engagement(game_ctx, enemy_id)
 		out["engaged_investigator"] = engage.get("investigator_id", &"")
 	return out
 
@@ -222,6 +222,30 @@ static func _set_card(
 		"from_exhausted": was,
 		"to_exhausted": to_exhausted,
 	}
+
+
+## 整包横置与主体对齐。
+static func align_pack_exhausted(game_ctx: GameContext, source_id: StringName) -> void:
+	if VirtualCard.pack_align_depth > 0 or game_ctx == null or game_ctx.state == null:
+		return
+	var pack := VirtualCard.pack_ids(game_ctx, source_id)
+	if pack.size() <= 1:
+		return
+	var src := game_ctx.state.registry.get_enemy(source_id)
+	if src == null:
+		return
+	VirtualCard.pack_align_depth += 1
+	for mid in pack:
+		if mid == source_id:
+			continue
+		var other := game_ctx.state.registry.get_enemy(mid)
+		if other == null:
+			continue
+		other.exhausted = src.exhausted
+		var card := game_ctx.state.registry.get_card(mid)
+		if card != null:
+			card.exhausted = src.exhausted
+	VirtualCard.pack_align_depth -= 1
 
 
 static func _mirror_exhausted(

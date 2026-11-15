@@ -185,7 +185,7 @@ func ask_pick_target(
 	return pick
 
 
-## Assign 伤害：静态会话；确认腿表或逾期用默认（DamageAssigner）。
+## Assign 伤害：静态会话；确认腿表或逾期用默认（DealAssignableFlow）。
 func ask_assign_damage(
 	game_ctx: GameContext,
 	inv_id: StringName,
@@ -226,7 +226,7 @@ func ask_assign_among(
 	var empty: Array = []
 	if total <= 0 or subjects.is_empty():
 		return empty
-	var defaults: Array = DamageAssigner.default_among(subjects, total)
+	var defaults: Array = DealAssignableFlow.default_among(subjects, total)
 	var candidates: Array = []
 	for sid_v in subjects:
 		var sid: StringName = sid_v as StringName
@@ -262,7 +262,7 @@ func ask_assign_among(
 	req.default_policy = &"first_option"
 	req.deadline_ms = -1
 	var pick: Variant = ask(req, game_ctx)
-	if pick is Array and DamageAssigner.validate_among(subjects, total, pick as Array):
+	if pick is Array and DealAssignableFlow.validate_among(subjects, total, pick as Array):
 		return (pick as Array).duplicate(true)
 	## 非法确认 → 默认腿；记作 used_default。
 	last_used_default = true
@@ -284,11 +284,11 @@ func _ask_assign_investigator(
 		return empty
 	var defaults: Array = []
 	if reserved_legs.is_empty():
-		defaults = DamageAssigner.default_assignment(
+		defaults = DealAssignableFlow.default_assignment(
 			game_ctx, inv_id, kind, total, is_direct
 		)
 	else:
-		defaults = DamageAssigner.assign_delta(
+		defaults = DealAssignableFlow.assign_delta(
 			game_ctx, inv_id, kind, total, is_direct, reserved_legs
 		)
 	var choice_kind := (
@@ -301,10 +301,10 @@ func _ask_assign_investigator(
 	req.options = defaults.duplicate(true)
 	req.context = {
 		"pending_total": total,
-		"candidates": DamageAssigner.candidate_entries(
+		"candidates": DealAssignableFlow.candidate_entries(
 			game_ctx, inv_id, kind, is_direct, reserved_legs
 		),
-		"constraints": DamageAssigner.constraint_summaries(
+		"constraints": DealAssignableFlow.constraint_summaries(
 			game_ctx, inv_id, kind, is_direct
 		),
 		"kind": kind,
@@ -318,7 +318,7 @@ func _ask_assign_investigator(
 	var pick: Variant = ask(req, game_ctx)
 	if (
 		pick is Array
-		and DamageAssigner.validate(
+		and DealAssignableFlow.validate(
 			game_ctx, inv_id, kind, is_direct, total, pick as Array, reserved_legs
 		)
 	):

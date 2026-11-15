@@ -208,7 +208,7 @@ Grimoire p.8：
 - **有分配手续** = `seq.effect.deal.assignable`：伤与恐可 **同入参**；Assign 后 **同时** Apply（同帧封死；TC.kind 仍 `damage`）。禁止伤/恐各 nest 一条。
 - **无分配手续** = `seq.effect.deal`：已定 `legs[]` / 单点，**无** Assign；伤+恐已定用 `legs_damage` + `legs_horror`（**可单边空**，兼容单类型）。
 - lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
-- 逾期 / headless 未确认 → `DamageAssigner.default_assignment`（见下）。
+- 逾期 / headless 未确认 → `DealAssignableFlow.default_assignment`（见下）。
 
 #### Assign 交互（前端会话 · 已裁决）
 
@@ -224,11 +224,11 @@ Grimoire p.8：
 交互期间引擎按当前临时表 **重算可分配性**（容量、PRIOR_FILL、MIN、MAX_TO_MATCH 等）：某目标满额 / 违约束 → 该方向增减禁用或自动回退；不是另开 nest，也不是 LISTENER。
 
 确认后腿表写入 pending → 才进 WOULD/WHEN。  
-**禁止**：把增减做成多条 nest seq；禁止前端自算规则绕过 `DamageAssigner.validate`。
+**禁止**：把增减做成多条 nest seq；禁止前端自算规则绕过 `DealAssignableFlow.validate`。
 
 #### 分摊约束（`AssignConstraintOp`）
 
-挂 `RestrictionKind.ASSIGN_CONSTRAINT`（WHILE_IN_PLAY）；`DamageAssigner` @ Assign 读取。轴：`assign_affliction`（damage|horror|either）× `AssignDirectScope`（NON_DIRECT|DIRECT|BOTH）。
+挂 `RestrictionKind.ASSIGN_CONSTRAINT`（WHILE_IN_PLAY）；`DealAssignableFlow` @ Assign 读取。轴：`assign_affliction`（damage|horror|either）× `AssignDirectScope`（NON_DIRECT|DIRECT|BOTH）。
 
 | Op | 语义 | 锚例 |
 |---|---|---|
@@ -295,7 +295,7 @@ Assign(N) 已确认
   → Apply
 ```
 
-API 示意：`DealInvestigatorPipeline.increase_pending(inv_id, by)` → 更新总量 → `DamageAssigner.assign_delta(…, by)`（Gate；逾期默认算法只摊 K）。  
+API 示意：`DealInvestigatorPipeline.increase_pending(inv_id, by)` → 更新总量 → `DealAssignableFlow.assign_delta(…, by)`（Gate；逾期默认算法只摊 K）。  
 与 `reduce_pending`（降量后按剩余总量重建默认腿）**不对称**：加量走增量分配，避免撤销已承受。
 
 **竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `PlayerInteractionGate.ask_assign_*`；`increase_pending` + `assign_delta` / `merge_legs`（增量 K 亦经 Gate）。**外向/已定腿**同构 PreImpact：`DealOutboundPipeline`（`seq.effect.deal` legs / `deal.assignable` among）。测例 TIM-DMG-03–06 · ASN-08/09。

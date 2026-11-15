@@ -4,7 +4,7 @@ extends RefCounted
 ## 调查员承伤/恐管线（07-effect-resolution §4）· Assign → WHEN → Apply：
 ## - **有分配** `seq.effect.deal.assignable`：伤/恐可同入参；Assign 后 **同时** Apply。
 ## - **无分配** `seq.effect.deal`：已定 legs / 单点，无 Assign。
-## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（DamageAssigner 原流程读取）。
+## - 分摊约束：`RestrictionKind.ASSIGN_CONSTRAINT`（DealAssignableFlow 原流程读取）。
 ## -  **WHEN_HEADER / WHEN 均在 Apply 之前**（栈相位 PreImpact）。
 ## Assign = PI：`PlayerInteractionGate.ask_assign_*`（逾期 / headless → 默认腿表）。
 
@@ -240,7 +240,7 @@ static func reduce_pending(game_ctx: GameContext, inv_id: StringName, by: int) -
 	var next_amount := maxi(cur - by, 0)
 	var kind := pending_kind(game_ctx, inv_id)
 	var is_direct := pending_direct(game_ctx, inv_id)
-	var legs := DamageAssigner.default_assignment(game_ctx, inv_id, kind, next_amount, is_direct)
+	var legs := DealAssignableFlow.default_assignment(game_ctx, inv_id, kind, next_amount, is_direct)
 	game_ctx.memory.set_referent(inv_id, PENDING_AMOUNT, next_amount)
 	game_ctx.memory.set_referent(inv_id, PENDING_LEGS, legs)
 	if kind == &"horror":
@@ -271,12 +271,12 @@ static func increase_pending(game_ctx: GameContext, inv_id: StringName, by: int)
 	var delta_legs := _assign_investigator(
 		game_ctx, inv_id, kind, by, is_direct, reserved, delta_prompt
 	)
-	var merged: Array = DamageAssigner.merge_legs(reserved, delta_legs)
+	var merged: Array = DealAssignableFlow.merge_legs(reserved, delta_legs)
 	var next_amount := cur + by
-	if not DamageAssigner.validate(game_ctx, inv_id, kind, is_direct, next_amount, merged):
+	if not DealAssignableFlow.validate(game_ctx, inv_id, kind, is_direct, next_amount, merged):
 		## 失败：K 全归调查员卡，仍保留 N 腿。
 		delta_legs = [{"bearer": &"investigator", "id": inv_id, "amount": by}]
-		merged = DamageAssigner.merge_legs(reserved, delta_legs)
+		merged = DealAssignableFlow.merge_legs(reserved, delta_legs)
 	game_ctx.memory.set_referent(inv_id, PENDING_AMOUNT, next_amount)
 	game_ctx.memory.set_referent(inv_id, PENDING_LEGS, merged)
 	if kind == &"horror":
@@ -306,10 +306,10 @@ static func _assign_investigator(
 			game_ctx, inv_id, amount, is_direct, reserved_legs, dmg_prompt
 		)
 	if not reserved_legs.is_empty():
-		return DamageAssigner.assign_delta(
+		return DealAssignableFlow.assign_delta(
 			game_ctx, inv_id, kind, amount, is_direct, reserved_legs
 		)
-	return DamageAssigner.default_assignment(
+	return DealAssignableFlow.default_assignment(
 		game_ctx, inv_id, kind, amount, is_direct
 	)
 
@@ -321,7 +321,7 @@ static func reassign_pending_legs(game_ctx: GameContext, inv_id: StringName, leg
 	var total := pending_amount(game_ctx, inv_id)
 	var kind := pending_kind(game_ctx, inv_id)
 	var is_direct := pending_direct(game_ctx, inv_id)
-	if not DamageAssigner.validate(game_ctx, inv_id, kind, is_direct, total, legs):
+	if not DealAssignableFlow.validate(game_ctx, inv_id, kind, is_direct, total, legs):
 		return false
 	game_ctx.memory.set_referent(inv_id, PENDING_LEGS, legs.duplicate(true))
 	if kind == &"horror":

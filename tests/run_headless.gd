@@ -1882,17 +1882,17 @@ func _test_sc25_fire_revelation_no_target_discards() -> bool:
 	h.run_setup()
 	if not CardRegistry.has_revelation(&"12129"):
 		return false
-	var aside := ScenarioSetAside.find_cards(h.ctx, &"12129")
+	var aside := ScenarioCompositionFlowHandlers.find_cards(h.ctx, &"12129")
 	if aside.is_empty():
 		return false
 	var first: StringName = aside[0]
-	ScenarioSetAside.remove_from_set_aside(h.ctx, first)
+	ScenarioCompositionFlowHandlers.remove_from_set_aside(h.ctx, first)
 	if not EncounterAttachment.attach_limbo_to_location(h.ctx, first, &"12113"):
 		return false
 	var second: StringName = aside[1] if aside.size() > 1 else &""
 	if second == &"":
 		return false
-	ScenarioSetAside.remove_from_set_aside(h.ctx, second)
+	ScenarioCompositionFlowHandlers.remove_from_set_aside(h.ctx, second)
 	h.ctx.state.encounter_discard.append(second)
 	var card := h.ctx.state.registry.get_card(second)
 	if card != null:
@@ -7390,7 +7390,7 @@ func _test_swarm_pad_from_deck() -> bool:
 	)
 	if host_id == &"":
 		return false
-	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	var swarms := VirtualCard.swarm_ids(h.ctx, host_id)
 	if swarms.size() != 2:
 		return false
 	if inv.deck.size() != deck_before - 2:
@@ -7403,7 +7403,7 @@ func _test_swarm_pad_from_deck() -> bool:
 			return false
 		if KeywordMount.is_keyword_armed(h.ctx, sid, &"swarming"):
 			return false
-	var counts: Dictionary = SwarmPack.owner_swarm_counts(h.ctx, host_id)
+	var counts: Dictionary = VirtualCard.owner_swarm_counts(h.ctx, host_id)
 	return int(counts.get(&"inv_1", 0)) == 2 and not KeywordMount.is_keyword_armed(h.ctx, host_id, &"swarming")
 
 
@@ -7417,7 +7417,7 @@ func _test_swarm_no_recursion() -> bool:
 		&"test_loc",
 		{"keywords": [&"swarming"], "swarming": 2, "enemy": {"health": 1}}
 	)
-	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	var swarms := VirtualCard.swarm_ids(h.ctx, host_id)
 	## 集群卡牌不得再垫；总数仍为 2。
 	return swarms.size() == 2
 
@@ -7454,7 +7454,7 @@ func _test_swarm_excess_spill_pi() -> bool:
 		&"test_loc",
 		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 1}}
 	)
-	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	var swarms := VirtualCard.swarm_ids(h.ctx, host_id)
 	if swarms.is_empty():
 		return false
 	var sid: StringName = swarms[0]
@@ -7483,7 +7483,7 @@ func _test_swarm_excess_spill_default() -> bool:
 		&"test_loc",
 		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 1}}
 	)
-	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	var swarms := VirtualCard.swarm_ids(h.ctx, host_id)
 	if swarms.is_empty():
 		return false
 	var sid: StringName = swarms[0]
@@ -7506,7 +7506,7 @@ func _test_swarm_leave_deck_bottom() -> bool:
 		&"test_loc",
 		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 1}}
 	)
-	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	var swarms := VirtualCard.swarm_ids(h.ctx, host_id)
 	if swarms.is_empty():
 		return false
 	var sid: StringName = swarms[0]
@@ -7540,7 +7540,7 @@ func _test_swarm_unique_skips_pad() -> bool:
 			"enemy": {"health": 1},
 		}
 	)
-	return host_id != &"" and SwarmPack.swarm_ids(h.ctx, host_id).is_empty()
+	return host_id != &"" and VirtualCard.swarm_ids(h.ctx, host_id).is_empty()
 
 
 func _test_swarm_sync_exhaust() -> bool:
@@ -7553,7 +7553,7 @@ func _test_swarm_sync_exhaust() -> bool:
 		&"test_loc",
 		{"keywords": [&"swarming"], "swarming": 1, "enemy": {"health": 2}}
 	)
-	var swarms := SwarmPack.swarm_ids(h.ctx, host_id)
+	var swarms := VirtualCard.swarm_ids(h.ctx, host_id)
 	if swarms.is_empty():
 		return false
 	var sid: StringName = swarms[0]
@@ -11646,11 +11646,11 @@ func _test_asn_prior_fill() -> bool:
 			RestrictionPayload.assign_prior_fill(card_id, &"inv_1", &"horror")
 		)
 	)
-	var legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"horror", 3, false)
+	var legs := DealAssignableFlow.default_assignment(h.ctx, &"inv_1", &"horror", 3, false)
 	return (
 		_asn_leg_amount(legs, &"card", card_id) == 2
 		and _asn_leg_amount(legs, &"investigator", &"inv_1") == 1
-		and DamageAssigner.validate(h.ctx, &"inv_1", &"horror", false, 3, legs)
+		and DealAssignableFlow.validate(h.ctx, &"inv_1", &"horror", false, 3, legs)
 	)
 
 
@@ -11665,13 +11665,13 @@ func _test_asn_min_to_subject() -> bool:
 			RestrictionPayload.assign_min_to_subject(card_id, &"inv_1", 1, &"damage")
 		)
 	)
-	var legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
+	var legs := DealAssignableFlow.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
 	var bad_all_inv := [{"bearer": &"investigator", "id": &"inv_1", "amount": 3}]
 	return (
 		_asn_leg_amount(legs, &"card", card_id) == 1
 		and _asn_leg_amount(legs, &"investigator", &"inv_1") == 2
-		and DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, legs)
-		and not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_all_inv)
+		and DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", false, 3, legs)
+		and not DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_all_inv)
 	)
 
 
@@ -11700,10 +11700,10 @@ func _test_asn_max_to_match() -> bool:
 		{"bearer": &"card", "id": b, "amount": 1},
 		{"bearer": &"investigator", "id": &"inv_1", "amount": 1},
 	]
-	var default_legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
+	var default_legs := DealAssignableFlow.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
 	return (
-		DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, ok_one)
-		and not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_two)
+		DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", false, 3, ok_one)
+		and not DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", false, 3, bad_two)
 		and _asn_leg_amount(default_legs, &"investigator", &"inv_1") == 3
 	)
 
@@ -11715,7 +11715,7 @@ func _test_asn_include_direct() -> bool:
 		h.ctx, &"inv_1", &"ally_asn_direct", {"health": 2, "sanity": 2}
 	)
 	var assign_only := [{"bearer": &"card", "id": card_id, "amount": 1}]
-	if DamageAssigner.validate(h.ctx, &"inv_1", &"damage", true, 1, assign_only):
+	if DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", true, 1, assign_only):
 		return false
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
@@ -11728,7 +11728,7 @@ func _test_asn_include_direct() -> bool:
 			)
 		)
 	)
-	return DamageAssigner.validate(h.ctx, &"inv_1", &"damage", true, 1, assign_only)
+	return DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", true, 1, assign_only)
 
 
 func _test_asn_include_bodyguard() -> bool:
@@ -11756,9 +11756,9 @@ func _test_asn_include_bodyguard() -> bool:
 	var assign_guard := [{"bearer": &"card", "id": guard_id, "amount": 1}]
 	var far := false
 	inv2.location_tag = &"elsewhere"
-	far = DamageAssigner.validate(h.ctx, &"inv_2", &"damage", false, 1, assign_guard)
+	far = DealAssignableFlow.validate(h.ctx, &"inv_2", &"damage", false, 1, assign_guard)
 	inv2.location_tag = &"sa_loc"
-	var near := DamageAssigner.validate(h.ctx, &"inv_2", &"damage", false, 1, assign_guard)
+	var near := DealAssignableFlow.validate(h.ctx, &"inv_2", &"damage", false, 1, assign_guard)
 	return near and not far
 
 
@@ -11796,20 +11796,20 @@ func _test_asn_grant_capacity() -> bool:
 		h.ctx, &"inv_1", &"ally_asn_grant", {"health": 0, "sanity": 0}
 	)
 	var bare := [{"bearer": &"card", "id": card_id, "amount": 1}]
-	if DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
+	if DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
 		return false
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
 			RestrictionPayload.assign_grant_capacity(card_id, &"inv_1", 2, &"damage")
 		)
 	)
-	if not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
+	if not DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):
 		return false
 	## 无印刷不设上限：超量（相对 GRANT amount 参数）仍合法。
 	var over := [{"bearer": &"card", "id": card_id, "amount": 3}]
-	if not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 3, over):
+	if not DealAssignableFlow.validate(h.ctx, &"inv_1", &"damage", false, 3, over):
 		return false
-	if DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) != -1:
+	if DealAssignableFlow.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) != -1:
 		return false
 	var applied := DealInvestigatorPipeline.apply_investigator_legs(
 		h.ctx,
@@ -11825,7 +11825,7 @@ func _test_asn_grant_capacity() -> bool:
 		and int(applied.get("amount", 0)) == 2
 		and card != null
 		and card.tokens.damage == 2
-		and DamageAssigner.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) == -1
+		and DealAssignableFlow.card_remaining(h.ctx, card_id, &"damage", &"inv_1", false) == -1
 		and DealSubject.damage_capacity(h.ctx, &"inv_1") == -1
 	)
 

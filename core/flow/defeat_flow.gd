@@ -174,7 +174,7 @@ static func deal_damage(
 	amount: int
 ) -> Dictionary:
 	## 蜂拥包：主体超限不击败；集群卡牌击败后超额可溢出（PI/自动）。
-	if SwarmPack.pack_ids(game_ctx, enemy_id).size() > 1 or SwarmPack.is_swarm_card(game_ctx, enemy_id):
+	if VirtualCard.pack_ids(game_ctx, enemy_id).size() > 1 or VirtualCard.is_swarm_card_id(game_ctx, enemy_id):
 		return _swarm_deal_damage(game_ctx, enemy_id, amount)
 	if game_ctx == null or game_ctx.state == null or enemy_id == &"" or amount <= 0:
 		return {"ok": false, "defeated": false}
@@ -216,7 +216,7 @@ static func finalize_leave_play(
 	if game_ctx.state.registry.get_enemy(enemy_id) == null:
 		return {"ok": false, "defeated": false}
 	## 集群卡牌离场：不再按一般敌人击败去向；牌库底规则覆盖。
-	if SwarmPack.is_swarm_card(game_ctx, enemy_id):
+	if VirtualCard.is_swarm_card_id(game_ctx, enemy_id):
 		return _finalize_swarm_leave(game_ctx, enemy_id)
 	_clear_enemy_engagement(game_ctx, enemy_id)
 	## 毁灭（Doomed）在注销前开火；弃置不走本帧。
@@ -280,7 +280,7 @@ static func defeat_enemy_effect(game_ctx: GameContext, enemy_id: StringName) -> 
 
 static func _finalize_swarm_leave(game_ctx: GameContext, swarm_id: StringName) -> Dictionary:
 	_clear_enemy_engagement(game_ctx, swarm_id)
-	SwarmPack.unbind_swarm(game_ctx, swarm_id)
+	VirtualCard.unbind_swarm(game_ctx, swarm_id)
 	var card := game_ctx.state.registry.get_card(swarm_id)
 	var owner_id: StringName = &""
 	if card != null:
@@ -703,9 +703,9 @@ static func _is_hidden_encounter_in_hand(
 static func _swarm_host_blocks(game_ctx: GameContext, enemy_id: StringName) -> bool:
 	if game_ctx == null or enemy_id == &"":
 		return false
-	if SwarmPack.is_swarm_card(game_ctx, enemy_id):
+	if VirtualCard.is_swarm_card_id(game_ctx, enemy_id):
 		return false
-	return SwarmPack.has_swarm_cards(game_ctx, enemy_id)
+	return VirtualCard.has_swarm_cards(game_ctx, enemy_id)
 
 
 ## 对敌人造成伤害；处理主体超限与集群溢出。
@@ -716,13 +716,13 @@ static func _swarm_deal_damage(game_ctx: GameContext, enemy_id: StringName, amou
 	if enemy == null:
 		return {"ok": false, "defeated": false}
 	enemy.damage += amount
-	if SwarmPack.is_swarm_card(game_ctx, enemy_id):
+	if VirtualCard.is_swarm_card_id(game_ctx, enemy_id):
 		if enemy.damage < enemy.health:
 			return {"ok": true, "defeated": false, "damage": enemy.damage}
 		var excess := enemy.damage - enemy.health
 		enemy.damage = enemy.health
 		## 退场会解绑；溢出候选须在 leave 前快照。
-		var host_id := SwarmPack.host_of(game_ctx, enemy_id)
+		var host_id := VirtualCard.host_of(game_ctx, enemy_id)
 		var spill_candidates := _spill_candidates(game_ctx, host_id, enemy_id)
 		var defeated := check_enemy_damage_cap(game_ctx, enemy_id)
 		var spill := {"ok": true, "spilled": 0}
@@ -753,7 +753,7 @@ static func _spill_candidates(
 	var candidates: Array = []
 	if game_ctx == null or host_id == &"":
 		return candidates
-	for sid in SwarmPack.swarm_ids(game_ctx, host_id):
+	for sid in VirtualCard.swarm_ids(game_ctx, host_id):
 		if sid != from_swarm_id and game_ctx.state.registry.get_enemy(sid) != null:
 			candidates.append(sid)
 	if game_ctx.state.registry.get_enemy(host_id) != null:

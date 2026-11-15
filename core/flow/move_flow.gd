@@ -238,11 +238,11 @@ static func _move_enemy(game_ctx: GameContext, params: Dictionary) -> Dictionary
 		last["from"] = hop.get("from_location", from_id)
 		last["to"] = to_loc
 		last["to_location"] = to_loc
-		SwarmPack.sync_location(game_ctx, enemy_id)
+		MoveFlow.align_pack_location(game_ctx, enemy_id)
 		if to_loc != &"" and do_auto_engage:
 			var engage := EngageFlow.nest_after_area_change(game_ctx, to_loc, enemy_id)
 			last["engaged_investigator"] = engage.get("investigator_id", &"")
-			SwarmPack.sync_engagement(game_ctx, enemy_id)
+			EngageFlow.align_pack_engagement(game_ctx, enemy_id)
 	_log_move(
 		game_ctx,
 		SUBJECT_ENEMY,
@@ -281,11 +281,11 @@ static func _move_enemy_direct(
 		"move_kind": move_kind,
 	})
 	## 蜂拥同步轴：地点整包对齐。
-	SwarmPack.sync_location(game_ctx, enemy_id)
+	MoveFlow.align_pack_location(game_ctx, enemy_id)
 	if do_auto_engage:
 		var engage := EngageFlow.nest_after_area_change(game_ctx, dest_id, enemy_id)
 		out["engaged_investigator"] = engage.get("investigator_id", &"")
-		SwarmPack.sync_engagement(game_ctx, enemy_id)
+		EngageFlow.align_pack_engagement(game_ctx, enemy_id)
 	_log_move(game_ctx, SUBJECT_ENEMY, enemy_id, from_id, dest_id, {
 		"move_kind": move_kind,
 	})
@@ -399,6 +399,26 @@ static func _move_marker(game_ctx: GameContext, params: Dictionary) -> Dictionar
 	})
 
 
+## 整包地点与主体对齐。
+static func align_pack_location(game_ctx: GameContext, source_id: StringName) -> void:
+	if VirtualCard.pack_align_depth > 0 or game_ctx == null or game_ctx.state == null:
+		return
+	var pack := VirtualCard.pack_ids(game_ctx, source_id)
+	if pack.size() <= 1:
+		return
+	var src := game_ctx.state.registry.get_enemy(source_id)
+	if src == null:
+		return
+	VirtualCard.pack_align_depth += 1
+	for mid in pack:
+		if mid == source_id:
+			continue
+		var other := game_ctx.state.registry.get_enemy(mid)
+		if other != null:
+			other.location_tag = src.location_tag
+	VirtualCard.pack_align_depth -= 1
+
+
 static func _enemy_move_gate(
 	game_ctx: GameContext,
 	enemy_id: StringName,
@@ -411,7 +431,7 @@ static func _enemy_move_gate(
 	if enemy_id == &"":
 		return {"ok": false, "moved": false, "reason": &"missing_enemy"}
 	## 蜂拥：关键词移动只让主体走一次，集群卡牌跳过。
-	if swarm_host_only and SwarmPack.is_swarm_card(game_ctx, enemy_id):
+	if swarm_host_only and VirtualCard.is_swarm_card_id(game_ctx, enemy_id):
 		return {
 			"ok": true,
 			"moved": false,

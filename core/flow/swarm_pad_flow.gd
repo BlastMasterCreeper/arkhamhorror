@@ -120,7 +120,7 @@ static func _pad_one(
 	enemy.engaged_with = host.engaged_with
 	enemy.auto_engage_suppressed = host.auto_engage_suppressed
 	game_ctx.state.registry.register_enemy(enemy)
-	SwarmPack.bind_swarm(game_ctx, host_id, proxy_id)
+	VirtualCard.bind_swarm(game_ctx, host_id, proxy_id)
 	if host.engaged_with != &"":
 		## 集群卡牌从牌库垫出 = 场外→威胁区（不是交战手续）。
 		EngagementStatus.grant(game_ctx, proxy_id, host.engaged_with)
