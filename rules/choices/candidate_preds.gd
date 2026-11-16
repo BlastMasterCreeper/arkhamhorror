@@ -41,6 +41,12 @@ static func passes_all(
 	return true
 
 
+static func field_value(
+	field: StringName, entity_id: StringName, kind: StringName, state: GameStateStore
+) -> Variant:
+	return _field_value(field, entity_id, kind, state)
+
+
 static func evaluate(
 	pred: Dictionary,
 	candidate_id: StringName,
@@ -170,6 +176,10 @@ static func _field_value(
 					return loc.shroud
 				&"clues":
 					return loc.clues
+				&"enemy_count":
+					return _occupancy(state, entity_id, &"enemy")
+				&"investigator_count":
+					return _occupancy(state, entity_id, &"investigator")
 				_:
 					return null
 		_:
@@ -269,3 +279,20 @@ static func _location_of(
 			return inv.location_tag if inv != null else &""
 		_:
 			return &""
+
+
+static func _occupancy(state: GameStateStore, location_id: StringName, kind: StringName) -> int:
+	if state == null or location_id == &"":
+		return 0
+	var n := 0
+	if kind == &"enemy":
+		for enemy_id in state.registry.all_enemy_ids():
+			var enemy := state.registry.get_enemy(enemy_id)
+			if enemy != null and enemy.location_tag == location_id:
+				n += 1
+	elif kind == &"investigator":
+		for inv_id in state.registry.all_investigator_ids():
+			var inv := state.registry.get_investigator(inv_id)
+			if inv != null and not inv.eliminated and inv.location_tag == location_id:
+				n += 1
+	return n

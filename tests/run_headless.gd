@@ -448,6 +448,8 @@ func _initialize() -> void:
 	_run_test("G1-07 move rejects disconnected", _test_g1_move_rejects_disconnected)
 	_run_test("G1-08 move_to ignores connections", _test_g1_move_to_ignores_connections)
 	_run_test("TOPO-01 symbol edges plus setup laws", _test_topo_symbol_and_setup_laws)
+	_run_test("QA-01 scan where rank aggregate project", _test_qa01_query_algebra)
+	_run_test("QA-02 catalog where for deck options", _test_qa02_catalog_deck_options)
 	_run_test("L-01 per_investigator clues on reveal", _test_l01_per_investigator_clues)
 	_run_test("L-02 move to unrevealed reveals and places clues", _test_l02_move_unrevealed)
 	_run_test("L-02b re-enter revealed does not place clues again", _test_l02b_reenter_no_reclues)
@@ -10103,6 +10105,278 @@ func _test_topo_symbol_and_setup_laws() -> bool:
 	GameBootstrap.setup_test_location(h.ctx, &"all_b", 1, 0)
 	LocationGraph.grant_complete(h.ctx.state)
 	return LocationGraph.is_adjacent(h.ctx.state, &"all_a", &"all_b")
+
+
+func _test_qa01_query_algebra() -> bool:
+	var ctx := GameBootstrap.create(42)
+	GameBootstrap.setup_test_location(ctx, &"loc_a", 3, 1)
+	GameBootstrap.setup_test_location(ctx, &"loc_b", 2, 0)
+	GameBootstrap.setup_test_location(ctx, &"loc_c", 4, 0)
+	GameBootstrap.setup_test_location(ctx, &"loc_x", 1, 0)
+	GameBootstrap.setup_test_location(ctx, &"loc_empty", 1, 0)
+	CardRegistry.register_definition(&"loc_woods", {"traits": ["Woods"]})
+	GameBootstrap.setup_test_location(ctx, &"loc_woods", 1, 0)
+	GameBootstrap.connect_locations(ctx, &"loc_a", &"loc_b")
+	GameBootstrap.connect_locations(ctx, &"loc_b", &"loc_c")
+	GameBootstrap.setup_investigator_at_location(ctx, &"inv_near", &"loc_a")
+	GameBootstrap.setup_investigator_at_location(ctx, &"inv_far", &"loc_c")
+	ctx.state.lead_investigator_id = &"inv_near"
+	ctx.state.registry.get_investigator(&"inv_near").clues_on_card = 1
+	ctx.state.registry.get_investigator(&"inv_far").clues_on_card = 4
+	GameBootstrap.setup_test_enemy(ctx, &"e_b", &"loc_b", 1)
+	GameBootstrap.setup_test_enemy(ctx, &"e_b2", &"loc_b", 2)
+	GameBootstrap.setup_test_enemy(ctx, &"e_c", &"loc_c", 5)
+	GameBootstrap.setup_test_enemy(ctx, &"e_x", &"loc_x", 1)
+	ctx.state.registry.get_enemy(&"e_b").doom = 1
+	ctx.state.registry.get_enemy(&"e_c").doom = 2
+	if QueryAlgebra.scan(ctx.state, &"enemy").size() != 4:
+		return false
+	if QueryAlgebra.scan(ctx.state, &"investigator").size() != 2:
+		return false
+	if QueryAlgebra.scan(ctx.state, &"location").size() != 6:
+		return false
+	var enemies := QueryAlgebra.scan(ctx.state, &"enemy")
+	var weak := QueryAlgebra.where(ctx, enemies, {
+		"entity": "enemy",
+		"preds": [{"on": "candidate", "field": "fight", "op": "le", "value": 2}],
+	})
+	if weak.size() != 3 or weak.has(&"e_c"):
+		return false
+	var nearest := QueryAlgebra.rank(
+		ctx.state,
+		enemies,
+		&"enemy",
+		QueryAlgebra.MEASURE_DISTANCE,
+		QueryAlgebra.ORDER_MIN,
+		&"inv_near"
+	)
+	if nearest.size() != 2 or nearest[0] != &"e_b" or nearest[1] != &"e_b2":
+		return false
+	if not QueryAlgebra.rank(ctx.state, enemies, &"enemy", &"nope").is_empty():
+		return false
+	var richest := QueryAlgebra.rank(
+		ctx.state,
+		QueryAlgebra.scan(ctx.state, &"investigator"),
+		&"investigator",
+		QueryAlgebra.MEASURE_FIELD,
+		QueryAlgebra.ORDER_MAX,
+		&"",
+		&"clues"
+	)
+	if richest.size() != 1 or richest[0] != &"inv_far":
+		return false
+	var busiest := QueryAlgebra.rank(
+		ctx.state,
+		QueryAlgebra.scan(ctx.state, &"location"),
+		&"location",
+		QueryAlgebra.MEASURE_COUNT_AT,
+		QueryAlgebra.ORDER_MAX,
+		&"",
+		&"",
+		&"enemy"
+	)
+	if busiest.size() != 1 or busiest[0] != &"loc_b":
+		return false
+	if int(QueryAlgebra.aggregate(ctx.state, enemies, &"enemy", QueryAlgebra.AGG_SUM, &"doom")) != 3:
+		return false
+	if QueryAlgebra.aggregate(ctx.state, [], &"enemy", QueryAlgebra.AGG_EXISTS):
+		return false
+	if int(QueryAlgebra.project(ctx.state, &"loc_a", &"location", &"shroud")) != 3:
+		return false
+	var empties := QueryAlgebra.where(ctx, QueryAlgebra.scan(ctx.state, &"location"), {
+		"entity": "location",
+		"preds": [
+			{"on": "candidate", "field": "enemy_count", "op": "eq", "value": 0},
+			{"on": "candidate", "field": "investigator_count", "op": "eq", "value": 0},
+		],
+	})
+	if empties.size() != 2 or not empties.has(&"loc_empty") or not empties.has(&"loc_woods"):
+		return false
+	var woods := QueryAlgebra.where(ctx, QueryAlgebra.scan(ctx.state, &"location"), {
+		"entity": "location",
+		"traits": ["Woods"],
+	})
+	if woods.size() != 1 or woods[0] != &"loc_woods":
+		return false
+	var picked: Dictionary = QueryAlgebra.eval(ctx, {
+		"from": "enemy",
+		"where": {"preds": [{"on": "candidate", "field": "doom", "op": "eq", "value": 0}]},
+		"rank": {"measure": "distance", "order": "min", "anchor": "controller"},
+	}, {"controller_id": &"inv_near"})
+	var picked_ids: Array = picked["ids"]
+	if picked["shape"] != QueryAlgebra.SHAPE_SET or picked_ids.size() != 1 or picked_ids[0] != &"e_b2":
+		return false
+	ctx.memory.set_referent(&"inv_near", &"spot", &"loc_c")
+	var at_spot: Dictionary = QueryAlgebra.eval(ctx, {
+		"from": "enemy",
+		"rank": {"measure": "distance", "order": "min", "anchor": "memory:spot"},
+	}, {"controller_id": &"inv_near"})
+	var spot_ids: Array = at_spot["ids"]
+	if spot_ids.size() != 1 or spot_ids[0] != &"e_c":
+		return false
+	var doom_total: Dictionary = QueryAlgebra.eval(ctx, {
+		"from": "enemy",
+		"aggregate": {"op": "sum", "field": "doom"},
+	})
+	if doom_total["shape"] != QueryAlgebra.SHAPE_SCALAR or int(doom_total["value"]) != 3:
+		return false
+	GameBootstrap.setup_test_enemy(ctx, &"e_mass", &"loc_a", 1, 2, &"", false, true)
+	var open_set := QueryAlgebra.where(ctx, QueryAlgebra.scan(ctx.state, &"enemy"), {"entity": "enemy"})
+	return not open_set.has(&"e_mass")
+
+
+func _test_qa02_catalog_deck_options() -> bool:
+	CardRegistry.register_definition(&"qa_knife", {
+		"title": "Knife",
+		"level": 0,
+		"card_type": "asset",
+		"faction_code": "guardian",
+		"traits": ["Weapon"],
+	})
+	CardRegistry.register_definition(&"qa_rifle", {
+		"title": "Rifle",
+		"level": 3,
+		"card_type": "asset",
+		"faction_code": "guardian",
+		"traits": ["Weapon"],
+	})
+	CardRegistry.register_definition(&"qa_book", {
+		"title": "Book",
+		"level": 0,
+		"card_type": "asset",
+		"faction_code": "seeker",
+		"traits": ["Tome"],
+	})
+	CardRegistry.register_definition(&"qa_spell", {
+		"title": "Spell",
+		"level": 2,
+		"card_type": "asset",
+		"faction_code": "mystic",
+		"traits": ["Spell"],
+	})
+	CardRegistry.register_definition(&"qa_talent", {
+		"title": "Talent",
+		"level": 0,
+		"card_type": "asset",
+		"faction_code": "guardian",
+		"permanent": true,
+		"traits": ["Talent"],
+	})
+	CardRegistry.register_definition(&"qa_cross", {
+		"title": "Cross",
+		"level": 0,
+		"card_type": "asset",
+		"factions": ["guardian", "seeker"],
+		"traits": ["Tactic"],
+	})
+	CardRegistry.register_definition(&"qa_heal", {
+		"title": "Heal",
+		"level": 1,
+		"card_type": "event",
+		"faction_code": "guardian",
+		"tags": ["hh"],
+	})
+	if not QueryAlgebra.scan(null, &"card", QueryAlgebra.UNIVERSE_CATALOG).has(&"qa_knife"):
+		return false
+	if not QueryAlgebra.scan(null, &"enemy", QueryAlgebra.UNIVERSE_CATALOG).is_empty():
+		return false
+	var pool: Array[StringName] = [
+		&"qa_knife", &"qa_rifle", &"qa_book", &"qa_spell",
+		&"qa_talent", &"qa_cross", &"qa_heal",
+	]
+	var band := QueryAlgebra.where(null, pool, {
+		"faction": ["guardian"],
+		"level": {"min": 0, "max": 2},
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if band != [&"qa_knife", &"qa_talent", &"qa_cross", &"qa_heal"]:
+		return false
+	var open_traits := QueryAlgebra.where(null, pool, {
+		"trait": ["tome", "spell"],
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if open_traits != [&"qa_book", &"qa_spell"]:
+		return false
+	var no_weapon := QueryAlgebra.where(null, pool, {
+		"trait": ["weapon"],
+		"not": true,
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if no_weapon.has(&"qa_knife") or no_weapon.has(&"qa_rifle") or not no_weapon.has(&"qa_book"):
+		return false
+	var non_permanent := QueryAlgebra.where(null, [&"qa_talent", &"qa_knife"], {
+		"permanent": false,
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if non_permanent != [&"qa_knife"]:
+		return false
+	var heals := QueryAlgebra.where(null, pool, {
+		"tag": ["hh"],
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if heals != [&"qa_heal"]:
+		return false
+	var bare_text := QueryAlgebra.where(null, pool, {
+		"text": ["heal"],
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if not bare_text.is_empty():
+		return false
+	var unresolved := QueryAlgebra.where(null, pool, {
+		"faction_select": ["seeker", "rogue"],
+		"level": {"min": 0, "max": 2},
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if not unresolved.is_empty():
+		return false
+	var copies: Array[StringName] = [&"qa_knife", &"qa_knife", &"qa_book", &"qa_cross"]
+	var grouped: Variant = QueryAlgebra.aggregate(
+		null, copies, &"card", QueryAlgebra.AGG_GROUP_COUNT, &"faction", QueryAlgebra.UNIVERSE_CATALOG
+	)
+	if not grouped is Dictionary:
+		return false
+	var counts: Dictionary = grouped
+	if int(counts.get("guardian", 0)) != 3 or int(counts.get("seeker", 0)) != 2:
+		return false
+	var meeting := 0
+	for faction_name in ["guardian", "seeker", "mystic", "rogue", "survivor"]:
+		if int(counts.get(faction_name, 0)) >= 1:
+			meeting += 1
+	if meeting != 2:
+		return false
+	var counted := QueryAlgebra.eval(null, {
+		"universe": "catalog",
+		"from": "card",
+		"ids": [&"qa_knife", &"qa_knife", &"qa_rifle"],
+		"where": {"faction": ["guardian"], "level": {"min": 0, "max": 2}},
+		"aggregate": {"op": "count"},
+	})
+	if counted["shape"] != QueryAlgebra.SHAPE_SCALAR or int(counted["value"]) != 2:
+		return false
+	var by_faction := QueryAlgebra.eval(null, {
+		"universe": "catalog",
+		"ids": [&"qa_knife", &"qa_book", &"qa_spell"],
+		"aggregate": {"op": "group_count", "field": "faction"},
+	})
+	if by_faction["shape"] != QueryAlgebra.SHAPE_GROUP:
+		return false
+	var spread: Dictionary = by_faction["value"]
+	var spread_meeting := 0
+	for faction_name in ["guardian", "seeker", "mystic", "rogue", "survivor"]:
+		if int(spread.get(faction_name, 0)) >= 1:
+			spread_meeting += 1
+	if spread_meeting != 3:
+		return false
+	var level_sum := QueryAlgebra.eval(null, {
+		"universe": "catalog",
+		"from": "card",
+		"ids": [&"qa_knife", &"qa_rifle"],
+		"aggregate": {"op": "sum", "field": "level"},
+	})
+	if int(level_sum["value"]) != 3:
+		return false
+	if int(QueryAlgebra.project(null, &"qa_rifle", &"card", &"level", QueryAlgebra.UNIVERSE_CATALOG)) != 3:
+		return false
+	if int(QueryAlgebra.project(null, &"qa_talent", &"card", &"permanent", QueryAlgebra.UNIVERSE_CATALOG)) != 1:
+		return false
+	var highest := QueryAlgebra.rank(
+		null, pool, &"card", QueryAlgebra.MEASURE_FIELD, QueryAlgebra.ORDER_MAX,
+		&"", &"level", &"", QueryAlgebra.UNIVERSE_CATALOG
+	)
+	return highest.size() == 1 and highest[0] == &"qa_rifle"
 
 
 func _test_g1_move_to_ignores_connections() -> bool:
