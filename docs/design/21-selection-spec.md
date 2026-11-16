@@ -286,6 +286,24 @@ Fight / Evade 能力（多步）Initiation（L7）
 
 与 Fight/Evade **不同构于敌人 U–V**，但同属「行动前解析隐式目标、空则不可发起」。
 
+### 3.3 查询算子（QueryAlgebra）
+
+算子是查询的基础。猎手、最近敌人、空地点、猎物括号这些具名 `*Query` 是现成模板，还没有改写成调用算子。
+
+解释器是 `QueryAlgebra`。只读：不压栈，不改局面，不在并列里替玩家挑一个。效果能不能改变这个目标仍在 V 层 dry-run。
+
+| 算子 | 返回 | 做什么 |
+|---|---|---|
+| `scan` | id 集 | 一种实体的全集。调查员不含已淘汰 |
+| `where` | id 集 | `CandidateFilter` + `preds`。地点没有 `at` 时在给定集合上筛 |
+| `rank` | id 集 | 按一个度量留下最小或最大的整组。不可达距离不入选。并列全部留下，保持输入顺序 |
+| `aggregate` | 数或布尔 | `count` / `exists` / `sum` / `min` / `max` |
+| `project` | 一列的值 | 与 `preds` 共用 `CandidatePreds.field_value` |
+
+度量限这三种：`distance`（问 `LocationGraph`）、`field`、`count_at`（`kind` 为 `enemy` 或 `investigator`）。锚点限 `controller`、`lead`、`source`、`drawer`、`memory:` 键，或一个实体 id。地点列另有 `enemy_count`、`investigator_count`，空地点是这两列都为 0 的 `where`。
+
+`eval` 按 scan → where → rank → aggregate 组合。有 `aggregate` 时结果形状是标量，否则是集合。`ids` 始终是聚合前的那一组。
+
 ---
 
 ## 4. `SelectionSpec`
@@ -404,6 +422,7 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-16 | v0.11 | **§3.3 查询算子**：`QueryAlgebra` 的 scan / where / rank / aggregate / project。具名 `*Query` 仍是模板，尚未改调用 |
 | 2026-10-09 | v0.10 | **落地 `pick_multi`**：基数校验、默认前 N / skip、`entity_list` bind、`for_each_memory` 消费列表 |
 | 2026-10-08 | v0.9 | **落地 `choice_optional`**：`OPTIONAL` 节点 + Gate `OPTIONAL_EFFECT`；编译糖 body/steps；Python `You may take N horror/damage` |
 | 2026-09-30 | v0.8 | **落地 N**：`CandidateFilter.preds` + `CandidatePreds`（field/op/value；少量 stat_query） |

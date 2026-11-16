@@ -112,12 +112,12 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 ## 7. 全库普查（2026-11-16）
 
-范围：生产 `class_name` **227**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。下表按类逐条重数。
+范围：生产 `class_name` **228**。不含 `tests/` 7 个测试辅助、`ui/` 5 个沙盒类。无重名 `class_name`。下表按类逐条重数。
 
 | 桶 | 数量 |
 |---|---|
 | 流程体 | 37 |
-| 查询 | 27 |
+| 查询 | 28 |
 | 管线 | 36 |
 | 底座 | 30 |
 | 不成桶 | 97 |
@@ -126,7 +126,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 `*Trigger` / `*Service` / `*System` 均为 0。`TriggeringCondition`、`TriggeredAbilityDescriptor`、`TriggeredAbilityPipeline` 是时点信封与发起管线。
 
-后缀与职责不一致，不因此新开桶：`StatQuery` / `ModifierQuery`（比较或取数的规格，不读局面）、`SequenceHandler`（堆栈订阅记录）。另有 13 个类在查询桶里，但没有 `*Query` / `*Status` 后缀：`CandidateEnumerator`、`CandidatePreds`、`CandidateViability`、`CardAccessMatcher`、`DeckLegality`、`EffectRestrictionGate`、`ExperienceCount`、`InitiationLegalityChecker`、`PerInvestigatorScale`、`RestrictionEvaluator`、`TextBoxBlank`、`UniqueTitle`、`XpCostCalculator`。
+后缀与职责不一致，不因此新开桶：`StatQuery` / `ModifierQuery`（比较或取数的规格，不读局面）、`SequenceHandler`（堆栈订阅记录）。另有 14 个类在查询桶里，但没有 `*Query` / `*Status` 后缀：`CandidateEnumerator`、`CandidatePreds`、`CandidateViability`、`CardAccessMatcher`、`DeckLegality`、`EffectRestrictionGate`、`ExperienceCount`、`InitiationLegalityChecker`、`PerInvestigatorScale`、`QueryAlgebra`、`RestrictionEvaluator`、`TextBoxBlank`、`UniqueTitle`、`XpCostCalculator`。
 
 没有其它文件引用的三个类：`AbilityRegistry`、`CardScriptBase`、`ResponsePrompt`。
 
@@ -199,6 +199,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | `PatrolTargetQuery` | `rules/query/patrol_target_query.gd` | 把巡逻括号里的目标解析成地点。这一步不压栈。 |
 | `PerInvestigatorScale` | `rules/scenario/per_investigator_scale.gd` | 按调查员人数放大线索、生命等印刷值。 |
 | `PreyQuery` | `rules/query/prey_query.gd` | 在候选人里按猎物指令挑出调查员。 |
+| `QueryAlgebra` | `rules/query/query_algebra.gd` | 局面查询算子：全集、筛选、取最值、聚合、读一列。具名查询是它的模板。 |
 | `RestrictionEvaluator` | `rules/registration/restriction_evaluator.gd` | 问某项意图是否被 Cannot 挡住，例如抽牌、打出、攻击、发现线索。 |
 | `SpawnLocationQuery` | `rules/query/spawn_location_query.gd` | 按生成指令算出落点地点。 |
 | `TextBoxBlank` | `rules/cards/text_box_blank.gd` | 把一张卡的印刷文本框标成空白或恢复。现在是布尔，特性除外和阶段结束还没写进注册。 |
@@ -403,3 +404,4 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | 2026-11-16 | 删除 `SwarmPack`、`DamageAssigner`、`ScenarioSetAside`。蜂拥绑定在 `VirtualCard`，整包对齐在移动/接战/横置；分摊在 `DealAssignableFlow`；set-aside 在 `ScenarioCompositionFlowHandlers`。生产类 227，不成桶 96 |
 | 2026-11-16 | 普查为每个生产类写下职责。逐类重数后：底座 30、不成桶 97、局面形 20（含 `TokenBag`）。无其它引用：`AbilityRegistry`、`CardScriptBase`、`LocationGraph`、`ResponsePrompt` |
 | 2026-11-16 | `LocationGraph` 提供拓扑查询：地点符号边与设置连接法则分开。移动、寻路、生成、逃逸、连接候选改走这里 |
+| 2026-11-16 | 查询算子 `QueryAlgebra`：scan / where / rank / aggregate / project。生产类 228，查询 28。具名 `*Query` 尚未改成模板调用 |
