@@ -199,7 +199,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | `PatrolTargetQuery` | `rules/query/patrol_target_query.gd` | 把巡逻括号里的目标解析成地点。这一步不压栈。 |
 | `PerInvestigatorScale` | `rules/scenario/per_investigator_scale.gd` | 按调查员人数放大线索、生命等印刷值。 |
 | `PreyQuery` | `rules/query/prey_query.gd` | 在候选人里按猎物指令挑出调查员。 |
-| `QueryAlgebra` | `rules/query/query_algebra.gd` | 局面查询算子：全集、筛选、取最值、聚合、读一列。具名查询是它的模板。 |
+| `QueryAlgebra` | `rules/query/query_algebra.gd` | 查询算子：局面实体与卡牌定义两种全集上的筛选、取最值、聚合、读列。构筑选项是定义全集上的筛选。具名查询和准入顺序是模板。 |
 | `RestrictionEvaluator` | `rules/registration/restriction_evaluator.gd` | 问某项意图是否被 Cannot 挡住，例如抽牌、打出、攻击、发现线索。 |
 | `SpawnLocationQuery` | `rules/query/spawn_location_query.gd` | 按生成指令算出落点地点。 |
 | `TextBoxBlank` | `rules/cards/text_box_blank.gd` | 把一张卡的印刷文本框标成空白或恢复。现在是布尔，特性除外和阶段结束还没写进注册。 |
@@ -405,3 +405,4 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | 2026-11-16 | 普查为每个生产类写下职责。逐类重数后：底座 30、不成桶 97、局面形 20（含 `TokenBag`）。无其它引用：`AbilityRegistry`、`CardScriptBase`、`LocationGraph`、`ResponsePrompt` |
 | 2026-11-16 | `LocationGraph` 提供拓扑查询：地点符号边与设置连接法则分开。移动、寻路、生成、逃逸、连接候选改走这里 |
 | 2026-11-16 | 查询算子 `QueryAlgebra`：scan / where / rank / aggregate / project。生产类 228，查询 28。具名 `*Query` 尚未改成模板调用 |
+| 2026-11-16 | `QueryAlgebra` 增加卡牌定义全集：牌库构建选项走同一套 where；按职阶等列分组计数。类数不变 |

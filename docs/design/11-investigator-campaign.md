@@ -435,6 +435,22 @@ Signature / required cards / basic weakness ∈ `deck_requirements`，**无视**
 
 卡面改 options（FAQ 1.37：Underworld Market 等）→ **立即**重建 Profile 再继续本窗报价。
 
+#### 7.6.5 与查询算子
+
+单条选项的匹配谓词是 `QueryAlgebra` 在 **catalog** 全集上的 `where`（[21 §3.3](21-selection-spec.md)）。行是印刷定义 `DeckCardView`，列是 level、faction、trait、type、tag、uses、permanent。列表内取任一，字段之间同时成立。`not` 把匹配反过来。`text` 正则仍只在导入期打标。
+
+`scan(catalog)` 是购卡候选池。牌组是调用方给出的定义 id 列表，同一 id 出现几次就按几张副本计。
+
+角色沿用 §7.6.2，不另造算子：
+
+| 角色 | 算子用法 |
+|---|---|
+| ALLOW / FORBID | 一条 `where`。FORBID 是同一谓词加上 `not` |
+| LIMIT 配额 | 对该池已占用的 id 列表做 `aggregate count`，再和 `limit` 比 |
+| CHOICE | 先解析成具体 ALLOW / LIMIT，再 `where`。未解析的选型筛出空集 |
+| DECK_CONSTRAINT / atleast | 先 `where` 出参与计数的牌，再 `group_count`（按 faction）。多职阶牌计入它的每个职阶。然后数有多少个职阶达到 `min` |
+| FAQ 1.15 顺序、1.16 占坑、`ignore_deckbuilding` | 仍由 `CardAccessMatcher` / `DeckLegality` 在调用算子之前排好。算子不排序、不占坑 |
+
 ### 7.7 Deckbuilding 实现计划
 
 > **落地（2026-11-04）**：`rules/deckbuilding/` 准入核（DB-*）；**P6** `rules/campaign/`；**§7.5.1** `counts_toward_deck_size`（Signature/弱点/Bearer/Permanent 不计；Myriad 计）+ loader requirements 打标；测 XP-01..06 / DB-08/09。**P6c Customizable 仍延后**。
@@ -678,3 +694,4 @@ class InvestigatorCampaignPipeline:
 | 2026-11-04 | v0.18 | **§6** 剧本开局落地：选/换调查员、初始牌库、`prepare_scenario`；CAMP-01..04 |
 | 2026-11-04 | v0.19 | **§6** `begin_scenario` + `InvestigatorSetupFlow`（SETUP_02/03/04/07/08）；CAMP-05 e2e |
 | 2026-11-04 | v0.20 | **SETUP_06** `ChaosBagCatalog`（Brethren of Ash 四档袋）+ 快照跨场；BAG-01/02 |
+| 2026-11-16 | v0.21 | **§7.6.5** 牌库构建选项的谓词归 `QueryAlgebra` catalog `where`；配额与 atleast 用 `count` / `group_count`。准入顺序仍是模板 |

@@ -1,11 +1,15 @@
 class_name QueryAlgebra
 extends RefCounted
 
-## 局面查询算子。只读：不压栈，不改局面，不在并列里替玩家挑一个。
-## 具名 *Query 是这些算子的模板，还没有改写成调用这里。
+## 查询算子。只读：不压栈，不改局面，不在并列里替玩家挑一个。
+## 两种全集：board 是局面实体；catalog 是卡牌定义（构筑选项的行）。
+## 具名 *Query、准入顺序、整副下限都是这些算子的模板，还没有改写成调用这里。
 ##
 ## scan → where → rank → aggregate
-## project 读一列，和 where 的数值谓词共用 CandidatePreds.field_value。
+## project 读一列。board 与 CandidatePreds.field_value 共用；catalog 读印刷列。
+
+const UNIVERSE_BOARD := &"board"
+const UNIVERSE_CATALOG := &"catalog"
 
 const MEASURE_DISTANCE := &"distance"
 const MEASURE_FIELD := &"field"
@@ -19,12 +23,22 @@ const AGG_EXISTS := &"exists"
 const AGG_SUM := &"sum"
 const AGG_MIN := &"min"
 const AGG_MAX := &"max"
+const AGG_GROUP_COUNT := &"group_count"
 
 const SHAPE_SET := &"set"
 const SHAPE_SCALAR := &"scalar"
+const SHAPE_GROUP := &"group"
 
 
-static func scan(state: GameStateStore, entity: StringName) -> Array[StringName]:
+static func scan(
+	state: GameStateStore,
+	entity: StringName,
+	universe: StringName = UNIVERSE_BOARD
+) -> Array[StringName]:
+	if universe == UNIVERSE_CATALOG:
+		if entity != &"card" and entity != &"definition" and entity != &"":
+			return []
+		return CardRegistry.all_definition_ids()
 	var out: Array[StringName] = []
 	if state == null or state.registry == null:
 		return out
@@ -55,8 +69,11 @@ static func where(
 	ids: Array[StringName],
 	filter: Variant,
 	controller_id: StringName = &"",
-	source_id: StringName = &""
+	source_id: StringName = &"",
+	universe: StringName = UNIVERSE_BOARD
 ) -> Array[StringName]:
+	if universe == UNIVERSE_CATALOG:
+		return _where_catalog(ids, filter)
 	if ids.is_empty() or game_ctx == null or game_ctx.state == null:
 		return []
 	if filter == null:
@@ -78,13 +95,16 @@ static func rank(
 	order: StringName = ORDER_MIN,
 	anchor_id: StringName = &"",
 	field: StringName = &"",
-	count_kind: StringName = &""
+	count_kind: StringName = &"",
+	universe: StringName = UNIVERSE_BOARD
 ) -> Array[StringName]:
 	var best_set := false
 	var best_n := 0
 	var out: Array[StringName] = []
 	for id in ids:
-		var measured: Variant = _measure(state, id, entity, measure, anchor_id, field, count_kind)
+		var measured: Variant = _measure(
+			state, id, entity, measure, anchor_id, field, count_kind, universe
+		)
 		if measured == null:
 			continue
 		var n := int(measured)
@@ -108,19 +128,24 @@ static func aggregate(
 	ids: Array[StringName],
 	entity: StringName,
 	op: StringName,
-	field: StringName = &""
+	field: StringName = &"",
+	universe: StringName = UNIVERSE_BOARD
 ) -> Variant:
 	match op:
 		AGG_COUNT:
 			return ids.size()
 		AGG_EXISTS:
 			return not ids.is_empty()
+		AGG_GROUP_COUNT:
+			if universe != UNIVERSE_CATALOG:
+				return {}
+			return _group_count(ids, field)
 		AGG_SUM:
-			return _fold_field(state, ids, entity, field, AGG_SUM)
+			return _fold_field(state, ids, entity, field, AGG_SUM, universe)
 		AGG_MIN:
-			return _fold_field(state, ids, entity, field, AGG_MIN)
+			return _fold_field(state, ids, entity, field, AGG_MIN, universe)
 		AGG_MAX:
-			return _fold_field(state, ids, entity, field, AGG_MAX)
+			return _fold_field(state, ids, entity, field, AGG_MAX, universe)
 		_:
 			return null
 
@@ -129,30 +154,45 @@ static func project(
 	state: GameStateStore,
 	entity_id: StringName,
 	entity: StringName,
-	field: StringName
+	field: StringName,
+	universe: StringName = UNIVERSE_BOARD
 ) -> Variant:
+	if universe == UNIVERSE_CATALOG:
+		return _project_catalog(entity_id, field)
 	return CandidatePreds.field_value(field, entity_id, entity, state)
 
 
-## spec: from, where, rank {measure, order, anchor, field, kind}, aggregate {op, field}
-## bindings: controller_id, source_id, drawer_id
-## 有 aggregate 时 shape 为标量，否则为集合。ids 始终是聚合前的那一组。
+## spec: universe（board / catalog）, from, ids, where, rank, aggregate
+## catalog 的 where 是一条 deck_options 谓词。ids 给定时不再 scan，副本重复保留。
+## bindings: controller_id, source_id, drawer_id（board 锚点）
+## aggregate 为 group_count 时 shape 为分组；其它聚合是标量；否则是集合。
+## ids 始终是聚合前的那一组。
 static func eval(
 	game_ctx: GameContext,
 	spec: Dictionary,
 	bindings: Dictionary = {}
 ) -> Dictionary:
+	var universe := StringName(str(spec.get("universe", UNIVERSE_BOARD)))
 	var entity := StringName(str(spec.get("from", "")))
 	var ids: Array[StringName] = []
-	if game_ctx != null and game_ctx.state != null:
-		ids = scan(game_ctx.state, entity)
+	if spec.has("ids") and spec["ids"] is Array:
+		for raw_id in spec["ids"] as Array:
+			ids.append(StringName(str(raw_id)))
+	elif universe == UNIVERSE_CATALOG:
+		var kind := entity if entity != &"" else &"card"
+		ids = scan(null, kind, universe)
+	elif game_ctx != null and game_ctx.state != null:
+		ids = scan(game_ctx.state, entity, universe)
 	if spec.has("where") and spec["where"] != null:
-		var raw: Variant = spec["where"]
-		var filt: Dictionary = (raw as Dictionary).duplicate(true) if raw is Dictionary else {}
-		filt["entity"] = String(entity)
-		var controller_id := _binding_id(bindings, "controller_id")
-		var source_id := _binding_id(bindings, "source_id")
-		ids = where(game_ctx, ids, filt, controller_id, source_id)
+		if universe == UNIVERSE_CATALOG:
+			ids = where(game_ctx, ids, spec["where"], &"", &"", universe)
+		else:
+			var raw: Variant = spec["where"]
+			var filt: Dictionary = (raw as Dictionary).duplicate(true) if raw is Dictionary else {}
+			filt["entity"] = String(entity)
+			var controller_id := _binding_id(bindings, "controller_id")
+			var source_id := _binding_id(bindings, "source_id")
+			ids = where(game_ctx, ids, filt, controller_id, source_id, universe)
 	if spec.has("rank") and spec["rank"] is Dictionary:
 		var rank_spec: Dictionary = spec["rank"]
 		var measure := StringName(str(rank_spec.get("measure", "")))
@@ -173,22 +213,97 @@ static func eval(
 				order,
 				anchor,
 				field,
-				count_kind
+				count_kind,
+				universe
 			)
 	var result := {"shape": SHAPE_SET, "ids": ids, "value": null}
 	if spec.has("aggregate") and spec["aggregate"] is Dictionary:
 		var agg: Dictionary = spec["aggregate"]
 		var op := StringName(str(agg.get("op", "")))
 		var field_name := StringName(str(agg.get("field", "")))
-		result["shape"] = SHAPE_SCALAR
+		result["shape"] = SHAPE_GROUP if op == AGG_GROUP_COUNT else SHAPE_SCALAR
 		result["value"] = aggregate(
 			game_ctx.state if game_ctx != null else null,
 			ids,
 			entity,
 			op,
-			field_name
+			field_name,
+			universe
 		)
 	return result
+
+
+static func _where_catalog(ids: Array[StringName], filter: Variant) -> Array[StringName]:
+	if ids.is_empty():
+		return []
+	if filter == null:
+		return _copy_ids(ids)
+	if typeof(filter) == TYPE_DICTIONARY and (filter as Dictionary).is_empty():
+		return _copy_ids(ids)
+	if typeof(filter) != TYPE_DICTIONARY:
+		return []
+	var raw: Dictionary = (filter as Dictionary).duplicate(true)
+	raw.erase("entity")
+	var rule := DeckOptionRule.from_dict(raw)
+	## 选型先解析成具体谓词。未解析的选型不是单卡测试。
+	if rule.role == DeckOptionRule.Role.CHOICE:
+		return []
+	var invert := rule.is_not
+	var out: Array[StringName] = []
+	for id in ids:
+		var view := DeckCardView.from_registry(id)
+		var hit := rule.matches_card(view)
+		if invert:
+			hit = not hit
+		if hit:
+			out.append(id)
+	return out
+
+
+static func _project_catalog(definition_id: StringName, field: StringName) -> Variant:
+	var view := DeckCardView.from_registry(definition_id)
+	match field:
+		&"level":
+			return view.level
+		&"permanent":
+			return 1 if view.permanent else 0
+		_:
+			return null
+
+
+## 一张多值列（职阶、特性）的牌计入它的每一项。副本按列表里出现的次数计。
+static func _group_count(ids: Array[StringName], field: StringName) -> Dictionary:
+	var counts := {}
+	for id in ids:
+		var view := DeckCardView.from_registry(id)
+		var keys := _group_keys(view, field)
+		for key in keys:
+			var label := String(key).to_lower()
+			if label == "":
+				continue
+			counts[label] = int(counts.get(label, 0)) + 1
+	return counts
+
+
+static func _group_keys(view: DeckCardView, field: StringName) -> Array[StringName]:
+	var keys: Array[StringName] = []
+	match field:
+		&"faction":
+			for item in view.factions:
+				keys.append(item)
+		&"trait":
+			for item in view.traits:
+				keys.append(item)
+		&"type":
+			if view.card_type != &"":
+				keys.append(view.card_type)
+		&"tag":
+			for item in view.tags:
+				keys.append(item)
+		&"uses":
+			for item in view.uses_types:
+				keys.append(item)
+	return keys
 
 
 static func _where_locations_open(
@@ -247,10 +362,13 @@ static func _measure(
 	measure: StringName,
 	anchor_id: StringName,
 	field: StringName,
-	count_kind: StringName
+	count_kind: StringName,
+	universe: StringName
 ) -> Variant:
 	match measure:
 		MEASURE_DISTANCE:
+			if universe != UNIVERSE_BOARD:
+				return null
 			var origin := _entity_location(state, anchor_id)
 			var dest := entity_id if entity == &"location" else _entity_location(state, entity_id)
 			if origin == &"" or dest == &"":
@@ -260,8 +378,10 @@ static func _measure(
 				return null
 			return dist
 		MEASURE_FIELD:
-			return CandidatePreds.field_value(field, entity_id, entity, state)
+			return project(state, entity_id, entity, field, universe)
 		MEASURE_COUNT_AT:
+			if universe != UNIVERSE_BOARD:
+				return null
 			if count_kind != &"enemy" and count_kind != &"investigator":
 				return null
 			var at := entity_id if entity == &"location" else _entity_location(state, entity_id)
@@ -278,14 +398,15 @@ static func _fold_field(
 	ids: Array[StringName],
 	entity: StringName,
 	field: StringName,
-	op: StringName
+	op: StringName,
+	universe: StringName
 ) -> Variant:
 	var total := 0
 	var best_set := false
 	var best_n := 0
 	var any := false
 	for id in ids:
-		var measured: Variant = CandidatePreds.field_value(field, id, entity, state)
+		var measured: Variant = project(state, id, entity, field, universe)
 		if measured == null:
 			continue
 		var n := int(measured)

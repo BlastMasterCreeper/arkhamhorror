@@ -449,6 +449,7 @@ func _initialize() -> void:
 	_run_test("G1-08 move_to ignores connections", _test_g1_move_to_ignores_connections)
 	_run_test("TOPO-01 symbol edges plus setup laws", _test_topo_symbol_and_setup_laws)
 	_run_test("QA-01 scan where rank aggregate project", _test_qa01_query_algebra)
+	_run_test("QA-02 catalog where for deck options", _test_qa02_catalog_deck_options)
 	_run_test("L-01 per_investigator clues on reveal", _test_l01_per_investigator_clues)
 	_run_test("L-02 move to unrevealed reveals and places clues", _test_l02_move_unrevealed)
 	_run_test("L-02b re-enter revealed does not place clues again", _test_l02b_reenter_no_reclues)
@@ -10222,6 +10223,160 @@ func _test_qa01_query_algebra() -> bool:
 	GameBootstrap.setup_test_enemy(ctx, &"e_mass", &"loc_a", 1, 2, &"", false, true)
 	var open_set := QueryAlgebra.where(ctx, QueryAlgebra.scan(ctx.state, &"enemy"), {"entity": "enemy"})
 	return not open_set.has(&"e_mass")
+
+
+func _test_qa02_catalog_deck_options() -> bool:
+	CardRegistry.register_definition(&"qa_knife", {
+		"title": "Knife",
+		"level": 0,
+		"card_type": "asset",
+		"faction_code": "guardian",
+		"traits": ["Weapon"],
+	})
+	CardRegistry.register_definition(&"qa_rifle", {
+		"title": "Rifle",
+		"level": 3,
+		"card_type": "asset",
+		"faction_code": "guardian",
+		"traits": ["Weapon"],
+	})
+	CardRegistry.register_definition(&"qa_book", {
+		"title": "Book",
+		"level": 0,
+		"card_type": "asset",
+		"faction_code": "seeker",
+		"traits": ["Tome"],
+	})
+	CardRegistry.register_definition(&"qa_spell", {
+		"title": "Spell",
+		"level": 2,
+		"card_type": "asset",
+		"faction_code": "mystic",
+		"traits": ["Spell"],
+	})
+	CardRegistry.register_definition(&"qa_talent", {
+		"title": "Talent",
+		"level": 0,
+		"card_type": "asset",
+		"faction_code": "guardian",
+		"permanent": true,
+		"traits": ["Talent"],
+	})
+	CardRegistry.register_definition(&"qa_cross", {
+		"title": "Cross",
+		"level": 0,
+		"card_type": "asset",
+		"factions": ["guardian", "seeker"],
+		"traits": ["Tactic"],
+	})
+	CardRegistry.register_definition(&"qa_heal", {
+		"title": "Heal",
+		"level": 1,
+		"card_type": "event",
+		"faction_code": "guardian",
+		"tags": ["hh"],
+	})
+	if not QueryAlgebra.scan(null, &"card", QueryAlgebra.UNIVERSE_CATALOG).has(&"qa_knife"):
+		return false
+	if not QueryAlgebra.scan(null, &"enemy", QueryAlgebra.UNIVERSE_CATALOG).is_empty():
+		return false
+	var pool: Array[StringName] = [
+		&"qa_knife", &"qa_rifle", &"qa_book", &"qa_spell",
+		&"qa_talent", &"qa_cross", &"qa_heal",
+	]
+	var band := QueryAlgebra.where(null, pool, {
+		"faction": ["guardian"],
+		"level": {"min": 0, "max": 2},
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if band != [&"qa_knife", &"qa_talent", &"qa_cross", &"qa_heal"]:
+		return false
+	var open_traits := QueryAlgebra.where(null, pool, {
+		"trait": ["tome", "spell"],
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if open_traits != [&"qa_book", &"qa_spell"]:
+		return false
+	var no_weapon := QueryAlgebra.where(null, pool, {
+		"trait": ["weapon"],
+		"not": true,
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if no_weapon.has(&"qa_knife") or no_weapon.has(&"qa_rifle") or not no_weapon.has(&"qa_book"):
+		return false
+	var non_permanent := QueryAlgebra.where(null, [&"qa_talent", &"qa_knife"], {
+		"permanent": false,
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if non_permanent != [&"qa_knife"]:
+		return false
+	var heals := QueryAlgebra.where(null, pool, {
+		"tag": ["hh"],
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if heals != [&"qa_heal"]:
+		return false
+	var bare_text := QueryAlgebra.where(null, pool, {
+		"text": ["heal"],
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if not bare_text.is_empty():
+		return false
+	var unresolved := QueryAlgebra.where(null, pool, {
+		"faction_select": ["seeker", "rogue"],
+		"level": {"min": 0, "max": 2},
+	}, &"", &"", QueryAlgebra.UNIVERSE_CATALOG)
+	if not unresolved.is_empty():
+		return false
+	var copies: Array[StringName] = [&"qa_knife", &"qa_knife", &"qa_book", &"qa_cross"]
+	var grouped: Variant = QueryAlgebra.aggregate(
+		null, copies, &"card", QueryAlgebra.AGG_GROUP_COUNT, &"faction", QueryAlgebra.UNIVERSE_CATALOG
+	)
+	if not grouped is Dictionary:
+		return false
+	var counts: Dictionary = grouped
+	if int(counts.get("guardian", 0)) != 3 or int(counts.get("seeker", 0)) != 2:
+		return false
+	var meeting := 0
+	for faction_name in ["guardian", "seeker", "mystic", "rogue", "survivor"]:
+		if int(counts.get(faction_name, 0)) >= 1:
+			meeting += 1
+	if meeting != 2:
+		return false
+	var counted := QueryAlgebra.eval(null, {
+		"universe": "catalog",
+		"from": "card",
+		"ids": [&"qa_knife", &"qa_knife", &"qa_rifle"],
+		"where": {"faction": ["guardian"], "level": {"min": 0, "max": 2}},
+		"aggregate": {"op": "count"},
+	})
+	if counted["shape"] != QueryAlgebra.SHAPE_SCALAR or int(counted["value"]) != 2:
+		return false
+	var by_faction := QueryAlgebra.eval(null, {
+		"universe": "catalog",
+		"ids": [&"qa_knife", &"qa_book", &"qa_spell"],
+		"aggregate": {"op": "group_count", "field": "faction"},
+	})
+	if by_faction["shape"] != QueryAlgebra.SHAPE_GROUP:
+		return false
+	var spread: Dictionary = by_faction["value"]
+	var spread_meeting := 0
+	for faction_name in ["guardian", "seeker", "mystic", "rogue", "survivor"]:
+		if int(spread.get(faction_name, 0)) >= 1:
+			spread_meeting += 1
+	if spread_meeting != 3:
+		return false
+	var level_sum := QueryAlgebra.eval(null, {
+		"universe": "catalog",
+		"from": "card",
+		"ids": [&"qa_knife", &"qa_rifle"],
+		"aggregate": {"op": "sum", "field": "level"},
+	})
+	if int(level_sum["value"]) != 3:
+		return false
+	if int(QueryAlgebra.project(null, &"qa_rifle", &"card", &"level", QueryAlgebra.UNIVERSE_CATALOG)) != 3:
+		return false
+	if int(QueryAlgebra.project(null, &"qa_talent", &"card", &"permanent", QueryAlgebra.UNIVERSE_CATALOG)) != 1:
+		return false
+	var highest := QueryAlgebra.rank(
+		null, pool, &"card", QueryAlgebra.MEASURE_FIELD, QueryAlgebra.ORDER_MAX,
+		&"", &"level", &"", QueryAlgebra.UNIVERSE_CATALOG
+	)
+	return highest.size() == 1 and highest[0] == &"qa_rifle"
 
 
 func _test_g1_move_to_ignores_connections() -> bool:

@@ -288,21 +288,25 @@ Fight / Evade 能力（多步）Initiation（L7）
 
 ### 3.3 查询算子（QueryAlgebra）
 
-算子是查询的基础。猎手、最近敌人、空地点、猎物括号这些具名 `*Query` 是现成模板，还没有改写成调用算子。
+算子是查询的基础。猎手、最近敌人、空地点、猎物括号这些具名 `*Query`，以及构筑准入的有序配位、整副下限，都是现成模板，还没有改写成调用算子。
 
-解释器是 `QueryAlgebra`。只读：不压栈，不改局面，不在并列里替玩家挑一个。效果能不能改变这个目标仍在 V 层 dry-run。
+解释器是 `QueryAlgebra`。只读：不压栈，不改局面，不在并列里替玩家挑一个。效果能不能改变这个目标仍在 V 层 dry-run。构筑选型（副职阶、特性、牌组尺寸）在查询之前写成具体谓词，见 [11 §7.6.5](11-investigator-campaign.md)。
 
-| 算子 | 返回 | 做什么 |
-|---|---|---|
-| `scan` | id 集 | 一种实体的全集。调查员不含已淘汰 |
-| `where` | id 集 | `CandidateFilter` + `preds`。地点没有 `at` 时在给定集合上筛 |
-| `rank` | id 集 | 按一个度量留下最小或最大的整组。不可达距离不入选。并列全部留下，保持输入顺序 |
-| `aggregate` | 数或布尔 | `count` / `exists` / `sum` / `min` / `max` |
-| `project` | 一列的值 | 与 `preds` 共用 `CandidatePreds.field_value` |
+同一套算子走两种全集。`board` 的行是局面实体。`catalog` 的行是卡牌定义（`DeckCardView`），给调查员背面的牌库构建选项用。
 
-度量限这三种：`distance`（问 `LocationGraph`）、`field`、`count_at`（`kind` 为 `enemy` 或 `investigator`）。锚点限 `controller`、`lead`、`source`、`drawer`、`memory:` 键，或一个实体 id。地点列另有 `enemy_count`、`investigator_count`，空地点是这两列都为 0 的 `where`。
+| 算子 | 返回 | board | catalog |
+|---|---|---|---|
+| `scan` | id 集 | 一种实体的全集。调查员不含已淘汰 | `CardRegistry` 里的定义。购卡候选池 |
+| `where` | id 集 | `CandidateFilter` + `preds`。地点没有 `at` 时在给定集合上筛 | 一条 `deck_options` 谓词。列表内取任一，字段之间同时成立。`not` 把匹配反过来 |
+| `rank` | id 集 | 按一个度量留下最小或最大的整组。并列全部留下，保持输入顺序 | 只按印刷列（如 level）。距离与地点人数没有值，该行不入选 |
+| `aggregate` | 数、布尔或分组 | `count` / `exists` / `sum` / `min` / `max` | 同上，另有 `group_count`：按 faction / trait / type / tag / uses 计数 |
+| `project` | 一列的值 | 与 `preds` 共用 `CandidatePreds.field_value` | `level`、`permanent`（0 / 1） |
 
-`eval` 按 scan → where → rank → aggregate 组合。有 `aggregate` 时结果形状是标量，否则是集合。`ids` 始终是聚合前的那一组。
+局面度量限这三种：`distance`（问 `LocationGraph`）、`field`、`count_at`（`kind` 为 `enemy` 或 `investigator`）。锚点限 `controller`、`lead`、`source`、`drawer`、`memory:` 键，或一个实体 id。地点列另有 `enemy_count`、`investigator_count`，空地点是这两列都为 0 的 `where`。
+
+`catalog` 的谓词列是 level 区间、faction、trait、type、tag、uses、permanent，和 `DeckOptionRule.matches_card` 同一张表。`text` 正则不在运行时匹配。给定 `ids` 时不再 `scan`，列表里的重复 id 按副本保留。一张多职阶牌在 `group_count` 里计入它的每个职阶。
+
+`eval` 按 scan → where → rank → aggregate 组合。`group_count` 的形状是分组，其它聚合是标量，没有聚合时是集合。`ids` 始终是聚合前的那一组。
 
 ---
 
@@ -422,6 +426,7 @@ bind:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-16 | v0.12 | **§3.3** 算子增加 `catalog` 全集：牌库构建选项是定义行上的 `where`；`group_count` 按职阶等列计数。准入顺序与整副下限仍是模板 |
 | 2026-11-16 | v0.11 | **§3.3 查询算子**：`QueryAlgebra` 的 scan / where / rank / aggregate / project。具名 `*Query` 仍是模板，尚未改调用 |
 | 2026-10-09 | v0.10 | **落地 `pick_multi`**：基数校验、默认前 N / skip、`entity_list` bind、`for_each_memory` 消费列表 |
 | 2026-10-08 | v0.9 | **落地 `choice_optional`**：`OPTIONAL` 节点 + Gate `OPTIONAL_EFFECT`；编译糖 body/steps；Python `You may take N horror/damage` |
