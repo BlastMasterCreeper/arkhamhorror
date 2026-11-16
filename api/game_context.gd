@@ -18,8 +18,7 @@ var actions: ActionPipeline
 var skill_tests: SkillTestEngine
 var initiation: AbilityInitiationPipeline
 var effects: EffectResolutionGraph
-var scenario: ScenarioService
-var enemy: EnemySystem
+var scenario: ScenarioPipeline
 
 var registrations: RegistrationStore
 var mutator: StateMutator
@@ -39,6 +38,8 @@ var stat_emitter: GameStatEmitter
 var active_investigator_id: StringName = &""
 var performing_investigator_id: StringName = &""
 var lead_investigator_id: StringName = &""
+## 建局挂上的固定规则 id。未挂载则 RuleMount 不消费。
+var mounted_rules: Dictionary = {}
 var skill_test_stack: Array[SkillTestContext] = []
 
 
@@ -52,7 +53,7 @@ func run_seq(flow_id: StringName, params: Dictionary = {}) -> Dictionary:
 func pop_encounter_resolution_frame() -> EncounterResolutionFrame:
 	var frame := memory.pop_encounter_frame() if memory != null else null
 	if frame != null:
-		EncounterPeril.detach_frame(self, frame)
+		KeywordMount.detach_peril_frame(self, frame)
 	return frame
 
 

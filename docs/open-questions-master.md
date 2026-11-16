@@ -94,7 +94,7 @@
 | OQ-07-03 | [07-effect](design/07-effect-resolution.md) | Assign 阶段 prevent 部分 damage：剩余是否 re-assign 还是 fizzle？ | |
 | OQ-07-05 | [07-effect](design/07-effect-resolution.md) | 「As much as possible resolve」— partial target invalid 时 DAG 如何剪枝？ | |
 | OQ-08-05 | [08-enemy](design/08-enemy-engagement.md) | Engage 抢怪：同时 disengage 原调查员是否触发「leaves engagement」类能力？ | |
-| OQ-09-01 | [09-location](design/09-location-graph.md) | ~~Setup vs Move enter 单入口？~~ → **`LocationEnterRules` / `seq.effect.reveal_location`** | 2026-10-19 |
+| OQ-09-01 | [09-location](design/09-location-graph.md) | ~~Setup vs Move enter 单入口？~~ → **`RevealLocationFlow` / `seq.effect.reveal_location`** | 2026-10-19 |
 | OQ-09-03 | [09-location](design/09-location-graph.md) | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ | |
 | OQ-09-05 | [09-location](design/09-location-graph.md) | Your Friend's Room `[action]` Engage 跨连接 — Move enemy + engage 是否 provoke AOO？（文本说不） | |
 | OQ-10-02 | [10-scenario](design/10-scenario-encounter.md) | Objective must advance 无 window — 自动 advance 还是暂停提示？ | |
@@ -121,7 +121,7 @@
 | OQ-01-04 | [01-state](design/01-game-state-zones.md) | `SET_ASIDE` 与 `REMOVED_FROM_GAME` 是否需子类型（campaign 指定 area）？ | |
 | OQ-01-06 | [01-state](design/01-game-state-zones.md) | Attachment 链（A attach B attach C）leave play 时 discard 顺序是否由 owner 选？ | |
 | OQ-02-05 | [02-framework](design/02-framework-flow.md) | Framework 与嵌套 Skill Test 的 EventRecord 层级如何缩进展示？ | |
-| OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），经 `perform_attack` → `try_flee_after_enemy_attack`。见 08 §6.5。 |
+| OQ-03-05 | [03-action](design/03-action-system.md) | Elusive 在 AOO 后是否仍触发？ | **是。** 借机攻击是敌人 **攻击**（非「被攻击」），`perform_attack` 后 `KeywordConsumer` @ `AFTER_ATTACK`。见 08 §6.5。 |
 | OQ-04-05 | [04-skill-test](design/04-skill-test-engine.md) | 同时 reveal 多 token（极少数卡）：ST.3 扩展协议？ | **一次 ST.3 + 意图规划**（ORDER → 预期槽 → 同时离袋 → CHAOS_PICK）。见 [05 §4.2](design/05-chaos-bag.md)。 |
 | OQ-04-07 | [04-skill-test](design/04-skill-test-engine.md) | ST.3/ST.4 与参考卡符号文本如何统一？ | **隐式符号能力**融合：揭示→发起（modifier+效果）；回溯以该能力为锚。见 04 §3.3–3.4。 |
 | OQ-05-04 | [05-chaos-bag](design/05-chaos-bag.md) | ~~Bless/Curse 仅预留？~~ → **实现**检定内 +2/−2·再揭·归 pool；见 05 §8.1 | 2026-10-19 |

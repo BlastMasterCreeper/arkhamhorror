@@ -313,8 +313,10 @@ Grimoire：未横置 + elusive 在 **攻击** 或 **被攻击** resolve 之后 �
 
 | 分类 | 含 | 时点 | 实现 |
 |---|---|---|---|
-| 敌人 **攻击** | 阶段 / **借机** / 反击 / 警戒 | `perform_attack` 完成后 | `try_flee_after_enemy_attack` |
-| 敌人 **被攻击** | 调查员 Fight 检定（含失败） | post-ST7（反击之后） | `try_flee_was_attacked` |
+| 敌人 **攻击** | 阶段 / **借机** / 反击 / 警戒 | `perform_attack` 完成后 | `KeywordConsumer` @ `AFTER_ATTACK` |
+| 敌人 **被攻击** | 调查员 Fight 检定（含失败） | post-ST7（反击之后） | 同上，`cause=was_attacked` |
+
+规格 `seq.keyword.elusive`：`seq.effect.disengage_pack` → `seq.effect.move`（`toward=flee`，邻接直达，不自动交战）→ 再解除 → `seq.effect.exhaust`。目的地由 `FleeDestinationQuery` 选空连接地点。
 
 **借机攻击** 是敌人发起的 **攻击**（`AttackKind.OPPORTUNITY`），走上行 hook，**不是**「被攻击」。Fight 才是「被攻击」。
 
@@ -328,14 +330,14 @@ Grimoire *Fight Action*：攻击检定 **失败** 时，若目标敌人与 **另
 
 | 概念 | 常态（非庞大） | 庞大 |
 |---|---|---|
-| 「与调查员交战」 | 敌人位于该调查员 **威胁区** | **虚拟交战**（`MassiveEngagement.is_virtually_engaged_with`）；**不在** 威胁区 |
+| 「与调查员交战」 | 敌人位于该调查员 **威胁区** | **虚拟交战**（`EngagementStatus.is_virtually_engaged_with`）：未横置且同地点 |
 | 帮打「队友交战的敌人」 | 敌人卡在 **队友威胁区**、同地点 | 敌人卡在 **地点上**；与同地点所有人虚拟交战 |
 | Fight 失败转嫁 | **适用** — 伤害转由威胁区内与该敌人交战的调查员承受 | **不适用**典型结构 — 见下 |
 
 **为何庞大「攻击失败不对其他交战调查员造成伤害」**：
 
 1. Fight 失败转嫁规则，严格说是针对 **位于威胁区、与某调查员交战** 的敌人（帮打队友威胁区里的怪并失败 → 队友受伤）。
-2. **庞大** 敌人 **永不进入威胁区**（魔典 *Massive* · `MassiveEngagement.sync_*` 清 threat area），故 **不会出现**「目标在他人威胁区内交战」这一前提。
+2. **进威胁区**手续看到庞大就拒绝放置。已经在威胁区里再变成庞大，不因此解除交战或挪到地点上。
 3. 魔典 *Massive* 另列专条：对庞大敌人攻击失败时，**不向与该庞大敌人虚拟交战的其他调查员** 造成上述转嫁伤害（Grimoire p.16）。
 
 ```gdscript
@@ -431,7 +433,7 @@ func discard_spawn_failed(enemy_id: StringName) -> void:
 
 - Damage >= health → defeated → encounter discard（或 weakness owner discard）；**Victory X > 0** → `victory_display`（`EnemyDefeatResolver`）
 - Victory X → victory display（discard 不算 defeat，不进 victory display）
-- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）；实现见 `DoomedTrigger` / `EnemyDefeatResolver`
+- Doomed：defeat 时 place 1 doom on agenda（discard 不算 defeat）；规格 `KeywordProfile` doomed → `seq.mythos.place_doom` 再 `seq.mythos.check_doom_threshold`（`source=card_effect`）
 
 ---
 

@@ -316,7 +316,7 @@ enum RestrictionKind {
 	FORBID_ATTACK,
 	## 永久（Permanent）：禁止离场（REST-E-MOVE）。卡面明示允许离场时另开豁免；默认拦。
 	FORBID_LEAVE_PLAY,
-	## 伤害/恐惧 Assign（分摊）约束：原流程（DamageAssigner）读取；非 LISTENER / Cancel。
+	## 伤害/恐惧 Assign（分摊）约束：原流程（DealAssignableFlow）读取；非 LISTENER / Cancel。
 	## payload 见 RestrictionPayload.assign_* + AssignConstraintOp。
 	ASSIGN_CONSTRAINT,
 }

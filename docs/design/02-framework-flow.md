@@ -174,7 +174,7 @@ func begin_round() -> void:
 ### 5.1 Mythos 1.2–1.3
 
 - 1.2：current agenda +1 doom
-- 1.3：若 `doom_in_play >= agenda_threshold` → `ScenarioService.advance_agenda()`
+- 1.3：若 `doom_in_play >= agenda_threshold` → `ScenarioPipeline.advance_agenda()`
 
 **注意**：除非卡牌另说，议程**仅**在 1.3 推进（Grimoire Doom）。
 
@@ -188,7 +188,7 @@ func begin_round() -> void:
 4. Spawn enemy / discard treachery
 5. Surge → 递归从 step 1
 
-委托 `ScenarioService.resolve_encounter_draw(inv)`。
+委托 `ScenarioPipeline.resolve_encounter_draw(inv)`。
 
 ### 5.3 Investigation 2.2.x
 
@@ -334,7 +334,7 @@ func trigger_resolution(r: int) -> void:
 FrameworkFlowEngine
   ├─► ActionPipeline        (INV_2_2_1)
   ├─► SkillTestEngine     (嵌套于 Action/Encounter)
-  ├─► ScenarioService      (MYTHOS_1_4, agenda advance)
+  ├─► ScenarioPipeline      (MYTHOS_1_4, agenda advance)
   ├─► EnemySystem         (ENEMY_3_2, 3_3)
   ├─► InvestigatorSystem  (UPKEEP 4.4–4.5)
   └─► TimingBus           (每 step enter/exit)

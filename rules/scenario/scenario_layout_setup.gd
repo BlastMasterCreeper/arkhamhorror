@@ -108,16 +108,11 @@ static func _install_locations(game_ctx: GameContext, layout: Dictionary) -> Dic
 		aside_count += 1
 	for raw in connections.keys():
 		var from_id := StringName(str(raw))
-		var from_loc := game_ctx.state.registry.get_location(from_id)
-		if from_loc == null:
+		if game_ctx.state.registry.get_location(from_id) == null:
 			continue
 		for dest_raw in connections[raw]:
 			var dest_id := StringName(str(dest_raw))
-			if not from_loc.connections.has(dest_id):
-				from_loc.connections.append(dest_id)
-			var dest_loc := game_ctx.state.registry.get_location(dest_id)
-			if dest_loc != null and not dest_loc.connections.has(from_id):
-				dest_loc.connections.append(from_id)
+			LocationGraph.grant_link(game_ctx.state, from_id, dest_id, true)
 	return {"in_play": in_play_count, "set_aside": aside_count}
 
 
@@ -138,7 +133,7 @@ static func _register_location(
 	game_ctx.state.registry.register_location(loc)
 	## 开局已揭示的地点（如 starting）：立刻翻开并放线索（经 transfer_marker）。
 	if in_play and reveal:
-		LocationEnterRules.reveal_and_place_clues(
+		RevealLocationFlow.reveal_and_place_clues(
 			game_ctx, {"location_id": definition_id}
 		)
 	if in_play:

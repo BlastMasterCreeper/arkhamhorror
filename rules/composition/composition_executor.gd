@@ -318,7 +318,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 		&"commit_hidden_enter_hand":
 			_mutator.commit_hidden_enter_hand(node.card_id, node.inv_id)
 			if _game_ctx != null:
-				EncounterPrivacy.register_leave_hand_restriction(
+				KeywordMount.register_hidden_leave_hand(
 					_game_ctx, node.card_id, node.inv_id
 				)
 			_log.log(
@@ -354,7 +354,7 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return true
 		&"discard_encounter_from_hand":
 			if _game_ctx != null:
-				EncounterCardDiscard.discard_from_investigator_to_encounter_pile(
+				ZoneMoveFlow.discard_encounter_from_investigator(
 					_game_ctx, node.card_id, node.inv_id
 				)
 			_log.log(
@@ -1099,7 +1099,7 @@ func _execute_eliminate(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" or _game_ctx == null:
 		return false
-	var result := InvestigatorElimination.eliminate(_game_ctx, inv_id)
+	var result := DefeatFlow.eliminate_investigator(_game_ctx, inv_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:eliminate",
@@ -1113,7 +1113,7 @@ func _execute_resign_inline(node: CompositionNode) -> bool:
 	var inv_id := _ability_controller(_resolve_inv(node))
 	if inv_id == &"" or _game_ctx == null:
 		return false
-	var result := InvestigatorElimination.resign(_game_ctx, inv_id)
+	var result := DefeatFlow.resign_investigator(_game_ctx, inv_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:resign",
@@ -1136,7 +1136,7 @@ func _execute_nest_resign(node: CompositionNode) -> bool:
 			_game_ctx, &"seq.effect.resign", {"investigator_id": inv_id}
 		)
 	else:
-		result = InvestigatorElimination.resign(_game_ctx, inv_id)
+		result = DefeatFlow.resign_investigator(_game_ctx, inv_id)
 	_log.log(
 		AhcEnums.LogCategory.CARD,
 		"composition:nest_resign",
@@ -1629,29 +1629,23 @@ func _execute_nest_move_marker_to(node: CompositionNode) -> bool:
 func _perform_investigator_move(inv_id: StringName, dest_id: StringName) -> bool:
 	if _game_ctx == null or _state == null:
 		return false
-	var move_result: Dictionary
 	if (
-		_game_ctx.sequence_catalog != null
-		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.move")
+		_game_ctx.sequence_catalog == null
+		or not _game_ctx.sequence_catalog.has_flow(&"seq.effect.move")
 	):
-		move_result = _game_ctx.sequence_catalog.nest(
-			_game_ctx,
-			&"seq.effect.move",
-			{
-				"subject": MoveFlow.SUBJECT_INVESTIGATOR,
-				"investigator_id": inv_id,
-				"destination_id": dest_id,
-				"move_kind": MoveFlow.KIND_MOVE,
-				"auto_engage_after": true,
-			}
-		)
-	else:
-		if _game_ctx.skill_tests == null:
-			return false
-		var resolver := BasicActionFlowHandlers.new(_state, _game_ctx.skill_tests)
-		move_result = resolver.move(_game_ctx, inv_id, {"destination_id": dest_id})
-		if bool(move_result.get("ok", false)):
-			EngageFlow.nest_after_area_change(_game_ctx, dest_id)
+		push_error("CompositionExecutor: investigator move requires seq.effect.move")
+		return false
+	var move_result := _game_ctx.sequence_catalog.nest(
+		_game_ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": inv_id,
+			"destination_id": dest_id,
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": true,
+		}
+	)
 	if not bool(move_result.get("ok", false)):
 		return false
 	_log.log(
@@ -1977,7 +1971,7 @@ func _execute_nest_place_doom(node: CompositionNode) -> bool:
 func _execute_nest_mythos_place_doom(node: CompositionNode) -> bool:
 	if _game_ctx == null:
 		return false
-	return EncounterAgendaDoomPlacement.place_on_current_agenda(
+	return MythosFlow.place_on_current_agenda(
 		_game_ctx, node.may_advance_agenda
 	)
 

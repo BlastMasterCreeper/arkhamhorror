@@ -208,7 +208,7 @@ Grimoire p.8：
 - **有分配手续** = `seq.effect.deal.assignable`：伤与恐可 **同入参**；Assign 后 **同时** Apply（同帧封死；TC.kind 仍 `damage`）。禁止伤/恐各 nest 一条。
 - **无分配手续** = `seq.effect.deal`：已定 `legs[]` / 单点，**无** Assign；伤+恐已定用 `legs_damage` + `legs_horror`（**可单边空**，兼容单类型）。
 - lasting **RESTRICTION** `ASSIGN_CONSTRAINT` 改候选/约束（原流程读取，非 LISTENER）。
-- 逾期 / headless 未确认 → `DamageAssigner.default_assignment`（见下）。
+- 逾期 / headless 未确认 → `DealAssignableFlow.default_assignment`（见下）。
 
 #### Assign 交互（前端会话 · 已裁决）
 
@@ -224,11 +224,11 @@ Grimoire p.8：
 交互期间引擎按当前临时表 **重算可分配性**（容量、PRIOR_FILL、MIN、MAX_TO_MATCH 等）：某目标满额 / 违约束 → 该方向增减禁用或自动回退；不是另开 nest，也不是 LISTENER。
 
 确认后腿表写入 pending → 才进 WOULD/WHEN。  
-**禁止**：把增减做成多条 nest seq；禁止前端自算规则绕过 `DamageAssigner.validate`。
+**禁止**：把增减做成多条 nest seq；禁止前端自算规则绕过 `DealAssignableFlow.validate`。
 
 #### 分摊约束（`AssignConstraintOp`）
 
-挂 `RestrictionKind.ASSIGN_CONSTRAINT`（WHILE_IN_PLAY）；`DamageAssigner` @ Assign 读取。轴：`assign_affliction`（damage|horror|either）× `AssignDirectScope`（NON_DIRECT|DIRECT|BOTH）。
+挂 `RestrictionKind.ASSIGN_CONSTRAINT`（WHILE_IN_PLAY）；`DealAssignableFlow` @ Assign 读取。轴：`assign_affliction`（damage|horror|either）× `AssignDirectScope`（NON_DIRECT|DIRECT|BOTH）。
 
 | Op | 语义 | 锚例 |
 |---|---|---|
@@ -295,10 +295,10 @@ Assign(N) 已确认
   → Apply
 ```
 
-API 示意：`DamagePipeline.increase_pending(inv_id, by)` → 更新总量 → `DamageAssigner.assign_delta(…, by)`（Gate；逾期默认算法只摊 K）。  
+API 示意：`DealInvestigatorPipeline.increase_pending(inv_id, by)` → 更新总量 → `DealAssignableFlow.assign_delta(…, by)`（Gate；逾期默认算法只摊 K）。  
 与 `reduce_pending`（降量后按剩余总量重建默认腿）**不对称**：加量走增量分配，避免撤销已承受。
 
-**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `PlayerInteractionGate.ask_assign_*`；`increase_pending` + `assign_delta` / `merge_legs`（增量 K 亦经 Gate）。**外向/已定腿**同构 PreImpact：`DealPreImpact`（`seq.effect.deal` legs / `deal.assignable` among）。测例 TIM-DMG-03–06 · ASN-08/09。
+**竖切**：`core/timing/damage_pipeline.gd` · `core/timing/damage_assigner.gd` · `PlayerInteractionGate.ask_assign_*`；`increase_pending` + `assign_delta` / `merge_legs`（增量 K 亦经 Gate）。**外向/已定腿**同构 PreImpact：`DealOutboundPipeline`（`seq.effect.deal` legs / `deal.assignable` among）。测例 TIM-DMG-03–06 · ASN-08/09。
 
 ### 4.1 Moving / 再分配 damage / horror（已裁决 OQ-07-02 · 包装修正 2026-10-23）
 
@@ -310,7 +310,7 @@ API 示意：`DamagePipeline.increase_pending(inv_id, by)` → 更新总量 → 
 | 触发「After heal」等 | 是 | **否** |
 | 落地 | 承载者 → 池 | L0 **`transfer_marker`（1:1 原子）** |
 | 多源多目标 | — | 包装 **`MarkerTransferBatch`** 展开为多条原子腿 |
-| 走 DamagePipeline | 否 | 否 |
+| 走 DealInvestigatorPipeline | 否 | 否 |
 
 **禁止**：把 N:M 做进单次 L0（伪原子、嵌套窗错位）；禁止另铸 `seq.effect.transfer_affliction`。
 
@@ -860,7 +860,7 @@ Lasting expires **before**「at end of phase」abilities（Grimoire Lasting Effe
 | 2026-10-27 | v0.6.19 | §4：明示取消/additional 钉 WOULD；WHEN take 预留、现无生产卡 |
 | 2026-10-27 | v0.6.18 | §4：编译接线 would/when/after take + `affliction_filter`/`take_self`；AFTER 在击败 nest 之后 |
 | 2026-10-26 | v0.6.17 | §4：无印刷+GRANT 不设上限；inv/敌伤害无限；`legs_damage`/`legs_horror`；AFTER 伤/恐/和或条件 |
-| 2026-10-26 | v0.6.16 | §4：外向/已定腿 PreImpact（`DealPreImpact` WOULD→WHEN→Apply） |
+| 2026-10-26 | v0.6.16 | §4：外向/已定腿 PreImpact（`DealOutboundPipeline` WOULD→WHEN→Apply） |
 | 2026-10-26 | v0.6.15 | §4：Assign Gate（`ask_assign_*` / among）；逾期默认腿表 |
 | 2026-10-26 | v0.6.14 | §4：`GRANT_CAPACITY`；deal legs 混装敌/卡/调查员（`DealSubject`） |
 | 2026-10-25 | v0.6.13 | §4：落地 `increase_pending` + `assign_delta`/`merge_legs`（TIM-DMG-03/04）；Gate 仍待接 |

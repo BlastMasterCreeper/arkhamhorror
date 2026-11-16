@@ -51,7 +51,7 @@ func provokes_aoo() -> bool:
 	if provokes_aoo_override != null:
 		return bool(provokes_aoo_override)
 	var types := resolved_action_types()
-	return AttackOfOpportunityTrigger.provokes_for_types(types)
+	return RuleProfileTable.provokes_for_types(types)
 
 
 func resolved_action_types() -> Array:

@@ -5,13 +5,34 @@ extends RefCounted
 ## 仅 Hidden 显现体内秘密入手。关键词消费经 KeywordConsumer nest。
 
 
+static func collect_one_step(
+	game_ctx: GameContext,
+	frame: EncounterResolutionFrame = null
+) -> Dictionary:
+	var mutator := game_ctx.mutator if game_ctx != null else null
+	if mutator == null:
+		return {"collected": false, "rules_gap": true}
+	var shuffled := false
+	if mutator.encounter_deck_is_empty():
+		if mutator.encounter_discard_is_empty():
+			return {"collected": false, "rules_gap": true}
+		mutator.shuffle_encounter_discard_into_deck()
+		if frame != null:
+			frame.shuffles += 1
+		shuffled = true
+	var card_id := mutator.pop_encounter_deck_top()
+	if card_id == &"":
+		return {"collected": false, "rules_gap": true}
+	return {"collected": true, "card_id": card_id, "shuffled": shuffled}
+
+
 static func run(game_ctx: GameContext, drawer_id: StringName) -> Dictionary:
 	if game_ctx == null or game_ctx.mutator == null:
 		return _fail("invalid_context")
 	var frame := EncounterResolutionFrame.create(drawer_id)
 	game_ctx.memory.push_encounter_frame(frame)
 	## WHEN_HEADER 由栈信封在 RESOLVE 前打开（when 的 would 头）；WHEN 在 G1/揭示后 offer。
-	var collect := DrawEncounterSubflowFlowHandlers.collect_one_step(game_ctx, frame)
+	var collect := collect_one_step(game_ctx, frame)
 	if collect.get("rules_gap", false):
 		game_ctx.memory.pop_encounter_frame()
 		return _fail("encounter_piles_empty")
@@ -334,7 +355,7 @@ static func _step_g4_resolve(ctx: Dictionary) -> void:
 	var drawer_id: StringName = ctx.get("drawer_id", &"")
 	var card_id: StringName = ctx.get("card_id", &"")
 	var def_id: StringName = ctx.get("def_id", &"")
-	EncounterPeril.unregister_for_card(game_ctx, card_id)
+	KeywordMount.unregister_peril_for_card(game_ctx, card_id)
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return
@@ -379,7 +400,7 @@ static func _put_drawn_location_into_play(
 		loc.shroud = CardRegistry.location_shroud(def_id)
 		game_ctx.state.registry.register_location(loc)
 	if not loc.revealed:
-		LocationEnterRules.reveal_and_place_clues(
+		RevealLocationFlow.reveal_and_place_clues(
 			game_ctx, {"location_id": def_id}
 		)
 	var card := game_ctx.state.registry.get_card(card_id)

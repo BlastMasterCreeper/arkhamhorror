@@ -25,7 +25,7 @@ static func put_locations_into_play(
 ) -> bool:
 	var placed := false
 	for loc_id in location_ids:
-		if ScenarioSetAside.put_location_into_play(game_ctx, loc_id).get("ok", false):
+		if _put_location_into_play(game_ctx, loc_id).get("ok", false):
 			placed = true
 	return placed
 
@@ -35,7 +35,7 @@ static func spawn_set_aside_enemy_at(
 	enemy_definition_id: StringName,
 	location_id: StringName
 ) -> bool:
-	return ScenarioSetAside.spawn_set_aside_enemy_at(
+	return _spawn_set_aside_enemy_at(
 		game_ctx, enemy_definition_id, location_id
 	).get("ok", false)
 
@@ -46,7 +46,7 @@ static func attach_set_aside_to_host(
 	host_card_id: StringName,
 	count: int = 1
 ) -> bool:
-	return ScenarioSetAside.attach_set_aside_to_location(
+	return _attach_set_aside_to_location(
 		game_ctx, definition_id, host_card_id, count
 	).get("ok", false)
 
@@ -56,7 +56,7 @@ static func discard_set_aside_to_encounter_discard(
 	definition_id: StringName,
 	count: int = -1
 ) -> bool:
-	return ScenarioSetAside.discard_set_aside_to_encounter_discard(
+	return _discard_set_aside_to_encounter_discard(
 		game_ctx, definition_id, count
 	).get("ok", false)
 
@@ -195,7 +195,7 @@ static func heal_and_set_aside_enemy(
 				enemy.engaged_with = &""
 			enemy.location_tag = &""
 		card.zone = AhcEnums.Zone.SET_ASIDE
-		ScenarioSetAside.remove_from_set_aside(game_ctx, enemy_id)
+		remove_from_set_aside(game_ctx, enemy_id)
 		if not game_ctx.state.set_aside.has(enemy_id):
 			game_ctx.state.set_aside.append(enemy_id)
 		moved = true
@@ -241,11 +241,11 @@ static func put_story_asset_from_set_aside(
 	var owner := _resolve_controller(game_ctx, controller_id)
 	if owner == &"":
 		return false
-	var cards := ScenarioSetAside.find_cards(game_ctx, definition_id)
+	var cards := find_cards(game_ctx, definition_id)
 	if cards.is_empty():
 		return false
 	var card_id: StringName = cards[0]
-	ScenarioSetAside.remove_from_set_aside(game_ctx, card_id)
+	remove_from_set_aside(game_ctx, card_id)
 	var card := game_ctx.state.registry.get_card(card_id)
 	if card == null:
 		return false
@@ -467,3 +467,142 @@ static func dry_lead_draw_topmost_encounter_discard_copy(
 		if card != null and card.id.definition_id == definition_id:
 			return true
 	return false
+
+
+static func find_cards(game_ctx: GameContext, definition_id: StringName) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if game_ctx == null or game_ctx.state == null:
+		return out
+	for card_id in game_ctx.state.set_aside:
+		var card := game_ctx.state.registry.get_card(card_id)
+		if card != null and card.id.definition_id == definition_id:
+			out.append(card_id)
+	return out
+
+
+static func remove_from_set_aside(game_ctx: GameContext, card_id: StringName) -> void:
+	if game_ctx == null or game_ctx.state == null:
+		return
+	game_ctx.state.set_aside.erase(card_id)
+
+
+static func _put_location_into_play(
+	game_ctx: GameContext,
+	location_id: StringName,
+	reveal: bool = true
+) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false}
+	var loc := game_ctx.state.registry.get_location(location_id)
+	if loc == null:
+		return {"ok": false, "reason": &"unknown_location"}
+	if reveal and not loc.revealed:
+		RevealLocationFlow.reveal_and_place_clues(
+			game_ctx, {"location_id": location_id}
+		)
+	var card := game_ctx.state.registry.get_card(location_id)
+	if card == null:
+		ScenarioLayoutSetup.materialize_card(
+			game_ctx, location_id, AhcEnums.Zone.LOCATION_AREA, &"loc", location_id
+		)
+	else:
+		card.zone = AhcEnums.Zone.LOCATION_AREA
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"location:into_play",
+			{"location_id": location_id, "revealed": loc.revealed, "clues": loc.clues}
+		)
+	return {"ok": true, "location_id": location_id}
+
+
+static func _spawn_set_aside_enemy_at(
+	game_ctx: GameContext,
+	enemy_definition_id: StringName,
+	location_id: StringName
+) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false}
+	var cards := find_cards(game_ctx, enemy_definition_id)
+	if cards.is_empty():
+		return {"ok": false, "reason": &"missing_set_aside_enemy"}
+	var card_id: StringName = cards[0]
+	remove_from_set_aside(game_ctx, card_id)
+	var spawn := SpawnFlow.at_location(
+		game_ctx, card_id, location_id, enemy_definition_id
+	)
+	if spawn.get("ok", false):
+		_apply_enemy_health_per_investigator(game_ctx, card_id, enemy_definition_id)
+	return spawn
+
+
+static func _attach_set_aside_to_location(
+	game_ctx: GameContext,
+	definition_id: StringName,
+	location_id: StringName,
+	count: int = 1
+) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null or count <= 0:
+		return {"ok": false}
+	var host := game_ctx.state.registry.get_card(location_id)
+	if host == null:
+		return {"ok": false, "reason": &"missing_location_card"}
+	var attached: Array[StringName] = []
+	var cards := find_cards(game_ctx, definition_id)
+	for i in mini(count, cards.size()):
+		var card_id: StringName = cards[i]
+		var treachery := game_ctx.state.registry.get_card(card_id)
+		if treachery == null:
+			continue
+		remove_from_set_aside(game_ctx, card_id)
+		treachery.zone = AhcEnums.Zone.ATTACHED
+		treachery.attached_to = host.id
+		if not host.attachments.has(treachery.id):
+			host.attachments.append(treachery.id)
+		attached.append(card_id)
+	if game_ctx.log != null:
+		game_ctx.log.log(
+			AhcEnums.LogCategory.SCENARIO,
+			"attach:set_aside",
+			{
+				"definition_id": definition_id,
+				"location_id": location_id,
+				"attached": attached,
+			}
+		)
+	return {"ok": not attached.is_empty(), "attached": attached}
+
+
+static func _discard_set_aside_to_encounter_discard(
+	game_ctx: GameContext,
+	definition_id: StringName,
+	count: int = -1
+) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null or game_ctx.mutator == null:
+		return {"ok": false}
+	var discarded: Array[StringName] = []
+	var cards := find_cards(game_ctx, definition_id)
+	var limit := cards.size()
+	if count >= 0:
+		limit = mini(count, cards.size())
+	for i in limit:
+		var card_id: StringName = cards[i]
+		remove_from_set_aside(game_ctx, card_id)
+		game_ctx.mutator.move_card(card_id, CardSlot.encounter_discard_top())
+		discarded.append(card_id)
+	return {"ok": true, "discarded": discarded}
+
+
+static func _apply_enemy_health_per_investigator(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	definition_id: StringName
+) -> void:
+	var stats := CardRegistry.enemy_stats(definition_id)
+	if not bool(stats.get("health_per_investigator", false)):
+		return
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return
+	var base := int(stats.get("health", 1))
+	enemy.health = PerInvestigatorScale.scale(game_ctx.state, base)

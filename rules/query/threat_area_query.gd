@@ -41,6 +41,26 @@ static func counts_in_effective_threat_area(
 	return is_hidden_treachery_in_hand(state, inv_id, card_id)
 
 
+## 敌人在攻击者以外的调查员威胁区内时，返回该调查员。否则空。
+static func other_engaged_holder(
+	game_ctx: GameContext,
+	enemy_id: StringName,
+	attacker_id: StringName
+) -> StringName:
+	if game_ctx == null or game_ctx.state == null or enemy_id == &"":
+		return &""
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return &""
+	var holder_id := enemy.engaged_with
+	if holder_id == &"" or holder_id == attacker_id:
+		return &""
+	var holder := game_ctx.state.registry.get_investigator(holder_id)
+	if holder == null or holder.eliminated or not holder.threat_area.has(enemy_id):
+		return &""
+	return holder_id
+
+
 static func effective_threat_area_ids(
 	state: GameStateStore,
 	inv_id: StringName

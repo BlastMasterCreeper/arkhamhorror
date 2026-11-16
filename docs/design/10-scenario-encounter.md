@@ -1,4 +1,4 @@
-# 10 — 遭遇、场景/密谋与冒险 (ScenarioService)
+# 10 — 遭遇、场景/密谋与冒险 (ScenarioPipeline)
 
 > **依赖**：[02-framework-flow.md](02-framework-flow.md), [08-enemy-engagement.md](08-enemy-engagement.md), [05-chaos-bag.md](05-chaos-bag.md)  
 > **规则来源**：Grimoire Mythos 1.4, Act/Agenda, Encounter Draw, Winning and Losing
@@ -13,7 +13,7 @@
 
 ## 2. Encounter Draw 管线（Mythos 1.4 / 能力 draw）
 
-> **规范流程**：[15-timing-entry-catalog.md §17](15-timing-entry-catalog.md)（`seq.draw.encounter`）。本节保留 **ScenarioService 委托形状** 与 **帧语义** 摘要。
+> **规范流程**：[15-timing-entry-catalog.md §17](15-timing-entry-catalog.md)（`seq.draw.encounter`）。本节保留 **ScenarioPipeline 委托形状** 与 **帧语义** 摘要。
 
 ```gdscript
 func resolve_encounter_draw(drawer: StringName, amount: int = 1) -> void:
@@ -155,10 +155,10 @@ class ScenarioDefinition:
 
 ---
 
-## 8. ScenarioService API
+## 8. ScenarioPipeline API
 
 ```gdscript
-class ScenarioService:
+class ScenarioPipeline:
     func setup_from_definition(def: ScenarioDefinition, guide: CampaignGuideSetup) -> void
     func advance_act() -> Result
     func advance_agenda() -> Result

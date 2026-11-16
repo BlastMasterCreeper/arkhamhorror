@@ -90,7 +90,7 @@ class PlayerInteractionGate:
     func ask(request: ChoiceRequest, ctx: GameContext) -> Variant
 ```
 
-`GameContext.interaction` 持有 gate；`CompositionExecutor`、`ResolutionSequenceStack` 响应轮、`DamagePipeline` 等 **只调 gate**，不调 UI。
+`GameContext.interaction` 持有 gate；`CompositionExecutor`、`ResolutionSequenceStack` 响应轮、`DealInvestigatorPipeline` 等 **只调 gate**，不调 UI。
 
 `ask` **同步返回**选定结果（或默认）；**不** push 子 seq，**不**占用 Would/When/After。
 
@@ -227,7 +227,7 @@ var auto_choice_mode: AhcEnums.AutoChoiceMode = AhcEnums.AutoChoiceMode.ASK
 
 | 交互 | Kind | 决策者 | 要点 |
 |---|---|---|---|
-| Assign damage（会话内增减） | `ASSIGN_DAMAGE` | 控制者 | 载荷：`pending_total` + candidates（含 cap）+ constraints；确认时合计=total；期间 `DamageAssigner` 重算可增减 |
+| Assign damage（会话内增减） | `ASSIGN_DAMAGE` | 控制者 | 载荷：`pending_total` + candidates（含 cap）+ constraints；确认时合计=total；期间 `DealAssignableFlow` 重算可增减 |
 | Assign horror（会话内增减） | `ASSIGN_HORROR` | 控制者 | 同上；sanity 容量 |
 | Direct：候选默认仅 inv；INCLUDE 可扩 | （上两行） | 控制者 | **不是**另开 `PICK_TARGET` |
 | 同时 defeated：**physical vs mental trauma** | `CHOOSE_TRAUMA` | 调查员 | RR |
@@ -515,7 +515,7 @@ class ChoiceRequest:
 | `PAY_COST` | `{cost_slot, candidates[]}` |
 | `SEARCH_TAKE` | `{revealed_ids[], must_take, may_take}` |
 | `TIE_BREAK` | 同 `PICK_TARGET`；`decider_id` = lead |
-| `ASSIGN_DAMAGE` / `ASSIGN_HORROR` | **默认腿表**（`options` = 合法 `legs[]`）；`context`：`pending_total`、`candidates[]`（含 capacity）、`constraints[]`、`mode`=`investigator`\|`among`。确认 pick = 最终腿表；须经 `DamageAssigner.validate` / `validate_among` |
+| `ASSIGN_DAMAGE` / `ASSIGN_HORROR` | **默认腿表**（`options` = 合法 `legs[]`）；`context`：`pending_total`、`candidates[]`（含 capacity）、`constraints[]`、`mode`=`investigator`\|`among`。确认 pick = 最终腿表；须经 `DealAssignableFlow.validate` / `validate_among` |
 
 ---
 

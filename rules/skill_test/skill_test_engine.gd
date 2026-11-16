@@ -32,7 +32,7 @@ func _init(
 func begin_test(ctx: SkillTestContext, game_ctx: GameContext = null) -> SkillTestContext:
 	_game_ctx = game_ctx
 	if game_ctx != null and game_ctx.memory != null:
-		EncounterPeril.sync_test_context_from_frame(ctx, game_ctx)
+		KeywordMount.sync_peril_test_context(ctx, game_ctx)
 	if ctx.id == &"":
 		_next_id += 1
 		ctx.id = StringName("skill_test_%d" % _next_id)
@@ -316,8 +316,28 @@ func run_full_test(ctx: SkillTestContext, game_ctx: GameContext = null, commits:
 	close_player_window(ctx)
 	continue_after_reveal_window(ctx)
 	step_apply_results(ctx)
-	if game_ctx != null:
-		RetaliateAlertTrigger.resolve_post_st7(game_ctx, ctx)
+	if game_ctx != null and ctx.target_enemy_id != &"":
+		## 反击 / 警戒 / 逃逸：规格门在 KeywordEffects。战斗检定后的逃逸在反击之后。
+		if not ctx.success:
+			KeywordConsumer.consume_at(
+				game_ctx,
+				KeywordProfileTable.SLOT_POST_ST7_FAIL,
+				ctx.performing_investigator,
+				ctx.target_enemy_id,
+				{
+					"skill": ctx.skill,
+					"success": ctx.success,
+					"investigator_id": ctx.performing_investigator,
+				}
+			)
+		if ctx.skill == AhcEnums.SkillType.COMBAT:
+			KeywordConsumer.consume_at(
+				game_ctx,
+				KeywordProfileTable.SLOT_AFTER_ATTACK,
+				ctx.performing_investigator,
+				ctx.target_enemy_id,
+				{"cause": &"was_attacked"}
+			)
 	step_end(ctx, game_ctx)
 	var result := SkillTestResult.new()
 	result.context = ctx
@@ -335,7 +355,7 @@ func queue_nested_test(parent: SkillTestContext, child: SkillTestContext) -> voi
 	child.nested_depth = parent.nested_depth + 1
 	child.encounter_resolution_id = parent.encounter_resolution_id
 	if _game_ctx != null and _game_ctx.memory != null:
-		EncounterPeril.sync_test_context_from_frame(child, _game_ctx)
+		KeywordMount.sync_peril_test_context(child, _game_ctx)
 	else:
 		child.peril = parent.peril
 	parent.pending_nested_tests.append(child)
@@ -375,10 +395,7 @@ func _discard_committed(ctx: SkillTestContext) -> void:
 
 
 func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:
-	## ST.4：规则自带 Bless/Curse 先于参考卡 / Elder Sign。
-	if BlessCurseRules.try_apply(ctx, token):
-		return
-	## 参考卡隐式符号能力（空白则跳过印刷条）；Elder Sign 走调查员印刷。
+	## ST.4：祝福/诅咒、参考卡符号、Elder Sign 都经同一套符号能力。
 	ScenarioReferenceApplier.apply_token(_game_ctx, ctx, token, _state)
 
 

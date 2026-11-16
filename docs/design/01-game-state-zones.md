@@ -407,7 +407,7 @@ Hand/Deck --[play/initiate]--> Limbo --resolve--> InPlay | Discard
 | `ZoneManager` | 封装 `move_card` 合法性（如 ThreatArea 仅 enemy/treachery） |
 | `EffectResolutionGraph` | 通过 `EffectApplier` 调用 `enter_play` / `leave_play` |
 | `AbilityInitiationPipeline` | 校验 target in-play、controller |
-| `LocationGraph` | 维护 `LocationState.connections`, `revealed` |
+| `LocationGraph` | 地点拓扑：符号边并上设置连接法则；邻接、距离、路径从这里问 |
 | `TimingBus` | `enters_play`, `leaves_play`, `zone_changed` |
 
 ---

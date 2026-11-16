@@ -28,7 +28,7 @@ static func _register_flows(
 			return TriggeringCondition.draw_empty_piles_defeated(inv_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			var inv_id: StringName = params.get("inv_id", &"")
-			return DrawSubflowFlowHandlers.resolve_empty_piles_defeated(game_ctx, inv_id)
+			return DrawInvestigatorFlow.resolve_empty_piles_defeated(game_ctx, inv_id)
 	)
 	## 遭遇抽：离库 → LIMBO 结算；默认不入手（仅 Hidden 显现体内秘密入手）。
 	catalog.register_run(
@@ -179,7 +179,7 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.reveal_location(params),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return LocationEnterRules.reveal_and_place_clues(game_ctx, params)
+			return RevealLocationFlow.reveal_and_place_clues(game_ctx, params)
 	)
 	## 旧 id 别名（敌人卡面 nest）；resolve 强制 subject=enemy。
 	catalog.register_run(
@@ -343,7 +343,7 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 				params.get("investigator_id", params.get("controller_id", &"")) as StringName
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return InvestigatorElimination.resign(
+			return DefeatFlow.resign_investigator(
 				game_ctx,
 				params.get("investigator_id", params.get("controller_id", &"")) as StringName
 			)
@@ -401,6 +401,16 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 			return TriggeringCondition.engage(params),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EngageFlow.resolve(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.disengage_pack",
+		func(params: Dictionary) -> TriggeringCondition:
+			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+			return TriggeringCondition.custom(
+				&"disengage_pack", enemy_id, [&"engage", &"disengage"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EngageFlow.disengage_pack(game_ctx, params)
 	)
 	## 进入威胁区时点信封（纸面 After engages / After you engage 订此 AFTER）。
 	catalog.register_run(
@@ -481,8 +491,8 @@ static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
 		&"seq.mythos.check_doom_threshold",
 		func(_params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.mythos_check_doom_threshold(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return MythosFlow.check_doom_threshold(game_ctx)
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return MythosFlow.check_doom_threshold(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.agenda.advance",
@@ -548,13 +558,23 @@ static func _register_chaos_flows(catalog: SequenceCatalog) -> void:
 
 static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 	catalog.register_run(
+		&"seq.keyword.starting",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", &"")
+			return TriggeringCondition.custom(
+				&"keyword_starting", card_id, [&"keyword", &"starting"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"starting", params)
+	)
+	catalog.register_run(
 		&"seq.keyword.surge",
 		func(params: Dictionary) -> TriggeringCondition:
 			var drawer_id: StringName = params.get("drawer_id", &"")
 			var card_id: StringName = params.get("card_id", &"")
 			return TriggeringCondition.keyword_surge(drawer_id, card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return SurgeKeywordFlow.run(game_ctx, params)
+			return KeywordEffects.resolve(game_ctx, &"surge", params)
 	)
 	catalog.register_run(
 		&"seq.keyword.hunter",
@@ -562,7 +582,7 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			var card_id: StringName = params.get("card_id", &"")
 			return TriggeringCondition.keyword_hunter(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return HunterKeywordFlow.run(game_ctx, params)
+			return KeywordEffects.resolve(game_ctx, &"hunter", params)
 	)
 	catalog.register_run(
 		&"seq.keyword.patrol",
@@ -570,7 +590,27 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			var card_id: StringName = params.get("card_id", &"")
 			return TriggeringCondition.keyword_patrol(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return PatrolKeywordFlow.run(game_ctx, params)
+			return KeywordEffects.resolve(game_ctx, &"patrol", params)
+	)
+	catalog.register_run(
+		&"seq.effect.massive_phase_batch",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"massive_phase_batch", card_id, [&"keyword", &"massive"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EnemyPhaseFlow.massive_phase_batch(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.pad_swarm",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"pad_swarm", card_id, [&"keyword", &"swarming"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return SwarmPadFlow.run(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.keyword.massive",
@@ -578,7 +618,7 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
 			return TriggeringCondition.keyword_massive(card_id),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return MassiveKeywordFlow.run(game_ctx, params)
+			return KeywordEffects.resolve(game_ctx, &"massive", params)
 	)
 	catalog.register_run(
 		&"seq.keyword.swarming",
@@ -588,7 +628,91 @@ static func _register_keyword_flows(catalog: SequenceCatalog) -> void:
 				&"keyword_swarming", card_id, [&"keyword", &"swarming"]
 			),
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			return SwarmingKeywordFlow.run(game_ctx, params)
+			return KeywordEffects.resolve(game_ctx, &"swarming", params)
+	)
+	catalog.register_run(
+		&"seq.keyword.retaliate",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_retaliate", card_id, [&"keyword", &"retaliate"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"retaliate", params)
+	)
+	catalog.register_run(
+		&"seq.keyword.alert",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_alert", card_id, [&"keyword", &"alert"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"alert", params)
+	)
+	catalog.register_run(
+		&"seq.keyword.doomed",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_doomed", card_id, [&"keyword", &"doomed"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"doomed", params)
+	)
+	catalog.register_run(
+		&"seq.keyword.elusive",
+		func(params: Dictionary) -> TriggeringCondition:
+			var card_id: StringName = params.get("card_id", params.get("enemy_id", &""))
+			return TriggeringCondition.custom(
+				&"keyword_elusive", card_id, [&"keyword", &"elusive"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, &"elusive", params)
+	)
+	_register_rule_flows(catalog)
+
+
+static func _register_rule_flows(catalog: SequenceCatalog) -> void:
+	catalog.register_run(
+		&"seq.effect.opportunity_attacks",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("investigator_id", &"")
+			return TriggeringCondition.custom(
+				&"opportunity_attacks", inv_id, [&"rule", &"opportunity_attack"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EnemyAttackFlow.opportunity_attacks(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.effect.fight_fail_redirect",
+		func(params: Dictionary) -> TriggeringCondition:
+			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+			return TriggeringCondition.custom(
+				&"fight_fail_redirect", enemy_id, [&"rule", &"fight_fail_redirect"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return DealInvestigatorPipeline.redirect_fight_damage(game_ctx, params)
+	)
+	catalog.register_run(
+		&"seq.rule.opportunity_attack",
+		func(params: Dictionary) -> TriggeringCondition:
+			var inv_id: StringName = params.get("investigator_id", &"")
+			return TriggeringCondition.custom(
+				&"rule_opportunity_attack", inv_id, [&"rule", &"opportunity_attack"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, RuleProfileTable.RULE_OPPORTUNITY, params)
+	)
+	catalog.register_run(
+		&"seq.rule.fight_fail_redirect",
+		func(params: Dictionary) -> TriggeringCondition:
+			var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+			return TriggeringCondition.custom(
+				&"rule_fight_fail_redirect", enemy_id, [&"rule", &"fight_fail_redirect"]
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return KeywordEffects.resolve(game_ctx, RuleProfileTable.RULE_FIGHT_FAIL, params)
 	)
 
 
@@ -725,7 +849,7 @@ static func _resolve_encounter_revelation(
 	if CardRegistry.is_hidden(card.id.definition_id) and game_ctx.mutator != null:
 		var ok_hidden := game_ctx.mutator.commit_hidden_enter_hand(card_id, drawer_id)
 		if ok_hidden:
-			EncounterPrivacy.register_leave_hand_restriction(game_ctx, card_id, drawer_id)
+			KeywordMount.register_hidden_leave_hand(game_ctx, card_id, drawer_id)
 			game_ctx.mutator.finalize_limbo_discard(card_id, drawer_id)
 		return {"resolved": ok_hidden}
 	return {"resolved": false}
@@ -743,7 +867,7 @@ static func _resolve_encounter_spawn(
 	if from_hand:
 		if game_ctx.mutator == null:
 			return {"spawned": false, "discarded": false, "error": &"no_mutator"}
-		EncounterPrivacy.unregister_for_card(game_ctx, card_id)
+		KeywordMount.unregister_hidden_for_card(game_ctx, card_id)
 		if not game_ctx.mutator.prepare_hand_card_for_encounter_spawn(card_id, drawer_id):
 			return {"spawned": false, "discarded": false, "error": &"invalid_hand_spawn"}
 	var result := SpawnFlow.from_encounter_draw(game_ctx, card_id, drawer_id)
@@ -775,14 +899,27 @@ static func _nest_enter_hand_revelations(
 	var policy := EnterHandTimingPolicy.new()
 	if game_ctx != null and game_ctx.config != null:
 		policy = game_ctx.config.enter_hand_timing
+	if card_ids.is_empty() and params.has("card_id"):
+		var single: StringName = params.get("card_id", &"")
+		if single != &"":
+			card_ids = [single]
 	var ordered_cards := policy.order_cards_for_revelation(
 		game_ctx, controller_id, card_ids, params
 	)
 	var resolved: Array[StringName] = []
 	if game_ctx == null:
 		return {"revelations": resolved}
+	var from_limbo := bool(params.get("from_limbo", false))
 	for card_id in ordered_cards:
 		var cid := card_id as StringName
+		if from_limbo:
+			var held := game_ctx.state.registry.get_card(cid) if game_ctx.state != null else null
+			if held == null or held.zone != AhcEnums.Zone.LIMBO:
+				continue
+			if game_ctx.mutator != null:
+				game_ctx.mutator.commit_enter_hand(cid, controller_id)
+			if game_ctx.registrations != null:
+				game_ctx.registrations.on_leave_deck(cid)
 		var def_id := _definition_id_of(game_ctx, cid)
 		## 仅玩家卡背：遭遇卡背显现挂在抽取并揭示（seq.encounter.revelation）。
 		if (

@@ -12,7 +12,7 @@ extends RefCounted
 ## `seq.effect.enter_threat_area`（`from=in_play` = 场上→威胁区）。`grant` 只 Buff。
 ## 生成 engaged（场外→威胁区）走 `SpawnFlow.engaged`，不压本条。
 ## 纸面「交战后」订进入威胁区 AFTER，不订本手续完成。
-## 禁止另铸 `seq.enemy.auto_engage`；禁止经 EnemySystem 再包一层交战 API。
+## 禁止另铸 `seq.enemy.auto_engage`；禁止再挂平行交战门面。
 
 
 const MODE_AUTO: StringName = &"auto"
@@ -93,7 +93,6 @@ static func auto_at_location(
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
 	if enemy.massive:
-		MassiveEngagement.sync_for_enemy(game_ctx, enemy_id)
 		return {"ok": true, "skipped": true, "massive": true}
 	if EngagementStatus.is_engaged(game_ctx, enemy_id):
 		return {"ok": true, "skipped": true}
@@ -152,6 +151,30 @@ static func disengage(
 	return {"ok": true, "enemy_id": enemy_id, "location_tag": location_tag}
 
 
+## 整包解除交战，不触发区域变更自动交战。逃逸规格 nest 本手续。
+static func disengage_pack(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	if game_ctx == null or game_ctx.state == null:
+		return {"ok": false}
+	var enemy_id: StringName = params.get("enemy_id", params.get("card_id", &""))
+	if enemy_id == &"":
+		return {"ok": true, "skipped": true}
+	for mid in VirtualCard.pack_ids(game_ctx, enemy_id):
+		_disengage_member(game_ctx, mid)
+	EngageFlow.align_pack_engagement(game_ctx, enemy_id)
+	return {"ok": true, "enemy_id": enemy_id}
+
+
+static func _disengage_member(game_ctx: GameContext, enemy_id: StringName) -> void:
+	var enemy := game_ctx.state.registry.get_enemy(enemy_id)
+	if enemy == null:
+		return
+	for inv_id in game_ctx.state.registry.all_investigator_ids():
+		var inv := game_ctx.state.registry.get_investigator(inv_id)
+		if inv != null:
+			inv.threat_area.erase(enemy_id)
+	enemy.engaged_with = &""
+
+
 static func _normalize_params(params: Dictionary) -> Dictionary:
 	var out := params.duplicate()
 	var raw: StringName = out.get("mode", out.get("source", MODE_AUTO)) as StringName
@@ -186,7 +209,6 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 	if focus_enemy != &"":
 		var focus := game_ctx.state.registry.get_enemy(focus_enemy)
 		if focus != null and focus.massive:
-			MassiveEngagement.sync_at_location(game_ctx, location_tag)
 			return {
 				"ok": true,
 				"mode": MODE_AUTO,
@@ -201,7 +223,6 @@ static func _resolve_auto(game_ctx: GameContext, params: Dictionary) -> Dictiona
 			last_inv = one.get("investigator_id", &"") as StringName
 			_sync_and_enter_threat(game_ctx, focus_enemy, last_inv)
 	else:
-		MassiveEngagement.sync_at_location(game_ctx, location_tag)
 		for enemy_id in game_ctx.state.registry.all_enemy_ids():
 			var enemy := game_ctx.state.registry.get_enemy(enemy_id)
 			if enemy == null or enemy.location_tag != location_tag:
@@ -262,7 +283,7 @@ static func _resolve_effect(game_ctx: GameContext, params: Dictionary) -> Dictio
 		return {"ok": false, "reason": &"wrong_location", "error": "wrong_location"}
 	var move_into_threat := placement != PLACEMENT_GRANT
 	apply_status(game_ctx, enemy_id, inv_id, move_into_threat)
-	SwarmPack.sync_engagement(game_ctx, enemy_id)
+	EngageFlow.align_pack_engagement(game_ctx, enemy_id)
 	if move_into_threat:
 		EnterThreatAreaFlow.enter_pack_if_needed(
 			game_ctx, enemy_id, inv_id, EnterThreatAreaFlow.FROM_IN_PLAY
@@ -283,7 +304,7 @@ static func _sync_and_enter_threat(
 	enemy_id: StringName,
 	investigator_id: StringName
 ) -> void:
-	SwarmPack.sync_engagement(game_ctx, enemy_id)
+	EngageFlow.align_pack_engagement(game_ctx, enemy_id)
 	EnterThreatAreaFlow.enter_pack_if_needed(
 		game_ctx, enemy_id, investigator_id, EnterThreatAreaFlow.FROM_IN_PLAY
 	)
@@ -314,6 +335,46 @@ static func _pick_engage_target(
 	if pick != &"":
 		return pick
 	return PreyQuery.lead_pick(game_ctx, candidates, &"pick:engage_tie")
+
+
+## 整包交战与主体对齐。威胁区由进入威胁区手续写入。
+static func align_pack_engagement(game_ctx: GameContext, source_id: StringName) -> void:
+	if VirtualCard.pack_align_depth > 0 or game_ctx == null or game_ctx.state == null:
+		return
+	var pack := VirtualCard.pack_ids(game_ctx, source_id)
+	if pack.size() <= 1:
+		return
+	var src := game_ctx.state.registry.get_enemy(source_id)
+	if src == null:
+		return
+	VirtualCard.pack_align_depth += 1
+	var engaged_with := src.engaged_with
+	for mid in pack:
+		if mid == source_id:
+			continue
+		var other := game_ctx.state.registry.get_enemy(mid)
+		if other == null:
+			continue
+		other.engaged_with = engaged_with
+		other.location_tag = src.location_tag
+		if engaged_with == &"":
+			for inv_id in game_ctx.state.registry.all_investigator_ids():
+				var inv := game_ctx.state.registry.get_investigator(inv_id)
+				if inv != null:
+					inv.threat_area.erase(mid)
+			EngagementStatus.clear(game_ctx, mid)
+		else:
+			for inv_id in game_ctx.state.registry.all_investigator_ids():
+				if inv_id == engaged_with:
+					continue
+				var inv := game_ctx.state.registry.get_investigator(inv_id)
+				if inv != null:
+					inv.threat_area.erase(mid)
+			EngagementStatus.grant(game_ctx, mid, engaged_with)
+			EnterThreatAreaFlow.enter_if_needed(
+				game_ctx, mid, engaged_with, EnterThreatAreaFlow.FROM_IN_PLAY
+			)
+	VirtualCard.pack_align_depth -= 1
 
 
 static func _definition_id(game_ctx: GameContext, enemy_id: StringName) -> StringName:

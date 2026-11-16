@@ -6,7 +6,6 @@ var _events: EventRecordLog
 var _initiation: AbilityInitiationPipeline
 var _log: GameLog
 var _framework: FrameworkFlowEngine
-var _aoo: AttackOfOpportunityTrigger
 var _mutator: StateMutator
 var _game_ctx: GameContext
 
@@ -25,14 +24,11 @@ func _init(
 	_initiation = initiation
 	_log = log
 	_framework = framework
-	_aoo = AttackOfOpportunityTrigger.new(state)
 	_mutator = mutator
 
 
 func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
-	if ctx != null and _aoo != null:
-		_aoo.bind_game_context(ctx)
 
 
 ## REST-E-PLAY：打出 asset/event — 经 Initiation Sequence（Grimoire V）。
@@ -159,10 +155,16 @@ func execute(action_type: AhcEnums.ActionType, investigator_id: StringName, extr
 
 
 func _resolve_aoo(investigator_id: StringName, action_type: AhcEnums.ActionType) -> Dictionary:
-	if _aoo == null:
+	if _game_ctx == null:
 		return {"ok": true, "attacks": 0}
-	var regs: RegistrationStore = _game_ctx.registrations if _game_ctx != null else null
-	return _aoo.resolve_for_types(investigator_id, [action_type], regs)
+	return RuleMount.consume_at(
+		_game_ctx,
+		RuleProfileTable.SLOT_AOO,
+		{
+			"investigator_id": investigator_id,
+			"action_types": [action_type],
+		}
+	)
 
 
 func _run_resolved_action(

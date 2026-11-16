@@ -27,7 +27,7 @@ static func run_revelation_test(game_ctx: GameContext, params: Dictionary) -> Di
 	if if_specs is Array and not (if_specs as Array).is_empty():
 		SkillTestIfRevealed.register_specs(test, game_ctx, if_specs as Array)
 	if game_ctx.memory != null:
-		EncounterPeril.sync_test_context_from_frame(test, game_ctx)
+		KeywordMount.sync_peril_test_context(test, game_ctx)
 	var result := game_ctx.skill_tests.run_full_test(test, game_ctx)
 	var fail_by := result.fail_by if result != null else 0
 	var success := result.success if result != null else false

@@ -146,6 +146,7 @@ static func _duplicate_state(src: GameStateStore) -> GameStateStore:
 		loc.revealed = loc_src.revealed
 		loc.connections = loc_src.connections.duplicate()
 		copy.registry.register_location(loc)
+	copy.connection_laws = LocationGraph.duplicate_laws(src.connection_laws)
 	## dry-run 需要敌人场面（pick_target / nest_engage 等）。
 	for enemy_id in src.registry.all_enemy_ids():
 		var enemy_src := src.registry.get_enemy(enemy_id)

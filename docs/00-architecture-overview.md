@@ -366,7 +366,7 @@ class EventRecord:
 | [07-effect-resolution.md](design/07-effect-resolution.md) | EffectResolutionGraph |
 | [08-enemy-engagement.md](design/08-enemy-engagement.md) | EnemySystem |
 | [09-location-graph.md](design/09-location-graph.md) | LocationGraph |
-| [10-scenario-encounter.md](design/10-scenario-encounter.md) | ScenarioService |
+| [10-scenario-encounter.md](design/10-scenario-encounter.md) | ScenarioPipeline |
 | [11-investigator-campaign.md](design/11-investigator-campaign.md) | Investigator、Campaign |
 | [12-card-script-api.md](design/12-card-script-api.md) | CardScript API |
 | [open-questions-master.md](open-questions-master.md) | 规则疑点汇总 |

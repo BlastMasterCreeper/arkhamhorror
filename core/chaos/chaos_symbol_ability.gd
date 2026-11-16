@@ -12,6 +12,8 @@ var printed: bool = true
 ## int 或 { "expr": "neg_act" | "neg_act_plus_1" | ... }
 var modifier: Variant = 0
 var reveal_another: bool = false
+## 检定结束归 chaos_token_pool（祝福/诅咒）。参考卡符号不设。
+var return_to_pool: bool = false
 ## ST.4 立即效果体（无 succeed/fail 条件；如 Daniela 造成伤害）。
 var immediate: Dictionary = {}
 ## ST.7：*If you succeed* / *If this test is successful*。
@@ -33,6 +35,7 @@ static func from_effect_dict(
 	ab.printed = true
 	ab.modifier = effect.get("modifier", 0)
 	ab.reveal_another = bool(effect.get("reveal_another", false))
+	ab.return_to_pool = bool(effect.get("return_to_pool", false))
 	var imm_raw: Variant = effect.get("immediate", effect.get("body", {}))
 	if imm_raw is Dictionary:
 		ab.immediate = (imm_raw as Dictionary).duplicate(true)
@@ -53,6 +56,7 @@ func to_effect_dict() -> Dictionary:
 	var d := {
 		"modifier": modifier,
 		"reveal_another": reveal_another,
+		"return_to_pool": return_to_pool,
 	}
 	if not immediate.is_empty():
 		d["immediate"] = immediate.duplicate(true)

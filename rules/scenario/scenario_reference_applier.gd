@@ -24,7 +24,8 @@ static func apply_token(
 			ctx.auto_success = true
 			return
 		AhcEnums.ChaosTokenKind.BLESS, AhcEnums.ChaosTokenKind.CURSE:
-			## 规则自带能力：由 BlessCurseRules 处理，不查参考卡。
+			## 规则自带符号能力：与参考卡同一份效果字典，不挂参考卡、不受 text_box_blank。
+			_apply_rule_symbol(game_ctx, ctx, token, state)
 			return
 		AhcEnums.ChaosTokenKind.FROST:
 			ctx.chaos_modifier += token.modifier
@@ -68,6 +69,38 @@ static func _apply_elder_sign(
 	_apply_symbol_ability(game_ctx, ctx, token, ability, store)
 
 
+## 与 reference.json 符号条同形。祝福 +2 / 诅咒 −2，再揭，检定结束回标记池。
+static func _rule_symbol_effect(kind: AhcEnums.ChaosTokenKind) -> Dictionary:
+	match kind:
+		AhcEnums.ChaosTokenKind.BLESS:
+			return {"modifier": 2, "reveal_another": true, "return_to_pool": true}
+		AhcEnums.ChaosTokenKind.CURSE:
+			return {"modifier": -2, "reveal_another": true, "return_to_pool": true}
+		_:
+			return {}
+
+
+static func _apply_rule_symbol(
+	game_ctx: GameContext,
+	ctx: SkillTestContext,
+	token: ChaosToken,
+	state: GameStateStore
+) -> void:
+	var effect := _rule_symbol_effect(token.kind if token != null else AhcEnums.ChaosTokenKind.BLESS)
+	if effect.is_empty():
+		return
+	var key := "bless" if token.kind == AhcEnums.ChaosTokenKind.BLESS else "curse"
+	var ability := ChaosSymbolAbility.from_effect_dict(
+		token.kind, effect, &"", StringName("rule:%s" % key)
+	)
+	## 不是印刷条：参考卡空白卸不掉。
+	ability.printed = false
+	var store := state
+	if store == null and game_ctx != null:
+		store = game_ctx.state
+	_apply_symbol_ability(game_ctx, ctx, token, ability, store)
+
+
 static func _apply_symbol_ability(
 	game_ctx: GameContext,
 	ctx: SkillTestContext,
@@ -76,9 +109,14 @@ static func _apply_symbol_ability(
 	store: GameStateStore
 ) -> void:
 	var effect := ability.to_effect_dict()
-	ctx.chaos_modifier += _resolve_modifier(effect.get("modifier", 0), store)
-	if bool(effect.get("reveal_another", false)) and token != null:
+	var resolved := _resolve_modifier(effect.get("modifier", 0), store)
+	ctx.chaos_modifier += resolved
+	if token != null and bool(effect.get("reveal_another", false)):
 		token.reveal_another = true
+	if token != null and bool(effect.get("return_to_pool", false)):
+		token.return_to_pool = true
+		## 与本次施加的修饰对齐，供审计；ST.5 读的是 ctx.chaos_modifier。
+		token.modifier = resolved
 	_execute_immediate(game_ctx, ctx, effect, ability)
 	_register_st7(game_ctx, ctx, effect, ability)
 

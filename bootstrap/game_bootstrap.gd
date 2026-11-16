@@ -45,13 +45,11 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.timing.bind_listeners(ctx.listeners)
 	ctx.legality = InitiationLegalityChecker.new()
 	ctx.initiation = AbilityInitiationPipeline.new(
-		ctx.state, ctx.events, ctx.effects, ctx.composition
+		ctx.state, ctx.events, ctx.composition
 	)
 	ctx.triggered_abilities = TriggeredAbilityPipeline.new()
-	ctx.scenario = ScenarioService.new(ctx.state, ctx.log)
+	ctx.scenario = ScenarioPipeline.new(ctx.state, ctx.log)
 	ctx.scenario.bind_context(ctx)
-	ctx.enemy = EnemySystem.new(ctx.state, ctx.log)
-	ctx.enemy.bind_context(ctx)
 	ctx.skill_tests = SkillTestEngine.new(
 		ctx.state, ctx.events, ctx.log, ctx.modifiers, ctx.mutator, ctx.timing
 	)
@@ -74,6 +72,7 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.sequences.bind_game_context(ctx)
 	ctx.effects.bind_game_context(ctx)
 	ZoneMoveFlow.bind_mutator(ctx)
+	RuleMount.mount_builtin(ctx)
 	return ctx
 
 
@@ -425,12 +424,7 @@ static func connect_locations(
 	to_id: StringName,
 	bidirectional: bool = true
 ) -> void:
-	var from_loc := ctx.state.registry.get_location(from_id)
-	var to_loc := ctx.state.registry.get_location(to_id)
-	if from_loc and not from_loc.connections.has(to_id):
-		from_loc.connections.append(to_id)
-	if bidirectional and to_loc and not to_loc.connections.has(from_id):
-		to_loc.connections.append(from_id)
+	LocationGraph.grant_link(ctx.state, from_id, to_id, bidirectional)
 
 
 static func setup_test_enemy(
@@ -453,7 +447,7 @@ static func setup_test_enemy(
 	enemy.massive = massive
 	ctx.state.registry.register_enemy(enemy)
 	if aloof:
-		AloofStatus.ensure_forbid_attack(ctx, enemy_id)
+		KeywordMount.ensure_aloof_forbid_attack(ctx, enemy_id)
 
 
 ## 01017《体能训练》式免费触发：花 1 资源 → 本次检定 +1 战（批打白名单锚）。

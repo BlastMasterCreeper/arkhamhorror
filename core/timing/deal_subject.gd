@@ -107,7 +107,7 @@ static func _capacity(
 				return 0
 			return -1
 		KIND_CARD:
-			return DamageAssigner.card_remaining(
+			return DealAssignableFlow.card_remaining(
 				game_ctx, subject_id, kind, dealt_inv_id, false
 			)
 		KIND_INVESTIGATOR:

@@ -107,7 +107,7 @@ static func enter_pack_if_needed(
 	if game_ctx == null or source_id == &"" or investigator_id == &"":
 		return {"ok": false, "entered": 0}
 	var entered: Array[StringName] = []
-	for mid in SwarmPack.pack_ids(game_ctx, source_id):
+	for mid in VirtualCard.pack_ids(game_ctx, source_id):
 		var res := enter_if_needed(game_ctx, mid, investigator_id, from)
 		if bool(res.get("moved_into_threat_area", false)):
 			entered.append(mid)

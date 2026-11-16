@@ -13,19 +13,26 @@
 
 ## 2. LocationGraph 结构
 
-```gdscript
-class LocationGraph:
-    var nodes: Dictionary[EntityId, LocationState]
+信息层的地点拓扑。有效邻接是两份来源的并：
 
-    func add_location(def: LocationDefinition, revealed: bool) -> EntityId
-    func connect(a: EntityId, b: EntityId, directed: bool = false) -> void
-    func disconnect(a: EntityId, b: EntityId) -> void
-    func get_connections(loc: EntityId) -> Array[EntityId]
-    func shortest_path(from: EntityId, to: EntityId) -> Array[EntityId]
-    func farthest_from_all_investigators(candidates: Array[EntityId]) -> EntityId
+| 来源 | 放哪 | 例子 |
+|---|---|---|
+| 地点符号边 | `LocationState.connections` | 牌面连接符号带来的一步 |
+| 设置连接法则 | `GameStateStore.connection_laws` | 冒险布局写明的边、同特性互连、全体地点互连 |
+
+移动、猎手寻路、生成落点、逃逸、候选「连接地点」都问 `LocationGraph`，不直接翻 `connections`。
+
+```gdscript
+neighbors(state, location_id) -> Array[StringName]
+is_adjacent(state, from_id, to_id) -> bool
+distance(state, from_id, to_id) -> int          # 不可达 = -1
+shortest_path(state, from_id, to_id) -> Array[StringName]
+grant_link(state, from_id, to_id, bidirectional)
+grant_same_trait(state, trait_name)
+grant_complete(state)
 ```
 
-**电子版**：维护显式 **edge 列表**（connector token 仅为 UI 辅助）；支持 setup 后 **连接变化**（锁门、单向）。
+符号边按牌面方向走。设置边用 `grant_link` 写入，单向或双向都可。连接符号的实体棋子只是界面，不另存一份边。
 
 ```gdscript
 class LocationState:
@@ -46,7 +53,7 @@ class LocationState:
 
 触发（**不是**关键词、**不是**卡面 Forced）：
 
-- 调查员 **进入** 未揭示地点（`seq.effect.move` / 行动移动 → `LocationEnterRules.on_investigator_enter`）
+- 调查员 **进入** 未揭示地点（`seq.effect.move` / 行动移动 → `RevealLocationFlow.on_investigator_enter`）
 - Setup / 进场已揭示布局（starting location、`put_location_into_play`、遭遇抽到地点）→ 直接 `reveal_and_place_clues`
 - 卡牌能力 instruct reveal → nest `seq.effect.reveal_location`
 
@@ -57,7 +64,7 @@ class LocationState:
 4. （后续）连接变化 / Forced — 未竖切
 ```
 
-实现：`LocationEnterRules` + Catalog `seq.effect.reveal_location`。已揭示再进入 **不**再放线索。
+实现：`RevealLocationFlow` + Catalog `seq.effect.reveal_location`。已揭示再进入 **不**再放线索。
 
 ---
 
@@ -136,7 +143,7 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 
 | ID | 优先级 | 问题 |
 |---|---|---|
-| OQ-09-01 | P1 | ~~Setup vs Move enter 单入口？~~ → **统一** `LocationEnterRules` / `seq.effect.reveal_location`；Move 走 `on_investigator_enter`；setup 已揭示直跑 `reveal_and_place_clues`。 |
+| OQ-09-01 | P1 | ~~Setup vs Move enter 单入口？~~ → **统一** `RevealLocationFlow` / `seq.effect.reveal_location`；Move 走 `on_investigator_enter`；setup 已揭示直跑 `reveal_and_place_clues`。 |
 | OQ-09-02 | P2 | 同 title 多 copy location（罕见）— 仍算 different locations — 如何 instance 化？ |
 | OQ-09-03 | P1 | Reveal 后 shroud/clue 动态修改（能力）— 已放置 clue 是否重算？ |
 | OQ-09-04 | P2 | Farthest location 计算：blocked path 是否参与？ |
@@ -150,4 +157,5 @@ Scenario end：in play, revealed, no clues on location, victory X → victory di
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-05-25 | v0.1 | 初稿 |
-| 2026-10-19 | v0.2 | §3 落地：进入未揭示翻开 + 首次放线索；`LocationEnterRules`；L-02/L-01 竖切；裁决 OQ-09-01 |
+| 2026-10-19 | v0.2 | §3 落地：进入未揭示翻开 + 首次放线索；`RevealLocationFlow`；L-02/L-01 竖切；裁决 OQ-09-01 |
+| 2026-11-16 | v0.3 | §2：符号边与设置连接法则分开；距离和邻接只从 `LocationGraph` 问 |
