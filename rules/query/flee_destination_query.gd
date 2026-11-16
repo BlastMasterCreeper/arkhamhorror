@@ -7,12 +7,11 @@ extends RefCounted
 static func pick(game_ctx: GameContext, from_location: StringName) -> StringName:
 	if game_ctx == null or game_ctx.state == null or from_location == &"":
 		return &""
-	var loc := game_ctx.state.registry.get_location(from_location)
-	if loc == null:
+	if game_ctx.state.registry.get_location(from_location) == null:
 		return &""
 	var empty: Array[StringName] = []
 	var occupied: Array[StringName] = []
-	for conn_id in loc.connections:
+	for conn_id in LocationGraph.neighbors(game_ctx.state, from_location):
 		if game_ctx.state.registry.get_location(conn_id) == null:
 			continue
 		if _has_investigator_at(game_ctx, conn_id):

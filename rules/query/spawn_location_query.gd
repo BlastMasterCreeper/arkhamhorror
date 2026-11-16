@@ -113,23 +113,6 @@ static func _shortest_path_distance(
 	to_tag: StringName,
 	game_ctx: GameContext
 ) -> int:
-	if from_tag == &"" or to_tag == &"":
+	if game_ctx == null:
 		return -1
-	if from_tag == to_tag:
-		return 0
-	var queue: Array = [[from_tag, 0]]
-	var seen: Dictionary = {from_tag: true}
-	while not queue.is_empty():
-		var item: Array = queue.pop_front()
-		var loc_tag: StringName = item[0]
-		var dist: int = item[1]
-		var loc := game_ctx.state.registry.get_location(loc_tag)
-		if loc == null:
-			continue
-		for conn in loc.connections:
-			if conn == to_tag:
-				return dist + 1
-			if not seen.has(conn):
-				seen[conn] = true
-				queue.append([conn, dist + 1])
-	return -1
+	return LocationGraph.distance(game_ctx.state, from_tag, to_tag)

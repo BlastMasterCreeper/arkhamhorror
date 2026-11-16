@@ -128,7 +128,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 
 后缀与职责不一致，不因此新开桶：`StatQuery` / `ModifierQuery`（比较或取数的规格，不读局面）、`SequenceHandler`（堆栈订阅记录）。另有 13 个类在查询桶里，但没有 `*Query` / `*Status` 后缀：`CandidateEnumerator`、`CandidatePreds`、`CandidateViability`、`CardAccessMatcher`、`DeckLegality`、`EffectRestrictionGate`、`ExperienceCount`、`InitiationLegalityChecker`、`PerInvestigatorScale`、`RestrictionEvaluator`、`TextBoxBlank`、`UniqueTitle`、`XpCostCalculator`。
 
-没有其它文件引用的四个类：`AbilityRegistry`、`CardScriptBase`、`LocationGraph`、`ResponsePrompt`。
+没有其它文件引用的三个类：`AbilityRegistry`、`CardScriptBase`、`ResponsePrompt`。
 
 `TextBoxBlank` 目前把印刷文本框写成布尔。Mind Wipe（核心第 68 张，`01068`）要的是注册上的 `BLANK`：特性除外，本阶段结束注销。
 
@@ -263,8 +263,8 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | `GameContext` | `api/game_context.gd` | 一局的总入口。run_seq 从这里进目录和堆栈。 |
 | `GameLog` | `core/log/game_log.gd` | 给人和测试看的分类日志。 |
 | `GameStatEmitter` | `core/stats/game_stat_emitter.gd` | 把回合开始等事实写进事件日志，并推进回合号。 |
-| `GameStateStore` | `core/state/game_state_store.gd` | 这一局的局面：牌区、当前场景密谋、混乱袋、标记池。 |
-| `LocationGraph` | `rules/subsystems/location_graph.gd` | 地点图的空壳，只握着局面。没有其它文件引用，距离在各查询里算。 |
+| `GameStateStore` | `core/state/game_state_store.gd` | 这一局的局面：牌区、当前场景密谋、混乱袋、标记池、设置连接法则。 |
+| `LocationGraph` | `rules/subsystems/location_graph.gd` | 地点拓扑：符号边并上设置连接法则，供移动和各查询问邻接、距离、路径。 |
 | `PendingResolutionStore` | `rules/effects/pending_resolution_store.gd` | 保存这些挂起的结算。 |
 | `PhysicalBinding` | `core/physical/physical_binding.gd` | 信息层的区划地址对应到哪一个物理区。 |
 | `PhysicalOps` | `core/physical/physical_ops.gd` | 物理层的原子操作：移牌、改标记、翻面。不解释规则含义。 |
@@ -352,7 +352,7 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | `EnemyState` | 局面形 | `core/state/enemy_state.gd` | 场上敌人的地点、战斗、躲避、生命、伤害和关键词旗。 |
 | `EntityId` | 局面形 | `core/state/entity_id.gd` | 实体身份：种类、实例 id、定义 id。 |
 | `InvestigatorState` | 局面形 | `core/state/investigator_state.gd` | 一名调查员的地点、手牌、牌库、威胁区、伤恐和技能。 |
-| `LocationState` | 局面形 | `core/state/location_state.gd` | 一个地点的隐藏值、线索、是否已揭示、连接。 |
+| `LocationState` | 局面形 | `core/state/location_state.gd` | 一个地点的隐藏值、线索、是否已揭示、符号连接。 |
 | `MarkerKeys` | 局面形 | `core/physical/marker_keys.gd` | 物理层可数标记的键名。 |
 | `MarkerLocus` | 局面形 | `core/physical/marker_locus.gd` | 标记放在独立区，还是放在某张卡上。 |
 | `MarkerRegion` | 局面形 | `core/physical/marker_region.gd` | 独立标记区的数量表。供给池是无穷的。 |
@@ -402,3 +402,4 @@ KeywordEffects / RuleMount（已挂载的静态规格）────────
 | 2026-11-13 | 删除 `MassiveEngagement`。虚拟交战归 `EngagementStatus`；阶段攻击批归 `EnemyPhaseFlow`；进场/移动/接战不再清威胁区。生产类 230，流程体 37 |
 | 2026-11-16 | 删除 `SwarmPack`、`DamageAssigner`、`ScenarioSetAside`。蜂拥绑定在 `VirtualCard`，整包对齐在移动/接战/横置；分摊在 `DealAssignableFlow`；set-aside 在 `ScenarioCompositionFlowHandlers`。生产类 227，不成桶 96 |
 | 2026-11-16 | 普查为每个生产类写下职责。逐类重数后：底座 30、不成桶 97、局面形 20（含 `TokenBag`）。无其它引用：`AbilityRegistry`、`CardScriptBase`、`LocationGraph`、`ResponsePrompt` |
+| 2026-11-16 | `LocationGraph` 提供拓扑查询：地点符号边与设置连接法则分开。移动、寻路、生成、逃逸、连接候选改走这里 |

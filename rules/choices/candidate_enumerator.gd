@@ -108,9 +108,8 @@ static func _location_universe_sim(
 		here = inv.location_tag
 	match at:
 		&"connecting":
-			var loc := sim.state.registry.get_location(here) if here != &"" else null
-			if loc != null:
-				for conn in loc.connections:
+			if here != &"":
+				for conn in LocationGraph.neighbors(sim.state, here):
 					out.append(conn)
 		&"controller_location", &"source_location":
 			if here != &"":
@@ -257,9 +256,8 @@ static func _location_universe(
 		here = inv.location_tag
 	match at:
 		&"connecting":
-			var loc := game_ctx.state.registry.get_location(here) if here != &"" else null
-			if loc != null:
-				for conn in loc.connections:
+			if here != &"":
+				for conn in LocationGraph.neighbors(game_ctx.state, here):
 					out.append(conn)
 		&"controller_location", &"source_location":
 			if here != &"":

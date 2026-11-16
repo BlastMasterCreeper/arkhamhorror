@@ -554,12 +554,6 @@ static func _attached_location_id(game_ctx: GameContext, card: CardInstance) -> 
 	return host_id
 
 
-static func _is_connected(from_loc: LocationState, to_id: StringName) -> bool:
-	if from_loc.id == to_id:
-		return true
-	return from_loc.connections.has(to_id)
-
-
 static func _reject_if_not_connected(
 	game_ctx: GameContext,
 	from_id: StringName,
@@ -568,7 +562,9 @@ static func _reject_if_not_connected(
 	var current := game_ctx.state.registry.get_location(from_id)
 	if current == null:
 		return &"not_at_location"
-	if not _is_connected(current, dest_id):
+	if from_id == dest_id:
+		return &""
+	if not LocationGraph.is_adjacent(game_ctx.state, from_id, dest_id):
 		return &"not_connected"
 	return &""
 

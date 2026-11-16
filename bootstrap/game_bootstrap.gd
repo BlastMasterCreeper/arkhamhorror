@@ -424,12 +424,7 @@ static func connect_locations(
 	to_id: StringName,
 	bidirectional: bool = true
 ) -> void:
-	var from_loc := ctx.state.registry.get_location(from_id)
-	var to_loc := ctx.state.registry.get_location(to_id)
-	if from_loc and not from_loc.connections.has(to_id):
-		from_loc.connections.append(to_id)
-	if bidirectional and to_loc and not to_loc.connections.has(from_id):
-		to_loc.connections.append(from_id)
+	LocationGraph.grant_link(ctx.state, from_id, to_id, bidirectional)
 
 
 static func setup_test_enemy(

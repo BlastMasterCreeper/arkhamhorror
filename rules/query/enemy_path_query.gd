@@ -15,22 +15,7 @@ static func shortest_path_distance(
 		return -1
 	if from_tag == to_tag:
 		return 0
-	var queue: Array = [[from_tag, 0]]
-	var seen: Dictionary = {from_tag: true}
-	while not queue.is_empty():
-		var item: Array = queue.pop_front()
-		var loc_tag: StringName = item[0]
-		var dist: int = item[1]
-		var loc := game_ctx.state.registry.get_location(loc_tag)
-		if loc == null:
-			continue
-		for conn in loc.connections:
-			if conn == to_tag:
-				return dist + 1
-			if not seen.has(conn):
-				seen[conn] = true
-				queue.append([conn, dist + 1])
-	return -1
+	return LocationGraph.distance(game_ctx.state, from_tag, to_tag)
 
 
 static func candidate_hops_toward(
@@ -42,16 +27,15 @@ static func candidate_hops_toward(
 		return []
 	if game_ctx == null or game_ctx.state == null:
 		return []
-	var loc := game_ctx.state.registry.get_location(from_tag)
-	if loc == null:
+	if game_ctx.state.registry.get_location(from_tag) == null:
 		return []
 	var current_dist := shortest_path_distance(from_tag, to_tag, game_ctx)
 	if current_dist < 0:
 		return []
 	var hops: Array[StringName] = []
 	var hop_dists: Array[int] = []
-	for conn in loc.connections:
-		var hop: StringName = conn as StringName
+	for conn in LocationGraph.neighbors(game_ctx.state, from_tag):
+		var hop: StringName = conn
 		var hop_dist := shortest_path_distance(hop, to_tag, game_ctx)
 		if hop_dist < 0:
 			continue

@@ -29,6 +29,8 @@ var set_aside: Array[StringName] = []
 var scenario_reference_card_id: StringName = &""
 ## 当前冒险参考卡定义（ST.4 符号效果）；setup 时装载。
 var scenario_reference: ScenarioReferenceDefinition = null
+## 冒险设置赋予的连接法则（显式边、同特性互连、全连接）。与地点符号边分开。
+var connection_laws: Array[Dictionary] = []
 var scenario_layout_installed: bool = false
 var setup_game_begins_resolved: bool = false
 var deferred_setup_revelations: Array[StringName] = []

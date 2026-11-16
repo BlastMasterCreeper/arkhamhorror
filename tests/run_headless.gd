@@ -447,6 +447,7 @@ func _initialize() -> void:
 	_run_test("G1-06 elusive flee nests move", _test_g1_elusive_flee_nests_move)
 	_run_test("G1-07 move rejects disconnected", _test_g1_move_rejects_disconnected)
 	_run_test("G1-08 move_to ignores connections", _test_g1_move_to_ignores_connections)
+	_run_test("TOPO-01 symbol edges plus setup laws", _test_topo_symbol_and_setup_laws)
 	_run_test("L-01 per_investigator clues on reveal", _test_l01_per_investigator_clues)
 	_run_test("L-02 move to unrevealed reveals and places clues", _test_l02_move_unrevealed)
 	_run_test("L-02b re-enter revealed does not place clues again", _test_l02b_reenter_no_reclues)
@@ -10046,6 +10047,62 @@ func _test_g1_move_rejects_disconnected() -> bool:
 		and str(res.get("error", "")) == "not_connected"
 		and inv.location_tag == &"test_loc"
 	)
+
+
+func _test_topo_symbol_and_setup_laws() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_test_location(h.ctx, &"sym_a", 1, 0)
+	GameBootstrap.setup_test_location(h.ctx, &"sym_b", 1, 0)
+	GameBootstrap.setup_test_location(h.ctx, &"law_c", 1, 0)
+	var sym_a := h.ctx.state.registry.get_location(&"sym_a")
+	sym_a.connections.append(&"sym_b")
+	if not LocationGraph.is_adjacent(h.ctx.state, &"sym_a", &"sym_b"):
+		return false
+	if LocationGraph.is_adjacent(h.ctx.state, &"sym_b", &"sym_a"):
+		return false
+	LocationGraph.grant_link(h.ctx.state, &"sym_b", &"law_c", false)
+	var sym_b := h.ctx.state.registry.get_location(&"sym_b")
+	if sym_a.connections.size() != 1 or not sym_b.connections.is_empty():
+		return false
+	if not LocationGraph.is_adjacent(h.ctx.state, &"sym_b", &"law_c"):
+		return false
+	if LocationGraph.is_adjacent(h.ctx.state, &"law_c", &"sym_b"):
+		return false
+	if LocationGraph.distance(h.ctx.state, &"sym_a", &"law_c") != 2:
+		return false
+	var path := LocationGraph.shortest_path(h.ctx.state, &"sym_a", &"law_c")
+	if path.size() != 3 or path[0] != &"sym_a" or path[1] != &"sym_b" or path[2] != &"law_c":
+		return false
+	CardRegistry.register_definition(&"woods_a", {"traits": ["Woods"]})
+	CardRegistry.register_definition(&"woods_b", {"traits": ["Woods"]})
+	GameBootstrap.setup_test_location(h.ctx, &"woods_a", 1, 0)
+	GameBootstrap.setup_test_location(h.ctx, &"woods_b", 1, 0)
+	LocationGraph.grant_same_trait(h.ctx.state, &"Woods")
+	if not h.ctx.state.registry.get_location(&"woods_a").connections.is_empty():
+		return false
+	if not LocationGraph.is_adjacent(h.ctx.state, &"woods_a", &"woods_b"):
+		return false
+	if not LocationGraph.is_adjacent(h.ctx.state, &"woods_b", &"woods_a"):
+		return false
+	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_topo", &"sym_b")
+	var res := h.ctx.sequence_catalog.run(
+		h.ctx,
+		&"seq.effect.move",
+		{
+			"subject": MoveFlow.SUBJECT_INVESTIGATOR,
+			"investigator_id": &"inv_topo",
+			"destination_id": &"law_c",
+			"move_kind": MoveFlow.KIND_MOVE,
+			"auto_engage_after": false,
+		}
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_topo")
+	if not bool(res.get("ok", false)) or inv.location_tag != &"law_c":
+		return false
+	GameBootstrap.setup_test_location(h.ctx, &"all_a", 1, 0)
+	GameBootstrap.setup_test_location(h.ctx, &"all_b", 1, 0)
+	LocationGraph.grant_complete(h.ctx.state)
+	return LocationGraph.is_adjacent(h.ctx.state, &"all_a", &"all_b")
 
 
 func _test_g1_move_to_ignores_connections() -> bool:
