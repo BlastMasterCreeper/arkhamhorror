@@ -2,7 +2,7 @@ class_name SealFlow
 extends RefCounted
 
 ## 封印 / 释放内核 · `seq.effect.seal` / `seq.effect.release_seal`。
-## Domain：标记离袋挂到卡上；离场立即释放回袋。不作 Buff。
+## Domain：标记离袋挂到卡上；离场立即释放回袋。不作 Registration 载荷。
 
 const MODE_RANDOM := &"random"
 const MODE_KIND := &"kind"

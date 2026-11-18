@@ -3,7 +3,7 @@
 数据源：`data/arkhamdb/imported/core_2026*.json`（Phase 1–3 导入层）。
 卡牌数：**166**（两包合计，已跳过 stub）。
 
-回填目标：[06 §16.3–16.5](../design/06-registration-buff-model.md)、[15 §17](../design/15-timing-entry-catalog.md)、[12 §1.1](../design/12-card-script-api.md)。
+回填目标：[06 §16.3–16.5](../design/06-registration-payload-model.md)、[15 §17](../design/15-timing-entry-catalog.md)、[12 §1.1](../design/12-card-script-api.md)。
 
 ---
 
@@ -114,6 +114,6 @@
 | OQ-ADB-04 | 12012 The Necronomicon | cannot leave play + threat area — Permanent 混合 |
 | OQ-ADB-05 | 12179b Elokoss | Hidden enemy + spawn 分支 — ENC-22/23 已测 |
 
-**已裁决**：OQ-ADB-02/03（涌动）— 见 [06 §3.1–3.2](../../docs/design/06-registration-buff-model.md#31-涌动surge--已裁决)。
+**已裁决**：OQ-ADB-02/03（涌动）— 见 [06 §3.1–3.2](../../docs/design/06-registration-payload-model.md#31-涌动surge--已裁决)。
 
 Gained characteristics 统计：[`core_2026_gained_characteristics.md`](core_2026_gained_characteristics.md)。

@@ -504,6 +504,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_lose_action(node)
 		&"nest_effect_register":
 			return _execute_nest_effect_register(node)
+		&"nest_effect_grant":
+			return _execute_nest_effect_grant(node)
 		&"nest_effect_unregister":
 			return _execute_nest_effect_unregister(node)
 		&"nest_discard_card":
@@ -1994,6 +1996,10 @@ func _execute_nest_effect_register(node: CompositionNode) -> bool:
 	return _register_via_effect_seq(node.register_template)
 
 
+func _execute_nest_effect_grant(node: CompositionNode) -> bool:
+	return _grant_via_effect_seq(node.gain_template)
+
+
 func _execute_nest_effect_unregister(node: CompositionNode) -> bool:
 	if node.pending_id == &"":
 		return false
@@ -2117,7 +2123,7 @@ func _execute_register(node: CompositionNode) -> bool:
 	return ok
 
 
-## 卡面 Buff 创建唯一落地：nest/run `seq.effect.register`（禁真空 Store）。
+## 卡面 Registration 创建唯一落地：nest/run `seq.effect.register`（禁真空 Store）。
 func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
 	if template == null:
 		return false
@@ -2131,5 +2137,23 @@ func _register_via_effect_seq(template: RegistrationTemplate) -> bool:
 	)
 	if result.is_empty():
 		push_error("CompositionExecutor: seq.effect.register unavailable; refused vacuum register")
+		return false
+	return bool(result.get("ok", false))
+
+
+## Gain 特征唯一落地：nest/run `seq.effect.grant`（禁真空 GainStore）。
+func _grant_via_effect_seq(template: GainTemplate) -> bool:
+	if template == null:
+		return false
+	var result := _nest_or_direct(
+		&"seq.effect.grant",
+		{
+			"controller_id": &"",
+			"card_id": template.card_id,
+			"template": template,
+		}
+	)
+	if result.is_empty():
+		push_error("CompositionExecutor: seq.effect.grant unavailable; refused vacuum gain")
 		return false
 	return bool(result.get("ok", false))

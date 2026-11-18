@@ -1,6 +1,6 @@
 # 20 — 卡面翻译层规范（Compiled Ability Schema）
 
-> **依赖**：[07-composition.md](07-composition.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md) §4.0.5、[16-player-interaction.md](16-player-interaction.md)、[06-registration-buff-model.md](06-registration-buff-model.md) §16、[18-arkhamdb-card-data.md](18-arkhamdb-card-data.md)  
+> **依赖**：[07-composition.md](07-composition.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md) §4.0.5、[16-player-interaction.md](16-player-interaction.md)、[06-registration-payload-model.md](06-registration-payload-model.md) §16、[18-arkhamdb-card-data.md](18-arkhamdb-card-data.md)  
 > **实现**：`tools/arkhamdb_abilities.py` → `data/arkhamdb/imported/*.json` → `ArkhamDbAbilityCompiler`  
 > **状态**：v0.4 · 2026-09-29 — 挂接 21 SelectionSpec
 
@@ -129,7 +129,7 @@ pick_target
 
 ### 4.2 限制类：创建 ≠ 入口行为
 
-与 [06 §16.4](06-registration-buff-model.md) 一致：
+与 [06 §16.4](06-registration-payload-model.md) 一致：
 
 ```text
 卡面步：Register RESTRICTION（B）

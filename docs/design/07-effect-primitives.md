@@ -58,7 +58,7 @@ CREATED ∈ {
 并行（非结算 · 不计 CREATED）：FaceAudience
 ```
 
-**控制权**不单立原语：经 Register Buff。Forced/reaction 是 **能力**，不是 Buff（[06 §2.3](06-registration-buff-model.md)）。
+**控制权**不单立原语：经 Register Buff。Forced/reaction 是 **能力**，不是 Buff（[06 §2.3](06-registration-payload-model.md)）。
 
 **揭示（纸面 Reveal）vs 翻面 vs 可见性**：
 
@@ -177,12 +177,12 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 |---|---|---|
 | Victory X、Bearer、My Collection | 静态 / 路由元数据 | defeat、weakness、构筑 |
 | 🧣 per investigator | 印刷值缩放 | setup 乘数 |
-| Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff（[06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)） | RESTRICTION / LISTENER / MODIFIER；KEYWORD 标记只表示拥有 |
+| Hidden、险境、涌动等 keyword | **③** 编译为三种 Buff（[06 §3.2.5](06-registration-payload-model.md#325-实现路径指令--参数--关键词-buff已裁决)） | RESTRICTION / LISTENER / MODIFIER；KEYWORD 标记只表示拥有 |
 | 技能图标 `[willpower]` 等 | `skills_icons` | commit / 检定，见 [04](04-skill-test-engine.md) |
 
 #### 0.1.6 指令 / 参数 / 关键词 Buff（与三档正交）
 
-详细接线表：[06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
+详细接线表：[06 §3.2.5](06-registration-payload-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
 
 | 卡面 | 档 | 落地 |
 |---|---|---|
@@ -193,7 +193,7 @@ seq.enemy.3_2 RESOLVE hunter LISTENER（③）
 | Uses / Victory / Seal | L0 / Domain | 仍是关键词，不走三种 Buff |
 | 构筑关键词 | 11 | 对局不消费 |
 
-**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 BuffType。LISTENER 注册/注销绑已有 `seq.*` 砖或 zone 变迁，禁止 `PERIL_CHECK` 一类独立场合节点。见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)。
+**禁止**：把猎物/生成写进 KeywordProfile；为括号单独 nest；为关键词新增 RegistrationKind。LISTENER 注册/注销绑已有 `seq.*` 砖或 zone 变迁，禁止 `PERIL_CHECK` 一类独立场合节点。见 [06 §3.2.6](06-registration-payload-model.md#326-listener--buff-的注册与注销场合已裁决)。
 
 ---
 
@@ -484,7 +484,7 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 
 | 族 | 写哪里 | 说明 | 状态 |
 |---|---|---|---|
-| **A. Register** | `RegistrationStore` | lasting / 延时 / cannot / gain / blank / 挂能力 / **有效控制**… | **主量**（[06](06-registration-buff-model.md)） |
+| **A. Register** | `RegistrationStore` | lasting / 延时 / cannot / gain / blank / 挂能力 / **有效控制**… | **主量**（[06](06-registration-payload-model.md)） |
 | **B. Chronicle（记事）** | 场景/战役记事库 | 「在日志中记录…」∪「记住…」；键值/条目，**无**三种 Buff | **薄**；≠ `RulesMemory` |
 
 控制权、纯规则拓扑、Gain 特征等：**优先 Register Buff**，不单立信息原语族。
@@ -518,7 +518,7 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 
 #### 5.4.2 Register · 设计解剖（结算面 vs 载荷面）
 
-> 详：[06 §2–§5 / §9](06-registration-buff-model.md)。此处回答：**形态是什么、原语语境下还能不能拆。**
+> 详：[06 §2–§5 / §9](06-registration-payload-model.md)。此处回答：**形态是什么、原语语境下还能不能拆。**
 
 ```text
 ┌─ 结算面（信息原语 · 仅此）─────────────────────┐
@@ -552,29 +552,29 @@ dry-run **CREATED**；**不是** Timing 订阅面。
 
 **行为三型**：
 
-| BuffType | 消费 | 典型 |
+| RegistrationKind | 消费 | 典型 |
 |---|---|---|
 | **MODIFIER** | ModifierEngine | until… +1；伤害/发现量等 |
 | **RESTRICTION** | Eligibility / Intent | cannot；SKIP_AOO… |
 | **LISTENER** | Catalog → Composition | 「until… after…」；延时；**或** keyword Gain **衍生** |
 | **BLANK**（非 MODIFIER） | 压制印刷文本框 | 见 06；**不**走加减法 |
 
-**Gain 特征 Buff**（[06 §3.2](06-registration-buff-model.md)）：Register 写出「拥有」；**文本能力 / 行为 keyword** 在创建时 **衍生**（非改叫 LISTENER）：
+**Gain 特征 Buff**（[06 §3.2](06-registration-payload-model.md)）：Register 写出「拥有」；**文本能力 / 行为 keyword** 在创建时 **衍生**（非改叫 LISTENER）：
 
 | 档 | Gain 载荷 | 衍生 |
 |---|---|---|
 | 只读 | TRAIT / ICON / 部分 KEYWORD | 通常无 |
 | 文本能力 / 行为 keyword | `ABILITY`+AbilitySpec 或 KEYWORD | Lifecycle mount；Profile → LISTENER/RESTRICTION/MODIFIER |
 
-**印刷能力不是 Buff**（进场挂载，不经 Register）。**效果 gains 能力** = Gain Buff → 衍生挂载。禁止 Register 旁路挂裸 AbilitySpec；禁止把印刷 Forced 举例成 LISTENER。详见 [06 §2.3 / §3.2.1a](06-registration-buff-model.md)。
+**印刷能力不是 Buff**（进场挂载，不经 Register）。**效果 gains 能力** = Gain Buff → 衍生挂载。禁止 Register 旁路挂裸 AbilitySpec；禁止把印刷 Forced 举例成 LISTENER。详见 [06 §2.3 / §3.2.1a](06-registration-payload-model.md)。
 
-持续 vs 延时：**同一 Register**，差在 `DURATION/WHILE_*` vs `UNTIL_FIRED`（[06 §4](06-registration-buff-model.md)）。多 Buff 可同壳一次 Register（§5.4）。
+持续 vs 延时：**同一 Register**，差在 `DURATION/WHILE_*` vs `UNTIL_FIRED`（[06 §4](06-registration-payload-model.md)）。多 Buff 可同壳一次 Register（§5.4）。
 
 ##### 原语语境下 Register 还能拆吗？
 
 | 拆法 | 结论 |
 |---|---|
-| 按 BuffType 拆成 3 个结算原语 | **否** — 共享壳与 Store；差别在载荷 |
+| 按 RegistrationKind 拆成 3 个结算原语 | **否** — 共享壳与 Store；差别在载荷 |
 | 拆 lasting / delayed 两套原语 | **否** — 已并 lifetime |
 | 拆 Register vs Unregister | **可选** 语法糖；语义上是一对互逆写 |
 | 拆「拥有标记」vs「行为 Buff」为两套 Store | **不建议** — 同为 Registration；查询已分 `has_effective` / collect(type) |
@@ -595,7 +595,7 @@ Composition / 卡面
   └─ nest 或内联 → seq.effect.register | unregister     ← 唯一结算包装
         params: RegistrationTemplate
           ├─ 壳：source · lifetime · scope · tags · referents…
-          └─ buffs[]：BuffSpec { type, payload, … }
+          └─ payloads[]：RegistrationPayload { type, payload, … }
                 ├─ MODIFIER      → ModifierEngine
                 ├─ RESTRICTION   → Eligibility / Intent
                 ├─ LISTENER      → Catalog fire → Composition（效果创造的延时/持续壳内听）
@@ -604,7 +604,7 @@ Composition / 卡面
 
 | 层 | 包装什么 | 丰富方向 | 不要塞什么 |
 |---|---|---|---|
-| **结算 API** | `register(template)` / `unregister(id\|filter)` | 保持两动词；CREATED=插入成功 | 按 BuffType 拆 `seq.effect.modifier` 等 |
+| **结算 API** | `register(template)` / `unregister(id\|filter)` | 保持两动词；CREATED=插入成功 | 按 RegistrationKind 拆 `seq.effect.modifier` 等 |
 | **壳 Lifetime** | `WHILE_*` / `DURATION` / `UNTIL_FIRED` / `UNTIL_CONDITION` | 补齐纸面 until/while；tick 边界先于同界 Listener | 另开 LastingStore |
 | **壳 Scope / source** | 谁受益、绑哪张源卡 | 有效控制、宿主离场卸 | 真空改 `controller_id` 当原语 |
 | **MODIFIER payload** | stat · op · value · stacking | 技能/费用/伤害量等数值 | 把 **blank** 塞进 MODIFIER |
@@ -618,9 +618,9 @@ Composition / 卡面
 
 1. **薄结算、厚载荷** — 信息原语对外只有 Register/Unregister；花样全在 Template。  
 2. **一律经命名流程** — `seq.effect.register` / `unregister`；Composition 叶禁止直写 Store。  
-3. **一次 Register 可多 Buff 同壳** — 同一 lifetime 罩住 +1 与「每次…」（[06 §5.4](06-registration-buff-model.md)）。  
+3. **一次 Register 可多 Buff 同壳** — 同一 lifetime 罩住 +1 与「每次…」（[06 §5.4](06-registration-payload-model.md)）。  
 4. **查询不是原语** — `collect` / `has_effective_*` / ModifierEngine 为厚读。  
-5. **与 Chronicle 分家** — 日志/记住不进 BuffType；需要时另叶。  
+5. **与 Chronicle 分家** — 日志/记住不进 RegistrationKind；需要时另叶。  
 6. **与 EmptySettle 分家** — 无正文事件用不写入的空叶过发起门；有 lasting 正文仍 Register。
 
 **优先丰富清单**（不改结算动词）：
@@ -636,7 +636,7 @@ Composition / 卡面
 #### 5.4.3 Chronicle（记事）· 日志 ∪ 记住
 
 简单、无 Buff 三型：追加/写入条目或键值；后文「若日志有… / 若记得…」只读。  
-≠ 事件回放 UI；≠ 步间 `RulesMemory`。可进 Composition 为薄结算叶；**不是** Register 的第四 BuffType。
+≠ 事件回放 UI；≠ 步间 `RulesMemory`。可进 Composition 为薄结算叶；**不是** Register 的第四 RegistrationKind。
 
 #### 派生索引 vs 直读（策略裁决）
 
@@ -670,7 +670,7 @@ effective(card) =
 | 来源 | 归属 | 说明 |
 |---|---|---|
 | 印刷图标 / 连接 / 特性 | `CardDefinition` 只读目录 | 导入期；信息层 **读** |
-| Gain … | **Register**（创建经 `seq.effect.register`） | 查询须区分 `is_printed_*` vs `has_effective_*`（[06 §Gain](06-registration-buff-model.md)） |
+| Gain … | **Register**（创建经 `seq.effect.register`） | 查询须区分 `is_printed_*` vs `has_effective_*`（[06 §Gain](06-registration-payload-model.md)） |
 | 视为空白 blank | **Register · BLANK**（**不是** MODIFIER） | 压制 **印刷** 文本框；不抹 gained；改的是 effective 读径，不是 +/− 数值 |
 | 谁看得到牌面 | **权限层** `FaceAudience`（非原语） | 与印刷/生效特征正交 |
 
@@ -837,7 +837,7 @@ CompositionExecutor.run(tree)
 | 2026-10-24 | v0.3.24 | §5.4.2b：Register 包装/丰富 — 薄 API、厚壳与 Buff；优先 RestrictionKind/Lifetime/控制 |
 | 2026-10-24 | v0.3.23 | §0：Register 作原语 ↔ 发起有效性；物理∧Register 皆无 CREATED = 空结算禁发起 |
 | 2026-10-24 | v0.3.22 | §5.4.2：LISTENER Buff 举例改为 lasting/延时；Forced/reaction = 能力 |
-| 2026-10-24 | v0.3.21 | §5.4：信息原语≈Register+Chronicle；控制走 Buff；Register 结算面不按 BuffType 拆 |
+| 2026-10-24 | v0.3.21 | §5.4：信息原语≈Register+Chronicle；控制走 Buff；Register 结算面不按 RegistrationKind 拆 |
 | 2026-10-24 | v0.3.20 | §0/§5.4.1：FaceAudience = 权限/信息管理，非结算原语；不单独 CREATED |
 | 2026-10-24 | v0.3.19 | §5.4.2：Register = 结算动词；Buff = Registration 载荷（非第二套原语） |
 | 2026-10-24 | v0.3.18 | §0/§5.4：信息原语 = 不可见结算；含 Register·Log·Remember·Audience；废「只有 Audience + Register 旁路」 |
@@ -850,7 +850,7 @@ CompositionExecutor.run(tree)
 | 2026-10-23 | v0.3.11 | §5.2：桌面标记仅 Transfer；供给池无穷；废止 Adjust 为桌面 L0 |
 | 2026-09-21 | v0.3.10 | §3：L2 宏展开为 `seq.effect.*`（纸面无名也铸造）；07-composition §1.3.3 |
 | 2026-09-21 | v0.3.9 | Fast 只改打出窗口/花费；种类始终 `PLAY_CARD`，不是能力 |
-| 2026-09-21 | v0.3.8 | Fast 打出与触发对称；不新增 BuffType |
+| 2026-09-21 | v0.3.8 | Fast 打出与触发对称；不新增 RegistrationKind |
 | 2026-09-21 | v0.3.7 | 链 06 §3.2.6：注册绑已有 seq 砖 / zone 变迁，禁止独立场合节点 |
 | 2026-09-21 | v0.3.6 | 链 06 §3.2.6：关键词/能力 LISTENER 不只有进场/离场 |
 | 2026-09-21 | v0.3.5 | **§0.1.6** 指令 / 参数 / 关键词 Buff 分轨 |

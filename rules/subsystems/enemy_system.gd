@@ -107,7 +107,7 @@ func spawn_engaged(game_ctx: GameContext, card_id: StringName, drawer_id: String
 	var inv := _state.registry.get_investigator(drawer_id)
 	if enemy == null or inv == null:
 		return {"ok": false, "error": "spawn_materialize_failed"}
-	## 移入威胁区（区划）+ Register 交战状态 Buff。
+	## 移入威胁区（区划）+ Register 交战状态载荷。
 	enemy.engaged_with = drawer_id
 	if not inv.threat_area.has(card_id):
 		inv.threat_area.append(card_id)
@@ -162,7 +162,7 @@ func auto_engage_at_location(
 		return {"ok": true, "skipped": true}
 	if enemy.exhausted or enemy.auto_engage_suppressed:
 		return {"ok": true, "skipped": true}
-	## 限制类 Buff：原流程读取后跳过自动交战（明示交战不受影响）。
+	## 限制类载荷：原流程读取后跳过自动交战（明示交战不受影响）。
 	if (
 		game_ctx != null
 		and game_ctx.registrations != null
@@ -312,7 +312,7 @@ func disengage(
 	if enemy == null:
 		return {"ok": false, "error": "unknown_enemy"}
 	var location_tag := enemy.location_tag
-	## 注销交战状态 Buff；若卡在威胁区则移出（区划变化，不是「卸第二套状态」）。
+	## 注销交战状态载荷；若卡在威胁区则移出（区划变化，不是「卸第二套状态」）。
 	EngagementStatus.clear(game_ctx, enemy_id)
 	if enemy.engaged_with != &"":
 		var prev := _state.registry.get_investigator(enemy.engaged_with)
@@ -377,7 +377,7 @@ func _apply_engage(
 	var inv := _state.registry.get_investigator(inv_id)
 	if enemy == null or inv == null:
 		return
-	## 一律 Register 交战状态 Buff；enter_threat 时再移入威胁区（区划）。
+	## 一律 Register 交战状态载荷；enter_threat 时再移入威胁区（区划）。
 	EngagementStatus.grant(game_ctx, enemy_id, inv_id)
 	if not enter_threat:
 		return

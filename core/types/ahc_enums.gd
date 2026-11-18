@@ -290,37 +290,53 @@ enum AtomOp { MOVE_CARD, TRANSFER_MARKER, REVEAL_CARD, SET_FLAG, SET_REF }
 
 enum FlagField { ELIMINATED, RESIGNED }
 
+## GATE：拦 Intent / 命名序列结算合法性（cannot / forbid）。
+enum GateKind {
+	FORBID_DRAW,
+	FORBID_PLAY,
+	FORBID_TRIGGER,
+	FORBID_COMMIT_TO_TEST,
+	FORBID_LEAVE_HAND,
+	FORBID_DISCOVER_CLUE,
+	FORBID_SPEND_CLUE,
+	FORBID_ATTACK,
+}
+
+## DIRECTIVE：原流程读取后改道（非 Intent 拦截）。
+enum DirectiveKind {
+	## 卡面「does not provoke attacks of opportunity」；INIT_2B 读取后跳过借机。
+	SKIP_AOO,
+	## 抑制自动交战；auto-engage 入口读取后跳过。明示 seq.engage 不受影响。
+	SUPPRESS_AUTO_ENGAGE,
+	## 伤害/恐惧 Assign 约束；DamageAssigner 读取。
+	ASSIGN_CONSTRAINT,
+	SKILL_REDIRECT,
+}
+
+## STATUS：局面断言（可脱离物理场面；交战≠威胁区）。
+enum StatusKind {
+	## 交战成对（真实或视为）；与威胁区场面脱钩。
+	ENGAGEMENT,
+}
+
+## @deprecated 使用 GateKind / DirectiveKind / StatusKind。
 enum RestrictionKind {
 	FORBID_DRAW,
 	FORBID_PLAY,
 	FORBID_TRIGGER,
 	FORBID_COMMIT_TO_TEST,
 	FORBID_LEAVE_HAND,
-	## 限制类：卡面「This action does not provoke attacks of opportunity」。
-	## 行动开始 Register；INIT_2B 由 AOO **原流程读取** 后自行分支（不跑借机）。
-	## 不是 LISTENER，不是 Cancel/Ignore。
 	SKIP_AOO,
-	## 限制类：抑制 **自动交战**（Prey/Lead 选目标）。
-	## 效果移入后仍会走到 auto-engage 入口；入口 **读取** 本限制后自行跳过。
-	## 明示交战（seq.engage mode=effect）不受影响。
 	SUPPRESS_AUTO_ENGAGE,
-	## 交战状态（成对）：与威胁区场面脱钩。真实交战与「视为交战」均 Register 本 Buff。
-	## 查询入口读本 Kind；**不是** Intent 拦截，也不是 LISTENER。
 	ENGAGEMENT,
-	## 交战期间不能发现线索（01121b Masked Hunter）。挂在 ENGAGEMENT 同 Register，脱离时卸。
 	FORBID_DISCOVER_CLUE,
-	## 交战期间不能花费线索（同上）。
 	FORBID_SPEND_CLUE,
-	## 冷漠（Aloof）：未交战时不能被 Fight。挂 WHILE_IN_PLAY；已交战则 Evaluator 放行。
-	## 禁自动交战仍由 spawn / auto-engage 读拥有（Domain/keyword），不经本 Kind。
 	FORBID_ATTACK,
-	## 伤害/恐惧 Assign（分摊）约束：原流程（DamageAssigner）读取；非 LISTENER / Cancel。
-	## payload 见 RestrictionPayload.assign_* + AssignConstraintOp。
 	ASSIGN_CONSTRAINT,
 }
 
 
-## 分摊约束算子（挂在 RestrictionKind.ASSIGN_CONSTRAINT 上，可多条并存）。
+## 分摊约束算子（挂在 DirectiveKind.ASSIGN_CONSTRAINT 上，可多条并存）。
 enum AssignConstraintOp {
 	## 扩大候选：04015 direct 可摊本卡；Bodyguard 可摊他人伤害。
 	INCLUDE_CANDIDATE,
@@ -330,7 +346,7 @@ enum AssignConstraintOp {
 	MIN_TO_SUBJECT,
 	## 匹配集合计至多 N 点（60232 trait:Miskatonic）。
 	MAX_TO_MATCH,
-	## 赋分摊容量：无印刷 health/sanity 亦可摊；有印刷则叠加（特殊 Buff）。
+	## 赋分摊容量：无印刷 health/sanity 亦可摊；有印刷则叠加（特殊载荷）。
 	GRANT_CAPACITY,
 }
 
@@ -342,7 +358,16 @@ enum AssignDirectScope {
 	BOTH,
 }
 
-enum BuffType { MODIFIER, RESTRICTION, LISTENER, KEYWORD }
+## Registration 载荷 kind（总称是 Registration，不再叫 Buff）。
+## MODIFIER=量 · GATE=拦结算 · DIRECTIVE=手续改道 · LISTENER=时点武装 · STATUS=局面断言。
+## Gain 不是 Registration 载荷，见 GainedCharacteristicKind。
+enum RegistrationKind { MODIFIER, GATE, DIRECTIVE, LISTENER, STATUS }
+
+## @deprecated 使用 RegistrationKind。
+enum BuffType { MODIFIER, GATE, DIRECTIVE, LISTENER, STATUS }
+
+## Grimoire *gains a characteristic* · 单独管理；可衍生 Registration。
+enum GainedCharacteristicKind { KEYWORD, TRAIT, ICON, ABILITY }
 
 enum CompositionNodeKind { SEQ, ATOM, REGISTER, IF, CHOICE, OPTIONAL, REPEAT, FOR_EACH }
 
@@ -387,7 +412,7 @@ enum ModifierPlanKind {
 	DISCOVER,
 }
 
-## Plan 量修正：标量 SCALAR；域 B 效果量 Buff 标记 CONSUME_*（每条用一次）。
+## Plan 量修正：标量 SCALAR；域 B 效果量载荷 标记 CONSUME_*（每条用一次）。
 ## 无名攻击/发现修正 **不含目标**；只改已定效果的量。物化见 AmountEffectShape。
 enum ModifierApplyMode {
 	SCALAR,

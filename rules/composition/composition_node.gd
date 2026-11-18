@@ -20,6 +20,8 @@ var marker_slot: MarkerSlot = null
 var marker_from: MarkerSlot = null
 var marker_to: MarkerSlot = null
 var register_template: RegistrationTemplate = null
+## Gain 授予（nest seq.effect.grant）；与 register_template 互斥。
+var gain_template: GainTemplate = null
 var provenance: AbilityUnitRef = null
 var pending_id: StringName = &""
 var effect_request: EffectRequest = null
@@ -67,7 +69,7 @@ var target_filter: StringName = &""
 var selection_spec: SelectionSpec = null
 ## nest_engage / nest_enemy_move_to 等模式或开关载荷。
 var engage_mode: StringName = &"effect"
-## seq.engage placement：`enter_threat`（默认，常移入威胁区）或 `grant`（仅交战 Buff，可不要求同地点）。
+## seq.engage placement：`enter_threat`（默认，常移入威胁区）或 `grant`（仅交战载荷，可不要求同地点）。
 var engage_placement: StringName = &"enter_threat"
 var auto_engage: bool = true
 ## nest_evade / automatically_evade 的 mode（`automatic` / `attempt`）。
@@ -245,11 +247,17 @@ static func register(template: RegistrationTemplate) -> CompositionNode:
 	return n
 
 
-## 卡面 gains keyword · nest `seq.effect.register`（不是真空 REGISTER）。
+## 卡面 gains keyword · nest `seq.effect.grant`（GainStore；非 Registration 载荷 / 非 register）。
 static func grant_keyword(card_id: StringName, keyword: StringName) -> CompositionNode:
-	return nest_effect_register(
-		RegistrationTemplate.gained_keyword_drawn_card_resolving(card_id, keyword)
-	)
+	var n := _nest_leaf(&"nest_effect_grant", &"seq.effect.grant")
+	n.gain_template = GainTemplate.keyword_drawn_card_resolving(card_id, keyword)
+	return n
+
+
+static func nest_effect_grant(template: GainTemplate) -> CompositionNode:
+	var n := _nest_leaf(&"nest_effect_grant", &"seq.effect.grant")
+	n.gain_template = template
+	return n
 
 
 ## L1 · must choose（07 §3.3 · 16 §7.2.1）：resolve 前 dry-run 过滤 FIZZLE 分支。

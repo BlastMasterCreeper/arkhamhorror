@@ -39,7 +39,7 @@ static func consume_at(
 	var def_id := _definition_id(game_ctx, card_id)
 	var catalog := game_ctx.sequence_catalog
 	for profile in KeywordProfileTable.profiles_for_slot(slot):
-		if profile.buff_type != &"LISTENER" or profile.consume_flow_id == &"":
+		if profile.registration_kind != &"LISTENER" or profile.consume_flow_id == &"":
 			continue
 		if not EffectiveCharacteristicQuery.has_effective_keyword(
 			game_ctx, card_id, def_id, profile.keyword

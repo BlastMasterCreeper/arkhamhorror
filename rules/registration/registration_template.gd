@@ -6,7 +6,7 @@ var lifetime_kind: AhcEnums.LifetimeKind = AhcEnums.LifetimeKind.DURATION
 var duration: AhcEnums.DurationAnchorKind = AhcEnums.DurationAnchorKind.THIS_TURN
 var encounter_frame_id: StringName = &""
 var drawn_card_id: StringName = &""
-var buffs: Array[BuffSpec] = []
+var payloads: Array[RegistrationPayload] = []
 var stat_queries: Array = []
 
 
@@ -19,7 +19,7 @@ static func lasting_modifier(
 	t.controller_id = controller_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.DURATION
 	t.duration = duration
-	t.buffs.append(BuffSpec.modifier_buff(payload))
+	t.payloads.append(RegistrationPayload.of_modifier(payload))
 	return t
 
 
@@ -71,17 +71,26 @@ static func reduce_shroud_this_turn(
 	)
 
 
-static func lasting_restriction(
+static func lasting_gate(
 	controller_id: StringName,
 	duration: AhcEnums.DurationAnchorKind,
-	payload: RestrictionPayload
+	payload: GatePayload
 ) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = controller_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.DURATION
 	t.duration = duration
-	t.buffs.append(BuffSpec.restriction_buff(payload))
+	t.payloads.append(RegistrationPayload.of_gate(payload))
 	return t
+
+
+## @deprecated 使用 lasting_gate。
+static func lasting_restriction(
+	controller_id: StringName,
+	duration: AhcEnums.DurationAnchorKind,
+	payload: GatePayload
+) -> RegistrationTemplate:
+	return lasting_gate(controller_id, duration, payload)
 
 
 static func delayed_listener(
@@ -91,7 +100,7 @@ static func delayed_listener(
 	var t := RegistrationTemplate.new()
 	t.controller_id = controller_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
-	t.buffs.append(BuffSpec.listener_buff(payload))
+	t.payloads.append(RegistrationPayload.of_listener(payload))
 	return t
 
 
@@ -102,7 +111,7 @@ static func skip_aoo_for_action(controller_id: StringName) -> RegistrationTempla
 	t.controller_id = controller_id
 	## 与延时 LISTENER 的 UNTIL_FIRED 同枚举，语义是「入口读完即卸」，不是 listener 开火。
 	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
-	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.skip_aoo(controller_id)))
+	t.payloads.append(RegistrationPayload.of_directive(DirectivePayload.skip_aoo(controller_id)))
 	return t
 
 
@@ -117,7 +126,7 @@ static func suppress_auto_engage_until_fired(enemy_id: StringName) -> Registrati
 	t.controller_id = &""
 	t.lifetime_kind = AhcEnums.LifetimeKind.UNTIL_FIRED
 	t.drawn_card_id = enemy_id
-	t.buffs.append(BuffSpec.restriction_buff(RestrictionPayload.suppress_auto_engage(enemy_id)))
+	t.payloads.append(RegistrationPayload.of_directive(DirectivePayload.suppress_auto_engage(enemy_id)))
 	return t
 
 
@@ -132,18 +141,18 @@ static func engagement_pair(
 	t.controller_id = investigator_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
 	t.drawn_card_id = enemy_id
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.engagement(enemy_id, investigator_id))
+	t.payloads.append(
+		RegistrationPayload.of_status(StatusPayload.engagement(enemy_id, investigator_id))
 	)
 	if forbid_clues_while_engaged:
-		t.buffs.append(
-			BuffSpec.restriction_buff(
-				RestrictionPayload.forbid_discover_clue(investigator_id, enemy_id)
+		t.payloads.append(
+			RegistrationPayload.of_gate(
+				GatePayload.forbid_discover_clue(investigator_id, enemy_id)
 			)
 		)
-		t.buffs.append(
-			BuffSpec.restriction_buff(
-				RestrictionPayload.forbid_spend_clue(investigator_id, enemy_id)
+		t.payloads.append(
+			RegistrationPayload.of_gate(
+				GatePayload.forbid_spend_clue(investigator_id, enemy_id)
 			)
 		)
 	return t
@@ -155,21 +164,21 @@ static func aloof_forbid_attack(enemy_id: StringName) -> RegistrationTemplate:
 	t.controller_id = &""
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
 	t.drawn_card_id = enemy_id
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_attack_aloof(enemy_id))
+	t.payloads.append(
+		RegistrationPayload.of_gate(GatePayload.forbid_attack_aloof(enemy_id))
 	)
 	return t
 
 
 ## Assign（分摊）约束：WHILE_IN_PLAY（资产离场卸）；DamageAssigner 原流程读取。
 static func assign_constraint_while_in_play(
-	payload: RestrictionPayload
+	payload: DirectivePayload
 ) -> RegistrationTemplate:
 	var t := RegistrationTemplate.new()
 	t.controller_id = payload.drawer_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_IN_PLAY
 	t.drawn_card_id = payload.subject_id if payload.subject_id != &"" else payload.drawn_card_id
-	t.buffs.append(BuffSpec.restriction_buff(payload))
+	t.payloads.append(RegistrationPayload.of_directive(payload))
 	return t
 
 
@@ -179,14 +188,14 @@ static func peril_drawn_card_resolving(drawer_id: StringName, card_id: StringNam
 	t.controller_id = &""
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
 	t.drawn_card_id = card_id
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_play_peril(drawer_id, card_id))
+	t.payloads.append(
+		RegistrationPayload.of_gate(GatePayload.forbid_play_peril(drawer_id, card_id))
 	)
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_trigger_peril(drawer_id, card_id))
+	t.payloads.append(
+		RegistrationPayload.of_gate(GatePayload.forbid_trigger_peril(drawer_id, card_id))
 	)
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_commit_peril(drawer_id, card_id))
+	t.payloads.append(
+		RegistrationPayload.of_gate(GatePayload.forbid_commit_peril(drawer_id, card_id))
 	)
 	return t
 
@@ -197,23 +206,19 @@ static func hidden_in_hand(controller_id: StringName, card_id: StringName) -> Re
 	t.controller_id = controller_id
 	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_HIDDEN_IN_HAND
 	t.drawn_card_id = card_id
-	t.buffs.append(
-		BuffSpec.restriction_buff(RestrictionPayload.forbid_leave_hand(card_id, controller_id))
+	t.payloads.append(
+		RegistrationPayload.of_gate(GatePayload.forbid_leave_hand(card_id, controller_id))
 	)
 	return t
 
 
 ## G3 动态 keyword · `WHILE_DRAWN_CARD_RESOLVING(card_id)` — G5 evaluate 后 Unregister；G4 peril 不清除。
+## @deprecated 使用 GainTemplate.keyword_drawn_card_resolving（GainStore，非 Registration）。
 static func gained_keyword_drawn_card_resolving(
 	card_id: StringName,
 	keyword: StringName
-) -> RegistrationTemplate:
-	var t := RegistrationTemplate.new()
-	t.controller_id = &""
-	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING
-	t.drawn_card_id = card_id
-	t.buffs.append(BuffSpec.keyword_buff(keyword))
-	return t
+) -> GainTemplate:
+	return GainTemplate.keyword_drawn_card_resolving(card_id, keyword)
 
 
 ## @deprecated 使用 peril_drawn_card_resolving

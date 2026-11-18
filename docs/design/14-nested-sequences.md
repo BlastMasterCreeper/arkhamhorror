@@ -1,6 +1,6 @@
 # 14 — 嵌套序列 (Nested Sequences)
 
-> **依赖**：[06-ability-initiation.md](06-ability-initiation.md), **[15-timing-entry-catalog.md](15-timing-entry-catalog.md)**, [07-effect-resolution.md](07-effect-resolution.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
+> **依赖**：[06-ability-initiation.md](06-ability-initiation.md), **[15-timing-entry-catalog.md](15-timing-entry-catalog.md)**, [07-effect-resolution.md](07-effect-resolution.md), [06-registration-payload-model.md](06-registration-payload-model.md)  
 > **规则来源**：Grimoire Glossary · When / After / Triggering Condition / Then / Effects；旧 FAQ §1.4（操作模型仍适用）  
 > **官方 PDF**：[../reference/arkham-grimoire-v1.0.pdf](../reference/arkham-grimoire-v1.0.pdf)
 

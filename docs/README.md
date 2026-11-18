@@ -14,7 +14,7 @@
 6. [design/04-skill-test-engine.md](design/04-skill-test-engine.md) — 技能检定 ST.1–ST.8
 7. [design/05-chaos-bag.md](design/05-chaos-bag.md) — 混沌袋与冒险参考
 8. [design/06-ability-initiation.md](design/06-ability-initiation.md) — 能力、Initiation、**Eligibility L0–L7**、ResponseWindow
-9. [design/06-registration-buff-model.md](design/06-registration-buff-model.md) — **Registration / Buff 统一模型**（**§16 Buff 应用场合清单**）
+9. [design/06-registration-payload-model.md](design/06-registration-payload-model.md) — **Registration / Buff 统一模型**（**§16 Buff 应用场合清单**）
 10. [design/06c-stat-projections.md](design/06c-stat-projections.md) — **StatProjection**（L3 历史谓词 · Register 对齐 · demand 升温）
 11. [design/07-composition.md](design/07-composition.md) — **效果组合 Composition + dry-run**
 12. [design/07-effect-resolution.md](design/07-effect-resolution.md) — 效果解析（**§3.2–§3.4 同时点竞争 / Replacement**）

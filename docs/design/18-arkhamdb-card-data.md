@@ -180,14 +180,14 @@ python tools/analyze_arkhamdb_cards.py
 ### Phase 4 — 设计表迭代回填（P1/P2）✅
 
 - [x] `tools/backfill_design_tables.py` → [`data/arkhamdb/reports/phase4_core_2026_backfill.md`](../data/arkhamdb/reports/phase4_core_2026_backfill.md)
-- [x] [06 §16.8 MODIFIER/RESTRICTION/LISTENER](06-registration-buff-model.md#168-core-2026-回填arkhamdb--phase-4)
+- [x] [06 §16.8 MODIFIER/RESTRICTION/LISTENER](06-registration-payload-model.md#168-core-2026-回填arkhamdb--phase-4)
 - [x] [15 §17.14 遭遇卡清单](15-timing-entry-catalog.md#1714-core-2026-遭遇卡清单arkhamdb-回填)
 - [x] [12 §1.2 Template/Script 快照](12-card-script-api.md#12-core-2026-选型快照arkhamdb--phase-4)
 - [x] [open-questions-master.md](open-questions-master.md) OQ-ADB-01～05
 
 **运行**：`python tools/arkhamdb_import.py` → `python tools/backfill_design_tables.py`
 
-Gained characteristics 统计：[`core_2026_gained_characteristics.md`](../data/arkhamdb/reports/core_2026_gained_characteristics.md) · 设计 [06 §3.2–3.2.4](06-registration-buff-model.md#324-keywordprofile挂载-vs-表征-vs-消费已裁决)
+Gained characteristics 统计：[`core_2026_gained_characteristics.md`](../data/arkhamdb/reports/core_2026_gained_characteristics.md) · 设计 [06 §3.2–3.2.4](06-registration-payload-model.md#324-keywordprofile挂载-vs-表征-vs-消费已裁决)
 
 ### Phase 5 — 扩展包（P2+）
 

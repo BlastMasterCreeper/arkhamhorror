@@ -1,4 +1,4 @@
-# 06b — Registration 与 Buff 规格 (统一能力模型)
+# 06b — Registration 与载荷 规格 (统一 Registration 载荷模型)
 
 > **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [07-effect-primitives.md](07-effect-primitives.md), [07-composition.md](07-composition.md)  
 > **被依赖**：TimingBus、ModifierEngine、Initiation dry-run  
@@ -25,11 +25,11 @@ class Registration:
     var source: SourceRef
     var lifetime: LifetimeSpec
     var scope: ScopeFilter
-    var buffs: Array[BuffSpec]
+    var payloads: Array[RegistrationPayload]
     var tags: Array[StringName]
 
-class BuffSpec:
-    var type: BuffType
+class RegistrationPayload:
+    var type: RegistrationKind
     var scope: ScopeFilter
     var condition: Condition
     var priority: BuffPriority
@@ -41,8 +41,8 @@ class BuffSpec:
 |---|---|
 | **Register** | 结算动作：`RegistrationStore.register(reg)`（信息原语） |
 | **Unregister** | 结算动作：按 id / filter / lifetime tick 卸下 |
-| **Registration** | Store 里的一条记录（含 lifetime · scope · `buffs`） |
-| **Buff** | `BuffSpec` + payload——登记的 **载荷**，不是另一套结算动词 |
+| **Registration** | Store 里的一条记录（含 lifetime · scope · `payloads`） |
+| **Registration 载荷** | `RegistrationPayload` + payload——登记的 **载荷**，不是另一套结算动词 |
 | **Context** | `ApplicationContext`（§9） |
 
 ### 2.1 Register 与 Buff（关系 · 已对齐）
@@ -50,7 +50,7 @@ class BuffSpec:
 ```text
 Register（结算 · 不可见）
   只能创建 → Registration
-              └─ 内含 1..n 个 BuffSpec（见下 · 载荷族）
+              └─ 内含 1..n 个 RegistrationPayload（见下 · 载荷族）
 
 Unregister（结算）→ 记录消失 → 其 Buff（含衍生）一并卸下
 ```
@@ -72,7 +72,7 @@ Unregister（结算）→ 记录消失 → 其 Buff（含衍生）一并卸下
 | **行为** | `MODIFIER` · `RESTRICTION` · `LISTENER` | 直接改数值 / 禁允 / 听时点跑 Composition |
 | **Gain 特征** | `KEYWORD` · `TRAIT` · `ICON` · `ABILITY` | Grimoire *gains a characteristic*；**拥有**记录 |
 
-**衍生（核心）**：Gain 特征 Buff **创建时**可按 profile **再 Register / 挂载衍生行为 Buff**（或能力管线挂载）。卸 Gain 壳 → 对称拆衍生。见 §2.3 / §3.2.1a。
+**衍生（核心）**：Gain 特征 Buff **创建时**可按 profile **再 Register / 挂载衍生Registration 行为载荷**（或能力管线挂载）。卸 Gain 壳 → 对称拆衍生。见 §2.3 / §3.2.1a。
 
 与 [07 §5.4.2](07-effect-primitives.md) 对齐：信息原语 **主量** = Register/Unregister；Buff = 唯一可注册物。日志∪记住 = 薄 **Chronicle**。
 
@@ -82,22 +82,22 @@ Unregister（结算）→ 记录消失 → 其 Buff（含衍生）一并卸下
 信息原语结算面     ≈  Register / Unregister
 Registration 壳    =  lifetime · scope · source（参数，非原语）
 Buff 形态          =  行为三型 | Gain 特征族
-衍生               =  Gain 创建 → 再挂行为 Buff / 能力挂载（仍经 Register 或同壳子载荷）
+衍生               =  Gain 创建 → 再挂Registration 行为载荷 / 能力挂载（仍经 Register 或同壳子载荷）
 ```
 
-- **不要**为每种 BuffType 各造一个结算原语。  
+- **不要**为每种 RegistrationKind 各造一个结算原语。  
 - **不要**为持续/延时各造一套 Store（§4）。  
 - **不要**「Register AbilitySpec」绕过 Buff——Ability 是 Gain.`ABILITY` 的 payload，初始化是 **衍生**。  
 - 复杂度增长点：新 payload / RestrictionKind / Listener timing / Gain kind，不是新 Register 动词。
 
-**包装**：唯一结算入口 `seq.effect.register` / `unregister`，参数 = `RegistrationTemplate`（壳 + `buffs[]`）。详 [07 §5.4.2b](07-effect-primitives.md)。
+**包装**：唯一结算入口 `seq.effect.register` / `unregister`，参数 = `RegistrationTemplate`（壳 + `payloads[]`）。详 [07 §5.4.2b](07-effect-primitives.md)。
 
 ### 2.3 印刷能力 ≠ Buff；Gain 能力 = 特征 Buff → 衍生
 
 > **已对齐**：纸面 **印刷** Forced / 触发 / Constant / Revelation / 关键词 = **能力 / characteristic**，进场挂载，**不是** Register 出来的 Buff。  
-> **效果 gains …** = Register **Gain 特征 Buff**；该 Buff **会创建衍生**（行为 Buff 和/或能力管线挂载）。仍 **不是**把 Forced 改叫 `LISTENER`。
+> **效果 gains …** = Register **Gain 特征 Buff**；该 Buff **会创建衍生**（Registration 行为载荷 和/或能力管线挂载）。仍 **不是**把 Forced 改叫 `LISTENER`。
 
-| | **印刷能力** | **Gain 特征 Buff** | **行为 Buff** |
+| | **印刷能力** | **Gain 特征 Buff** | **Registration 行为载荷** |
 |---|---|---|---|
 | 从哪来 | 卡面定义 · 进场 | 效果 `gains …` → Register | 效果直接「until…」**或** Gain **衍生** |
 | Store | 否（定义侧） | **是**（KEYWORD/TRAIT/ICON/ABILITY） | **是**（三型） |
@@ -126,14 +126,20 @@ gains surge / Retaliate / Forced – …
 
 ---
 
-## 3. BuffType（三种）
+## 3. RegistrationKind（五种）+ Gain 分立
 
 ```gdscript
-enum BuffType {
+enum RegistrationKind {
     MODIFIER,       # 被动改数值
-    RESTRICTION,    # 被动禁止/允许；编译卡面 "cannot …"；Grimoire：cannot 绝对，不得 countermand（07 §3.2）
+    GATE,           # 拦结算 / cannot（旧 RESTRICTION）
+    DIRECTIVE,      # 手续改道（SKIP_AOO / SUPPRESS_AUTO_ENGAGE / …）
     LISTENER,       # lasting/延时：timing 到点跑 Composition（≠ 印刷 Forced/reaction 能力）
+    STATUS,         # 局面断言（如 ENGAGEMENT）
 }
+
+## Gain 不是 RegistrationKind —— 单独 GainedCharacteristicStore
+enum GainedCharacteristicKind { KEYWORD, TRAIT, ICON, ABILITY }
+# 落地：seq.effect.grant → GainTemplate → GainedCharacteristicStore
 ```
 
 | 非 Buff（勿混入） | 实现方式 |
@@ -152,7 +158,7 @@ enum BuffType {
 | 来源 | 引擎表示 | 延时 evaluate |
 |---|---|---|
 | 牌面印刷 **Surge** | `CardDefinition.keywords` | `CardRegistry.has_surge(def_id)` |
-| 效果 **gains surge** | Register **KEYWORD 标记**（无 Composition payload） | `RegistrationStore.has_keyword_buff(card_id, &"surge")` |
+| 效果 **gains surge** | Register **KEYWORD 标记**（无 Composition payload） | `GainedCharacteristicStore.has_gained_keyword(card_id, &"surge")` |
 
 **动态 surge 生命周期**：**`WHILE_DRAWN_CARD_RESOLVING(card_id)`** — 与本张遭遇 **结算期间** 绑定（抽出起至本条抽取后）；涌动再抽是新指令，无上一张 surge 标记。
 
@@ -179,7 +185,7 @@ seq.effect.register · Grant 特征 Buff
   payload: &"surge" | trait_id | icon | AbilitySpec
   lifetime: …
         │
-        ├─ 写出 Gain Buff（CREATED）
+        ├─ 写出 Gain 特征（CREATED）
         └─ 衍生（CharacteristicDeriver）：
              KEYWORD → Profile 再挂 LISTENER / RESTRICTION / MODIFIER
              ABILITY → Lifecycle mount（Forced/触发/…）；Constant 可再衍生 MODIFIER
@@ -201,23 +207,23 @@ Effective* / COLLECT / 行为三型 consumer
 
 **可获得 ≈ 几乎全部能力类型**（含关键词）。但 **读特征** 与 **文本能力** 落地重量不同：
 
-#### 3.2.1a Gain Buff：只读 vs 文本能力（衍生）
+#### 3.2.1a Gain 特征：只读 vs 文本能力（衍生）
 
-> Register **只**写出 Buff。Gain = **特征族 Buff**；文本能力档在创建时 **衍生**行为 Buff / 能力挂载（§2.1 / §2.3）。
+> Register **只**写出 Buff。Gain = **特征族 Buff**；文本能力档在创建时 **衍生**Registration 行为载荷 / 能力挂载（§2.1 / §2.3）。
 
-| 档 | Gain Buff 载荷 | 衍生？ | 消费 |
+| 档 | Gain Registration 载荷 | 衍生？ | 消费 |
 |---|---|---|---|
 | **A. 只读特征** | TRAIT / ICON / 部分 KEYWORD「拥有」 | 通常 **无**（或仅 ICON→MODIFIER） | `effective_*` 并集 |
 | **B. 文本能力 / 有行为的 keyword** | `ABILITY`（内嵌与印刷同构的 AbilitySpec）或 KEYWORD | **有** | 衍生挂载后走能力管线 / 行为三型 |
 
 ```text
 gains 只读
-  → Register Gain Buff（标记）
+  → Register Gain 特征（标记）
   → 查询并集；少衍生
 
 gains 文本能力 / 行为 keyword
   → 编译 AbilitySpec 或 KeywordProfile 键
-  → Register Gain Buff（壳 + 载荷）          ← 唯一 CREATED 结算
+  → Register Gain 特征（壳 + 载荷）          ← 唯一 CREATED 结算
   → 【衍生】mount：
        · KeywordProfile → 再 Register LISTENER / RESTRICTION / MODIFIER
        · AbilitySpec    → Lifecycle（订时点 / COLLECT / Forced / Limit）
@@ -233,19 +239,19 @@ gains 文本能力 / 行为 keyword
 | **`[action]`** | Activate 可发现 |
 | **Constant** | Constant 查询集；数值可衍生 MODIFIER |
 | **Revelation** | 仅显现入口解释 |
-| **Keyword** | 标记已由 Gain 写出；**再**按 Profile 衍生行为 Buff |
+| **Keyword** | 标记已由 Gain 写出；**再**按 Profile 衍生Registration 行为载荷 |
 
-> **禁止**：绕过 Gain Buff 真空挂 AbilitySpec；把 Forced **改叫** LISTENER；省略衍生只靠「effective 读到有这句话」。  
+> **禁止**：绕过 Gain 特征 真空挂 AbilitySpec；把 Forced **改叫** LISTENER；省略衍生只靠「effective 读到有这句话」。  
 > **印刷** Forced = 能力，不经 Register。**效果 gains Forced** = Register Gain.`ABILITY` → **衍生** Forced 挂载。
 
 **实现建议（薄）**：
 
 ```gdscript
-# Template：一次 Register，buffs 含 Gain；衍生在 Store.on_register 回调
+# Template：一次 Register，payloads 含 Gain；衍生在 Store.on_register 回调
 RegistrationTemplate.grant_characteristic(card_id, kind, payload, lifetime)
 # on_register(gain_buff):
 #   for derived in CharacteristicDeriver.expand(gain_buff):
-#       register_child(derived)   # 行为 Buff，lifetime 绑父 Gain
+#       register_child(derived)   # Registration 行为载荷，lifetime 绑父 Gain
 #   if gain_buff.kind == ABILITY:
 #       AbilityLifecycle.mount(gain_buff.ability_spec, bind)
 ```
@@ -257,7 +263,7 @@ RegistrationTemplate.grant_characteristic(card_id, kind, payload, lifetime)
 ```gdscript
 class EffectiveCharacteristicQuery:
     static func has_effective_keyword(card_id: StringName, kw: StringName) -> bool:
-        # printed(definition_id) OR RegistrationStore.has_keyword_buff(card_id, kw)
+        # printed(definition_id) OR GainedCharacteristicStore.has_gained_keyword(card_id, kw)
 
     static func has_printed_keyword(def_id: StringName, kw: StringName) -> bool:
         return CardRegistry.has_keyword(def_id, kw)
@@ -272,7 +278,7 @@ class EffectiveCharacteristicQuery:
 **P0 竖切**：`has_effective_keyword` + Surge KEYWORD Register/UnRegister · **`draw_encounter_flow` G5** ✅（`EffectiveCharacteristicQuery` · `EncounterGainedKeyword` · ENC-SURGE-02/03 · GAIN-01）
 
 **P1**：until-EOT `[reaction]` / Forced → Register Gain.`ABILITY` → 衍生 Lifecycle mount（**不是**改叫 LISTENER）。  
-**P2**：trait / icon / 其它 keyword（Retaliate…）→ Gain 标记 + Profile **衍生**行为 Buff。
+**P2**：trait / icon / 其它 keyword（Retaliate…）→ Gain 标记 + Profile **衍生**Registration 行为载荷。
 
 #### 3.2.3 Core 2026 卡面统计
 
@@ -296,11 +302,11 @@ class EffectiveCharacteristicQuery:
 |---|---|---|
 | **① 挂载 mount** | 规则上从何时起 **算拥有** keyword？ | 可 **早于** Listener 首次触发（Hunter） |
 | **② 表征 representation** | 引擎如何存「有」？ | Listener 是表征之一，非全部 |
-| **③ 消费 consume** | 哪个 handler **读**并执行？ | 由编译出的 **BuffType** 决定（§3.2.5）：RESTRICTION 查询 / LISTENER fire / MODIFIER 结算；**禁止**写进父管线砖块 |
+| **③ 消费 consume** | 哪个 handler **读**并执行？ | 由编译出的 **RegistrationKind** 决定（§3.2.5）：RESTRICTION 查询 / LISTENER fire / MODIFIER 结算；**禁止**写进父管线砖块 |
 
 ```text
 mount_moment     = 规则要求 card 最早具备 keyword 的 instant
-representation   = DEFINITION | KEYWORD 标记 | 三种 Buff（MODIFIER / RESTRICTION / LISTENER）
+representation   = DEFINITION | KEYWORD 标记 | Registration 载荷（MODIFIER / RESTRICTION / LISTENER）
 unmount_moment   = 规则上不再具备 / 引擎卸表征
 consumer_slot    = 读 effective 并做事的站点（可与 mount 不同步）
 listener_trigger = 若表征含 LISTENER，Catalog emit 名（无则 —）
@@ -327,7 +333,7 @@ listener_trigger = 若表征含 LISTENER，Catalog emit 名（无则 —）
 2. **`AT_DRAW_G2` 不是 keyword 通用挂载点** — 仅 **早生效** keyword（Peril）使用。  
 3. **晚判定 keyword**（Surge）：印刷 = `LAZY_AT_CONSUMER` 或进场/抽出后挂 **LISTENER**；gained = `AT_GRANT` + **KEYWORD 标记**（只表示拥有）再编译同一 LISTENER。Listener 开火时 nest `seq.draw.encounter`。当前 `KeywordConsumer` 是这条延时 LISTENER 的竖切，不是第四种 Buff。  
 4. **G4 `unregister_by_drawn_card` 只卸 RESTRICTION**（Peril）；**不卸** KEYWORD 标记（涌动须留到 LISTENER 开火）。  
-5. 新 keyword **先定编译成哪一种（或几种）Buff**（§3.2.5），再加 `KeywordProfile`。**猎物 / 生成是指令，不进本表。** **禁止**为每个 keyword 新建 BuffType；**禁止**写进父管线优先队列；**禁止**为单卡 proliferate `seq.check_*`。
+5. 新 keyword **先定编译成哪一种（或几种）Buff**（§3.2.5），再加 `KeywordProfile`。**猎物 / 生成是指令，不进本表。** **禁止**为每个 keyword 新建 RegistrationKind；**禁止**写进父管线优先队列；**禁止**为单卡 proliferate `seq.check_*`。
 
 **目标 API（P1+）**：
 
@@ -362,7 +368,7 @@ class KeywordMountService:
 > 卡量来源：Phase 4 回填 · [§16.8.3](#1683-listener--§165-增长) / [15 §17.14](15-timing-entry-catalog.md#1714-core-2026-遭遇卡清单arkhamdb-回填)  
 > **校正**：qty 以首行 `Name.` 印刷为准；**猎物 / 生成不在本表**（§3.2.5）。
 
-| keyword | Core 2026 约 qty | BuffType | mount（印刷） | unmount | 消费 | 备注 |
+| keyword | Core 2026 约 qty | RegistrationKind | mount（印刷） | unmount | 消费 | 备注 |
 |---|---:|---|---|---|---|---|
 | **surge** | 3 首行 | **LISTENER**（延时） | `LAZY` / 抽出后 | LISTENER 开火后卸标记 | After 本条抽取 · nest 再抽 | 竖切 `KeywordConsumer`；不进抽牌优先队列 |
 | **peril** | 2 | **RESTRICTION** | **`AT_DRAW_G2`** | G4 初 Unregister | L4 REST-E-PLAY/TRIGGER/COMMIT | 挂载即生效 |
@@ -390,7 +396,7 @@ class KeywordMountService:
       └─ 构筑                   11；对局不消费
 ```
 
-**禁止**：为关键词新增 BuffType；把指令/参数写成 keyword 或 nest `seq.keyword.*`；把所有关键词塞进 `AFTER_DRAWN_CARD`。
+**禁止**：为关键词新增 RegistrationKind；把指令/参数写成 keyword 或 nest `seq.keyword.*`；把所有关键词塞进 `AFTER_DRAWN_CARD`。
 
 ##### A. 指令（不是关键词）
 
@@ -419,7 +425,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 
 **禁止**：为括号单独 nest、单独 Register；把 Prey 括号当 Forced。
 
-##### C. 关键词 → 三种 Buff
+##### C. 关键词 → Registration 载荷
 
 **拥有 ≠ 行为**。gained 先 KEYWORD 标记（`has_effective_keyword`），再按同一 `buff_types` 挂 Buff。印刷可直接挂 Buff（或 lazy 到查询）。一张卡可叠加多种（Elokoss：庞大 RESTRICTION + 反击 LISTENER）。
 
@@ -448,7 +454,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 | **Starting** 起始 | `AT_SETUP` / 换牌后 | `UNTIL_FIRED` | 起手+mulligan 之后 | 检索 1 张 Starting 入手 | 无 |
 | **Swarming** | `AFTER_ENTER_PLAY` | `UNTIL_FIRED` | 进场结算之后 | 垫 **X** 张 swarm 牌 | Core 无 |
 
-涌动不是新 BuffType。`KeywordConsumer` 只是该 LISTENER 尚未接入 TimingCatalog 时的竖切。
+涌动不是新 RegistrationKind。`KeywordConsumer` 只是该 LISTENER 尚未接入 TimingCatalog 时的竖切。
 
 **C3 · 快速：打出形式，不是能力、也不是单独成本政策**
 
@@ -466,7 +472,7 @@ RR *enemy instructions (spawn and prey)* · [07 §0.1.2](07-effect-primitives.md
 |---|---|---|---|---|
 | **Fast.** 快速 | 印刷；从 **HAND** 打出 | 选打出形式（上表） | 打出管线 | △ |
 
-**C4 · 不走三种 Buff 的关键词**
+**C4 · 不走Registration 载荷 的关键词**
 
 | 关键词 | 落地 | 实现路径 | 现状 |
 |---|---|---|---|
@@ -501,7 +507,7 @@ Servant of Flame：Hunter. Prey (lowest [agility]). Retaliate. Victory 2.
 ##### 接线顺序
 
 1. 导入：首行 `Name.` → `keywords[]`；`Spawn –` / `Prey –` / 括号 → 对应 Spec，**不**进 keywords。
-2. `KeywordProfile.buff_types` → AbilityCompiler 模板 Register；**禁止**新 BuffType。
+2. `KeywordProfile.buff_types` → AbilityCompiler 模板 Register；**禁止**新 RegistrationKind。
 3. RESTRICTION 模板：险境为样板；隐私、冷漠、庞大、永久、独特共用 mount。
 4. LISTENER 模板：3.2 猎手/巡逻收 emit；反击/警戒/逃逸已有内核；涌动竖切收成 After-draw LISTENER。
 5. 快速：打出形式（`play_form`），种类仍是 `PLAY_CARD`，不 Register LISTENER。
@@ -722,7 +728,7 @@ mount（进场 / G2 / …）
 Registration {
     lifetime: DURATION(THIS_TURN),
     scope: controller = performer,
-    buffs: [
+    payloads: [
         ListenerBuff {
             timing: AFTER_YOU_FIGHT,
             composition: Draw(1),    # 效果组合，见 07-composition
@@ -761,7 +767,7 @@ T0 合法性：Register **已创建** 即通过；**不要求** T2/T3 发生。
 ```text
 Registration {
   lifetime: DURATION(THIS_INVESTIGATION_PHASE),
-  buffs: [
+  payloads: [
     Modifier(+1 WILL),
     Listener(AFTER_DISCOVER_CLUE, Draw(1)),
   ],
@@ -777,7 +783,7 @@ Registration {
 ```text
 Registration {
   lifetime: UNTIL_FIRED,
-  buffs: [ Listener(MYTHOS_1_1, Draw(1)) ],
+  payloads: [ Listener(MYTHOS_1_1, Draw(1)) ],
 }
 ```
 
@@ -845,7 +851,7 @@ Asset 印刷 *Forced – After you fight: draw 1* / *After you fight, draw 1*（
 | 印刷底座 | **否** | 实体上 | 未修正的 shroud / 技能印刷值（compute 的 `base`） |
 
 ```text
-Buff 载荷 ModifierPayload（仅当来源是 Buff 时）
+Registration 载荷 ModifierPayload（仅当来源是 Buff 时）
   value_key · op/value · match · apply_mode · plan_kind…
 
 查询 ModifierQuery
@@ -1022,7 +1028,7 @@ Duration tick **先于** 同边界「at end of phase」的 Listener（Grimoire L
 
 ## 10. Scope / Condition
 
-见 v0.1 §5.1–5.2（ScopeFilter、Condition）；所有 BuffType 共用。
+见 v0.1 §5.1–5.2（ScopeFilter、Condition）；所有 RegistrationKind 共用。
 
 ---
 
@@ -1032,7 +1038,7 @@ Duration tick **先于** 同边界「at end of phase」的 Listener（Grimoire L
 class RegistrationStore:
     func register(reg: Registration) -> StringName
     func unregister(id: StringName) -> void
-    func collect(type: BuffType, ctx: ApplicationContext) -> Array[BuffSpec]
+    func collect(type: RegistrationKind, ctx: ApplicationContext) -> Array[RegistrationPayload]
     func tick_durations(anchor: DurationAnchor.Kind, ctx: ApplicationContext) -> void
     func on_card_enter_play(card_id, templates: Array[RegistrationTemplate]) -> void
     func on_card_leave_play(card_id: StringName) -> void  # 只卸 WHILE_IN_PLAY
@@ -1110,7 +1116,7 @@ class AbilityCompiler:
 
 | 阶段 | 交付 |
 |---|---|
-| P1 | BuffType×3、ModifierEngine、RegistrationStore |
+| P1 | RegistrationKind×3、ModifierEngine、RegistrationStore |
 | P2 | Lifetime tick、Scope/Condition |
 | P3 | RESTRICTION + Initiation dry-run |
 | P4 | LISTENER + TimingBus |
@@ -1160,7 +1166,7 @@ Grimoire 条文 / 卡面效果
 | Immune to treachery / player card effects | **RESTRICTION** | EffectGraph step 4 + `EffectOp`→Intent |
 | Aloof 不能攻击未 engage 敌人 | **RESTRICTION** | **FIGHT** Intent + `Condition`（engage 状态） |
 | Instead / Cancel | **否** | [07-composition](07-composition.md) `CancelPending` / `ReplacePending` |
-| Surge 流程 | **否** | 关键词 + **命名 seq**（非 BuffType） |
+| Surge 流程 | **否** | 关键词 + **命名 seq**（非 RegistrationKind） |
 | Massive 攻击 | **否**（非第四 Buff） | **REPLACE** @ `seq.enemy.attack`（PHASE→`seq.keyword.massive`）；交战侧仍是 RESTRICTION；3.3 只 nest 攻击 |
 | 抽牌 D2 / 遭遇 E2 **Reveal** | **否**（非 Buff） | L0 **`AtomRevealCard`** / `StateMutator.reveal_to_*`；见 [07 §5.3](07-effect-primitives.md) |
 
@@ -1364,7 +1370,7 @@ L4 与专用入口 **双查**（COLLECT 筛 eligible + 动作前再拦）对 **�
 | `EXHAUST` / `READY` | `EXHAUST` / `READY`（待） | 效果层 vs 行动层 |
 | `ENGAGE` / `DISENGAGE` | `ENGAGE` / `DISENGAGE`（待） | |
 
-Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`（source tags）+ REST-E-EFFECT，**不是**新 BuffType。
+Immune（「immune to player card effects」）→ `RESTRICTION` + `Condition`（source tags）+ REST-E-EFFECT，**不是**新 RegistrationKind。
 
 #### 16.4.4 兴趣类型报表（seq → 须读的 RestrictionKind）
 
@@ -1512,12 +1518,12 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 | 2026-10-24 | v0.4.35 | MOD-Q-SHROUD：StatRef.SHROUD + 基础 Investigate 算难度 |
 | 2026-10-24 | v0.4.34 | DiscoverPlan 接线 Investigate；消费式发现修正 + PI；zero amount 不结算 |
 | 2026-10-24 | v0.4.33 | MODIFIER 落地：SKILL_ANY；AttackDamagePlan 消费式+PI；基础 Fight 接线 |
-| 2026-10-24 | v0.4.32 | Register 只写 Buff；Gain 特征族可衍生行为 Buff / 能力挂载；禁旁路 AbilitySpec |
+| 2026-10-24 | v0.4.32 | Register 只写 Buff；Gain 特征族可衍生Registration 行为载荷 / 能力挂载；禁旁路 AbilitySpec |
 | 2026-10-24 | v0.4.31 | 攻击/发现量修正消费式选一 leg；多候选触发 PI；禁对每个目标广播 |
 | 2026-10-24 | v0.4.30 | §16.3：无类型技能 SKILL_ANY；AttackDamagePlan/DiscoverPlan 替代扁 DAMAGE/DISCOVER 量 |
 | 2026-10-24 | v0.4.29 | §3.2.1a：gains 只读特征 vs 文本能力（须注册/初始化，同印刷挂载） |
 | 2026-10-24 | v0.4.28 | §2.3：Forced/reaction/Constant = 能力 ≠ LISTENER Buff；修正 §5.6 举例 |
-| 2026-10-24 | v0.4.27 | §2.2：结算面不按 BuffType/lasting 拆；控制等优先 Buff；Chronicle 外置 |
+| 2026-10-24 | v0.4.27 | §2.2：结算面不按 RegistrationKind/lasting 拆；控制等优先 Registration 载荷；Chronicle 外置 |
 | 2026-10-24 | v0.4.26 | §2.1：Register（结算动词）与 Buff（Registration 载荷）；对齐 07 §5.4.2 |
 | 2026-10-23 | v0.4.25 | 框架称呼：`SoakAssigner` → `DamageAssigner`（正式 Assign，弃用 soak） |
 | 2026-10-23 | v0.4.24 | `ASSIGN_CONSTRAINT` 四算子；REST-E-ASSIGN / DamageAssigner；§16.4.2/§16.4.4 |
@@ -1532,8 +1538,8 @@ Eligibility **L3/L5** 所需 **历史谓词**（本 turn action 次数等）**�
 | 2026-09-21 | v0.4.15 | **Fast.** 打出与支援触发对称：无 Fast≈激活、无时点≈免费、有时点≈反应；非单独成本政策 |
 | 2026-09-21 | v0.4.14 | **§3.2.6** 注册/注销绑已有 `seq.*` 砖或 zone 变迁；禁止 `PERIL_CHECK` 等独立场合节点；译名：永久 / 绑定 / 独特 / 蜂拥 / 多重 |
 | 2026-09-21 | v0.4.13 | **§3.2.6** 关键词/能力 LISTENER 注册与注销场合；不只有进场/离场 |
-| 2026-09-21 | v0.4.12 | **§3.2.5** 分表：指令 / 参数 / 关键词三种 Buff 的实现路径 |
-| 2026-09-21 | v0.4.11 | **§3.2.5** 关键词编译为三种 Buff；猎物/生成为指令，不进 KeywordProfile |
+| 2026-09-21 | v0.4.12 | **§3.2.5** 分表：指令 / 参数 / 关键词Registration 载荷 的实现路径 |
+| 2026-09-21 | v0.4.11 | **§3.2.5** 关键词编译为Registration 载荷；猎物/生成为指令，不进 KeywordProfile |
 | 2026-09-21 | v0.4.10 | **§3.2.5** 关键词 `consume_shape`：仅 NEST_SEQ 才 nest `seq.keyword.*`；校正 Hidden/Hunter 导入误伤 |
 | 2026-09-21 | v0.4.9 | 涌动消费改为 nest `seq.keyword.surge`；抽牌管线不再内联 G5 |
 | 2026-07-06 | v0.4.5 | **§3.2.4** KeywordProfile 挂载/消费填表（Core 2026） |

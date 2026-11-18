@@ -27,6 +27,8 @@ static func create(p_seed: int = 0, config: RulesConfig = null) -> GameContext:
 	ctx.player_window_intents.bind_game_context(ctx)
 	ctx.effects = EffectResolutionGraph.new(ctx.state, ctx.events, ctx.log)
 	ctx.registrations = RegistrationStore.new()
+	ctx.gains = GainedCharacteristicStore.new()
+	ctx.gains.bind_registrations(ctx.registrations)
 	ctx.stat_projections = StatProjectionStore.new()
 	ctx.stat_projections.bind(ctx.events, ctx.state)
 	ctx.stat_emitter = GameStatEmitter.new(ctx.events, ctx.state, ctx.stat_projections)

@@ -22,6 +22,7 @@ var scenario: ScenarioSystem
 var enemy: EnemySystem
 
 var registrations: RegistrationStore
+var gains: GainedCharacteristicStore
 var mutator: StateMutator
 var modifiers: ModifierEngine
 var composition: CompositionExecutor

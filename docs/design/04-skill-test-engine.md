@@ -205,7 +205,7 @@ Grimoire *Peril*（*cannot* 措辞）：
 
 ### 4.2 引擎定位：**RESTRICTION Cannot**，非竞争
 
-对齐 [07-effect-resolution §3.2](07-effect-resolution.md) 冲突链 **第 0 步**；险境与卡面 *cannot* **同路径** — `RegistrationStore` + `RestrictionEvaluator`（[06 §7](06-registration-buff-model.md)）。
+对齐 [07-effect-resolution §3.2](07-effect-resolution.md) 冲突链 **第 0 步**；险境与卡面 *cannot* **同路径** — `RegistrationStore` + `RestrictionEvaluator`（[06 §7](06-registration-payload-model.md)）。
 
 ```text
 同一时刻有玩家/能力想行动
@@ -278,7 +278,7 @@ Player Window 仍可出现；COLLECT / Initiation 在 **L4** 经 `RestrictionEva
 
 ### 4.6 拦截点（统一 `RestrictionEvaluator`）
 
-完整 **Intent × 入口** 主表见 [06-registration-buff-model §16.4](06-registration-buff-model.md#164-restriction--intent--入口主表)。下表为 skill test / peril 相关子集：
+完整 **Intent × 入口** 主表见 [06-registration-payload-model §16.4](06-registration-payload-model.md#164-restriction--intent--入口主表)。下表为 skill test / peril 相关子集：
 
 | 入口 | 检查时机 | Intent |
 |---|---|---|
