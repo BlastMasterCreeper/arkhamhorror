@@ -122,11 +122,32 @@ enum Zone {
     CURRENT_AGENDA,
     SCENARIO_REFERENCE,
   # 特殊
-    LIMBO,               # 结算中，见 Grimoire p.23
+    LIMBO,               # 过渡区；见 Grimoire Limbo + §3.5.0 子区
 }
 ```
 
-**Limbo 语义**：Event/Treachery **显现结算中**时进 LIMBO；Limbo 中卡**不算 In-Play**（Grimoire Limbo）。**已 commit 的 Skill** 不进 LIMBO — 见 `SkillTestContext.committed`，zone 暂留 HAND 直至 ST.8（OQ-01-03）。
+### 3.5.0 Limbo 与子区（已重裁 OQ-01-03 · 2026-11-19）
+
+> **Grimoire**：Limbo = 既不在 play、弃牌堆，也不在手牌；**技能投入检定时进入 limbo**；事件付费后 / 诡计显现中亦然。Limbo 中卡**不算 In-Play**。
+
+**裁决**：物理 **`Zone = LIMBO`**；其下用 **`LimboKind` 子区** 分开用途，避免「显现结算中」与「投入检定中」共用一条离开路径。
+
+```gdscript
+enum LimboKind {
+    RESOLVING,   # 事件打出结算中 / 诡计显现结算中
+    COMMITTED,   # 已投入某次技能检定（技能；资产/事件仅贡献图标时也可进此子区）
+}
+# CardInstance.zone == LIMBO 时必有 limbo_kind；离开 LIMBO 时清空。
+```
+
+| 子区 | 进入 | 离开 | 能力 / Constant 寿命 |
+|---|---|---|---|
+| **RESOLVING** | 事件 Initiation 后；遭遇抽进 LIMBO 显现阶段 | 结算完 → 弃牌 / 进场 / RFG 等（既有 G4 / 打出路径） | 显现体在 RESOLVING 内解释；**不是** `WHILE_COMMITTED` |
+| **COMMITTED** | ST.2 `commit`：HAND → LIMBO/`COMMITTED` | 收回手 → HAND；ST.8 → 通常弃牌；嵌套检定各管各的 | 印刷技能能力默认 **`WHILE_COMMITTED`**（类支援 Constant）；卸 = 离开本子区 |
+
+**索引**：`SkillTestContext.committed` 仍保留（检定内图标合计、Max N、谁投入）；**权威区划**是 LIMBO/`COMMITTED`，列表与之同步，不是「zone 假留 HAND」的替代品。
+
+**查询**：`is_in_hand` = zone==HAND（投入后为假）；`is_committed_to(test)` = LIMBO+COMMITTED 且在该 test 的 committed 列表。Silas 等「收回手牌」= LIMBO/`COMMITTED` → HAND，并 unmount `WHILE_COMMITTED`。
 
 ### 3.5.1 放置关系（Placement · 已裁决 2026-10-24）
 
@@ -453,7 +474,7 @@ class LocationState:
 |---|---|---|
 | OQ-01-02 | 通用「同时效果组」语义：同一 timing point 开始结算；组完成后才触发 `after`；适用于 Unique 冲突与「A and B」。原语 `SimultaneousEffectGroup`。 | 2026-05-25 |
 | OQ-01-01 | **Domain** `CardInstance.is_hidden`；**Presentation** 对非 owner 隐藏牌名。见 §3.6。 | 2026-05-25 |
-| OQ-01-03 | **B**：`SkillTestContext.committed` 追踪；zone **仍为 HAND** 至 ST.8；**不进 LIMBO**。见 §3.5 Limbo 说明、04 §4。 | 2026-05-25 |
+| OQ-01-03 | **（重裁 2026-11-19）** 对齐 Grimoire：投入 → **`Zone.LIMBO` + `LimboKind.COMMITTED`**；`SkillTestContext.committed` 为检定索引。显现/打出结算用 **`LimboKind.RESOLVING`**。旧 B（zone 留 HAND）废止。见 §3.5.0、04 §5。 | 2026-11-19 |
 | OQ-01-04 | **亚型可建**：set-aside / RFG / 旁置特殊区用区域规格（`play_membership` + PlacementKind）；不单靠一个扁平 SET_ASIDE。见 §3.5.1。 | 2026-10-24 |
 | OQ-01-07 | **ATTACHED ≠ UNDER ≠ DECK**：垫下背面默认可知身份；牌库默认 HIDDEN_ALL。离场保留用 `LeavePlayPolicy`。见 §3.5.1 / §5.2。 | 2026-10-24 |
 
@@ -463,6 +484,7 @@ class LocationState:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-19 | v0.5.1 | §3.5.0 Limbo 子区；OQ-01-03 重裁：投入进 LIMBO/`COMMITTED` |
 | 2026-10-24 | v0.5 | §3.5.1 放置关系；场上谓词可覆盖；离场保留；垫下 vs 牌库可见性 |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-01-02 裁决：SimultaneousEffectGroup 同时效果语义 |
