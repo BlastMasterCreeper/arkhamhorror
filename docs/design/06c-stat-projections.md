@@ -1,6 +1,6 @@
 # 06c — 历史谓词与 StatProjection（Eligibility L3/L5）
 
-> **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility L0–L7）、[06-registration-buff-model.md](06-registration-buff-model.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[00-architecture-overview.md](../00-architecture-overview.md) §7  
+> **依赖**：[06-ability-initiation.md](06-ability-initiation.md)（Eligibility L0–L7）、[06-registration-payload-model.md](06-registration-payload-model.md)、[15-timing-entry-catalog.md](15-timing-entry-catalog.md)、[00-architecture-overview.md](../00-architecture-overview.md) §7  
 > **被依赖**：`AbilityCompiler`、`EligibilityPipeline`、`Condition`、Emitter 目录  
 > **状态**：v0.1.1 · 2026-09-21 — 历史不进 Memory；权威源 EventRecord
 

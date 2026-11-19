@@ -20,9 +20,11 @@ alwaysApply: true
 | **primitive** | **原语** | **能影响游戏的结算**；必须做事；dry-run 可 CREATED；查询不是原语 |
 | **state primitive** | **状态原语** | **物理**结算三类：① 区/序 ② 标记 ③ 形态（看得见） |
 | **information primitive** | **信息原语** | **几乎 = Register**；另薄 **Chronicle**（日志∪记住）；不含可见性 |
-| **Register** | **注册** | 不可见结算主动词：写入/卸下 `Registration`；结算面不按 Buff 再拆 |
-| **Buff** | **Buff** | Register 载荷（lasting/延时等）；**≠** Forced/`[reaction]`/Constant 等 **能力** |
-| **Ability** | **能力** | Forced / 反应 / 激活 / 免费 / Constant / 显现；`AbilitySpec`；不是 LISTENER Buff |
+| **Register** | **注册** | 不可见结算主动词：写入/卸下 `Registration`；结算面不按载荷 kind 再拆 |
+| **Registration 载荷** | **Registration payload** | Register 写入 Store 的载荷（`RegistrationKind`×5：MODIFIER/GATE/DIRECTIVE/LISTENER/STATUS）；**≠** Forced/`[reaction]`/Constant 等 **能力**；旧称 Buff 已弃用 |
+| **Gain 特征** | **Gained characteristic** | Grimoire *gains a characteristic*；`GainedCharacteristicStore`（KEYWORD/TRAIT/ICON/ABILITY）；**不是** Registration 载荷；落地 `seq.effect.grant` |
+| **Lose 特征** | **Lost characteristic** | Gain 对偶；`LostCharacteristicStore`；落地 `seq.effect.lose_characteristic`（≠ `lose_resources`）；与 Gain 互斥时 Silver 来源优先，同级 PI 默认 |
+| **Ability** | **能力** | Forced / 反应 / 激活 / 免费 / Constant / 显现；`AbilitySpec`；不是 LISTENER 载荷 |
 | **Chronicle** | **记事** | 日志∪记住的简单记事库；≠ Register；≠ `RulesMemory` |
 | **FaceAudience / visibility** | **牌面可见性** | 权限层；非原语；改可见性不算结算 |
 | **effect** | **效果** | 结算可 CREATED：物理 + 信息原语；**不含**仅改 Audience |

@@ -34,7 +34,7 @@ static func resolve_ability(
 	return bool(result.get("ok", false))
 
 
-## Buff 创建（险境 / Hidden 等）→ nest `seq.effect.register`。
+## Registration 创建（险境 / Hidden 等）→ nest `seq.effect.register`。
 static func register_effect(
 	game_ctx: GameContext,
 	template: RegistrationTemplate,

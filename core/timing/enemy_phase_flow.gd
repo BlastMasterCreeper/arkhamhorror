@@ -93,7 +93,7 @@ static func _enemies_attacking_investigator(
 			continue
 		seen[enemy_id] = true
 		out.append(enemy_id)
-	## 交战状态 Buff（含视为交战、不在威胁区）+ 庞大虚拟交战。
+	## 交战状态载荷（含视为交战、不在威胁区）+ 庞大虚拟交战。
 	for enemy_id in game_ctx.state.registry.all_enemy_ids():
 		if seen.has(enemy_id):
 			continue

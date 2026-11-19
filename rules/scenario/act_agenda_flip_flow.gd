@@ -37,6 +37,8 @@ static func _flip(game_ctx: GameContext, is_agenda: bool) -> Dictionary:
 		game_ctx.triggered_abilities.uninstall_by_source(card_id)
 	if game_ctx.registrations != null:
 		game_ctx.registrations.on_card_leave_play(card_id)
+	if game_ctx.losts != null:
+		game_ctx.losts.on_card_leave_play(card_id)
 	card.face = AhcEnums.CardFace.B
 	_mirror_flip(game_ctx, card, AhcEnums.CardFace.B)
 	var encounter_back := CardRegistry.has_encounter_cardtype_back(def_id)

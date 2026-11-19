@@ -154,7 +154,7 @@ seq.enemy.3_2（框架基础手续）
 **框架步 `seq.enemy.3_2`**：合格枚举（ready / 未交战）、打开开火槽、步末窗口。**不含**「向谁移 / 向哪移」路径。
 
 **挂载**：Hunter/Patrol 于 **ENTER_PLAY** Register（`WHILE_IN_PLAY`）。  
-**开火锚 / 优先级**：见 [06 §3.2.7](06-registration-buff-model.md#327-关键词监听挂载时点--开火锚--优先级已裁决) — 同锚 Hunter **先于** Patrol（引擎固定）；跨类晚于同窗 FORCED。  
+**开火锚 / 优先级**：见 [06 §3.2.7](06-registration-payload-model.md#327-关键词监听挂载时点--开火锚--优先级已裁决) — 同锚 Hunter **先于** Patrol（引擎固定）；跨类晚于同窗 FORCED。  
 **开火体**：`seq.keyword.*`；**不**写回 Framework handler；**不**另铸 `seq.enemy.3_2_*`。分类 [07 §0.1.3](07-effect-primitives.md#013-patrol移动编译--括号参数)。
 
 | 关键词 | 编译 / 开火 | 参数（①） |
