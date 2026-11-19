@@ -506,6 +506,8 @@ func _execute_atom(node: CompositionNode) -> bool:
 			return _execute_nest_effect_register(node)
 		&"nest_effect_grant":
 			return _execute_nest_effect_grant(node)
+		&"nest_effect_lose_characteristic":
+			return _execute_nest_effect_lose_characteristic(node)
 		&"nest_effect_unregister":
 			return _execute_nest_effect_unregister(node)
 		&"nest_discard_card":
@@ -2000,6 +2002,10 @@ func _execute_nest_effect_grant(node: CompositionNode) -> bool:
 	return _grant_via_effect_seq(node.gain_template)
 
 
+func _execute_nest_effect_lose_characteristic(node: CompositionNode) -> bool:
+	return _lose_via_effect_seq(node.lose_template)
+
+
 func _execute_nest_effect_unregister(node: CompositionNode) -> bool:
 	if node.pending_id == &"":
 		return false
@@ -2155,5 +2161,23 @@ func _grant_via_effect_seq(template: GainTemplate) -> bool:
 	)
 	if result.is_empty():
 		push_error("CompositionExecutor: seq.effect.grant unavailable; refused vacuum gain")
+		return false
+	return bool(result.get("ok", false))
+
+
+## Lose 特征唯一落地：nest/run `seq.effect.lose_characteristic`（禁真空 LostStore）。
+func _lose_via_effect_seq(template: LoseTemplate) -> bool:
+	if template == null:
+		return false
+	var result := _nest_or_direct(
+		&"seq.effect.lose_characteristic",
+		{
+			"controller_id": &"",
+			"card_id": template.card_id,
+			"template": template,
+		}
+	)
+	if result.is_empty():
+		push_error("CompositionExecutor: seq.effect.lose_characteristic unavailable; refused vacuum lose")
 		return false
 	return bool(result.get("ok", false))

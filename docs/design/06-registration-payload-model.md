@@ -140,6 +140,11 @@ enum RegistrationKind {
 ## Gain 不是 RegistrationKind —— 单独 GainedCharacteristicStore
 enum GainedCharacteristicKind { KEYWORD, TRAIT, ICON, ABILITY }
 # 落地：seq.effect.grant → GainTemplate → GainedCharacteristicStore
+
+## Lose 对偶（非 RegistrationKind）
+# 落地：seq.effect.lose_characteristic → LoseTemplate → LostCharacteristicStore
+# effective = CharacteristicPossessionResolver（印刷∪gain vs lose；Silver；同级 PI 默认）
+# Keyword：cannot gain same keyword more than once（Grimoire）
 ```
 
 | 非 Buff（勿混入） | 实现方式 |

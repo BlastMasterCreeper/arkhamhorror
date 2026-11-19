@@ -279,6 +279,11 @@ func _initialize() -> void:
 	_run_test("ENC-SURGE-06 raising suspicions places doom", _test_enc_surge_12160_places_doom)
 	_run_test("ENC-SURGE-07 raising suspicions no target gains surge", _test_enc_surge_12160_no_target_gained)
 	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
+	_run_test("LOSE-01 suppress printed keyword", _test_lose_suppress_printed)
+	_run_test("LOSE-02 silver encounter lose beats player gain", _test_lose_silver_encounter_beats_player)
+	_run_test("LOSE-03 silver encounter gain beats player lose", _test_lose_silver_encounter_gain_wins)
+	_run_test("LOSE-04 catalog lose_characteristic", _test_lose_catalog_and_composition)
+	_run_test("LOSE-05 keyword no double gain", _test_keyword_no_double_gain)
 	_run_test("KW-OCC-01 keyword listener occasions table", _test_kw_occ_profile_table)
 	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
 	_run_test("KW-OCC-03 leave hand unregisters hidden not in-play", _test_kw_occ_leave_hand_scoped)
@@ -6715,13 +6720,15 @@ func _test_enc_surge_12160_places_doom() -> bool:
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_a")
 	var cards: Array = res.get("cards", [])
+	## 放了 doom → 不 gains surge；印刷也无 surge（勿把 gains 文误标进 keywords）。
 	return (
 		enemy != null
 		and enemy.doom == 1
-		and cards.size() == 2
+		and cards.size() == 1
 		and cards[0] == first
-		and cards[1] == second
-		and int(res.get("surge_depth", 0)) == 1
+		and int(res.get("surge_depth", 0)) == 0
+		and not h.ctx.gains.has_gained_keyword(first, &"surge")
+		and second != &""
 	)
 
 
@@ -6743,7 +6750,115 @@ func _test_gain_effective_keyword() -> bool:
 	if not EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge"):
 		return false
 	EncounterGainedKeyword.register_surge(h.ctx, card_id)
-	return EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge")
+	## 印刷已有 → 不再 grant（仍有效）。
+	return (
+		EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge")
+		and h.ctx.gains.count() == 0
+	)
+
+
+func _test_lose_suppress_printed() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_ret", [&"retaliate"])
+	var card := h.ctx.state.registry.get_card(card_id)
+	var def_id := card.id.definition_id
+	if not EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"retaliate"):
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.lose_keyword(
+			card_id, &"retaliate", AhcEnums.CharacteristicSourceKind.PLAYER
+		)
+	)
+	return (
+		h.ctx.losts.has_lost_keyword(card_id, &"retaliate")
+		and not EffectiveCharacteristicQuery.has_effective_keyword(
+			h.ctx, card_id, def_id, &"retaliate"
+		)
+	)
+
+
+func _test_lose_silver_encounter_beats_player() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_lose", [])
+	var card := h.ctx.state.registry.get_card(card_id)
+	var def_id := card.id.definition_id
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_effect_grant(
+			GainTemplate.keyword_while_in_play(
+				card_id, &"hunter", AhcEnums.CharacteristicSourceKind.PLAYER
+			)
+		)
+	)
+	if not EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"hunter"):
+		return false
+	c.execute(
+		CompositionNode.nest_effect_lose_characteristic(
+			LoseTemplate.keyword_while_in_play(
+				card_id, &"hunter", AhcEnums.CharacteristicSourceKind.ENCOUNTER
+			)
+		)
+	)
+	return not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, card_id, def_id, &"hunter"
+	)
+
+
+func _test_lose_silver_encounter_gain_wins() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_gain", [])
+	var card := h.ctx.state.registry.get_card(card_id)
+	var def_id := card.id.definition_id
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_effect_lose_characteristic(
+			LoseTemplate.keyword_while_in_play(
+				card_id, &"aloof", AhcEnums.CharacteristicSourceKind.PLAYER
+			)
+		)
+	)
+	c.execute(
+		CompositionNode.nest_effect_grant(
+			GainTemplate.keyword_while_in_play(
+				card_id, &"aloof", AhcEnums.CharacteristicSourceKind.ENCOUNTER
+			)
+		)
+	)
+	return EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, card_id, def_id, &"aloof"
+	)
+
+
+func _test_lose_catalog_and_composition() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.lose_characteristic"):
+		return false
+	var card_id := &"lose_card"
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.lose_keyword(card_id, &"peril"))
+	return h.ctx.losts.has_lost_keyword(card_id, &"peril") and h.ctx.losts.count() == 1
+
+
+func _test_keyword_no_double_gain() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_dbl", [])
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_effect_grant(
+			GainTemplate.keyword_while_in_play(
+				card_id, &"surge", AhcEnums.CharacteristicSourceKind.ENCOUNTER
+			)
+		)
+	)
+	c.execute(
+		CompositionNode.nest_effect_grant(
+			GainTemplate.keyword_while_in_play(
+				card_id, &"surge", AhcEnums.CharacteristicSourceKind.PLAYER
+			)
+		)
+	)
+	return h.ctx.gains.count() == 1
 
 
 func _test_kw_occ_profile_table() -> bool:
@@ -10105,6 +10220,7 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.effect.grant",
 		&"seq.effect.heal",
 		&"seq.effect.lose_action",
+		&"seq.effect.lose_characteristic",
 		&"seq.effect.lose_resources",
 		&"seq.effect.move",
 		&"seq.effect.place_clue",
@@ -10163,7 +10279,7 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.skill_test.agility",
 		&"seq.setup",
 	]
-	if required.size() != 61:
+	if required.size() != 62:
 		return false
 	for flow_id in required:
 		if not catalog.has_flow(flow_id):

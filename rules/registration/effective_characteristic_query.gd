@@ -1,7 +1,7 @@
 class_name EffectiveCharacteristicQuery
 extends RefCounted
 
-## 06 §3.2 · printed ∪ gained。gained 读 GainStore（不是 Registration 载荷）。
+## 06 §3.2 · printed ∪ gained − lose（互斥时 Silver / 同级 PI 默认）。
 
 
 static func has_effective_keyword(
@@ -10,13 +10,9 @@ static func has_effective_keyword(
 	definition_id: StringName,
 	keyword: StringName
 ) -> bool:
-	if keyword == &"":
-		return false
-	if CardRegistry.has_keyword(definition_id, keyword):
-		return true
-	if game_ctx == null or game_ctx.gains == null or card_id == &"":
-		return false
-	return game_ctx.gains.has_gained_keyword(card_id, keyword)
+	return CharacteristicPossessionResolver.has_effective_keyword(
+		game_ctx, card_id, definition_id, keyword
+	)
 
 
 static func has_printed_keyword(definition_id: StringName, keyword: StringName) -> bool:

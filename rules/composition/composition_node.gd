@@ -22,6 +22,8 @@ var marker_to: MarkerSlot = null
 var register_template: RegistrationTemplate = null
 ## Gain 授予（nest seq.effect.grant）；与 register_template 互斥。
 var gain_template: GainTemplate = null
+## Lose 特征（nest seq.effect.lose_characteristic）。
+var lose_template: LoseTemplate = null
 var provenance: AbilityUnitRef = null
 var pending_id: StringName = &""
 var effect_request: EffectRequest = null
@@ -257,6 +259,23 @@ static func grant_keyword(card_id: StringName, keyword: StringName) -> Compositi
 static func nest_effect_grant(template: GainTemplate) -> CompositionNode:
 	var n := _nest_leaf(&"nest_effect_grant", &"seq.effect.grant")
 	n.gain_template = template
+	return n
+
+
+## 卡面 loses keyword · nest `seq.effect.lose_characteristic`。
+static func lose_keyword(
+	card_id: StringName,
+	keyword: StringName,
+	source_kind: AhcEnums.CharacteristicSourceKind = AhcEnums.CharacteristicSourceKind.PLAYER
+) -> CompositionNode:
+	var n := _nest_leaf(&"nest_effect_lose_characteristic", &"seq.effect.lose_characteristic")
+	n.lose_template = LoseTemplate.keyword_while_in_play(card_id, keyword, source_kind)
+	return n
+
+
+static func nest_effect_lose_characteristic(template: LoseTemplate) -> CompositionNode:
+	var n := _nest_leaf(&"nest_effect_lose_characteristic", &"seq.effect.lose_characteristic")
+	n.lose_template = template
 	return n
 
 

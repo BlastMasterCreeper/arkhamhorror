@@ -377,9 +377,11 @@ static func register_buff(game_ctx: GameContext, params: Dictionary) -> Dictiona
 	if game_ctx == null or game_ctx.registrations == null:
 		return {"ok": false, "error": "no_store"}
 	var template: Variant = params.get("template", null)
-	## Gain 误走 register 时改道（模板已迁 GainTemplate）。
+	## Gain/Lose 误走 register 时改道。
 	if template is GainTemplate:
 		return grant_characteristic(game_ctx, params)
+	if template is LoseTemplate:
+		return lose_characteristic(game_ctx, params)
 	if template is not RegistrationTemplate:
 		return {"ok": false, "error": "invalid_template"}
 	var reg_id := game_ctx.registrations.register(template as RegistrationTemplate)
@@ -394,13 +396,28 @@ static func register_buff(game_ctx: GameContext, params: Dictionary) -> Dictiona
 
 
 ## Gain 特征授予（非 Registration 载荷）。写入 GainedCharacteristicStore；可衍生 Registration。
+## Grimoire：同一 keyword 不可 gain 超过一次（印刷已有亦算）。
 static func grant_characteristic(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 	if game_ctx == null or game_ctx.gains == null:
 		return {"ok": false, "error": "no_gain_store"}
 	var template: Variant = params.get("template", null)
 	if template is not GainTemplate:
 		return {"ok": false, "error": "invalid_gain_template"}
-	var gain_id := game_ctx.gains.register(template as GainTemplate)
+	var gt := template as GainTemplate
+	var def_id: StringName = &""
+	if game_ctx.state != null:
+		var card = game_ctx.state.registry.get_card(gt.card_id)
+		if card != null:
+			def_id = card.id.definition_id
+	for gain in gt.gains:
+		if gain.kind != AhcEnums.GainedCharacteristicKind.KEYWORD:
+			continue
+		if EffectiveCharacteristicQuery.has_effective_keyword(
+			game_ctx, gt.card_id, def_id, gain.id
+		):
+			_log(game_ctx, "effect:grant", {"skipped": &"keyword_already_possessed", "kw": gain.id})
+			return {"ok": true, "gain_id": &"", "skipped": true}
+	var gain_id := game_ctx.gains.register(gt)
 	_log(game_ctx, "effect:grant", {"gain": gain_id})
 	if game_ctx.memory != null:
 		game_ctx.memory.set_referent(
@@ -409,6 +426,24 @@ static func grant_characteristic(game_ctx: GameContext, params: Dictionary) -> D
 			gain_id
 		)
 	return {"ok": gain_id != &"", "gain_id": gain_id}
+
+
+## 失去特征（非 Registration；非 lose_resources）。写入 LostCharacteristicStore。
+static func lose_characteristic(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+	if game_ctx == null or game_ctx.losts == null:
+		return {"ok": false, "error": "no_lost_store"}
+	var template: Variant = params.get("template", null)
+	if template is not LoseTemplate:
+		return {"ok": false, "error": "invalid_lose_template"}
+	var lose_id := game_ctx.losts.register(template as LoseTemplate)
+	_log(game_ctx, "effect:lose_characteristic", {"lose": lose_id})
+	if game_ctx.memory != null:
+		game_ctx.memory.set_referent(
+			params.get("controller_id", &"") as StringName,
+			&"last_lose_id",
+			lose_id
+		)
+	return {"ok": lose_id != &"", "lose_id": lose_id}
 
 
 static func unregister_buff(game_ctx: GameContext, params: Dictionary) -> Dictionary:

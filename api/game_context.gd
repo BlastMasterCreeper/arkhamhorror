@@ -23,6 +23,7 @@ var enemy: EnemySystem
 
 var registrations: RegistrationStore
 var gains: GainedCharacteristicStore
+var losts: LostCharacteristicStore
 var mutator: StateMutator
 var modifiers: ModifierEngine
 var composition: CompositionExecutor

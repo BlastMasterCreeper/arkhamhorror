@@ -17,7 +17,7 @@ alwaysApply: true
 - 不为效果保留自然语言运行时分支（禁止 `match effect_text`、语义 atom id）。
 - 与规则书原文的唯一联系：**provenance**（`AbilityUnitRef`）。
 - **禁止**：Grimoire/卡面段落 → 专属 `*Policy` / `*Service`；为每张卡登记 `seq.card…`；与 Catalog 平行的第二套 dispatch。
-- **Catalog 完备**：凡解释器要当效果跑的，必须有 `seq.*`。含 **状态原语类**、**Registration 创建/注销**（`seq.effect.register` / `unregister`）与 **Gain 授予**（`seq.effect.grant`）。纸面没有章节名 → 引擎铸造 `seq.effect.*`（种类 + 参数），不是裸 Atom/Register，也不是 `seq.card…`。见 [07-composition §1.3.3](docs/design/07-composition.md)。
+- **Catalog 完备**：凡解释器要当效果跑的，必须有 `seq.*`。含 **状态原语类**、**Registration 创建/注销**（`seq.effect.register` / `unregister`）、**Gain 授予**（`seq.effect.grant`）与 **Lose 特征**（`seq.effect.lose_characteristic`）。纸面没有章节名 → 引擎铸造 `seq.effect.*`（种类 + 参数），不是裸 Atom/Register，也不是 `seq.card…`。见 [07-composition §1.3.3](docs/design/07-composition.md)。
 
 ## 统一翻译模型
 
@@ -46,7 +46,7 @@ alwaysApply: true
 | Grimoire 章节流程 | `seq.*` | `seq.draw.investigator`、`seq.draw.encounter` |
 | 行动 | `seq.action.*` nest 内核 seq | action draw → `seq.draw.investigator` |
 | 卡牌能力 / 显现体 / lasting | **Composition** 树（控制流 + 内联/nest/`seq.effect.*` + PI） | 12160：nest 放毁灭 + if + nest 涌动 |
-| 纸面无名的效果句 | 铸造 **`seq.effect.*`**；**是否 nest 另判** | take horror、place doom、heal；Registration 创建 = `seq.effect.register`；Gain = `seq.effect.grant` |
+| 纸面无名的效果句 | 铸造 **`seq.effect.*`**；**是否 nest 另判** | take horror、place doom、heal；Registration 创建 = `seq.effect.register`；Gain = `seq.effect.grant`；Lose 特征 = `seq.effect.lose_characteristic` |
 | 卡面调用已有手续 | 仅当 §4.0.5 为「是」时 **nest** | 「抽 1 张」→ nest `seq.draw.*`；Cancel → nest `seq.interrupt.cancel` |
 | 子流程复用 | `catalog.nest(other_seq)` | 同一内核多入口 |
 | 玩家选择 | **PI 有限期确认** + 默认 | 选连结地点敌人 → Gate；未确认用 default |
@@ -177,6 +177,7 @@ AbilitySpec
 - **限制类 DIRECTIVE/GATE 原流程分支**（如「does not provoke AOO」→ `SKIP_AOO`；「移入后 engages you」→ `SUPPRESS_AUTO_ENGAGE`）：Register **GATE/DIRECTIVE**；在规范入口（INIT_2B / auto-engage）由 **原流程读取** 后自行改道。**不是** LISTENER，**不是** Cancel/Ignore，**不是**在翻译 JSON 里塞 `auto_engage:false` 开关。见 [06 §16.4](docs/design/06-registration-payload-model.md)。「engages you」仍须 nest `seq.engage` mode=effect：冷漠/横置不走 auto；**禁止**用 forced-auto WHO 或把 auto 挪到 After 替代（[20 §4.2.1](docs/design/20-card-translation-schema.md)）。
 - **Registration 创建落地**：卡面创建（含具名限制糖）一律经 **`seq.effect.register`**（效果体 nest；Initiation 挂 `SKIP_AOO` 用 `catalog.run`）。**禁止**解释器/管线真空 `RegistrationStore.register`（[20 §4.1](docs/design/20-card-translation-schema.md)）。
 - **Gain 授予落地**：卡面 `gains …` 一律经 **`seq.effect.grant`** → `GainedCharacteristicStore`。**禁止**真空 GainStore；**禁止**把 Gain 塞进 `RegistrationKind`。
+- **Lose 特征落地**：卡面 `loses …`（特征）一律经 **`seq.effect.lose_characteristic`** → `LostCharacteristicStore`。与 Gain 互斥时 **Silver**（遭遇>玩家）；同级 **队长/PI 默认**（非 Grim）。Keyword **不叠份**（Grimoire）。
 - 薄 facade 仅 `catalog.run(flow_id, params)`。
 - 冲突：07 §3.2–§3.4（Cannot / 竞争 / tier / Silver Rule）。
 

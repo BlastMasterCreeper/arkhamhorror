@@ -280,6 +280,16 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 			return EffectFlowHandlers.grant_characteristic(game_ctx, params)
 	)
 	catalog.register_run(
+		&"seq.effect.lose_characteristic",
+		func(params: Dictionary) -> TriggeringCondition:
+			return TriggeringCondition.effect_register(
+				params.get("controller_id", &"") as StringName,
+				params.get("card_id", &"") as StringName
+			),
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return EffectFlowHandlers.lose_characteristic(game_ctx, params)
+	)
+	catalog.register_run(
 		&"seq.effect.unregister",
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.effect_unregister(

@@ -367,7 +367,11 @@ enum RegistrationKind { MODIFIER, GATE, DIRECTIVE, LISTENER, STATUS }
 enum BuffType { MODIFIER, GATE, DIRECTIVE, LISTENER, STATUS }
 
 ## Grimoire *gains a characteristic* · 单独管理；可衍生 Registration。
+## Lose 对同一套 kind 操作（不是 RegistrationKind）。
 enum GainedCharacteristicKind { KEYWORD, TRAIT, ICON, ABILITY }
+
+## 特征 Gain/Lose 来源（Silver：遭遇 > 玩家；印刷非载荷，lose 默认可压印刷）。
+enum CharacteristicSourceKind { PRINTED, PLAYER, ENCOUNTER }
 
 enum CompositionNodeKind { SEQ, ATOM, REGISTER, IF, CHOICE, OPTIONAL, REPEAT, FOR_EACH }
 
