@@ -48,6 +48,8 @@
 
 **简中术语对照**（Evade→躲避、Retaliate→反击、Alert→警戒 等）：[`reference/terminology-zh.md`](reference/terminology-zh.md)
 
+**个人版卡面改写**（非官方；持续/投入语义自明）：[`reference/personal-card-text.md`](reference/personal-card-text.md)
+
 ## 规则来源（引擎设计基准）
 
 | 优先级 | 来源 |
