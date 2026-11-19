@@ -94,9 +94,55 @@ func commit_card(ctx: SkillTestContext, from_inv: StringName, card_id: StringNam
 		var title_count := _count_committed_by_definition(ctx, card.id.definition_id)
 		if title_count >= card.max_committed_per_test:
 			return {"ok": false, "error": "max_committed"}
+	## HAND → LIMBO/`COMMITTED`（OQ-01-03）；列表仅为索引。
+	if _mutator != null:
+		if not _mutator.enter_limbo_committed(card_id, from_inv):
+			return {"ok": false, "error": "limbo_commit_failed"}
+	else:
+		var holder := _state.registry.get_investigator(from_inv)
+		if holder != null:
+			holder.hand.erase(card_id)
+		card.zone = AhcEnums.Zone.LIMBO
+		card.limbo_kind = AhcEnums.LimboKind.COMMITTED
+		card.controller_id = from_inv
 	ctx.committed.append(CommittedCard.create(card_id, from_inv, bonus))
 	if from_inv != ctx.performing_investigator:
 		ctx.ally_committed = true
+	return {"ok": true}
+
+
+## 检定中收回投入（Silas 等）：离开 LIMBO/`COMMITTED` → HAND；索引移除。
+func uncommit_card(ctx: SkillTestContext, card_id: StringName) -> Dictionary:
+	var idx := -1
+	for i in range(ctx.committed.size()):
+		if ctx.committed[i].card_id == card_id:
+			idx = i
+			break
+	if idx < 0:
+		return {"ok": false, "error": "not_committed"}
+	var entry: CommittedCard = ctx.committed[idx]
+	var card := _state.registry.get_card(card_id)
+	if card != null and card.is_limbo_committed():
+		if _mutator != null:
+			if not _mutator.return_committed_to_hand(card_id, entry.from_investigator):
+				return {"ok": false, "error": "return_hand_failed"}
+		else:
+			var inv := _state.registry.get_investigator(entry.from_investigator)
+			if inv == null:
+				return {"ok": false, "error": "missing_investigator"}
+			card.clear_limbo_kind()
+			card.zone = AhcEnums.Zone.HAND
+			if not inv.hand.has(card_id):
+				inv.hand.append(card_id)
+			if _game_ctx != null and _game_ctx.registrations != null:
+				_game_ctx.registrations.on_leave_committed_limbo(card_id)
+	ctx.committed.remove_at(idx)
+	if entry.from_investigator != ctx.performing_investigator:
+		ctx.ally_committed = false
+		for other in ctx.committed:
+			if other.from_investigator != ctx.performing_investigator:
+				ctx.ally_committed = true
+				break
 	return {"ok": true}
 
 
@@ -362,16 +408,27 @@ func _drain_pending_nested(game_ctx: GameContext) -> void:
 
 
 func _discard_committed(ctx: SkillTestContext) -> void:
+	## 仅仍在 LIMBO/`COMMITTED` 的牌进弃牌堆；中途收回手的不弃（仍可留在 committed 索引外）。
 	for commit in ctx.committed:
 		var card := _state.registry.get_card(commit.card_id)
 		if card == null:
 			continue
-		var inv := _state.registry.get_investigator(commit.from_investigator)
+		if not card.is_limbo_committed():
+			continue
+		var inv_id := commit.from_investigator
+		if card.owner_id != &"":
+			inv_id = card.owner_id
+		if _mutator != null:
+			_mutator.move_card(commit.card_id, CardSlot.discard_top(inv_id))
+			continue
+		var inv := _state.registry.get_investigator(inv_id)
 		if inv == null:
 			continue
-		inv.hand.erase(commit.card_id)
+		card.clear_limbo_kind()
 		card.zone = AhcEnums.Zone.DISCARD
 		inv.discard.append(commit.card_id)
+		if _game_ctx != null and _game_ctx.registrations != null:
+			_game_ctx.registrations.on_leave_committed_limbo(commit.card_id)
 
 
 func _apply_token_effect(ctx: SkillTestContext, token: ChaosToken) -> void:

@@ -321,6 +321,9 @@ func _initialize() -> void:
 	_run_test("PERIL-07 peril registers via seq.effect.register", _test_peril_register_no_vacuum)
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
+	_run_test("LIMBO-COMMIT-01 commit enters LIMBO/COMMITTED", _test_limbo_commit_enters)
+	_run_test("LIMBO-COMMIT-02 uncommit returns hand unmounts", _test_limbo_commit_uncommit)
+	_run_test("LIMBO-COMMIT-03 ST.8 skips returned cards", _test_limbo_commit_st8_skips_returned)
 	_run_test("BAG-LEDGER-01 skill reveal ledger clears at ST.8", _test_bag_ledger_skill_reveal)
 	_run_test("BAG-LEDGER-02 ability curse if-revealed binary eager", _test_bag_ledger_ability_curse_gate)
 	_run_test("BAG-LEDGER-03 cancel excludes from if-revealed", _test_bag_ledger_cancel_excludes)
@@ -7680,10 +7683,92 @@ func _test_st_end_cleanup() -> bool:
 		and inv.hand.is_empty()
 		and inv.discard.has(card_id)
 		and card.zone == AhcEnums.Zone.DISCARD
+		and card.limbo_kind == AhcEnums.LimboKind.NONE
 		and h.ctx.state.chaos_bag.tokens.size() == 1
 		and h.ctx.state.chaos_bag.revealed_this_test.is_empty()
 		and h.ctx.state.chaos_bag.reveal_ledger.is_empty()
 		and h.ctx.state.chaos_bag.reveal_scope_id == &""
+	)
+
+
+func _test_limbo_commit_enters() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var res := h.ctx.skill_tests.commit_card(test, &"inv_1", card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		res.ok
+		and card.is_limbo_committed()
+		and not inv.hand.has(card_id)
+		and test.committed.size() == 1
+	)
+
+
+func _test_limbo_commit_uncommit() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	## 模拟投入期 Constant 挂载（controller = 卡实例）。
+	var tmpl := RegistrationTemplate.new()
+	tmpl.controller_id = card_id
+	tmpl.lifetime_kind = AhcEnums.LifetimeKind.WHILE_COMMITTED
+	tmpl.buffs.append(
+		BuffSpec.modifier_buff(ModifierPayload.add_skill(AhcEnums.StatRef.SKILL_INTELLECT, 1))
+	)
+	h.ctx.registrations.register(tmpl)
+	if h.ctx.registrations.count() < 1:
+		return false
+	var un := h.ctx.skill_tests.uncommit_card(test, card_id)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		un.ok
+		and card.zone == AhcEnums.Zone.HAND
+		and card.limbo_kind == AhcEnums.LimboKind.NONE
+		and inv.hand.has(card_id)
+		and test.committed.is_empty()
+		and h.ctx.registrations.count() == 0
+	)
+
+
+func _test_limbo_commit_st8_skips_returned() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	## 模拟 Silas：收回手但仍留在 committed 索引（uncommit 会摘索引；此处只 return zone）。
+	if not h.ctx.mutator.return_committed_to_hand(card_id, &"inv_1"):
+		return false
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var card := h.ctx.state.registry.get_card(card_id)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		card.zone == AhcEnums.Zone.HAND
+		and inv.hand.has(card_id)
+		and not inv.discard.has(card_id)
 	)
 
 

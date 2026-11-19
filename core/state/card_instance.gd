@@ -6,8 +6,22 @@ var owner_id: StringName = &""
 var controller_id: StringName = &""
 var zone: AhcEnums.Zone = AhcEnums.Zone.DECK
 var zone_index: int = 0
+## zone==LIMBO 时子区；否则 NONE（01 §3.5.0）。
+var limbo_kind: AhcEnums.LimboKind = AhcEnums.LimboKind.NONE
 var face: AhcEnums.CardFace = AhcEnums.CardFace.A
 var exhausted: bool = false
+
+
+func is_limbo_committed() -> bool:
+	return zone == AhcEnums.Zone.LIMBO and limbo_kind == AhcEnums.LimboKind.COMMITTED
+
+
+func is_limbo_resolving() -> bool:
+	return zone == AhcEnums.Zone.LIMBO and limbo_kind == AhcEnums.LimboKind.RESOLVING
+
+
+func clear_limbo_kind() -> void:
+	limbo_kind = AhcEnums.LimboKind.NONE
 var tokens: TokenBag = TokenBag.new()
 var attachments: Array[EntityId] = []
 var attached_to: EntityId = null
