@@ -8,17 +8,17 @@
 
 ## 默认模型（技能）
 
-技能正文默认是 **投入期间可用的技能能力**（Grimoire：committed 期间可用），不是事件即时体，也 **不是** Constant（Constant 要求在场；LIMBO 不算 in play）。
+区划对齐 Grimoire（OQ-01-03 重裁）：投入 → **`LIMBO` / `LimboKind.COMMITTED`**（与显现用的 `RESOLVING` 分子区）。
 
-区划对齐 Grimoire（OQ-01-03 重裁）：投入 → **`LIMBO` / `LimboKind.COMMITTED`**（与显现用的 `RESOLVING` 分子区）；寿命钩 **`WHILE_COMMITTED`** = 仍在该子区（**≠** `AbilityKind.CONSTANT`）。
+**Constant 扩展（2026-11-20）**：`AbilityKind.CONSTANT` = 持续生效、无需 Initiation；寿命不必 in play。投入期间**持续句** → Constant + `WHILE_COMMITTED`（与隐私 Constant + `WHILE_HIDDEN_IN_HAND`、场上 Constant + `WHILE_IN_PLAY` 同形）。LIMBO 仍不算 in play——改的是 Constant 种类定义，不是把 LIMBO 算进场。
 
-| | 事件 | 技能（个人版默认） | 支援 Constant |
+| | 事件 | 技能 | 支援 |
 |---|---|---|---|
-| 区 | 打出 → LIMBO/`RESOLVING` | 投入 → LIMBO/`COMMITTED` | PLAY（in play） |
-| 文本身份 | 效果体 | **技能能力**（committed window） | Constant |
-| 文本何时有效 | 结算中 | **仍在 COMMITTED** | WHILE_IN_PLAY |
-| 成功/失败 / *After this test ends* | — | 同上，绑投入；**不**先造延时 | — |
-| 回收到手 / 离开投入 | 通常已结算完 | 离开 COMMITTED → **能力不可用** | leave play 卸 Constant |
+| 区 | LIMBO/`RESOLVING` | LIMBO/`COMMITTED` | PLAY |
+| 持续句 | — | **Constant** + `WHILE_COMMITTED` | Constant + `WHILE_IN_PLAY` |
+| *If succeed/fail* | — | ST.7（非 Constant） | — |
+| *After this test ends* | — | 检定决议窗技能能力（非 Constant） | — |
+| 显式 lasting | — | Gain + `DURATION`（非 Constant） | — |
 
 仅当卡面写出 **创建时刻 + 寿命**（如 *When you commit… gains … for the duration of…*）时，才编译为 **持续效果**（Gain/Lose + `DURATION`），源牌可离 LIMBO 仍活。
 
@@ -52,7 +52,7 @@
 | 句 | 译法 | Lifetime / 条件 |
 |---|---|---|
 | When you commit → gains retaliate + alert | `seq.effect.grant`（KEYWORD×2） | `DURATION(THIS_SKILL_TEST)`；**不**随收回手牌卸 |
-| After this test ends, draw 1 | 技能能力（仍投入） | 离开 LIMBO/`COMMITTED` → 不结算；**不是** `UNTIL_FIRED` 延时 |
+| After this test ends, draw 1 | 技能能力（仍投入） | 离开 LIMBO/`COMMITTED` → 不结算；**不是** Constant，也 **不是** `UNTIL_FIRED` |
 
 ---
 
@@ -60,6 +60,6 @@
 
 | 日期 | 卡 / 主题 | 摘要 |
 |---|---|---|
-| 2026-11-20 | 术语 | 投入期技能 ≠ Constant（LIMBO 非 in play）；仅保留 `WHILE_COMMITTED` 寿命钩 |
+| 2026-11-20 | Constant | 扩展：持续句可 Constant + 非 in-play 寿命（含 `WHILE_COMMITTED`） |
 | 2026-11-19 | 区划 | 投入进 LIMBO/`COMMITTED`；与 `RESOLVING` 分子区（对齐 OQ-01-03 重裁） |
 | 2026-11-19 | 06111 | 个人版加 *When you commit* /「投入后」，显式创建持续；抽牌句仍绑投入 |

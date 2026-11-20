@@ -364,7 +364,7 @@ enum LifetimeKind {
 	WHILE_IN_DECK,
 	WHILE_SET_ASIDE,
 	## 投入检定：LIMBO/`COMMITTED` 期间；离开该子区卸。
-	## 仅寿命钩；**不是** Constant（Constant 要求 in play；LIMBO 不算在场）。
+	## 技能上 Constant（持续句）的寿命；Constant 种类不强制 in play（01 §3.5.0）。
 	WHILE_COMMITTED,
 }
 

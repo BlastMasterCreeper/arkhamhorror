@@ -591,6 +591,7 @@ on_card_leave_play(card)
 | 调查员卡能力 | `seq.setup`（调查员开局即在场） | 淘汰 **LEAVE_PLAY** | `WHILE_IN_PLAY` | PLAY |
 | **显现** Revelation | **不**长期 Register；抽到时 nest `seq.encounter.revelation` / `seq.enter_hand` | 子流程 pop | 无 | LIMBO / 入手瞬间 |
 | 隐私牌上的 Constant / Forced / `[reaction]` | **ENTER_HAND**（与 Hidden 同时） | **LEAVE_HAND** | `WHILE_HIDDEN_IN_HAND` | **HAND** |
+| 技能上 **Constant**（投入期间持续句） | **COMMIT** → LIMBO/`COMMITTED` | 离开 COMMITTED（收回手 / ST.8） | `WHILE_COMMITTED` | **LIMBO**（非 in play） |
 | Fast 事件「Play when/after …」 | **不**挂场上 LISTENER；`PLAY_FAST_TIMING`，种类仍是 `PLAY_CARD` | 打出后进 limbo 结算 | 无 | **HAND** |
 | 效果创造的延时 | 效果 `GRANT` / Register 砖 | `FIRED` | `UNTIL_FIRED` | 不绑源卡 zone |
 | 效果创造的持续 | 效果 Register 砖 | Duration tick；**默认不**随源卡离场（`WHILE_SOURCE_IN_PLAY` 才绑） | `DURATION` / `WHILE_SOURCE_IN_PLAY` | 任意 |
@@ -695,7 +696,7 @@ mount（进场 / G2 / …）
 |---|---|---|---|
 | **持续效果** | `DURATION(...)` / `WHILE_*` | MODIFIER、RESTRICTION、LISTENER | 到期或条件满足 |
 | **延时效果**（一次性） | `UNTIL_FIRED` | 通常 LISTENER | **第一次** listener 跑完后 Unregister |
-| **持续能力（Constant）** | `WHILE_IN_PLAY` | MODIFIER / LISTENER | 源卡 leave play |
+| **持续能力（Constant）** | `WHILE_IN_PLAY`（常见）；亦可 `WHILE_HIDDEN_IN_HAND` / `WHILE_COMMITTED` | MODIFIER 等 | 离开对应寿命窗口（非仅 leave play） |
 
 **不存在** LastingRegistry / DelayedRegistry；仅 **RegistrationStore**。
 
