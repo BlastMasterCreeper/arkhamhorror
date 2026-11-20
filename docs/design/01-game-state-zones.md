@@ -140,14 +140,16 @@ enum LimboKind {
 # CardInstance.zone == LIMBO 时必有 limbo_kind；离开 LIMBO 时清空。
 ```
 
-| 子区 | 进入 | 离开 | 能力 / Constant 寿命 |
+| 子区 | 进入 | 离开 | 能力窗口 |
 |---|---|---|---|
 | **RESOLVING** | 事件 Initiation 后；遭遇抽进 LIMBO 显现阶段 | 结算完 → 弃牌 / 进场 / RFG 等（既有 G4 / 打出路径） | 显现体在 RESOLVING 内解释；**不是** `WHILE_COMMITTED` |
-| **COMMITTED** | ST.2 `commit`：HAND → LIMBO/`COMMITTED` | 收回手 → HAND；ST.8 → 通常弃牌；嵌套检定各管各的 | 印刷技能能力默认 **`WHILE_COMMITTED`**（类支援 Constant）；卸 = 离开本子区 |
+| **COMMITTED** | ST.2 `commit`：HAND → LIMBO/`COMMITTED` | 收回手 → HAND；ST.8 → 通常弃牌；嵌套检定各管各的 | **技能能力**在仍投入期间可用（Grimoire）；寿命钩 `WHILE_COMMITTED`。LIMBO **不算 in play** → **不是** Constant |
 
 **索引**：`SkillTestContext.committed` 仍保留（检定内图标合计、Max N、谁投入）；**权威区划**是 LIMBO/`COMMITTED`，列表与之同步，不是「zone 假留 HAND」的替代品。
 
 **查询**：`is_in_hand` = zone==HAND（投入后为假）；`is_committed_to(test)` = LIMBO+COMMITTED 且在该 test 的 committed 列表。Silas 等「收回手牌」= LIMBO/`COMMITTED` → HAND，并 unmount `WHILE_COMMITTED`。
+
+**禁止**：把投入期技能能力标成 `AbilityKind.CONSTANT`。Constant 要求源卡 **在场**；投入在悬置，窗口是 committed-skill ability，不是 Constant。
 
 ### 3.5.1 放置关系（Placement · 已裁决 2026-10-24）
 
@@ -484,6 +486,7 @@ class LocationState:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-20 | v0.5.2 | §3.5.0：投入期技能能力 ≠ Constant（LIMBO 非 in play） |
 | 2026-11-19 | v0.5.1 | §3.5.0 Limbo 子区；OQ-01-03 重裁：投入进 LIMBO/`COMMITTED` |
 | 2026-10-24 | v0.5 | §3.5.1 放置关系；场上谓词可覆盖；离场保留；垫下 vs 牌库可见性 |
 | 2026-05-25 | v0.1 | 初稿 |

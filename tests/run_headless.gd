@@ -7720,7 +7720,7 @@ func _test_limbo_commit_uncommit() -> bool:
 	h.ctx.skill_tests.begin_test(test, h.ctx)
 	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
 		return false
-	## 模拟投入期 Constant 挂载（controller = 卡实例）。
+	## 模拟投入期挂载（非 Constant；controller = 卡实例）。
 	var tmpl := RegistrationTemplate.new()
 	tmpl.controller_id = card_id
 	tmpl.lifetime_kind = AhcEnums.LifetimeKind.WHILE_COMMITTED

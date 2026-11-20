@@ -8,16 +8,17 @@
 
 ## 默认模型（技能）
 
-技能更接近 **检定期间仍投入才生效的「支援」**，不是事件那种打出即结算完毕。
+技能正文默认是 **投入期间可用的技能能力**（Grimoire：committed 期间可用），不是事件即时体，也 **不是** Constant（Constant 要求在场；LIMBO 不算 in play）。
 
-区划对齐 Grimoire（OQ-01-03 重裁）：投入 → **`LIMBO` / `LimboKind.COMMITTED`**（与显现用的 `RESOLVING` 分子区）；能力寿命 **`WHILE_COMMITTED`** = 留在该子区。
+区划对齐 Grimoire（OQ-01-03 重裁）：投入 → **`LIMBO` / `LimboKind.COMMITTED`**（与显现用的 `RESOLVING` 分子区）；寿命钩 **`WHILE_COMMITTED`** = 仍在该子区（**≠** `AbilityKind.CONSTANT`）。
 
-| | 事件 | 技能（个人版默认） | 支援 |
+| | 事件 | 技能（个人版默认） | 支援 Constant |
 |---|---|---|---|
-| 区 | 打出 → LIMBO/`RESOLVING` | 投入 → LIMBO/`COMMITTED` | PLAY |
-| 文本何时有效 | 结算中效果体 | **仍在 COMMITTED 子区** | WHILE_IN_PLAY |
-| 成功/失败 / *After this test ends* | — | 能力，绑投入；**不**先造延时 | — |
-| 回收到手 / 离开投入 | 通常已结算完 | 离开 COMMITTED → **能力关闭** | Constant 卸 |
+| 区 | 打出 → LIMBO/`RESOLVING` | 投入 → LIMBO/`COMMITTED` | PLAY（in play） |
+| 文本身份 | 效果体 | **技能能力**（committed window） | Constant |
+| 文本何时有效 | 结算中 | **仍在 COMMITTED** | WHILE_IN_PLAY |
+| 成功/失败 / *After this test ends* | — | 同上，绑投入；**不**先造延时 | — |
+| 回收到手 / 离开投入 | 通常已结算完 | 离开 COMMITTED → **能力不可用** | leave play 卸 Constant |
 
 仅当卡面写出 **创建时刻 + 寿命**（如 *When you commit… gains … for the duration of…*）时，才编译为 **持续效果**（Gain/Lose + `DURATION`），源牌可离 LIMBO 仍活。
 
@@ -59,5 +60,6 @@
 
 | 日期 | 卡 / 主题 | 摘要 |
 |---|---|---|
+| 2026-11-20 | 术语 | 投入期技能 ≠ Constant（LIMBO 非 in play）；仅保留 `WHILE_COMMITTED` 寿命钩 |
 | 2026-11-19 | 区划 | 投入进 LIMBO/`COMMITTED`；与 `RESOLVING` 分子区（对齐 OQ-01-03 重裁） |
 | 2026-11-19 | 06111 | 个人版加 *When you commit* /「投入后」，显式创建持续；抽牌句仍绑投入 |
