@@ -32,6 +32,13 @@ enum Zone {
 	LIMBO,
 }
 
+## LIMBO 子区（01 §3.5.0 · OQ-01-03 重裁）。zone==LIMBO 时有效；离开 LIMBO 清 NONE。
+enum LimboKind {
+	NONE,
+	RESOLVING, ## 事件打出结算 / 诡计显现结算
+	COMMITTED, ## 已投入技能检定
+}
+
 enum CardFace { A, B }
 
 ## 卡背类型（无文本背面图案 / 牌库外观）。**仅**此用途；≠ 正面 cardtype；≠ CardFace A/B。
@@ -356,6 +363,9 @@ enum LifetimeKind {
 	WHILE_IN_HAND,
 	WHILE_IN_DECK,
 	WHILE_SET_ASIDE,
+	## 投入检定：LIMBO/`COMMITTED` 期间；离开该子区卸。
+	## 技能上 Constant（持续句）的寿命；Constant 种类不强制 in play（01 §3.5.0）。
+	WHILE_COMMITTED,
 }
 
 enum DurationAnchorKind { THIS_TURN, THIS_PHASE, THIS_SKILL_TEST, THIS_ROUND }

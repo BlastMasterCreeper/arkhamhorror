@@ -74,12 +74,14 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	if to.owner_id == &"encounter":
 		if not _insert_encounter_discard(card):
 			return false
+		_finish_leave_limbo_if_needed(card, from_zone)
 		_mirror_move_card(card, to)
 		_emit_zone_move(card_id, from_zone, card.zone)
 		return true
 	if to.owner_id == &"victory_display":
 		if not _insert_victory_display(card):
 			return false
+		_finish_leave_limbo_if_needed(card, from_zone)
 		_mirror_move_card(card, to)
 		_emit_zone_move(card_id, from_zone, card.zone)
 		return true
@@ -91,6 +93,7 @@ func move_card(card_id: StringName, to: CardSlot) -> bool:
 	card.zone = _zone_for_pile(to.pile)
 	if to.pile == AhcEnums.PileKind.INV_HAND:
 		card.controller_id = to.owner_id
+	_finish_leave_limbo_if_needed(card, from_zone)
 	_mirror_move_card(card, to)
 	_emit_zone_move(card_id, from_zone, card.zone)
 	return true
@@ -278,6 +281,7 @@ func prepare_hand_card_for_encounter_spawn(card_id: StringName, bearer_id: Strin
 	_remove_from_pile(card, inv)
 	card.controller_id = bearer_id
 	card.zone = AhcEnums.Zone.LIMBO
+	card.limbo_kind = AhcEnums.LimboKind.RESOLVING
 	return true
 
 
@@ -318,8 +322,25 @@ func enter_hand_entry(card_id: StringName, inv_id: StringName) -> bool:
 	return commit_enter_hand(card_id, inv_id)
 
 
-func enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
-	return _enter_limbo(card_id, controller_id)
+func enter_limbo(
+	card_id: StringName,
+	controller_id: StringName,
+	kind: AhcEnums.LimboKind = AhcEnums.LimboKind.RESOLVING
+) -> bool:
+	return _enter_limbo(card_id, controller_id, kind)
+
+
+## 投入检定：HAND → LIMBO/`COMMITTED`（Grimoire · OQ-01-03）。
+func enter_limbo_committed(card_id: StringName, controller_id: StringName) -> bool:
+	return _enter_limbo(card_id, controller_id, AhcEnums.LimboKind.COMMITTED)
+
+
+## 投入中收回手牌（Silas 等）：LIMBO/`COMMITTED` → HAND；卸 WHILE_COMMITTED。
+func return_committed_to_hand(card_id: StringName, inv_id: StringName) -> bool:
+	var card := _state.registry.get_card(card_id)
+	if card == null or not card.is_limbo_committed():
+		return false
+	return move_card(card_id, CardSlot.hand_bottom(inv_id))
 
 
 func commit_enter_threat_area(card_id: StringName, inv_id: StringName) -> bool:
@@ -392,21 +413,52 @@ func discard_from_hand(card_id: StringName, inv_id: StringName) -> bool:
 	return move_card(card_id, CardSlot.discard_top(inv_id))
 
 
-func _enter_limbo(card_id: StringName, controller_id: StringName) -> bool:
+func _enter_limbo(
+	card_id: StringName,
+	controller_id: StringName,
+	kind: AhcEnums.LimboKind = AhcEnums.LimboKind.RESOLVING
+) -> bool:
 	var card := _state.registry.get_card(card_id)
 	if card == null:
 		return false
+	if kind == AhcEnums.LimboKind.NONE:
+		kind = AhcEnums.LimboKind.RESOLVING
 	var from_zone := card.zone
-	var inv := _state.registry.get_investigator(card.owner_id)
-	if inv != null:
-		_remove_from_pile(card, inv)
+	## 投入：从控制者手牌移除（owner 可能仍是牌主）。
+	if from_zone == AhcEnums.Zone.HAND:
+		var holder_id := card.controller_id
+		if holder_id == &"":
+			holder_id = card.owner_id
+		var holder := _state.registry.get_investigator(holder_id)
+		if holder != null:
+			_remove_from_pile(card, holder)
+		var owner_inv := _state.registry.get_investigator(card.owner_id)
+		if owner_inv != null and owner_inv != holder:
+			_remove_from_pile(card, owner_inv)
+	else:
+		var inv := _state.registry.get_investigator(card.owner_id)
+		if inv != null:
+			_remove_from_pile(card, inv)
 	_state.encounter_deck.erase(card.id.instance_id)
 	_state.encounter_discard.erase(card.id.instance_id)
 	card.zone = AhcEnums.Zone.LIMBO
+	card.limbo_kind = kind
 	card.controller_id = controller_id
 	_mirror_move_to_zone(card, AhcEnums.Zone.LIMBO, controller_id)
 	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.LIMBO)
 	return true
+
+
+## 离开 LIMBO 时清子区；COMMITTED → 卸 WHILE_COMMITTED。
+func _finish_leave_limbo_if_needed(card: CardInstance, from_zone: AhcEnums.Zone) -> void:
+	if card == null or from_zone != AhcEnums.Zone.LIMBO:
+		return
+	if card.zone == AhcEnums.Zone.LIMBO:
+		return
+	var was_committed := card.limbo_kind == AhcEnums.LimboKind.COMMITTED
+	card.clear_limbo_kind()
+	if was_committed and _registrations != null:
+		_registrations.on_leave_committed_limbo(card.id.instance_id)
 
 
 func _insert_encounter_discard(card: CardInstance) -> bool:
@@ -434,6 +486,7 @@ func move_to_set_aside(card_id: StringName) -> bool:
 	_state.set_aside.erase(card_id)
 	_state.set_aside.append(card_id)
 	card.zone = AhcEnums.Zone.SET_ASIDE
+	_finish_leave_limbo_if_needed(card, from_zone)
 	_mirror_move_to_zone(card, AhcEnums.Zone.SET_ASIDE, card.owner_id)
 	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.SET_ASIDE)
 	return true
@@ -449,6 +502,7 @@ func remove_from_game(card_id: StringName) -> bool:
 	_state.removed_from_game.erase(card_id)
 	_state.removed_from_game.append(card_id)
 	card.zone = AhcEnums.Zone.REMOVED_FROM_GAME
+	_finish_leave_limbo_if_needed(card, from_zone)
 	_mirror_move_to_zone(card, AhcEnums.Zone.REMOVED_FROM_GAME, card.owner_id)
 	_emit_zone_move(card_id, from_zone, AhcEnums.Zone.REMOVED_FROM_GAME)
 	return true

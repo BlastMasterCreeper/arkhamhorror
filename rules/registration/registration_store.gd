@@ -50,6 +50,13 @@ func on_leave_set_aside(card_id: StringName) -> void:
 	])
 
 
+## 离开 LIMBO/`COMMITTED`（收回手 / ST.8 弃置等）→ 卸 WHILE_COMMITTED（含投入期 Constant）。
+func on_leave_committed_limbo(card_id: StringName) -> void:
+	_unregister_matching(card_id, [
+		AhcEnums.LifetimeKind.WHILE_COMMITTED,
+	])
+
+
 func on_drawn_card_finalize(card_id: StringName) -> void:
 	unregister_by_drawn_card(card_id)
 

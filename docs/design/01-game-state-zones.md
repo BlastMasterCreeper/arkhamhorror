@@ -140,14 +140,28 @@ enum LimboKind {
 # CardInstance.zone == LIMBO 时必有 limbo_kind；离开 LIMBO 时清空。
 ```
 
-| 子区 | 进入 | 离开 | 能力 / Constant 寿命 |
+| 子区 | 进入 | 离开 | 能力窗口 |
 |---|---|---|---|
 | **RESOLVING** | 事件 Initiation 后；遭遇抽进 LIMBO 显现阶段 | 结算完 → 弃牌 / 进场 / RFG 等（既有 G4 / 打出路径） | 显现体在 RESOLVING 内解释；**不是** `WHILE_COMMITTED` |
-| **COMMITTED** | ST.2 `commit`：HAND → LIMBO/`COMMITTED` | 收回手 → HAND；ST.8 → 通常弃牌；嵌套检定各管各的 | 印刷技能能力默认 **`WHILE_COMMITTED`**（类支援 Constant）；卸 = 离开本子区 |
+| **COMMITTED** | ST.2 `commit`：HAND → LIMBO/`COMMITTED` | 收回手 → HAND；ST.8 → 通常弃牌；嵌套检定各管各的 | 投入期间可用的技能能力；**持续生效句**可标 Constant + `WHILE_COMMITTED`（见下） |
 
 **索引**：`SkillTestContext.committed` 仍保留（检定内图标合计、Max N、谁投入）；**权威区划**是 LIMBO/`COMMITTED`，列表与之同步，不是「zone 假留 HAND」的替代品。
 
 **查询**：`is_in_hand` = zone==HAND（投入后为假）；`is_committed_to(test)` = LIMBO+COMMITTED 且在该 test 的 committed 列表。Silas 等「收回手牌」= LIMBO/`COMMITTED` → HAND，并 unmount `WHILE_COMMITTED`。
+
+#### Constant 定义扩展（已裁决 2026-11-20）
+
+> Grimoire 常写 Constant「在场时」——那是**最常见寿命**，不是能力种类的唯一定义。
+
+引擎 **`AbilityKind.CONSTANT`** = **持续生效、无需 Initiation 打开** 的能力形态。有效窗口由 **Lifetime** 决定，不必 in play：
+
+| Lifetime | 典型源 | 先例 |
+|---|---|---|
+| `WHILE_IN_PLAY` | 支援 / 敌人 / 地点 Constant | Grimoire 正文 |
+| `WHILE_HIDDEN_IN_HAND` | 隐私牌上 Constant | [06 §3.2.6](06-registration-buff-model.md) 已有行 |
+| `WHILE_COMMITTED` | 技能上「投入期间持续…」句 | 本裁决；LIMBO 仍 **不算 in play** |
+
+**仍不是 Constant**：*If this test succeeds/fails*（ST.7）、*After this test ends*（检定决议窗技能能力）、*When you commit… for the duration*（创建 lasting / Gain）。那些有触发或一次创建，不是持续 Constant 形态。
 
 ### 3.5.1 放置关系（Placement · 已裁决 2026-10-24）
 
@@ -484,6 +498,8 @@ class LocationState:
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-20 | v0.5.3 | §3.5.0：扩展 Constant（寿命可非 in play；投入持续句 + WHILE_COMMITTED） |
+| 2026-11-20 | v0.5.2 | §3.5.0：曾写投入≠Constant；被 v0.5.3 扩展定义取代 |
 | 2026-11-19 | v0.5.1 | §3.5.0 Limbo 子区；OQ-01-03 重裁：投入进 LIMBO/`COMMITTED` |
 | 2026-10-24 | v0.5 | §3.5.1 放置关系；场上谓词可覆盖；离场保留；垫下 vs 牌库可见性 |
 | 2026-05-25 | v0.1 | 初稿 |
