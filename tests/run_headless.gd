@@ -322,6 +322,8 @@ func _initialize() -> void:
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
 	_run_test("ST7-ORDER-01 multi success ordered inline", _test_st7_order_multi_success)
 	_run_test("ST7-ORDER-02 committed skip when returned", _test_st7_order_committed_skip)
+	_run_test("ST7-COMMIT-01 mount printed st7 on commit", _test_st7_commit_mounts_printed)
+	_run_test("ST7-COMMIT-02 uncommit drops mounted st7", _test_st7_commit_unmount)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("LIMBO-COMMIT-01 commit enters LIMBO/COMMITTED", _test_limbo_commit_enters)
 	_run_test("LIMBO-COMMIT-02 uncommit returns hand unmounts", _test_limbo_commit_uncommit)
@@ -7743,6 +7745,69 @@ func _test_st7_order_committed_skip() -> bool:
 	h.ctx.skill_tests.step_apply_results(test)
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	return log == [&"perf"]
+
+
+func _register_commit_st7_skill_def(definition_id: StringName) -> void:
+	CardRegistry.register_definition(
+		definition_id,
+		{
+			"title": "Test Commit Skill",
+			"card_type": "skill",
+			"compiled_abilities": [
+				{
+					"register_as": "commit",
+					"ability_id": "commit:0",
+					"status": "full",
+					"st7": {
+						"on_success": {"template": "take_horror", "amount": 1},
+					},
+				}
+			],
+		}
+	)
+
+
+func _test_st7_commit_mounts_printed() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	_register_commit_st7_skill_def(&"test_commit_st7")
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT, &"test_commit_st7"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	var commits: Array[CommittedCard] = [CommittedCard.create(card_id, &"inv_1")]
+	st.run(test, commits)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv.horror_taken == 1 and test.st7_units.size() >= 1
+
+
+func _test_st7_commit_unmount() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	_register_commit_st7_skill_def(&"test_commit_st7_b")
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT, &"test_commit_st7_b"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	if test.st7_units.is_empty():
+		return false
+	if not h.ctx.skill_tests.uncommit_card(test, card_id).ok:
+		return false
+	if not test.st7_units.is_empty():
+		return false
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv.horror_taken == 0
 
 
 func _test_st_end_cleanup() -> bool:
