@@ -10,6 +10,8 @@ var slot: StringName = &""
 var run: Callable = Callable()
 ## 非空则执行前须该卡仍 LIMBO/`COMMITTED`（投入技能支）。
 var requires_committed_card: StringName = &""
+## 来自延时 LISTENER 时填 Registration.id；开火后可 UNTIL_FIRED 卸。
+var from_reg_id: StringName = &""
 
 
 static func create(
@@ -17,7 +19,8 @@ static func create(
 	source_id: StringName,
 	slot: StringName,
 	run: Callable,
-	requires_committed_card: StringName = &""
+	requires_committed_card: StringName = &"",
+	from_reg_id: StringName = &""
 ) -> SkillTestSt7Unit:
 	var u := SkillTestSt7Unit.new()
 	u.unit_id = unit_id
@@ -25,6 +28,7 @@ static func create(
 	u.slot = slot
 	u.run = run
 	u.requires_committed_card = requires_committed_card
+	u.from_reg_id = from_reg_id
 	return u
 
 
