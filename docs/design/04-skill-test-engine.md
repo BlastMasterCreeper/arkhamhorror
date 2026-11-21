@@ -172,6 +172,7 @@ base = investigator.get_skill(skill)
 
 - ST.6 仅判定 success/fail 并计算 `fail_by`（**不在 ST.6 执行上述后果**）
 - **多来源同时后果**：`SkillTestSt7Unit` COLLECT → `PlayerInteractionGate.ask_order_simultaneous`（`prompt_id = order:st7`，队长）→ 按序**内联**执行；单条跳过 ORDER。不 nest。投入技能支带 `requires_committed_card`，离开 LIMBO/`COMMITTED` 则剔除。
+- **延时 LISTENER → ST.7**：能力创建的延时订 `st7.on_success` / `st7.on_fail` / `st7.on_fail_by_each`（`ListenerPayload.at_st7_slot`；可选 `scope_test_id`）。ST.7 **harvest** 进同一批 unit（**不**经 `TimingBus`→`ListenerDispatcher.dispatch`，以免绕过 ORDER）。开火卸 `UNTIL_FIRED`；`scope_test_id` 绑死本检定的未匹配槽在 ST.7 结束卸。
 
 ### 3.8 ST.8 End
 
@@ -464,6 +465,7 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-21 | v0.14 | §3.7：延时 LISTENER（`st7.*`）harvest 进 ST.7 同批 ORDER |
 | 2026-11-21 | v0.13 | §5：commit 时装载印刷技能 ST.7（`CommittedSkillSt7` / `register_as: commit`） |
 | 2026-11-21 | v0.12 | §3.7：ST.7 COLLECT → ORDER_SIMULTANEOUS（order:st7）→ 内联；`SkillTestSt7Unit` |
 | 2026-11-19 | v0.11 | §5 Commit：OQ-01-03 重裁 — 投入进 LIMBO/`COMMITTED`；`WHILE_COMMITTED` 卸钩 |
