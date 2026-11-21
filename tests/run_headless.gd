@@ -320,6 +320,8 @@ func _initialize() -> void:
 	_run_test("PERIL-06 drawer play and trigger allowed", _test_peril_drawer_play_trigger_ok)
 	_run_test("PERIL-07 peril registers via seq.effect.register", _test_peril_register_no_vacuum)
 	_run_test("ST-07 apply success callback", _test_st_apply_success)
+	_run_test("ST7-ORDER-01 multi success ordered inline", _test_st7_order_multi_success)
+	_run_test("ST7-ORDER-02 committed skip when returned", _test_st7_order_committed_skip)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("LIMBO-COMMIT-01 commit enters LIMBO/COMMITTED", _test_limbo_commit_enters)
 	_run_test("LIMBO-COMMIT-02 uncommit returns hand unmounts", _test_limbo_commit_uncommit)
@@ -7663,6 +7665,84 @@ func _test_st_apply_success() -> bool:
 		flags.applied = true
 	st.run(test)
 	return flags.applied
+
+
+func _test_st7_order_multi_success() -> bool:
+	var cfg := RulesConfig.new()
+	cfg.auto_choice_mode = AhcEnums.AutoChoiceMode.REGISTRATION_ORDER
+	var h := RuleTestHarness.new(42, cfg)
+	h.ctx.lead_investigator_id = &"inv_1"
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	var log: Array = []
+	SkillTestSt7Composition.append_callable_unit(
+		test,
+		&"src_a",
+		&"on_success",
+		func(_ctx: SkillTestContext) -> void:
+			log.append(&"a")
+	)
+	SkillTestSt7Composition.append_callable_unit(
+		test,
+		&"src_b",
+		&"on_success",
+		func(_ctx: SkillTestContext) -> void:
+			log.append(&"b")
+	)
+	st.run(test)
+	if log != [&"a", &"b"]:
+		return false
+	if test.st7_order_applied.size() != 2:
+		return false
+	var u0: SkillTestSt7Unit = test.st7_order_applied[0] as SkillTestSt7Unit
+	var u1: SkillTestSt7Unit = test.st7_order_applied[1] as SkillTestSt7Unit
+	return (
+		u0 != null
+		and u1 != null
+		and u0.source_id == &"src_a"
+		and u1.source_id == &"src_b"
+		and h.ctx.interaction.last_used_default
+	)
+
+
+func _test_st7_order_committed_skip() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	var log: Array = []
+	SkillTestSt7Composition.append_callable_unit(
+		test,
+		&"performer",
+		&"on_success",
+		func(_ctx: SkillTestContext) -> void:
+			log.append(&"perf")
+	)
+	SkillTestSt7Composition.append_callable_unit(
+		test,
+		&"skill_card",
+		&"on_success",
+		func(_ctx: SkillTestContext) -> void:
+			log.append(&"skill"),
+		card_id
+	)
+	## Silas：收回投入 → 技能支应从 ST.7 COLLECT 剔除。
+	if not h.ctx.skill_tests.uncommit_card(test, card_id).ok:
+		return false
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	return log == [&"perf"]
 
 
 func _test_st_end_cleanup() -> bool:

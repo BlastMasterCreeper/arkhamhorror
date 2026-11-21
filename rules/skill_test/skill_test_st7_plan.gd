@@ -6,6 +6,10 @@ extends RefCounted
 var on_success: CompositionNode = null
 var on_fail: CompositionNode = null
 var on_fail_by_each: CompositionNode = null
+## COLLECT 来源标识（发起方 card / ability / committed skill）。
+var source_id: StringName = &""
+## 投入技能支：非空则 ST.7 时须仍 LIMBO/`COMMITTED`。
+var requires_committed_card: StringName = &""
 
 
 static func from_compile_dict(
