@@ -320,16 +320,11 @@ func step_determine_success(ctx: SkillTestContext) -> bool:
 
 func step_apply_results(ctx: SkillTestContext) -> Dictionary:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_7_APPLY
+	## COLLECT → ORDER_SIMULTANEOUS（order:st7）→ 内联；单条跳过 ORDER。
+	SkillTestSt7Composition.apply_ordered(ctx, _game_ctx)
 	if ctx.success:
-		if ctx.on_success.is_valid():
-			ctx.on_success.call(ctx)
 		ctx.success_applied = true
 	else:
-		if ctx.on_fail.is_valid():
-			ctx.on_fail.call(ctx)
-		for effect in ctx.st7_fail_by_effects:
-			if effect.is_valid():
-				effect.call(ctx)
 		ctx.fail_applied = true
 	_advance_step(AhcEnums.SkillTestStep.ST_7_APPLY, ctx)
 	return {"ok": true}
