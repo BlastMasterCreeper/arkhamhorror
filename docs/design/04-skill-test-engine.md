@@ -369,6 +369,7 @@ seq.draw.encounter → resolve_card_body (内联)
 | Max N committed | 按 title 计数 |
 | Commit 归属 | **HAND → `Zone.LIMBO` + `LimboKind.COMMITTED`**（Grimoire；OQ-01-03 重裁 2026-11-19）；`SkillTestContext.committed` 同步索引（图标 / Max N） |
 | 投入期能力 | 技能能力（committed window）。**持续句**可 `AbilityKind.CONSTANT` + `WHILE_COMMITTED`（Constant 扩展定义，01 §3.5.0）；ST.7 / *After this test ends* 仍非 Constant |
+| Commit → ST.7 | `CommittedSkillSt7.mount_from_card`：读 `compiled_abilities` 中 `register_as: commit` + `st7`，`register_plan(..., requires_committed_card)`；uncommit 时 `unmount_for_card`。跳过 `template: skill_test`（属 nest 检定） |
 | 离开投入 | 收回手 → HAND（卸 `WHILE_COMMITTED`）；ST.8 → 通常进弃牌堆并离开 LIMBO |
 | LIMBO 其它 | **`LimboKind.RESOLVING`** = 事件/诡计结算中；与 COMMITTED **分子区**，见 [01 §3.5.0](01-game-state-zones.md) |
 
@@ -463,6 +464,7 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-21 | v0.13 | §5：commit 时装载印刷技能 ST.7（`CommittedSkillSt7` / `register_as: commit`） |
 | 2026-11-21 | v0.12 | §3.7：ST.7 COLLECT → ORDER_SIMULTANEOUS（order:st7）→ 内联；`SkillTestSt7Unit` |
 | 2026-11-19 | v0.11 | §5 Commit：OQ-01-03 重裁 — 投入进 LIMBO/`COMMITTED`；`WHILE_COMMITTED` 卸钩 |
 | 2026-05-25 | v0.1 | 初稿 |
