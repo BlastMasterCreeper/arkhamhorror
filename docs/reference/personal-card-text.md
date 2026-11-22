@@ -1,7 +1,7 @@
 # 个人版卡面改写（Personal Card Text）
 
 > **性质**：仓库维护者个人版；**不是**官方 errata / FAQ。  
-> **用途**：让「持续效果 / 延时 / 仍投入才生效」从描述自明，供编译与引擎对齐。  
+> **用途**：让「持续效果 / 延时 / 仍投入才生效 / `may` 辖域」从描述自明，供编译与引擎对齐。  
 > **冲突时**：引擎设计可采个人版；对照栏仍保留官方印刷与 FAQ。
 
 ---
@@ -56,10 +56,90 @@
 
 ---
 
+## `may … and you get`（技能替换 + 修正）
+
+### 问题
+
+印刷常见：
+
+> you **may use** ⟨A⟩ instead of ⟨B⟩[,] **and you get** +N skill value.
+
+`may` 与直陈 `you get` 并用 `and` 并列时有歧义：
+
+| 读法 | 选「不」换技能时 |
+|---|---|
+| A · `may` 只罩替换；`+N` 必给 | `and` 连「跳过的方面」与「仍结算的方面」——口语悬空 |
+| B · `may` 罩整包（替换 **与** `+N`） | 拒绝则两边都不发生；`and` 始终连可选包内两项 |
+
+对照已自明的印刷（**90063** Trusty Bullwhip）：
+
+> This attack uses ⟨agi⟩ instead of ⟨combat⟩. You get +2 skill value for this attack.
+
+两句、无 `may`：替换与 `+N` 都必结算。后文另有 *you may exhaust … **to** deal +1 **and** automatically evade*——此处 `may` 才真罩住 `and` 两边（同一 `to` 目的语）。
+
+**个人版裁决（2026-11-22）**：对 *may use … instead of … and you get +N* 模板，采 **读法 B**——`may` 辖域含替换与 `+N`；选「不」则本句两方面都不创建。改写时把后项收进情态补语（*and get*），去掉易误导的直陈 *and you get*。
+
+---
+
+## 08101 · Divination（占兆）
+
+### 官方印刷（ArkhamDB）
+
+> [action]: Investigate. For this investigation, you may use [willpower] instead of [intellect], and you get +1 skill value. If you succeed, spend 1 or 2 charges. …
+
+（同循环 **08090** Brand of Cthugha：*For this attack, you may use [willpower] instead of [combat], and you get +1 skill value.* ——同一模板，个人版同裁。）
+
+### 个人版改写
+
+**EN**
+
+> [action]: Investigate. For this investigation, **you may use [willpower] instead of [intellect] and get +1 skill value.** If you succeed, spend 1 or 2 charges. …
+
+**ZH**
+
+> [行动]：调查。本次调查中，**你可以使用意志代替智力，并获得 +1 技能值**（二者同属可选；不选则都不适用）。若成功，花费 1 或 2 充能。…
+
+### 引擎映射（个人版）
+
+| 句 | 译法 |
+|---|---|
+| may use will instead of int **and get +1** | 一次 PI 确认：接受 → 本调查 skill=will **且** +1；拒绝 → 仍用智力、无此句 +1 |
+| 成功后 spend charges / 发现线索 | 仍在检定 ST.7 等原槽；与 `may` 包无关 |
+
+---
+
+## 10077 · British Bull Dog
+
+### 官方印刷（ArkhamDB）
+
+> [action] Spend 1 ammo: Fight. You may use [agility] instead of [combat] for this attack and you get +2 skill value. This attack deals +1 damage. Ignore the aloof keyword for this attack.
+
+（无逗号；仍是 *may use … and you get*。）
+
+### 个人版改写
+
+**EN**
+
+> [action] Spend 1 ammo: Fight. **You may use [agility] instead of [combat] for this attack and get +2 skill value.** This attack deals +1 damage. Ignore the aloof keyword for this attack.
+
+**ZH**
+
+> [行动] 花费 1 弹药：攻击。**你可以使用敏捷代替战斗，并获得 +2 技能值**（同属可选）。本次攻击造成 +1 伤害。本次攻击忽略冷漠（aloof）。
+
+### 引擎映射（个人版）
+
+| 句 | 译法 |
+|---|---|
+| may use agi instead of combat **and get +2** | 与 08101 同：一包 PI；拒绝则无替换、无此句 +2 |
+| deals +1 damage / Ignore aloof | **不在** `may` 包内；发动本 Fight 即适用 |
+
+---
+
 ## 变更记录
 
 | 日期 | 卡 / 主题 | 摘要 |
 |---|---|---|
+| 2026-11-22 | may…and you get | 裁决读法 B；08101 / 10077（及同模 08090）个人版改为 *and get* |
 | 2026-11-20 | Constant | 扩展：持续句可 Constant + 非 in-play 寿命（含 `WHILE_COMMITTED`） |
 | 2026-11-19 | 区划 | 投入进 LIMBO/`COMMITTED`；与 `RESOLVING` 分子区（对齐 OQ-01-03 重裁） |
 | 2026-11-19 | 06111 | 个人版加 *When you commit* /「投入后」，显式创建持续；抽牌句仍绑投入 |
