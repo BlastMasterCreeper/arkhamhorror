@@ -1,7 +1,8 @@
 # 01 — 游戏状态与区域模型 (GameStateStore)
 
 > **依赖**：[00-architecture-overview.md](../00-architecture-overview.md)  
-> **被依赖**：所有 Rules / Script 子系统
+> **被依赖**：所有 Rules / Script 子系统  
+> **函数式值模型（草案）**：[24-functional-world.md](24-functional-world.md)（`World` / `Run` 分立；与本文件区划不变量对齐）
 
 ---
 
