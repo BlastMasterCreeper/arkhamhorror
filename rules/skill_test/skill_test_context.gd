@@ -21,6 +21,10 @@ var target_enemy_id: StringName = &""
 var on_success: Callable
 var on_fail: Callable
 var st7_fail_by_effects: Array[Callable] = []
+## ST.7 同时结果单元（SkillTestSt7Unit）；COLLECT → ORDER → 内联。
+var st7_units: Array = []
+## 最近一次 ST.7 实际执行序（测试 / 审计）。
+var st7_order_applied: Array = []
 var waiting_player_window: bool = false
 var pending_player_window: AhcEnums.PlayerWindow = AhcEnums.PlayerWindow.PW_SKILL_TEST_AFTER_COMMIT
 var current_step: AhcEnums.SkillTestStep = AhcEnums.SkillTestStep.ST_1_BEGIN

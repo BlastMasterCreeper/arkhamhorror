@@ -231,32 +231,39 @@ static func _register_st7(
 	effect: Dictionary,
 	ability: ChaosSymbolAbility = null
 ) -> void:
-	if game_ctx == null or game_ctx.composition == null:
+	if game_ctx == null or game_ctx.composition == null or ctx == null:
 		return
+	var src := &"chaos_symbol"
+	if ability != null:
+		src = StringName("chaos:%d" % int(ability.symbol_kind))
 	var on_ok_raw: Variant = effect.get("on_success", {})
 	if on_ok_raw is Dictionary and not (on_ok_raw as Dictionary).is_empty():
 		var ok_node := _build_body(on_ok_raw as Dictionary, game_ctx, ctx, ability)
 		if ok_node != null:
-			var prior_ok := ctx.on_success
 			var body_ok := ok_node
-			ctx.on_success = func(st: SkillTestContext) -> void:
-				if prior_ok.is_valid():
-					prior_ok.call(st)
-				CompositionMount.resolve_ability(
-					game_ctx, body_ok, st.performing_investigator
-				)
+			SkillTestSt7Composition.append_callable_unit(
+				ctx,
+				src,
+				&"on_success",
+				func(st: SkillTestContext) -> void:
+					CompositionMount.resolve_ability(
+						game_ctx, body_ok, st.performing_investigator
+					)
+			)
 	var on_fail_raw: Variant = effect.get("on_fail", {})
 	if on_fail_raw is Dictionary and not (on_fail_raw as Dictionary).is_empty():
 		var fail_node := _build_body(on_fail_raw as Dictionary, game_ctx, ctx, ability)
 		if fail_node != null:
-			var prior := ctx.on_fail
 			var body := fail_node
-			ctx.on_fail = func(st: SkillTestContext) -> void:
-				if prior.is_valid():
-					prior.call(st)
-				CompositionMount.resolve_ability(
-					game_ctx, body, st.performing_investigator
-				)
+			SkillTestSt7Composition.append_callable_unit(
+				ctx,
+				src,
+				&"on_fail",
+				func(st: SkillTestContext) -> void:
+					CompositionMount.resolve_ability(
+						game_ctx, body, st.performing_investigator
+					)
+			)
 	var fail_by_raw: Variant = effect.get("on_fail_by", {})
 	if fail_by_raw is Dictionary and not (fail_by_raw as Dictionary).is_empty():
 		var fb: Dictionary = fail_by_raw
@@ -267,7 +274,10 @@ static func _register_st7(
 			if by_node != null:
 				var thr := threshold
 				var body2 := by_node
-				ctx.st7_fail_by_effects.append(
+				SkillTestSt7Composition.append_callable_unit(
+					ctx,
+					src,
+					&"symbol_fail_by",
 					func(st: SkillTestContext) -> void:
 						if st.success or st.fail_by < thr:
 							return

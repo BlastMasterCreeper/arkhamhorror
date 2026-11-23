@@ -171,7 +171,7 @@ base = investigator.get_skill(skill)
 | Symbol *fail by X+* | `st7_fail_by_effects` 回调 | fail 且 `fail_by ≥ X` |
 
 - ST.6 仅判定 success/fail 并计算 `fail_by`（**不在 ST.6 执行上述后果**）
-- 调查员选顺序（多个 ST.7 结果）— 待 `PlayerInteractionGate.ORDER_ST7`（open question）
+- **多来源同时后果**：`SkillTestSt7Unit` COLLECT → `PlayerInteractionGate.ask_order_simultaneous`（`prompt_id = order:st7`，队长）→ 按序**内联**执行；单条跳过 ORDER。不 nest。投入技能支带 `requires_committed_card`，离开 LIMBO/`COMMITTED` 则剔除。
 
 ### 3.8 ST.8 End
 
@@ -463,6 +463,7 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-21 | v0.12 | §3.7：ST.7 COLLECT → ORDER_SIMULTANEOUS（order:st7）→ 内联；`SkillTestSt7Unit` |
 | 2026-11-19 | v0.11 | §5 Commit：OQ-01-03 重裁 — 投入进 LIMBO/`COMMITTED`；`WHILE_COMMITTED` 卸钩 |
 | 2026-05-25 | v0.1 | 初稿 |
 | 2026-05-25 | v0.2 | OQ-04-01 裁决；修正 ST.3 无 Window、ST.4 后 Window 仅整链一次 |
