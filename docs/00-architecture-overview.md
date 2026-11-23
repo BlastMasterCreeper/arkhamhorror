@@ -361,6 +361,7 @@ class EventRecord:
 | [24-functional-world.md](design/24-functional-world.md) | 函数式 `World`/`Run` 值模型（草案） |
 | [25-functional-eff.md](design/25-functional-eff.md) | 函数式 `Eff` 代数（草案） |
 | [26-eff-kind-table.md](design/26-eff-kind-table.md) | `Eff` 种类表：Nest vs 内联（已裁） |
+| [27-eff-eval-detail.md](design/27-eff-eval-detail.md) | `Eff` 求值细则：信封 · Ask 分型 · Forced/响应池 |
 | [02-framework-flow.md](design/02-framework-flow.md) | FrameworkFlowEngine |
 | [03-action-system.md](design/03-action-system.md) | ActionSystem、AOO |
 | [04-skill-test-engine.md](design/04-skill-test-engine.md) | SkillTestEngine |
