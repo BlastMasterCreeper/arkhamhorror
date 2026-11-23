@@ -2,7 +2,8 @@
 
 > **状态**：设计草案 v0.1 · 2026-11-23  
 > **依赖**：[25-functional-eff](25-functional-eff.md)、[26-eff-kind-table](26-eff-kind-table.md)、[24-functional-world](24-functional-world.md)、[16-player-interaction](16-player-interaction.md)、[15 §4.0.5](15-timing-entry-catalog.md)、[17-seq-runtime](17-seq-runtime.md)  
-> **目的**：把此前偏粗的「`step` + Nest 压栈」拆成 **可手算的分层函数**；纠正「Forced 无 Ask」；把时点响应做成与卡面选择 **同一 `Ask` 代数、不同 `AskKind`**。
+> **目的**：把此前偏粗的「`step` + Nest 压栈」拆成 **可手算的分层函数**；纠正「Forced 无 Ask」；把时点响应做成与卡面选择 **同一 `Ask` 代数、不同 `AskKind`**。  
+> **总纲**：[28-functional-scheme](28-functional-scheme.md)。本文 WhenForced→WhenPool **过平**，已由 28 §4 Agenda（类别整批、显现独立、遭遇抽牌专用议程）修订；Forced 排序 Ask 仍有效。
 
 ---
 
