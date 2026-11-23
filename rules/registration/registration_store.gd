@@ -400,7 +400,10 @@ func all_registrations() -> Array[Registration]:
 	return _entries.duplicate()
 
 
-func collect_listeners(timing_name: StringName) -> Array[ListenerEntry]:
+func collect_listeners(
+	timing_name: StringName,
+	scope_test_id: StringName = &""
+) -> Array[ListenerEntry]:
 	var out: Array[ListenerEntry] = []
 	for reg in _entries:
 		for buff in reg.buffs:
@@ -408,6 +411,11 @@ func collect_listeners(timing_name: StringName) -> Array[ListenerEntry]:
 				continue
 			if buff.listener.timing != timing_name:
 				continue
+			## scope_test_id 实参非空时：payload 空=任意检定；非空须匹配。
+			if scope_test_id != &"":
+				var want: StringName = buff.listener.scope_test_id
+				if want != &"" and want != scope_test_id:
+					continue
 			var entry := ListenerEntry.new()
 			entry.reg_id = reg.id
 			entry.controller_id = reg.controller_id
@@ -415,6 +423,29 @@ func collect_listeners(timing_name: StringName) -> Array[ListenerEntry]:
 			entry.composition = buff.listener.composition
 			out.append(entry)
 	return out
+
+
+## 卸掉订了 ST.7 时点、且绑定该 test（或未绑定）的延时 LISTENER（检定 ST.7 窗关闭）。
+func unregister_st7_listeners_for_test(test_id: StringName) -> int:
+	if test_id == &"":
+		return 0
+	var to_drop: Array[StringName] = []
+	for reg in _entries:
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.LISTENER or buff.listener == null:
+				continue
+			if not SkillTestSt7Composition.is_st7_timing(buff.listener.timing):
+				continue
+			var scope: StringName = buff.listener.scope_test_id
+			if scope != &"" and scope != test_id:
+				continue
+			## 仅卸「绑死本检定」的；未绑定的留给后续检定（UNTIL_FIRED 开火时再卸）。
+			if scope == test_id:
+				to_drop.append(reg.id)
+			break
+	for rid in to_drop:
+		unregister(rid)
+	return to_drop.size()
 
 
 func duplicate_store() -> RegistrationStore:

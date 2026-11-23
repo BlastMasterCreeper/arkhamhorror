@@ -324,6 +324,9 @@ func _initialize() -> void:
 	_run_test("ST7-ORDER-02 committed skip when returned", _test_st7_order_committed_skip)
 	_run_test("ST7-COMMIT-01 mount printed st7 on commit", _test_st7_commit_mounts_printed)
 	_run_test("ST7-COMMIT-02 uncommit drops mounted st7", _test_st7_commit_unmount)
+	_run_test("ST7-DELAY-01 listener on_success at ST.7", _test_st7_delayed_listener_success)
+	_run_test("ST7-DELAY-02 scoped miss cleans up", _test_st7_delayed_listener_scoped_miss)
+	_run_test("ST7-DELAY-03 plan + listener same ORDER batch", _test_st7_delayed_with_plan_order)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("LIMBO-COMMIT-01 commit enters LIMBO/COMMITTED", _test_limbo_commit_enters)
 	_run_test("LIMBO-COMMIT-02 uncommit returns hand unmounts", _test_limbo_commit_uncommit)
@@ -7808,6 +7811,102 @@ func _test_st7_commit_unmount() -> bool:
 	h.ctx.skill_tests.step_end(test, h.ctx)
 	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
 	return inv.horror_taken == 0
+
+
+func _test_st7_delayed_listener_success() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var body := CompositionNode.take_horror(&"inv_1", 1)
+	h.ctx.registrations.register(
+		RegistrationTemplate.delayed_st7_listener(
+			&"inv_1", &"on_success", body, test.id
+		)
+	)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		test.success
+		and inv.horror_taken == 1
+		and h.ctx.registrations.collect_listeners(
+			SkillTestSt7Composition.TIMING_ON_SUCCESS, test.id
+		).is_empty()
+	)
+
+
+func _test_st7_delayed_listener_scoped_miss() -> bool:
+	var h := RuleTestHarness.new(42)
+	## 高难度 + 0 → 失败；scoped on_success 不应开火，ST.7 后应卸。
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 99)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	h.ctx.registrations.register(
+		RegistrationTemplate.delayed_st7_listener(
+			&"inv_1",
+			&"on_success",
+			CompositionNode.take_horror(&"inv_1", 1),
+			test.id
+		)
+	)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		not test.success
+		and inv.horror_taken == 0
+		and h.ctx.registrations.collect_listeners(
+			SkillTestSt7Composition.TIMING_ON_SUCCESS, test.id
+		).is_empty()
+	)
+
+
+func _test_st7_delayed_with_plan_order() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var log: Array = []
+	SkillTestSt7Composition.append_callable_unit(
+		test,
+		&"plan_src",
+		&"on_success",
+		func(_ctx: SkillTestContext) -> void:
+			log.append(&"plan")
+	)
+	h.ctx.registrations.register(
+		RegistrationTemplate.delayed_st7_listener(
+			&"inv_1",
+			&"on_success",
+			CompositionNode.take_horror(&"inv_1", 1),
+			test.id
+		)
+	)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		test.success
+		and log.has(&"plan")
+		and inv.horror_taken == 1
+		and test.st7_order_applied.size() == 2
+	)
 
 
 func _test_st_end_cleanup() -> bool:

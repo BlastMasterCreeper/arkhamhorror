@@ -95,6 +95,19 @@ static func delayed_listener(
 	return t
 
 
+## 延时成败：ST.7 槽（on_success / on_fail / on_fail_by_each）；与印刷 register_plan 同批。
+static func delayed_st7_listener(
+	controller_id: StringName,
+	slot: StringName,
+	body: CompositionNode,
+	scope_test_id: StringName = &""
+) -> RegistrationTemplate:
+	return delayed_listener(
+		controller_id,
+		ListenerPayload.at_st7_slot(slot, body, scope_test_id)
+	)
+
+
 ## 限制类 SKIP_AOO：行动开始 Register；INIT_2B 入口读取后卸掉。
 ## 非 LISTENER（无 Catalog emit）；非 Cancel/Ignore。
 static func skip_aoo_for_action(controller_id: StringName) -> RegistrationTemplate:
