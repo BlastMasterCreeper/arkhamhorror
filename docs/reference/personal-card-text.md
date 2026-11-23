@@ -17,7 +17,7 @@
 | 区 | LIMBO/`RESOLVING` | LIMBO/`COMMITTED` | PLAY |
 | 持续句 | — | **Constant** + `WHILE_COMMITTED` | Constant + `WHILE_IN_PLAY` |
 | *If succeed/fail* | — | ST.7（非 Constant） | — |
-| *After this test ends* | — | 检定决议窗技能能力（非 Constant） | — |
+| *After this test ends* | — | **延时** LISTENER @ `skill_test_ends`（ST.8 弃置后开火；提前 uncommit 取消） | — |
 | 显式 lasting | — | Gain + `DURATION`（非 Constant） | — |
 
 仅当卡面写出 **创建时刻 + 寿命**（如 *When you commit… gains … for the duration of…*）时，才编译为 **持续效果**（Gain/Lose + `DURATION`），源牌可离 LIMBO 仍活。
@@ -33,7 +33,7 @@
 ### 官方 FAQ（v2.0 · Silas 收回）
 
 - *gains retaliate and alert for the duration…* → **持续效果**，收回手牌后仍保留至检定结束。  
-- *After this test ends, draw 1 card* → **技能能力**（非延时）；须仍投入该次检定才结算。
+- *After this test ends, draw 1 card* → FAQ 称技能能力、须坚持投入到检定结束；**引擎落地为延时**（ST.8 弃置后才 `skill_test_ends`，牌已不在 LIMBO）。Silas 提前收回 → 取消该延时。
 
 现文未写出「投入时创建」；持续身份靠 FAQ 补丁，描述本身不自明。
 
@@ -52,7 +52,7 @@
 | 句 | 译法 | Lifetime / 条件 |
 |---|---|---|
 | When you commit → gains retaliate + alert | `seq.effect.grant`（KEYWORD×2） | `DURATION(THIS_SKILL_TEST)`；**不**随收回手牌卸 |
-| After this test ends, draw 1 | 技能能力（仍投入） | 离开 LIMBO/`COMMITTED` → 不结算；**不是** Constant，也 **不是** `UNTIL_FIRED` |
+| After this test ends, draw 1 | **延时** `skill_test_ends`（`UNTIL_FIRED`） | commit 武装；**提前** uncommit → 卸；ST.8 弃置后开火（不要求当时仍 LIMBO） |
 
 ---
 
@@ -139,6 +139,7 @@
 
 | 日期 | 卡 / 主题 | 摘要 |
 |---|---|---|
+| 2026-11-23 | After this test ends | 改裁为延时 @ `skill_test_ends`（ST.8 弃置后；提前 uncommit 取消） |
 | 2026-11-22 | may…and you get | 裁决读法 B；08101 / 10077（及同模 08090）个人版改为 *and get* |
 | 2026-11-20 | Constant | 扩展：持续句可 Constant + 非 in-play 寿命（含 `WHILE_COMMITTED`） |
 | 2026-11-19 | 区划 | 投入进 LIMBO/`COMMITTED`；与 `RESOLVING` 分子区（对齐 OQ-01-03 重裁） |

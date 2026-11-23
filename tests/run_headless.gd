@@ -327,6 +327,11 @@ func _initialize() -> void:
 	_run_test("ST7-DELAY-01 listener on_success at ST.7", _test_st7_delayed_listener_success)
 	_run_test("ST7-DELAY-02 scoped miss cleans up", _test_st7_delayed_listener_scoped_miss)
 	_run_test("ST7-DELAY-03 plan + listener same ORDER batch", _test_st7_delayed_with_plan_order)
+	_run_test("SKILL-ATE-01 after_test_ends fires post ST.8", _test_skill_after_test_ends_fires)
+	_run_test("SKILL-ATE-02 uncommit cancels after_test_ends", _test_skill_after_test_ends_cancel)
+	_run_test("SKILL-ONC-01 on_commit lasting survives uncommit", _test_skill_on_commit_lasting)
+	_run_test("SKILL-CON-01 commit_constant unmounts", _test_skill_commit_constant)
+	_run_test("SKILL-ONLY-01 commit_only blocks investigate", _test_skill_commit_only)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("LIMBO-COMMIT-01 commit enters LIMBO/COMMITTED", _test_limbo_commit_enters)
 	_run_test("LIMBO-COMMIT-02 uncommit returns hand unmounts", _test_limbo_commit_uncommit)
@@ -7907,6 +7912,177 @@ func _test_st7_delayed_with_plan_order() -> bool:
 		and inv.horror_taken == 1
 		and test.st7_order_applied.size() == 2
 	)
+
+
+func _register_skill_def(definition_id: StringName, abilities: Array) -> void:
+	CardRegistry.register_definition(
+		definition_id,
+		{
+			"title": "Test Skill Abilities",
+			"card_type": "skill",
+			"compiled_abilities": abilities,
+		}
+	)
+
+
+func _test_skill_after_test_ends_fires() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	_register_skill_def(
+		&"test_ate_fire",
+		[
+			{
+				"register_as": "after_test_ends",
+				"body": {"template": "take_horror", "amount": 1},
+			}
+		]
+	)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT, &"test_ate_fire"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	var commits: Array[CommittedCard] = [CommittedCard.create(card_id, &"inv_1")]
+	st.run(test, commits)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv.horror_taken == 1
+
+
+func _test_skill_after_test_ends_cancel() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	_register_skill_def(
+		&"test_ate_cancel",
+		[
+			{
+				"register_as": "after_test_ends",
+				"body": {"template": "take_horror", "amount": 1},
+			}
+		]
+	)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT, &"test_ate_cancel"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	if not h.ctx.skill_tests.uncommit_card(test, card_id).ok:
+		return false
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	return inv.horror_taken == 0
+
+
+func _test_skill_on_commit_lasting() -> bool:
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var enemy_id := &"en_onc"
+	GameBootstrap.setup_test_enemy(h.ctx, enemy_id, &"test_loc", 2, 2)
+	_register_skill_def(
+		&"test_onc_lasting",
+		[
+			{
+				"register_as": "on_commit",
+				"target": "test_enemy",
+				"grant_keywords": ["retaliate", "alert"],
+			}
+		]
+	)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.COMBAT, &"test_onc_lasting"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 2)
+	test.target_enemy_id = enemy_id
+	test.test_kind = &"fight"
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	if not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, enemy_id, &"", &"retaliate"
+	):
+		return false
+	if not h.ctx.skill_tests.uncommit_card(test, card_id).ok:
+		return false
+	## Silas：lasting 仍在。
+	if not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, enemy_id, &"", &"retaliate"
+	):
+		return false
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	## ST.8 tick 后卸。
+	return not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, enemy_id, &"", &"retaliate"
+	)
+
+
+func _test_skill_commit_constant() -> bool:
+	var h := RuleTestHarness.new(42)
+	_register_skill_def(
+		&"test_commit_const",
+		[
+			{
+				"register_as": "commit_constant",
+				"modifier": {"stat": "intellect", "amount": 2},
+			}
+		]
+	)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT, &"test_commit_const"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	if h.ctx.registrations.count() < 1:
+		return false
+	if not h.ctx.skill_tests.uncommit_card(test, card_id).ok:
+		return false
+	return h.ctx.registrations.count() == 0
+
+
+func _test_skill_commit_only() -> bool:
+	var h := RuleTestHarness.new(42)
+	_register_skill_def(
+		&"test_commit_only",
+		[
+			{
+				"register_as": "commit",
+				"commit_only": {"kinds": ["fight", "evade"]},
+				"st7": {"on_success": {"template": "take_horror", "amount": 1}},
+			}
+		]
+	)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.INTELLECT, &"test_commit_only"
+	)
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.INTELLECT, 2)
+	test.test_kind = &"investigate"
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var blocked := h.ctx.skill_tests.commit_card(test, &"inv_1", card_id)
+	if blocked.ok or str(blocked.get("error", "")) != "commit_only_mismatch":
+		return false
+	test.test_kind = &"fight"
+	test.skill = AhcEnums.SkillType.COMBAT
+	var card2 := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.COMBAT, &"test_commit_only"
+	)
+	var ok := h.ctx.skill_tests.commit_card(test, &"inv_1", card2)
+	return bool(ok.get("ok", false))
 
 
 func _test_st_end_cleanup() -> bool:

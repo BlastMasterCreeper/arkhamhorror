@@ -488,7 +488,7 @@ Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 
 > **v0.2+**：Constant / Lasting / Delayed 统一为 [RegistrationStore](06-registration-buff-model.md)；`AbilityRegistry.get_constants_affecting` 等价于 `collect(MODIFIER, ctx)`。下文 AbilityKind 表保留 Grimoire 对照。
 
-> **Constant 定义扩展（2026-11-20）**：`AbilityKind.CONSTANT` = 持续生效、无需 Initiation；**不**强制 in play。寿命可为 `WHILE_IN_PLAY` / `WHILE_HIDDEN_IN_HAND` / `WHILE_COMMITTED`（投入期技能持续句）。见 [01 §3.5.0](01-game-state-zones.md)。ST.7 / *After this test ends* / 显式 lasting **不是** Constant。
+> **Constant 定义扩展（2026-11-20）**：`AbilityKind.CONSTANT` = 持续生效、无需 Initiation；**不**强制 in play。寿命可为 `WHILE_IN_PLAY` / `WHILE_HIDDEN_IN_HAND` / `WHILE_COMMITTED`（投入期技能持续句）。见 [01 §3.5.0](01-game-state-zones.md)。ST.7 / 显式 lasting **不是** Constant。*After this test ends* = **延时**（`skill_test_ends`），也不是 Constant。
 
 ---
 

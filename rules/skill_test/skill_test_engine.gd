@@ -94,6 +94,10 @@ func commit_card(ctx: SkillTestContext, from_inv: StringName, card_id: StringNam
 		var title_count := _count_committed_by_definition(ctx, card.id.definition_id)
 		if title_count >= card.max_committed_per_test:
 			return {"ok": false, "error": "max_committed"}
+	if _game_ctx != null:
+		var only := CommittedSkillAbilities.allow_commit(ctx, _game_ctx, card_id)
+		if not bool(only.get("ok", false)):
+			return only
 	## HAND → LIMBO/`COMMITTED`（OQ-01-03）；列表仅为索引。
 	if _mutator != null:
 		if not _mutator.enter_limbo_committed(card_id, from_inv):
@@ -108,9 +112,9 @@ func commit_card(ctx: SkillTestContext, from_inv: StringName, card_id: StringNam
 	ctx.committed.append(CommittedCard.create(card_id, from_inv, bonus))
 	if from_inv != ctx.performing_investigator:
 		ctx.ally_committed = true
-	## 印刷技能 ST.7：装载进本次检定（requires_committed；离开 COMMITTED 剔除）。
+	## 印刷技能：ST.7 + Constant / on_commit lasting / after_test_ends 延时。
 	if _game_ctx != null:
-		CommittedSkillSt7.mount_from_card(ctx, _game_ctx, card_id)
+		CommittedSkillAbilities.mount_from_card(ctx, _game_ctx, card_id)
 	return {"ok": true}
 
 
@@ -140,7 +144,7 @@ func uncommit_card(ctx: SkillTestContext, card_id: StringName) -> Dictionary:
 			if _game_ctx != null and _game_ctx.registrations != null:
 				_game_ctx.registrations.on_leave_committed_limbo(card_id)
 	ctx.committed.remove_at(idx)
-	CommittedSkillSt7.unmount_for_card(ctx, card_id)
+	CommittedSkillAbilities.unmount_early(ctx, _game_ctx, card_id)
 	if entry.from_investigator != ctx.performing_investigator:
 		ctx.ally_committed = false
 		for other in ctx.committed:
@@ -337,6 +341,12 @@ func step_apply_results(ctx: SkillTestContext) -> Dictionary:
 func step_end(ctx: SkillTestContext, game_ctx: GameContext = null) -> void:
 	ctx.current_step = AhcEnums.SkillTestStep.ST_8_END
 	_discard_committed(ctx)
+	## lasting *for the duration of this skill test* 在检定结束卸。
+	var regs := game_ctx.registrations if game_ctx != null else (
+		_game_ctx.registrations if _game_ctx != null else null
+	)
+	if regs != null:
+		regs.tick_duration(AhcEnums.DurationAnchorKind.THIS_SKILL_TEST)
 	_state.chaos_bag.return_all_revealed()
 	_state.chaos_bag.end_reveal_scope()
 	if _stack.size() > 0 and _stack[_stack.size() - 1] == ctx:
@@ -346,6 +356,7 @@ func step_end(ctx: SkillTestContext, game_ctx: GameContext = null) -> void:
 		_state.chaos_bag.on_resolved_reveal = Callable()
 	_sync_stack(game_ctx)
 	_advance_step(AhcEnums.SkillTestStep.ST_8_END, ctx)
+	## 牌已离 LIMBO；*After this test ends* 延时在此开火。
 	if _timing:
 		_timing.emit_timing(&"skill_test_ends", {"test_id": ctx.id})
 	for nested in ctx.pending_nested_tests:

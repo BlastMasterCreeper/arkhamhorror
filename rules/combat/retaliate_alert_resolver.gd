@@ -59,13 +59,10 @@ static func _can_trigger(
 		return false
 	if not enemy.is_at_location(inv.location_tag):
 		return false
-	var def_id := _definition_id(game_ctx, enemy_id)
-	match keyword:
-		&"retaliate":
-			return CardRegistry.is_retaliate(def_id)
-		&"alert":
-			return CardRegistry.is_alert(def_id)
-	return false
+	## 印刷或动态 Gain（如 Daring lasting）均算。
+	return EffectiveCharacteristicQuery.has_effective_keyword(
+		game_ctx, enemy_id, _definition_id(game_ctx, enemy_id), keyword
+	)
 
 
 static func _perform(

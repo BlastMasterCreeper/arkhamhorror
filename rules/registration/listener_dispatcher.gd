@@ -14,9 +14,9 @@ func bind_game_context(ctx: GameContext) -> void:
 	_game_ctx = ctx
 
 
-func dispatch(timing_name: StringName) -> int:
+func dispatch(timing_name: StringName, scope_test_id: StringName = &"") -> int:
 	var fired := 0
-	for entry in _registrations.collect_listeners(timing_name):
+	for entry in _registrations.collect_listeners(timing_name, scope_test_id):
 		if entry.composition == null:
 			continue
 		CompositionMount.resolve_ability(

@@ -545,13 +545,25 @@ static func _build_if_else(params: Dictionary, bind: AbilityBindContext) -> Comp
 static func _register_entry(definition_id: StringName, entry: Dictionary) -> bool:
 	var register_as := str(entry.get("register_as", ""))
 	var template_id := str(entry.get("template", ""))
-	## 投入技能 ST.7：无独立 Composition builder；commit 时读 compiled_abilities 挂载。
+	## 投入技能：commit 时装载（ST.7 / Constant / on_commit / after_test_ends / 限制）。
 	if register_as == "commit" or register_as == "skill_commit":
 		var st7: Variant = entry.get("st7", {})
 		var legacy: Variant = entry.get("st7_fail_by", {})
 		var has_st7 := st7 is Dictionary and not (st7 as Dictionary).is_empty()
 		var has_legacy := legacy is Dictionary and not (legacy as Dictionary).is_empty()
-		return has_st7 or has_legacy
+		var has_only := entry.has("commit_only")
+		return has_st7 or has_legacy or has_only
+	if (
+		register_as == "commit_constant"
+		or register_as == "on_commit"
+		or register_as == "when_commit"
+		or register_as == "after_test_ends"
+		or register_as == "after_skill_test_ends"
+		or register_as == "commit_restriction"
+	):
+		return true
+	if register_as == "constant" and str(entry.get("lifetime", "")).to_upper() == "WHILE_COMMITTED":
+		return true
 	if template_id == "":
 		return false
 	var ability_id := StringName(str(entry.get("ability_id", "%s:0" % register_as)))
