@@ -332,6 +332,10 @@ func _initialize() -> void:
 	_run_test("SKILL-ONC-01 on_commit lasting survives uncommit", _test_skill_on_commit_lasting)
 	_run_test("SKILL-CON-01 commit_constant unmounts", _test_skill_commit_constant)
 	_run_test("SKILL-ONLY-01 commit_only blocks investigate", _test_skill_commit_only)
+	_run_test("ADB-06111-01 compile Daring slots", _test_adb_06111_compile)
+	_run_test("ADB-06111-02 fight commit lasting+draw", _test_adb_06111_fight_vertical)
+	_run_test("ADB-06111-03 investigate blocked", _test_adb_06111_investigate_blocked)
+	_run_test("ADB-06111-04 Silas keeps lasting drops draw", _test_adb_06111_silas_uncommit)
 	_run_test("ST-08 end discards committed", _test_st_end_cleanup)
 	_run_test("LIMBO-COMMIT-01 commit enters LIMBO/COMMITTED", _test_limbo_commit_enters)
 	_run_test("LIMBO-COMMIT-02 uncommit returns hand unmounts", _test_limbo_commit_uncommit)
@@ -8083,6 +8087,139 @@ func _test_skill_commit_only() -> bool:
 	)
 	var ok := h.ctx.skill_tests.commit_card(test, &"inv_1", card2)
 	return bool(ok.get("ok", false))
+
+
+func _load_daring_06111() -> void:
+	ArkhamDbCardLoader.load_imported_file("res://data/arkhamdb/imported/daring_06111.json")
+
+
+func _test_adb_06111_compile() -> bool:
+	_load_daring_06111()
+	var compiled := CardRegistry.compiled_abilities(&"06111")
+	if compiled.size() < 3:
+		return false
+	var has_only := false
+	var has_on := false
+	var has_ate := false
+	for raw in compiled:
+		if not raw is Dictionary:
+			continue
+		var e: Dictionary = raw
+		var ras := str(e.get("register_as", ""))
+		if ras == "commit" and e.has("commit_only"):
+			has_only = true
+		elif ras == "on_commit":
+			has_on = true
+		elif ras == "after_test_ends":
+			has_ate = true
+	return has_only and has_on and has_ate and CardRegistry.title(&"06111") == "Daring"
+
+
+func _test_adb_06111_fight_vertical() -> bool:
+	_load_daring_06111()
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var enemy_id := &"en_06111"
+	GameBootstrap.setup_test_enemy(h.ctx, enemy_id, &"test_loc", 2, 2)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"deck_filler_a")
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.COMBAT, &"06111"
+	)
+	var inv0 := h.ctx.state.registry.get_investigator(&"inv_1")
+	var hand0 := inv0.hand.size()
+	var deck0 := inv0.deck.size()
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 2)
+	test.target_enemy_id = enemy_id
+	test.test_kind = &"fight"
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	if not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, enemy_id, &"", &"retaliate"
+	):
+		return false
+	if not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, enemy_id, &"", &"alert"
+	):
+		return false
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	inv0 = h.ctx.state.registry.get_investigator(&"inv_1")
+	## ST.8：lasting 卸；投入进弃牌；after_test_ends 抽 1 → 手牌数回到 hand0。
+	return (
+		not EffectiveCharacteristicQuery.has_effective_keyword(
+			h.ctx, enemy_id, &"", &"retaliate"
+		)
+		and inv0.deck.size() == deck0 - 1
+		and inv0.hand.size() == hand0
+	)
+
+
+func _test_adb_06111_investigate_blocked() -> bool:
+	_load_daring_06111()
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.COMBAT, &"06111"
+	)
+	## 无 combat 图标时调查检定：改用 wild——实例只挂了 combat；仍可测 commit_only。
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 2)
+	test.test_kind = &"investigate"
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	var res := h.ctx.skill_tests.commit_card(test, &"inv_1", card_id)
+	return not bool(res.get("ok", false)) and str(res.get("error", "")) == "commit_only_mismatch"
+
+
+func _test_adb_06111_silas_uncommit() -> bool:
+	_load_daring_06111()
+	var h := RuleTestHarness.new(42)
+	GameBootstrap.setup_chaos_bag(h.ctx, [ChaosToken.numeric(0)])
+	var enemy_id := &"en_06111_s"
+	GameBootstrap.setup_test_enemy(h.ctx, enemy_id, &"test_loc", 2, 2)
+	GameBootstrap.add_test_card_to_deck(h.ctx, &"inv_1", &"deck_filler_b")
+	var card_id := GameBootstrap.add_skill_card_to_hand(
+		h.ctx, &"inv_1", AhcEnums.SkillType.COMBAT, &"06111"
+	)
+	var inv := h.ctx.state.registry.get_investigator(&"inv_1")
+	var hand0 := inv.hand.size()
+	var deck0 := inv.deck.size()
+	var st := SkillTestHelper.new(h.ctx)
+	var test := st.make_test(&"inv_1", AhcEnums.SkillType.COMBAT, 2)
+	test.target_enemy_id = enemy_id
+	test.test_kind = &"fight"
+	h.ctx.skill_tests.begin_test(test, h.ctx)
+	if not h.ctx.skill_tests.commit_card(test, &"inv_1", card_id).ok:
+		return false
+	if not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, enemy_id, &"", &"retaliate"
+	):
+		return false
+	if not h.ctx.skill_tests.uncommit_card(test, card_id).ok:
+		return false
+	## lasting 仍在；after_test_ends 已卸。
+	if not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, enemy_id, &"", &"retaliate"
+	):
+		return false
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.resolve_reveal_chain(test)
+	h.ctx.skill_tests.close_player_window(test)
+	h.ctx.skill_tests.continue_after_reveal_window(test)
+	h.ctx.skill_tests.step_apply_results(test)
+	h.ctx.skill_tests.step_end(test, h.ctx)
+	inv = h.ctx.state.registry.get_investigator(&"inv_1")
+	return (
+		not EffectiveCharacteristicQuery.has_effective_keyword(
+			h.ctx, enemy_id, &"", &"retaliate"
+		)
+		and inv.deck.size() == deck0
+		and inv.hand.size() == hand0
+	)
 
 
 func _test_st_end_cleanup() -> bool:
