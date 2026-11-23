@@ -1,0 +1,65 @@
+{
+  "_meta": {
+    "source": "personal-card-text · 06111 Daring vertical",
+    "pack": "tskc",
+    "count": 1,
+    "note": "个人版：When you commit 显式创建 lasting；After this test ends = 延时 skill_test_ends"
+  },
+  "06111": {
+    "definition_id": "06111",
+    "title": "Daring",
+    "card_type": "skill",
+    "pack_code": "tskc",
+    "faction_code": "guardian",
+    "resource_cost": 0,
+    "resource_cost_sentinel": "none",
+    "is_weakness": false,
+    "traits": ["Innate"],
+    "keywords": [],
+    "skills_icons": {
+      "combat": 1,
+      "agility": 1,
+      "wild": 1
+    },
+    "text": "Commit only to a skill test during an attack or evasion attempt against an enemy. That enemy gains retaliate and alert for the duration of this skill test. After this test ends, draw 1 card.",
+    "ability_segments": [
+      {
+        "kind": "commit",
+        "body": "Commit only to a skill test during an attack or evasion attempt against an enemy. When you commit Daring, that enemy gains retaliate and alert for the duration of this skill test. After this test ends, draw 1 card.",
+        "index": 0
+      }
+    ],
+    "compiled_abilities": [
+      {
+        "segment_index": 0,
+        "register_as": "commit",
+        "ability_id": "commit:restriction",
+        "status": "full",
+        "commit_only": {
+          "kinds": ["fight", "evade"]
+        },
+        "translation": "full_expand"
+      },
+      {
+        "segment_index": 0,
+        "register_as": "on_commit",
+        "ability_id": "on_commit:0",
+        "status": "full",
+        "target": "test_enemy",
+        "grant_keywords": ["retaliate", "alert"],
+        "translation": "full_expand"
+      },
+      {
+        "segment_index": 0,
+        "register_as": "after_test_ends",
+        "ability_id": "after_test_ends:0",
+        "status": "full",
+        "body": {
+          "template": "draw",
+          "amount": 1
+        },
+        "translation": "full_expand"
+      }
+    ]
+  }
+}

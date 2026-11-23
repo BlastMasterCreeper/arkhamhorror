@@ -51,8 +51,11 @@
 
 | 句 | 译法 | Lifetime / 条件 |
 |---|---|---|
-| When you commit → gains retaliate + alert | `seq.effect.grant`（KEYWORD×2） | `DURATION(THIS_SKILL_TEST)`；**不**随收回手牌卸 |
-| After this test ends, draw 1 | **延时** `skill_test_ends`（`UNTIL_FIRED`） | commit 武装；**提前** uncommit → 卸；ST.8 弃置后开火（不要求当时仍 LIMBO） |
+| Commit only… attack or evasion | `commit` + `commit_only.kinds: [fight, evade]` | `test_kind` 不符 → 不可投入 |
+| When you commit → gains retaliate + alert | `on_commit` → Gain KEYWORD×2 | `DURATION(THIS_SKILL_TEST)`；**不**随收回手牌卸 |
+| After this test ends, draw 1 | **延时** `after_test_ends` @ `skill_test_ends` | commit 武装；**提前** uncommit → 卸；ST.8 弃置后开火（不要求当时仍 LIMBO） |
+
+竖切：`data/arkhamdb/imported/daring_06111.json` · `ADB-06111-*`。
 
 ---
 
