@@ -363,6 +363,7 @@ class EventRecord:
 | [26-eff-kind-table.md](design/26-eff-kind-table.md) | `Eff` 种类表：Nest vs 内联（已裁） |
 | [27-eff-eval-detail.md](design/27-eff-eval-detail.md) | `Eff` 求值细则：信封 · Ask 分型 · Forced/响应池 |
 | [28-functional-scheme.md](design/28-functional-scheme.md) | 函数化方案总纲（完备草案） |
+| [29-flow-agendas.md](design/29-flow-agendas.md) | Flow 议程表：能力窗 / 遭遇抽牌 / 调查员抽牌 |
 | [02-framework-flow.md](design/02-framework-flow.md) | FrameworkFlowEngine |
 | [03-action-system.md](design/03-action-system.md) | ActionSystem、AOO |
 | [04-skill-test-engine.md](design/04-skill-test-engine.md) | SkillTestEngine |

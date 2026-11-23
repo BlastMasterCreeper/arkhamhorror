@@ -418,7 +418,7 @@ TraceEntry = Intent | AskResolved { kind, answer, used_default } | Phase { flow,
 
 ## 13. 落地顺序（仍不在本文件编码）
 
-1. Agenda 数据：先 `standard_ability_window` + `draw.encounter` 两张表。  
+1. ~~Agenda 数据~~ → [29-flow-agendas](29-flow-agendas.md)（标准能力窗 + 遭遇抽牌 + 调查员抽牌）。  
 2. `interpret` + `NeedAsk` 金样（Seq / Nest / ORDER_FORCED）。  
 3. `stepSkillTest` 金样（ST.7 序 + ST.8 tick）。  
 4. `stepInitiation` 费用 vs lose 分轨金样。  
