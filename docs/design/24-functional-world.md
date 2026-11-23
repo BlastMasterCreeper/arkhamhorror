@@ -2,7 +2,7 @@
 
 > **状态**：设计草案 v0.1 · 2026-11-23  
 > **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-buff-model](06-registration-buff-model.md)、[17-seq-runtime](17-seq-runtime.md)  
-> **被依赖**：后续 `Eff` 代数 / Intent 提交 / 纯查询投影（本文只定 **局面值**）  
+> **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影（本文只定 **局面值**）  
 > **与现实现关系**：对照 `PhysicalStore` · `GameStateStore` · `RegistrationStore` · `RulesMemory`；**不**要求立刻替换 Godot 对象图，先定值边界与不变量。
 
 ---
@@ -279,9 +279,9 @@ Intent =
 
 ## 12. 下一步（非本文范围）
 
-1. `Eff` 代数（Then / Par / If / Nest / Ask）与现 Composition / Catalog 对照表。  
+1. ~~`Eff` 代数~~ → [25-functional-eff](25-functional-eff.md)。  
 2. `World` 快照导出器（从现 `GameContext` → 值）+ 1～2 个纯查询金样（有效关键词、commit_only）。  
-3. dry-run `plan` 对齐 `CompositionDryRunner`。
+3. dry-run `plan` 对齐 `CompositionDryRunner` / `Eff.plan`。
 
 ---
 

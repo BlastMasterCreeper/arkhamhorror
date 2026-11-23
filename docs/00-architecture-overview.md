@@ -359,6 +359,7 @@ class EventRecord:
 | [00-framework-step-index.md](design/00-framework-step-index.md) | FrameworkStep / ST / Initiation 完整索引 |
 | [01-game-state-zones.md](design/01-game-state-zones.md) | GameStateStore、区域、实体 |
 | [24-functional-world.md](design/24-functional-world.md) | 函数式 `World`/`Run` 值模型（草案） |
+| [25-functional-eff.md](design/25-functional-eff.md) | 函数式 `Eff` 代数（草案） |
 | [02-framework-flow.md](design/02-framework-flow.md) | FrameworkFlowEngine |
 | [03-action-system.md](design/03-action-system.md) | ActionSystem、AOO |
 | [04-skill-test-engine.md](design/04-skill-test-engine.md) | SkillTestEngine |
