@@ -23,6 +23,7 @@ func investigate(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -
 	var commits := _commits_from_extra(extra)
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
+	test.test_kind = &"investigate"
 	test.skill = AhcEnums.SkillType.INTELLECT
 	## MOD-Q-SHROUD：印刷 shroud 经 ModifierEngine 后再作难度（下限 0）。
 	var shroud := loc.shroud
@@ -103,6 +104,7 @@ func fight(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
 	test.target_enemy_id = enemy_id
+	test.test_kind = &"fight"
 	test.skill = AhcEnums.SkillType.COMBAT
 	test.difficulty = enemy.fight
 	var enemy_id_copy := enemy_id
@@ -139,6 +141,7 @@ func evade(game_ctx: GameContext, inv_id: StringName, extra: Dictionary) -> Dict
 	var test := SkillTestContext.new()
 	test.performing_investigator = inv_id
 	test.target_enemy_id = enemy_id
+	test.test_kind = &"evade"
 	test.skill = AhcEnums.SkillType.AGILITY
 	test.difficulty = enemy.evade
 	var enemy_id_copy := enemy_id

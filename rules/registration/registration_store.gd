@@ -290,17 +290,42 @@ func _find_engagement_reg_id(enemy_id: StringName, investigator_id: StringName) 
 
 
 func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
+	## 印刷外动态 KEYWORD：drawn 结算窗、THIS_SKILL_TEST lasting（Daring 等）均算。
 	if card_id == &"" or keyword == &"":
 		return false
 	for reg in _entries:
-		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
-			continue
-		if reg.drawn_card_id != card_id:
+		if reg.drawn_card_id != card_id and reg.controller_id != card_id:
 			continue
 		for buff in reg.buffs:
 			if buff.type == AhcEnums.BuffType.KEYWORD and buff.keyword == keyword:
 				return true
 	return false
+
+
+## 提前离开投入：卸该技能武装的 *After this test ends* 延时（绑 card + test）。
+func unregister_after_test_ends_for_card(
+	card_id: StringName,
+	test_id: StringName
+) -> int:
+	if card_id == &"":
+		return 0
+	var to_drop: Array[StringName] = []
+	for reg in _entries:
+		if reg.drawn_card_id != card_id:
+			continue
+		for buff in reg.buffs:
+			if buff.type != AhcEnums.BuffType.LISTENER or buff.listener == null:
+				continue
+			if buff.listener.timing != &"skill_test_ends":
+				continue
+			var scope: StringName = buff.listener.scope_test_id
+			if test_id != &"" and scope != &"" and scope != test_id:
+				continue
+			to_drop.append(reg.id)
+			break
+	for rid in to_drop:
+		unregister(rid)
+	return to_drop.size()
 
 
 func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:

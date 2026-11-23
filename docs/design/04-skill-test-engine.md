@@ -369,9 +369,11 @@ seq.draw.encounter → resolve_card_body (内联)
 | Peril | 仅 performing 可 commit（**Cannot**，§4） |
 | Max N committed | 按 title 计数 |
 | Commit 归属 | **HAND → `Zone.LIMBO` + `LimboKind.COMMITTED`**（Grimoire；OQ-01-03 重裁 2026-11-19）；`SkillTestContext.committed` 同步索引（图标 / Max N） |
-| 投入期能力 | 技能能力（committed window）。**持续句**可 `AbilityKind.CONSTANT` + `WHILE_COMMITTED`（Constant 扩展定义，01 §3.5.0）；ST.7 / *After this test ends* 仍非 Constant |
-| Commit → ST.7 | `CommittedSkillSt7.mount_from_card`：读 `compiled_abilities` 中 `register_as: commit` + `st7`，`register_plan(..., requires_committed_card)`；uncommit 时 `unmount_for_card`。跳过 `template: skill_test`（属 nest 检定） |
-| 离开投入 | 收回手 → HAND（卸 `WHILE_COMMITTED`）；ST.8 → 通常进弃牌堆并离开 LIMBO |
+| 投入期能力 | 技能能力（committed window）。**持续句**可 `AbilityKind.CONSTANT` + `WHILE_COMMITTED`（Constant 扩展定义，01 §3.5.0）；ST.7 非 Constant |
+| Commit 装载 | `CommittedSkillAbilities.mount_from_card`：ST.7（`CommittedSkillSt7`）+ `commit_constant` + `on_commit` lasting + `after_test_ends` 延时；`commit_only` 在 commit 前检查 `test_kind` |
+| *After this test ends* | **延时** LISTENER @ `skill_test_ends`（ST.8 **先弃置投入**再 emit）；提前 uncommit → `unregister_after_test_ends_for_card`；**不是**开火时仍须 LIMBO |
+| *When you commit… duration* | `on_commit` → Gain KEYWORD + `DURATION(THIS_SKILL_TEST)`；Silas 收回**不**卸；ST.8 `tick_duration(THIS_SKILL_TEST)` |
+| 离开投入 | 收回手 → HAND（卸 `WHILE_COMMITTED` + after_test_ends）；ST.8 → 通常进弃牌堆并离开 LIMBO |
 | LIMBO 其它 | **`LimboKind.RESOLVING`** = 事件/诡计结算中；与 COMMITTED **分子区**，见 [01 §3.5.0](01-game-state-zones.md) |
 
 ---
@@ -465,6 +467,7 @@ Action 在 AOO 之后调用 `SkillTestEngine.run_full_test`。
 
 | 日期 | 版本 | 说明 |
 |---|---|---|
+| 2026-11-23 | v0.15 | §5：`CommittedSkillAbilities`（Constant / on_commit / after_test_ends / commit_only）；ST.8 tick THIS_SKILL_TEST |
 | 2026-11-21 | v0.14 | §3.7：延时 LISTENER（`st7.*`）harvest 进 ST.7 同批 ORDER |
 | 2026-11-21 | v0.13 | §5：commit 时装载印刷技能 ST.7（`CommittedSkillSt7` / `register_as: commit`） |
 | 2026-11-21 | v0.12 | §3.7：ST.7 COLLECT → ORDER_SIMULTANEOUS（order:st7）→ 内联；`SkillTestSt7Unit` |

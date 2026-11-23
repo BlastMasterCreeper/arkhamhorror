@@ -108,6 +108,48 @@ static func delayed_st7_listener(
 	)
 
 
+## 投入期 Constant：离开 COMMITTED 卸。
+static func while_committed_modifier(
+	card_id: StringName,
+	payload: ModifierPayload
+) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = card_id
+	t.drawn_card_id = card_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.WHILE_COMMITTED
+	t.buffs.append(BuffSpec.modifier_buff(payload))
+	return t
+
+
+## *When you commit… for the duration of this skill test*：Gain KEYWORD，Silas 收回不卸。
+static func gained_keyword_this_skill_test(
+	bearer_id: StringName,
+	keyword: StringName
+) -> RegistrationTemplate:
+	var t := RegistrationTemplate.new()
+	t.controller_id = bearer_id
+	t.drawn_card_id = bearer_id
+	t.lifetime_kind = AhcEnums.LifetimeKind.DURATION
+	t.duration = AhcEnums.DurationAnchorKind.THIS_SKILL_TEST
+	t.buffs.append(BuffSpec.keyword_buff(keyword))
+	return t
+
+
+## *After this test ends*：延时；source 技能卡 id 写入 drawn_card_id（提前 uncommit 卸）。
+static func after_skill_test_ends(
+	controller_id: StringName,
+	source_card_id: StringName,
+	body: CompositionNode,
+	scope_test_id: StringName
+) -> RegistrationTemplate:
+	var t := delayed_listener(
+		controller_id,
+		ListenerPayload.at_timing(&"skill_test_ends", body, scope_test_id)
+	)
+	t.drawn_card_id = source_card_id
+	return t
+
+
 ## 限制类 SKIP_AOO：行动开始 Register；INIT_2B 入口读取后卸掉。
 ## 非 LISTENER（无 Catalog emit）；非 Cancel/Ignore。
 static func skip_aoo_for_action(controller_id: StringName) -> RegistrationTemplate:

@@ -161,7 +161,7 @@ enum LimboKind {
 | `WHILE_HIDDEN_IN_HAND` | 隐私牌上 Constant | [06 §3.2.6](06-registration-buff-model.md) 已有行 |
 | `WHILE_COMMITTED` | 技能上「投入期间持续…」句 | 本裁决；LIMBO 仍 **不算 in play** |
 
-**仍不是 Constant**：*If this test succeeds/fails*（ST.7）、*After this test ends*（检定决议窗技能能力）、*When you commit… for the duration*（创建 lasting / Gain）。那些有触发或一次创建，不是持续 Constant 形态。
+**仍不是 Constant**：*If this test succeeds/fails*（ST.7）、*After this test ends*（**延时** @ `skill_test_ends`）、*When you commit… for the duration*（创建 lasting / Gain）。那些有触发或一次创建，不是持续 Constant 形态。
 
 ### 3.5.1 放置关系（Placement · 已裁决 2026-10-24）
 

@@ -18,5 +18,6 @@ func bind_listeners(dispatcher: ListenerDispatcher) -> void:
 func emit_timing(timing_name: StringName, payload: Dictionary = {}) -> void:
 	_log.log(AhcEnums.LogCategory.SYSTEM, "timing:%s" % timing_name, payload)
 	if _listeners:
-		_listeners.dispatch(timing_name)
+		var scope: StringName = payload.get("test_id", &"") as StringName
+		_listeners.dispatch(timing_name, scope)
 	timing_point_emitted.emit(timing_name, payload)
