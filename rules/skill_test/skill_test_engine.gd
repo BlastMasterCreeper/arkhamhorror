@@ -108,6 +108,9 @@ func commit_card(ctx: SkillTestContext, from_inv: StringName, card_id: StringNam
 	ctx.committed.append(CommittedCard.create(card_id, from_inv, bonus))
 	if from_inv != ctx.performing_investigator:
 		ctx.ally_committed = true
+	## 印刷技能 ST.7：装载进本次检定（requires_committed；离开 COMMITTED 剔除）。
+	if _game_ctx != null:
+		CommittedSkillSt7.mount_from_card(ctx, _game_ctx, card_id)
 	return {"ok": true}
 
 
@@ -137,6 +140,7 @@ func uncommit_card(ctx: SkillTestContext, card_id: StringName) -> Dictionary:
 			if _game_ctx != null and _game_ctx.registrations != null:
 				_game_ctx.registrations.on_leave_committed_limbo(card_id)
 	ctx.committed.remove_at(idx)
+	CommittedSkillSt7.unmount_for_card(ctx, card_id)
 	if entry.from_investigator != ctx.performing_investigator:
 		ctx.ally_committed = false
 		for other in ctx.committed:
