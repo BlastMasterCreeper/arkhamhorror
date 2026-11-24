@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.19 · 2026-11-24  
+> **状态**：设计草案 v0.20 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
@@ -63,7 +63,7 @@ Auth = {
 
 **Token 本质**：只表示 **堆键 + 数量**；是放置的**终端**——其上不再放置卡、不再绑登记主体。即使桌上该类只有 1 枚，仍用 `token_stacks[key]=1`。双面件把当前面编进堆键，不另开个体。
 
-卡通过 `slot_regions` 挂区。禁止 `Card.markers` / `location_id` / `engaged_with`。
+卡通过 `owned_regions` 挂区（放置面角色 → region id）。**禁止**用规则术语 **slot**（资产槽 Hand/Ally/Arcane…）给区命名。禁止 `Card.markers` / `location_id` / `engaged_with`。
 
 ---
 
@@ -79,7 +79,7 @@ Card = {
   face:                     Face,
   exhausted:                Bool,
   display_order:            Int,
-  slot_regions:             Map<String, String>,  -- 槽名 → region_id
+  owned_regions:            Map<String, String>,  -- place → region_id（非资产槽）
   connections:              Array<String>,        -- 仅 location：连通图（非「放置」）
   actions_remaining:        Int,                  -- 仅 investigator：回合经济
   actions_bonus_next_turn:  Int,
@@ -95,30 +95,32 @@ Card = {
 | `face` | `Face` | `"A"` \| `"B"` |
 | `exhausted` | `Bool` | 横置（形态③） |
 | `display_order` | `Int` | 同区展示序 |
-| `slot_regions` | `Map<String, String>` | **卡拥有的区**；见下表 |
+| `owned_regions` | `Map<String, String>` | **卡拥有的放置面**；键 = `Region.place`；见下表 |
 | `connections` | `Array<String>` | 地点连通（拓扑，不是区内实体） |
 | `actions_*` / `eliminated` / `resigned` | `Int`/`Bool` | 调查员回合/胜负态 |
 
 **`CardType`**：`"investigator"` \| `"asset"` \| `"event"` \| `"skill"` \| `"enemy"` \| `"treachery"` \| `"location"` \| `"act"` \| `"agenda"`
 
-#### 推荐槽名（`slot_regions` 的键）
+#### 推荐放置名（`owned_regions` 的键 = `Region.place`）
 
-槽按 **放置面角色** 开，不按 token 种类开。伤/恐/线索/毁灭/资源/充能… 同进一区的 `token_stacks`，靠堆键区分。
+按 **放置面角色** 开区，不按 token 种类开。伤/恐/线索/毁灭/资源/充能… 同进一区的 `token_stacks`，靠堆键区分。
 
-| 槽名 | 谁有 | 区内存什么 |
+**`place` ≠ 规则资产槽（slot）**：Hand/Ally/Arcane/Body… 是进场占用约束，另模；不要写成 `Region.place` / `owned_regions` 的键。
+
+| place | 谁有 | 区内存什么 |
 |---|---|---|
 | `hand` / `deck` / `discard` / `play` / `threat` | investigator | 卡 |
 | `tokens` | 会承 token 的卡 | **该宿主上全部** token 堆（伤/恐/线索/毁灭/资源/充能…） |
 | `on` | location | **物理放在该地点上的**调查员/敌人卡 id（放置，非绑定） |
 | `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
 | `chaos` | 冒险公共 | 混乱袋（另一放置面；仍是堆） |
-| `augury` / `sealed` | 公共或卡槽 | 占兆 / 封印（不同放置面，非按种类分槽） |
+| `augury` / `sealed` | 公共或卡 | 占兆 / 封印（不同放置面） |
 | `encounter_deck` / `encounter_discard` | 公共 | 卡 |
 
-读「某卡上有多少资源」= 读 `regions[card.slot_regions["tokens"]].token_stacks["resource"]`。  
-读「伤」同区 `token_stacks["damage"]`——**不要**再开 `damage`/`horror`/`resource` 槽。  
+读「某卡上有多少资源」= 读 `regions[card.owned_regions["tokens"]].token_stacks["resource"]`。  
+读「伤」同区 `token_stacks["damage"]`——**不要**再开 `damage`/`horror`/`resource` 放置面。  
 读「调查员物理在哪」= 哪个地点的 **`on`** 区的 `card_ids` 含该 id（派生索引可加速）。  
-**禁止**用槽名 `at` 表示地点放置：`at` 留给绑定关系（登记查询）；`on` 才是物理放置。  
+**禁止**用 `at` 作地点放置名：`at` 留给绑定关系；`on` 才是物理放置。  
 「交战」= **登记载荷** `STATUS`/`ENGAGEMENT`，不进 Card 字段、不进 `on`。
 
 ---
@@ -130,9 +132,9 @@ Region = {
   id:             String,
   shape:          RegionShape,
   host_card_id:   String,
-  slot:           String,
+  place:          String,              -- 放置面角色；≠ 资产槽 slot
   card_ids:       Array<String>,
-  token_stacks:   Map<String, Int>,    -- stack_key → 数量；token 的唯一权威
+  token_stacks:   Map<String, Int>,    -- type → count；token 的唯一权威
   limbo_kind:     LimboKind
 }
 ```
@@ -142,7 +144,7 @@ Region = {
 | `id` | `String` | 区 id |
 | `shape` | `RegionShape` | `"deck"` \| `"flat"` \| `"bag"` |
 | `host_card_id` | `String` | 宿主卡；公共 `""` |
-| `slot` | `String` | 槽名 |
+| `place` | `String` | 放置面角色（与宿主 `owned_regions` 的键一致）；**不是**资产槽 |
 | `card_ids` | `Array<String>` | 卡序；`"deck"` 时 `[0]` 为顶 |
 | `token_stacks` | `Map<String, Int>` | **全部** token（含仅 1 枚的） |
 | `limbo_kind` | `LimboKind` | `""` \| `"resolving"` \| `"committed"` |
@@ -470,7 +472,7 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 | 焦点 | `run:focus` | `run.focus` |
 | 记忆 | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
 
-读「卡上伤害」→ 宿主 `tokens` 槽区的 `token_stacks["damage"]`。禁止再依赖已废除的 `card.markers`。
+读「卡上伤害」→ 宿主 `tokens` 放置面的 `token_stacks["damage"]`。禁止再依赖已废除的 `card.markers`。
 
 ---
 
@@ -494,16 +496,16 @@ Snapshot {
     next_id: 8
     cards: {
       "I": { card_type:"investigator",
-             slot_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I", … }, … }
-      "L": { card_type:"location", slot_regions:{ "on":"on_L", "tokens":"tok_L" }, connections:[], … }
+             owned_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I", … }, … }
+      "L": { card_type:"location", owned_regions:{ "on":"on_L", "tokens":"tok_L" }, connections:[], … }
     }
     regions: {
-      "hand_I":  { host_card_id:"I", slot:"hand", card_ids:[], token_stacks:{}, … }
-      "tok_I":   { host_card_id:"I", slot:"tokens", card_ids:[],
+      "hand_I":  { host_card_id:"I", place:"hand", card_ids:[], token_stacks:{}, … }
+      "tok_I":   { host_card_id:"I", place:"tokens", card_ids:[],
                    token_stacks:{ "resource":5, "damage":0, "horror":0 }, … }
-      "on_L":    { host_card_id:"L", slot:"on", card_ids:["I"], token_stacks:{}, … }
-      "tok_L":   { host_card_id:"L", slot:"tokens", card_ids:[], token_stacks:{ "clue":1 }, … }
-      "chaos":   { host_card_id:"", slot:"chaos", shape:"bag",
+      "on_L":    { host_card_id:"L", place:"on", card_ids:["I"], token_stacks:{}, … }
+      "tok_L":   { host_card_id:"L", place:"tokens", card_ids:[], token_stacks:{ "clue":1 }, … }
+      "chaos":   { host_card_id:"", place:"chaos", shape:"bag",
                    token_stacks:{ "numeric:0": 2, "skull": 1, "auto_fail": 1 }, … }
     }
     registrations: {}
@@ -539,3 +541,4 @@ Snapshot {
 | 2026-11-24 | v0.17：Registration 字段为 `payloads` / `RegistrationKind` |
 | 2026-11-24 | v0.18：合入 registration-payload；术语/06 文件名与载荷口径对齐 |
 | 2026-11-24 | v0.19：正文去掉已弃用俗称残留 |
+| 2026-11-24 | v0.20：`Region.slot`/`slot_regions` → `place`/`owned_regions`；slot 留给规则资产槽 |
