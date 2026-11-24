@@ -1,9 +1,9 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.14 · 2026-11-24  
+> **状态**：设计草案 v0.15 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
-> **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（有限实体筹码替代多种原类型，常为资源）；翻面走专用 seq。  
+> **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
 > **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。
 
 ---
@@ -173,15 +173,13 @@ token_stacks: Map<String, Int>   -- type → count
 
 ```text
 TokenTypeStatic = {
-  -- 仅「有双面」的类型出现；无则不可翻
-  dual_of:      Map<String, String>,  -- type → 另一面类型（对称）
-  -- 实体筹码种类有限：多种逻辑类型共用同一种实体标记（常为资源）
-  represent_as: Map<String, String>,  -- 原类型 → 代表实体类型（例 ammo→resource）
-  original_of:  Map<String, String>   -- 代表 → 原（查表/校验用；可与上互逆生成）
+  dual_of:      Map<String, String>,  -- type → 另一面（对称；仅有双面的类型）
+  represent_as: Map<String, String>   -- 原类型 → 代表实体类型（例 ammo → resource）
 }
 ```
 
-**`represent_as`**：规则/堆上的**原类型**（`ammo`、某剧情标记…）在盒中往往没有独立实体，用有限几种实体标记**替代**（多为 `resource`）。堆键仍记原类型（数量语义不混），代表类型只说明「用哪类实体筹码表现/取用」。  
+只留 **一个** 替代映射：`represent_as`（原 → 实体代表）。需要反查时对这张表扫描/建临时索引，不在静态稿里再存一份 `original_of`。  
+堆键仍记**原类型**；`represent_as` 只说明盒中用哪类实体筹码表现/取用（常为 `resource`）。  
 **`dual_of`**：另一轴——特定混乱符号互为两面；与替代无关。
 
 #### 翻面 = 专用 seq / 运算
@@ -535,3 +533,4 @@ Snapshot {
 | 2026-11-24 | v0.12：废 `mold_id`/`dual:` 复合键；堆键仅为实体类型；双面配对只在 Catalog |
 | 2026-11-24 | v0.13：堆仅 type→count；双面/原类型/代表类型用静态表；翻面专用 seq |
 | 2026-11-24 | v0.14：标明 `represent_as` = 有限实体标记替代（非 dual 逆表）；堆键仍用原类型 |
+| 2026-11-24 | v0.15：去掉 `original_of`；替代关系只保留 `represent_as` 单向 |
