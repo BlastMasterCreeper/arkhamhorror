@@ -1,9 +1,9 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.3 · 2026-11-24  
+> **状态**：设计草案 v0.7 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
-> **v0.3**：桌游 **token**（非 marker 口语）；区可放卡与 token；卡用 **槽位区** 挂其它实体，取消 `Card.markers` / `location_id` / `engaged_with` 散字段。
+> **token**：一律 `token_stacks`（类型键 + 数量）；放置终端；双面按 `dual:<mold>:<face>` 分堆；无 `auth.tokens` / `token_ids`。
 
 ---
 
@@ -119,17 +119,16 @@ Card = {
 
 ---
 
-### 1.2 `Region`（卡与 token 的放置面）
+### 1.2 `Region`（卡与 token 堆的放置面）
 
 ```text
 Region = {
   id:             String,
   shape:          RegionShape,
-  host_card_id:   String,              -- 所属卡；公共区 ""
-  slot:           String,              -- 在宿主上的槽名；公共区用逻辑名
-  card_ids:       Array<String>,       -- 区内的卡（有序）
-  token_ids:      Array<String>,       -- 本区个体 token 的 id 列表（→ auth.tokens）
-  token_stacks:   Map<String, Int>,    -- 本区可叠加堆：stack_key → 数量
+  host_card_id:   String,
+  slot:           String,
+  card_ids:       Array<String>,
+  token_stacks:   Map<String, Int>,    -- stack_key → 数量；token 的唯一权威
   limbo_kind:     LimboKind
 }
 ```
@@ -138,99 +137,52 @@ Region = {
 |---|---|---|
 | `id` | `String` | 区 id |
 | `shape` | `RegionShape` | `"deck"` \| `"flat"` \| `"bag"` |
-| `host_card_id` | `String` | 宿主卡；场景公共为 `""` |
-| `slot` | `String` | 对应 `Card.slot_regions` 的键 |
-| `card_ids` | `Array<String>` | 放置的卡；`"deck"` 时 `[0]` 为顶 |
-| `token_ids` | `Array<String>` | **个体** token id；凡需认身份的都走这里（占兆、封印、双面件等），与是否混乱无关 |
-| `token_stacks` | `Map<String, Int>` | **可叠加**堆；含静止混乱袋、伤/资源等 |
+| `host_card_id` | `String` | 宿主卡；公共 `""` |
+| `slot` | `String` | 槽名 |
+| `card_ids` | `Array<String>` | 卡序；`"deck"` 时 `[0]` 为顶 |
+| `token_stacks` | `Map<String, Int>` | **全部** token（含仅 1 枚的） |
 | `limbo_kind` | `LimboKind` | `""` \| `"resolving"` \| `"committed"` |
 
-同一区可同时有卡与 token。  
-**Touched**：改成员时写 `region:<id>:members` 与/或 `region:<id>:stack:<key>`。
+**Touched**：`region:<id>:members`（卡）与/或 `region:<id>:stack:<key>`（token 堆）。
 
 ---
 
-### 1.2.1 `Token`
+### 1.2.1 Token = 堆键 + 数量（终端）
 
-单面与双面共用一条记录；**对外生效的类型 = 当前朝上面的规格**。
-
-```text
-Token = {
-  id:         String,
-  faces:      Map<String, TokenFace>,  -- 键 "A" / "B"；单面只有 "A"
-  face:       String,                  -- 当前朝上："A" | "B"
-  mold_id:    String                   -- 双面模具/成对身份；单面可 ""
-}
-
-TokenFace = {
-  kind:       TokenKind,
-  subtype:    String,                  -- 充能用途、numeric 修正编码等
-  modifier:   Int                      -- 数值面常用；其它为 0
-}
-```
-
-**`TokenKind`**：`"damage"` \| `"horror"` \| `"doom"` \| `"clue"` \| `"resource"` \| `"ammo"` \| `"charge"` \| `"secret"` \| `"supply"` \| `"chaos"` \| …（可增长）
-
-**有效类型（投影，不另存权威）**：
-
-\[
-\mathrm{active}(t)=t.\mathrm{faces}[t.\mathrm{face}]
-\]
-
-效果、堆叠键、查询都读 `active(t).kind` / `subtype`，不读背面。
-
-#### 双面怎么放进区
-
-| 策略 | 做法 | 适用 |
-|---|---|---|
-| **个体（推荐默认）** | 双面 token 始终进 `auth.tokens` + 区 `token_ids`；`FlipToken` 只改 `face` | 面数少、要封印/点名、两面类型不同 |
-| **按「模具+朝向」堆叠** | `token_stacks` 键 = `mold:<mold_id>:<face>`（如 `mold:scenario_key:A`）；翻转 = 一堆 `-1` 另一面堆 `+1` | 多枚同模具且同面可互换 |
-
-禁止：只用单一 `kind` 字段表示双面件（会丢背面，或和朝向打架）。  
-禁止：堆键只用 `kind` 而不含朝向，导致翻面后与另一类型静默合并错账。
-
-单面混乱符号袋内仍用符号堆键（`"skull"`、`"numeric:-1"`）；这些**不是**双面件。祝福/诅咒若为单面，同样走符号堆；若某扩展做成双面，改走个体或 `mold:…:face` 堆。
-
-- **可叠加单面**（伤、资源、袋内静止单面混乱）：`token_stacks`。  
-- **揭示/封印/双面**：个体（或 mold+face 堆）；揭示晋升时带上 `faces` 与当前 `face`。
-
-#### 混乱袋（默认可堆叠）
+不在 `auth` 单列 token 表。区上的堆即全部权威：
 
 ```text
-regions["chaos"] = {
-  slot: "chaos",
-  shape: "bag",
-  token_ids: [],
-  token_stacks: {
-    "numeric:1": 2,
-    "numeric:0": 3,
-    "numeric:-1": 2,
-    "skull": 2,
-    "auto_fail": 1,
-    "elder_sign": 1,
-    …
-  }
-}
+token_stacks: Map<String, Int>   -- stack_key → count
 ```
 
-`stack_key` 建议：`"numeric:<mod>"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` …
+**`stack_key` 约定**
 
-| 操作 | 语义 |
+| 种类 | 键例 |
 |---|---|
-| 抽/揭示 | 按堆权重取一种 `stack_key`，该堆 `-1`；**晋升**个体进 `augury`（`faces`/`face` 由 stack_key 还原） |
-| 回袋 | 个体卸掉；单面叠回符号堆；双面按 `mold_id`+`face` 叠回或保持个体政策 |
-| 封印 | 个体进 `sealed`（或卡槽）；可再 `FlipToken` |
-| `FlipToken` | 只改 `face`（或 mold 堆之间挪 1）；Touched：`token:<id>` 或两堆 stack 键 |
-| 添加祝福/诅咒入袋 | 单面：改符号堆；双面模具：个体或 `mold:…:face` 堆 |
+| 伤/恐/线索/毁灭/资源 | `"damage"` \| `"horror"` \| `"clue"` \| `"doom"` \| `"resource"` |
+| 充能等 | `"ammo"` \| `"charge:<用途>"` \| … |
+| 单面混乱 | `"numeric:<mod>"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` |
+| **双面** | `"dual:<mold_id>:<face>"`（`face` ∈ `"A"`\|`"B"`）——**按面分堆** |
 
-袋内**不**维护排列序；随机性来自按堆抽取的熵，而非列表下标。
+双面：Catalog 解释 `mold_id`+`face` → 该面的 kind/修正；`Flip` = 同区（或按规则）`dual:M:A` `-1` 且 `dual:M:B` `+1`。
 
-#### 放置伤/线索等
+**终端性**：token 堆上不可再放卡、不可作登记 `subject` 去挂其它实体。
 
-默认 Intent 直接改目标区堆（盒装供应「永够」）。可选审计用 `token_supply` 区，**非**正确性前提。
+#### 混乱 / 占兆 / 封印（全是堆移动）
 
-术语：全文用 **token**。  
-**勿混**：袋内堆 ≠ 揭示后个体；`auth.tokens` 只服务后者。
+```text
+chaos.token_stacks["skull"] = 2
+-- 揭示：chaos "skull" -= 1 ; augury "skull" += 1
+-- 封印：augury "skull" -= 1 ; sealed "skull" += 1
+```
+
+无个体 id、无晋升。同键多枚不可区分。
+
+#### 放置伤/线索
+
+`PlaceToken` / `RemoveToken`：只改目标区 `token_stacks`（盒装供应默认永够）。
+
+术语：全文用 **token**。
 
 ---
 
