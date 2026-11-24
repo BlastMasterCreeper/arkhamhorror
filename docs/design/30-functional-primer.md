@@ -168,12 +168,12 @@ auth = {
   payloads:       数组     元素是 Registration 载荷
 }
 
-Registration 载荷 = {
-  kind:     枚举    "modifier" | "gate" | "directive" | "listener" | "status"
-  aspect:   字符串  索引方面，如 "combat" / "gate.play_card"；可 ""
-  amount:   整型    修正量；其它 kind 为 0
-  data:     映射    kind 专用；可空
-}
+Registration 载荷 = 按 kind 分型（五选一 body；详 37 §1.3.1）
+  modifier  → { stat, op, value, … }
+  gate      → { kind: forbid_*, drawer_id, … }
+  directive → { kind: skip_aoo | …, … }
+  listener  → { timing, composition }
+  status    → { kind: engagement, subject_id, drawer_id }
 ```
 
 #### 可见性、框架、混乱袋、限额

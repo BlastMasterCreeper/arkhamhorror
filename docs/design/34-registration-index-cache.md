@@ -30,11 +30,13 @@ Registration.subject =
   | Bound(card_id)
   | Matching(filter_id)      -- 动态；不能钉死在单一 card_id
 
-RegistrationPayload.aspect =
-  | Stat(fight|willpower|…)
-  | Gate(play_card|commit|initiate|…)
-  | Status(engagement|…)
-  -- Gain 特征（KEYWORD/TRAIT/…）不是 Registration 载荷；不进此索引轴
+索引 aspect **由载荷 body 派生**（非壳字段）：
+  | Stat ← modifier.stat
+  | Gate ← gate.kind
+  | Directive ← directive.kind
+  | Status ← status.kind
+  | Listener ← listener.timing
+  -- Gain 特征不是 Registration 载荷；不进此索引轴
 ```
 
 查询原语（纯）：

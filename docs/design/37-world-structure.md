@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.20 · 2026-11-24  
+> **状态**：设计草案 v0.21 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
@@ -209,7 +209,7 @@ chaos.token_stacks["skull"] = 2
 
 ### 1.3 `Registration`
 
-登记写入 **`payloads`（Registration 载荷）**，`RegistrationKind`×5（`modifier`/`gate`/`directive`/`listener`/`status`）。见 [06-registration-payload-model](06-registration-payload-model.md)。
+登记写入 **`payloads`（Registration 载荷）**。见 [06-registration-payload-model](06-registration-payload-model.md)。
 
 ```text
 Registration = {
@@ -224,13 +224,6 @@ Registration = {
 Subject =
   | { tag: "bound",    card_id: String }
   | { tag: "matching", filter_id: String, filter_args: Map<String, String> }
-
-RegistrationPayload = {
-  kind:     RegistrationKind,     -- ×5；见下
-  aspect:   String,               -- 索引 / Deps：如 "fight" / "gate.play_card"
-  amount:   Int,
-  data:     Map<String, String>   -- kind 专用扩展；可空
-}
 ```
 
 | 键 | 类型 | 说明 |
@@ -242,12 +235,105 @@ RegistrationPayload = {
 | `bound_id` | `String` | 寿命绑定的检定/卡 id；不需要则 `""` |
 | `payloads` | `Array<RegistrationPayload>` | **Registration 载荷**列表 |
 
-**不设** `Registration.controller_id`：控制者 = `cards[source_card_id].controller_id`（「你」随来源卡控制权）。冗余快照易与转控脱节。
+**不设** `Registration.controller_id`：控制者 = `cards[source_card_id].controller_id`。
 
 **`Lifetime`**：`"while_in_play"` \| `"while_committed"` \| `"this_skill_test"` \| `"this_turn"` \| `"while_drawn_card_resolving"`
 
-**`RegistrationKind`（×5）**：`"modifier"` \| `"gate"` \| `"directive"` \| `"listener"` \| `"status"`  
-（交战 = `status` + `ENGAGEMENT`。）**不是**载荷：KEYWORD/TRAIT/ICON/ABILITY 等 **Gain 特征**（另表 / `seq.effect.grant`）。
+**不是** Registration 载荷：KEYWORD/TRAIT/ICON/ABILITY 等 **Gain 特征**（`GainedCharacteristicStore` / `seq.effect.grant`）。
+
+---
+
+### 1.3.1 `RegistrationPayload`（按 kind 分型）
+
+壳上只有 **kind + 对应 body**（互斥；与实现 `RegistrationPayload` 一致）：
+
+```text
+RegistrationPayload =
+  | { kind: "modifier",  modifier:  ModifierPayload }
+  | { kind: "gate",      gate:      GatePayload }
+  | { kind: "directive", directive: DirectivePayload }
+  | { kind: "listener",  listener:  ListenerPayload }
+  | { kind: "status",    status:    StatusPayload }
+
+RegistrationKind = "modifier" | "gate" | "directive" | "listener" | "status"
+```
+
+Deps / 索引的 **aspect** 由 body **派生**（如 `modifier.stat`、`gate.kind`、`status.kind`），不在壳上另存一份。
+
+#### `ModifierPayload`
+
+```text
+ModifierPayload = {
+  stat:       String,    -- StatRef：willpower / combat / …
+  op:         String,    -- "add" | "set" | …
+  value:      Int,
+  condition:  String,    -- 条件 id；无则 ""
+  plan_kind:  String,    -- ModifierPlanKind；无计划则 "none"
+  apply_mode: String     -- "scalar" | …
+}
+```
+
+#### `GatePayload`（拦 Intent / 合法性 · cannot）
+
+```text
+GatePayload = {
+  kind:               GateKind,
+  drawer_id:          String,
+  drawn_card_id:      String,
+  encounter_frame_id: String,
+  subject_id:         String
+}
+
+GateKind =
+  "forbid_draw" | "forbid_play" | "forbid_trigger" | "forbid_commit_to_test"
+  | "forbid_leave_hand" | "forbid_discover_clue" | "forbid_spend_clue" | "forbid_attack"
+```
+
+#### `DirectivePayload`（原流程读取后改道 · 非 Intent 拦截）
+
+```text
+DirectivePayload = {
+  kind:                 DirectiveKind,
+  drawer_id:            String,
+  drawn_card_id:        String,
+  subject_id:           String,
+  redirect_from:        Int,      -- skill_redirect；不用则为 -1
+  redirect_to:          Int,
+  assign_op:            String,   -- AssignConstraintOp；非 assign 类可忽略
+  assign_affliction:    String,
+  assign_direct_scope:  String,
+  assign_expand_scope:  String,
+  assign_trait:         String,
+  assign_amount:        Int,
+  assign_if_able:       Bool
+}
+
+DirectiveKind =
+  "skip_aoo" | "suppress_auto_engage" | "assign_constraint" | "skill_redirect"
+```
+
+#### `ListenerPayload`
+
+```text
+ListenerPayload = {
+  timing:       String,   -- 时点 / 入口 id
+  composition:  String    -- 已装载 Composition 树 id / 句柄；Snapshot 外可再解
+}
+```
+
+#### `StatusPayload`（局面断言）
+
+```text
+StatusPayload = {
+  kind:        StatusKind,   -- 现仅 "engagement"
+  subject_id:  String,       -- 交战：敌人
+  drawer_id:   String        -- 交战：调查员
+}
+
+StatusKind = "engagement"
+```
+
+交战 = `{ kind:"status", status:{ kind:"engagement", subject_id:敌人, drawer_id:调查员 } }`，不进 Card / `on`。
 
 ---
 
@@ -542,3 +628,4 @@ Snapshot {
 | 2026-11-24 | v0.18：合入 registration-payload；术语/06 文件名与载荷口径对齐 |
 | 2026-11-24 | v0.19：正文去掉已弃用俗称残留 |
 | 2026-11-24 | v0.20：`Region.slot`/`slot_regions` → `place`/`owned_regions`；slot 留给规则资产槽 |
+| 2026-11-24 | v0.21：补全 `RegistrationPayload` 分型及五类 body 字段 |
