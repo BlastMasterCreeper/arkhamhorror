@@ -2,7 +2,8 @@
 
 > **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
-> **状态**：v0.9.11 · 2026-10-24 — 空效果体 = EmptySettle（锚 09125；完备性非门特例）
+> **状态**：v0.9.11 · 2026-10-24 — 空效果体 = EmptySettle（锚 09125；完备性非门特例）  
+> **函数式代数（草案）**：[25-functional-eff.md](25-functional-eff.md) — Composition / 手续体统一为 `Eff`；本文仍是现行运行时规格
 
 ---
 
