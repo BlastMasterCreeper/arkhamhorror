@@ -1,9 +1,9 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.9 · 2026-11-24  
+> **状态**：设计草案 v0.10 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
-> **token**：一律 `token_stacks`（堆键 + 数量）；放置终端；双面按 `dual:<mold>:<A|B>` 分堆；无 `auth.tokens` / `token_ids`。本游戏不预建多面模具。
+> **token**：一律 `token_stacks`；类型靠堆键区分，**不为每种 token 另开槽**；宿主一枚 `tokens` 区即可。双面 `dual:<mold>:<A|B>`；无 `auth.tokens` / `token_ids`。
 
 ---
 
@@ -102,18 +102,20 @@ Card = {
 
 #### 推荐槽名（`slot_regions` 的键）
 
+槽按 **放置面角色** 开，不按 token 种类开。伤/恐/线索/毁灭/资源/充能… 同进一区的 `token_stacks`，靠堆键区分。
+
 | 槽名 | 谁有 | 区内存什么 |
 |---|---|---|
 | `hand` / `deck` / `discard` / `play` / `threat` | investigator | 卡 |
-| `damage` / `horror` | 有生命/神智的卡 | token 堆（伤/恐） |
-| `doom` / `clue` / `resource` / `uses` | 按卡类型 | token 堆 |
+| `tokens` | 会承 token 的卡 | **该宿主上全部** token 堆（伤/恐/线索/毁灭/资源/充能…） |
 | `at` | location | **在该地点的**调查员/敌人卡 id |
 | `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
-| `chaos` | 冒险公共 | 混乱袋（符号堆） |
-| `augury` / `sealed` | 公共或卡槽 | 占兆 / 封印（同样是堆；同键可互换） |
+| `chaos` | 冒险公共 | 混乱袋（另一放置面；仍是堆） |
+| `augury` / `sealed` | 公共或卡槽 | 占兆 / 封印（不同放置面，非按种类分槽） |
 | `encounter_deck` / `encounter_discard` | 公共 | 卡 |
 
-读「某卡上有多少资源」= 读 `regions[card.slot_regions["resource"]].token_stacks["resource"]`（或等价）。  
+读「某卡上有多少资源」= 读 `regions[card.slot_regions["tokens"]].token_stacks["resource"]`。  
+读「伤」同区 `token_stacks["damage"]`——**不要**再开 `damage`/`horror`/`resource` 槽。  
 读「调查员在哪」= 哪个地点的 `at` 区的 `card_ids` 含该 id（派生索引可加速）。  
 「交战」= **登记** `ENGAGEMENT`（或等价 Buff），不进 Card 字段。
 
@@ -452,7 +454,7 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 | 焦点 | `run:focus` | `run.focus` |
 | 记忆 | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
 
-读「卡上伤害」→ 宿主 `damage` 槽区的 stack 键。禁止再依赖已废除的 `card.markers`。
+读「卡上伤害」→ 宿主 `tokens` 槽区的 `token_stacks["damage"]`。禁止再依赖已废除的 `card.markers`。
 
 ---
 
@@ -476,14 +478,15 @@ Snapshot {
     next_id: 8
     cards: {
       "I": { card_type:"investigator",
-             slot_regions:{ "hand":"hand_I", "deck":"deck_I", "resource":"res_I", "damage":"dmg_I", … }, … }
-      "L": { card_type:"location", slot_regions:{ "at":"at_L", "clue":"clue_L" }, connections:[], … }
+             slot_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I", … }, … }
+      "L": { card_type:"location", slot_regions:{ "at":"at_L", "tokens":"tok_L" }, connections:[], … }
     }
     regions: {
       "hand_I":  { host_card_id:"I", slot:"hand", card_ids:[], token_stacks:{}, … }
-      "res_I":   { host_card_id:"I", slot:"resource", card_ids:[], token_stacks:{ "resource":5 }, … }
+      "tok_I":   { host_card_id:"I", slot:"tokens", card_ids:[],
+                   token_stacks:{ "resource":5, "damage":0, "horror":0 }, … }
       "at_L":    { host_card_id:"L", slot:"at", card_ids:["I"], token_stacks:{}, … }
-      "clue_L":  { host_card_id:"L", slot:"clue", card_ids:[], token_stacks:{ "clue":1 }, … }
+      "tok_L":   { host_card_id:"L", slot:"tokens", card_ids:[], token_stacks:{ "clue":1 }, … }
       "chaos":   { host_card_id:"", slot:"chaos", shape:"bag",
                    token_stacks:{ "numeric:0": 2, "skull": 1, "auto_fail": 1 }, … }
     }
@@ -510,3 +513,4 @@ Snapshot {
 | 2026-11-24 | v0.7：token 一律堆（类型+数量）；废 auth.tokens/token_ids；双面按面分堆；token 为放置终端 |
 | 2026-11-24 | v0.8：有朝向统一为 `faced:<mold>:<face>` + Catalog `MoldSpec`；面数任意（双面/骰子/…）；`Reorient` 为键间转移 |
 | 2026-11-24 | v0.9：收回多面泛化；本游戏仅双面 `dual:<mold>:<A\|B>`；多面标记物留待后需再扩 |
+| 2026-11-24 | v0.10：不为 token 种类分槽；宿主统一 `tokens` 区，种类只走 `token_stacks` 键 |
