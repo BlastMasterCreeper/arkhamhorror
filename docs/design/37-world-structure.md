@@ -52,8 +52,8 @@ Auth = {
 |---|---|---|
 | `cards` | `Map<String, Card>` | 卡实体脊骨（不含伤害/线索等散字段） |
 | `regions` | `Map<String, Region>` | **唯一放置面**：可放卡、可放 token |
-| `tokens` | `Map<String, Token>` | **仅**需个体身份的实例（混乱某一枚、封印某一枚）；≠ 放置来源池 |
-| （来源池） | 见公共 `Region` `slot:"token_supply"` | **放置/移除 token 的原子来源与回收处**（盒内供应） |
+| `tokens` | `Map<String, Token>` | **仅**已揭示/封印等需认身份的实例；袋内静止不进此表 |
+| （可叠加供应） | 目标区 `token_stacks` 直接加减即可 | 盒装供应默认「永够」，不必强制 `token_supply` 区 |
 | `registrations` | `Map<String, Registration>` | 信息层（含交战等关系） |
 | `chronicle` | `Chronicle` | 日志∪记住 |
 | `audience` | `Map<String, Audience>` | 牌面可见档 |
@@ -61,7 +61,7 @@ Auth = {
 | `framework` | `Framework` | 回合与场景/密谋游标 |
 | `next_id` | `Int` | 下一分配序号 |
 
-混乱袋 = 一条 `Region`（`shape:"bag"`），其中 `token_ids` 有序；**不再**单列 `chaos_bag` 数组。
+混乱袋 = 公共 `Region`（`slot:"chaos"`，`shape:"bag"`），**静止时用 `token_stacks` 多重集**；**不再**单列 `chaos_bag` 数组，袋内也不为每枚永久分配 id。
 
 **原则**：伤/恐/毁灭/线索/资源/充能等桌游 **token** 放在区里；卡通过 `slot_regions` 挂自己的区。禁止再在 `Card` 上堆 `markers` / `location_id` / `engaged_with`。
 
@@ -110,7 +110,8 @@ Card = {
 | `doom` / `clue` / `resource` / `uses` | 按卡类型 | token 堆 |
 | `at` | location | **在该地点的**调查员/敌人卡 id |
 | `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
-| `chaos` | 冒险公共 | 混乱袋 token（有序） |
+| `chaos` | 冒险公共 | 混乱袋（`token_stacks` 多重集） |
+| `augury` / `sealed` | 公共或卡槽 | 已揭示占兆 / 已封印：**个体** `token_ids` |
 | `encounter_deck` / `encounter_discard` | 公共 | 卡 |
 
 读「某卡上有多少资源」= 读 `regions[card.slot_regions["resource"]].token_stacks["resource"]`（或等价）。  
@@ -128,8 +129,8 @@ Region = {
   host_card_id:   String,              -- 所属卡；公共区 ""
   slot:           String,              -- 在宿主上的槽名；公共区用逻辑名
   card_ids:       Array<String>,       -- 区内的卡（有序）
-  token_ids:      Array<String>,       -- 需个体 id 的 token（如混乱袋序）
-  token_stacks:   Map<String, Int>,    -- 可叠加 token：kind → 数量
+  token_ids:      Array<String>,       -- 仅需认身份时用（揭示/封印）
+  token_stacks:   Map<String, Int>,    -- 可叠加 / 袋内多重集：stack_key → 数量
   limbo_kind:     LimboKind
 }
 ```
@@ -141,12 +142,12 @@ Region = {
 | `host_card_id` | `String` | 宿主卡；场景公共为 `""` |
 | `slot` | `String` | 对应 `Card.slot_regions` 的键 |
 | `card_ids` | `Array<String>` | 放置的卡；`"deck"` 时 `[0]` 为顶 |
-| `token_ids` | `Array<String>` | 有序个体 token（混乱袋） |
-| `token_stacks` | `Map<String, Int>` | 可互换 token 数量堆 |
+| `token_ids` | `Array<String>` | 个体 token；**混乱袋静止时为空** |
+| `token_stacks` | `Map<String, Int>` | 可互换数量；混乱袋用符号键 |
 | `limbo_kind` | `LimboKind` | `""` \| `"resolving"` \| `"committed"` |
 
-同一区可同时有卡与 token（例如地点 `at` 只有卡；支援 `uses` 只有 token）。  
-**Touched**：改成员时写 `region:<id>:members`（卡与 token 成员变化都算）。
+同一区可同时有卡与 token。  
+**Touched**：改成员时写 `region:<id>:members` 与/或 `region:<id>:stack:<key>`。
 
 ---
 
@@ -163,37 +164,45 @@ Token = {
 
 **`TokenKind`**：`"damage"` \| `"horror"` \| `"doom"` \| `"clue"` \| `"resource"` \| `"ammo"` \| `"charge"` \| `"secret"` \| `"supply"` \| `"chaos"` \| …（可增长）
 
-- **可叠加**（伤、资源…）：优先只改 `Region.token_stacks`，不必每枚进 `auth.tokens`。  
-- **要个体**（袋中某一枚混乱、被封印的某枚）：进 `auth.tokens` + 区的 `token_ids`。  
-- 混乱符号的数值/种类：个体 `Token` + Catalog/场景表，或 `subtype` 编码 kind。
+- **可叠加**（伤、资源、**袋内静止的混乱标记**）：只改 `Region.token_stacks`。  
+- **要个体**：揭示进占兆、封印、效果点名「这一枚」时，从堆**晋升**为 `auth.tokens` + 目标区 `token_ids`；结算/解封后可再叠回堆或回袋堆。
 
-#### 标记来源池（token supply）— 放置原子的来源
-
-桌游里「从盒子拿一枚伤害放到卡上」对应权威里的**供应区**，不是 `auth.tokens` 字典：
+#### 混乱袋（默认可堆叠）
 
 ```text
-regions["token_supply"] = {
-  id: "token_supply",
-  shape: "flat",
-  host_card_id: "",
-  slot: "token_supply",
-  card_ids: [],
+regions["chaos"] = {
+  slot: "chaos",
+  shape: "bag",
   token_ids: [],
-  token_stacks: { "damage": N, "horror": N, "clue": N, "doom": N, "resource": N, … },
-  limbo_kind: ""
+  token_stacks: {
+    "numeric:1": 2,
+    "numeric:0": 3,
+    "numeric:-1": 2,
+    "skull": 2,
+    "auto_fail": 1,
+    "elder_sign": 1,
+    …
+  }
 }
 ```
 
-| 原子 Intent | 语义 |
+`stack_key` 建议：`"numeric:<mod>"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` …
+
+| 操作 | 语义 |
 |---|---|
-| `PlaceToken(kind, n, dest_region)` | 供应堆 `-= n`，目标区堆 `+= n`（同拍两条栈更新） |
-| `RemoveToken(kind, n, src_region)` | 目标区堆 `-= n`，供应堆 `+= n`（回盒） |
-| 供应视为「足够大」时 | 可将供应写成不变量「永够」，Touched 仍打目标区；或显式扣供应便于审计 |
+| 抽/揭示 | 按堆权重取一种 `stack_key`，该堆 `-1`；**晋升**个体进 `augury`（占兆）区 `token_ids` |
+| 回袋 | 个体卸掉，对应 `stack_key` `+1` |
+| 封印 | 个体进 `sealed`（或卡槽）；袋堆已在揭示时减过则不再减 |
+| 添加祝福/诅咒入袋 | 只改 `token_stacks` |
 
-**混乱袋**是另一条有序区（`slot:"chaos"`），从供应**组建**进袋后，袋内用 `token_ids` 个体管理；与伤/线索的可叠加供应池分流。
+袋内**不**维护排列序；随机性来自按堆抽取的熵，而非列表下标。
 
-术语：全文用 **token**；避免再写 marker 当权威结构名。  
-**勿混**：`auth.tokens`（个体表）≠ `token_supply` 区（放置来源池）。
+#### 放置伤/线索等
+
+默认 Intent 直接改目标区堆（盒装供应「永够」）。可选审计用 `token_supply` 区，**非**正确性前提。
+
+术语：全文用 **token**。  
+**勿混**：袋内堆 ≠ 揭示后个体；`auth.tokens` 只服务后者。
 
 ---
 
@@ -260,7 +269,7 @@ Framework = {
 }
 ```
 
-混乱种类（个体 token 的 `subtype` 或 Catalog）：`"numeric"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` 等。
+混乱 `stack_key` / 晋升后个体的 `subtype`：同上表（`numeric:N`、符号名、bless/curse 等）。
 
 ---
 
@@ -493,9 +502,10 @@ Snapshot {
       "res_I":   { host_card_id:"I", slot:"resource", card_ids:[], token_stacks:{ "resource":5 }, … }
       "at_L":    { host_card_id:"L", slot:"at", card_ids:["I"], token_stacks:{}, … }
       "clue_L":  { host_card_id:"L", slot:"clue", card_ids:[], token_stacks:{ "clue":1 }, … }
-      "chaos":   { host_card_id:"", slot:"chaos", shape:"bag", token_ids:["t0"], token_stacks:{}, … }
+      "chaos":   { host_card_id:"", slot:"chaos", shape:"bag", token_ids:[],
+                   token_stacks:{ "numeric:0": 2, "skull": 1, "auto_fail": 1 }, … }
     }
-    tokens: { "t0": { id:"t0", kind:"chaos", subtype:"numeric", face:"" } }
+    tokens: {}
     registrations: {}
     …
   }
@@ -514,3 +524,4 @@ Snapshot {
 | 2026-11-24 | v0.2：`limits` 升为 `LimitStore`（period/scope/subject/window + MaxSlot） |
 | 2026-11-24 | v0.3：token 命名；Region 放卡+token；Card.slot_regions；废 markers/location_id/engaged_with 字段；混乱袋为区 |
 | 2026-11-24 | v0.4：标明 `token_supply` 区为放置原子来源池；与 `auth.tokens` 个体表分流 |
+| 2026-11-24 | v0.5：混乱袋默认 `token_stacks` 多重集；揭示/封印才晋升个体 |
