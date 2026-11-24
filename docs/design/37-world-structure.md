@@ -207,7 +207,7 @@ chaos.token_stacks["skull"] = 2
 
 ### 1.3 `Registration`
 
-口径对齐 [06-registration-payload-model](06-registration-buff-model.md)（载荷口径见 registration-payload 线；旧称 Buff 已弃用） / 术语表：**旧称 Buff 已弃用**。登记写入的是 **`payloads`（Registration 载荷）**，不是 Buff。
+口径：**旧称 Buff 已弃用**；登记写入 **`payloads`（Registration 载荷）**，`RegistrationKind`×5（`modifier`/`gate`/`directive`/`listener`/`status`）。详见 registration-payload 线与 [06](06-registration-buff-model.md)（本分支文件名尚未改）。
 
 ```text
 Registration = {
