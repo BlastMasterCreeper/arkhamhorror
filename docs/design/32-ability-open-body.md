@@ -2,7 +2,8 @@
 
 > **状态**：设计草案 v0.1 · 2026-11-24  
 > **依赖**：[06-ability-initiation](06-ability-initiation.md)、[06-registration-buff-model](06-registration-buff-model.md)、[07-composition](07-composition.md)、[27-eff-eval-detail](27-eff-eval-detail.md)、[28-functional-scheme](28-functional-scheme.md)、[30-functional-primer](30-functional-primer.md)  
-> **裁决**：印刷上的 Constant / Forced / 反应 / 免费 / 激活 / 显现，以及「看起来一直生效」的数值句，**一律**抽象成 **开口（Open）+ 执行（Body）**。不存在「无时点、只悬浮在局面上的魔法」。
+> **裁决**：印刷上的 Constant / Forced / 反应 / 免费 / 激活 / 显现，以及「看起来一直生效」的数值句，**一律**抽象成 **开口（Open）+ 执行（Body）**。不存在「无时点、只悬浮在局面上的魔法」。  
+> **候选**：[33-candidate-functions](33-candidate-functions.md)（合法集 = 纯函数；确认 = Ask）。
 
 ---
 

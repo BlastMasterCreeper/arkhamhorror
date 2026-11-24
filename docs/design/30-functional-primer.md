@@ -485,7 +485,7 @@ w.\mathrm{cards}[e].\mathrm{markers}[k] + n
 \{\mathrm{种类}=s.\mathrm{kind},\ \mathrm{候选}=\mathrm{legal}(w,r,s),\ \mathrm{默认}=s.\mathrm{default}\}
 \]
 
-`legal` 是查询。`bind` 把答案写进进度的记忆，不写局面。
+`legal` 即候选函数 \(\mathrm{candidates}\)（四层过滤，见 [33](33-candidate-functions.md)）。`bind` 把答案写进进度的记忆，不写局面。
 
 驱动层（唯一不纯的地方）做的事：
 
