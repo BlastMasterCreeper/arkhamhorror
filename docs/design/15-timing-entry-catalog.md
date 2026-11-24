@@ -1,6 +1,6 @@
 # 15 — 规范时点入口 (Timing Entry Catalog)
 
-> **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-buff-model.md](06-registration-buff-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
+> **依赖**：[06-ability-initiation.md](06-ability-initiation.md), [14-nested-sequences.md](14-nested-sequences.md), [06-registration-payload-model.md](06-registration-payload-model.md), [07-effect-primitives.md](07-effect-primitives.md)  
 > **符号记法**：[ArkhamDB 标准](../reference/arkham-symbol-notation.md)  
 > **状态**：v0.6.19 · 2026-09-21 — 卡牌正文译 Composition（§4.0.1）
 
@@ -37,7 +37,7 @@ class TimingOffer:
 ```
 
 **订阅键（Eligibility L0）** = `(sequence_id, slot)`。  
-**情景、tags、framework_step** → `ApplicationContext` + Condition（L3），见 [06 §4.1](06-ability-initiation.md)、[06b §12](06-registration-buff-model.md)。
+**情景、tags、framework_step** → `ApplicationContext` + Condition（L3），见 [06 §4.1](06-ability-initiation.md)、[06b §12](06-registration-payload-model.md)。
 
 **卡面时点描述不细 → 转译钉语义（已裁决）**：Would / When / After 仍是同一套三槽。卡面「draw」写得粗，转译时把指称钉死，不把显现 / G4 / 涌动吞进「抽取时」。
 
@@ -219,7 +219,7 @@ Grimoire 规范流程
 
 **单砖上界（已裁决）**：最大粒度 = **G2 RuleStep**（含 Register 或 **Reveal** 边界的 **一步** Grimoire 步骤）。更长流程 = **同一条 `seq.*` 内多砖顺序拼（G3 SubFlow）**，**不** register 子 `seq.*`。
 
-**不是砖块**：Eligibility L0–L7、Player Window、`RestrictionEvaluator` 查询、TimingBus emit — **执行框架**（Buff 查询见 [06 §16](06-registration-buff-model.md)）。
+**不是砖块**：Eligibility L0–L7、Player Window、`RestrictionEvaluator` 查询、TimingBus emit — **执行框架**（Buff 查询见 [06 §16](06-registration-payload-model.md)）。
 
 ### 4.0.2 砖块粒度分类（G0–G3）
 
@@ -443,7 +443,7 @@ seq.*  (RuleSequenceDef)
 
 MoveCard ⊥ Reveal          正交：zone 变更 ≠ 揭示状态（分砖顺序拼，如 D2→D3）
 G3  ⊃  ≥2 逻辑砖           仍在同一 seq.* 栈帧内
-Buff 查询  ⊄  Brick         RESTRICTION 在 [06 §16](06-registration-buff-model.md) Intent 入口
+Buff 查询  ⊄  Brick         RESTRICTION 在 [06 §16](06-registration-payload-model.md) Intent 入口
 ```
 
 | 关系 | 含义 |
@@ -1313,7 +1313,7 @@ func reveal_encounter_step(card_id: StringName, drawer_id: StringName) -> void:
 
 ### 17.4.5 涌动（Surge）· 已裁决
 
-**涌动** = 抽到并结算后挂上的 **延时效果**（Grimoire：*After an investigator draws and resolves*）。印刷 `surge` 与 G3 内「gains surge」**不叠加**：至多再开 **一条** 抽 1 张的新指令。详 [06 §3.1–3.2](06-registration-buff-model.md#32-gained-characteristics动态特征--总纲--已裁决)。
+**涌动** = 抽到并结算后挂上的 **延时效果**（Grimoire：*After an investigator draws and resolves*）。印刷 `surge` 与 G3 内「gains surge」**不叠加**：至多再开 **一条** 抽 1 张的新指令。详 [06 §3.1–3.2](06-registration-payload-model.md#32-gained-characteristics动态特征--总纲--已裁决)。
 
 ```text
 G3 revelation:
@@ -1325,7 +1325,7 @@ G3 revelation:
 本条 AFTER 之后（KeywordConsumer）:
   nest seq.keyword.surge
   should_surge = CardRegistry.has_surge(def_id)
-              OR RegistrationStore.has_keyword_buff(card_id, &"surge")
+              OR GainedCharacteristicStore.has_gained_keyword(card_id, &"surge")
   if should_surge: nest seq.draw.encounter（amount=1）
   Unregister KEYWORD(surge) for card_id   # 动态标记；印刷 surge 不 Register
 ```
@@ -1339,7 +1339,7 @@ G3 revelation:
 
 **测试**：ENC-SURGE-01（印刷）；ENC-SURGE-02（12124 两分支）；ENC-SURGE-03（12126 有/无 clue）。
 
-**不是所有关键词都走本槽**。涌动是 **LISTENER 延时** 的样板；险境是 RESTRICTION。猎物 / 生成是指令。注册/注销绑已有 `seq.*` 砖或 zone 变迁，见 [06 §3.2.6](06-registration-buff-model.md#326-listener--buff-的注册与注销场合已裁决)。分类见 [06 §3.2.5](06-registration-buff-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
+**不是所有关键词都走本槽**。涌动是 **LISTENER 延时** 的样板；险境是 RESTRICTION。猎物 / 生成是指令。注册/注销绑已有 `seq.*` 砖或 zone 变迁，见 [06 §3.2.6](06-registration-payload-model.md#326-listener--buff-的注册与注销场合已裁决)。分类见 [06 §3.2.5](06-registration-payload-model.md#325-实现路径指令--参数--关键词-buff已裁决)。
 
 **Timing emit（目标，待 TimingCatalog）**：
 
@@ -1789,7 +1789,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | 2026-06-18 | v0.5 | **§17.4** `resolve_card` 共享子 flow；§17.4.2–4 Treachery/Hidden/Surge；§17.8–12 Composition/Flow/Trigger/shuffle/CardAbility；ENC-13～15；OQ-10-04 |
 | 2026-06-18 | v0.6 | **§4** 砖块 G0–G3；**③ AtomRevealCard**（Grimoire Reveal）；小序列 = 砖块拼成 |
 | 2026-06-18 | v0.5.1 | **§17.6.1–3** Weakness 全 cardtype 路由（asset/event/skill vs enemy/treachery）；WKN-01～04；对齐 [11 §10](11-investigator-campaign.md) |
-| 2026-07-06 | v0.6.3 | 链 [06 §3.2](../../docs/design/06-registration-buff-model.md#32-gained-characteristics动态特征--总纲--已裁决) Gained characteristics |
+| 2026-07-06 | v0.6.3 | 链 [06 §3.2](../../docs/design/06-registration-payload-model.md#32-gained-characteristics动态特征--总纲--已裁决) Gained characteristics |
 | 2026-07-06 | v0.6.2 | **§17.4.5** 涌动 KEYWORD 标记 · 不叠加；OQ-ADB-02/03、OQ-10-06 |
 | 2026-06-18 | v0.6.1 | **§17.4.1c** Prey **engage 内核**读参；禁止 nest/LISTENER；对齐 [07 §0.1.2](07-effect-primitives.md) |
 | 2026-09-20 | v0.6.4 | 显现独立优先级类：`REVELATION` 90；不并入 FORCED；When 槽 95 之后剩余 impact |

@@ -1,7 +1,7 @@
 # 06 — 能力与 Initiation 管线 (AbilitySystem)
 
 > **依赖**：[02-framework-flow.md](02-framework-flow.md), [07-effect-resolution.md](07-effect-resolution.md), **[07-composition.md](07-composition.md)**, **[15-timing-entry-catalog.md](15-timing-entry-catalog.md)**  
-> **引擎统一模型**：[06-registration-buff-model.md](06-registration-buff-model.md)（Register / Buff / Context）  
+> **引擎统一模型**：[06-registration-payload-model.md](06-registration-payload-model.md)（Register / Buff / Context）  
 > **规则来源**：Grimoire Ability, Triggered Abilities, Initiation Sequence (p.31)  
 > **符号记法**：[`[reaction]` / `[action]` 等](../reference/arkham-symbol-notation.md)（ArkhamDB 标准）  
 > **状态**：v0.4.15 · 2026-09-21 — 卡牌正文译 Composition；hook 只订 seq 槽
@@ -107,7 +107,7 @@ class AbilityHook:
 
 例：调查员「仅 Upkeep 4.4 框架 gain +1」→ 订阅 `seq.action.gain_resource`, `AFTER`；L3：`framework_step == UPKEEP_4_4` 且 tags 含 `framework`。
 
-详见 [06-registration-buff-model §12](06-registration-buff-model.md)。
+详见 [06-registration-payload-model §12](06-registration-payload-model.md)。
 
 ### 4.2 打出与触发对称（Fast）；打出 **不是** 能力
 
@@ -223,7 +223,7 @@ apply_cost_modifiers(intent)
   → 全部 can_pay → pay
 ```
 
-**Seal 关键词**：L6 只做门槛（`SealFlow.can_satisfy`）；真正搜袋封印在 ENTER_PLAY（`SealFlow.pay_keyword_on_enter` → nest `seq.effect.seal`）。见 [05 §2](05-chaos-bag.md)、[06-buff §3.2.5 B](06-registration-buff-model.md)。
+**Seal 关键词**：L6 只做门槛（`SealFlow.can_satisfy`）；真正搜袋封印在 ENTER_PLAY（`SealFlow.pay_keyword_on_enter` → nest `seq.effect.seal`）。见 [05 §2](05-chaos-bag.md)、[06-buff §3.2.5 B](06-registration-payload-model.md)。
 
 ### 5.6 能力形态 · 过哪些关
 
@@ -486,7 +486,7 @@ class AbilityRegistry:
 
 Constant abilities 在 modifier 计算时 lazy 查询，不注册 listener。
 
-> **v0.2+**：Constant / Lasting / Delayed 统一为 [RegistrationStore](06-registration-buff-model.md)；`AbilityRegistry.get_constants_affecting` 等价于 `collect(MODIFIER, ctx)`。下文 AbilityKind 表保留 Grimoire 对照。
+> **v0.2+**：Constant / Lasting / Delayed 统一为 [RegistrationStore](06-registration-payload-model.md)；`AbilityRegistry.get_constants_affecting` 等价于 `collect(MODIFIER, ctx)`。下文 AbilityKind 表保留 Grimoire 对照。
 
 ---
 

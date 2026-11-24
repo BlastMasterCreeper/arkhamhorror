@@ -1,7 +1,7 @@
 # Core 2026 · Gained characteristics 统计
 
 数据源：`data/arkhamdb/imported/core_2026*.json`。
-设计总纲：[06 §3.2](../../docs/design/06-registration-buff-model.md#32-gained-characteristics动态特征--总纲--已裁决)。
+设计总纲：[06 §3.2](../../docs/design/06-registration-payload-model.md#32-gained-characteristics动态特征--总纲--已裁决)。
 
 卡牌数：**166**（两包合计）。
 

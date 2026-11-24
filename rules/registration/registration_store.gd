@@ -73,8 +73,8 @@ func unregister_by_drawn_card(card_id: StringName) -> void:
 		if reg.drawn_card_id != card_id:
 			continue
 		var removes_peril := false
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.RESTRICTION:
+		for payload in reg.payloads:
+			if payload.type == AhcEnums.RegistrationKind.GATE:
 				removes_peril = true
 				break
 		if removes_peril:
@@ -83,7 +83,7 @@ func unregister_by_drawn_card(card_id: StringName) -> void:
 		unregister(id)
 
 
-## 读取：是否存在 SKIP_AOO 限制类 Buff（不卸）。
+## 读取：是否存在 SKIP_AOO 限制类载荷（不卸）。
 func has_skip_aoo(controller_id: StringName) -> bool:
 	return _find_skip_aoo_reg_id(controller_id) != &""
 
@@ -110,26 +110,26 @@ func _find_skip_aoo_reg_id(controller_id: StringName) -> StringName:
 	for reg in _entries:
 		if reg.controller_id != controller_id:
 			continue
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.DIRECTIVE or payload.directive == null:
 				continue
-			if buff.restriction.kind == AhcEnums.RestrictionKind.SKIP_AOO:
+			if payload.directive.kind == AhcEnums.DirectiveKind.SKIP_AOO:
 				return reg.id
 	return &""
 
 
 ## Assign（分摊）：收集与本次 deal 相关的 ASSIGN_CONSTRAINT（不卸）。
 ## `dealt_inv_id` = 本次受到分配的调查员；Bodyguard 等可用 other_at_location 扩到他人。
-func list_assign_constraints(dealt_inv_id: StringName) -> Array[RestrictionPayload]:
-	var out: Array[RestrictionPayload] = []
+func list_assign_constraints(dealt_inv_id: StringName) -> Array[DirectivePayload]:
+	var out: Array[DirectivePayload] = []
 	if dealt_inv_id == &"":
 		return out
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.DIRECTIVE or payload.directive == null:
 				continue
-			var r: RestrictionPayload = buff.restriction
-			if r.kind != AhcEnums.RestrictionKind.ASSIGN_CONSTRAINT:
+			var r: DirectivePayload = payload.directive
+			if r.kind != AhcEnums.DirectiveKind.ASSIGN_CONSTRAINT:
 				continue
 			if r.assign_op == AhcEnums.AssignConstraintOp.INCLUDE_CANDIDATE:
 				if r.assign_expand_scope == &"other_at_location":
@@ -169,17 +169,17 @@ func _find_suppress_auto_engage_reg_id(enemy_id: StringName) -> StringName:
 	if enemy_id == &"":
 		return &""
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.DIRECTIVE or payload.directive == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.SUPPRESS_AUTO_ENGAGE:
+			if payload.directive.kind != AhcEnums.DirectiveKind.SUPPRESS_AUTO_ENGAGE:
 				continue
-			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+			if payload.directive.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
 				return reg.id
 	return &""
 
 
-## 交战状态 Buff：敌人是否与该调查员成对交战（与威胁区脱钩）。
+## 交战状态载荷：敌人是否与该调查员成对交战（与威胁区脱钩）。
 func has_engagement(enemy_id: StringName, investigator_id: StringName) -> bool:
 	return _find_engagement_reg_id(enemy_id, investigator_id) != &""
 
@@ -189,13 +189,13 @@ func engagement_partner(enemy_id: StringName) -> StringName:
 	if enemy_id == &"":
 		return &""
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.STATUS or payload.status == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+			if payload.status.kind != AhcEnums.StatusKind.ENGAGEMENT:
 				continue
-			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
-				var inv: StringName = buff.restriction.drawer_id
+			if payload.status.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+				var inv: StringName = payload.status.drawer_id
 				if inv == &"":
 					inv = reg.controller_id
 				return inv
@@ -209,17 +209,17 @@ func engaged_enemies_for(investigator_id: StringName) -> Array[StringName]:
 		return out
 	var seen: Dictionary = {}
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.STATUS or payload.status == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+			if payload.status.kind != AhcEnums.StatusKind.ENGAGEMENT:
 				continue
-			var inv: StringName = buff.restriction.drawer_id
+			var inv: StringName = payload.status.drawer_id
 			if inv == &"":
 				inv = reg.controller_id
 			if inv != investigator_id:
 				continue
-			var enemy_id: StringName = buff.restriction.subject_id
+			var enemy_id: StringName = payload.status.subject_id
 			if enemy_id == &"":
 				enemy_id = reg.drawn_card_id
 			if enemy_id == &"" or seen.has(enemy_id):
@@ -234,28 +234,28 @@ func has_forbid_attack(enemy_id: StringName) -> bool:
 	if enemy_id == &"":
 		return false
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.GATE or payload.gate == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.FORBID_ATTACK:
+			if payload.gate.kind != AhcEnums.GateKind.FORBID_ATTACK:
 				continue
-			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+			if payload.gate.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
 				return true
 	return false
 
 
-## 卸掉该敌人全部交战状态 Buff（脱离 / 抢怪前）。
+## 卸掉该敌人全部交战状态载荷（脱离 / 抢怪前）。
 func clear_engagement(enemy_id: StringName) -> void:
 	if enemy_id == &"":
 		return
 	var to_remove: Array[StringName] = []
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.STATUS or payload.status == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+			if payload.status.kind != AhcEnums.StatusKind.ENGAGEMENT:
 				continue
-			if buff.restriction.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
+			if payload.status.subject_id == enemy_id or reg.drawn_card_id == enemy_id:
 				to_remove.append(reg.id)
 				break
 	for id in to_remove:
@@ -266,15 +266,15 @@ func _find_engagement_reg_id(enemy_id: StringName, investigator_id: StringName) 
 	if enemy_id == &"" or investigator_id == &"":
 		return &""
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.RESTRICTION or buff.restriction == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.STATUS or payload.status == null:
 				continue
-			if buff.restriction.kind != AhcEnums.RestrictionKind.ENGAGEMENT:
+			if payload.status.kind != AhcEnums.StatusKind.ENGAGEMENT:
 				continue
-			var subject: StringName = buff.restriction.subject_id
+			var subject: StringName = payload.status.subject_id
 			if subject == &"":
 				subject = reg.drawn_card_id
-			var inv: StringName = buff.restriction.drawer_id
+			var inv: StringName = payload.status.drawer_id
 			if inv == &"":
 				inv = reg.controller_id
 			if subject == enemy_id and inv == investigator_id:
@@ -282,38 +282,8 @@ func _find_engagement_reg_id(enemy_id: StringName, investigator_id: StringName) 
 	return &""
 
 
-func has_keyword_buff(card_id: StringName, keyword: StringName) -> bool:
-	if card_id == &"" or keyword == &"":
-		return false
-	for reg in _entries:
-		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
-			continue
-		if reg.drawn_card_id != card_id:
-			continue
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.KEYWORD and buff.keyword == keyword:
-				return true
-	return false
 
 
-func unregister_gained_keywords_for_drawn_card(card_id: StringName) -> void:
-	if card_id == &"":
-		return
-	var to_remove: Array[StringName] = []
-	for reg in _entries:
-		if reg.lifetime_kind != AhcEnums.LifetimeKind.WHILE_DRAWN_CARD_RESOLVING:
-			continue
-		if reg.drawn_card_id != card_id:
-			continue
-		var has_keyword := false
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.KEYWORD:
-				has_keyword = true
-				break
-		if has_keyword:
-			to_remove.append(reg.id)
-	for id in to_remove:
-		unregister(id)
 
 
 func unregister_by_hidden_in_hand_card(card_id: StringName) -> void:
@@ -342,8 +312,8 @@ func has_hidden_leave_hand_restriction(card_id: StringName) -> bool:
 			continue
 		if reg.drawn_card_id != card_id:
 			continue
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.RESTRICTION:
+		for payload in reg.payloads:
+			if payload.type == AhcEnums.RegistrationKind.GATE:
 				return true
 	return false
 
@@ -356,8 +326,8 @@ func has_peril_for_drawn_card(card_id: StringName) -> bool:
 			continue
 		if reg.drawn_card_id != card_id:
 			continue
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.RESTRICTION:
+		for payload in reg.payloads:
+			if payload.type == AhcEnums.RegistrationKind.GATE:
 				return true
 	return false
 
@@ -383,9 +353,9 @@ func collect_modifiers(controller_id: StringName) -> Array[ModifierPayload]:
 	for reg in _entries:
 		if reg.controller_id != controller_id and reg.controller_id != &"":
 			continue
-		for buff in reg.buffs:
-			if buff.type == AhcEnums.BuffType.MODIFIER and buff.modifier:
-				out.append(buff.modifier)
+		for payload in reg.payloads:
+			if payload.type == AhcEnums.RegistrationKind.MODIFIER and payload.modifier:
+				out.append(payload.modifier)
 	return out
 
 
@@ -396,16 +366,16 @@ func all_registrations() -> Array[Registration]:
 func collect_listeners(timing_name: StringName) -> Array[ListenerEntry]:
 	var out: Array[ListenerEntry] = []
 	for reg in _entries:
-		for buff in reg.buffs:
-			if buff.type != AhcEnums.BuffType.LISTENER or buff.listener == null:
+		for payload in reg.payloads:
+			if payload.type != AhcEnums.RegistrationKind.LISTENER or payload.listener == null:
 				continue
-			if buff.listener.timing != timing_name:
+			if payload.listener.timing != timing_name:
 				continue
 			var entry := ListenerEntry.new()
 			entry.reg_id = reg.id
 			entry.controller_id = reg.controller_id
 			entry.lifetime_kind = reg.lifetime_kind
-			entry.composition = buff.listener.composition
+			entry.composition = payload.listener.composition
 			out.append(entry)
 	return out
 
@@ -421,7 +391,7 @@ func duplicate_store() -> RegistrationStore:
 		r.duration = reg.duration
 		r.encounter_frame_id = reg.encounter_frame_id
 		r.drawn_card_id = reg.drawn_card_id
-		r.buffs = reg.buffs.duplicate()
+		r.payloads = reg.payloads.duplicate()
 		copy._entries.append(r)
 	return copy
 

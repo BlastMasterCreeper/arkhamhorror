@@ -9,7 +9,7 @@
 
 - **L0 原子**：`MoveCard` / `TransferMarker` / … — 见 [07-effect-primitives.md](07-effect-primitives.md)
 - **效果组合 Composition**：L0/L1/L2 组合树 + dry-run — 见 [07-composition.md](07-composition.md)
-- **Registration / Buff**：规则表 — 见 [06-registration-buff-model.md](06-registration-buff-model.md)
+- **Registration / Buff**：规则表 — 见 [06-registration-payload-model.md](06-registration-payload-model.md)
 
 下文 `EffectOp`、`EffectRequest` 在实现上应 **编译为 CompositionTree**，而非与原子并列的第三套执行分支。
 
@@ -777,7 +777,7 @@ class ModifierEngine:
 
 ## 10. Lasting / Delayed
 
-> **v0.2+**：统一为 [Registration + LifetimeSpec](06-registration-buff-model.md)。Lasting = `DURATION`；Delayed = `UNTIL_FIRED`；持续壳内 Listener 见该文档 §5。
+> **v0.2+**：统一为 [Registration + LifetimeSpec](06-registration-payload-model.md)。Lasting = `DURATION`；Delayed = `UNTIL_FIRED`；持续壳内 Listener 见该文档 §5。
 
 ```gdscript
 class LastingEffect:

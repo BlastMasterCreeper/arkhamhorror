@@ -201,7 +201,7 @@ class ScenarioSystem:
 |---|---|---|
 | OQ-10-01 | Setup 1–13 **不结算显现** → **无 Setup surge 链**（原场景不存在）。若有 setup 显现/涌动，仅在 **Setup 14「When the game begins」** 结算。见 §2.1。 | 2026-05-25 |
 | OQ-10-04 | **collect 立即洗**；嵌套效果内 deck 抽空 → **defer shuffle 至子树 pop 后**。见 [15 §17.11](15-timing-entry-catalog.md)。 | 2026-06-18 |
-| OQ-10-06 | **涌动不叠加**；动态 `gains surge` = KEYWORD 标记 Register · `WHILE_DRAWN_CARD_RESOLVING(card_id)`；12126 在 **G3 入口**判 clue 分支。见 [15 §17.4.5](15-timing-entry-catalog.md)、[06 §3.1](06-registration-buff-model.md)。 | 2026-07-06 |
+| OQ-10-06 | **涌动不叠加**；动态 `gains surge` = KEYWORD 标记 Register · `WHILE_DRAWN_CARD_RESOLVING(card_id)`；12126 在 **G3 入口**判 clue 分支。见 [15 §17.4.5](15-timing-entry-catalog.md)、[06 §3.1](06-registration-payload-model.md)。 | 2026-07-06 |
 
 ---
 

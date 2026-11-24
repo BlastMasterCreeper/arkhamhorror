@@ -130,7 +130,7 @@
 
 禁止再铸 `seq.enemy.3_2_hunter_patrol` / `3_2_patrol`（那是把关键词写回框架）。
 
-挂载 / 开火锚 / `fire_priority` 总表 → [06 §3.2.7](06-registration-buff-model.md#327-关键词监听挂载时点--开火锚--优先级已裁决)（Hunter 10 先于 Patrol 20）。
+挂载 / 开火锚 / `fire_priority` 总表 → [06 §3.2.7](06-registration-payload-model.md#327-关键词监听挂载时点--开火锚--优先级已裁决)（Hunter 10 先于 Patrol 20）。
 
 | flow_id | Grimoire | 粒度裁决（草案） |
 |---|---|---|
@@ -241,8 +241,8 @@
 | ID | 现状 | 建议 | 理由 | 敏感度注意 |
 |---|---|---|---|---|
 | M1 | ~~`discard_from_hand`~~ | **已并**入 `discard_card` + `from` | 同词条 Discard | Eligibility 须读 `from` / tag `from_hand` |
-| M2 | `3_2_hunter_patrol` / `3_2_patrol` | **已落地**：框架只留 **`seq.enemy.3_2`**（枚举 + 消费槽）；Hunter/Patrol 移动体摘为 **`seq.keyword.hunter` / `seq.keyword.patrol`**（KeywordConsumer @ `ENEMY_3_2`） | [08 §5](08-enemy-engagement.md)、[06 §3.2.5](06-registration-buff-model.md) | 关键词 ≠ 框架 handler 内联 |
-| M3 | `phase_attacks` + `massive_phase_attacks` | **已落地**：只留 **`seq.enemy.phase_attacks`**（固定 nest 攻击）；庞大 = 对一般攻击 **`seq.enemy.attack`** 的 **REPLACE**（PHASE→`seq.keyword.massive`）；删平行 massive 流程 | [06 §3.2.7](06-registration-buff-model.md)、[08 §6.3](08-enemy-engagement.md) | REPLACE 锚在攻击效果，不在 3.3 框架 |
+| M2 | `3_2_hunter_patrol` / `3_2_patrol` | **已落地**：框架只留 **`seq.enemy.3_2`**（枚举 + 消费槽）；Hunter/Patrol 移动体摘为 **`seq.keyword.hunter` / `seq.keyword.patrol`**（KeywordConsumer @ `ENEMY_3_2`） | [08 §5](08-enemy-engagement.md)、[06 §3.2.5](06-registration-payload-model.md) | 关键词 ≠ 框架 handler 内联 |
+| M3 | `phase_attacks` + `massive_phase_attacks` | **已落地**：只留 **`seq.enemy.phase_attacks`**（固定 nest 攻击）；庞大 = 对一般攻击 **`seq.enemy.attack`** 的 **REPLACE**（PHASE→`seq.keyword.massive`）；删平行 massive 流程 | [06 §3.2.7](06-registration-payload-model.md)、[08 §6.3](08-enemy-engagement.md) | REPLACE 锚在攻击效果，不在 3.3 框架 |
 | M4 | `seq.gain_resource` | **已落地**：正式 `seq.effect.gain_resource`；旧根 id **已删** | taxonomy | — |
 | M5 | `seq.engage` | **已收口**：交战状态 = **ENGAGEMENT Buff**；威胁区仅区划检测；`grant` 不移入威胁区 | 行动=效果交战 | `EngagementStatus` vs `threat_area` 分查 |
 

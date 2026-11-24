@@ -36,7 +36,7 @@ static func lasting_willpower_turn(inv_id: StringName, amount: int) -> Compositi
 
 static func forbid_draw_turn(inv_id: StringName) -> CompositionNode:
 	var template := RegistrationTemplate.lasting_restriction(
-		inv_id, AhcEnums.DurationAnchorKind.THIS_TURN, RestrictionPayload.forbid_draw()
+		inv_id, AhcEnums.DurationAnchorKind.THIS_TURN, GatePayload.forbid_draw()
 	)
 	return CompositionNode.register(template)
 

@@ -2,7 +2,7 @@ class_name DamageAssigner
 extends RefCounted
 
 ## Assign（分摊）客观核（deal 内 PI）：候选 · 约束 · 默认表 · 校验。
-## 约束来自 RestrictionKind.ASSIGN_CONSTRAINT（原流程读取，非 LISTENER）。
+## 约束来自 DirectiveKind.ASSIGN_CONSTRAINT（原流程读取，非 LISTENER）。
 ## 腿：`{ "bearer": &"investigator"|"card", "id": StringName, "amount": int }`
 
 
@@ -87,7 +87,7 @@ static func _allocate_default(
 	inv_id: StringName,
 	total: int,
 	caps: Dictionary,
-	constraints: Array[RestrictionPayload]
+	constraints: Array[DirectivePayload]
 ) -> Array[Dictionary]:
 	var alloc: Dictionary = {}
 	var rem := total
@@ -319,8 +319,8 @@ static func _active_constraints(
 	inv_id: StringName,
 	kind: StringName,
 	is_direct: bool
-) -> Array[RestrictionPayload]:
-	var out: Array[RestrictionPayload] = []
+) -> Array[DirectivePayload]:
+	var out: Array[DirectivePayload] = []
 	if game_ctx == null or game_ctx.registrations == null:
 		return out
 	for r in game_ctx.registrations.list_assign_constraints(inv_id):
@@ -343,7 +343,7 @@ static func _capacity_map(
 	is_direct: bool
 ) -> Dictionary:
 	## key -> remaining capacity；不含调查员卡（无限）。
-	## 候选不限卡种：凡 play 区有印刷 health/sanity，或 GRANT_CAPACITY Buff。
+	## 候选不限卡种：凡 play 区有印刷 health/sanity，或 GRANT_CAPACITY 载荷。
 	var caps: Dictionary = {}
 	var constraints := _active_constraints(game_ctx, inv_id, kind, is_direct)
 	if is_direct:
@@ -378,7 +378,7 @@ static func _put_cap(
 	game_ctx: GameContext,
 	card_id: StringName,
 	kind: StringName,
-	constraints: Array[RestrictionPayload]
+	constraints: Array[DirectivePayload]
 ) -> void:
 	var cap := card_remaining_with_grants(game_ctx, card_id, kind, constraints)
 	## >0 有限容量；-1 无限（无印刷+GRANT）。
@@ -394,7 +394,7 @@ static func card_remaining(
 	dealt_inv_id: StringName = &"",
 	is_direct: bool = false
 ) -> int:
-	var constraints: Array[RestrictionPayload] = []
+	var constraints: Array[DirectivePayload] = []
 	if dealt_inv_id != &"":
 		constraints = _active_constraints(game_ctx, dealt_inv_id, kind, is_direct)
 	return card_remaining_with_grants(game_ctx, card_id, kind, constraints)
@@ -406,7 +406,7 @@ static func card_remaining_with_grants(
 	game_ctx: GameContext,
 	card_id: StringName,
 	kind: StringName,
-	constraints: Array[RestrictionPayload]
+	constraints: Array[DirectivePayload]
 ) -> int:
 	var card := game_ctx.state.registry.get_card(card_id) if game_ctx != null else null
 	if card == null:

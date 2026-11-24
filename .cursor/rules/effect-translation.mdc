@@ -17,7 +17,7 @@ alwaysApply: true
 - 不为效果保留自然语言运行时分支（禁止 `match effect_text`、语义 atom id）。
 - 与规则书原文的唯一联系：**provenance**（`AbilityUnitRef`）。
 - **禁止**：Grimoire/卡面段落 → 专属 `*Policy` / `*Service`；为每张卡登记 `seq.card…`；与 Catalog 平行的第二套 dispatch。
-- **Catalog 完备**：凡解释器要当效果跑的，必须有 `seq.*`。含 **状态原语类** 与 **Buff 创建/注销**（`seq.effect.register` / `unregister`）。纸面没有章节名 → 引擎铸造 `seq.effect.*`（种类 + 参数），不是裸 Atom/Register，也不是 `seq.card…`。见 [07-composition §1.3.3](docs/design/07-composition.md)。
+- **Catalog 完备**：凡解释器要当效果跑的，必须有 `seq.*`。含 **状态原语类**、**Registration 创建/注销**（`seq.effect.register` / `unregister`）、**Gain 授予**（`seq.effect.grant`）与 **Lose 特征**（`seq.effect.lose_characteristic`）。纸面没有章节名 → 引擎铸造 `seq.effect.*`（种类 + 参数），不是裸 Atom/Register，也不是 `seq.card…`。见 [07-composition §1.3.3](docs/design/07-composition.md)。
 
 ## 统一翻译模型
 
@@ -46,7 +46,7 @@ alwaysApply: true
 | Grimoire 章节流程 | `seq.*` | `seq.draw.investigator`、`seq.draw.encounter` |
 | 行动 | `seq.action.*` nest 内核 seq | action draw → `seq.draw.investigator` |
 | 卡牌能力 / 显现体 / lasting | **Composition** 树（控制流 + 内联/nest/`seq.effect.*` + PI） | 12160：nest 放毁灭 + if + nest 涌动 |
-| 纸面无名的效果句 | 铸造 **`seq.effect.*`**；**是否 nest 另判** | take horror、place doom、heal；Buff 创建 = `seq.effect.register` |
+| 纸面无名的效果句 | 铸造 **`seq.effect.*`**；**是否 nest 另判** | take horror、place doom、heal；Registration 创建 = `seq.effect.register`；Gain = `seq.effect.grant`；Lose 特征 = `seq.effect.lose_characteristic` |
 | 卡面调用已有手续 | 仅当 §4.0.5 为「是」时 **nest** | 「抽 1 张」→ nest `seq.draw.*`；Cancel → nest `seq.interrupt.cancel` |
 | 子流程复用 | `catalog.nest(other_seq)` | 同一内核多入口 |
 | 玩家选择 | **PI 有限期确认** + 默认 | 选连结地点敌人 → Gate；未确认用 default |
@@ -85,17 +85,18 @@ AbilitySpec
 | **物理结算**（状态原语：区/序 · 标记 · 形态） | 纯桌谈；只读查询/Eligibility |
 | **不可见结算**（≈ Register + 薄 Chronicle） | `RulesMemory`、印刷 Spec、**仅改可见性** |
 
-见 [07 §0 / §5.4](docs/design/07-effect-primitives.md)：Register 是原语，亦为 **发起有效性**——须 CREATED（物理或 Register 出 Buff）；双零 = 空结算禁发起。可见性不计 CREATED。  
+见 [07 §0 / §5.4](docs/design/07-effect-primitives.md)：Register 是原语，亦为 **发起有效性**——须 CREATED（物理或 Register / Grant）；双零 = 空结算禁发起。可见性不计 CREATED。  
 空打出正文（锚 09125）：效果体编译 `EmptySettle`（框架完备，非 FAQ 白名单例外）；发起认 CREATED，不写入局面（[07-composition §4.1.2](docs/design/07-composition.md)）。
 
-**隔离**：`seq.*` 组合两层结算叶；能力订 `(seq, slot)`。Register 结算面 **不**按 BuffType 拆。
+**隔离**：`seq.*` 组合两层结算叶；能力订 `(seq, slot)`。Register 结算面 **不**按 RegistrationKind 拆。
 
 ## 落地要素
 
 1. **状态原语** — 物理三类  
 1b. **信息原语** — **Register**（主）；**Chronicle**（日志∪记住，薄）  
 1c. **可见性（非原语）** — `reveal_to_*` / `hide` = 权限同步；不计 CREATED  
-2. **Buff** — Registration 载荷；查询见 [06](docs/design/06-registration-buff-model.md)  
+2. **Registration 载荷** — MODIFIER/GATE/DIRECTIVE/LISTENER/STATUS；查询见 [06](docs/design/06-registration-payload-model.md)
+2b. **Gain 特征** — `GainedCharacteristicStore`（KEYWORD/TRAIT/ICON/ABILITY）；可衍生 Registration  
 8. **`PlayerInteractionGate`** — 窗口内决策（[16](docs/design/16-player-interaction.md)；**晚于** Eligibility/ResponseWindow，见 [17](docs/design/17-seq-runtime.md) §6）  
 9. **`SequenceCatalog` + handler** — 每条规则手续 `seq.*`  
 10. **`ResolutionSequenceStack` + Timing** — push/pop、Would/When/After（15 D/E/ST）  
@@ -172,16 +173,18 @@ AbilitySpec
 - **Cancel / Ignore** → 卡面 Composition 的 Interrupt 节点 nest **`seq.interrupt.cancel` / `seq.interrupt.ignore`** + `InterruptTarget`（[07 §6.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*CancelPolicy`。
 - **Instead / Would** → Composition 的 Replace 节点 nest **`seq.replace.instead`** + `ReplacementTarget` + `replacement` 载荷（[07 §7.0](docs/design/07-effect-resolution.md)）；禁止单卡 `*InsteadPolicy`。
 - **Cancel encounter revelation** → 仅注销 G3 显现；**G4 仍 discard** 至 encounter discard（FAQ · [07 §6.0.1](docs/design/07-effect-resolution.md)）。
-- **Cannot** → Register RESTRICTION + [06 §16](docs/design/06-registration-buff-model.md) Intent 入口。
-- **限制类 Buff 原流程分支**（如「does not provoke AOO」→ `SKIP_AOO`；「移入后 engages you」→ `SUPPRESS_AUTO_ENGAGE`）：Register **RESTRICTION**；在规范入口（INIT_2B / auto-engage）由 **原流程读取** 后自行改道。**不是** LISTENER，**不是** Cancel/Ignore，**不是**在翻译 JSON 里塞 `auto_engage:false` 开关。见 [06 §16.4](docs/design/06-registration-buff-model.md)。「engages you」仍须 nest `seq.engage` mode=effect：冷漠/横置不走 auto；**禁止**用 forced-auto WHO 或把 auto 挪到 After 替代（[20 §4.2.1](docs/design/20-card-translation-schema.md)）。
-- **Buff 创建落地**：卡面创建（含具名限制糖）一律经 **`seq.effect.register`**（效果体 nest；Initiation 挂 `SKIP_AOO` 用 `catalog.run`）。**禁止**解释器/管线真空 `RegistrationStore.register`（[20 §4.1](docs/design/20-card-translation-schema.md)）。
+- **Cannot** → Register RESTRICTION + [06 §16](docs/design/06-registration-payload-model.md) Intent 入口。
+- **限制类 DIRECTIVE/GATE 原流程分支**（如「does not provoke AOO」→ `SKIP_AOO`；「移入后 engages you」→ `SUPPRESS_AUTO_ENGAGE`）：Register **GATE/DIRECTIVE**；在规范入口（INIT_2B / auto-engage）由 **原流程读取** 后自行改道。**不是** LISTENER，**不是** Cancel/Ignore，**不是**在翻译 JSON 里塞 `auto_engage:false` 开关。见 [06 §16.4](docs/design/06-registration-payload-model.md)。「engages you」仍须 nest `seq.engage` mode=effect：冷漠/横置不走 auto；**禁止**用 forced-auto WHO 或把 auto 挪到 After 替代（[20 §4.2.1](docs/design/20-card-translation-schema.md)）。
+- **Registration 创建落地**：卡面创建（含具名限制糖）一律经 **`seq.effect.register`**（效果体 nest；Initiation 挂 `SKIP_AOO` 用 `catalog.run`）。**禁止**解释器/管线真空 `RegistrationStore.register`（[20 §4.1](docs/design/20-card-translation-schema.md)）。
+- **Gain 授予落地**：卡面 `gains …` 一律经 **`seq.effect.grant`** → `GainedCharacteristicStore`。**禁止**真空 GainStore；**禁止**把 Gain 塞进 `RegistrationKind`。
+- **Lose 特征落地**：卡面 `loses …`（特征）一律经 **`seq.effect.lose_characteristic`** → `LostCharacteristicStore`。与 Gain 互斥时 **Silver**（遭遇>玩家）；同级 **队长/PI 默认**（非 Grim）。Keyword **不叠份**（Grimoire）。
 - 薄 facade 仅 `catalog.run(flow_id, params)`。
 - 冲突：07 §3.2–§3.4（Cannot / 竞争 / tier / Silver Rule）。
 
 ## ArkhamDB 编译（`tools/arkhamdb_abilities.py`）
 
 - 卡面 effect 段编译为 **Composition 树**（控制流 + 内联叶子 / nest 已有 seq / PI 确认规格）；**禁止** 多步糖 Atom。
-- **字段与构件词汇**（目标确认 / Buff 创建 / nest `flow_id` / 效果参数指称）见 **[20-card-translation-schema](docs/design/20-card-translation-schema.md)**：白名单增长、禁机制布尔、`memory:` 生产/消费。
+- **字段与构件词汇**（目标确认 / Registration·Gain 创建 / nest `flow_id` / 效果参数指称）见 **[20-card-translation-schema](docs/design/20-card-translation-schema.md)**：白名单增长、禁机制布尔、`memory:` 生产/消费。
 - **通用玩家选择**（单/多实体、特性·关键词·横置、效果支、是否发动）见 **[21-selection-spec](docs/design/21-selection-spec.md)**：`SelectionSpec` + `CandidateFilter` + `ChoiceBind`；经 Gate，不 nest `seq.choose.*`。
 - **优先复用**已有 template / condition / `if_kind` / `evaluate` 锚点（07 §3.3、15 §17、已竖切卡如 12126/12160）。
 - **能拆就拆**：timing · condition · cost · effect · **PI 确认** 分编译单元；禁止无先例的新语义 atom。
