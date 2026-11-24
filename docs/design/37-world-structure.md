@@ -153,19 +153,47 @@ Region = {
 
 ### 1.2.1 `Token`
 
+单面与双面共用一条记录；**对外生效的类型 = 当前朝上面的规格**。
+
 ```text
 Token = {
-  id:        String,
-  kind:      TokenKind,
-  subtype:   String,      -- 充能用途等；无则 ""
-  face:      String       -- 若双面 token；否则 ""
+  id:         String,
+  faces:      Map<String, TokenFace>,  -- 键 "A" / "B"；单面只有 "A"
+  face:       String,                  -- 当前朝上："A" | "B"
+  mold_id:    String                   -- 双面模具/成对身份；单面可 ""
+}
+
+TokenFace = {
+  kind:       TokenKind,
+  subtype:    String,                  -- 充能用途、numeric 修正编码等
+  modifier:   Int                      -- 数值面常用；其它为 0
 }
 ```
 
 **`TokenKind`**：`"damage"` \| `"horror"` \| `"doom"` \| `"clue"` \| `"resource"` \| `"ammo"` \| `"charge"` \| `"secret"` \| `"supply"` \| `"chaos"` \| …（可增长）
 
-- **可叠加**（伤、资源、**袋内静止的混乱标记**）：只改 `Region.token_stacks`。  
-- **要个体**：揭示进占兆、封印、效果点名「这一枚」时，从堆**晋升**为 `auth.tokens` + 目标区 `token_ids`；结算/解封后可再叠回堆或回袋堆。
+**有效类型（投影，不另存权威）**：
+
+\[
+\mathrm{active}(t)=t.\mathrm{faces}[t.\mathrm{face}]
+\]
+
+效果、堆叠键、查询都读 `active(t).kind` / `subtype`，不读背面。
+
+#### 双面怎么放进区
+
+| 策略 | 做法 | 适用 |
+|---|---|---|
+| **个体（推荐默认）** | 双面 token 始终进 `auth.tokens` + 区 `token_ids`；`FlipToken` 只改 `face` | 面数少、要封印/点名、两面类型不同 |
+| **按「模具+朝向」堆叠** | `token_stacks` 键 = `mold:<mold_id>:<face>`（如 `mold:scenario_key:A`）；翻转 = 一堆 `-1` 另一面堆 `+1` | 多枚同模具且同面可互换 |
+
+禁止：只用单一 `kind` 字段表示双面件（会丢背面，或和朝向打架）。  
+禁止：堆键只用 `kind` 而不含朝向，导致翻面后与另一类型静默合并错账。
+
+单面混乱符号袋内仍用符号堆键（`"skull"`、`"numeric:-1"`）；这些**不是**双面件。祝福/诅咒若为单面，同样走符号堆；若某扩展做成双面，改走个体或 `mold:…:face` 堆。
+
+- **可叠加单面**（伤、资源、袋内静止单面混乱）：`token_stacks`。  
+- **揭示/封印/双面**：个体（或 mold+face 堆）；揭示晋升时带上 `faces` 与当前 `face`。
 
 #### 混乱袋（默认可堆叠）
 
@@ -190,10 +218,11 @@ regions["chaos"] = {
 
 | 操作 | 语义 |
 |---|---|
-| 抽/揭示 | 按堆权重取一种 `stack_key`，该堆 `-1`；**晋升**个体进 `augury`（占兆）区 `token_ids` |
-| 回袋 | 个体卸掉，对应 `stack_key` `+1` |
-| 封印 | 个体进 `sealed`（或卡槽）；袋堆已在揭示时减过则不再减 |
-| 添加祝福/诅咒入袋 | 只改 `token_stacks` |
+| 抽/揭示 | 按堆权重取一种 `stack_key`，该堆 `-1`；**晋升**个体进 `augury`（`faces`/`face` 由 stack_key 还原） |
+| 回袋 | 个体卸掉；单面叠回符号堆；双面按 `mold_id`+`face` 叠回或保持个体政策 |
+| 封印 | 个体进 `sealed`（或卡槽）；可再 `FlipToken` |
+| `FlipToken` | 只改 `face`（或 mold 堆之间挪 1）；Touched：`token:<id>` 或两堆 stack 键 |
+| 添加祝福/诅咒入袋 | 单面：改符号堆；双面模具：个体或 `mold:…:face` 堆 |
 
 袋内**不**维护排列序；随机性来自按堆抽取的熵，而非列表下标。
 
@@ -525,3 +554,4 @@ Snapshot {
 | 2026-11-24 | v0.3：token 命名；Region 放卡+token；Card.slot_regions；废 markers/location_id/engaged_with 字段；混乱袋为区 |
 | 2026-11-24 | v0.4：标明 `token_supply` 区为放置原子来源池；与 `auth.tokens` 个体表分流 |
 | 2026-11-24 | v0.5：混乱袋默认 `token_stacks` 多重集；揭示/封印才晋升个体 |
+| 2026-11-24 | v0.6：双面 token：`faces`+`face`，有效类型为投影；堆键含朝向或走个体 |
