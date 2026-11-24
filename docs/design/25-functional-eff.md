@@ -129,10 +129,10 @@ Env = {
 
 ```text
 卡面「Take 1 horror」
-  ├─ 若需独立 take_horror 时点 → Nest seq.effect.take_horror
-  └─ 若同帧后果 → 内联 Do (TransferMarkers horror…)
-     （具体种类表落地时钉死；原则跟现引擎一致）
+  └─ 卡面叶 → Nest seq.effect.deal（种类表 26 · K1）
+     handler 内 TransferMarkers → 内联 Do（K2）
 ```
+
 
 ---
 
@@ -282,7 +282,7 @@ Seq(Empty, e)     ≡ e          -- 结算后；发起 L7 单独论 Empty
 ```text
 Seq(
   Nest seq.draw.investigator { amount=1, … },
-  Nest seq.effect.take_horror { amount=1, … }   -- 或内联 Do；按种类表
+  Nest seq.effect.deal { horror=1, … }          -- 卡面叶：Nest（26）
 )
 -- 跑在 PLAY_CARD resolve 帧内；禁止真空
 ```
@@ -347,8 +347,8 @@ Nest seq.interrupt.cancel { target = revelation_frame }
 
 ## 11. 下一步
 
-1. **种类表**：哪些 `seq.effect.*` 默认 Nest vs 内联 `Do`（对齐现 Catalog）。  
-2. **JSON ↔ Eff** 编解码（复用 `compiled_abilities` / template）。  
+1. ~~**种类表**~~ → [26-eff-kind-table](26-eff-kind-table.md)（卡面叶默认 **Nest**；内联仅 handler/管线/ST.7 外壳）。  
+2. **JSON ↔ Eff** 编解码（复用 `compiled_abilities` / template；按 26 强制 Nest）。  
 3. **金样**：`plan` dry-run + `Ask` default + Cancel 保 G4（纯函数测，可先假 World）。  
 4. Godot 适配：`CompositionExecutor` 包一层 `Eff` 解释，不一次铲掉。
 

@@ -199,7 +199,9 @@ pick_target
 ### 5.2 何时 nest vs 内联
 
 只按 [15 §4.0.5](15-timing-entry-catalog.md)：上一步是否触发本步时点锚。  
-铸造了 `seq.effect.*` ≠ 必须 nest。
+铸造了 `seq.effect.*` ≠ handler 内必须再 nest。  
+
+**卡面效果叶（已裁）**：引用已铸造种类 → **默认 Nest**；内联仅 handler 碎步 / 父管线砖 / ST.7 外壳。见 [26-eff-kind-table](26-eff-kind-table.md)。
 
 ### 5.3 拼合顺序（示例 · 12113）
 
