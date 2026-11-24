@@ -369,6 +369,7 @@ class EventRecord:
 | [32-ability-open-body.md](design/32-ability-open-body.md) | 能力函数重抽象：开口 + 执行（含隐式时点） |
 | [33-candidate-functions.md](design/33-candidate-functions.md) | 候选目标：纯函数过滤 + Ask |
 | [34-registration-index-cache.md](design/34-registration-index-cache.md) | 登记倒排索引与查询缓存 |
+| [35-legal-interest.md](design/35-legal-interest.md) | 操作合法性兴趣点（Deps∩Touched，确定可解） |
 | [02-framework-flow.md](design/02-framework-flow.md) | FrameworkFlowEngine |
 | [03-action-system.md](design/03-action-system.md) | ActionSystem、AOO |
 | [04-skill-test-engine.md](design/04-skill-test-engine.md) | SkillTestEngine |
