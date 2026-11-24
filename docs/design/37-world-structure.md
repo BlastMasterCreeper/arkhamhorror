@@ -38,7 +38,6 @@ Snapshot = {
 Auth = {
   cards:          Map<CardId, Card>,
   regions:        Map<RegionId, Region>,
-  tokens:         Map<TokenId, Token>,     -- 可区分的 token 实例；可叠加堆见 Region
   registrations:  Map<RegId, Registration>,
   chronicle:      Chronicle,
   audience:       Map<CardId, Audience>,
@@ -50,20 +49,20 @@ Auth = {
 
 | 键 | 类型 | 说明 |
 |---|---|---|
-| `cards` | `Map<String, Card>` | 卡实体脊骨（不含伤害/线索等散字段） |
-| `regions` | `Map<String, Region>` | **唯一放置面**：可放卡、可放 token |
-| `tokens` | `Map<String, Token>` | **仅**已揭示/封印等需认身份的实例；袋内静止不进此表 |
-| （可叠加供应） | 目标区 `token_stacks` 直接加减即可 | 盒装供应默认「永够」，不必强制 `token_supply` 区 |
-| `registrations` | `Map<String, Registration>` | 信息层（含交战等关系） |
+| `cards` | `Map<String, Card>` | 卡实体脊骨 |
+| `regions` | `Map<String, Region>` | **唯一放置面**：卡序 + **token 堆** |
+| `registrations` | `Map<String, Registration>` | 信息层（含交战等） |
 | `chronicle` | `Chronicle` | 日志∪记住 |
 | `audience` | `Map<String, Audience>` | 牌面可见档 |
 | `limits` | `LimitStore` | 次数/配额；见 §1.5 |
 | `framework` | `Framework` | 回合与场景/密谋游标 |
-| `next_id` | `Int` | 下一分配序号 |
+| `next_id` | `Int` | 下一分配序号（卡/区/登记） |
 
-混乱袋 = 公共 `Region`（`slot:"chaos"`，`shape:"bag"`），**静止时用 `token_stacks` 多重集**；**不再**单列 `chaos_bag` 数组，袋内也不为每枚永久分配 id。
+**不设** `auth.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
 
-**原则**：伤/恐/毁灭/线索/资源/充能等桌游 **token** 放在区里；卡通过 `slot_regions` 挂自己的区。禁止再在 `Card` 上堆 `markers` / `location_id` / `engaged_with`。
+**Token 本质**：只表示 **类型（堆键）+ 数量**；是放置的**终端**——其上不再放置卡、不再绑登记主体。即使桌上该类只有 1 枚，仍用 `token_stacks[key]=1`。
+
+卡通过 `slot_regions` 挂区。禁止 `Card.markers` / `location_id` / `engaged_with`。
 
 ---
 
@@ -110,8 +109,8 @@ Card = {
 | `doom` / `clue` / `resource` / `uses` | 按卡类型 | token 堆 |
 | `at` | location | **在该地点的**调查员/敌人卡 id |
 | `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
-| `chaos` | 冒险公共 | 混乱袋（`token_stacks` 多重集） |
-| `augury` / `sealed` | 公共或卡槽 | 已揭示占兆 / 已封印：**个体** `token_ids` |
+| `chaos` | 冒险公共 | 混乱袋（符号堆） |
+| `augury` / `sealed` | 公共或卡槽 | 占兆 / 封印（同样是堆；同键可互换） |
 | `encounter_deck` / `encounter_discard` | 公共 | 卡 |
 
 读「某卡上有多少资源」= 读 `regions[card.slot_regions["resource"]].token_stacks["resource"]`（或等价）。  
@@ -298,7 +297,7 @@ Framework = {
 }
 ```
 
-混乱 `stack_key` / 晋升后个体的 `subtype`：同上表（`numeric:N`、符号名、bless/curse 等）。
+混乱与其它 token 的 `stack_key`：见 §1.2.1。
 
 ---
 
@@ -489,7 +488,7 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 | 卡字段 | `card:<id>:exhausted` | `auth.cards[id].exhausted` |
 | 区成员 | `region:<id>:members` | 卡序 ∪ token 堆/序的指纹 |
 | token 堆 | `region:<id>:stack:damage` | `token_stacks["damage"]` |
-| 个体 token | `token:<id>` | `auth.tokens[id]` |
+| token 堆 | `region:<id>:stack:<key>` | `token_stacks[key]` |
 | 查询指纹 | `query:enemies_at:<loc>` | 地点 `at` 区等投影 |
 | 登记 | `reg:<id>` | `auth.registrations[id]` |
 | 方面 | `aspect:fight` | 索引 / 多条登记 |
@@ -531,10 +530,9 @@ Snapshot {
       "res_I":   { host_card_id:"I", slot:"resource", card_ids:[], token_stacks:{ "resource":5 }, … }
       "at_L":    { host_card_id:"L", slot:"at", card_ids:["I"], token_stacks:{}, … }
       "clue_L":  { host_card_id:"L", slot:"clue", card_ids:[], token_stacks:{ "clue":1 }, … }
-      "chaos":   { host_card_id:"", slot:"chaos", shape:"bag", token_ids:[],
+      "chaos":   { host_card_id:"", slot:"chaos", shape:"bag",
                    token_stacks:{ "numeric:0": 2, "skull": 1, "auto_fail": 1 }, … }
     }
-    tokens: {}
     registrations: {}
     …
   }
@@ -555,3 +553,4 @@ Snapshot {
 | 2026-11-24 | v0.4：标明 `token_supply` 区为放置原子来源池；与 `auth.tokens` 个体表分流 |
 | 2026-11-24 | v0.5：混乱袋默认 `token_stacks` 多重集；揭示/封印才晋升个体 |
 | 2026-11-24 | v0.6：双面 token：`faces`+`face`，有效类型为投影；堆键含朝向或走个体 |
+| 2026-11-24 | v0.7：token 一律堆（类型+数量）；废 auth.tokens/token_ids；双面按面分堆；token 为放置终端 |
