@@ -2,7 +2,8 @@
 
 > **状态**：设计草案 v0.1 · 2026-11-24  
 > **依赖**：[24-functional-world](24-functional-world.md)、[25-functional-eff](25-functional-eff.md)、[28-functional-scheme](28-functional-scheme.md)、[30-functional-primer](30-functional-primer.md)  
-> **范围**：规则内核用哪门语言实现、怎样接到现有 Godot 宿主；**不**要求立刻删掉 GDScript 竖切。
+> **范围**：规则内核用哪门语言实现、怎样接到现有 Godot 宿主；**不**要求立刻删掉 GDScript 竖切。  
+> **能力侧**：[32-ability-open-body](32-ability-open-body.md)（Constant 等一律开口 + 执行）。
 
 ---
 
