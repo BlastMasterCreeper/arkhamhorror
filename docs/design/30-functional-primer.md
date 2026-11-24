@@ -39,60 +39,209 @@
 
 ## 1. 数据类型
 
-记号：`A × B` 表示两条记录拼在一起；`Map(K,V)` 表示从 K 查到 V；`List(A)` 表示有序列表；`A | B` 表示两种可能之一；`1` 表示空（没有额外数据）。
+这一节只用这些基本类型：
 
-### 1.1 局面
+| 写法 | 含义 |
+|---|---|
+| 整型 | 整数，例如 `0`、`1`、`-1` |
+| 字符串 | 文本。所有 id 都是字符串，例如 `"E1"`、`"06111"` |
+| 布尔 | `true` 或 `false` |
+| 数组 | 有序列表，例如 `["C1","C2"]`。下标从 0 起 |
+| 字典 | 键值表。键是字符串，值的类型在字段里写明 |
+| 枚举 | 只能取列出的那几个字符串 |
 
-\[
-\mathrm{World}
-=
-\mathrm{Physical}
-\times
-\mathrm{Regs}
-\times
-\mathrm{Chronicle}
-\times
-\mathrm{Audience}
-\times
-\mathrm{Framework}
-\times
-\mathrm{Entropy}
-\times
-\mathrm{Limits}
-\]
+空 id 用空字符串 `""`。没有可选记录时，字段直接省略或写成 `null`。
 
-| 分量 | 类型 | 里面是什么 |
-|---|---|---|
-| 物理（Physical） | 见下 | 牌在哪、标记、横置与正反面 |
-| 登记（Regs） | `Map(登记号, 登记条)` | 持续效果、限制、监听。带寿命 |
-| 记事（Chronicle） | `List(记事条) × Map(键, 值)` | 薄日志和「记住」 |
-| 可见性（Audience） | `Map(实体号, 可见档)` | 谁看得见牌面。改它不算一次效果结算 |
-| 框架（Framework） | 回合数、当前场景号、当前密谋号、谁的回合 | 存档还认得的回合游标 |
-| 随机（Entropy） | `List(混乱标记) × 种子` | 袋里还剩什么 |
-| 限额（Limits） | `Map(限额键, 整数)` | 本场某能力已用几次 |
+### 1.1 局面怎么构造
 
-物理再拆开（对应三类能改桌子的基本动作）：
+局面是**一条记录**。构造时把下面这些字段填上。牌在哪个区，只看「区」里的 `card_ids`；调查员记录上只留区的 id，不再另存一份手牌数组。
 
-\[
-\mathrm{Physical}
-=
-\mathrm{Map}(\mathrm{Id},\mathrm{Entity})
-\times
-\mathrm{Map}(\mathrm{Id},\mathrm{Place})
-\times
-\mathrm{Map}(\mathrm{Id},\mathrm{Markers})
-\times
-\mathrm{Map}(\mathrm{Id},\mathrm{Form})
-\]
+```text
+World = {
+  cards:        字典,   键 字符串(卡id) → 卡
+  regions:      字典,   键 字符串(区id) → 区
+  investigators:字典,   键 字符串(调查员id) → 调查员
+  locations:    字典,   键 字符串(地点id) → 地点
+  enemies:      字典,   键 字符串(敌人id) → 敌人
+  registrations:字典,   键 字符串(登记id) → 登记条
+  audience:     字典,   键 字符串(卡id) → 字符串(可见档)
+  chronicle:    数组,   元素是记事（本节不展开）
+  framework:    框架记录
+  chaos_bag:    数组,   元素是混乱标记
+  limits:       字典,   键 字符串 → 整型
+  next_id:      整型    下一个要发出的序号，只增不减
+}
+```
 
-| 字段 | 类型 | 人话 |
-|---|---|---|
-| 实体 Entity | `{种类, 印刷号, 所有者, 控制者}` | 这张牌是谁的、印刷编号是什么 |
-| 放置 Place | `区(区号, 序号) \| 悬置(子区) \| 附着(宿主) \| 垫下(宿主, 序号)` | 牌在哪 |
-| 标记 Markers | `{伤, 恐, 毁灭, 线索, 资源, 充能表}` | 数 |
-| 形态 Form | `{面: A\|B, 已横置: 真\|假}` | 翻面、横置 |
+#### 卡
 
-悬置子区只有两种：`结算中`、`已投入检定`。
+```text
+卡 = {
+  id:             字符串
+  definition_id:  字符串     印刷编号，如 "06111"
+  owner_id:       字符串     谁的牌；遭遇牌用 "encounter"
+  controller_id:  字符串     谁在控制
+  face:           枚举       "A" 或 "B"
+  exhausted:      布尔       true = 已横置
+  display_order:  整型       同一平面区里的显示顺序
+  markers:        字典       键是标记名字符串，值是整型
+}
+```
+
+标记名用这些字符串：`"damage"` 伤、`"horror"` 恐、`"doom"` 毁灭、`"clue"` 线索、`"resource"` 资源。充能的键用用途字符串，值仍是整型。数量为 0 的键可以不放进字典。
+
+#### 区
+
+牌的位置由区决定，不在卡上再写一个「zone 枚举」。
+
+```text
+区 = {
+  id:              字符串
+  shape:           枚举      "deck" 或 "flat"
+  owner_id:        字符串    无主则 ""
+  card_ids:        数组      元素是字符串(卡id)
+  limbo_kind:      字符串    仅悬置区使用："resolving" 或 "committed"；其它区为 ""
+  host_id:         字符串    附着/垫下/旁置时的宿主 id；否则 ""
+}
+```
+
+`shape = "deck"` 时，`card_ids[0]` 是顶。手牌、牌库、弃牌堆、威胁区、悬置都是区。调查员记录里保存这些区的 id。
+
+#### 调查员
+
+```text
+调查员 = {
+  id:                     字符串
+  definition_id:          字符串
+  location_id:            字符串
+  hand_region_id:         字符串
+  deck_region_id:         字符串
+  discard_region_id:      字符串
+  play_region_id:         字符串
+  threat_region_id:       字符串
+  resources:              整型
+  damage:                 整型
+  horror:                 整型
+  clues:                  整型
+  actions_remaining:      整型
+  actions_bonus_next_turn:整型
+  health:                 整型      当前上限（含创伤后的值）
+  sanity:                 整型
+  eliminated:             布尔
+  resigned:               布尔
+}
+```
+
+技能印刷值（意志、智力、战斗、敏捷）在目录里，是整型，不放进局面。
+
+#### 地点
+
+```text
+地点 = {
+  id:           字符串
+  shroud:       整型
+  clues:        整型
+  revealed:     布尔
+  connections:  数组    元素是字符串(相连地点 id)
+}
+```
+
+#### 敌人
+
+敌人在场时的伤、毁灭放在对应卡的 `markers` 里。敌人记录只留规则关系：
+
+```text
+敌人 = {
+  id:            字符串
+  card_id:       字符串    对应的卡 id
+  location_id:   字符串
+  engaged_with:  字符串    未交战则 ""
+  exhausted:     布尔
+}
+```
+
+战斗值、生命上限在目录里，是整型。
+
+#### 登记条
+
+```text
+登记条 = {
+  id:             字符串
+  controller_id:  字符串
+  source_card_id: 字符串
+  lifetime:       枚举     "while_in_play" | "while_committed" | "this_skill_test" | "this_turn" | "while_drawn_card_resolving"
+  bound_id:       字符串   寿命绑到的检定 id 或卡 id；不需要则为 ""
+  buffs:          数组     元素是增益
+}
+
+增益 = {
+  type:     枚举    "keyword" | "modifier" | "restriction" | "listener"
+  keyword:  字符串  type 为 keyword 时用，如 "retaliate"；否则 ""
+  stat:     字符串  type 为 modifier 时用，如 "combat"；否则 ""
+  amount:   整型    修正量；其它类型为 0
+}
+```
+
+#### 可见性、框架、混乱袋、限额
+
+```text
+可见档 = 枚举 "hidden_all" | "controller" | "all"
+
+框架 = {
+  round:                  整型
+  lead_investigator_id:   字符串
+  active_investigator_id: 字符串
+  current_act_id:         字符串
+  current_agenda_id:      字符串
+  doom_on_agenda:         整型
+  agenda_threshold:       整型
+}
+
+混乱标记 = {
+  id:        字符串
+  kind:      枚举    "numeric" | "skull" | "cultist" | "tablet" | "elder_thing" | "auto_fail" | "elder_sign" | "bless" | "curse"
+  modifier:  整型    kind 为 numeric 时的数值；其它为 0
+}
+```
+
+`limits` 的键是字符串（能力 id），值是整型（已用次数）。`next_id` 是整型。
+
+#### 一份最小构造
+
+```text
+World {
+  next_id: 3
+  cards: {
+    "C1": { id:"C1", definition_id:"06111", owner_id:"I", controller_id:"I",
+            face:"A", exhausted:false, display_order:0, markers:{} }
+  }
+  regions: {
+    "deck_I": { id:"deck_I", shape:"deck", owner_id:"I", card_ids:["C1"], limbo_kind:"", host_id:"" }
+    "hand_I": { id:"hand_I", shape:"flat", owner_id:"I", card_ids:[], limbo_kind:"", host_id:"" }
+  }
+  investigators: {
+    "I": { id:"I", definition_id:"01001", location_id:"L",
+           hand_region_id:"hand_I", deck_region_id:"deck_I",
+           discard_region_id:"", play_region_id:"", threat_region_id:"",
+           resources:5, damage:0, horror:0, clues:0, actions_remaining:3,
+           actions_bonus_next_turn:0, health:7, sanity:7,
+           eliminated:false, resigned:false }
+  }
+  locations: {
+    "L": { id:"L", shroud:2, clues:1, revealed:true, connections:[] }
+  }
+  enemies: {}
+  registrations: {}
+  audience: { "C1":"controller" }
+  chronicle: []
+  framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I",
+               current_act_id:"", current_agenda_id:"", doom_on_agenda:0, agenda_threshold:7 }
+  chaos_bag: [ { id:"t0", kind:"numeric", modifier:0 } ]
+  limits: {}
+}
+```
+
+抽一张牌时，新局面只改两个数组：`regions["deck_I"].card_ids` 去掉 `"C1"`，`regions["hand_I"].card_ids` 加上 `"C1"`。整型 `next_id` 不变。卡记录本身不用改 `id`。
 
 ### 1.2 进度
 
@@ -230,9 +379,9 @@
 `apply` 只改对应分量。例如加标记：
 
 \[
-\mathrm{apply}(w,\ \mathrm{AddMarker}(e,k,n)).\mathrm{markers}(e,k)
+\mathrm{apply}(w,\ \mathrm{AddMarker}(e,k,n)).\mathrm{cards}[e].\mathrm{markers}[k]
 =
-w.\mathrm{markers}(e,k) + n
+w.\mathrm{cards}[e].\mathrm{markers}[k] + n
 \]
 
 其它分量原样保留（结构共享：没改的部分仍指向旧数据）。
@@ -421,7 +570,7 @@ e_2(x)
 ### 3.2 起始值
 
 \[
-w_0.\mathrm{markers}(E,\mathrm{伤})=0,\quad
+w_0.\mathrm{cards}[E].\mathrm{markers}[\mathrm{damage}]=0,\quad
 w_0.\mathrm{place}(E)=\mathrm{在场},\quad
 w_0.\mathrm{deck}(I)=[C_1,C_2],\quad
 w_0.\mathrm{hand}(I)=[\,]
@@ -469,7 +618,7 @@ w_1 = \mathrm{commit}(w_0,[\mathrm{AddMarker}(E,\mathrm{伤},1)])
 \]
 
 \[
-w_1.\mathrm{markers}(E,\mathrm{伤})=1
+w_1.\mathrm{cards}[E].\mathrm{markers}[\mathrm{damage}]=1
 \]
 
 然后伤害这层议程走到「之后」（仍假设没人），再公式 2.5 的退出：弹出伤害帧。
