@@ -162,18 +162,17 @@ auth = {
 ```text
 登记条 = {
   id:             字符串
-  controller_id:  字符串
-  source_card_id: 字符串
+  source_card_id: 字符串   -- 控制者由此卡解引用；不另存 controller_id
   lifetime:       枚举     "while_in_play" | "while_committed" | "this_skill_test" | "this_turn" | "while_drawn_card_resolving"
   bound_id:       字符串   寿命绑到的检定 id 或卡 id；不需要则为 ""
-  buffs:          数组     元素是增益
+  payloads:       数组     元素是 Registration 载荷（旧称 Buff 已弃用）
 }
 
-增益 = {
-  type:     枚举    "keyword" | "modifier" | "restriction" | "listener"
-  keyword:  字符串  type 为 keyword 时用，如 "retaliate"；否则 ""
-  stat:     字符串  type 为 modifier 时用，如 "combat"；否则 ""
-  amount:   整型    修正量；其它类型为 0
+Registration 载荷 = {
+  kind:     枚举    "modifier" | "gate" | "directive" | "listener" | "status"
+  aspect:   字符串  索引方面，如 "combat" / "gate.play_card"；可 ""
+  amount:   整型    修正量；其它 kind 为 0
+  data:     映射    kind 专用；可空
 }
 ```
 

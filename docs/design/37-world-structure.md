@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.16 · 2026-11-24  
+> **状态**：设计草案 v0.17 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
@@ -119,7 +119,7 @@ Card = {
 读「伤」同区 `token_stacks["damage"]`——**不要**再开 `damage`/`horror`/`resource` 槽。  
 读「调查员物理在哪」= 哪个地点的 **`on`** 区的 `card_ids` 含该 id（派生索引可加速）。  
 **禁止**用槽名 `at` 表示地点放置：`at` 留给绑定关系（登记查询）；`on` 才是物理放置。  
-「交战」= **登记** `ENGAGEMENT`（或等价 Buff），不进 Card 字段、不进 `on`。
+「交战」= **登记载荷** `STATUS`/`ENGAGEMENT`，不进 Card 字段、不进 `on`。
 
 ---
 
@@ -207,6 +207,8 @@ chaos.token_stacks["skull"] = 2
 
 ### 1.3 `Registration`
 
+口径对齐 [06-registration-payload-model](06-registration-buff-model.md)（载荷口径见 registration-payload 线；旧称 Buff 已弃用） / 术语表：**旧称 Buff 已弃用**。登记写入的是 **`payloads`（Registration 载荷）**，不是 Buff。
+
 ```text
 Registration = {
   id:              String,
@@ -214,20 +216,18 @@ Registration = {
   subject:         Subject,
   lifetime:        Lifetime,
   bound_id:        String,
-  buffs:           Array<Buff>
+  payloads:        Array<RegistrationPayload>
 }
 
 Subject =
   | { tag: "bound",    card_id: String }
   | { tag: "matching", filter_id: String, filter_args: Map<String, String> }
 
-Buff = {
-  buff_type:  BuffType,
-  keyword:    String,
-  stat:       String,
-  amount:     Int,
-  aspect:     String,           -- 供索引 / Deps：如 "fight" / "gate.play_card"
-  payload:    Map<String, String>  -- 限制等扩展；简单情况可空
+RegistrationPayload = {
+  kind:     RegistrationKind,     -- ×5；见下
+  aspect:   String,               -- 索引 / Deps：如 "fight" / "gate.play_card"
+  amount:   Int,
+  data:     Map<String, String>   -- kind 专用扩展；可空
 }
 ```
 
@@ -238,13 +238,14 @@ Buff = {
 | `subject` | `Subject` | 钉死目标或动态 Matching |
 | `lifetime` | `Lifetime` | 见下 |
 | `bound_id` | `String` | 寿命绑定的检定/卡 id；不需要则 `""` |
-| `buffs` | `Array<Buff>` | 载荷列表 |
+| `payloads` | `Array<RegistrationPayload>` | **Registration 载荷**列表 |
 
 **不设** `Registration.controller_id`：控制者 = `cards[source_card_id].controller_id`（「你」随来源卡控制权）。冗余快照易与转控脱节。
 
 **`Lifetime`**：`"while_in_play"` \| `"while_committed"` \| `"this_skill_test"` \| `"this_turn"` \| `"while_drawn_card_resolving"`
 
-**`BuffType`**：`"keyword"` \| `"modifier"` \| `"restriction"` \| `"listener"` \| `"trait"` \| `"icon"` \| `"ability"`
+**`RegistrationKind`（×5）**：`"modifier"` \| `"gate"` \| `"directive"` \| `"listener"` \| `"status"`  
+（交战 = `status` + `ENGAGEMENT`。）**不是**载荷：KEYWORD/TRAIT/ICON/ABILITY 等 **Gain 特征**（另表 / `seq.effect.grant`）。禁止再写 `buffs` / `BuffType`。
 
 ---
 
@@ -535,3 +536,4 @@ Snapshot {
 | 2026-11-24 | v0.14：标明 `represent_as` = 有限实体标记替代（非 dual 逆表）；堆键仍用原类型 |
 | 2026-11-24 | v0.15：去掉 `original_of`；替代关系只保留 `represent_as` 单向 |
 | 2026-11-24 | v0.16：Registration 去掉 `controller_id`；自 `source_card_id` 解引用 |
+| 2026-11-24 | v0.17：Registration 内改回 `payloads` / `RegistrationKind`；弃用 Buff 口径 |

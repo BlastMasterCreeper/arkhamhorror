@@ -66,7 +66,7 @@ Run = {
 | 袋 | 分类 | 理由 |
 |---|---|---|
 | 卡在哪、横置、doom 数 | **auth** | 物理原语 |
-| Registration / Buff | **auth** | 信息原语 |
+| Registration / payloads | **auth** | 信息原语（载荷；旧称 Buff 已弃用） |
 | Chronicle / limits | **auth** | 已发生信息 |
 | FaceAudience | **auth**（旁路） | 非结算，但属局面权限 |
 | index / feasibility Φ | **derived** | 由 auth(+run 焦点) 重建；算时不读旧 Φ.answers |
@@ -135,10 +135,10 @@ MarkerBag = { damage, horror, doom, clue, resources?, uses?: Map UseKey → Int 
 Registrations = Map RegId → Registration
 
 Registration = {
-  id, source,           -- AbilityUnitRef / card instance…
-  lifetime,            -- WHILE_IN_PLAY | WHILE_COMMITTED | THIS_SKILL_TEST | …
-  scope,               -- 作用域过滤（值）
-  buffs: [BuffSpec],   -- MODIFIER|RESTRICTION|LISTENER|KEYWORD|…
+  id, source,              -- AbilityUnitRef / card instance…
+  lifetime,               -- WHILE_IN_PLAY | WHILE_COMMITTED | THIS_SKILL_TEST | …
+  subject,                -- Bound | Matching
+  payloads: [RegistrationPayload],  -- MODIFIER|GATE|DIRECTIVE|LISTENER|STATUS
   tags
 }
 ```
@@ -146,7 +146,7 @@ Registration = {
 - **Register / Unregister** 是对 `World.registrations` 的 Intent，不是第二套 store API。  
 - **寿命 tick**（ST.8、阶段结束、离场）= 纯函数  
   `tick(event, World) → World'`（卸匹配 lifetime 的记录）。  
-- **有效关键词** = `physical` 印刷投影 ∪ Gain KEYWORD Buff（查询层，不把「有效集」存回 World，除非做缓存且可丢弃）。
+- **有效关键词** = 印刷 ∪ **Gain 特征**（非 Registration 载荷；查询层，不把「有效集」存回 World，除非做缓存且可丢弃）。
 
 Silas / Daring 类：`uncommit` 只卸 `WHILE_COMMITTED` 与绑在该卡上的 `after_test_ends` 延时；**保留** `THIS_SKILL_TEST` lasting —— 全部由 lifetime 数据表达，不靠隐藏可变标志。
 
@@ -252,7 +252,7 @@ Run = {
 | 用途 | 典型 View |
 |---|---|
 | `commit_only` / Eligibility | `test_kind` + 印刷 icons + 相关 regs |
-| 有效关键词 | 实体 form + KEYWORD buffs + 印刷 |
+| 有效关键词 | 实体 form + Gain 特征 + 印刷 |
 | dry-run CREATED | 目标实体 markers/placement + regs（只读） |
 | 地点连通移动 | locations 图 + placement |
 
@@ -291,7 +291,7 @@ Intent =
 |---|---|
 | W1 | **World / Run 分立**：局面值 vs 执行游标；指称与栈不进存档级 World |
 | W2 | **物理权威单一**：三类原语只写 `physical`；交战等为投影 |
-| W3 | **Registration 在 World**：寿命未到期的 Buff 是局面的一部分 |
+| W3 | **Registration 在 World**：寿命未到期的 **payloads** 是局面的一部分 |
 | W4 | **Catalog 外置**：印刷与编译树不是 World 字段 |
 | W5 | **Audience 在 World、非结算**：与 form 正交 |
 | W6 | **唯一写法 = Intent commit**；查询/投影只读 |

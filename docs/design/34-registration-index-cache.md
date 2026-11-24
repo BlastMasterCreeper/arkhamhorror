@@ -30,10 +30,11 @@ Registration.subject =
   | Bound(card_id)
   | Matching(filter_id)      -- 动态；不能钉死在单一 card_id
 
-Buff.aspect =
+RegistrationPayload.aspect =
   | Stat(fight|willpower|…)
   | Gate(play_card|commit|initiate|…)
-  | Keyword | Trait | …
+  | Status(engagement|…)
+  -- Gain 特征（KEYWORD/TRAIT/…）不是 Registration 载荷；不进此索引轴
 ```
 
 查询原语（纯）：
@@ -54,7 +55,7 @@ Buff.aspect =
 RegIndex = {
   by_id:          Map RegId → Registration      -- 可与 registrations 同表
   by_bound:       Map CardId → Set RegId         -- subject = Bound(e)
-  by_aspect:      Map Aspect → Set RegId         -- 该行任一 buff 的方面
+  by_aspect:      Map Aspect → Set RegId         -- 该行任一带 aspect 的 payload
   by_bound_aspect:Map (CardId×Aspect) → Set RegId  -- 热路径交叉
   matching_by_aspect: Map Aspect → Set RegId     -- subject = Matching(_)
   by_source:      Map CardId → Set RegId         -- 退场批量卸
