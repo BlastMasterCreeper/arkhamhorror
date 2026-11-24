@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.15 · 2026-11-24  
+> **状态**：设计草案 v0.16 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
@@ -210,7 +210,6 @@ chaos.token_stacks["skull"] = 2
 ```text
 Registration = {
   id:              String,
-  controller_id:   String,
   source_card_id:  String,
   subject:         Subject,
   lifetime:        Lifetime,
@@ -235,12 +234,13 @@ Buff = {
 | 键 | 类型 | 说明 |
 |---|---|---|
 | `id` | `String` | 登记 id |
-| `controller_id` | `String` | 控制者 |
 | `source_card_id` | `String` | 来源卡 |
 | `subject` | `Subject` | 钉死目标或动态 Matching |
 | `lifetime` | `Lifetime` | 见下 |
 | `bound_id` | `String` | 寿命绑定的检定/卡 id；不需要则 `""` |
 | `buffs` | `Array<Buff>` | 载荷列表 |
+
+**不设** `Registration.controller_id`：控制者 = `cards[source_card_id].controller_id`（「你」随来源卡控制权）。冗余快照易与转控脱节。
 
 **`Lifetime`**：`"while_in_play"` \| `"while_committed"` \| `"this_skill_test"` \| `"this_turn"` \| `"while_drawn_card_resolving"`
 
@@ -534,3 +534,4 @@ Snapshot {
 | 2026-11-24 | v0.13：堆仅 type→count；双面/原类型/代表类型用静态表；翻面专用 seq |
 | 2026-11-24 | v0.14：标明 `represent_as` = 有限实体标记替代（非 dual 逆表）；堆键仍用原类型 |
 | 2026-11-24 | v0.15：去掉 `original_of`；替代关系只保留 `represent_as` 单向 |
+| 2026-11-24 | v0.16：Registration 去掉 `controller_id`；自 `source_card_id` 解引用 |
