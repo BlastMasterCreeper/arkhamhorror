@@ -1,9 +1,9 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.12 · 2026-11-24  
+> **状态**：设计草案 v0.13 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
-> **token**：一律 `token_stacks`；堆键 = **实体类型**（伤/线索/混乱符号…）；不为种类另开槽；无 `mold_id` / 无 `auth.tokens` / `token_ids`。双面配对只在 Catalog，翻面在类型键间转移。  
+> **token**：堆只存 **类型 → 数量**；双面绑定 / 原类型 / 代表类型在**静态表**；翻面走专用 seq，不编码进键。  
 > **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。
 
 ---
@@ -151,41 +151,56 @@ Region = {
 
 ---
 
-### 1.2.1 Token = 实体类型键 + 数量（终端）
+### 1.2.1 Token = 类型 + 数量（终端）
 
 不在 `auth` 单列 token 表。区上的堆即全部权威：
 
 ```text
-token_stacks: Map<String, Int>   -- token_type → count
+token_stacks: Map<String, Int>   -- type → count
 ```
 
-**堆键 = 当前朝上的实体类型**。桌上只有这几种类型键；不设 `mold_id`，不拼 `dual:…` 复合串。许多「标记」直接用实体类型代替（伤/线索/毁灭 = 类型本身）。
+**桌上只此二事**：类型、数量。键就是类型名，不拼复合串、不设 `mold_id`。许多标记直接用实体类型（伤/线索/毁灭…）本身当类型。
 
-| 类型键 | 例 |
+| 类型（例） | |
 |---|---|
-| 伤/恐/线索/毁灭/资源 | `"damage"` \| `"horror"` \| `"clue"` \| `"doom"` \| `"resource"` |
-| 充能等 | `"ammo"` \| `"charge:<用途>"` \| … |
-| 混乱符号 | `"numeric:<mod>"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` |
+| 伤/恐/线索/毁灭/资源 | `damage` · `horror` · `clue` · `doom` · `resource` |
+| 充能 | `ammo` · `charge` · … |
+| 混乱 | `numeric_0` · `skull` · `cultist` · `tablet` · `elder_thing` · `auto_fail` · `elder_sign` · `bless` · `curse` |
 
-**双面**（仅 Catalog，不进 Snapshot 键形）：某对类型互为两面，例如 `tablet` ↔ `elder_thing`。  
-`Flip` = 同区（或按规则）朝上类型 `-1`、另一面类型 `+1`。权威始终是「现在朝上哪类有几枚」。
+#### 静态关系表（外置 · 不进 Snapshot）
 
-**终端性**：token 堆上不可再放卡、不可作登记 `subject` 去挂其它实体。
+双面、原类型、代表类型**不**编码进堆键；用静态字段维护（可挂 Catalog / 常量表）：
 
-#### 混乱 / 占兆 / 封印（全是堆移动）
+```text
+TokenTypeStatic = {
+  -- 仅「有双面」的类型出现；无则不可翻
+  dual_of:     Map<String, String>,   -- type → 另一面类型（对称）
+  -- 需要时：印刷/规则原类型 ↔ 桌上代表类型
+  original_of: Map<String, String>,   -- representative → original（可逆表另备）
+  represent_as: Map<String, String>   -- original → representative
+}
+```
+
+只对**特定类型**填 `dual_of`（如 `tablet`↔`elder_thing`）。不会出现「同类型既单面又双面」的冲突，不必为防冲突发明键名。
+
+#### 翻面 = 专用 seq / 运算
+
+`seq.effect.flip_token`（名可再定）：查 `dual_of[type]` → 目标区 `stacks[type]-=n`、`stacks[other]+=n`。  
+**不是**键形的一部分；放置/移动/揭示不必懂双面。
+
+#### 混乱 / 占兆 / 封印（堆移动）
 
 ```text
 chaos.token_stacks["skull"] = 2
--- 揭示：chaos "skull" -= 1 ; augury "skull" += 1
--- 封印：augury "skull" -= 1 ; sealed "skull" += 1
--- 双面翻：chaos "tablet" -= 1 ; chaos "elder_thing" += 1   （配对查 Catalog）
+-- 揭示 / 封印：同类型跨区 ±count
+-- 翻面：走 flip_token seq（查 dual_of），不改键约定
 ```
 
-无个体 id、无晋升。同类型多枚不可区分。
+无个体 id。同类型多枚不可区分。
 
 #### 放置伤/线索
 
-`PlaceToken` / `RemoveToken`：只改目标区 `token_stacks[type]`（盒装供应默认永够）。
+`PlaceToken` / `RemoveToken`：只改 `token_stacks[type]`（盒装供应默认永够）。
 
 术语：全文用 **token**。
 
@@ -517,3 +532,4 @@ Snapshot {
 | 2026-11-24 | v0.10：不为 token 种类分槽；宿主统一 `tokens` 区，种类只走 `token_stacks` 键 |
 | 2026-11-24 | v0.11：地点放置槽 `at`→`on`（物理放置）；`at` 保留给绑定关系语义 |
 | 2026-11-24 | v0.12：废 `mold_id`/`dual:` 复合键；堆键仅为实体类型；双面配对只在 Catalog |
+| 2026-11-24 | v0.13：堆仅 type→count；双面/原类型/代表类型用静态表；翻面专用 seq |
