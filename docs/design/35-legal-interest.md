@@ -2,7 +2,8 @@
 
 > **状态**：设计草案 v0.1 · 2026-11-24  
 > **依赖**：[33-candidate-functions](33-candidate-functions.md)、[34-registration-index-cache](34-registration-index-cache.md)、[25-functional-eff](25-functional-eff.md)、[07 §0 CREATED](07-effect-primitives.md)  
-> **裁决**：\(\mathrm{Interest}(\Delta)\) **不是**凭经验砍负载的启发式；在已定 `Universe` 与录读语义下，它由集合运算**唯一确定**。后果门槛（`wouldCreate`）⊆ `legal(op)`，不另开旁路试算。
+> **裁决**：\(\mathrm{Interest}(\Delta)\) **不是**凭经验砍负载的启发式；在已定 `Universe` 与录读语义下，它由集合运算**唯一确定**。后果门槛（`wouldCreate`）⊆ `legal(op)`，不另开旁路试算。  
+> **宇宙清单**：[36-interest-universe-inventory](36-interest-universe-inventory.md)（对照 PlayerWindow / 发起 / must 与现码）。
 
 ---
 
