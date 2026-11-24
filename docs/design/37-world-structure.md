@@ -40,7 +40,7 @@ Auth = {
   registrations:  Map<RegId, Registration>,
   chronicle:      Chronicle,
   audience:       Map<CardId, Audience>,
-  limits:         Map<LimitId, Int>,
+  limits:         LimitStore,
   framework:      Framework,
   chaos_bag:      Array<ChaosToken>,
   next_id:        Int
@@ -54,7 +54,7 @@ Auth = {
 | `registrations` | `Map<String, Registration>` | 信息层登记 |
 | `chronicle` | `Chronicle` | 日志∪记住 |
 | `audience` | `Map<String, Audience>` | 牌面可见档 |
-| `limits` | `Map<String, Int>` | 能力已用次数；键为 limit/ability id |
+| `limits` | `LimitStore` | 次数/配额权威；见 §1.5（**不是**单层 `Map→Int`） |
 | `framework` | `Framework` | 回合与当前场景/密谋游标 |
 | `chaos_bag` | `Array<ChaosToken>` | 袋内剩余标记（序有意义） |
 | `next_id` | `Int` | 下一分配序号，只增不减 |
@@ -221,6 +221,76 @@ ChaosToken = {
 
 ---
 
+### 1.5 `LimitStore` — 限制/配额（权威）
+
+先前草案用 `Map<LimitId, Int>` **不够**：Grimoire 有 per round / per game / per card / group limit / Max in play 等，键必须带**周期 + 范围 + 主体**，并支持清零与封顶。
+
+印刷规格在 Catalog（`LimitSpec`）；局面只存**已发生计数**与必要时的活跃「Max」占用。
+
+```text
+LimitStore = {
+  counters:   Map<String, LimitCounter>,   -- slot_id → 计数条
+  max_slots:  Map<String, MaxSlot>         -- 可选；Max N in play 类占用
+}
+
+LimitCounter = {
+  slot_id:       String,       -- 稳定键，见编码
+  spec_id:       String,       -- Catalog LimitSpec id / ability_id
+  period:        LimitPeriod,
+  scope:         LimitScope,
+  subject_id:    String,       -- 按 scope：调查员 / 卡实例 / ""(group)
+  used:          Int,          -- 已用次数
+  cap:           Int,          -- 上限（来自 spec 快照；便于读权威）
+  window_id:     String        -- 周期实例：round 号、test_id、""(game)…
+}
+
+MaxSlot = {
+  slot_id:       String,       -- 如 title / exceptional 键
+  kind:          MaxKind,      -- "in_play_by_title" | "committed_per_test" | …
+  subject_id:    String,       -- 检定 id / "" 
+  holders:       Array<String>,-- 当前占用的 card_id
+  cap:           Int
+}
+```
+
+**`LimitPeriod`**：`"per_round"` \| `"per_turn"` \| `"per_phase"` \| `"per_game"` \| `"per_skill_test"` \| `"while_in_play"` \| `"per_card_enter"`  
+
+**`LimitScope`**：`"controller"` \| `"owner"` \| `"card_instance"` \| `"group"` \| `"title"`  
+
+**`MaxKind`**：`"in_play_by_title"` \| `"committed_per_test"` \| `"other"`
+
+#### `slot_id` 编码（权威键）
+
+```text
+slot_id = spec_id + "|" + period + "|" + scope + "|" + subject_id + "|" + window_id
+```
+
+例：
+
+| 纸面 | `slot_id` 意象 |
+|---|---|
+| Joe：Limit once per round | `joe_react\|per_round\|controller\|I\|round:3` |
+| Group limit once per game | `orne_act\|per_game\|group\|\|game` |
+| Limit once per card（进场重置） | `ability_x\|while_in_play\|card_instance\|card:C9\|` |
+| Max 1 committed per test | `max_slots`：`committed_per_test` + `test_id` → `holders` |
+
+#### 运算
+
+| 动作 | 写什么 |
+|---|---|
+| L5 检查 | 读 `counters[slot].used < cap`（无条视为 0） |
+| 成功发起 / 决议记次 | `used += 1`（政策钉在 commence 或 resolve 后，见 06 OQ） |
+| 新回合 / 新回合窗 | 清或作废 `period=per_round` 且 `window_id` 过期的条 |
+| 卡进场 | `per_card_enter` / `while_in_play` 按实例建或重置 |
+| 卡离场 | 删该 `card_instance` 条；`max_slots.holders` 移除 |
+| Max in play | 进场写入 `holders`；离场移除；超 cap 则发起/进场门槛失败 |
+
+`window_id` 与 `auth.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<slot_id>`。
+
+**不做**：把 Limit 规格正文存进局面；用单个全局 `Int` 糊所有能力。
+
+---
+
 ## 2. `derived` — 派生
 
 ```text
@@ -374,7 +444,7 @@ Snapshot {
     registrations: {}
     chronicle: { log: [], remembered: {} }
     audience: { "C1": "controller" }
-    limits: {}
+    limits: { counters: {}, max_slots: {} }
     framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I",
                  current_act_id:"", current_agenda_id:"" }
     chaos_bag: [ { id:"t0", kind:"numeric", modifier:0 } ]
@@ -399,3 +469,4 @@ Snapshot {
 | 日期 | 说明 |
 |---|---|
 | 2026-11-24 | v0.1：Snapshot=auth/derived/run；全键名与基础类型；Key 编码表 |
+| 2026-11-24 | v0.2：`limits` 升为 `LimitStore`（period/scope/subject/window + MaxSlot） |
