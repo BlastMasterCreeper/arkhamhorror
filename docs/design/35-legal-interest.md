@@ -1,15 +1,56 @@
 # 35 — 操作合法性的兴趣点（确定可解）
 
-> **状态**：设计草案 v0.1 · 2026-11-24  
-> **依赖**：[33-candidate-functions](33-candidate-functions.md)、[34-registration-index-cache](34-registration-index-cache.md)、[25-functional-eff](25-functional-eff.md)、[07 §0 CREATED](07-effect-primitives.md)  
-> **裁决**：\(\mathrm{Interest}(\Delta)\) **不是**凭经验砍负载的启发式；在已定 `Universe` 与录读语义下，它由集合运算**唯一确定**。后果门槛（`wouldCreate`）⊆ `legal(op)`，不另开旁路试算。  
-> **宇宙清单**：[36-interest-universe-inventory](36-interest-universe-inventory.md)（对照 PlayerWindow / 发起 / must 与现码）。
+> **状态**：设计草案 v0.2 · 2026-11-24  
+> **依赖**：[24-functional-world](24-functional-world.md)、[33-candidate-functions](33-candidate-functions.md)、[34-registration-index-cache](34-registration-index-cache.md)、[25-functional-eff](25-functional-eff.md)、[07 §0 CREATED](07-effect-primitives.md)  
+> **裁决**：\(\mathrm{Interest}(\Delta)\) 由 \(\mathrm{Deps}\cap\mathrm{Touched}\) **唯一确定**。`wouldCreate` ⊆ `legal(op)`。  
+> **修订 v0.2**：**可行性是函数计算结果的一部分，写入局面派生字段**；不是提交后再维护的会话旁路 `LegalTable`。  
+> **宇宙清单**：[36-interest-universe-inventory](36-interest-universe-inventory.md)。
 
 ---
 
 ## 0. 一句话
 
-每次局面写入后，只重算「依赖集与本次写入触碰集相交」的那些操作合法性。交谁、不算谁，由公式给出，不是调参。
+`commit` / `step` 的纯函数结果里，就已经带上更新后的可行性。交互端读的是局面值上的派生切片，不是另一张表。
+
+兴趣点只决定**这次结果里重算哪些 op**，不决定「可行性活在何处」。
+
+---
+
+## 0.1 可行性进局面值（v0.2 裁决）
+
+先前 §2 把 `LegalTable` 写成会话态——那是实现顺手的旁路，**不是**你要的模型。改正如下：
+
+```text
+World = {
+  … physical, registrations, chronicle, audience, framework, …
+  index,           -- 登记倒排（派生，可重建）
+  feasibility,     -- 发起/must 可行性（派生，可重建）
+  meta.gen,
+}
+```
+
+\[
+\mathrm{commit}^+(w,r,\Delta)=(w\{\ldots,\ \Phi\mapsto\Phi'\},\ r')
+\]
+
+其中 \(\Phi'\) 由兴趣点算法从 \(\Phi\) 与 \(\Delta\) 算出，与物理/登记写入**同一拍、同一返回值**。
+
+| 性质 | 说明 |
+|---|---|
+| **派生** | 可由 `(w 去掉 Φ, r, 焦点)` 全量重建；不进「印刷真相」，但进**不可变局面值** |
+| **与登记同级管理** | 像 `index`：权威效果仍是 regs/物理；\(\Phi\) 是为查询/交互准备的确定投影 |
+| **焦点戳** | \(\Phi.\mathrm{focus\_fp}\) 记录枚举宇宙时的窗/控制者/打开的 must；焦点变了 → 在 `step` 里换宇宙并重填，仍写回 `World.feasibility` |
+| **存档** | 可存可不存；加载后若缺则重建。禁止与 regs 冲突时「信 Φ 不信 regs」 |
+
+进度-only 的 bind：若只改 `Run`，函数是
+
+\[
+\mathrm{bind}^+(w,r,x)=(w\{\Phi\mapsto\Phi''\},\ r')
+\]
+
+must 宇宙的 `viable` 仍写进 **同一** `w.feasibility`（或 `feasibility.B`），不是宿主局部变量。
+
+**交互端**：`getLegalSlice` = 读 `w.feasibility` 在当前 `focus_fp` 下的答案；无第二套 dry_run，无会话表与局面双真相。
 
 ---
 
@@ -106,113 +147,101 @@ legalTracked(op, w, r) → (Bool, Set Key)
 
 禁止无钩子的旁路读 Store。
 
-### S2. 维护表（会话态，非权威 World）
+### S2. 局面内的可行性字段（派生）
 
 ```text
-LegalTable = {
-  universe_id,                    -- 当前焦点指纹
-  answers:  Map OpId → Bool,
+World.feasibility Φ = {
+  focus_fp,                       -- 窗 / 控制者 / 打开的 must Ask
+  answers:  Map OpId → { data_ok, effect_ok },
   deps:     Map OpId → Set Key,
-  reverse:  Map Key → Set OpId,   -- 倒排：键 → 谁依赖它
-  world_gen, run_fp
+  reverse:  Map Key → Set OpId,
 }
 ```
 
-`reverse` 由 `deps` 派生，便于 \(\mathrm{O}(|\mathrm{Touched}|)\) 求兴趣点：
+`reverse` 便于 \(\mathrm{O}(|\mathrm{Touched}|)\) 求兴趣点：
 
 \[
 \mathrm{Interest}
 =
-\bigcup_{k\in\mathrm{Touched}}\mathrm{reverse}[k]
+\bigcup_{k\in\mathrm{Touched}}\Phi.\mathrm{reverse}[k]
 \cap\mathrm{Universe}
 \]
 
-### S3. 提交后更新
+### S3. 融入 `commit` / `step`（不是事后补表）
 
 ```text
-onCommit(Δ):
-  T = Touched(Δ) ∪ TouchedRunIfAny
-  I = ∪ { reverse[k] | k ∈ T }
-  # Universe 可能变（入手/打出）：
-  U' = enumerateOps(w', r, f)
-  new = U' \ U
-  gone = U \ U'
-  drop gone from tables
-  for op in (I ∩ U') ∪ new:
-    (ans, D) = legalTracked(op, w', r)
-    update answers[op], deps[op], reverse
-  # 不在 I∪new 中的 op：answers 保持不变（由 §1 定理）
+commitPlus(w, r, Δ) → (w', r'):
+  w1 = commit(w, Δ)                     -- 物理 / 登记 / …
+  T  = Touched(Δ) ∪ TouchedRun
+  U' = enumerateOps(w1, r, focus(r))
+  Φ' = refreshFeasibility(w1.feasibility, w1, r, T, U')
+  w' = w1 { feasibility ↦ Φ' }
+  return (w', r)
+
+refreshFeasibility(Φ, w, r, T, U'):
+  new = U' \ dom(Φ.answers); gone = dom(Φ.answers) \ U'
+  I = (∪ reverse[k] for k∈T) ∩ U'
+  R = I ∪ new
+  if |R| too large or deps broken: R = U'
+  for op in R:
+    (ans, D) = legalTracked(op, w, r)   -- 读 w 时不读 Φ.answers
+    写入新的 answers/deps/reverse（持久结构共享）
+  drop gone
+  return Φ'
 ```
+
+`legalTracked` **禁止**读 `w.feasibility.answers`（避免派生喂派生）。只读物理、登记、目录与 `Run`。
 
 ### S4. 焦点切换
 
-换窗 / 换控制者 → 新 `Universe`：对尚未有 `deps` 的 op **初次** `legalTracked`；旧宇宙可丢或按焦点缓存多份表。
+换窗 / 控制者 / 打开 must → `focus_fp` 变：
 
-### S5. 静态过近似（可选加速首次）
+\[
+(w',r')=\mathrm{stepFocus}(w,r,f')
+\]
 
-对 Catalog 模板做 \(\mathrm{Deps}_\supseteq(\mathrm{template})\)（效果树可能读的键上界）。  
-尚未动态录过的 op 先用过近似进 `reverse`，宁可多进 \(\mathrm{Interest}\)，不可漏。第一次真算后换成精确 `Deps`。
+\(w'.\mathrm{feasibility}\) 换宇宙并初次填满；可结构共享旧焦点的另一份缓存切片（可选），但**当前**焦点切片必须完整。
+
+### S5. 静态过近似（可选）
+
+同前：\(\mathrm{Deps}_\supseteq\) 只允许多脏；真算后换成精确读集。
 
 ---
 
-## 2.1 LegalTable 更新策略（总表）
+## 2.1 更新策略（融入函数，而非旁路）
 
-表是**会话派生态**，权威仍是 `World`。更新必须在返回交互端**之前**完成（同步）。
+### 触发（皆为纯函数换新 `World`）
 
-### 触发（何时更新）
+| 事件 | 函数 | \(\Phi\) |
+|---|---|---|
+| 非空 `commit(Δ)` | `commitPlus` | 按 Interest 刷新 |
+| `answer` bind | `bindPlus` | 脏 must 的 viable |
+| 换窗 / 开 must Gate | `stepFocus` | 换宇宙并填满 |
+| 关 Gate | `stepFocus` | 丢掉 B 宇宙行 |
+| 读档缺 \(\Phi\) | `rebuildFeasibility` | 全量 |
+| 对拍失败 | 同上兜底 | 全量 |
 
-| 事件 | 动作 |
-|---|---|
-| `commit(Δ)` 且 \(\Delta\neq[\,]\) | `onCommit`：按 \(\mathrm{Interest}\) 重算；同步 `Universe` 增删 |
-| `answer` 只改 `Run`（bind / 换默认） | 若有打开的 must 宇宙 B：`Touched_run` → 只脏相关 `viable` |
-| 开/关窗、换控制者、换检定 | `focusChanged`：换 `universe_id`；对新 `Universe` 缺项做初次填表 |
-| 打开 must Gate（候选已 U–N） | 建/刷新宇宙 B：对每个候选初次 `viableTracked` |
-| 关闭 Gate / 池清空 | 丢对应 B 表行；A 表按焦点保留或丢 |
-| 存档加载 / 重放跳转 | **全量重建**当前焦点表（不信任旧 deps） |
-| 录读审计失败、对拍失败 | 降级：**全量重算**当前 `Universe`，并打日志 |
+纯 `view(w)`：**不**改 \(w\)；直接读 \(w.\mathrm{feasibility}\)。
 
-**不触发更新**：纯查询 `view`、重复读 `answers`、动画帧、未改 `gen`/`run_fp` 的空转。
-
-### 两张逻辑表
+### A / B 同字段分区
 
 ```text
-LegalTable.A   -- 发起：can_initiate(op) = dataOK ∧ wouldCreate(效果)
-LegalTable.B   -- must/目标：viable(binding) = wouldCreate(op[binding])
+OpId = InitOp(...) | BindOp(ask_id, candidate_id)
+answers[op] = { data_ok, effect_ok }
 ```
 
-可同结构（`answers`/`deps`/`reverse`），用 `universe_id` 区分。A 随窗/池；B 随当前 Ask。
+发起要两者皆真；UI 可分色。费用不进 `effect_ok`。
 
-### 单次更新算法（规范序）
+### 交互端
 
-```text
-updateLegalTable(trigger):
-  1. 解析 Touched（Intent writes 与/或 Run 键）
-  2. U' = enumerateOps(焦点)          -- 见 36
-  3. 删 gone；为 new 占位
-  4. I = reverse-lookup(Touched) ∩ U'
-  5. R = I ∪ new
-  6. 若 |R| > 阈值 或 deps 缺失过多 → R = U'   -- 全量兜底
-  7. for op in R:
-       (ans, D) = legalTracked / viableTracked
-       写 answers；替换 deps；维护 reverse
-  8. world_gen / run_fp 对齐当前
-  9. 发布 version++（宿主可订阅）
-```
-
-### 同步给交互端
-
-| 方式 | 做法 |
-|---|---|
-| **拉**（默认） | `step`/`answer` 的返回值带 `legal_version`；宿主 `getLegalSlice(focus)` |
-| **推**（可选） | `version` 变化时回调「脏 op 列表 + 新布尔」；宿主只改控件 |
-
-禁止宿主在表外自行 dry_run。显示以 `answers` 为准。
+读 `w.feasibility.answers`（当前 `focus_fp`）。  
+`step`/`answer` 返回的新 `World` 已含新 \(\Phi\)——可行性已在函数结果里，无需「先回 UI 再异步更新表」。
 
 ### 不变式
 
-1. 返回宿主前：`world_gen` = 当前 `World.gen`，且 `answers` 对 `Universe` 中每条都有值（新项已初次算完）。  
-2. 跳过重算的 op：其 `Deps` 与本次 `Touched` 无交。  
-3. 费用不计入 `wouldCreate`；`dataOK` 与效果可行性可分字段存（`can_pay` / `effect_ok`），UI 可分色，发起仍要两者皆真。
+1. 任一对外暴露的 `World`：若焦点匹配，则 `Universe` 内每条 op 在 \(\Phi.answers\) 中有值。  
+2. \(\Phi\) 与 regs/物理冲突时，以 regs/物理为准并重建 \(\Phi\)。  
+3. `legalTracked` 不读 \(\Phi.answers\)。
 
 ---
 
@@ -260,8 +289,9 @@ updateLegalTable(trigger):
 | J1 | \(\mathrm{Interest}(\Delta)\) 由 \(\mathrm{Deps}\) 与 \(\mathrm{Touched}\) 的交**唯一确定**（Universe 给定、Deps 完整时） |
 | J2 | `wouldCreate` ∈ `legal`；兴趣点策略覆盖全部试算次数，不覆盖掉试算语义 |
 | J3 | 依赖以 **动态录读** 为权威；静态分析仅作过近似引导 |
-| J4 | `LegalTable` 是会话派生态；不进存档级 `World` |
+| J4 | **可行性 \(\Phi\) 是 `World` 派生字段**；由 `commitPlus`/`step` 一并算出；可重建，不与 regs 双真相 |
 | J5 | 人为兴趣域只界定 Universe，不替代 \(\mathrm{Interest}\) |
+| J6 | 禁止会话旁路 `LegalTable` 与 `World.feasibility` 并存为两套答案 |
 
 ---
 
@@ -270,3 +300,4 @@ updateLegalTable(trigger):
 | 日期 | 说明 |
 |---|---|
 | 2026-11-24 | v0.1：定义、定理条件、S0–S5 步骤、倒排 Interest、验收 |
+| 2026-11-24 | v0.2：可行性融入局面值；废「会话 LegalTable 为主」；`commitPlus` |

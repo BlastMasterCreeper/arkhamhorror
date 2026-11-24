@@ -112,7 +112,7 @@ Search / Discard / Assign 等：先做结构合法集；仅当规则要求「选
 
 | 现况 | 兴趣点策略要求 |
 |---|---|
-| `can_initiate` 每次全做限制+费用+dry | 对 \(\mathrm{Universe}(f)\) 建 `LegalTable`；`commit` 后只重算 \(\mathrm{Interest}\) |
+| `can_initiate` 每次全做限制+费用+dry | `commitPlus` 写入 `World.feasibility`；按 \(\mathrm{Interest}\) 重算（35 v0.2） |
 | COLLECT 故意不跑 L7（06） | **保持**：宇宙 A 的 L7 只对当前池/窗已列出的 op，不在「所有订阅能力」上扫 |
 | `CandidateViability` 每次对全候选 dry | 宇宙 B：按 \(\mathrm{Deps}\cap\mathrm{Touched}\) 只重算脏候选 |
 | `InitiationIntent.Kind` 仅 ABILITY/PLAY_CARD | 基础行动可作平行 op 键，或经 Activate/Play 归一 |
