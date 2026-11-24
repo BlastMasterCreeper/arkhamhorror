@@ -348,7 +348,8 @@ Nest seq.interrupt.cancel { target = revelation_frame }
 ## 11. 下一步
 
 1. ~~**种类表**~~ → [26-eff-kind-table](26-eff-kind-table.md)（卡面叶默认 **Nest**；内联仅 handler/管线/ST.7 外壳）。  
-2. ~~**求值细则**~~ → [27-eff-eval-detail](27-eff-eval-detail.md)（信封 FSM；Ask 分型；Forced 排序；粘性响应池；废「Forced 无 Ask」）。  
+2. ~~**求值细则**~~ → [27-eff-eval-detail](27-eff-eval-detail.md)（信封、Ask 分型、Forced 排序、粘性池）。  
+2b. ~~**总纲**~~ → [28-functional-scheme](28-functional-scheme.md)（自审缺口；Agenda；检定/发起/混乱/分配等机器）。  
 3. **JSON ↔ Eff** 编解码（复用 `compiled_abilities` / template；按 26 强制 Nest）。  
 4. **金样**：Forced ORDER → ResolveBody；Pool 放行 1 条再 nest 返回；Cancel 保 G4。  
 5. Godot 适配：分层 `advanceEnvelope` / `interpret` / 池函数，不一次铲掉。
