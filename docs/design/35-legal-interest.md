@@ -2,8 +2,8 @@
 
 > **状态**：设计草案 v0.2 · 2026-11-24  
 > **依赖**：[24-functional-world](24-functional-world.md)、[33-candidate-functions](33-candidate-functions.md)、[34-registration-index-cache](34-registration-index-cache.md)、[25-functional-eff](25-functional-eff.md)、[07 §0 CREATED](07-effect-primitives.md)  
-> **裁决**：\(\mathrm{Interest}(\Delta)\) 由 \(\mathrm{Deps}\cap\mathrm{Touched}\) **唯一确定**。`wouldCreate` ⊆ `legal(op)`。  
-> **修订 v0.2**：**可行性是函数计算结果的一部分，写入局面派生字段**；不是提交后再维护的会话旁路 `LegalTable`。  
+> **裁决**：重算集 \(\mathrm{Dirty}(\Delta)=\mathrm{Deps}\cap\mathrm{Touched}\) 唯一确定。`wouldCreate` ⊆ `legal(op)`。依赖集规则见 §1.1。  
+> **修订 v0.2+**：可行性进派生字段；**v0.3** 钉死 Deps 键空间与集合容器键纪律。  
 > **宇宙清单**：[36-interest-universe-inventory](36-interest-universe-inventory.md)。
 
 ---
@@ -12,7 +12,7 @@
 
 `commit` / `step` 的纯函数结果里，就已经带上更新后的可行性。交互端读的是局面值上的派生切片，不是另一张表。
 
-兴趣点只决定**这次结果里重算哪些 op**，不决定「可行性活在何处」。
+**依赖集** = 操作关心的世界值键（动态录读）。**重算集 Dirty** = 这拍要因 Touched 而重跑的操作。
 
 ---
 
@@ -93,10 +93,10 @@ must 宇宙的 `viable` 仍写进 **同一** `w.feasibility`（或 `feasibility.
 
 每个 `Intent` 的 `writes` **静态可知**（`AddMarker(e,k,_)` → `{card.e.markers.k}`；`RegInsert` → 该登记及倒排键；`PlaceEntity` → 区与卡放置键）。
 
-兴趣点：
+重算集（文档里曾称 Interest；= 这拍要重跑 `legalTracked` 的操作）：
 
 \[
-\mathrm{Interest}(\Delta)
+\mathrm{Dirty}(\Delta)
 =
 \{\mathit{op}\in\mathrm{Universe}
 \mid
@@ -113,28 +113,91 @@ must 宇宙的 `viable` 仍写进 **同一** `w.feasibility`（或 `feasibility.
 
 （\(w'=\mathrm{commit}(w,\Delta)\)，且 \(r\) 的相关键亦未落入 \(\mathrm{Touched}\)；进度-only 的 bind 另算 \(\mathrm{Touched}_{run}\)。）
 
-故：重算且仅重算 \(\mathrm{Interest}\)（外加新建进入 \(\mathrm{Universe}\) 的 op）是**充分必要**的最小重算集——在「Universe 固定、Deps 完整」前提下唯一确定。
+故：重算且仅重算 \(\mathrm{Dirty}\)（外加新建进入 \(\mathrm{Universe}\) 的 op）是**充分必要**的最小重算集——在「Universe 固定、Deps 完整」前提下唯一确定。
+
+---
+
+## 1.1 依赖集规则（关键 · 如何定义）
+
+依赖集是**动态规则**：由 `legalTracked` 的读钩子生成，不是每张卡手写表。  
+规则 = **键空间** + **何种读必须记哪些键** + **Intent 的 writes 必须与之对齐**。
+
+### R0. 键空间（封闭代数）
+
+```text
+Key =
+  | CardField(card_id, field)     -- face / exhausted / location_id / engaged_with / …
+  | Marker(card_id, token_kind) -- resource / damage / horror / clue / doom / …
+  | RegionMembers(region_id)      -- 该区成员多重集（或区版本号）；枚举/计数必记
+  | QueryBag(query_id, args_fp) -- 具名查询结果指纹（enemies_at(L)、hand(I)…）
+  | Reg(reg_id)
+  | RegAspect(aspect)             -- fight / gate.play / keyword.X …
+  | FrameworkField(name)          -- active_investigator / round / …
+  | LimitCounter(limit_id)
+  | ChronicleKey(name)            -- 若 dataOK/效果读了记事
+  | RunFocus                      -- 窗 / 控制者指纹
+  | RunMemory(mem_key)
+```
+
+禁止未登记的字符串键。`Catalog` 印刷不进 Key（不变）。`feasibility.answers` **禁止**出现在读路径。
+
+### R1. 录读纪律（生成 Deps）
+
+| 代码里发生的读 | 必须记入 Deps 的键 |
+|---|---|
+| 读一张卡的某字段 | `CardField(id, field)` |
+| 读标记 | `Marker(id, kind)` |
+| `for x in region` / `count(region)` / `is_empty(region)` | **`RegionMembers(region_id)`**（不能只记当前枚举到的 id） |
+| `enemies_at(L)` / `hand(I)` 等查询 | **`QueryBag(q, args)`**；若再读每个 x 的字段，另记那些 `CardField`/`Marker` |
+| 读某条登记 | `Reg(id)`；按方面收集时还记 `RegAspect(aspect)` |
+| 读限额 | `LimitCounter(id)` |
+| 读框架游标 | `FrameworkField(…)` |
+| 读记忆/焦点 | `RunMemory` / `RunFocus` |
+| Matching 主语登记是否 covers | 该 Matching 的 `QueryBag` 或等价过滤指纹 + 相关卡字段 |
+
+**集合类铁律**：凡结果依赖「有哪些实体」，Deps 必须含 **容器键**（`RegionMembers` 或 `QueryBag`）。只记首次看到的 E1、E2 → 规则不合格（E3 进场会漏脏）。
+
+### R2. writes 对齐（生成 Touched）
+
+| Intent | 至少写入 Touched |
+|---|---|
+| `PlaceEntity` / 换区 | 卡放置字段 + **旧区与新区的 `RegionMembers`** |
+| `AddMarker` / `TransferMarkers` | `Marker(…)` |
+| `SetForm` | `CardField(…)` |
+| `RegInsert` / `RegRemove` | `Reg(id)` + 其 `RegAspect(…)` |
+| 限额递增 | `LimitCounter` |
+| Chronicle 追加 | `ChronicleKey` |
+| bind 记忆 | `RunMemory` |
+| 换窗 / 换控制者 | `RunFocus` |
+
+容器成员一变，Touched 必须含同一 `RegionMembers`/`QueryBag` 键，才能与 R1 相交。
+
+### R3. 生命周期
+
+```text
+legalTracked(op):
+  Reads = ∅
+  跑 dataOK ∧ effect_ok（所有读进 Reads）
+  Deps(op) ← Reads          -- 整份替换，非只增并集
+  更新 reverse
+```
+
+未进 \(\mathrm{Dirty}\) 的 op：**继承**旧 Deps。  
+op 离开宇宙：删 answers/deps/reverse 项。
+
+### R4. 验收（依赖规则合格标准）
+
+1. 随机对拍：增量与全量 `legal` 一致（含「新区多一个敌人」类用例）。  
+2. 未钩读取 → 测试失败。  
+3. 专项：仅 `RegionMembers`/`QueryBag` 变、元素键未在旧 Deps 中 → 仍必须进 Dirty。
 
 ---
 
 ## 2. 策略（可执行步骤）
 
-### S0. 键空间钉死
+### S0. 键空间
 
-规定 `Key` 的代数（有限构造子），例如：
-
-```text
-Key =
-  | CardField(card_id, field)       -- face, exhausted, location_id, …
-  | Marker(card_id, kind)
-  | Region(region_id)               -- 成员多重集指纹或 gen 子计数
-  | Reg(reg_id) | RegAspect(aspect)
-  | FrameworkField(…)
-  | RunWindow | RunMemory(key)
-  | CatalogConst                    -- 印刷；通常不进 Touched
-```
-
-`writes(Intent)` / 读钩子都映射到此代数。无「字符串随便写」。
+采用 §1.1 R0；`writes` / 读钩子同一代数。
 
 ### S1. 带读环境的合法性
 
@@ -161,7 +224,7 @@ World.feasibility Φ = {
 `reverse` 便于 \(\mathrm{O}(|\mathrm{Touched}|)\) 求兴趣点：
 
 \[
-\mathrm{Interest}
+\mathrm{Dirty}
 =
 \bigcup_{k\in\mathrm{Touched}}\Phi.\mathrm{reverse}[k]
 \cap\mathrm{Universe}
@@ -180,17 +243,17 @@ commitPlus(w, r, Δ) → (w', r'):
 
 refreshFeasibility(Φ, w, r, T, U'):
   new = U' \ dom(Φ.answers); gone = dom(Φ.answers) \ U'
-  I = (∪ reverse[k] for k∈T) ∩ U'
-  R = I ∪ new
+  Dirty = (∪ reverse[k] for k∈T) ∩ U'
+  R = Dirty ∪ new
   if |R| too large or deps broken: R = U'
   for op in R:
-    (ans, D) = legalTracked(op, w, r)   -- 读 w 时不读 Φ.answers
+    (ans, D) = legalTracked(op, w, r)   -- 读 w 时不读 Φ.answers；Deps 按 §1.1
     写入新的 answers/deps/reverse（持久结构共享）
   drop gone
   return Φ'
 ```
 
-`legalTracked` **禁止**读 `w.feasibility.answers`（避免派生喂派生）。只读物理、登记、目录与 `Run`。
+`legalTracked` **禁止**读 `w.feasibility.answers`（避免派生喂派生）。只读权威、目录与 `Run`；集合枚举必记容器键（R1）。
 
 ### S4. 焦点切换
 
@@ -214,7 +277,7 @@ refreshFeasibility(Φ, w, r, T, U'):
 
 | 事件 | 函数 | \(\Phi\) |
 |---|---|---|
-| 非空 `commit(Δ)` | `commitPlus` | 按 Interest 刷新 |
+| 非空 `commit(Δ)` | `commitPlus` | 按 Dirty 刷新 |
 | `answer` bind | `bindPlus` | 脏 must 的 viable |
 | 换窗 / 开 must Gate | `stepFocus` | 换宇宙并填满 |
 | 关 Gate | `stepFocus` | 丢掉 B 宇宙行 |
@@ -249,12 +312,11 @@ answers[op] = { data_ok, effect_ok }
 
 | | 人为兴趣域 | 本策略 |
 |---|---|---|
-| 定义 | 经验桶（手牌、交战…） | \(\mathrm{Interest}(\Delta)\) 公式 |
-| 对错 | 可能过脏或漏脏 | Deps 完整 ⇒ 不漏；过脏只来自过近似 |
-| 角色 | 可作 `enumerateOps` 的**宇宙边界** | 宇宙内谁脏，交给公式 |
+| 定义 | 经验桶（手牌、交战…） | \(\mathrm{Dirty}(\Delta)\) 公式 |
+| 对错 | 可能过脏或漏脏 | Deps 完整（含容器键）⇒ 不漏 |
+| 角色 | 可作 `enumerateOps` 的**宇宙边界** | 宇宙内谁脏，交给 Deps∩Touched |
 
-人为方法留下的价值：界定 **Universe**（当前玩家关心的操作集）。  
-桶内增量：交给 \(\mathrm{Deps}\cap\mathrm{Touched}\)。
+人为方法留下的价值：界定 **Universe**。桶内谁重算：交给依赖规则 §1.1。
 
 ---
 
@@ -263,11 +325,10 @@ answers[op] = { data_ok, effect_ok }
 设 \(t=|\mathrm{Touched}|\)，\(d\) 为平均反向扇出，\(c\) 为单次 `legalTracked` 代价：
 
 \[
-\mathrm{T}_{update}=\mathrm{O}(t\cdot d\cdot c)\quad\text{（重算 }|\mathrm{Interest}|\text{ 次）}
+\mathrm{T}_{update}=\mathrm{O}(t\cdot d\cdot c)\quad\text{（重算 }|\mathrm{Dirty}|\text{ 次）}
 \]
 
-全量重算则为 \(\mathrm{O}(|\mathrm{Universe}|\cdot c)\)。  
-策略不改变单次 `legal` 的语义代价，只把次数从 \(|\mathrm{Universe}|\) 降到 \(|\mathrm{Interest}|\)，且集合可算。
+全量重算则为 \(\mathrm{O}(|\mathrm{Universe}|\cdot c)\)。每拍×待测集可接受；正确性靠 §1.1，不靠少跑拍。
 
 ---
 
@@ -276,9 +337,10 @@ answers[op] = { data_ok, effect_ok }
 | ID | 条件 |
 |---|---|
 | L1 | 随机 \(\Delta\)：跳过重算的 op，其 `legal` 与全量重算逐位相等 |
-| L2 | `Touched`∩`Deps`≠∅ 的 op 必须出现在 `Interest` |
+| L2 | `Touched`∩`Deps`≠∅ 的 op 必须出现在 `Dirty` |
 | L3 | 无钩子读路径（审计：测试下读计数器） |
 | L4 | `wouldCreate` 与真 `interpret` 同树；禁止 UI 第二套 dry_run |
+| L5 | 「区上新增多一个敌人」：仅容器键变时仍 Dirty（§1.1 R4） |
 
 ---
 
@@ -286,12 +348,12 @@ answers[op] = { data_ok, effect_ok }
 
 | # | 裁决 |
 |---|---|
-| J1 | \(\mathrm{Interest}(\Delta)\) 由 \(\mathrm{Deps}\) 与 \(\mathrm{Touched}\) 的交**唯一确定**（Universe 给定、Deps 完整时） |
-| J2 | `wouldCreate` ∈ `legal`；兴趣点策略覆盖全部试算次数，不覆盖掉试算语义 |
-| J3 | 依赖以 **动态录读** 为权威；静态分析仅作过近似引导 |
-| J4 | **可行性 \(\Phi\) 是 `World` 派生字段**；由 `commitPlus`/`step` 一并算出；可重建，不与 regs 双真相 |
-| J5 | 人为兴趣域只界定 Universe，不替代 \(\mathrm{Interest}\) |
-| J6 | 禁止会话旁路 `LegalTable` 与 `World.feasibility` 并存为两套答案 |
+| J1 | \(\mathrm{Dirty}(\Delta)\) 由 \(\mathrm{Deps}\) 与 \(\mathrm{Touched}\) 的交**唯一确定**（Universe 给定、Deps 完整时） |
+| J2 | `wouldCreate` ∈ `legal`；Dirty 只减少重跑次数，不改试算语义 |
+| J3 | 依赖以 **§1.1 动态录读** 为权威；集合必记容器键 |
+| J4 | **可行性 \(\Phi\) 是派生字段**；由 `commitPlus`/`step` 一并算出 |
+| J5 | 人为桶只界定 Universe，不替代 Dirty |
+| J6 | 禁止会话旁路表与 \(\Phi\) 双真相 |
 
 ---
 
@@ -301,3 +363,4 @@ answers[op] = { data_ok, effect_ok }
 |---|---|
 | 2026-11-24 | v0.1：定义、定理条件、S0–S5 步骤、倒排 Interest、验收 |
 | 2026-11-24 | v0.2：可行性融入局面值；废「会话 LegalTable 为主」；`commitPlus` |
+| 2026-11-24 | v0.3：§1.1 依赖集规则 R0–R4（键空间、集合容器键、writes 对齐）；重算集改称 Dirty |
