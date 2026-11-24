@@ -1,9 +1,10 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.10 · 2026-11-24  
+> **状态**：设计草案 v0.11 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
-> **token**：一律 `token_stacks`；类型靠堆键区分，**不为每种 token 另开槽**；宿主一枚 `tokens` 区即可。双面 `dual:<mold>:<A|B>`；无 `auth.tokens` / `token_ids`。
+> **token**：一律 `token_stacks`；类型靠堆键区分，**不为每种 token 另开槽**；宿主一枚 `tokens` 区即可。双面 `dual:<mold>:<A|B>`；无 `auth.tokens` / `token_ids`。  
+> **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。
 
 ---
 
@@ -108,7 +109,7 @@ Card = {
 |---|---|---|
 | `hand` / `deck` / `discard` / `play` / `threat` | investigator | 卡 |
 | `tokens` | 会承 token 的卡 | **该宿主上全部** token 堆（伤/恐/线索/毁灭/资源/充能…） |
-| `at` | location | **在该地点的**调查员/敌人卡 id |
+| `on` | location | **物理放在该地点上的**调查员/敌人卡 id（放置，非绑定） |
 | `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
 | `chaos` | 冒险公共 | 混乱袋（另一放置面；仍是堆） |
 | `augury` / `sealed` | 公共或卡槽 | 占兆 / 封印（不同放置面，非按种类分槽） |
@@ -116,8 +117,9 @@ Card = {
 
 读「某卡上有多少资源」= 读 `regions[card.slot_regions["tokens"]].token_stacks["resource"]`。  
 读「伤」同区 `token_stacks["damage"]`——**不要**再开 `damage`/`horror`/`resource` 槽。  
-读「调查员在哪」= 哪个地点的 `at` 区的 `card_ids` 含该 id（派生索引可加速）。  
-「交战」= **登记** `ENGAGEMENT`（或等价 Buff），不进 Card 字段。
+读「调查员物理在哪」= 哪个地点的 **`on`** 区的 `card_ids` 含该 id（派生索引可加速）。  
+**禁止**用槽名 `at` 表示地点放置：`at` 留给绑定关系（登记查询）；`on` 才是物理放置。  
+「交战」= **登记** `ENGAGEMENT`（或等价 Buff），不进 Card 字段、不进 `on`。
 
 ---
 
@@ -445,7 +447,7 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 | 区成员 | `region:<id>:members` | 卡序 ∪ token 堆/序的指纹 |
 | token 堆 | `region:<id>:stack:damage` | `token_stacks["damage"]` |
 | token 堆 | `region:<id>:stack:<key>` | `token_stacks[key]` |
-| 查询指纹 | `query:enemies_at:<loc>` | 地点 `at` 区等投影 |
+| 查询指纹 | `query:enemies_on:<loc>` | 地点 `on` 区等投影 |
 | 登记 | `reg:<id>` | `auth.registrations[id]` |
 | 方面 | `aspect:fight` | 索引 / 多条登记 |
 | 框架 | `fw:active_investigator_id` | `auth.framework…` |
@@ -479,13 +481,13 @@ Snapshot {
     cards: {
       "I": { card_type:"investigator",
              slot_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I", … }, … }
-      "L": { card_type:"location", slot_regions:{ "at":"at_L", "tokens":"tok_L" }, connections:[], … }
+      "L": { card_type:"location", slot_regions:{ "on":"on_L", "tokens":"tok_L" }, connections:[], … }
     }
     regions: {
       "hand_I":  { host_card_id:"I", slot:"hand", card_ids:[], token_stacks:{}, … }
       "tok_I":   { host_card_id:"I", slot:"tokens", card_ids:[],
                    token_stacks:{ "resource":5, "damage":0, "horror":0 }, … }
-      "at_L":    { host_card_id:"L", slot:"at", card_ids:["I"], token_stacks:{}, … }
+      "on_L":    { host_card_id:"L", slot:"on", card_ids:["I"], token_stacks:{}, … }
       "tok_L":   { host_card_id:"L", slot:"tokens", card_ids:[], token_stacks:{ "clue":1 }, … }
       "chaos":   { host_card_id:"", slot:"chaos", shape:"bag",
                    token_stacks:{ "numeric:0": 2, "skull": 1, "auto_fail": 1 }, … }
@@ -514,3 +516,4 @@ Snapshot {
 | 2026-11-24 | v0.8：有朝向统一为 `faced:<mold>:<face>` + Catalog `MoldSpec`；面数任意（双面/骰子/…）；`Reorient` 为键间转移 |
 | 2026-11-24 | v0.9：收回多面泛化；本游戏仅双面 `dual:<mold>:<A\|B>`；多面标记物留待后需再扩 |
 | 2026-11-24 | v0.10：不为 token 种类分槽；宿主统一 `tokens` 区，种类只走 `token_stacks` 键 |
+| 2026-11-24 | v0.11：地点放置槽 `at`→`on`（物理放置）；`at` 保留给绑定关系语义 |
