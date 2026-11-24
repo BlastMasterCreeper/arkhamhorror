@@ -1,9 +1,9 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.7 · 2026-11-24  
+> **状态**：设计草案 v0.8 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
-> **token**：一律 `token_stacks`（类型键 + 数量）；放置终端；双面按 `dual:<mold>:<face>` 分堆；无 `auth.tokens` / `token_ids`。
+> **token**：一律 `token_stacks`（堆键 + 数量）；放置终端；无朝向用种类键，有朝向用 `faced:<mold>:<face>`（面数任意）；无 `auth.tokens` / `token_ids`。
 
 ---
 
@@ -60,7 +60,7 @@ Auth = {
 
 **不设** `auth.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
 
-**Token 本质**：只表示 **类型（堆键）+ 数量**；是放置的**终端**——其上不再放置卡、不再绑登记主体。即使桌上该类只有 1 枚，仍用 `token_stacks[key]=1`。
+**Token 本质**：只表示 **堆键 + 数量**；是放置的**终端**——其上不再放置卡、不再绑登记主体。即使桌上该类只有 1 枚，仍用 `token_stacks[key]=1`。有朝向的件（双面、骰子…）把 **当前面**编进堆键，不另开个体。
 
 卡通过 `slot_regions` 挂区。禁止 `Card.markers` / `location_id` / `engaged_with`。
 
@@ -155,16 +155,43 @@ Region = {
 token_stacks: Map<String, Int>   -- stack_key → count
 ```
 
-**`stack_key` 约定**
+**堆键两类**（桌上只存键与数量；印刷/面含义在 **Catalog**）：
+
+| 形态 | 键形 | 何时用 |
+|---|---|---|
+| **无朝向**（种类键） | `"damage"` · `"skull"` · `"ammo"` · … | 只有一种可见态；类型即键 |
+| **有朝向**（模具+面） | `"faced:<mold_id>:<face_id>"` | 同一物理件可换朝向；**按当前面分堆** |
+
+`face_id` 由 Catalog 的 **`MoldSpec.faces`** 给出，**基数不限**：双面件 2 面、骰子 6 面、或任意多面模具。不是卡牌 `Face` `"A"`\|`"B"` 特例。
+
+```text
+-- Catalog（外置，不进 Snapshot）
+MoldSpec = {
+  id:     String,
+  faces:  Map<String, FaceSpec>   -- face_id → 该朝向的有效类型/修正/标签
+}
+FaceSpec = { kind: String, mod: Int, … }   -- 查询投影；权威仍是堆键
+```
+
+**`stack_key` 例**
 
 | 种类 | 键例 |
 |---|---|
 | 伤/恐/线索/毁灭/资源 | `"damage"` \| `"horror"` \| `"clue"` \| `"doom"` \| `"resource"` |
 | 充能等 | `"ammo"` \| `"charge:<用途>"` \| … |
-| 单面混乱 | `"numeric:<mod>"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` |
-| **双面** | `"dual:<mold_id>:<face>"`（`face` ∈ `"A"`\|`"B"`）——**按面分堆** |
+| 无朝向混乱符号 | `"numeric:<mod>"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` |
+| 双面混乱件 | `"faced:chaos_tablet_elder:<A>"` / `"faced:chaos_tablet_elder:<B>"` |
+| 骰子（扩展） | `"faced:d6_standard:1"` … `"faced:d6_standard:6"` |
 
-双面：Catalog 解释 `mold_id`+`face` → 该面的 kind/修正；`Flip` = 同区（或按规则）`dual:M:A` `-1` 且 `dual:M:B` `+1`。
+**改朝向**（翻面 / 掷骰 / 指定面）= 同区（或规则指定区）数量转移，不造个体：
+
+```text
+Reorient(region, mold, from_face, to_face, n):
+  stacks["faced:<mold>:<from>"] -= n
+  stacks["faced:<mold>:<to>"]   += n
+```
+
+双面翻 = `Reorient` 且面集大小为 2；掷骰 = 抽面后 `Reorient`（或放置时直接写入目标面键）。
 
 **终端性**：token 堆上不可再放卡、不可作登记 `subject` 去挂其它实体。
 
@@ -174,15 +201,16 @@ token_stacks: Map<String, Int>   -- stack_key → count
 chaos.token_stacks["skull"] = 2
 -- 揭示：chaos "skull" -= 1 ; augury "skull" += 1
 -- 封印：augury "skull" -= 1 ; sealed "skull" += 1
+-- 有朝向件同理，整键移动（含 faced:…）
 ```
 
 无个体 id、无晋升。同键多枚不可区分。
 
 #### 放置伤/线索
 
-`PlaceToken` / `RemoveToken`：只改目标区 `token_stacks`（盒装供应默认永够）。
+`PlaceToken` / `RemoveToken`：只改目标区 `token_stacks`（盒装供应默认永够）；有朝向时写入完整 `faced:` 键。
 
-术语：全文用 **token**。
+术语：全文用 **token**；「双面」「骰子」只是 **MoldSpec 面集大小** 不同，不另开实体类。
 
 ---
 
@@ -506,3 +534,4 @@ Snapshot {
 | 2026-11-24 | v0.5：混乱袋默认 `token_stacks` 多重集；揭示/封印才晋升个体 |
 | 2026-11-24 | v0.6：双面 token：`faces`+`face`，有效类型为投影；堆键含朝向或走个体 |
 | 2026-11-24 | v0.7：token 一律堆（类型+数量）；废 auth.tokens/token_ids；双面按面分堆；token 为放置终端 |
+| 2026-11-24 | v0.8：有朝向统一为 `faced:<mold>:<face>` + Catalog `MoldSpec`；面数任意（双面/骰子/…）；`Reorient` 为键间转移 |
