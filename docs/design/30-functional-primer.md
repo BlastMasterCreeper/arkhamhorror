@@ -54,113 +54,74 @@
 
 ### 1.1 局面怎么构造
 
-局面是**一条记录**。构造时把下面这些字段填上。牌在哪个区，只看「区」里的 `card_ids`；调查员记录上只留区的 id，不再另存一份手牌数组。
+局面里**只有一种实体：卡**。调查员、地点、敌人、支援、事件、技能、场景、密谋都是 `cards` 里的一条，用字段 `card_type` 区分。没有第二张「调查员表」或「敌人表」。
+
+印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。局面上不复制一份。
 
 ```text
 World = {
-  cards:        字典,   键 字符串(卡id) → 卡
-  regions:      字典,   键 字符串(区id) → 区
-  investigators:字典,   键 字符串(调查员id) → 调查员
-  locations:    字典,   键 字符串(地点id) → 地点
-  enemies:      字典,   键 字符串(敌人id) → 敌人
-  registrations:字典,   键 字符串(登记id) → 登记条
-  audience:     字典,   键 字符串(卡id) → 字符串(可见档)
-  chronicle:    数组,   元素是记事（本节不展开）
-  framework:    框架记录
-  chaos_bag:    数组,   元素是混乱标记
-  limits:       字典,   键 字符串 → 整型
-  next_id:      整型    下一个要发出的序号，只增不减
+  cards:         字典   键 字符串(卡id) → 卡
+  regions:       字典   键 字符串(区id) → 区
+  registrations: 字典   键 字符串(登记id) → 登记条
+  audience:      字典   键 字符串(卡id) → 字符串(可见档)
+  chronicle:     数组   元素是记事（本节不展开）
+  framework:     框架记录
+  chaos_bag:     数组   元素是混乱标记
+  limits:        字典   键 字符串 → 整型
+  next_id:       整型   下一个序号，只增不减
 }
 ```
 
 #### 卡
 
+每张卡都是同一条记录。某个 `card_type` 用不到的键不写。
+
 ```text
 卡 = {
   id:             字符串
-  definition_id:  字符串     印刷编号，如 "06111"
-  owner_id:       字符串     谁的牌；遭遇牌用 "encounter"
-  controller_id:  字符串     谁在控制
-  face:           枚举       "A" 或 "B"
-  exhausted:      布尔       true = 已横置
-  display_order:  整型       同一平面区里的显示顺序
-  markers:        字典       键是标记名字符串，值是整型
+  definition_id:  字符串
+  card_type:      枚举
+  owner_id:       字符串    谁的牌；公共牌用 ""；遭遇牌用 "encounter"
+  controller_id:  字符串
+  face:           枚举      "A" 或 "B"
+  exhausted:      布尔
+  display_order:  整型
+  markers:        字典      键 字符串，值 整型
+  location_id:    字符串    调查员、敌人：所在地点的卡 id
+  engaged_with:   字符串    敌人：交战的调查员卡 id；未交战为 ""
+  connections:    数组      地点：相连地点的卡 id，元素是字符串
+  region_ids:     字典      键 字符串，值 字符串(区id)
+  actions_remaining:       整型
+  actions_bonus_next_turn: 整型
+  eliminated:     布尔
+  resigned:       布尔
 }
 ```
 
-标记名用这些字符串：`"damage"` 伤、`"horror"` 恐、`"doom"` 毁灭、`"clue"` 线索、`"resource"` 资源。充能的键用用途字符串，值仍是整型。数量为 0 的键可以不放进字典。
+`card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
+
+`markers` 的键：`"damage"`、`"horror"`、`"doom"`、`"clue"`、`"resource"`，以及充能用途字符串。值是整型。0 可以不放这个键。资源、伤、恐、线索、毁灭都写在这里，不另做「调查员资源字段」。
+
+`region_ids` 只在 `card_type = "investigator"` 时出现。键是 `"hand"`、`"deck"`、`"discard"`、`"play"`、`"threat"`，值是区 id。
+
+地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
 
 #### 区
 
-牌的位置由区决定，不在卡上再写一个「zone 枚举」。
+区不是卡。它是一叠卡 id。
 
 ```text
 区 = {
-  id:              字符串
-  shape:           枚举      "deck" 或 "flat"
-  owner_id:        字符串    无主则 ""
-  card_ids:        数组      元素是字符串(卡id)
-  limbo_kind:      字符串    仅悬置区使用："resolving" 或 "committed"；其它区为 ""
-  host_id:         字符串    附着/垫下/旁置时的宿主 id；否则 ""
+  id:         字符串
+  shape:      枚举     "deck" 或 "flat"
+  owner_id:   字符串   属主卡 id；公共区为 ""
+  card_ids:   数组     元素是字符串(卡id)
+  limbo_kind: 字符串   "resolving"、"committed" 或 ""
+  host_id:    字符串   附着、垫下、旁置的宿主卡 id；否则 ""
 }
 ```
 
-`shape = "deck"` 时，`card_ids[0]` 是顶。手牌、牌库、弃牌堆、威胁区、悬置都是区。调查员记录里保存这些区的 id。
-
-#### 调查员
-
-```text
-调查员 = {
-  id:                     字符串
-  definition_id:          字符串
-  location_id:            字符串
-  hand_region_id:         字符串
-  deck_region_id:         字符串
-  discard_region_id:      字符串
-  play_region_id:         字符串
-  threat_region_id:       字符串
-  resources:              整型
-  damage:                 整型
-  horror:                 整型
-  clues:                  整型
-  actions_remaining:      整型
-  actions_bonus_next_turn:整型
-  health:                 整型      当前上限（含创伤后的值）
-  sanity:                 整型
-  eliminated:             布尔
-  resigned:               布尔
-}
-```
-
-技能印刷值（意志、智力、战斗、敏捷）在目录里，是整型，不放进局面。
-
-#### 地点
-
-```text
-地点 = {
-  id:           字符串
-  shroud:       整型
-  clues:        整型
-  revealed:     布尔
-  connections:  数组    元素是字符串(相连地点 id)
-}
-```
-
-#### 敌人
-
-敌人在场时的伤、毁灭放在对应卡的 `markers` 里。敌人记录只留规则关系：
-
-```text
-敌人 = {
-  id:            字符串
-  card_id:       字符串    对应的卡 id
-  location_id:   字符串
-  engaged_with:  字符串    未交战则 ""
-  exhausted:     布尔
-}
-```
-
-战斗值、生命上限在目录里，是整型。
+`shape = "deck"` 时，`card_ids[0]` 是顶。
 
 #### 登记条
 
@@ -189,12 +150,10 @@ World = {
 
 框架 = {
   round:                  整型
-  lead_investigator_id:   字符串
+  lead_investigator_id:   字符串    一张 card_type 为 investigator 的卡 id
   active_investigator_id: 字符串
-  current_act_id:         字符串
-  current_agenda_id:      字符串
-  doom_on_agenda:         整型
-  agenda_threshold:       整型
+  current_act_id:         字符串    一张 card_type 为 act 的卡 id
+  current_agenda_id:      字符串    一张 card_type 为 agenda 的卡 id
 }
 
 混乱标记 = {
@@ -208,40 +167,41 @@ World = {
 
 #### 一份最小构造
 
+调查员、地点、技能牌都在 `cards` 里。
+
 ```text
 World {
-  next_id: 3
+  next_id: 4
   cards: {
-    "C1": { id:"C1", definition_id:"06111", owner_id:"I", controller_id:"I",
-            face:"A", exhausted:false, display_order:0, markers:{} }
+    "I":  { id:"I", definition_id:"01001", card_type:"investigator",
+            owner_id:"", controller_id:"I", face:"A", exhausted:false, display_order:0,
+            markers:{ "resource":5 }, location_id:"L",
+            region_ids:{ "hand":"hand_I", "deck":"deck_I", "discard":"disc_I", "play":"play_I", "threat":"thr_I" },
+            actions_remaining:3, actions_bonus_next_turn:0, eliminated:false, resigned:false }
+    "L":  { id:"L", definition_id:"01111", card_type:"location",
+            owner_id:"", controller_id:"", face:"B", exhausted:false, display_order:0,
+            markers:{ "clue":1 }, connections:[] }
+    "C1": { id:"C1", definition_id:"06111", card_type:"skill",
+            owner_id:"I", controller_id:"I", face:"A", exhausted:false, display_order:0,
+            markers:{} }
   }
   regions: {
     "deck_I": { id:"deck_I", shape:"deck", owner_id:"I", card_ids:["C1"], limbo_kind:"", host_id:"" }
     "hand_I": { id:"hand_I", shape:"flat", owner_id:"I", card_ids:[], limbo_kind:"", host_id:"" }
   }
-  investigators: {
-    "I": { id:"I", definition_id:"01001", location_id:"L",
-           hand_region_id:"hand_I", deck_region_id:"deck_I",
-           discard_region_id:"", play_region_id:"", threat_region_id:"",
-           resources:5, damage:0, horror:0, clues:0, actions_remaining:3,
-           actions_bonus_next_turn:0, health:7, sanity:7,
-           eliminated:false, resigned:false }
-  }
-  locations: {
-    "L": { id:"L", shroud:2, clues:1, revealed:true, connections:[] }
-  }
-  enemies: {}
   registrations: {}
   audience: { "C1":"controller" }
   chronicle: []
   framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I",
-               current_act_id:"", current_agenda_id:"", doom_on_agenda:0, agenda_threshold:7 }
+               current_act_id:"", current_agenda_id:"" }
   chaos_bag: [ { id:"t0", kind:"numeric", modifier:0 } ]
   limits: {}
 }
 ```
 
-抽一张牌时，新局面只改两个数组：`regions["deck_I"].card_ids` 去掉 `"C1"`，`regions["hand_I"].card_ids` 加上 `"C1"`。整型 `next_id` 不变。卡记录本身不用改 `id`。
+密谋上的毁灭是密谋那张卡的 `markers["doom"]`。阈值在目录里，是整型。
+
+抽一张牌时，新局面只改两个数组：`regions["deck_I"].card_ids` 变成 `[]`，`regions["hand_I"].card_ids` 变成 `["C1"]`。`cards["C1"]` 的 `id` 和 `card_type` 不变。
 
 ### 1.2 进度
 
