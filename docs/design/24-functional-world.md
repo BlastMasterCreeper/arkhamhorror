@@ -1,7 +1,7 @@
 # 24 — 函数式 `World` 值模型（草案）
 
 > **状态**：设计草案 v0.1 · 2026-11-23  
-> **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-buff-model](06-registration-buff-model.md)、[17-seq-runtime](17-seq-runtime.md)  
+> **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-payload-model](06-registration-payload-model.md)、[17-seq-runtime](17-seq-runtime.md)  
 > **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影（本文只定 **局面值**）  
 > **键名与类型总表**：[37-world-structure](37-world-structure.md)  
 > **与现实现关系**：对照 `PhysicalStore` · `GameStateStore` · `RegistrationStore` · `RulesMemory`；**不**要求立刻替换 Godot 对象图，先定值边界与不变量。
