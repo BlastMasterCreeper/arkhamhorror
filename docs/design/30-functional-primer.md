@@ -62,12 +62,12 @@
 World = {
   cards:         字典   键 字符串(卡id) → 卡
   regions:       字典   键 字符串(区id) → 区
-  registrations: 字典   键 字符串(登记id) → 登记条
-  audience:      字典   键 字符串(卡id) → 字符串(可见档)
-  chronicle:     数组   元素是记事（本节不展开）
+  registrations: 字典   键 字符串(登记id) → 登记条     信息层
+  chronicle:     记事记录                                    信息层
+  audience:      字典   键 字符串(卡id) → 字符串(可见档)   权限，也在局面里
+  limits:        字典   键 字符串 → 整型                   信息层
   framework:     框架记录
-  chaos_bag:     数组   元素是混乱标记
-  limits:        字典   键 字符串 → 整型
+  chaos_bag:     数组   元素是混乱标记                 物理：袋里的标记
   next_id:       整型   下一个序号，只增不减
 }
 ```
@@ -122,6 +122,19 @@ World = {
 ```
 
 `shape = "deck"` 时，`card_ids[0]` 是顶。
+
+#### 信息层也在局面里
+
+物理层是区、标记、横置和正反面。信息层是登记和记事。两层都写在同一份 `World` 里。权限（谁看得见牌面）也在局面里，改它不算一次结算。
+
+```text
+记事 = {
+  log:        数组    元素是 { text: 字符串, round: 整型 }
+  remembered: 字典    键 字符串，值 字符串
+}
+```
+
+`remembered` 是卡面「记住」写下来的事实，例如某个名字、某个选项。手续进行中「刚才选了哪张牌」写在进度的记忆里，不写在这里。印刷文字在目录里，也不在这里。
 
 #### 登记条
 
@@ -190,8 +203,8 @@ World {
     "hand_I": { id:"hand_I", shape:"flat", owner_id:"I", card_ids:[], limbo_kind:"", host_id:"" }
   }
   registrations: {}
+  chronicle: { log:[], remembered:{} }
   audience: { "C1":"controller" }
-  chronicle: []
   framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I",
                current_act_id:"", current_agenda_id:"" }
   chaos_bag: [ { id:"t0", kind:"numeric", modifier:0 } ]
