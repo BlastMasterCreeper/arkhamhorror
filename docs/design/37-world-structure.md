@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.18 · 2026-11-24  
+> **状态**：设计草案 v0.19 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
@@ -207,7 +207,7 @@ chaos.token_stacks["skull"] = 2
 
 ### 1.3 `Registration`
 
-口径：**旧称 Buff 已弃用**；登记写入 **`payloads`（Registration 载荷）**，`RegistrationKind`×5（`modifier`/`gate`/`directive`/`listener`/`status`）。见 [06-registration-payload-model](06-registration-payload-model.md)。
+登记写入 **`payloads`（Registration 载荷）**，`RegistrationKind`×5（`modifier`/`gate`/`directive`/`listener`/`status`）。见 [06-registration-payload-model](06-registration-payload-model.md)。
 
 ```text
 Registration = {
@@ -245,7 +245,7 @@ RegistrationPayload = {
 **`Lifetime`**：`"while_in_play"` \| `"while_committed"` \| `"this_skill_test"` \| `"this_turn"` \| `"while_drawn_card_resolving"`
 
 **`RegistrationKind`（×5）**：`"modifier"` \| `"gate"` \| `"directive"` \| `"listener"` \| `"status"`  
-（交战 = `status` + `ENGAGEMENT`。）**不是**载荷：KEYWORD/TRAIT/ICON/ABILITY 等 **Gain 特征**（另表 / `seq.effect.grant`）。禁止再写 `buffs` / `BuffType`。
+（交战 = `status` + `ENGAGEMENT`。）**不是**载荷：KEYWORD/TRAIT/ICON/ABILITY 等 **Gain 特征**（另表 / `seq.effect.grant`）。
 
 ---
 
@@ -536,5 +536,6 @@ Snapshot {
 | 2026-11-24 | v0.14：标明 `represent_as` = 有限实体标记替代（非 dual 逆表）；堆键仍用原类型 |
 | 2026-11-24 | v0.15：去掉 `original_of`；替代关系只保留 `represent_as` 单向 |
 | 2026-11-24 | v0.16：Registration 去掉 `controller_id`；自 `source_card_id` 解引用 |
-| 2026-11-24 | v0.17：Registration 内改回 `payloads` / `RegistrationKind`；弃用 Buff 口径 |
+| 2026-11-24 | v0.17：Registration 字段为 `payloads` / `RegistrationKind` |
 | 2026-11-24 | v0.18：合入 registration-payload；术语/06 文件名与载荷口径对齐 |
+| 2026-11-24 | v0.19：正文去掉已弃用俗称残留 |

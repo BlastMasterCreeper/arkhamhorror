@@ -66,7 +66,7 @@ Run = {
 | 袋 | 分类 | 理由 |
 |---|---|---|
 | 卡在哪、横置、doom 数 | **auth** | 物理原语 |
-| Registration / payloads | **auth** | 信息原语（载荷；旧称 Buff 已弃用） |
+| Registration / payloads | **auth** | 信息原语（Registration 载荷） |
 | Chronicle / limits | **auth** | 已发生信息 |
 | FaceAudience | **auth**（旁路） | 非结算，但属局面权限 |
 | index / feasibility Φ | **derived** | 由 auth(+run 焦点) 重建；算时不读旧 Φ.answers |

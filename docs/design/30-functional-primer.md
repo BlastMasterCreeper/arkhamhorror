@@ -165,7 +165,7 @@ auth = {
   source_card_id: 字符串   -- 控制者由此卡解引用；不另存 controller_id
   lifetime:       枚举     "while_in_play" | "while_committed" | "this_skill_test" | "this_turn" | "while_drawn_card_resolving"
   bound_id:       字符串   寿命绑到的检定 id 或卡 id；不需要则为 ""
-  payloads:       数组     元素是 Registration 载荷（旧称 Buff 已弃用）
+  payloads:       数组     元素是 Registration 载荷
 }
 
 Registration 载荷 = {
