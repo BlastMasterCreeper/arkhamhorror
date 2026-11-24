@@ -1,0 +1,662 @@
+# 30 — 函数化可读说明：值的类型与运算公式
+
+> **状态**：说明稿 v0.1 · 2026-11-24  
+> **给谁看**：要把 [24](24-functional-world.md)–[29](29-flow-agendas.md) 读成「代入即能算」的人。  
+> **规则裁决仍以 01–23 与 28 为准**；本文只把词、类型、公式写直。
+
+黑话第一次出现都写成：**中文（英文原词）**。后文用中文。
+
+---
+
+## 0. 词表
+
+| 词 | 人话 |
+|---|---|
+| 局面（World） | 这一局桌上现在有什么：牌在哪、标记多少、持续效果还在不在 |
+| 进度（Run） | 算到哪了：手续堆得多深、刚才选了谁、正在等谁回答 |
+| 目录（Catalog） | 印刷与流程说明书。不随打牌改变 |
+| 效果树（Eff） | 一张卡或一条手续「要做的事」的树，本身不是局面 |
+| 手续（Flow） | 有名字的一整段规则，例如「抽一张遭遇牌」「造成伤害」 |
+| 议程（Agenda） | 这条手续规定的步骤清单，按序号做 |
+| 帧（Frame） | 堆栈里的一层：正在做哪条手续、做到第几步 |
+| 意图（Intent） | 一条准备落地的改动，例如「敌人 E 的伤害 +1」 |
+| 提交（commit） | 把意图真正写进新局面 |
+| 内联（Seq） | 同一层里先做完左边，再做右边。不新开一层手续 |
+| 嵌套（Nest） | 新开一层手续，走完那一层的议程，再回到这里 |
+| 询问（Ask） | 停下来等人选；选出答案后再继续算 |
+| 查询（Query） | 只看局面，不改局面 |
+
+四类值不要混：
+
+| 类 | 会不会被打牌改掉 | 例子 |
+|---|---|---|
+| 局面 | 会，而且每次改完是一份新局面 | 伤害标记 |
+| 进度 | 会，但是「算到哪」 | 当前帧、已选敌人 |
+| 目录 | 不会 | 卡牌印刷生命、手续议程 |
+| 结果 | 这一步函数的返回值 | 继续算 / 等人选 / 停下 |
+
+---
+
+## 1. 数据类型
+
+这一节只用这些基本类型：
+
+| 写法 | 含义 |
+|---|---|
+| 整型 | 整数，例如 `0`、`1`、`-1` |
+| 字符串 | 文本。所有 id 都是字符串，例如 `"E1"`、`"06111"` |
+| 布尔 | `true` 或 `false` |
+| 数组 | 有序列表，例如 `["C1","C2"]`。下标从 0 起 |
+| 字典 | 键值表。键是字符串，值的类型在字段里写明 |
+| 枚举 | 只能取列出的那几个字符串 |
+
+空 id 用空字符串 `""`。没有可选记录时，字段直接省略或写成 `null`。
+
+### 1.1 局面怎么构造
+
+局面里**只有一种实体：卡**。调查员、地点、敌人、支援、事件、技能、场景、密谋都是 `cards` 里的一条，用字段 `card_type` 区分。没有第二张「调查员表」或「敌人表」。
+
+印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。局面上不复制一份。
+
+```text
+World = {
+  cards:         字典   键 字符串(卡id) → 卡
+  regions:       字典   键 字符串(区id) → 区
+  registrations: 字典   键 字符串(登记id) → 登记条     信息层
+  chronicle:     记事记录                                    信息层
+  audience:      字典   键 字符串(卡id) → 字符串(可见档)   权限，也在局面里
+  limits:        字典   键 字符串 → 整型                   信息层
+  framework:     框架记录
+  chaos_bag:     数组   元素是混乱标记                 物理：袋里的标记
+  next_id:       整型   下一个序号，只增不减
+}
+```
+
+#### 卡
+
+每张卡都是同一条记录。某个 `card_type` 用不到的键不写。
+
+```text
+卡 = {
+  id:             字符串
+  definition_id:  字符串
+  card_type:      枚举
+  owner_id:       字符串    谁的牌；公共牌用 ""；遭遇牌用 "encounter"
+  controller_id:  字符串
+  face:           枚举      "A" 或 "B"
+  exhausted:      布尔
+  display_order:  整型
+  markers:        字典      键 字符串，值 整型
+  location_id:    字符串    调查员、敌人：所在地点的卡 id
+  engaged_with:   字符串    敌人：交战的调查员卡 id；未交战为 ""
+  connections:    数组      地点：相连地点的卡 id，元素是字符串
+  region_ids:     字典      键 字符串，值 字符串(区id)
+  actions_remaining:       整型
+  actions_bonus_next_turn: 整型
+  eliminated:     布尔
+  resigned:       布尔
+}
+```
+
+`card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
+
+`markers` 的键：`"damage"`、`"horror"`、`"doom"`、`"clue"`、`"resource"`，以及充能用途字符串。值是整型。0 可以不放这个键。资源、伤、恐、线索、毁灭都写在这里，不另做「调查员资源字段」。
+
+`region_ids` 只在 `card_type = "investigator"` 时出现。键是 `"hand"`、`"deck"`、`"discard"`、`"play"`、`"threat"`，值是区 id。
+
+地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
+
+#### 区
+
+区不是卡。它是一叠卡 id。
+
+```text
+区 = {
+  id:         字符串
+  shape:      枚举     "deck" 或 "flat"
+  owner_id:   字符串   属主卡 id；公共区为 ""
+  card_ids:   数组     元素是字符串(卡id)
+  limbo_kind: 字符串   "resolving"、"committed" 或 ""
+  host_id:    字符串   附着、垫下、旁置的宿主卡 id；否则 ""
+}
+```
+
+`shape = "deck"` 时，`card_ids[0]` 是顶。
+
+#### 信息层也在局面里
+
+物理层是区、标记、横置和正反面。信息层是登记和记事。两层都写在同一份 `World` 里。权限（谁看得见牌面）也在局面里，改它不算一次结算。
+
+```text
+记事 = {
+  log:        数组    元素是 { text: 字符串, round: 整型 }
+  remembered: 字典    键 字符串，值 字符串
+}
+```
+
+`remembered` 是卡面「记住」写下来的事实，例如某个名字、某个选项。手续进行中「刚才选了哪张牌」写在进度的记忆里，不写在这里。印刷文字在目录里，也不在这里。
+
+#### 登记条
+
+```text
+登记条 = {
+  id:             字符串
+  controller_id:  字符串
+  source_card_id: 字符串
+  lifetime:       枚举     "while_in_play" | "while_committed" | "this_skill_test" | "this_turn" | "while_drawn_card_resolving"
+  bound_id:       字符串   寿命绑到的检定 id 或卡 id；不需要则为 ""
+  buffs:          数组     元素是增益
+}
+
+增益 = {
+  type:     枚举    "keyword" | "modifier" | "restriction" | "listener"
+  keyword:  字符串  type 为 keyword 时用，如 "retaliate"；否则 ""
+  stat:     字符串  type 为 modifier 时用，如 "combat"；否则 ""
+  amount:   整型    修正量；其它类型为 0
+}
+```
+
+#### 可见性、框架、混乱袋、限额
+
+```text
+可见档 = 枚举 "hidden_all" | "controller" | "all"
+
+框架 = {
+  round:                  整型
+  lead_investigator_id:   字符串    一张 card_type 为 investigator 的卡 id
+  active_investigator_id: 字符串
+  current_act_id:         字符串    一张 card_type 为 act 的卡 id
+  current_agenda_id:      字符串    一张 card_type 为 agenda 的卡 id
+}
+
+混乱标记 = {
+  id:        字符串
+  kind:      枚举    "numeric" | "skull" | "cultist" | "tablet" | "elder_thing" | "auto_fail" | "elder_sign" | "bless" | "curse"
+  modifier:  整型    kind 为 numeric 时的数值；其它为 0
+}
+```
+
+`limits` 的键是字符串（能力 id），值是整型（已用次数）。`next_id` 是整型。
+
+#### 一份最小构造
+
+调查员、地点、技能牌都在 `cards` 里。
+
+```text
+World {
+  next_id: 4
+  cards: {
+    "I":  { id:"I", definition_id:"01001", card_type:"investigator",
+            owner_id:"", controller_id:"I", face:"A", exhausted:false, display_order:0,
+            markers:{ "resource":5 }, location_id:"L",
+            region_ids:{ "hand":"hand_I", "deck":"deck_I", "discard":"disc_I", "play":"play_I", "threat":"thr_I" },
+            actions_remaining:3, actions_bonus_next_turn:0, eliminated:false, resigned:false }
+    "L":  { id:"L", definition_id:"01111", card_type:"location",
+            owner_id:"", controller_id:"", face:"B", exhausted:false, display_order:0,
+            markers:{ "clue":1 }, connections:[] }
+    "C1": { id:"C1", definition_id:"06111", card_type:"skill",
+            owner_id:"I", controller_id:"I", face:"A", exhausted:false, display_order:0,
+            markers:{} }
+  }
+  regions: {
+    "deck_I": { id:"deck_I", shape:"deck", owner_id:"I", card_ids:["C1"], limbo_kind:"", host_id:"" }
+    "hand_I": { id:"hand_I", shape:"flat", owner_id:"I", card_ids:[], limbo_kind:"", host_id:"" }
+  }
+  registrations: {}
+  chronicle: { log:[], remembered:{} }
+  audience: { "C1":"controller" }
+  framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I",
+               current_act_id:"", current_agenda_id:"" }
+  chaos_bag: [ { id:"t0", kind:"numeric", modifier:0 } ]
+  limits: {}
+}
+```
+
+密谋上的毁灭是密谋那张卡的 `markers["doom"]`。阈值在目录里，是整型。
+
+抽一张牌时，新局面只改两个数组：`regions["deck_I"].card_ids` 变成 `[]`，`regions["hand_I"].card_ids` 变成 `["C1"]`。`cards["C1"]` 的 `id` 和 `card_type` 不变。
+
+### 1.2 进度
+
+\[
+\mathrm{Run}
+=
+\mathrm{List}(\mathrm{Frame})
+\times
+\mathrm{Memory}
+\times
+\mathrm{List}(\mathrm{Test})
+\times
+\mathrm{Window}_?
+\]
+
+| 字段 | 类型 | 人话 |
+|---|---|---|
+| 帧 Frame | `{手续号, 环境, 步号, 剩余树, 已取消, 本层有没有写成}` | 堆栈一层 |
+| 环境 Env | `{控制者, 卡号, 能力号, 目标表, 数量}` | 这一层的参数 |
+| 记忆 Memory | `Map(控制者, Map(键, 值))` | 「刚才选的敌人」这类指称。手续结束可清 |
+| 检定 Test | 技能、难度、已投入牌、成败、失败点数 | 只在检定进行时有 |
+| 窗口 Window | 响应池或发起池，可空 | 正在等人选能力时才有 |
+
+步号是整数，指向该手续议程的第几行。
+
+### 1.3 目录与效果树
+
+目录是函数，不是局面：
+
+\[
+\mathrm{Catalog} : \mathrm{FlowId} \to \mathrm{Flow}
+\]
+
+\[
+\mathrm{Flow} = \mathrm{List}(\mathrm{AgendaStep}) \times \mathrm{Eff}
+\]
+
+效果树：
+
+\[
+\begin{align*}
+\mathrm{Eff}
+&= \mathrm{Do}(\mathrm{Intent}) \\
+&\mid \mathrm{Empty} \\
+&\mid \mathrm{Pass} \\
+&\mid \mathrm{Seq}(\mathrm{Eff},\mathrm{Eff}) \\
+&\mid \mathrm{Par}(\mathrm{Eff},\mathrm{Eff}) \\
+&\mid \mathrm{If}(\mathrm{Pred},\mathrm{Eff},\mathrm{Eff}) \\
+&\mid \mathrm{Nest}(\mathrm{FlowId},\mathrm{Env}) \\
+&\mid \mathrm{Ask}(\mathrm{Spec},\ \mathrm{Answer}\to\mathrm{Eff})
+\end{align*}
+\]
+
+| 构造 | 人话 |
+|---|---|
+| Do | 做一条改动 |
+| Empty | 空效果，但算「有做过」（空打出也算完整） |
+| Pass | 什么都不做，也不算做过 |
+| Seq | 先左后右，同一层 |
+| Par | 同时组：组内按固定顺序写完，组外的「之后」等组完再来 |
+| If | 看一个只读条件，只走一边 |
+| Nest | 打开一条手续 |
+| Ask | 等人选，答案决定下一截树 |
+
+意图的类型（只列本说明用到的）：
+
+\[
+\mathrm{Intent}
+=
+\mathrm{AddMarker}(\mathrm{Id},\mathrm{Kind},\mathbb{Z})
+\mid
+\mathrm{MoveCard}(\mathrm{Id},\mathrm{Place})
+\mid
+\mathrm{InsertReg}(\mathrm{登记条})
+\mid
+\mathrm{RemoveReg}(\mathrm{条件})
+\]
+
+### 1.4 运算上下文与返回值
+
+一次运算看到的全部输入：
+
+\[
+\mathrm{Ctx} = \mathrm{World} \times \mathrm{Run}
+\]
+
+返回值三选一：
+
+\[
+\mathrm{Outcome}
+=
+\mathrm{Next}(\mathrm{Ctx})
+\mid
+\mathrm{NeedAsk}(\mathrm{Ctx},\ \mathrm{Request},\ \mathrm{Answer}\to\mathrm{Ctx})
+\mid
+\mathrm{Halt}(\mathrm{原因})
+\]
+
+| 返回 | 人话 |
+|---|---|
+| Next | 这一步算完了，拿新的局面和进度继续 |
+| NeedAsk | 停住等人。答案代回后续函数 |
+| Halt | 规则上走不下去（少见） |
+
+询问请求：
+
+\[
+\mathrm{Request}
+=
+\{\mathrm{种类}:\mathrm{AskKind},\ \mathrm{候选}:\mathrm{List}(X),\ \mathrm{默认}:X\}
+\]
+
+`AskKind` 是询问种类的名字，例如「选目标」「给强制能力排顺序」「要不要发动」。种类表见 [28 §6](28-functional-scheme.md)。
+
+---
+
+## 2. 运算公式
+
+下面的 \(\llbracket e \rrbracket\) 表示「解释效果树 e」。\(\mathrm{adv}\) 表示「做议程的当前一步」。
+
+### 2.1 提交
+
+\[
+\mathrm{commit} : \mathrm{World} \times \mathrm{List}(\mathrm{Intent}) \to \mathrm{World}
+\]
+
+\[
+\mathrm{commit}(w,\ [\,]) = w
+\]
+
+\[
+\mathrm{commit}(w,\ i :: is) = \mathrm{commit}(\mathrm{apply}(w,i),\ is)
+\]
+
+`apply` 只改对应分量。例如加标记：
+
+\[
+\mathrm{apply}(w,\ \mathrm{AddMarker}(e,k,n)).\mathrm{cards}[e].\mathrm{markers}[k]
+=
+w.\mathrm{cards}[e].\mathrm{markers}[k] + n
+\]
+
+其它分量原样保留（结构共享：没改的部分仍指向旧数据）。
+
+### 2.2 先左后右（内联）
+
+\[
+\llbracket \mathrm{Seq}(a,b) \rrbracket(c)
+=
+\llbracket a \rrbracket(c) \mathbin{>\!=\!} \llbracket b \rrbracket
+\]
+
+连接运算 \(>\!\!=\!\)（读作「然后」）：
+
+\[
+\mathrm{Next}(c') \mathbin{>\!=\!} k = k(c')
+\]
+
+\[
+\mathrm{NeedAsk}(c,r,resume) \mathbin{>\!=\!} k
+=
+\mathrm{NeedAsk}(c,\ r,\ \lambda x.\; resume(x) \mathbin{>\!=\!} k)
+\]
+
+人话：左边若还在等人，右边先挂在答案后面，不插进左边中间。
+
+### 2.3 条件
+
+\[
+\llbracket \mathrm{If}(p,t,e) \rrbracket(w,r)
+=
+\begin{cases}
+\llbracket t \rrbracket(w,r) & \text{若 } p(w,r)=\mathrm{true}\\
+\llbracket e \rrbracket(w,r) & \text{若 } p(w,r)=\mathrm{false}
+\end{cases}
+\]
+
+\(p\) 的类型是 \(\mathrm{World}\times\mathrm{Run}\to\{\mathrm{true},\mathrm{false}\}\)，不准改局面。
+
+### 2.4 一条改动
+
+\[
+\llbracket \mathrm{Do}(i) \rrbracket(w,r)
+=
+\mathrm{Next}(\mathrm{commit}(w,[i]),\ r\{本层写成 \mapsto \mathrm{true}\})
+\]
+
+\[
+\llbracket \mathrm{Pass} \rrbracket(w,r) = \mathrm{Next}(w,r)
+\]
+
+\[
+\llbracket \mathrm{Empty} \rrbracket(w,r) = \mathrm{Next}(w,\ r\{本层写成 \mapsto \mathrm{true}\})
+\]
+
+`Empty` 不改桌子，但「写成」为真。`Pass` 连这个标记都不抬。
+
+### 2.5 打开一层手续（嵌套）
+
+\[
+\llbracket \mathrm{Nest}(f,\varepsilon) \rrbracket(w,r)
+=
+\mathrm{adv}(w,\ \mathrm{push}(r,\ \mathrm{frame}(f,\varepsilon,0)))
+\]
+
+\[
+\mathrm{frame}(f,\varepsilon,0)
+=
+\{\mathrm{手续}=f,\ \mathrm{环境}=\varepsilon,\ \mathrm{步号}=0,\ \mathrm{已取消}=\mathrm{false},\ \mathrm{写成}=\mathrm{false}\}
+\]
+
+\[
+\mathrm{push}(r,\phi) = r\{\mathrm{栈} \mapsto r.\mathrm{栈} \mathbin{+\kern-0.2em+} [\phi]\}
+\]
+
+议程走完才弹栈，然后做外层剩下的树：
+
+\[
+\mathrm{advExit}(w,r)
+=
+\mathrm{Next}(w,\ \mathrm{pop}(r))
+\]
+
+弹栈之后，外层的 \(\mathrm{Seq}\) 右边才开始。子手续的「将要 / 时 / 之后」都发生在弹栈之前。
+
+### 2.6 议程前进一步
+
+设当前栈顶步号为 \(n\)，该手续议程为 \(A\)，\(A_n\) 是第 \(n\) 步。
+
+\[
+\mathrm{adv}(w,r)
+=
+\mathrm{runStep}(A_n,\ w,\ r)
+\mathbin{>\!=\!}
+\mathrm{bump}
+\]
+
+\[
+\mathrm{bump}(w,r)
+=
+\begin{cases}
+\mathrm{advExit}(w,r) & \text{若 } n+1 = |A|\\
+\mathrm{adv}(w,\ r\{\mathrm{步号}\mapsto n+1\}) & \text{否则}
+\end{cases}
+\]
+
+等人时步号不加：
+
+\[
+\mathrm{runStep}(\ldots)=\mathrm{NeedAsk}(\ldots)
+\quad\text{则先不调用 bump}
+\]
+
+答案回来后，若这一步已结束，再 bump。
+
+### 2.7 询问
+
+\[
+\llbracket \mathrm{Ask}(s,k) \rrbracket(w,r)
+=
+\mathrm{NeedAsk}(w,\ r,\ \mathrm{req}(s,w,r),\ \lambda x.\; \llbracket k(x) \rrbracket(w,\ \mathrm{bind}(r,x)))
+\]
+
+\[
+\mathrm{req}(s,w,r)
+=
+\{\mathrm{种类}=s.\mathrm{kind},\ \mathrm{候选}=\mathrm{legal}(w,r,s),\ \mathrm{默认}=s.\mathrm{default}\}
+\]
+
+`legal` 是查询。`bind` 把答案写进进度的记忆，不写局面。
+
+驱动层（唯一不纯的地方）做的事：
+
+\[
+\mathrm{drive}(\mathrm{NeedAsk}(c,q,resume))
+=
+resume(\mathrm{answerOrDefault}(q))
+\]
+
+超时就用 \(q.\mathrm{默认}\)。
+
+### 2.8 同一类里多条强制能力
+
+设本槽强制能力集合为 \(F\)。
+
+\[
+\mathrm{batch}(F)
+=
+\begin{cases}
+\mathrm{Next} & \text{若 } F=\emptyset\\
+\mathrm{fire}(a) & \text{若 } F=\{a\}\\
+\mathrm{NeedAsk}(\mathrm{排序},\ \mathrm{默认}=\mathrm{稳定序}(F),\ \lambda \pi.\; \mathrm{fire}^*(\pi)) & \text{若 } |F|\ge 2
+\end{cases}
+\]
+
+\[
+\mathrm{fire}^*(a :: rest)
+=
+\mathrm{fire}(a) \mathbin{>\!=\!} (\_ \mapsto \mathrm{fire}^*(rest))
+\]
+
+`fire` 会去解释那条能力自己的效果树，常常再套一层嵌套。这里没有「不发动」这个答案。可选反应才有「发动或不发动」。
+
+---
+
+## 3. 代入：选一个敌人，造成 1 点伤害，若还在场就抽 1 张
+
+### 3.1 效果树
+
+\[
+\begin{align*}
+e_0
+&=
+\mathrm{Ask}(\mathrm{选敌人}, \lambda x.\; e_1(x))\\
+e_1(x)
+&=
+\mathrm{Seq}(\mathrm{Nest}(\mathrm{造成伤害},\ \{目标=x,\ 伤=1\}),\ e_2(x))\\
+e_2(x)
+&=
+\mathrm{If}(\mathrm{在场}(x),\ \mathrm{Nest}(\mathrm{调查员抽牌},\ \{谁, 数量=1\}),\ \mathrm{Pass})
+\end{align*}
+\]
+
+「造成伤害」「调查员抽牌」是目录里的手续号。造成伤害套标准能力窗；它的效果体是一条加标记。
+
+### 3.2 起始值
+
+\[
+w_0.\mathrm{cards}[E].\mathrm{markers}[\mathrm{damage}]=0,\quad
+w_0.\mathrm{place}(E)=\mathrm{在场},\quad
+w_0.\mathrm{deck}(I)=[C_1,C_2],\quad
+w_0.\mathrm{hand}(I)=[\,]
+\]
+
+\[
+r_0.\mathrm{栈}=[\ \phi_{\mathrm{显现}}\ ],\quad
+r_0.\mathrm{记忆}=\emptyset
+\]
+
+候选只有 \(E\)。默认也是 \(E\)。
+
+### 3.3 逐步
+
+**步 A.** 解释 \(e_0\)。公式 2.7：
+
+\[
+\llbracket e_0 \rrbracket(w_0,r_0)
+=
+\mathrm{NeedAsk}(w_0,r_0,\ \{选目标,[E],默认 E\},\ resume)
+\]
+
+局面未变。进度未改。
+
+**步 B.** 人选 \(E\)。驱动层：
+
+\[
+resume(E)=(w_0,\ r_1),\quad r_1.\mathrm{记忆}(\mathrm{所选})=E
+\]
+
+下一截树是 \(e_1(E)\)。
+
+**步 C.** 公式 2.2，先做左边的嵌套。公式 2.5：压入一帧，步号 0。
+
+\[
+r_2.\mathrm{栈}=[\phi_{\mathrm{显现}},\ \phi_{\mathrm{造成伤害}}(\mathrm{步号}=0,\ 目标=E)]
+\]
+
+标准窗前面的「将要 / 当时」这里假设没有人响应，步号一路加到「解释效果体」。这些步的公式都是 2.6，且 \(\mathrm{commit}\) 还没发生，所以 \(w\) 仍是 \(w_0\)。
+
+**步 D.** 效果体是 \(\mathrm{Do}(\mathrm{AddMarker}(E,\mathrm{伤},1))\)。公式 2.4 与 2.1：
+
+\[
+w_1 = \mathrm{commit}(w_0,[\mathrm{AddMarker}(E,\mathrm{伤},1)])
+\]
+
+\[
+w_1.\mathrm{cards}[E].\mathrm{markers}[\mathrm{damage}]=1
+\]
+
+然后伤害这层议程走到「之后」（仍假设没人），再公式 2.5 的退出：弹出伤害帧。
+
+\[
+r_3.\mathrm{栈}=[\phi_{\mathrm{显现}}]
+\]
+
+**步 E.** 右边 \(e_2(E)\)。查询：
+
+\[
+\mathrm{在场}(E)(w_1,r_3)=\mathrm{true}
+\]
+
+公式 2.3 选「抽牌」那一支。再嵌套抽牌手续。抽牌议程里的离库与入手是若干 \(\mathrm{Do}(\mathrm{MoveCard})\)：
+
+\[
+w_2.\mathrm{deck}(I)=[C_2],\qquad w_2.\mathrm{hand}(I)=[C_1]
+\]
+
+抽牌帧弹出。\(e_1\) 左右都完了。
+
+**步 F.** 返回：
+
+\[
+\mathrm{Next}(w_2,\ r_4),\quad r_4.\mathrm{栈}=[\phi_{\mathrm{显现}}]
+\]
+
+相对 \(w_0\)：伤害从 0 变成 1，牌库少 \(C_1\)，手牌多 \(C_1\)。选敌人只进了记忆，没有进局面。
+
+### 3.4 若这一下把敌人击败
+
+在步 D 的 \(\mathrm{commit}\) 之后做查询「伤是否达到生命上限」。达到则再嵌套「击败」手续；击败成功后再嵌套「退场」。退场会改放置。回到步 E 时：
+
+\[
+\mathrm{在场}(E)(w')=\mathrm{false}
+\]
+
+公式 2.3 选 \(\mathrm{Pass}\)。手牌不变。
+
+---
+
+## 4. 和「全部写成加标记」差在哪
+
+若伤害不嵌套，而写成 \(\mathrm{Do}(\mathrm{AddMarker}(\ldots))\)：
+
+\[
+\mathrm{commit}\ \text{的结果可以相同}
+\]
+
+议程不同：标准窗的「当时 / 之后」不会发生，别的卡听不到「造成伤害时」。所以卡面写「造成伤害」时，公式用的是 2.5（嵌套），不是直接 2.4。加标记只出现在伤害手续自己的效果体里。
+
+---
+
+## 5. 阅读顺序
+
+1. 本文 §1 对一下类型。  
+2. 用 §2 的公式看一棵树会返回 `Next` 还是 `NeedAsk`。  
+3. 具体某条手续有哪些步，查 [29](29-flow-agendas.md)。  
+4. 词和机器全表查 [28](28-functional-scheme.md)。
+
+---
+
+## 6. 变更记录
+
+| 日期 | 摘要 |
+|---|---|
+| 2026-11-24 | v0.1：词表、四类值、类型、提交/顺序/嵌套/询问/议程公式、伤害后抽牌代入 |
