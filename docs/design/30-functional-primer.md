@@ -3,7 +3,8 @@
 > **状态**：说明稿 v0.1 · 2026-11-24  
 > **给谁看**：要把 [24](24-functional-world.md)–[29](29-flow-agendas.md) 读成「代入即能算」的人。  
 > **规则裁决仍以 01–23 与 28 为准**；本文只把词、类型、公式写直。  
-> **实现宿主**：[31-functional-host](31-functional-host.md)（规则内核 Rust，Godot 只做桥与表现）。
+> **实现宿主**：[31-functional-host](31-functional-host.md)（规则内核 Rust，Godot 只做桥与表现）。  
+> **结构总表**：[37-world-structure](37-world-structure.md)（分类 · 键名 · 类型）。
 
 黑话第一次出现都写成：**中文（英文原词）**。后文用中文。
 
