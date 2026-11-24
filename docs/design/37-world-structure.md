@@ -129,8 +129,8 @@ Region = {
   host_card_id:   String,              -- 所属卡；公共区 ""
   slot:           String,              -- 在宿主上的槽名；公共区用逻辑名
   card_ids:       Array<String>,       -- 区内的卡（有序）
-  token_ids:      Array<String>,       -- 仅需认身份时用（揭示/封印）
-  token_stacks:   Map<String, Int>,    -- 可叠加 / 袋内多重集：stack_key → 数量
+  token_ids:      Array<String>,       -- 本区个体 token 的 id 列表（→ auth.tokens）
+  token_stacks:   Map<String, Int>,    -- 本区可叠加堆：stack_key → 数量
   limbo_kind:     LimboKind
 }
 ```
@@ -142,8 +142,8 @@ Region = {
 | `host_card_id` | `String` | 宿主卡；场景公共为 `""` |
 | `slot` | `String` | 对应 `Card.slot_regions` 的键 |
 | `card_ids` | `Array<String>` | 放置的卡；`"deck"` 时 `[0]` 为顶 |
-| `token_ids` | `Array<String>` | 个体 token；**混乱袋静止时为空** |
-| `token_stacks` | `Map<String, Int>` | 可互换数量；混乱袋用符号键 |
+| `token_ids` | `Array<String>` | **个体** token id；凡需认身份的都走这里（占兆、封印、双面件等），与是否混乱无关 |
+| `token_stacks` | `Map<String, Int>` | **可叠加**堆；含静止混乱袋、伤/资源等 |
 | `limbo_kind` | `LimboKind` | `""` \| `"resolving"` \| `"committed"` |
 
 同一区可同时有卡与 token。  
