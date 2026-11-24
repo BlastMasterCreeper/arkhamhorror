@@ -59,13 +59,32 @@
 
 印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。局面上不复制一份。
 
+**值要分类**（见 [24](24-functional-world.md)）：权威事实 / 派生投影 / 进度。整份快照才是驱动与交互持有的「世界值」。
+
 ```text
-World = {
+Snapshot = {
+  auth: {                     -- 权威：结算只写这里
+    cards, regions,
+    registrations, chronicle, limits,
+    audience, framework, chaos_bag, next_id
+  }
+  derived: {                  -- 派生：可重建
+    index                     -- 登记倒排
+    feasibility               -- Φ：发起/must 可行性
+  }
+  run: { … }                  -- 进度：栈、记忆、焦点、检定
+}
+```
+
+下面展开 `auth` 时仍可口语叫「局面字段」：
+
+```text
+auth = {
   cards:         字典   键 字符串(卡id) → 卡
   regions:       字典   键 字符串(区id) → 区
   registrations: 字典   键 字符串(登记id) → 登记条     信息层
   chronicle:     记事记录                                    信息层
-  audience:      字典   键 字符串(卡id) → 字符串(可见档)   权限，也在局面里
+  audience:      字典   键 字符串(卡id) → 字符串(可见档)   权限
   limits:        字典   键 字符串 → 整型                   信息层
   framework:     框架记录
   chaos_bag:     数组   元素是混乱标记                 物理：袋里的标记

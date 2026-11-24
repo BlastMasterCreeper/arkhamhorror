@@ -22,43 +22,62 @@
 
 ## 1. 总结构
 
+快照要**分类**，不要把权威事实、派生投影、执行游标糊成一袋：
+
 ```text
-World = {
+Snapshot = {
+  auth,      -- 权威局面（结算写这里）
+  derived,   -- 派生（可重建；含可行性 Φ）
+  run,       -- 进度游标
+}
+-- Catalog 外置，永不进 Snapshot
+```
+
+```text
+Auth (狭义「桌上事实」) = {
   physical,      -- ①区/序 · ②标记 · ③形态
   registrations, -- 信息原语主量（含寿命）
-  chronicle,     -- 薄：日志∪记住（可重放所需）
-  audience,      -- 牌面可见性（非结算；查询/表现用）
-  framework,     -- 回合/场景游标中「局面级」部分
-  entropy,       -- 随机源已决议部分（袋内剩余、已抽序列…）
-  index,         -- 登记倒排（派生，可重建；见 34）
-  feasibility,   -- 当前焦点下发起/must 可行性（派生，可重建；见 35）
-  meta,          -- 分配计数器等（id 单调；非规则语义）
+  chronicle,     -- 薄：日志∪记住
+  audience,      -- 牌面可见性（非结算；在权威袋但 CREATED 不计）
+  framework,     -- 回合/场景等局面级框架
+  entropy,       -- 袋内剩余、已抽序列…
+  limits,        -- 次数配额等已发生计数
+  meta,          -- id 分配等
+}
+
+Derived = {
+  index,         -- 登记倒排（34）
+  feasibility,   -- Φ：当前焦点发起/must 可行性（35）
 }
 
 Run = {
-  stack,         -- ResolutionSequence 帧栈（值）
-  open_choice,   -- NeedChoice | None
-  skill_tests,   -- 检定栈（值）
-  memory,        -- 步间指称 / cancel 键（手续期）
-  timing_phase,  -- Would/When/After 等当前相位标记
+  stack,         -- 手续帧栈
+  open_choice,   -- NeedAsk | None
+  skill_tests,   -- 检定栈
+  memory,        -- 步间指称
+  timing_phase,  -- 信封相位等
+  focus,         -- 当前窗/控制者/打开的 must（枚举宇宙用）
 }
 ```
 
-| 袋 | 进 `World`？ | 理由 |
+实现上可用一个大记录叫 `World`，但字段必须打上 **auth / derived** 标签；`transit` 返回整份 `Snapshot`。口语「世界值」= `Snapshot`（或至少 `auth ⊕ derived`），不是只等于 `physical`。
+
+| 袋 | 分类 | 理由 |
 |---|---|---|
-| 卡在哪、横置、doom 数 | **是** | 物理原语结果 |
-| Registration / Buff | **是** | 信息原语结果；寿命未到期仍属局面 |
-| 「本手续选中的敌人」 | **否 → Run.memory** | 步间指称；手续 pop 可清 |
-| 序列栈深度、当前 RESOLVE 砖 | **否 → Run.stack** | 执行游标 |
-| FaceAudience | **是**（旁路袋） | 非结算，但查询/同步需要；与 physical 正交 |
-| CardDefinition 印刷 | **否** | 目录 / 不可变外置 `Catalog`；`World` 只持 `definition_id` |
-| PI Gate 超时时钟 | **否** | 驱动层；确认结果写入 `Run.memory` 后再继续 |
+| 卡在哪、横置、doom 数 | **auth** | 物理原语 |
+| Registration / Buff | **auth** | 信息原语 |
+| Chronicle / limits | **auth** | 已发生信息 |
+| FaceAudience | **auth**（旁路） | 非结算，但属局面权限 |
+| index / feasibility Φ | **derived** | 由 auth(+run 焦点) 重建；算时不读旧 Φ.answers |
+| 「本手续选中的敌人」 | **run** | 步间指称 |
+| 序列栈、检定步 | **run** | 执行游标 |
+| CardDefinition 印刷 | **Catalog** | 外置 |
+| PI 超时时钟 | **驱动** | 不纯；结果进 run 后再 transit |
 
 ```text
-Catalog（外置 · 永不进 World）
-  definition_id → 印刷 Spec / compiled Eff / 关键词表…
-
-World  ×  Catalog  ×  RunEnv  →  查询 / plan / step
+Catalog（外置）
+Auth × Derived × Run × Catalog  →  query / plan / transit
+transit 末尾：按 Touched 刷新 Derived（兴趣点）
 ```
 
 ---
