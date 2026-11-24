@@ -155,6 +155,67 @@ onCommit(Δ):
 
 ---
 
+## 2.1 LegalTable 更新策略（总表）
+
+表是**会话派生态**，权威仍是 `World`。更新必须在返回交互端**之前**完成（同步）。
+
+### 触发（何时更新）
+
+| 事件 | 动作 |
+|---|---|
+| `commit(Δ)` 且 \(\Delta\neq[\,]\) | `onCommit`：按 \(\mathrm{Interest}\) 重算；同步 `Universe` 增删 |
+| `answer` 只改 `Run`（bind / 换默认） | 若有打开的 must 宇宙 B：`Touched_run` → 只脏相关 `viable` |
+| 开/关窗、换控制者、换检定 | `focusChanged`：换 `universe_id`；对新 `Universe` 缺项做初次填表 |
+| 打开 must Gate（候选已 U–N） | 建/刷新宇宙 B：对每个候选初次 `viableTracked` |
+| 关闭 Gate / 池清空 | 丢对应 B 表行；A 表按焦点保留或丢 |
+| 存档加载 / 重放跳转 | **全量重建**当前焦点表（不信任旧 deps） |
+| 录读审计失败、对拍失败 | 降级：**全量重算**当前 `Universe`，并打日志 |
+
+**不触发更新**：纯查询 `view`、重复读 `answers`、动画帧、未改 `gen`/`run_fp` 的空转。
+
+### 两张逻辑表
+
+```text
+LegalTable.A   -- 发起：can_initiate(op) = dataOK ∧ wouldCreate(效果)
+LegalTable.B   -- must/目标：viable(binding) = wouldCreate(op[binding])
+```
+
+可同结构（`answers`/`deps`/`reverse`），用 `universe_id` 区分。A 随窗/池；B 随当前 Ask。
+
+### 单次更新算法（规范序）
+
+```text
+updateLegalTable(trigger):
+  1. 解析 Touched（Intent writes 与/或 Run 键）
+  2. U' = enumerateOps(焦点)          -- 见 36
+  3. 删 gone；为 new 占位
+  4. I = reverse-lookup(Touched) ∩ U'
+  5. R = I ∪ new
+  6. 若 |R| > 阈值 或 deps 缺失过多 → R = U'   -- 全量兜底
+  7. for op in R:
+       (ans, D) = legalTracked / viableTracked
+       写 answers；替换 deps；维护 reverse
+  8. world_gen / run_fp 对齐当前
+  9. 发布 version++（宿主可订阅）
+```
+
+### 同步给交互端
+
+| 方式 | 做法 |
+|---|---|
+| **拉**（默认） | `step`/`answer` 的返回值带 `legal_version`；宿主 `getLegalSlice(focus)` |
+| **推**（可选） | `version` 变化时回调「脏 op 列表 + 新布尔」；宿主只改控件 |
+
+禁止宿主在表外自行 dry_run。显示以 `answers` 为准。
+
+### 不变式
+
+1. 返回宿主前：`world_gen` = 当前 `World.gen`，且 `answers` 对 `Universe` 中每条都有值（新项已初次算完）。  
+2. 跳过重算的 op：其 `Deps` 与本次 `Touched` 无交。  
+3. 费用不计入 `wouldCreate`；`dataOK` 与效果可行性可分字段存（`can_pay` / `effect_ok`），UI 可分色，发起仍要两者皆真。
+
+---
+
 ## 3. 与「人为兴趣点」的关系
 
 | | 人为兴趣域 | 本策略 |
