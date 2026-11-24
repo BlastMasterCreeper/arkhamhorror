@@ -1,8 +1,9 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.1 · 2026-11-24  
+> **状态**：设计草案 v0.3 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
-> **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。
+> **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
+> **v0.3**：桌游 **token**（非 marker 口语）；区可放卡与 token；卡用 **槽位区** 挂其它实体，取消 `Card.markers` / `location_id` / `engaged_with` 散字段。
 
 ---
 
@@ -37,35 +38,35 @@ Snapshot = {
 Auth = {
   cards:          Map<CardId, Card>,
   regions:        Map<RegionId, Region>,
+  tokens:         Map<TokenId, Token>,     -- 可区分的 token 实例；可叠加堆见 Region
   registrations:  Map<RegId, Registration>,
   chronicle:      Chronicle,
   audience:       Map<CardId, Audience>,
   limits:         LimitStore,
   framework:      Framework,
-  chaos_bag:      Array<ChaosToken>,
   next_id:        Int
 }
 ```
 
 | 键 | 类型 | 说明 |
 |---|---|---|
-| `cards` | `Map<String, Card>` | 一切实体：调查员/地点/敌人/支援… |
-| `regions` | `Map<String, Region>` | 区：牌库、手牌、场、威胁、遭遇库… |
-| `registrations` | `Map<String, Registration>` | 信息层登记 |
+| `cards` | `Map<String, Card>` | 卡实体脊骨（不含伤害/线索等散字段） |
+| `regions` | `Map<String, Region>` | **唯一放置面**：可放卡、可放 token |
+| `tokens` | `Map<String, Token>` | 需个体身份的 token；纯数量堆可只活在区上 |
+| `registrations` | `Map<String, Registration>` | 信息层（含交战等关系） |
 | `chronicle` | `Chronicle` | 日志∪记住 |
 | `audience` | `Map<String, Audience>` | 牌面可见档 |
-| `limits` | `LimitStore` | 次数/配额权威；见 §1.5（**不是**单层 `Map→Int`） |
-| `framework` | `Framework` | 回合与当前场景/密谋游标 |
-| `chaos_bag` | `Array<ChaosToken>` | 袋内剩余标记（序有意义） |
-| `next_id` | `Int` | 下一分配序号，只增不减 |
+| `limits` | `LimitStore` | 次数/配额；见 §1.5 |
+| `framework` | `Framework` | 回合与场景/密谋游标 |
+| `next_id` | `Int` | 下一分配序号 |
 
-`CardId` / `RegionId` / `RegId` / `LimitId` 均为 `String`。
+混乱袋 = 一条 `Region`（`shape:"bag"`），其中 `token_ids` 有序；**不再**单列 `chaos_bag` 数组。
+
+**原则**：伤/恐/毁灭/线索/资源/充能等桌游 **token** 放在区里；卡通过 `slot_regions` 挂自己的区。禁止再在 `Card` 上堆 `markers` / `location_id` / `engaged_with`。
 
 ---
 
-### 1.1 `Card`
-
-统一卡记录；某 `card_type` 不用的键省略。
+### 1.1 `Card`（脊骨 + 槽位区指针）
 
 ```text
 Card = {
@@ -77,12 +78,9 @@ Card = {
   face:                     Face,
   exhausted:                Bool,
   display_order:            Int,
-  markers:                  Map<String, Int>,
-  location_id:              String,              -- investigator / enemy
-  engaged_with:             String,              -- enemy → investigator；未交战 ""
-  connections:              Array<String>,       -- location → location ids
-  region_ids:               Map<String, String>, -- investigator → 逻辑区名 → region_id
-  actions_remaining:        Int,                 -- investigator
+  slot_regions:             Map<String, String>,  -- 槽名 → region_id
+  connections:              Array<String>,        -- 仅 location：连通图（非「放置」）
+  actions_remaining:        Int,                  -- 仅 investigator：回合经济
   actions_bonus_next_turn:  Int,
   eliminated:               Bool,
   resigned:                 Bool
@@ -91,51 +89,84 @@ Card = {
 
 | 键 | 类型 | 说明 |
 |---|---|---|
-| `id` | `String` | 卡实例 id |
-| `definition_id` | `String` | 目录键 |
-| `card_type` | `CardType` | 见下枚举 |
-| `owner_id` | `String` | 所有者；公共 `""`；遭遇侧常用 `"encounter"` |
-| `controller_id` | `String` | 控制者卡 id |
+| `id` / `definition_id` / `card_type` | `String` / `String` / `CardType` | 身份 |
+| `owner_id` / `controller_id` | `String` | 所有/控制 |
 | `face` | `Face` | `"A"` \| `"B"` |
-| `exhausted` | `Bool` | 是否横置 |
+| `exhausted` | `Bool` | 横置（形态③） |
 | `display_order` | `Int` | 同区展示序 |
-| `markers` | `Map<String, Int>` | 标记；0 可省略键 |
-| `location_id` | `String` | 所在地点卡 id |
-| `engaged_with` | `String` | 交战对象 |
-| `connections` | `Array<String>` | 地点连接 |
-| `region_ids` | `Map<String, String>` | 键：`"hand"`\|`"deck"`\|`"discard"`\|`"play"`\|`"threat"`… |
-| `actions_remaining` | `Int` | 剩余行动 |
-| `actions_bonus_next_turn` | `Int` | 下回合额外行动 |
-| `eliminated` | `Bool` | 已消灭 |
-| `resigned` | `Bool` | 已撤退 |
+| `slot_regions` | `Map<String, String>` | **卡拥有的区**；见下表 |
+| `connections` | `Array<String>` | 地点连通（拓扑，不是区内实体） |
+| `actions_*` / `eliminated` / `resigned` | `Int`/`Bool` | 调查员回合/胜负态 |
 
 **`CardType`**：`"investigator"` \| `"asset"` \| `"event"` \| `"skill"` \| `"enemy"` \| `"treachery"` \| `"location"` \| `"act"` \| `"agenda"`
 
-**`markers` 常用键**：`"damage"` \| `"horror"` \| `"doom"` \| `"clue"` \| `"resource"` \| 充能用途字符串；值 `Int`。
+#### 推荐槽名（`slot_regions` 的键）
+
+| 槽名 | 谁有 | 区内存什么 |
+|---|---|---|
+| `hand` / `deck` / `discard` / `play` / `threat` | investigator | 卡 |
+| `damage` / `horror` | 有生命/神智的卡 | token 堆（伤/恐） |
+| `doom` / `clue` / `resource` / `uses` | 按卡类型 | token 堆 |
+| `at` | location | **在该地点的**调查员/敌人卡 id |
+| `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
+| `chaos` | 冒险公共 | 混乱袋 token（有序） |
+| `encounter_deck` / `encounter_discard` | 公共 | 卡 |
+
+读「某卡上有多少资源」= 读 `regions[card.slot_regions["resource"]].token_stacks["resource"]`（或等价）。  
+读「调查员在哪」= 哪个地点的 `at` 区的 `card_ids` 含该 id（派生索引可加速）。  
+「交战」= **登记** `ENGAGEMENT`（或等价 Buff），不进 Card 字段。
 
 ---
 
-### 1.2 `Region`
+### 1.2 `Region`（卡与 token 的放置面）
 
 ```text
 Region = {
-  id:          String,
-  shape:       RegionShape,
-  owner_id:    String,
-  card_ids:    Array<String>,
-  limbo_kind:  LimboKind,
-  host_id:     String
+  id:             String,
+  shape:          RegionShape,
+  host_card_id:   String,              -- 所属卡；公共区 ""
+  slot:           String,              -- 在宿主上的槽名；公共区用逻辑名
+  card_ids:       Array<String>,       -- 区内的卡（有序）
+  token_ids:      Array<String>,       -- 需个体 id 的 token（如混乱袋序）
+  token_stacks:   Map<String, Int>,    -- 可叠加 token：kind → 数量
+  limbo_kind:     LimboKind
 }
 ```
 
 | 键 | 类型 | 说明 |
 |---|---|---|
 | `id` | `String` | 区 id |
-| `shape` | `RegionShape` | `"deck"` \| `"flat"`；`"deck"` 时 `card_ids[0]` 为顶 |
-| `owner_id` | `String` | 属主卡 id；公共 `""` |
-| `card_ids` | `Array<String>` | 区内卡序 |
+| `shape` | `RegionShape` | `"deck"` \| `"flat"` \| `"bag"` |
+| `host_card_id` | `String` | 宿主卡；场景公共为 `""` |
+| `slot` | `String` | 对应 `Card.slot_regions` 的键 |
+| `card_ids` | `Array<String>` | 放置的卡；`"deck"` 时 `[0]` 为顶 |
+| `token_ids` | `Array<String>` | 有序个体 token（混乱袋） |
+| `token_stacks` | `Map<String, Int>` | 可互换 token 数量堆 |
 | `limbo_kind` | `LimboKind` | `""` \| `"resolving"` \| `"committed"` |
-| `host_id` | `String` | 附着/垫下/旁置宿主；否则 `""` |
+
+同一区可同时有卡与 token（例如地点 `at` 只有卡；支援 `uses` 只有 token）。  
+**Touched**：改成员时写 `region:<id>:members`（卡与 token 成员变化都算）。
+
+---
+
+### 1.2.1 `Token`
+
+```text
+Token = {
+  id:        String,
+  kind:      TokenKind,
+  subtype:   String,      -- 充能用途等；无则 ""
+  face:      String       -- 若双面 token；否则 ""
+}
+```
+
+**`TokenKind`**：`"damage"` \| `"horror"` \| `"doom"` \| `"clue"` \| `"resource"` \| `"ammo"` \| `"charge"` \| `"secret"` \| `"supply"` \| `"chaos"` \| …（可增长）
+
+- **可叠加**（伤、资源…）：优先只改 `Region.token_stacks`，不必每枚进 `auth.tokens`。  
+- **要个体**（袋中某一枚混乱、被封印的某枚）：进 `auth.tokens` + 区的 `token_ids`。  
+- 混乱符号的数值/种类：个体 `Token` + Catalog/场景表，或 `subtype` 编码 kind。
+
+术语：全文用 **token**；避免再写 marker 当权威结构名。
 
 ---
 
@@ -182,7 +213,7 @@ Buff = {
 
 ---
 
-### 1.4 `Chronicle` · `Audience` · `Framework` · `ChaosToken`
+### 1.4 `Chronicle` · `Audience` · `Framework`
 
 ```text
 Chronicle = {
@@ -200,24 +231,9 @@ Framework = {
   current_act_id:          String,
   current_agenda_id:       String
 }
-
-ChaosToken = {
-  id:        String,
-  kind:      ChaosKind,
-  modifier:  Int
-}
 ```
 
-**`ChaosKind`**：`"numeric"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"`
-
-| 结构 | 键 | 类型 |
-|---|---|---|
-| `chronicle.log` | — | `Array<{text:String, round:Int}>` |
-| `chronicle.remembered` | `String` → `String` | 卡面「记住」 |
-| `audience` | `CardId` → `Audience` | 可见档 |
-| `framework.round` | — | `Int` |
-| `framework.*_id` | — | `String`（卡 id） |
-| `chaos_bag[]` | — | `ChaosToken` |
+混乱种类（个体 token 的 `subtype` 或 Catalog）：`"numeric"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` 等。
 
 ---
 
@@ -406,18 +422,19 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 | 构造 | 编码例 | 对应权威路径 |
 |---|---|---|
 | 卡字段 | `card:<id>:exhausted` | `auth.cards[id].exhausted` |
-| 标记 | `marker:<id>:damage` | `auth.cards[id].markers["damage"]` |
-| 区成员 | `region:<id>:members` | `auth.regions[id].card_ids`（多重集） |
-| 查询指纹 | `query:enemies_at:<loc>` | 由 auth 投影 |
+| 区成员 | `region:<id>:members` | 卡序 ∪ token 堆/序的指纹 |
+| token 堆 | `region:<id>:stack:damage` | `token_stacks["damage"]` |
+| 个体 token | `token:<id>` | `auth.tokens[id]` |
+| 查询指纹 | `query:enemies_at:<loc>` | 地点 `at` 区等投影 |
 | 登记 | `reg:<id>` | `auth.registrations[id]` |
 | 方面 | `aspect:fight` | 索引 / 多条登记 |
 | 框架 | `fw:active_investigator_id` | `auth.framework…` |
-| 限额 | `limit:<id>` | `auth.limits[id]` |
+| 限额 | `limit:<slot_id>` | `auth.limits…` |
 | 记事 | `chron:remembered:<k>` | `auth.chronicle.remembered[k]` |
 | 焦点 | `run:focus` | `run.focus` |
 | 记忆 | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
 
-枚举/计数集合时 **必须** 记 `region:…:members` 或 `query:…`，不得只记当时看到的实体 id（见 [35 §1.1](35-legal-interest.md)）。
+读「卡上伤害」→ 宿主 `damage` 槽区的 stack 键。禁止再依赖已废除的 `card.markers`。
 
 ---
 
@@ -438,27 +455,25 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 Snapshot {
   gen: 1
   auth: {
-    next_id: 4
-    cards: { "I": {… investigator …}, "L": {… location …}, "C1": {… skill …} }
-    regions: { "deck_I": {…}, "hand_I": {…} }
+    next_id: 8
+    cards: {
+      "I": { card_type:"investigator",
+             slot_regions:{ "hand":"hand_I", "deck":"deck_I", "resource":"res_I", "damage":"dmg_I", … }, … }
+      "L": { card_type:"location", slot_regions:{ "at":"at_L", "clue":"clue_L" }, connections:[], … }
+    }
+    regions: {
+      "hand_I":  { host_card_id:"I", slot:"hand", card_ids:[], token_stacks:{}, … }
+      "res_I":   { host_card_id:"I", slot:"resource", card_ids:[], token_stacks:{ "resource":5 }, … }
+      "at_L":    { host_card_id:"L", slot:"at", card_ids:["I"], token_stacks:{}, … }
+      "clue_L":  { host_card_id:"L", slot:"clue", card_ids:[], token_stacks:{ "clue":1 }, … }
+      "chaos":   { host_card_id:"", slot:"chaos", shape:"bag", token_ids:["t0"], token_stacks:{}, … }
+    }
+    tokens: { "t0": { id:"t0", kind:"chaos", subtype:"numeric", face:"" } }
     registrations: {}
-    chronicle: { log: [], remembered: {} }
-    audience: { "C1": "controller" }
-    limits: { counters: {}, max_slots: {} }
-    framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I",
-                 current_act_id:"", current_agenda_id:"" }
-    chaos_bag: [ { id:"t0", kind:"numeric", modifier:0 } ]
+    …
   }
-  derived: {
-    index: { by_bound:{}, by_aspect:{}, by_bound_aspect:{}, matching_by_aspect:{}, by_source:{} }
-    feasibility: { focus_fp:"", answers:{}, deps:{}, reverse:{} }
-  }
-  run: {
-    stack: [], open_choice: null, skill_tests: [], memory: {},
-    focus: { window:"", controller_id:"", open_must_ask_id:"",
-             initiation_pool_ids:[], response_pool_ids:[] },
-    timing_phase: ""
-  }
+  derived: { … }
+  run: { … }
 }
 ```
 
@@ -470,3 +485,4 @@ Snapshot {
 |---|---|
 | 2026-11-24 | v0.1：Snapshot=auth/derived/run；全键名与基础类型；Key 编码表 |
 | 2026-11-24 | v0.2：`limits` 升为 `LimitStore`（period/scope/subject/window + MaxSlot） |
+| 2026-11-24 | v0.3：token 命名；Region 放卡+token；Card.slot_regions；废 markers/location_id/engaged_with 字段；混乱袋为区 |
