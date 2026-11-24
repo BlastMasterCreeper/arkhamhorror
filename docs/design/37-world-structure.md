@@ -52,7 +52,8 @@ Auth = {
 |---|---|---|
 | `cards` | `Map<String, Card>` | 卡实体脊骨（不含伤害/线索等散字段） |
 | `regions` | `Map<String, Region>` | **唯一放置面**：可放卡、可放 token |
-| `tokens` | `Map<String, Token>` | 需个体身份的 token；纯数量堆可只活在区上 |
+| `tokens` | `Map<String, Token>` | **仅**需个体身份的实例（混乱某一枚、封印某一枚）；≠ 放置来源池 |
+| （来源池） | 见公共 `Region` `slot:"token_supply"` | **放置/移除 token 的原子来源与回收处**（盒内供应） |
 | `registrations` | `Map<String, Registration>` | 信息层（含交战等关系） |
 | `chronicle` | `Chronicle` | 日志∪记住 |
 | `audience` | `Map<String, Audience>` | 牌面可见档 |
@@ -166,7 +167,33 @@ Token = {
 - **要个体**（袋中某一枚混乱、被封印的某枚）：进 `auth.tokens` + 区的 `token_ids`。  
 - 混乱符号的数值/种类：个体 `Token` + Catalog/场景表，或 `subtype` 编码 kind。
 
-术语：全文用 **token**；避免再写 marker 当权威结构名。
+#### 标记来源池（token supply）— 放置原子的来源
+
+桌游里「从盒子拿一枚伤害放到卡上」对应权威里的**供应区**，不是 `auth.tokens` 字典：
+
+```text
+regions["token_supply"] = {
+  id: "token_supply",
+  shape: "flat",
+  host_card_id: "",
+  slot: "token_supply",
+  card_ids: [],
+  token_ids: [],
+  token_stacks: { "damage": N, "horror": N, "clue": N, "doom": N, "resource": N, … },
+  limbo_kind: ""
+}
+```
+
+| 原子 Intent | 语义 |
+|---|---|
+| `PlaceToken(kind, n, dest_region)` | 供应堆 `-= n`，目标区堆 `+= n`（同拍两条栈更新） |
+| `RemoveToken(kind, n, src_region)` | 目标区堆 `-= n`，供应堆 `+= n`（回盒） |
+| 供应视为「足够大」时 | 可将供应写成不变量「永够」，Touched 仍打目标区；或显式扣供应便于审计 |
+
+**混乱袋**是另一条有序区（`slot:"chaos"`），从供应**组建**进袋后，袋内用 `token_ids` 个体管理；与伤/线索的可叠加供应池分流。
+
+术语：全文用 **token**；避免再写 marker 当权威结构名。  
+**勿混**：`auth.tokens`（个体表）≠ `token_supply` 区（放置来源池）。
 
 ---
 
@@ -486,3 +513,4 @@ Snapshot {
 | 2026-11-24 | v0.1：Snapshot=auth/derived/run；全键名与基础类型；Key 编码表 |
 | 2026-11-24 | v0.2：`limits` 升为 `LimitStore`（period/scope/subject/window + MaxSlot） |
 | 2026-11-24 | v0.3：token 命名；Region 放卡+token；Card.slot_regions；废 markers/location_id/engaged_with 字段；混乱袋为区 |
+| 2026-11-24 | v0.4：标明 `token_supply` 区为放置原子来源池；与 `auth.tokens` 个体表分流 |
