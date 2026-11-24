@@ -1,9 +1,9 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.11 · 2026-11-24  
+> **状态**：设计草案 v0.12 · 2026-11-24  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
-> **token**：一律 `token_stacks`；类型靠堆键区分，**不为每种 token 另开槽**；宿主一枚 `tokens` 区即可。双面 `dual:<mold>:<A|B>`；无 `auth.tokens` / `token_ids`。  
+> **token**：一律 `token_stacks`；堆键 = **实体类型**（伤/线索/混乱符号…）；不为种类另开槽；无 `mold_id` / 无 `auth.tokens` / `token_ids`。双面配对只在 Catalog，翻面在类型键间转移。  
 > **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。
 
 ---
@@ -151,25 +151,24 @@ Region = {
 
 ---
 
-### 1.2.1 Token = 堆键 + 数量（终端）
+### 1.2.1 Token = 实体类型键 + 数量（终端）
 
 不在 `auth` 单列 token 表。区上的堆即全部权威：
 
 ```text
-token_stacks: Map<String, Int>   -- stack_key → count
+token_stacks: Map<String, Int>   -- token_type → count
 ```
 
-**`stack_key` 约定**（桌上只存键与数量；印刷含义在 Catalog）
+**堆键 = 当前朝上的实体类型**。桌上只有这几种类型键；不设 `mold_id`，不拼 `dual:…` 复合串。许多「标记」直接用实体类型代替（伤/线索/毁灭 = 类型本身）。
 
-| 种类 | 键例 |
+| 类型键 | 例 |
 |---|---|
 | 伤/恐/线索/毁灭/资源 | `"damage"` \| `"horror"` \| `"clue"` \| `"doom"` \| `"resource"` |
 | 充能等 | `"ammo"` \| `"charge:<用途>"` \| … |
-| 单面混乱 | `"numeric:<mod>"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` |
-| **双面** | `"dual:<mold_id>:<face>"`（`face` ∈ `"A"`\|`"B"`）——**按面分堆** |
+| 混乱符号 | `"numeric:<mod>"` \| `"skull"` \| `"cultist"` \| `"tablet"` \| `"elder_thing"` \| `"auto_fail"` \| `"elder_sign"` \| `"bless"` \| `"curse"` |
 
-双面：Catalog 用 `mold_id`+`face` 投影该面的 kind/修正；`Flip` = 同区（或按规则）`dual:M:A` `-1` 且 `dual:M:B` `+1`。  
-**本游戏只建模双面件**；其它多面标记物若以后出现再扩展键形，不预建通用模具表。
+**双面**（仅 Catalog，不进 Snapshot 键形）：某对类型互为两面，例如 `tablet` ↔ `elder_thing`。  
+`Flip` = 同区（或按规则）朝上类型 `-1`、另一面类型 `+1`。权威始终是「现在朝上哪类有几枚」。
 
 **终端性**：token 堆上不可再放卡、不可作登记 `subject` 去挂其它实体。
 
@@ -179,14 +178,14 @@ token_stacks: Map<String, Int>   -- stack_key → count
 chaos.token_stacks["skull"] = 2
 -- 揭示：chaos "skull" -= 1 ; augury "skull" += 1
 -- 封印：augury "skull" -= 1 ; sealed "skull" += 1
--- 双面件同理，整键移动（含 dual:…）
+-- 双面翻：chaos "tablet" -= 1 ; chaos "elder_thing" += 1   （配对查 Catalog）
 ```
 
-无个体 id、无晋升。同键多枚不可区分。
+无个体 id、无晋升。同类型多枚不可区分。
 
 #### 放置伤/线索
 
-`PlaceToken` / `RemoveToken`：只改目标区 `token_stacks`（盒装供应默认永够）；双面写入完整 `dual:` 键。
+`PlaceToken` / `RemoveToken`：只改目标区 `token_stacks[type]`（盒装供应默认永够）。
 
 术语：全文用 **token**。
 
@@ -517,3 +516,4 @@ Snapshot {
 | 2026-11-24 | v0.9：收回多面泛化；本游戏仅双面 `dual:<mold>:<A\|B>`；多面标记物留待后需再扩 |
 | 2026-11-24 | v0.10：不为 token 种类分槽；宿主统一 `tokens` 区，种类只走 `token_stacks` 键 |
 | 2026-11-24 | v0.11：地点放置槽 `at`→`on`（物理放置）；`at` 保留给绑定关系语义 |
+| 2026-11-24 | v0.12：废 `mold_id`/`dual:` 复合键；堆键仅为实体类型；双面配对只在 Catalog |
