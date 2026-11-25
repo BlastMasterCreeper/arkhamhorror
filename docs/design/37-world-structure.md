@@ -1,11 +1,11 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.22 · 2026-11-25  
+> **状态**：设计草案 v0.23 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
 > **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。  
-> **实现**：`arkham_rules` crate（M1：`Snapshot` + `commit`）。
+> **实现**：`arkham_rules` crate（M1：`Snapshot`+`commit`；M2：`Eff`/`step`/`Nest` 抽牌）。
 
 ---
 
@@ -662,3 +662,4 @@ Snapshot {
 | 2026-11-24 | v0.20：`Region.slot`/`slot_regions` → `place`/`owned_regions`；slot 留给规则资产槽 |
 | 2026-11-24 | v0.21：补全 `RegistrationPayload` 分型及五类 body 字段 |
 | 2026-11-25 | v0.22：`auth.gains`；Intent M1 子集；`arkham_rules` Snapshot+commit 骨架 |
+| 2026-11-25 | v0.23：M2 Eff 子集（Do/Seq/If/Nest/Ask）+ 抽牌 Flow；primer Intent 改 AdjustToken |

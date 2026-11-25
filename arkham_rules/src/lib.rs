@@ -1,11 +1,18 @@
-//! Functional rules kernel — Snapshot / Auth / commit (M1 world types).
+//! Functional rules kernel — Snapshot / Eff / commit.
 //!
-//! Shape aligns with `docs/design/37-world-structure.md`.
+//! Shape: `docs/design/37-world-structure.md` · Eff: `docs/design/25-functional-eff.md`.
 
+pub mod catalog;
+pub mod eff;
 pub mod intent;
 pub mod world;
 
-pub use intent::{commit, Intent};
+pub use catalog::{Catalog, Flow};
+pub use eff::{
+    answer, draw_one_eff, eval_pred, plan, run_to_ask_or_done, step, AskRequest, Eff, PlanResult,
+    Pred, StepResult,
+};
+pub use intent::{commit, engagement_reg, Intent};
 pub use world::{
     Auth, Audience, Card, CardType, Chronicle, Face, Feasibility, Focus, Framework, LimboKind,
     Region, RegionShape, Registration, RegistrationKind, RegistrationPayload, Run, Snapshot,

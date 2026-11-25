@@ -162,7 +162,7 @@ enum Eff {
 |---|---|---|
 | M0 | 本文 + 类型钉死 | 设计评审 |
 | M1 | Rust：`Snapshot`/`Auth` + `commit`（`arkham_rules`）；IndexMap；无 Godot | 纯测试：PlaceToken、MoveCard、FlipToken、engagement STATUS ✅ |
-| M2 | `Eff` 子集：`Do/Seq/If/Nest/Ask` + 一条抽牌议程 | 与现 headless 用例对拍 |
+| M2 | `Eff` 子集：`Do/Seq/If/Nest/Ask` + `seq.draw.investigator`（`arkham_rules::eff`） | `cargo test`：Nest 抽牌 / Ask / plan Empty ✅；Godot 对拍留 M3 |
 | M3 | gdext 句柄桥 + Godot 最小 `view` | 主场景能显示手牌张数 |
 | M4 | 机器表：检定 ST.1–8、伤害分配、强制排序 | 06111 等竖切迁到内核 |
 | M5 | GDScript 规则路径降为委托或删除 | 真空审计：无宿主直写 |

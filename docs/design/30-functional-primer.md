@@ -67,7 +67,7 @@ Snapshot = {
   auth: {                     -- 权威：结算只写这里
     cards, regions,
     registrations, chronicle, limits,
-    audience, framework, chaos_bag, next_id
+    audience, framework, gains, next_id
   }
   derived: {                  -- 派生：可重建
     index                     -- 登记倒排
@@ -293,18 +293,18 @@ World {
 | Nest | 打开一条手续 |
 | Ask | 等人选，答案决定下一截树 |
 
-意图的类型（只列本说明用到的）：
+意图的类型（只列本说明用到的；权威见 [37 §5.1](37-world-structure.md)）：
 
 \[
 \mathrm{Intent}
 =
-\mathrm{AddMarker}(\mathrm{Id},\mathrm{Kind},\mathbb{Z})
+\mathrm{AdjustToken}(\mathrm{RegionId},\mathrm{Type},\mathbb{Z})
 \mid
-\mathrm{MoveCard}(\mathrm{Id},\mathrm{Place})
+\mathrm{MoveCard}(\mathrm{CardId},\mathrm{FromRegion},\mathrm{ToRegion})
 \mid
-\mathrm{InsertReg}(\mathrm{登记条})
+\mathrm{RegInsert}(\mathrm{登记条})
 \mid
-\mathrm{RemoveReg}(\mathrm{条件})
+\mathrm{RegRemove}(\mathrm{RegId})
 \]
 
 ### 1.4 运算上下文与返回值
@@ -363,12 +363,12 @@ World {
 \mathrm{commit}(w,\ i :: is) = \mathrm{commit}(\mathrm{apply}(w,i),\ is)
 \]
 
-`apply` 只改对应分量。例如加标记：
+`apply` 只改对应分量。例如在卡的 `tokens` 放置面上加减 token（\(R=\) 该卡 `owned_regions["tokens"]`）：
 
 \[
-\mathrm{apply}(w,\ \mathrm{AddMarker}(e,k,n)).\mathrm{cards}[e].\mathrm{markers}[k]
+\mathrm{apply}(w,\ \mathrm{AdjustToken}(R,k,n)).\mathrm{regions}[R].\mathrm{token\_stacks}[k]
 =
-w.\mathrm{cards}[e].\mathrm{markers}[k] + n
+w.\mathrm{regions}[R].\mathrm{token\_stacks}[k] + n
 \]
 
 其它分量原样保留（结构共享：没改的部分仍指向旧数据）。
@@ -552,13 +552,13 @@ e_2(x)
 \end{align*}
 \]
 
-「造成伤害」「调查员抽牌」是目录里的手续号。造成伤害套标准能力窗；它的效果体是一条加标记。
+「造成伤害」「调查员抽牌」是目录里的手续号。造成伤害套标准能力窗；效果体是对目标 `tokens` 区做 \(\mathrm{AdjustToken}(\ldots,\mathrm{damage},1)\)。
 
 ### 3.2 起始值
 
 \[
-w_0.\mathrm{cards}[E].\mathrm{markers}[\mathrm{damage}]=0,\quad
-w_0.\mathrm{place}(E)=\mathrm{在场},\quad
+w_0.\mathrm{regions}[R_E].\mathrm{token\_stacks}[\mathrm{damage}]=0,\quad
+w_0.\mathrm{on}(E)=\mathrm{在场},\quad
 w_0.\mathrm{deck}(I)=[C_1,C_2],\quad
 w_0.\mathrm{hand}(I)=[\,]
 \]
@@ -598,14 +598,14 @@ r_2.\mathrm{栈}=[\phi_{\mathrm{显现}},\ \phi_{\mathrm{造成伤害}}(\mathrm{
 
 标准窗前面的「将要 / 当时」这里假设没有人响应，步号一路加到「解释效果体」。这些步的公式都是 2.6，且 \(\mathrm{commit}\) 还没发生，所以 \(w\) 仍是 \(w_0\)。
 
-**步 D.** 效果体是 \(\mathrm{Do}(\mathrm{AddMarker}(E,\mathrm{伤},1))\)。公式 2.4 与 2.1：
+**步 D.** 效果体是 \(\mathrm{Do}(\mathrm{AdjustToken}(R_E,\mathrm{damage},1))\)。公式 2.4 与 2.1：
 
 \[
-w_1 = \mathrm{commit}(w_0,[\mathrm{AddMarker}(E,\mathrm{伤},1)])
+w_1 = \mathrm{commit}(w_0,[\mathrm{AdjustToken}(R_E,\mathrm{damage},1)])
 \]
 
 \[
-w_1.\mathrm{cards}[E].\mathrm{markers}[\mathrm{damage}]=1
+w_1.\mathrm{regions}[R_E].\mathrm{token\_stacks}[\mathrm{damage}]=1
 \]
 
 然后伤害这层议程走到「之后」（仍假设没人），再公式 2.5 的退出：弹出伤害帧。
@@ -648,15 +648,15 @@ w_2.\mathrm{deck}(I)=[C_2],\qquad w_2.\mathrm{hand}(I)=[C_1]
 
 ---
 
-## 4. 和「全部写成加标记」差在哪
+## 4. 和「全部写成 AdjustToken」差在哪
 
-若伤害不嵌套，而写成 \(\mathrm{Do}(\mathrm{AddMarker}(\ldots))\)：
+若伤害不嵌套，而写成 \(\mathrm{Do}(\mathrm{AdjustToken}(\ldots))\)：
 
 \[
 \mathrm{commit}\ \text{的结果可以相同}
 \]
 
-议程不同：标准窗的「当时 / 之后」不会发生，别的卡听不到「造成伤害时」。所以卡面写「造成伤害」时，公式用的是 2.5（嵌套），不是直接 2.4。加标记只出现在伤害手续自己的效果体里。
+议程不同：标准窗的「当时 / 之后」不会发生，别的卡听不到「造成伤害时」。所以卡面写「造成伤害」时，公式用的是 2.5（嵌套），不是直接 2.4。`AdjustToken` 只出现在伤害手续自己的效果体里。
 
 ---
 
