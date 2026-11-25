@@ -77,16 +77,100 @@ Audience 可标成 Data 内的**非结算排序**（改可见性 ≠ CREATED）�
 
 实现上可以是多个 `Map`，也可以一个带 tag 的行表——那是模块边界，不改变「它们同属 Data / 同属函数世界」。
 
-### 2.1 Endomorphism 为何仍是「世界里的数据」
+### 2.1 Proposition（命题行）
 
-卡面挂的「直到回合结束 +1」「cannot play」「after evade, draw 1」= **把态射重化成带寿命的行**，供固定解释器折叠：
+**是什么**：Data 里一条可判定的原子事实——问的是「是否成立」，不是「怎么改算法」。
 
 ```text
-query_stat(data, k) = fold( endomorphisms(data), base(catalog, data, k) )
-legal(intent, data)  = ∀ g ∈ guards(data). ok(g, intent)
+Proposition 行 ≈ {
+  id, source, lifetime, subject,
+  body:  Engagement(enemy, inv) | HasKeyword(card, surge) | …
+}
+
+判据：  holds(data, φ) ∈ {true, false}
 ```
 
-**系统 / 解释器在 Catalog 与代码里，对局中不变**；变的是 Data 里的 endomorphism 表。这与「组件是数据、系统是函数」一致。
+| 特征 | |
+|---|---|
+| 消费 | **查询命题**：`is_engaged_with`、`has_effective_keyword` |
+| 不消费为 | 不直接改 `stat` 公式、不单独拦 Intent（拦 Intent 的是 Guard ∈ Endomorphism） |
+| 写入 | `FactInsert` / 卸 lifetime → CREATED |
+| 寿命 | 常有（`WHILE_IN_PLAY`、until…）；到期从 Data 删掉，命题变假 |
+
+**典型**：
+
+- **交战** `Engagement(E, I)`：真实交战或 lasting「视为交战」——权威命题；威胁区是 Placement，另事。  
+- **Gain 标记**（拥有 surge / trait…）：「这张卡现在有没有这个特征」；行为往往再**衍生** Endomorphism 行。  
+- （可扩展）Blanked、ConsideredX…——仍是命题，不是态射。
+
+**不是 Proposition**：
+
+- 「+1 fight」——那是改数值解释 → Endomorphism。  
+- 「cannot play」——那是对 Intent 的谓词变换 → Endomorphism（Guard）。  
+- 庞大虚拟交战——若仅由 Massive∧ready∧同地算出 → **Derived**，不存行。
+
+**和 Placement 的分工（交战）**：
+
+```text
+在威胁区？     → Placement 查询
+交战命题成立？ → Proposition 查询
+规则说「engaged」→ 查询层可析取（含庞大派生）；存档权威仍是 Proposition 行（+ 派生规则）
+```
+
+---
+
+### 2.2 Endomorphism（态射行 · 数据化的变换）
+
+**是什么**：把「对解释的修改」存成 Data 里的行。数学上接近 **自同态**（集合到自身的映射）或 **可结合的变换**：解释器有一个底层读法，再被这些行依次（或按规范序）折叠。
+
+```text
+Endomorphism 行 ≈ {
+  id, source, lifetime, subject,
+  body: FoldStat | GuardIntent | DivertFlow | OnTiming
+}
+
+底层：   base = Catalog ⊕ Placement/Form/…
+折叠：   interpret(data) = fold( endomorphisms(data), base )
+```
+
+四类 body（与 37 PolicyBody 对齐）= 四类**消费口**：
+
+| Body | 变换的对象 | 人话 | 旧名 |
+|---|---|---|---|
+| **FoldStat** | `Stat → Value` 的计算 | 在查询站给数值 +N / set / 改 AmountPlan | modifier |
+| **GuardIntent** | `Intent → Ok \| Forbid` | cannot play / peril 等拦发起 | gate |
+| **DivertFlow** | 命名流程的分支读法 | SKIP_AOO、压制 auto-engage | directive |
+| **OnTiming** | 时点 → 额外 Eff | lasting「after X, do Y」 | listener |
+
+```text
+query_stat(data, k) = fold( folds(data), base_stat(catalog, data, k) )
+legal(intent, data) = ∀ g ∈ guards(data). allows(g, intent)
+flow_read(step, data) = apply_diverts(diverts(data), default_read(step))
+on_timing(t, data)    = base_handlers(t) ++ on_timings(data, t)
+```
+
+| 特征 | |
+|---|---|
+| 消费 | **折叠进解释**，不是「问 φ 真假」一条就完 |
+| 写入 | `ConstraintInsert` → CREATED（纯挂 lasting 也算生效） |
+| 代码里的系统 | **不变**；变的是表里的行 |
+| 印刷 Forced/反应 | AbilitySpec ∈ Catalog/挂载管线，**不是** OnTiming 行（除非效果 gains 出延时听） |
+
+**为何叫 Endomorphism 而不是「规则代码」**：规则代码（解释器）固定；卡面效果安装的是**可存档的变换参数**。卸 lifetime = 从表拿掉一行，解释自动回到少折叠一次的状态。
+
+---
+
+### 2.3 二者对照（易混点）
+
+| | **Proposition** | **Endomorphism** |
+|---|---|---|
+| 问句 | 「是否成立？」 | 「解释怎么改？」 |
+| 代数 | 原子命题 / 关系 | 对查询·合法性·流程·时点的变换 |
+| 例子 | 交战、拥有 surge 标记 | +1 fight、cannot play、SKIP_AOO、after evade draw |
+| 37 分区 | 多在 `facts.relations` / `gains` | `constraints.policies` |
+| 常一起出现 | Gain 标记（命题）衍生出 Policy（态射） | Guard「engaged 时 cannot discover」**读**交战命题 |
+
+**口诀**：Proposition = 局面上的**真假句**；Endomorphism = 挂在解释器上的**可装卸滤镜**。
 
 ---
 
@@ -144,3 +228,4 @@ legal(intent, data)  = ∀ g ∈ guards(data). ok(g, intent)
 | 日期 | 说明 |
 |---|---|
 | 2026-11-25 | v0.1：定义 World_FP≜Data；主划分 Data×Control；Data 内代数分拣；对照模拟隐喻 |
+| 2026-11-25 | v0.2：细讲 Proposition / Endomorphism（定义、消费、对照、交战与 Gain） |
