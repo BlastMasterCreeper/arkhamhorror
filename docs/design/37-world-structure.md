@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.31 · 2026-11-25  
+> **状态**：设计草案 v0.32 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
@@ -153,6 +153,26 @@ Seat = {
 读「调查员物理在哪」= 哪个地点的 **`on`** 区的 `card_ids` 含该 id（派生索引可加速）。  
 **禁止**用 `at` 作地点放置名：`at` 留给绑定关系；`on` 才是物理放置。  
 「交战」= **登记载荷** `STATUS`/`ENGAGEMENT`，不进 Card 字段、不进 `on`。
+
+#### 资源池（resource pool）——**未漏**；勿另建模
+
+旧 Godot `InvestigatorState.resource_pool` / 07 `MarkerSlot.RESOURCE` 在本结构中的落点：
+
+| 口语 | 权威落点 | 不是 |
+|---|---|---|
+| 调查员身上的资源 | 该调查员卡 `place=tokens` 区的 `token_stacks["resource"]` | **不是** `Seat` 字段；**不是** Card 标量；**不是**独立 `resource_pool` 区 |
+| 盒中无穷供应（gain/spend 的池端） | Intent 端点 `$supply`（`TOKEN_SUPPLY`） | **不**在 Snapshot 里存库存计数 |
+| 地点上的线索等 | 地点宿主同形 `tokens` 堆 | 同理勿开 `clues_on_location` 字段 |
+
+读写例：
+
+```text
+读：  regions[host=I, place=tokens].token_stacks["resource"]
+得：  TransferToken { type:"resource", n, from:"$supply", to: tok_I }
+花：  TransferToken { type:"resource", n, from: tok_I, to:"$supply" }
+```
+
+对齐 [07 §5.2](07-effect-primitives.md) Transfer-only：`POOL_RESOURCE → inv` / 回池。
 
 ---
 
@@ -808,3 +828,4 @@ Snapshot {
 | 2026-11-25 | v0.29：Run/Focus 精简边界；Listener 不分型；StatusPayload 单变体 `engagement`；24 Run 对齐 |
 | 2026-11-25 | v0.30：ChoiceState 对齐 Ask；SkillTest+`st_step`；Key 封闭代数对拍 35（RegionStack/Seat/RunST） |
 | 2026-11-25 | v0.31：无冗余 — 废 Card.owned_regions/Seat.investigator_id；封印并入宿主 tokens；去掉 sealed/augury/token_supply 放置名 |
+| 2026-11-25 | v0.32：标明 resource pool = 宿主 `tokens` 的 `resource` 堆 + `$supply`；非 Seat/独立区 |

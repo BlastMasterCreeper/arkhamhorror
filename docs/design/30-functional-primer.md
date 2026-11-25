@@ -128,7 +128,7 @@ auth = {
 
 `card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
 
-**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/资源/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。物理所在地点 = 某地点 `on` 区的成员。交战 = 登记 `status/engagement`。
+**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/资源/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。口语「资源池」= 该堆的 `resource` 键 + 盒端 `$supply`，**不是**席位字段、也不是独立区。物理所在地点 = 某地点 `on` 区的成员。交战 = 登记 `status/engagement`。
 
 地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
 

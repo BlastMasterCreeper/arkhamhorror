@@ -532,6 +532,11 @@ impl Snapshot {
             .unwrap_or(0)
     }
 
+    /// Investigator (or any host) resource count — former `resource_pool` scalar.
+    pub fn resources_of(&self, card_id: &str) -> i32 {
+        self.token_on_card(card_id, "resource")
+    }
+
     /// Location card whose `on` region contains `card_id`.
     pub fn location_of(&self, card_id: &str) -> Option<&CardId> {
         for (loc_id, card) in &self.auth.cards {

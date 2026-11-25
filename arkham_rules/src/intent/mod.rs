@@ -413,6 +413,26 @@ mod tests {
     }
 
     #[test]
+    fn resource_pool_is_host_token_stack_not_seat() {
+        let s0 = mini_snap();
+        assert_eq!(s0.resources_of("I"), 5);
+        // Seat carries actions/outcome only — not resources.
+        assert_eq!(s0.auth.seats["I"].actions_remaining, 3);
+        let s1 = commit(
+            s0,
+            &[Intent::TransferToken {
+                token_type: "resource".into(),
+                amount: 2,
+                from_region: "tok_I".into(),
+                to_region: TOKEN_SUPPLY.into(),
+            }],
+        )
+        .unwrap();
+        assert_eq!(s1.resources_of("I"), 3);
+        assert_eq!(s1.auth.seats["I"].actions_remaining, 3);
+    }
+
+    #[test]
     fn place_damage_from_supply() {
         let s0 = mini_snap();
         assert_eq!(s0.token_on_card("I", "resource"), 5);
