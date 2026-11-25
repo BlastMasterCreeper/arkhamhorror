@@ -56,11 +56,11 @@
 
 ### 1.1 局面怎么构造
 
-局面里**只有一种实体：卡**。调查员、地点、敌人、支援、事件、技能、场景、密谋都是 `cards` 里的一条，用字段 `card_type` 区分。没有第二张「调查员表」或「敌人表」。
+窄世界里**只有一种实体：卡**。调查员、地点、敌人、支援、事件、技能、场景、密谋都是 `world.cards` 里的一条，用字段 `card_type` 区分。没有第二张「调查员表」或「敌人表」。
 
-印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。局面上不复制一份。
+印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。世界上不复制一份。
 
-**值要分类**（见 [24](24-functional-world.md)）：权威事实 / 派生投影 / 进度。整份快照才是驱动与交互持有的「世界值」。
+**值要分类**（见 [24](24-functional-world.md) / [37](37-world-structure.md)）：窄**世界**（物理）/ Facts / Constraints / 派生 / 进度。驱动持有的是整份 **Snapshot**；口语「世界」只指 `auth.world`。
 
 ```text
 Snapshot = {
@@ -146,47 +146,43 @@ auth = {
 ```
 
 `shape = "deck"` 时，`card_ids[0]` 是顶。
-#### 信息层也在局面里
 
-物理层是区、标记、横置和正反面。信息层是登记和记事。两层都写在同一份 `World` 里。权限（谁看得见牌面）也在局面里，改它不算一次结算。
+#### 世界之外：Facts 与 Constraints（不要再叫「信息层塞进 World」）
+
+| 袋 | 放什么 | 是不是「世界」 |
+|---|---|---|
+| **World** | 区、token、横置/翻面、席位、框架钟、限额钟 | **是**（窄物理） |
+| **Facts** | 交战 Relation、Gain 拥有、Chronicle 记事 | **否**（断言伴件） |
+| **Constraints** | lasting/+N/cannot/延时等 Policy | **否**（运作叠层） |
+| **Audience** | 谁看得见牌面 | **否**（权限旁路；改它不算 CREATED） |
 
 ```text
-记事 = {
+记事（∈ Facts.chronicle）= {
   log:        数组    元素是 { text: 字符串, round: 整型 }
   remembered: 字典    键 字符串，值 字符串
 }
-```
 
-`remembered` 是卡面「记住」写下来的事实，例如某个名字、某个选项。手续进行中「刚才选了哪张牌」写在进度的记忆里，不写在这里。印刷文字在目录里，也不在这里。
-
-#### Facts / Constraints（详 37 §1.3）
-
-```text
 Relation = { shell: InfoShell, body: Engagement { enemy_id, investigator_id } }
 Policy   = { shell: InfoShell, body: FoldStat | GuardIntent | DivertFlow | OnTiming }
 ```
 
-壳含 `source_card_id` / `lifetime` / `subject`。CREATED = 写入 World 或 Facts 或 Constraints（Audience 除外）。
+壳含 `source_card_id` / `lifetime` / `subject`。  
+**CREATED** = 写入 World **或** Facts **或** Constraints（含 Chronicle）；Audience 除外。  
+`remembered` 是卡面「记住」；手续里「刚才选了哪张」写在 `run.memory`，不进 chronicle。
 
 #### 可见性、框架、限额
 
 ```text
-可见档 = 枚举 "hidden_all" | "controller" | "all"
+可见档 = 枚举 "hidden_all" | "controller" | "all"   -- auth.audience
 
-框架 = {
-  round:                  整型
-  lead_investigator_id:   字符串
-  active_investigator_id: 字符串
-  current_act_id:         字符串
-  current_agenda_id:      字符串
+框架（∈ world.framework）= {
+  round, lead_investigator_id, active_investigator_id,
+  current_act_id, current_agenda_id
 }
 ```
 
-（仅此五字段；牌库在区、毁灭阈值在目录、阶段名在 `run.timing_phase`——见 37 §1.4。）
-
-混乱符号是区 `chaos` 上的 `token_stacks`（类型键 + 数量），不是独立标记个体表。限额见 37 §1.5 `LimitStore`。
-
-FoldStat 的 `ModifierPayload` **不分型**：靠 `apply_mode` / `plan_kind` 区分用法。
+（仅此五字段；牌库在区、毁灭阈值在目录、阶段名在 `run.timing_phase`——见 37。）  
+限额 ∈ `world.limits`。混乱符号是区 `chaos` 上的 `token_stacks`。FoldStat 的 `ModifierPayload` **不分型**。
 
 #### 一份最小构造
 
@@ -220,7 +216,7 @@ auth = {
 
 密谋上的毁灭是密谋卡 `tokens` 区的 `token_stacks["doom"]`。阈值在目录里。
 
-抽一张牌：`MoveCard` 改两个区的 `card_ids`；`cards["C1"]` 身份不变。
+抽一张牌：`MoveCard` 改两个区的 `card_ids`；`world.cards["C1"]` 身份不变。
 
 ### 1.2 进度
 
@@ -294,20 +290,23 @@ auth = {
 \mid
 \mathrm{MoveCard}(\mathrm{CardId},\mathrm{FromRegion},\mathrm{ToRegion})
 \mid
-\mathrm{RegInsert}(\mathrm{登记条})
+\mathrm{FactInsert}(\mathrm{Relation})
 \mid
-\mathrm{RegRemove}(\mathrm{RegId})
+\mathrm{ConstraintInsert}(\mathrm{Policy})
+\mid
+\mathrm{CompanionRemove}(\mathrm{Id})
 \]
 
 `FromRegion`/`ToRegion` 可为承载区 id，或无穷供给端点 `$supply`（对齐 [07 §5.2](07-effect-primitives.md) Transfer-only；**禁止**单端 Adjust）。
 
 ### 1.4 运算上下文与返回值
 
-一次运算看到的全部输入：
+一次运算看到的全部输入（窄世界只是伴件之一）：
 
 \[
-\mathrm{Ctx} = \mathrm{World} \times \mathrm{Run}
+\mathrm{Ctx} = \mathrm{World} \times \mathrm{Facts} \times \mathrm{Constraints} \times \mathrm{Run}
 \]
+（Catalog 外置；Audience 可读，写之不计 CREATED。）
 
 返回值三选一：
 

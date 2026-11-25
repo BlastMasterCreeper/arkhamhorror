@@ -6,13 +6,15 @@
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
 > **简洁**：权威唯一、少冗余；同质实体不因规则绰号另开放置面（封印混乱 = 宿主上的 token 堆）。  
 > **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。  
-> **实现**：`arkham_rules` crate（M1：`Snapshot`+`commit`；M2：`Eff`/`step`/`Nest` 抽牌）。
+> **实现**：`arkham_rules` crate（M1：`Snapshot`+`commit`；M2：`Eff`/`step`/`Nest` 抽牌）。  
+> **口径（已拍板）**：**世界 = 窄物理**；Facts/Constraints 是权威伴件不是世界；CREATED = 写入伴件（Audience 除外）。
 
 ---
 
 ## 0. 总形
 
-**「世界」= 窄物理**；权威伴件 = **World × Facts × Constraints**（Audience 旁路；Run/Catalog 在闭包外）。
+**「世界」= 窄物理**；权威伴件 = **World × Facts × Constraints**（Audience 旁路；Run/Catalog 在闭包外）。  
+**禁止**再把 lasting/cannot/交战称作「也在世界里」——它们分别在 Constraints / Facts。
 
 ```text
 Snapshot = {
@@ -104,14 +106,14 @@ Card = {
 | `exhausted` | `Bool` | 横置（形态③） |
 | `connections` | `Array<String>` | 地点连通（拓扑，不是区内实体） |
 
-**已迁出 Card**：席位态 → `seats`；放置指针 → 仅 `regions`（旧 `owned_regions` 升 **derived**）。  
+**已迁出 Card**：席位态 → `world.seats`；放置指针 → 仅 `world.regions`（旧 `owned_regions` 升 **derived**）。  
 **已删**：`display_order`——同区展示序以 `Region.card_ids` 序为准。
 
 **`CardType`**：`"investigator"` \| `"asset"` \| `"event"` \| `"skill"` \| `"enemy"` \| `"treachery"` \| `"location"` \| `"act"` \| `"agenda"`
 
-### 1.1.1 `Seat`（调查员席位态）
+### 1.1.1 `Seat`（调查员席位态 · ∈ World）
 
-每个在场（或已退场仍占座）的调查员一条；键 = 该调查员 **卡 id**（与 `cards` 中 `card_type=investigator` 对齐）。
+每个在场（或已退场仍占座）的调查员一条；键 = 该调查员 **卡 id**（与 `world.cards` 中 `card_type=investigator` 对齐）。
 
 ```text
 Seat = {
@@ -129,9 +131,9 @@ Seat = {
 |---|---|
 | 回合经济 | 框架/席位机，非卡形态或放置 |
 | 退场/撤退 | 冒险内结局标志，与 face/exhausted/区成员正交 |
-| 查询 | `seats[inv_id].actions_remaining`，不读 `cards[inv]` |
+| 查询 | `world.seats[inv_id].actions_remaining`，不读 `world.cards[inv]` |
 
-`framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**经济与结局**在 `seats`。
+`world.framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**经济与结局**在 `world.seats`。
 
 #### 推荐放置名（`Region.place`）
 
@@ -511,7 +513,7 @@ limit_key = spec_id + "|" + period + "|" + scope + "|" + subject_id + "|" + wind
 | 卡离场 | 删该 `card_instance` 条；`occupancies.holders` 移除 |
 | Max in play | 进场写入 `holders`；离场移除；超 cap 则发起/进场门槛失败 |
 
-`window_id` 与 `auth.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<limit_key>`。
+`window_id` 与 `world.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<limit_key>`。
 
 **不做**：把 Limit 规格正文存进局面；用单个全局 `Int` 糊所有能力。
 
@@ -687,16 +689,16 @@ Key =
 
 | 构造 | 编码例 | 权威路径 |
 |---|---|---|
-| CardField | `card:<id>:exhausted` | `auth.cards[id].exhausted` |
+| CardField | `card:<id>:exhausted` | `world.cards[id].exhausted` |
 | RegionMembers | `region:<id>:members` | `regions[id].card_ids` |
 | RegionStack | `region:<id>:stack:damage` | `token_stacks["damage"]` |
 | QueryFp | `query:enemies_on:<loc>` | 地点 `on` 等投影 |
 | Reg | `reg:<id>` | `facts.relations[id]` 或 `constraints.policies[id]` |
 | RegAspect | `aspect:fight` | 索引 / 多条登记 |
 | SeatField | `seat:<inv>:actions_remaining` | `world.seats[inv]…` |
-| FrameworkField | `fw:active_investigator_id` | `auth.framework…` |
-| LimitCounter | `limit:<limit_key>` | `auth.limits…` |
-| ChronicleKey | `chron:remembered:<k>` | `auth.chronicle.remembered[k]` |
+| FrameworkField | `fw:active_investigator_id` | `world.framework…` |
+| LimitCounter | `limit:<limit_key>` | `world.limits…` |
+| ChronicleKey | `chron:remembered:<k>` | `facts.chronicle.remembered[k]` |
 | RunFocus | `run:focus` | `run.focus` |
 | RunMemory | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
 | RunSkillTest | `run:st:<test_id>:success` | `run.skill_tests[…]` |

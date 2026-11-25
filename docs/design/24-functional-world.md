@@ -1,10 +1,10 @@
 # 24 — 函数式 `World` 值模型（草案）
 
-> **状态**：设计草案 v0.4 · 2026-11-25  
+> **状态**：设计草案 v0.5 · 2026-11-25  
 > **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-payload-model](06-registration-payload-model.md)、[17-seq-runtime](17-seq-runtime.md)  
-> **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影（本文只定 **局面值**）  
+> **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影  
 > **键名与类型总表（权威形状）**：[37-world-structure](37-world-structure.md) — 若本文与 37 冲突，**以 37 为准**。  
-> **与现实现关系**：对照 `PhysicalStore` · `GameStateStore` · `RegistrationStore` · `RulesMemory`；**不**要求立刻替换 Godot 对象图，先定值边界与不变量。
+> **口径**：**世界 = 窄物理**；权威伴件 = World × Facts × Constraints；CREATED = 写入伴件（Audience 除外）。
 
 ---
 
@@ -12,13 +12,12 @@
 
 | 目标 | 非目标 |
 |---|---|
-| 把「规则可判定的局面」收成 **不可变值** `World` | 重写 Godot / 换语言 |
-| 与物理三类 + Register + 薄 Chronicle **同构** | 把 UI、输入、网络塞进 `World` |
-| 明确 **World vs Run**（局面 vs 执行游标） | 用 lens 宗教替代 Cancel/Instead 手续 |
-| 为纯查询 / dry-run / 重放提供稳定自变量 | 每步深拷贝整桌当性能方案（实现可选结构共享） |
+| 定 **Snapshot** 分层：窄 World / Facts / Constraints / Run | 重写 Godot / 换语言 |
+| 物理三类只落在 `auth.world` | 把 lasting/cannot 再塞回「世界」一词 |
+| 明确伴件与运作叠层 vs 执行游标 | 用 lens 宗教替代 Cancel/Instead |
+| 为 dry-run / 重放提供稳定自变量 | 每步深拷贝整桌当性能方案 |
 
-**一句话**：`World` = 存档级规则局面；`Run` = 正在走的手续栈与待确认选择。纯内核吃 `(World, RunEnv)`，写出 `(World', RunEnv') | NeedChoice`。
-
+**一句话**：`World` = 窄物理局面；`Facts`/`Constraints` = 权威伴件；`Run` = 手续游标。内核吃伴件闭包，写出 `Snapshot'` 或 `NeedChoice`。
 ---
 
 ## 1. 总结构
@@ -212,10 +211,10 @@ Run = {
 | 地点连通移动 | locations 图 + placement |
 
 ```text
-view : World → WorldView   -- 纯；可缓存
+view : Snapshot → WorldView   -- 纯；可缓存（可读 world/facts/constraints）
 query : WorldView × Spec → Answer
-plan  : World × Env × Eff → Intent[]
-commit: World × Intent[] → World   -- 唯一写入口
+plan  : Snapshot × Env × Eff → Intent[]
+commit: Snapshot × Intent[] → Snapshot   -- 唯一写入口；可触 World/Facts/Constraints
 ```
 
 ---
@@ -234,13 +233,13 @@ commit: World × Intent[] → World   -- 唯一写入口
 
 | # | 裁决 |
 |---|---|
-| W1 | **World / Run 分立**：局面值 vs 执行游标；指称与栈不进存档级 World |
-| W2 | **物理权威单一**：三类原语只写 `auth` 的 cards/regions（+ seats）；**不**嵌套 `auth.physical`；交战等为 Registration / 投影 |
-| W3 | **Registration 在 World**：寿命未到期的 **payloads** 是局面的一部分 |
-| W4 | **Catalog 外置**：印刷与编译树不是 World 字段 |
-| W5 | **Audience 在 World、非结算**：与 form 正交 |
+| W1 | **窄 World / Run 分立**：物理局面 vs 执行游标；指称与栈不进 World |
+| W2 | **物理只在 world**：三类原语写 `auth.world`；**不**嵌套 `auth.physical` |
+| W3 | **Facts × Constraints 是伴件，不是世界**：Relation/Policy 有寿命、可 CREATED，但口语「世界」不含它们 |
+| W4 | **Catalog 外置**：印刷与编译树不是 Snapshot 字段 |
+| W5 | **Audience 旁路、非结算**：与 form 正交；不计 CREATED |
 | W6 | **唯一写法 = Intent commit**；查询/投影只读 |
-| W7 | **与现引擎兼容路径**：`PhysicalStore`≈world.cards/regions；`RegistrationStore`≈facts.relations∪constraints.policies；`RulesMemory`≈`Run.memory`；可先做 **快照导出** 供纯查询 |
+| W7 | **兼容路径**：`PhysicalStore`≈world；旧 RegistrationStore≈facts.relations∪constraints.policies；`RulesMemory`≈`Run.memory` |
 
 ---
 
@@ -260,3 +259,4 @@ commit: World × Intent[] → World   -- 唯一写入口
 | 2026-11-25 | v0.2：对齐 37 — Auth 扁平（无 `physical`/`entropy` 袋）；W2 改写；Intent/混乱袋指向 37 |
 | 2026-11-25 | v0.3：Framework 收成 37 五字段；剔除 deck/threshold/phase 等 |
 | 2026-11-25 | v0.4：Run/Focus 对齐 37；去掉 memory 专用袋 / Frame.phase 旧形 |
+| 2026-11-25 | v0.5：统一口径 — 窄 World；Facts×Constraints；改 W1–W7；废「Registration 在 World」 |
