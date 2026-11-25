@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.28 · 2026-11-25  
+> **状态**：设计草案 v0.29 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
@@ -379,6 +379,8 @@ DirectiveKind =
 
 #### `ListenerPayload`
 
+**不分型**：凡 LISTENER 均为「时点到 → 跑已装载 Composition」（[06 §5](06-registration-payload-model.md)）；异质在 Catalog 树，不在载荷壳。
+
 ```text
 ListenerPayload = {
   timing:       String,   -- 时点 / 入口 id
@@ -388,14 +390,14 @@ ListenerPayload = {
 
 #### `StatusPayload`（局面断言）
 
-```text
-StatusPayload = {
-  kind:        StatusKind,   -- 现仅 "engagement"
-  subject_id:  String,       -- 交战：敌人
-  drawer_id:   String        -- 交战：调查员
-}
+现仅 **交战**一种局面断言 → **单变体分型**（去掉扁平 `kind` 字符串）。若日后出现第二种 STATUS，再增变体，勿先摊平预留字段。
 
-StatusKind = "engagement"
+```text
+StatusPayload =
+  | { kind: "engagement", subject_id, drawer_id }
+      -- subject_id = 敌人；drawer_id = 调查员
+
+StatusKind = "engagement"   -- 目前仅此
 ```
 
 交战 = `{ kind:"status", status:{ kind:"engagement", subject_id:敌人, drawer_id:调查员 } }`，不进 Card / `on`。
@@ -567,15 +569,15 @@ Run = {
   skill_tests:    Array<SkillTest>,
   memory:         Map<String, Map<String, String>>,  -- controller_id → (key → value)
   focus:          Focus,
-  timing_phase:   String                             -- 顶帧相位名；无则 ""
+  timing_phase:   String                             -- 信封相位摘要（Mythos/Action…）；无则 ""
 }
 
 Focus = {
   window:                 String,   -- PlayerWindow 名或 ""
   controller_id:          String,
-  open_must_ask_id:       String,   -- 无则 ""
-  initiation_pool_ids:    Array<String>,
-  response_pool_ids:      Array<String>
+  open_must_ask_id:       String,   -- 无则 ""；≠ open_choice
+  initiation_pool_ids:    Array<String>,  -- InitiationPool 粘性成员（16）
+  response_pool_ids:      Array<String>   -- ResponsePool 粘性成员（16）
 }
 
 Frame = {
@@ -608,11 +610,27 @@ SkillTest = {
 | 键 | 类型 | 说明 |
 |---|---|---|
 | `stack` | `Array<Frame>` | 手续栈；末元素为顶 |
-| `open_choice` | `ChoiceState \| null` | 当前 NeedAsk |
+| `open_choice` | `ChoiceState \| null` | 效果体内 **有限期确认**（PI）；与 Focus.must 正交 |
 | `skill_tests` | `Array<SkillTest>` | 检定栈 |
-| `memory` | `Map<String, Map<String, String>>` | 步间指称 |
-| `focus` | `Focus` | 枚举宇宙用 |
-| `timing_phase` | `String` | 信封相位摘要 |
+| `memory` | `Map<String, Map<String, String>>` | 步间指称（含险境 frame id 等）；**不**另开 encounter_frames 袋 |
+| `focus` | `Focus` | Φ 宇宙焦点（[35](35-legal-interest.md)） |
+| `timing_phase` | `String` | 信封相位摘要；**不是** Frame 内 ST/RESOLVE 微步 |
+
+#### Focus / Run 精简边界
+
+| 保留 | 理由 |
+|---|---|
+| `focus.window` / `controller_id` / `open_must_ask_id` | 换宇宙键；`stepFocus` 触发 Φ 重建 |
+| `initiation_pool_ids` / `response_pool_ids` | **粘性池**权威成员（16）；非 auth 派生缓存，属 Run |
+| `open_choice` | 中途 Ask；可与 must 并存但语义不同 |
+| `timing_phase` | 存档级信封相位；微步只在 `stack[].step_index` |
+
+| 不进 Run | 落点 |
+|---|---|
+| `memory.cancelled_keys` / `encounter_frames` 专用袋（24 旧） | `memory` 扁平键 或 Gate/Frame.env |
+| Frame.`phase`（Would/When/…） | 由 `flow_id`+`step_index` / Catalog 步表表达；勿与 `timing_phase` 双写 |
+| 完整 `cont: Eff` 树常驻 | `cont_after` 句柄；树在 Catalog / 续算外置 |
+| 池的可行性答案 | `derived.feasibility`（禁止派生喂派生） |
 
 ---
 
@@ -741,3 +759,4 @@ Snapshot {
 | 2026-11-25 | v0.26：废 `AdjustToken`→`TransferToken`+`$supply`（对齐 07 Transfer-only）；`DirectivePayload` 按 kind 分型收瘦 |
 | 2026-11-25 | v0.27：`GatePayload` 按 kind 分型 + `GateScope`（subject｜peril）；24 W2 对齐 auth 扁平物理 |
 | 2026-11-25 | v0.28：Framework 钉五字段精简集（排除 deck/threshold/phase）；ModifierPayload **明确不分型** |
+| 2026-11-25 | v0.29：Run/Focus 精简边界；Listener 不分型；StatusPayload 单变体 `engagement`；24 Run 对齐 |

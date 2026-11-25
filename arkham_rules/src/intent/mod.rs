@@ -475,6 +475,49 @@ mod tests {
     }
 
     #[test]
+    fn status_payload_is_engagement_variant() {
+        let s = crate::world::StatusPayload::engagement("E", "I");
+        match &s {
+            crate::world::StatusPayload::Engagement {
+                subject_id,
+                drawer_id,
+            } => {
+                assert_eq!(subject_id, "E");
+                assert_eq!(drawer_id, "I");
+            }
+        }
+        let v = serde_json::to_value(&s).unwrap();
+        assert_eq!(v["kind"], "engagement");
+        assert!(v.get("kind").is_some());
+    }
+
+    #[test]
+    fn listener_payload_stays_homogeneous() {
+        let listener = crate::world::ListenerPayload {
+            timing: "after_evade".into(),
+            composition: "comp_draw_1".into(),
+        };
+        let payload = crate::world::RegistrationPayload::Listener { listener };
+        assert_eq!(payload.kind(), crate::world::RegistrationKind::Listener);
+    }
+
+    #[test]
+    fn focus_keeps_sticky_pools() {
+        let focus = crate::world::Focus {
+            window: "player_window".into(),
+            controller_id: "I".into(),
+            open_must_ask_id: String::new(),
+            initiation_pool_ids: vec!["play:C1".into()],
+            response_pool_ids: vec!["react:r9".into()],
+        };
+        let v = serde_json::to_value(&focus).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 5);
+        assert!(obj.contains_key("initiation_pool_ids"));
+        assert!(obj.contains_key("response_pool_ids"));
+    }
+
+    #[test]
     fn framework_is_slim_five_fields() {
         let fw = crate::world::Framework {
             round: 1,

@@ -337,6 +337,7 @@ pub struct AssignConstraintBody {
     pub assign_if_able: bool,
 }
 
+/// Homogeneous listener body — timing + composition handle; **not** split by kind.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ListenerPayload {
     pub timing: String,
@@ -344,17 +345,22 @@ pub struct ListenerPayload {
     pub composition: String,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct StatusPayload {
-    pub kind: String,
-    pub subject_id: String,
-    pub drawer_id: String,
+/// Status assertions — single variant today (`engagement`); add variants when a
+/// second StatusKind appears (do not flatten unused fields).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StatusPayload {
+    Engagement {
+        /// Enemy card id.
+        subject_id: String,
+        /// Investigator card id.
+        drawer_id: String,
+    },
 }
 
 impl StatusPayload {
     pub fn engagement(enemy_id: impl Into<String>, investigator_id: impl Into<String>) -> Self {
-        Self {
-            kind: "engagement".into(),
+        Self::Engagement {
             subject_id: enemy_id.into(),
             drawer_id: investigator_id.into(),
         }
@@ -458,10 +464,13 @@ pub struct LegalAnswer {
     pub effect_ok: bool,
 }
 
+/// Φ universe focus (35). Pool id lists are sticky InitiationPool / ResponsePool
+/// members (16) — Run authority, not derived feasibility answers.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Focus {
     pub window: String,
     pub controller_id: String,
+    /// Must-resolve gate id; orthogonal to `Run.open_choice`.
     pub open_must_ask_id: String,
     pub initiation_pool_ids: Vec<String>,
     pub response_pool_ids: Vec<String>,

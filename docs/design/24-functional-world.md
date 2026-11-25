@@ -1,6 +1,6 @@
 # 24 — 函数式 `World` 值模型（草案）
 
-> **状态**：设计草案 v0.3 · 2026-11-25  
+> **状态**：设计草案 v0.4 · 2026-11-25  
 > **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-payload-model](06-registration-payload-model.md)、[17-seq-runtime](17-seq-runtime.md)  
 > **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影（本文只定 **局面值**）  
 > **键名与类型总表（权威形状）**：[37-world-structure](37-world-structure.md) — 若本文与 37 冲突，**以 37 为准**。  
@@ -202,32 +202,25 @@ Framework = {
 
 ---
 
-## 8. `Run` — 执行游标（不进存档局面时可丢）
+## 8. `Run` — 执行游标（对齐 37 §3）
+
+权威形状见 [37 §3](37-world-structure.md)。摘要：
 
 ```text
-Frame = {
-  flow_id,           -- seq.*
-  phase,             -- Would | When | Resolve | After…
-  bind: Env,         -- card_id / controller / params
-  cont: Eff,         -- 剩余效果树（值）
-  cancelled: Bool
-}
-
 Run = {
-  stack: [Frame],
-  skill_tests: [SkillTestValue],
-  memory: {
-    referents: Map Controller → Map Key → Value,
-    cancelled_keys: Set SequenceBindKey,
-    encounter_frames: [EncounterFrameValue]
-  },
-  open_choice: ChoiceRequest | None
+  stack,           -- Frame[]：flow_id / env / step_index / cancelled / created / cont_after
+  open_choice,     -- ChoiceState | null（效果体内有限期确认）
+  skill_tests,
+  memory,          -- controller → (key → value)；扁平，无 encounter_frames 专用袋
+  focus,           -- window / controller / must / InitiationPool ids / ResponsePool ids
+  timing_phase     -- 信封相位摘要（≠ Frame 微步）
 }
 ```
 
-- **Ask / PI**：解释到 `Ask` ⇒ 返回 `NeedChoice(req, World, Run)`；驱动填答后纯续跑。  
-- **Cancel**：置帧 `cancelled` 或对 `cont` 做纯剪枝（共享 Cancel 手续仍可 nest 为 `Eff`）。  
-- 存档策略：可序列化 `World`；`Run` 可选（断点续算）或只存「玩家窗空闲」快照。
+- **Ask / PI**：解释到 `Ask` ⇒ `NeedAsk`；驱动填答后纯续跑。  
+- **Cancel**：置帧 `cancelled` 或剪枝 `cont_after`（共享 Cancel 仍可 nest）。  
+- **Focus 池 ids**：粘性池权威成员（[16](16-player-interaction.md)），属 Run 而非 derived。  
+- 存档：可序列化 auth；`Run` 可选（断点续算）或只存「玩家窗空闲」快照。
 
 ---
 
@@ -290,3 +283,4 @@ commit: World × Intent[] → World   -- 唯一写入口
 | 2026-11-23 | v0.1 初稿：World/Run 分立、physical/regs/chronicle/audience/framework/entropy、Intent 唯一写 |
 | 2026-11-25 | v0.2：对齐 37 — Auth 扁平（无 `physical`/`entropy` 袋）；W2 改写；Intent/混乱袋指向 37 |
 | 2026-11-25 | v0.3：Framework 收成 37 五字段；剔除 deck/threshold/phase 等 |
+| 2026-11-25 | v0.4：Run/Focus 对齐 37；去掉 memory 专用袋 / Frame.phase 旧形 |

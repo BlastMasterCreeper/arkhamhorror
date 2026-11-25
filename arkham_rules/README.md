@@ -10,7 +10,8 @@ Functional rules kernel (Rust). Shape follows [`docs/design/37-world-structure.m
 - `RegistrationPayload` ×5; engagement = `status`
 - `LimitStore`: `limit_key` + `occupancies` (not `slot_id` / asset-slot confusion)
 - `commit(Intent[])`: `TransferToken`（`$supply` 无穷池）/ card / reg / exhaust / seat — **无** `AdjustToken`
-- `DirectivePayload` / `GatePayload` 按 kind 分型（Gate 含 `GateScope` subject｜peril）
+- `DirectivePayload` / `GatePayload` 按 kind 分型；`StatusPayload::Engagement` 单变体；Listener/Modifier 同质不分型
+- Run `Focus` 含粘性 Initiation/Response 池 ids（非 derived）
 - **Eff** subset: `Do` / `Empty` / `Pass` / `Seq` / `If` / `Nest` / `Ask` + `plan` / `step` / `answer`
 - Sample flow: `seq.draw.investigator` body = `MoveCard` deck→hand
 
