@@ -475,6 +475,38 @@ mod tests {
     }
 
     #[test]
+    fn framework_is_slim_five_fields() {
+        let fw = crate::world::Framework {
+            round: 1,
+            lead_investigator_id: "I".into(),
+            active_investigator_id: "I".into(),
+            current_act_id: "act1".into(),
+            current_agenda_id: "ag1".into(),
+        };
+        // Serialize round-trip keeps only the slim set (no deck/phase/threshold keys).
+        let v = serde_json::to_value(&fw).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 5);
+        assert!(obj.contains_key("round"));
+        assert!(!obj.contains_key("phase_id"));
+        assert!(!obj.contains_key("doom_threshold"));
+    }
+
+    #[test]
+    fn modifier_payload_stays_homogeneous() {
+        let m = crate::world::ModifierPayload {
+            stat: "combat".into(),
+            op: "add".into(),
+            value: 1,
+            condition: String::new(),
+            plan_kind: "none".into(),
+            apply_mode: "scalar".into(),
+        };
+        let payload = crate::world::RegistrationPayload::Modifier { modifier: m };
+        assert_eq!(payload.kind(), crate::world::RegistrationKind::Modifier);
+    }
+
+    #[test]
     fn gate_payload_typed_by_kind() {
         use crate::world::{GatePayload, GateScope, RegistrationPayload};
         let peril = GatePayload::ForbidPlay {

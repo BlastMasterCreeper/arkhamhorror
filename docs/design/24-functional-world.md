@@ -1,6 +1,6 @@
 # 24 — 函数式 `World` 值模型（草案）
 
-> **状态**：设计草案 v0.2 · 2026-11-25  
+> **状态**：设计草案 v0.3 · 2026-11-25  
 > **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-payload-model](06-registration-payload-model.md)、[17-seq-runtime](17-seq-runtime.md)  
 > **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影（本文只定 **局面值**）  
 > **键名与类型总表（权威形状）**：[37-world-structure](37-world-structure.md) — 若本文与 37 冲突，**以 37 为准**。  
@@ -166,25 +166,27 @@ Audience = Map EntityId → FaceAudience   -- HIDDEN_ALL | CONTROLLER | ALL
 
 ---
 
-## 6. `framework` — 局面级游标
+## 6. `framework` — 局面级游标（精简 · 对齐 37）
 
-只放**存档仍有意义**的框架字段：
+只放**存档仍有意义**且非区/Catalog/Run 的指针。权威形状见 [37 §1.4](37-world-structure.md)：
 
 ```text
-FrameworkSlice = {
-  round_number,
-  lead_investigator_id,
-  active_investigator_id,   -- 若规则「谁的回合」属局面
-  current_act_id,
-  current_agenda_id,
-  act_deck, agenda_deck,    -- 或 region 引用
-  scenario_reference_id,
-  doom_threshold?,          -- 或读自当前密谋 definition
-  phase_id?,                -- Mythos/Action/… 若存档需要
+Framework = {
+  round:                   Int,
+  lead_investigator_id:    String,
+  active_investigator_id:  String,
+  current_act_id:          String,
+  current_agenda_id:       String
 }
 ```
 
-**不放**：当前 Framework 步内的临时「正在结算 1.4 第几张」——属 `Run.stack` 帧参数。
+| 早期草案字段 | 现落点 |
+|---|---|
+| `act_deck` / `agenda_deck` | `auth.regions` |
+| `doom_threshold` | Catalog（密谋 definition） |
+| `scenario_reference_id` | 冒险装载 / Catalog（不塞 Framework） |
+| `phase_id` | `run.timing_phase` |
+| 手续内「正在结算第几张」 | `Run.stack` 帧参数 |
 
 ---
 
@@ -287,3 +289,4 @@ commit: World × Intent[] → World   -- 唯一写入口
 |---|---|
 | 2026-11-23 | v0.1 初稿：World/Run 分立、physical/regs/chronicle/audience/framework/entropy、Intent 唯一写 |
 | 2026-11-25 | v0.2：对齐 37 — Auth 扁平（无 `physical`/`entropy` 袋）；W2 改写；Intent/混乱袋指向 37 |
+| 2026-11-25 | v0.3：Framework 收成 37 五字段；剔除 deck/threshold/phase 等 |

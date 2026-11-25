@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.27 · 2026-11-25  
+> **状态**：设计草案 v0.28 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
@@ -311,16 +311,23 @@ Deps / 索引的 **aspect** 由 body **派生**（如 `modifier.stat`、`gate.ki
 
 #### `ModifierPayload`
 
+**不分型**：域 A/B/C 与 SCALAR / CONSUME 共用**同一**载荷形（[06 §6](06-registration-payload-model.md)）。异质靠 `apply_mode` / `plan_kind` / `stat` 判别，**不要**仿 Gate/Directive 拆成多种 payload 变体。
+
 ```text
 ModifierPayload = {
-  stat:       String,    -- StatRef：willpower / combat / …
+  stat:       String,    -- value_key / StatRef：willpower / combat / shroud / …
   op:         String,    -- "add" | "set" | …
   value:      Int,
   condition:  String,    -- 条件 id；无则 ""
-  plan_kind:  String,    -- ModifierPlanKind；无计划则 "none"
-  apply_mode: String     -- "scalar" | …
+  plan_kind:  String,    -- "none" | "attack_damage" | "discover" | …
+  apply_mode: String     -- "scalar" | "consume_choose_one_leg" | …
 }
 ```
+
+| 何时读哪些键 | |
+|---|---|
+| `apply_mode = scalar` | `stat`/`op`/`value` 进 `compute`；`plan_kind` 应为 `"none"`（或忽略） |
+| `apply_mode = consume_…` | `plan_kind` 选 AmountPlan；无名 +N 改已定效果量 |
 
 #### `GatePayload`（拦 Intent / 合法性 · cannot）
 
@@ -414,6 +421,16 @@ Framework = {
   current_agenda_id:       String
 }
 ```
+
+**精简集**：只保留存档仍有意义、且**不是**区成员 / Catalog / Run 游标的局面级指针。
+
+| 不进 Framework | 落点 | 理由 |
+|---|---|---|
+| `act_deck` / `agenda_deck` | `regions`（公共牌库） | 区/序原语，勿在框架再存一份 |
+| `doom_threshold` | Catalog（当前密谋 definition） | 印刷规格外置 |
+| `scenario_reference_id` | 冒险装载 / Catalog 绑定 | 非回合游标；需要时另字段，不塞 Framework |
+| `phase_id`（Mythos/Action…） | `run.timing_phase` | 执行信封相位；手续内临时步更在 `Run.stack` |
+| 席位行动 / eliminated | `seats` | 已离 Card，也不进 Framework |
 
 混乱与其它 token 的 `stack_key`：见 §1.2.1。
 
@@ -723,3 +740,4 @@ Snapshot {
 | 2026-11-25 | v0.25：Seat 补 `actions_penalty_next_turn`；LimitStore `slot_id`/`max_slots`→`limit_key`/`occupancies`（slot 留给资产槽）；例中混乱键统一 `numeric_0` |
 | 2026-11-25 | v0.26：废 `AdjustToken`→`TransferToken`+`$supply`（对齐 07 Transfer-only）；`DirectivePayload` 按 kind 分型收瘦 |
 | 2026-11-25 | v0.27：`GatePayload` 按 kind 分型 + `GateScope`（subject｜peril）；24 W2 对齐 auth 扁平物理 |
+| 2026-11-25 | v0.28：Framework 钉五字段精简集（排除 deck/threshold/phase）；ModifierPayload **明确不分型** |

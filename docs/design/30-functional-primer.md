@@ -197,7 +197,11 @@ Registration 载荷 = 按 kind 分型（五选一 body；详 37 §1.3.1）
 }
 ```
 
+（仅此五字段；牌库在区、毁灭阈值在目录、阶段名在 `run.timing_phase`——见 37 §1.4。）
+
 混乱符号是区 `chaos` 上的 `token_stacks`（类型键 + 数量），不是独立标记个体表。限额见 37 §1.5 `LimitStore`。
+
+登记 modifier 载荷**不分型**：同一 `ModifierPayload`，靠 `apply_mode` / `plan_kind` 区分用法。
 
 #### 一份最小构造
 

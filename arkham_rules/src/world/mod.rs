@@ -228,6 +228,8 @@ impl RegistrationPayload {
     }
 }
 
+/// Homogeneous modifier body (06 §6) — **not** split by kind; discriminate via
+/// `apply_mode` / `plan_kind` / `stat`.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ModifierPayload {
     pub stat: String,
@@ -392,6 +394,8 @@ pub enum Audience {
     All,
 }
 
+/// Slim framework cursors only (37 §1.4). Decks → regions; phase → run.timing_phase;
+/// doom threshold / scenario reference → Catalog — not fields here.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Framework {
     pub round: i32,
