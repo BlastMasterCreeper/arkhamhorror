@@ -4,7 +4,8 @@
 > **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-payload-model](06-registration-payload-model.md)、[17-seq-runtime](17-seq-runtime.md)  
 > **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影  
 > **键名与类型总表（权威形状）**：[37-world-structure](37-world-structure.md) — 若本文与 37 冲突，**以 37 为准**。  
-> **口径**：**世界 = 窄物理**；权威伴件 = World × Facts × Constraints；CREATED = 写入伴件（Audience 除外）。
+> **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`）。  
+> **口径**：Data = 函数世界；`auth.world`/`facts`/`constraints` 是 Data 分区；Control=`Run`；CREATED = 改 Data（Audience 可除外）。
 
 ---
 
@@ -12,12 +13,12 @@
 
 | 目标 | 非目标 |
 |---|---|
-| 定 **Snapshot** 分层：窄 World / Facts / Constraints / Run | 重写 Godot / 换语言 |
-| 物理三类只落在 `auth.world` | 把 lasting/cannot 再塞回「世界」一词 |
-| 明确伴件与运作叠层 vs 执行游标 | 用 lens 宗教替代 Cancel/Instead |
+| 定 **Snapshot** = Data × Control × Derived | 重写 Godot / 换语言 |
+| Data 内按代数角色分区（物理只是一类 sort） | 把「世界」说成只有桌上物理 |
+| 明确 Data vs Run vs Catalog | 用 lens 宗教替代 Cancel/Instead |
 | 为 dry-run / 重放提供稳定自变量 | 每步深拷贝整桌当性能方案 |
 
-**一句话**：`World` = 窄物理局面；`Facts`/`Constraints` = 权威伴件；`Run` = 手续游标。内核吃伴件闭包，写出 `Snapshot'` 或 `NeedChoice`。
+**一句话**：函数世界 = **Data**；Run = 控制；Catalog 外置。详见 [38](38-functional-data-world.md)。
 ---
 
 ## 1. 总结构
@@ -260,3 +261,4 @@ commit: Snapshot × Intent[] → Snapshot   -- 唯一写入口；可触 World/Fa
 | 2026-11-25 | v0.3：Framework 收成 37 五字段；剔除 deck/threshold/phase 等 |
 | 2026-11-25 | v0.4：Run/Focus 对齐 37；去掉 memory 专用袋 / Frame.phase 旧形 |
 | 2026-11-25 | v0.5：统一口径 — 窄 World；Facts×Constraints；改 W1–W7；废「Registration 在 World」 |
+| 2026-11-25 | v0.6：对齐 38 — 函数世界=Data；分区表语义；指针改 38 |
