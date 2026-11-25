@@ -532,9 +532,17 @@ impl Snapshot {
             .unwrap_or(0)
     }
 
-    /// Investigator (or any host) resource count — former `resource_pool` scalar.
-    pub fn resources_of(&self, card_id: &str) -> i32 {
-        self.token_on_card(card_id, "resource")
+    /// Investigator resource-pool count — independent `place=resource_pool` region
+    /// (not the investigator card's `tokens` place; former Godot `resource_pool` scalar).
+    pub fn resources_of(&self, investigator_id: &str) -> i32 {
+        self.region_for_place(investigator_id, "resource_pool")
+            .and_then(|r| r.token_stacks.get("resource").copied())
+            .unwrap_or(0)
+    }
+
+    /// Region id of an investigator's resource pool, if present.
+    pub fn resource_pool_region_id(&self, investigator_id: &str) -> Option<&RegionId> {
+        self.region_id_for_place(investigator_id, "resource_pool")
     }
 
     /// Location card whose `on` region contains `card_id`.

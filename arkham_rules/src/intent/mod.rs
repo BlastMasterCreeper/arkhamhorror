@@ -313,12 +313,22 @@ mod tests {
 
         let mut regions = BTreeMap::new();
         regions.insert(
+            "pool_I".into(),
+            Region {
+                id: "pool_I".into(),
+                place: "resource_pool".into(),
+                host_card_id: "I".into(),
+                token_stacks: BTreeMap::from([("resource".into(), 5)]),
+                ..Region::default()
+            },
+        );
+        regions.insert(
             "tok_I".into(),
             Region {
                 id: "tok_I".into(),
                 place: "tokens".into(),
                 host_card_id: "I".into(),
-                token_stacks: BTreeMap::from([("resource".into(), 5)]),
+                token_stacks: BTreeMap::new(),
                 ..Region::default()
             },
         );
@@ -413,29 +423,32 @@ mod tests {
     }
 
     #[test]
-    fn resource_pool_is_host_token_stack_not_seat() {
+    fn resource_pool_is_independent_region_not_card_tokens() {
         let s0 = mini_snap();
         assert_eq!(s0.resources_of("I"), 5);
-        // Seat carries actions/outcome only — not resources.
+        assert_eq!(s0.resource_pool_region_id("I"), Some(&"pool_I".to_string()));
+        // Not on investigator card tokens; Seat has no resource field.
+        assert_eq!(s0.token_on_card("I", "resource"), 0);
         assert_eq!(s0.auth.seats["I"].actions_remaining, 3);
         let s1 = commit(
             s0,
             &[Intent::TransferToken {
                 token_type: "resource".into(),
                 amount: 2,
-                from_region: "tok_I".into(),
+                from_region: "pool_I".into(),
                 to_region: TOKEN_SUPPLY.into(),
             }],
         )
         .unwrap();
         assert_eq!(s1.resources_of("I"), 3);
+        assert_eq!(s1.token_on_card("I", "resource"), 0);
         assert_eq!(s1.auth.seats["I"].actions_remaining, 3);
     }
 
     #[test]
     fn place_damage_from_supply() {
         let s0 = mini_snap();
-        assert_eq!(s0.token_on_card("I", "resource"), 5);
+        assert_eq!(s0.resources_of("I"), 5);
         let s1 = commit(
             s0,
             &[Intent::TransferToken {
@@ -447,6 +460,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(s1.token_on_card("I", "damage"), 1);
+        assert_eq!(s1.resources_of("I"), 5);
         assert_eq!(s1.gen, 2);
     }
 

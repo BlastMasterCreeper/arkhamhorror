@@ -131,14 +131,16 @@ Seat = {
 
 #### 推荐放置名（`Region.place`）
 
-按 **放置面角色** 开区，不按 token 种类开。伤/恐/线索/毁灭/资源/充能/封印混乱… 同进宿主 `tokens` 的 `token_stacks`，靠堆键区分。
+按 **放置面角色** 开区，不按 token 种类开。伤/恐/线索/毁灭/充能/封印混乱… 同进宿主 `tokens` 的 `token_stacks`，靠堆键区分。  
+**例外**：每位调查员的 **资源池** 是独立 `place=resource_pool` 区——**不**写进调查员卡的 `tokens`（纸面资源不放在调查员卡牌身上）。
 
 **`place` ≠ 规则资产槽（slot）**：Hand/Ally/Arcane/Body… 是进场占用约束，另模；不要写成 `Region.place`。
 
 | place | 谁有 | 区内存什么 |
 |---|---|---|
 | `hand` / `deck` / `discard` / `play` / `threat` | investigator | 卡 |
-| `tokens` | 会承 token 的卡 | **该宿主上全部** token 堆（伤/恐/线索/毁灭/资源/充能/**封印的混乱符号**…） |
+| `resource_pool` | investigator（每位一条） | **该调查员的资源池**：`token_stacks["resource"]`；**不是**卡上 token |
+| `tokens` | 会承 token 的卡 | **该宿主卡上** token 堆（伤/恐/线索/毁灭/充能/**封印的混乱符号**/卡上放置的 resource…） |
 | `on` | location | **物理放在该地点上的**调查员/敌人卡 id（放置，非绑定） |
 | `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
 | `chaos` | 冒险公共 | 混乱袋（堆） |
@@ -148,31 +150,35 @@ Seat = {
 **不要**开 `sealed` / `augury` 专用放置面：封印在卡上的混乱与伤/线索同质——都是宿主 `tokens` 里的 `token_stacks` 键；检定揭示若需桌上堆，只用一个公共 `revealed`（术语「占兆」可作该区 **id**，不必新 place）。  
 **不要**开 `token_supply` 区：运算端点 `$supply` 即可。
 
-读「某卡上有多少资源 / 封印了几个 skull」= 该宿主 `place=tokens` 区的 `token_stacks[…]`。  
-读「伤」同区——**不要**再开 `damage`/`horror`/`resource`/`sealed` 放置面。  
+读「调查员资源池有多少」= 该调查员 `place=resource_pool` 区的 `token_stacks["resource"]`（**不是** `tokens`）。  
+读「某卡上有多少伤 / 封印了几个 skull / 卡上放了几个 resource」= 该宿主 `place=tokens` 区的 `token_stacks[…]`。  
+读「伤」同区——**不要**再开 `damage`/`horror`/`sealed` 放置面；资源池单独用 `resource_pool`。  
 读「调查员物理在哪」= 哪个地点的 **`on`** 区的 `card_ids` 含该 id（派生索引可加速）。  
 **禁止**用 `at` 作地点放置名：`at` 留给绑定关系；`on` 才是物理放置。  
 「交战」= **登记载荷** `STATUS`/`ENGAGEMENT`，不进 Card 字段、不进 `on`。
 
-#### 资源池（resource pool）——**未漏**；勿另建模
+#### 资源池（resource pool）——独立区；唯一源
 
 旧 Godot `InvestigatorState.resource_pool` / 07 `MarkerSlot.RESOURCE` 在本结构中的落点：
 
 | 口语 | 权威落点 | 不是 |
 |---|---|---|
-| 调查员身上的资源 | 该调查员卡 `place=tokens` 区的 `token_stacks["resource"]` | **不是** `Seat` 字段；**不是** Card 标量；**不是**独立 `resource_pool` 区 |
+| 调查员的资源池 | **独立** `Region`：`host_card_id=调查员` · `place=resource_pool` · `token_stacks["resource"]` | **不是**调查员卡 `tokens`；**不是** `Seat` 字段；**不是** Card 标量 |
 | 盒中无穷供应（gain/spend 的池端） | Intent 端点 `$supply`（`TOKEN_SUPPLY`） | **不**在 Snapshot 里存库存计数 |
-| 地点上的线索等 | 地点宿主同形 `tokens` 堆 | 同理勿开 `clues_on_location` 字段 |
+| 卡上放置的 resource（支援 uses 等） | 该宿主卡 `place=tokens` 的 `token_stacks["resource"]` | 与资源池分源；勿混读 |
+| 地点上的线索等 | 地点宿主 `tokens` 堆 | 同理勿开 `clues_on_location` 字段 |
+
+`host_card_id` 只表示 **归属**（与 `hand`/`deck` 同形），**不**表示「token 放在调查员卡面上」。每位调查员恰好一条 `resource_pool` 区（例 id `pool_I`）。
 
 读写例：
 
 ```text
-读：  regions[host=I, place=tokens].token_stacks["resource"]
-得：  TransferToken { type:"resource", n, from:"$supply", to: tok_I }
-花：  TransferToken { type:"resource", n, from: tok_I, to:"$supply" }
+读：  regions[host=I, place=resource_pool].token_stacks["resource"]
+得：  TransferToken { type:"resource", n, from:"$supply", to: pool_I }
+花：  TransferToken { type:"resource", n, from: pool_I, to:"$supply" }
 ```
 
-对齐 [07 §5.2](07-effect-primitives.md) Transfer-only：`POOL_RESOURCE → inv` / 回池。
+对齐 [07 §5.2](07-effect-primitives.md) Transfer-only：`POOL_RESOURCE → inv.RESOURCE` / 回池；FP 里 `inv.RESOURCE` = 该席的 `resource_pool` 区，而非卡上 `tokens`。
 
 ---
 
@@ -245,7 +251,7 @@ TokenTypeStatic = {
 ```text
 chaos.token_stacks["skull"] = 2
 -- 揭示：Transfer chaos → revealed（或规则指定宿主）
--- 封印：Transfer → 宿主 tokens（与放置 resource 同形）
+-- 封印：Transfer → 宿主 tokens（与放置伤/线索同形；≠ 资源池区）
 -- 翻面：FlipToken / flip seq（查 dual_of）
 ```
 
@@ -776,8 +782,10 @@ Snapshot {
     }
     regions: {
       "hand_I":  { host_card_id:"I", place:"hand", card_ids:[], token_stacks:{}, … }
+      "pool_I":  { host_card_id:"I", place:"resource_pool", card_ids:[],
+                   token_stacks:{ "resource":5 }, … }
       "tok_I":   { host_card_id:"I", place:"tokens", card_ids:[],
-                   token_stacks:{ "resource":5, "damage":0, "horror":0 }, … }
+                   token_stacks:{ "damage":0, "horror":0 }, … }
       "on_L":    { host_card_id:"L", place:"on", card_ids:["I"], token_stacks:{}, … }
       "tok_L":   { host_card_id:"L", place:"tokens", card_ids:[], token_stacks:{ "clue":1 }, … }
       "chaos":   { host_card_id:"", place:"chaos", shape:"bag",
@@ -829,3 +837,4 @@ Snapshot {
 | 2026-11-25 | v0.30：ChoiceState 对齐 Ask；SkillTest+`st_step`；Key 封闭代数对拍 35（RegionStack/Seat/RunST） |
 | 2026-11-25 | v0.31：无冗余 — 废 Card.owned_regions/Seat.investigator_id；封印并入宿主 tokens；去掉 sealed/augury/token_supply 放置名 |
 | 2026-11-25 | v0.32：标明 resource pool = 宿主 `tokens` 的 `resource` 堆 + `$supply`；非 Seat/独立区 |
+| 2026-11-25 | v0.33：纠正 — 资源池 = 独立 `place=resource_pool` 区（非调查员卡 `tokens`）；卡上 resource 仍走 `tokens` |

@@ -128,7 +128,7 @@ auth = {
 
 `card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
 
-**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/资源/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。口语「资源池」= 该堆的 `resource` 键 + 盒端 `$supply`，**不是**席位字段、也不是独立区。物理所在地点 = 某地点 `on` 区的成员。交战 = 登记 `status/engagement`。
+**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。每位调查员的 **资源池** 是独立 `place=resource_pool` 区（`token_stacks["resource"]` + 盒端 `$supply`）——**不**放在调查员卡 `tokens` 上，也 **不是**席位字段。物理所在地点 = 某地点 `on` 区的成员。交战 = 登记 `status/engagement`。
 
 地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
 
@@ -224,8 +224,10 @@ World {
                 card_ids:["C1"], token_stacks:{}, limbo_kind:"" }
     "hand_I": { id:"hand_I", shape:"flat", host_card_id:"I", place:"hand",
                 card_ids:[], token_stacks:{} }
-    "tok_I":  { id:"tok_I", place:"tokens", host_card_id:"I",
+    "pool_I": { id:"pool_I", place:"resource_pool", host_card_id:"I",
                 card_ids:[], token_stacks:{ "resource":5 } }
+    "tok_I":  { id:"tok_I", place:"tokens", host_card_id:"I",
+                card_ids:[], token_stacks:{ "damage":0, "horror":0 } }
     "on_L":   { id:"on_L", place:"on", host_card_id:"L", card_ids:["I"], token_stacks:{} }
     "tok_L":  { id:"tok_L", place:"tokens", host_card_id:"L",
                 token_stacks:{ "clue":1 } }
