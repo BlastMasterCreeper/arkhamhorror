@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.32 · 2026-11-25  
+> **状态**：设计草案 v0.34 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
@@ -12,65 +12,69 @@
 
 ## 0. 总形
 
-函数运算空间是整份快照，不是「只有物理」：
+**「世界」= 窄物理**；权威伴件 = **World × Facts × Constraints**（Audience 旁路；Run/Catalog 在闭包外）。
 
 ```text
 Snapshot = {
-  auth:     Auth,      -- 权威：commit 只写这里（Audience 写入但不计 CREATED）
+  auth:     Auth,      -- World × Facts × Constraints (+ Audience)
   derived:  Derived,   -- 派生：可重建；transit 末尾刷新
-  run:      Run,       -- 进度：step/answer/bind
-  gen:      Int,       -- 快照代数；每次权威或焦点性 progress 变更 +1
+  run:      Run,       -- 进度：step/answer/bind；可含临时 as-if 叠镜
+  gen:      Int
+}
+
+Auth = {
+  world:         World,         -- 窄世界：物理 + 框架钟
+  facts:         Facts,         -- 断言关系 · Gain · Chronicle
+  constraints:   Constraints,   -- 运作叠层（Policy）
+  audience:      Map<CardId, Audience>,  -- 权限旁路；不计 CREATED
+  next_id:       Int
 }
 ```
 
-`Catalog` **外置**，不进 `Snapshot`。印刷数字按 `definition_id` 查。
+`Catalog` **外置**。内核闭包：`World × Facts × Constraints × Run × Catalog`（Audience 可读；写 Audience ≠ CREATED）。
 
-| 分类 | 判据 | 丢了 |
+| 袋 | 判据 | 丢了 |
 |---|---|---|
-| **auth** | 桌上事实；重放 Intent 要还原 | 局面坏 |
-| **derived** | 由 auth(+run.focus) 唯一可算 | 可 rebuild |
+| **world** | 看得见的桌上实体与席位/框架钟 | 物理局面坏 |
+| **facts** | 非物理但「为真」的断言 | 交战/拥有/记住丢 |
+| **constraints** | 改写 query/legal/plan/原流程的态射 | lasting/cannot/延时丢 |
+| **audience** | 谁可见哪面 | 权限坏；**非**结算 |
+| **derived** | 由伴件(+run.focus) 可重建 | 可 rebuild |
 | **run** | 手续游标与步间指称 | 手续结束可清 |
 
-口语「世界值」= `Snapshot`。
+**CREATED**（发起有效性 / L7）= dry-run 时成功写入 **World ∨ Facts ∨ Constraints ∨ Chronicle** 任一层；**Audience 除外**。纯挂 lasting/cannot/延时 = `ConstraintInsert` 成功 → 已 CREATED。  
+口诀：旧「放进世界才算生效」→ **「写入权威伴件即算生效」**。
+
+口语「快照」= `Snapshot`；口语「世界」**仅** `auth.world`（窄物理）。
 
 ---
 
-## 1. `auth` — 权威
+## 1. `auth.world` — 窄世界（物理）
 
 ```text
-Auth = {
+World = {
   cards:          Map<CardId, Card>,
   regions:        Map<RegionId, Region>,
-  seats:          Map<CardId, Seat>,   -- 调查员席位态；键=调查员卡 id
-  registrations:  Map<RegId, Registration>,
-  gains:          Map<GainId, GainedCharacteristic>,  -- Gain 特征；≠ payloads
-  chronicle:      Chronicle,
-  audience:       Map<CardId, Audience>,
-  limits:         LimitStore,
-  framework:      Framework,
-  next_id:        Int
+  seats:          Map<CardId, Seat>,   -- 调查员席位；键=调查员卡 id
+  framework:      Framework,           -- 必要框架钟
+  limits:         LimitStore           -- 次数/配额钟
 }
 ```
 
-| 键 | 类型 | 说明 |
-|---|---|---|
-| `cards` | `Map<String, Card>` | 卡实体脊骨（身份·控制·形态；放置只在 regions） |
-| `regions` | `Map<String, Region>` | **唯一放置面**：卡序 + **token 堆** |
-| `seats` | `Map<String, Seat>` | **调查员席位**：回合经济与退场/撤退；不进 Card |
-| `registrations` | `Map<String, Registration>` | 信息层（含交战等 STATUS） |
-| `gains` | `Map<String, GainedCharacteristic>` | Gain 特征（KEYWORD/TRAIT/ICON/ABILITY） |
-| `chronicle` | `Chronicle` | 日志∪记住 |
-| `audience` | `Map<String, Audience>` | 牌面可见档 |
-| `limits` | `LimitStore` | 次数/配额；见 §1.5 |
-| `framework` | `Framework` | 回合与场景/密谋游标 |
-| `next_id` | `Int` | 下一分配序号（卡/区/登记/席位相关） |
+| 键 | 说明 |
+|---|---|
+| `cards` | 卡脊骨（身份·控制·形态③）；放置只在 regions |
+| `regions` | **唯一放置面**：卡序① + token 堆② |
+| `seats` | 回合经济与退场/撤退 |
+| `framework` | round / 主·当前调查员 / 场景·密谋游标 |
+| `limits` | 次数与配额计数 |
 
-**不设** `auth.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
+**不设** `world.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
 
-**Token 本质**：只表示 **堆键 + 数量**；是放置的**终端**——其上不再放置卡、不再绑登记主体。即使桌上该类只有 1 枚，仍用 `token_stacks[key]=1`。双面件把当前面编进堆键，不另开个体。
+**Token 本质**：只表示 **堆键 + 数量**；是放置的**终端**。
 
-放置权威只在 **`regions`**（`host_card_id` + `place`）。**禁止**在 Card 再存一份 `owned_regions`（双源）。查询「某卡的 hand 区」= 扫 `regions` 中 `host_card_id=卡 ∧ place=hand`（派生索引可加速，属 `derived`）。  
-**禁止**用规则术语 **slot**（资产槽 Hand/Ally/Arcane…）给区命名。禁止 `Card.markers` / `location_id` / `engaged_with`。
+放置权威只在 **`world.regions`**（`host_card_id` + `place`）。**禁止** Card 再存 `owned_regions`。  
+**禁止**用规则术语 **slot** 给区命名。禁止 `Card.markers` / `location_id` / `engaged_with`。
 
 ---
 
@@ -155,7 +159,7 @@ Seat = {
 读「伤」同区——**不要**再开 `damage`/`horror`/`sealed` 放置面；资源池单独用 `resource_pool`。  
 读「调查员物理在哪」= 哪个地点的 **`on`** 区的 `card_ids` 含该 id（派生索引可加速）。  
 **禁止**用 `at` 作地点放置名：`at` 留给绑定关系；`on` 才是物理放置。  
-「交战」= **登记载荷** `STATUS`/`ENGAGEMENT`，不进 Card 字段、不进 `on`。
+「交战」= **Facts.Relation** `Engagement`，不进 Card 字段、不进 `on`；威胁区是 World 区成员。
 
 #### 资源池（resource pool）——独立区；唯一源
 
@@ -275,94 +279,99 @@ chaos.token_stacks["skull"] = 2
 
 ---
 
-### 1.3 `Registration`
-
-登记写入 **`payloads`（Registration 载荷）**。见 [06-registration-payload-model](06-registration-payload-model.md)。
+### 1.3 `Facts` — 断言伴件
 
 ```text
-Registration = {
-  id:              String,
-  source_card_id:  String,
-  subject:         Subject,
-  lifetime:        Lifetime,
-  bound_id:        String,
-  payloads:        Array<RegistrationPayload>
+Facts = {
+  relations:  Map<RelId, Relation>,
+  gains:      Map<GainId, GainedCharacteristic>,
+  chronicle:  Chronicle
+}
+
+InfoShell = {
+  id, source_card_id, subject, lifetime, bound_id
 }
 
 Subject =
   | { tag: "bound",    card_id: String }
   | { tag: "matching", filter_id: String, filter_args: Map<String, String> }
+
+Relation = { shell: InfoShell, body: RelationBody }
+
+RelationBody =
+  | { kind: "engagement", enemy_id, investigator_id }
 ```
 
-| 键 | 类型 | 说明 |
+**Lifetime**：`"while_in_play"` \| `"while_committed"` \| `"this_skill_test"` \| `"this_turn"` \| `"while_drawn_card_resolving"`
+
+控制者 = `world.cards[source_card_id].controller_id`（壳上不另存）。
+
+#### 交战（默认）
+
+| 情况 | 落点 |
+|---|---|
+| 真实交战 / lasting **视为交战** | `Facts.relations` · `Engagement`（CREATED） |
+| 威胁区成员 | `World.regions`（物理）；**不等于**交战 |
+| **庞大**虚拟交战 | **派生默认**：Massive∧未横置∧同地点 → 查询；**不**默认物化 Relation（**待裁 A**） |
+| 手续内临时 as if | **Run 叠镜**默认（**待裁 B**）；非存档 Fact |
+
+`is_engaged_with` 读 Relations；庞大虚拟另径。Fight 转嫁等仍按威胁区前提（08 §6.6）。
+
+**待裁（交战相关 · 不挡本版）**
+
+| 代号 | 问题 | 本版默认 |
 |---|---|---|
-| `id` | `String` | 登记 id |
-| `source_card_id` | `String` | 来源卡 |
-| `subject` | `Subject` | 钉死目标或动态 Matching |
-| `lifetime` | `Lifetime` | 见下 |
-| `bound_id` | `String` | 寿命绑定的检定/卡 id；不需要则 `""` |
-| `payloads` | `Array<RegistrationPayload>` | **Registration 载荷**列表 |
+| **A** | 庞大虚拟：纯派生 vs 物化 Relation | 纯派生（`is_massive_virtually_engaged`） |
+| **B** | 手续内 as if：Run 叠镜 vs 短命 Relation | Run 叠镜 |
+| **C** | 部分「视为」是否 scoped Relation | 暂一律全布尔 Engagement；译卡前再问 |
+| **D** | 统一 `is_engaged_with` 是否并入庞大析取 | API 分径；总公式待裁 |
 
-**不设** `Registration.controller_id`：控制者 = `cards[source_card_id].controller_id`。
 
-**`Lifetime`**：`"while_in_play"` \| `"while_committed"` \| `"this_skill_test"` \| `"this_turn"` \| `"while_drawn_card_resolving"`
-
-**不是** Registration 载荷：KEYWORD/TRAIT/ICON/ABILITY 等 **Gain 特征** → 写 `auth.gains`（`seq.effect.grant`），可再衍生 payloads。
+#### Gain
 
 ```text
 GainedCharacteristic = {
-  id:                 String,
-  card_id:            String,
-  kind:               String,   -- "keyword" | "trait" | "icon" | "ability"
-  characteristic_id:  String,
-  source_kind:        String,   -- "printed" | "player" | "encounter"
-  lifetime:           String
+  id, card_id, kind, characteristic_id, source_kind, lifetime
 }
 ```
+
+拥有标记 ∈ Facts；行为 keyword 可**衍生** Constraints.Policy。见 [06](06-registration-payload-model.md)。
+
+#### Chronicle
+
+薄：`log` ∪ `remembered`。写入计 CREATED；无 Policy 消费代数。
 
 ---
 
-### 1.3.1 `RegistrationPayload`（按 kind 分型）
-
-壳上只有 **kind + 对应 body**（互斥；与实现 `RegistrationPayload` 一致）：
+### 1.3.1 `Constraints` — 运作叠层
 
 ```text
-RegistrationPayload =
-  | { kind: "modifier",  modifier:  ModifierPayload }
-  | { kind: "gate",      gate:      GatePayload }
-  | { kind: "directive", directive: DirectivePayload }
-  | { kind: "listener",  listener:  ListenerPayload }
-  | { kind: "status",    status:    StatusPayload }
+Constraints = {
+  policies: Map<PolId, Policy>
+}
 
-RegistrationKind = "modifier" | "gate" | "directive" | "listener" | "status"
+Policy = { shell: InfoShell, body: PolicyBody }
+
+PolicyBody =
+  | { kind: "fold_stat",    fold: ModifierPayload }      -- 查询站 fold
+  | { kind: "guard_intent", gate: GatePayload }          -- cannot / Eligibility
+  | { kind: "divert_flow",  divert: DirectivePayload }   -- 原流程读后改道
+  | { kind: "on_timing",    on_timing: ListenerPayload } -- 时点 → Composition
 ```
 
-Deps / 索引的 **aspect** 由 body **派生**（如 `modifier.stat`、`gate.kind`、`status.kind`），不在壳上另存一份。
+Deps / 索引 aspect 由 body **派生**。对照旧五类：modifier/gate/directive/listener → 上表四变体；**status 升格为 Facts.Relation，不再是 Policy**。消费细节仍对齐 [06](06-registration-payload-model.md)。
 
-#### `ModifierPayload`
+#### `ModifierPayload`（FoldStat 体）
 
-**不分型**：域 A/B/C 与 SCALAR / CONSUME 共用**同一**载荷形（[06 §6](06-registration-payload-model.md)）。异质靠 `apply_mode` / `plan_kind` / `stat` 判别，**不要**仿 Gate/Directive 拆成多种 payload 变体。
+**不分型**：域 A/B/C 与 SCALAR / CONSUME 共用同一形。异质靠 `apply_mode` / `plan_kind` / `stat`。
 
 ```text
 ModifierPayload = {
-  stat:       String,    -- value_key / StatRef：willpower / combat / shroud / …
-  op:         String,    -- "add" | "set" | …
-  value:      Int,
-  condition:  String,    -- 条件 id；无则 ""
-  plan_kind:  String,    -- "none" | "attack_damage" | "discover" | …
-  apply_mode: String     -- "scalar" | "consume_choose_one_leg" | …
+  stat, op, value, condition, plan_kind, apply_mode
 }
 ```
 
-| 何时读哪些键 | |
-|---|---|
-| `apply_mode = scalar` | `stat`/`op`/`value` 进 `compute`；`plan_kind` 应为 `"none"`（或忽略） |
-| `apply_mode = consume_…` | `plan_kind` 选 AmountPlan；无名 +N 改已定效果量 |
-
-#### `GatePayload`（拦 Intent / 合法性 · cannot）
-
-按 **kind 分型**（同 Directive）；禁止扁平塞齐 `drawer_id`/`subject_id`/…。  
-险境帧与 lasting 主体用 `GateScope` 区分（对齐 [06 §7 / §16.4](06-registration-payload-model.md)）：
+#### `GatePayload`（GuardIntent 体）
 
 ```text
 GatePayload =
@@ -370,21 +379,17 @@ GatePayload =
   | { kind: "forbid_play",            scope: GateScope }
   | { kind: "forbid_trigger",         scope: GateScope }
   | { kind: "forbid_commit_to_test",  scope: GateScope }
-  | { kind: "forbid_leave_hand",      subject_id }   -- Hidden 等
+  | { kind: "forbid_leave_hand",      subject_id }
   | { kind: "forbid_discover_clue",   subject_id }
   | { kind: "forbid_spend_clue",      subject_id }
-  | { kind: "forbid_attack",          subject_id }   -- Aloof 等
+  | { kind: "forbid_attack",          subject_id }
 
 GateScope =
-  | { tag: "subject", subject_id }                                   -- lasting / 主体 cannot
-  | { tag: "peril", drawer_id, drawn_card_id, encounter_frame_id }   -- 险境帧；drawer 豁免
-
-GateKind = 上列 kind 字面量
+  | { tag: "subject", subject_id }
+  | { tag: "peril", drawer_id, drawn_card_id, encounter_frame_id }
 ```
 
-#### `DirectivePayload`（原流程读取后改道 · 非 Intent 拦截）
-
-按 **kind 分型**，禁止把全部字段摊平进一条记录（脊骨过肥）：
+#### `DirectivePayload`（DivertFlow 体）
 
 ```text
 DirectivePayload =
@@ -392,49 +397,21 @@ DirectivePayload =
   | { kind: "suppress_auto_engage",  subject_id }
   | { kind: "assign_constraint",     assign: AssignConstraintBody }
   | { kind: "skill_redirect",        redirect_from, redirect_to, subject_id }
-
-AssignConstraintBody = {
-  assign_op:            String,
-  assign_affliction:    String,
-  assign_direct_scope:  String,
-  assign_expand_scope:  String,
-  assign_trait:         String,
-  assign_amount:        Int,
-  assign_if_able:       Bool
-}
-
-DirectiveKind =
-  "skip_aoo" | "suppress_auto_engage" | "assign_constraint" | "skill_redirect"
 ```
 
-#### `ListenerPayload`
-
-**不分型**：凡 LISTENER 均为「时点到 → 跑已装载 Composition」（[06 §5](06-registration-payload-model.md)）；异质在 Catalog 树，不在载荷壳。
+#### `ListenerPayload`（OnTiming 体）
 
 ```text
-ListenerPayload = {
-  timing:       String,   -- 时点 / 入口 id
-  composition:  String    -- 已装载 Composition 树 id / 句柄；Snapshot 外可再解
-}
+ListenerPayload = { timing, composition }
 ```
 
-#### `StatusPayload`（局面断言）
+印刷 Forced/反应仍是 AbilitySpec，**不是** OnTiming。
 
-现仅 **交战**一种局面断言 → **单变体分型**（去掉扁平 `kind` 字符串）。若日后出现第二种 STATUS，再增变体，勿先摊平预留字段。
-
-```text
-StatusPayload =
-  | { kind: "engagement", subject_id, drawer_id }
-      -- subject_id = 敌人；drawer_id = 调查员
-
-StatusKind = "engagement"   -- 目前仅此
-```
-
-交战 = `{ kind:"status", status:{ kind:"engagement", subject_id:敌人, drawer_id:调查员 } }`，不进 Card / `on`。
+结算 Intent：`FactInsert` / `ConstraintInsert` / `CompanionRemove`（+ 物理族）。**不**按 Policy 种拆 `seq.effect.*`。
 
 ---
 
-### 1.4 `Chronicle` · `Audience` · `Framework`
+### 1.4 `Audience` · `Framework`（Framework/Limits 在 World）
 
 ```text
 Chronicle = {
@@ -462,7 +439,7 @@ Framework = {
 | `doom_threshold` | Catalog（当前密谋 definition） | 印刷规格外置 |
 | `scenario_reference_id` | 冒险装载 / Catalog 绑定 | 非回合游标；需要时另字段，不塞 Framework |
 | `phase_id`（Mythos/Action…） | `run.timing_phase` | 执行信封相位；手续内临时步更在 `Run.stack` |
-| 席位行动 / eliminated | `seats` | 已离 Card，也不进 Framework |
+| 席位行动 / eliminated | `world.seats` | 已离 Card，也不进 Framework |
 
 混乱与其它 token 的 `stack_key`：见 §1.2.1。
 
@@ -561,7 +538,7 @@ RegIndex = {
 }
 ```
 
-值侧用 `Array<String>` 表示 id 集合（实现可换持久 Set）。均可由 `auth.registrations` 重建。
+值侧用 `Array<String>` 表示 id 集合（实现可换持久 Set）。均可由 `facts.relations` ∪ `constraints.policies` 重建。
 
 ### 2.2 `Feasibility`（Φ）
 
@@ -714,9 +691,9 @@ Key =
 | RegionMembers | `region:<id>:members` | `regions[id].card_ids` |
 | RegionStack | `region:<id>:stack:damage` | `token_stacks["damage"]` |
 | QueryFp | `query:enemies_on:<loc>` | 地点 `on` 等投影 |
-| Reg | `reg:<id>` | `auth.registrations[id]` |
+| Reg | `reg:<id>` | `facts.relations[id]` 或 `constraints.policies[id]` |
 | RegAspect | `aspect:fight` | 索引 / 多条登记 |
-| SeatField | `seat:<inv>:actions_remaining` | `auth.seats[inv]…` |
+| SeatField | `seat:<inv>:actions_remaining` | `world.seats[inv]…` |
 | FrameworkField | `fw:active_investigator_id` | `auth.framework…` |
 | LimitCounter | `limit:<limit_key>` | `auth.limits…` |
 | ChronicleKey | `chron:remembered:<k>` | `auth.chronicle.remembered[k]` |
@@ -755,6 +732,9 @@ Intent =
   | SetExhausted{ card_id, exhausted }
   | SetSeatActions { investigator_id, actions_remaining }
   | SetSeatOutcome { investigator_id, eliminated?, resigned? }
+  | FactInsert { relation }            -- Facts.relations；CREATED
+  | ConstraintInsert { policy }        -- Constraints.policies；CREATED
+  | CompanionRemove { id }
   -- 后续：GainInsert/Remove、AudienceSet、LimitBump、FrameworkSet…
   -- 禁止：AdjustToken / 单端 delta
 ```
@@ -771,28 +751,25 @@ Snapshot {
   gen: 1
   auth: {
     next_id: 8
-    cards: {
-      "I": { card_type:"investigator", … }
-      "L": { card_type:"location", connections:[], … }
-      -- 放置只看 regions[].host_card_id + place（无 Card.owned_regions）
+    world: {
+      cards: { "I": { card_type:"investigator", … }, "L": { … } }
+      seats: { "I": { actions_remaining:3, … } }
+      regions: {
+        "hand_I":  { host_card_id:"I", place:"hand", … }
+        "pool_I":  { host_card_id:"I", place:"resource_pool",
+                     token_stacks:{ "resource":5 }, … }
+        "tok_I":   { host_card_id:"I", place:"tokens",
+                     token_stacks:{ "damage":0, "horror":0 }, … }
+        "on_L":    { host_card_id:"L", place:"on", card_ids:["I"], … }
+        "tok_L":   { host_card_id:"L", place:"tokens", token_stacks:{ "clue":1 }, … }
+        "chaos":   { place:"chaos", shape:"bag", token_stacks:{ … }, … }
+      }
+      framework: { round:1, lead_investigator_id:"I", … }
+      limits: { counters:{}, occupancies:{} }
     }
-    seats: {
-      "I": { actions_remaining:3, actions_bonus_next_turn:0,
-             actions_penalty_next_turn:0, eliminated:false, resigned:false }
-    }
-    regions: {
-      "hand_I":  { host_card_id:"I", place:"hand", card_ids:[], token_stacks:{}, … }
-      "pool_I":  { host_card_id:"I", place:"resource_pool", card_ids:[],
-                   token_stacks:{ "resource":5 }, … }
-      "tok_I":   { host_card_id:"I", place:"tokens", card_ids:[],
-                   token_stacks:{ "damage":0, "horror":0 }, … }
-      "on_L":    { host_card_id:"L", place:"on", card_ids:["I"], token_stacks:{}, … }
-      "tok_L":   { host_card_id:"L", place:"tokens", card_ids:[], token_stacks:{ "clue":1 }, … }
-      "chaos":   { host_card_id:"", place:"chaos", shape:"bag",
-                   token_stacks:{ "numeric_0": 2, "skull": 1, "auto_fail": 1 }, … }
-    }
-    registrations: {}
-    …
+    facts: { relations:{}, gains:{}, chronicle:{ log:[], remembered:{} } }
+    constraints: { policies:{} }
+    audience: { … }
   }
   derived: { … }
   run: { … }

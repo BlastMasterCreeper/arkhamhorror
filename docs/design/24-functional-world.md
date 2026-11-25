@@ -35,66 +35,49 @@ Snapshot = {
 ```
 
 ```text
-Auth (狭义「桌上事实」；形状以 37 为准) = {
-  cards, regions, seats,  -- 物理三类落点（§2；无嵌套 auth.physical）
-  registrations,          -- 信息原语主量（含寿命）
-  gains,                  -- Gain 特征（≠ Registration 载荷）
-  chronicle,              -- 薄：日志∪记住
-  audience,               -- 牌面可见性（非结算；CREATED 不计）
-  limits,                 -- 次数配额等已发生计数
-  framework,              -- 回合/场景等局面级框架
-  next_id                 -- id 分配
+Auth（形状以 37 为准）= {
+  world:        World,         -- 窄世界：cards/regions/seats + framework/limits 钟
+  facts:        Facts,         -- relations · gains · chronicle
+  constraints:  Constraints,   -- policies（Fold/Guard/Divert/OnTiming）
+  audience,                    -- 权限旁路；CREATED 不计
+  next_id
 }
--- 混乱袋剩余 = regions[place=chaos].token_stacks（不再单列 auth.entropy）
--- 检定已揭示挂 Run.skill_tests / augury；rng 若需另议，不默认进 auth
+-- 混乱袋 = world.regions[place=chaos].token_stacks
+-- 检定已揭示挂 Run.skill_tests；rng 若需另议
 
-Derived = {
-  index,         -- 登记倒排（34）
-  feasibility,   -- Φ：当前焦点发起/must 可行性（35）
-}
-
-Run = {
-  stack,         -- 手续帧栈
-  open_choice,   -- NeedAsk | None
-  skill_tests,   -- 检定栈
-  memory,        -- 步间指称
-  timing_phase,  -- 信封相位等
-  focus,         -- 当前窗/控制者/打开的 must（枚举宇宙用）
-}
+Derived = { index, feasibility }
+Run = { stack, open_choice, skill_tests, memory, timing_phase, focus }
 ```
 
-实现上可用一个大记录叫 `World`，但字段必须打上 **auth / derived** 标签；`transit` 返回整份 `Snapshot`。口语「世界值」= `Snapshot`（或至少 `auth ⊕ derived`），**不是**只等于「物理三类」。
+**「世界」仅 `auth.world`（窄物理）**。权威伴件 = World × Facts × Constraints。CREATED = 写入伴件任一层（Audience 除外）。详见 [37 §0](37-world-structure.md)。
 
 | 袋 | 分类 | 理由 |
 |---|---|---|
-| 卡在哪、横置、doom 数、席位行动 | **auth**（cards/regions/seats） | 物理原语 + 席位机 |
-| Registration / payloads | **auth** | 信息原语（Registration 载荷） |
-| Chronicle / limits / gains | **auth** | 已发生信息 |
-| FaceAudience | **auth**（旁路） | 非结算，但属局面权限 |
-| index / feasibility Φ | **derived** | 由 auth(+run 焦点) 重建；算时不读旧 Φ.answers |
-| 「本手续选中的敌人」 | **run** | 步间指称 |
-| 序列栈、检定步 | **run** | 执行游标 |
-| CardDefinition 印刷 | **Catalog** | 外置 |
-| PI 超时时钟 | **驱动** | 不纯；结果进 run 后再 transit |
+| cards / regions / seats / framework / limits | **world** | 物理 + 必要钟 |
+| relations / gains / chronicle | **facts** | 断言与薄记事 |
+| policies | **constraints** | 运作叠层（非桌上物） |
+| FaceAudience | **audience** 旁路 | 非结算 |
+| index / feasibility Φ | **derived** | 可重建 |
+| 手续栈 / 选择 / as-if 叠镜 | **run** | 执行游标 |
+| CardDefinition | **Catalog** | 外置 |
 
 ```text
 Catalog（外置）
-Auth × Derived × Run × Catalog  →  query / plan / transit
-transit 末尾：按 Touched 刷新 Derived（兴趣点）
+World × Facts × Constraints × Run × Catalog  →  query / plan / transit
 ```
 
 ---
 
-## 2. 物理三类 — 落在 `auth.cards` / `regions` / `seats`（无嵌套 `physical`）
+## 2. 物理三类 — 落在 `auth.world`（cards / regions / seats）
 
-与 [07 §0](07-effect-primitives.md) 对齐。早期草案曾写 `auth.physical = {…}`；**现形状以 [37](37-world-structure.md) 为准**：不设嵌套 `physical` 袋，三类原语直接落在权威字段。
+与 [07 §0](07-effect-primitives.md) 对齐；形状以 [37](37-world-structure.md) 为准。
 
 | 原语类 | 权威落点（37） | 读法 |
 |---|---|---|
-| ① 区/序 | `regions[].card_ids`（`host_card_id`+`place`） | `zone_of` · `order_in` · in-play |
-| ② 标记 | `regions[].token_stacks`（宿主 `place:"tokens"` 等） | fold；经 `TransferToken` |
-| ③ 形态 | `cards[].face` / `exhausted` | 翻面 / 横置 |
-| 席位经济 / 结局 | `seats[]`（非 Card 脊骨） | 行动剩余 · eliminated |
+| ① 区/序 | `world.regions[].card_ids` | `zone_of` · `order_in` · in-play |
+| ② 标记 | `world.regions[].token_stacks` | fold；经 `TransferToken` |
+| ③ 形态 | `world.cards[].face` / `exhausted` | 翻面 / 横置 |
+| 席位经济 / 结局 | `world.seats[]` | 行动剩余 · eliminated |
 
 **LIMBO**（[01 §3.5.0](01-game-state-zones.md)）：悬置区 `limbo_kind ∈ {resolving, committed}`。权威在 `regions`；`SkillTest.committed_ids` 是 **Run** 索引，须与之同步。
 
@@ -113,34 +96,27 @@ transit 末尾：按 Touched 刷新 Derived（兴趣点）
 | `cards` / `regions` | `PhysicalStore` 卡与区 |
 | `token_stacks` | Domain `TokenBag` / 标记计数 |
 | `seats` | `InvestigatorState` 行动/淘汰等 |
-| 交战 | Registration `status/engagement`（非 Card 字段） |
+| 交战 | `facts.relations` · Engagement（非 Card；威胁区在 world.regions） |
 
 ---
 
-## 3. `registrations` — 信息主量
+## 3. `facts` / `constraints` — 伴件（非窄世界）
 
 ```text
-Registrations = Map RegId → Registration
-
-Registration = {
-  id, source,              -- AbilityUnitRef / card instance…
-  lifetime,               -- WHILE_IN_PLAY | WHILE_COMMITTED | THIS_SKILL_TEST | …
-  subject,                -- Bound | Matching
-  payloads: [RegistrationPayload],  -- MODIFIER|GATE|DIRECTIVE|LISTENER|STATUS
-  tags
-}
+Facts = { relations, gains, chronicle }
+Constraints = { policies }   -- PolicyBody = FoldStat | GuardIntent | DivertFlow | OnTiming
 ```
 
-- **Register / Unregister** 是对 `World.registrations` 的 Intent，不是第二套 store API。  
-- **寿命 tick**（ST.8、阶段结束、离场）= 纯函数  
-  `tick(event, World) → World'`（卸匹配 lifetime 的记录）。  
-- **有效关键词** = 印刷 ∪ **Gain 特征**（非 Registration 载荷；查询层，不把「有效集」存回 World，除非做缓存且可丢弃）。
+- **FactInsert / ConstraintInsert / CompanionRemove** 写伴件；插入成功 = CREATED。  
+- **寿命 tick** = 纯函数卸匹配 lifetime 的 Relation/Policy。  
+- **有效关键词** = 印刷 ∪ **Gain**（Facts）；行为衍生进 Constraints。  
+- 旧 `registrations.payloads` 五类：status→Relation；其余四类→PolicyBody。
 
-Silas / Daring 类：`uncommit` 只卸 `WHILE_COMMITTED` 与绑在该卡上的 `after_test_ends` 延时；**保留** `THIS_SKILL_TEST` lasting —— 全部由 lifetime 数据表达，不靠隐藏可变标志。
+Silas / Daring：`uncommit` 只卸 `WHILE_COMMITTED` 与绑卡延时；**保留** `THIS_SKILL_TEST` lasting —— 由 lifetime 表达。
 
 ---
 
-## 4. `chronicle` — 薄记事
+## 4. `chronicle` — 薄记事（∈ Facts）
 
 ```text
 Chronicle = {
@@ -162,7 +138,7 @@ Audience = Map EntityId → FaceAudience   -- HIDDEN_ALL | CONTROLLER | ALL
 
 - 与 `form.face` **正交**（背面仍可知）。  
 - dry-run **不**因仅改 audience 而 CREATED。  
-- 进 `World` 是为了查询与同步仍是「局面的一部分」；权限层，不是第三类原语。
+- 挂在 `auth.audience`（旁路）；权限层，不是窄 World，也不是第三类原语。
 
 ---
 
@@ -264,7 +240,7 @@ commit: World × Intent[] → World   -- 唯一写入口
 | W4 | **Catalog 外置**：印刷与编译树不是 World 字段 |
 | W5 | **Audience 在 World、非结算**：与 form 正交 |
 | W6 | **唯一写法 = Intent commit**；查询/投影只读 |
-| W7 | **与现引擎兼容路径**：`PhysicalStore`≈cards/regions；`RegistrationStore`≈`registrations`；`RulesMemory`≈`Run.memory`；可先做 **快照导出** 供纯查询 |
+| W7 | **与现引擎兼容路径**：`PhysicalStore`≈world.cards/regions；`RegistrationStore`≈facts.relations∪constraints.policies；`RulesMemory`≈`Run.memory`；可先做 **快照导出** 供纯查询 |
 
 ---
 

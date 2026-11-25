@@ -12,6 +12,9 @@ pub type RegId = String;
 pub const TOKEN_SUPPLY: &str = "$supply";
 
 /// Whole functional operand: auth ⊕ derived ⊕ run ⊕ gen.
+///
+/// Auth = World × Facts × Constraints (+ Audience bypass). Catalog is external.
+/// Narrow **World** = physical only; lasting/cannot/+N live in **Constraints**.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Snapshot {
     pub auth: Auth,
@@ -20,20 +23,40 @@ pub struct Snapshot {
     pub gen: u64,
 }
 
+/// Authoritative companion: World × Facts × Constraints (+ Audience, not CREATED).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Auth {
+    pub world: World,
+    pub facts: Facts,
+    pub constraints: Constraints,
+    /// Permission bypass — authoritative but never CREATED.
+    pub audience: BTreeMap<CardId, Audience>,
+    pub next_id: u64,
+}
+
+/// Narrow world = physical board + necessary framework clock.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct World {
     pub cards: BTreeMap<CardId, Card>,
     pub regions: BTreeMap<RegionId, Region>,
     /// Investigator seat state (turn economy / eliminated / resigned). Key = investigator card id.
     pub seats: BTreeMap<CardId, Seat>,
-    pub registrations: BTreeMap<RegId, Registration>,
-    /// Gain characteristics (KEYWORD/TRAIT/ICON/ABILITY) — not Registration payloads.
+    pub framework: Framework,
+    pub limits: LimitStore,
+}
+
+/// Non-physical asserted truths (engagement relations, gains, chronicle).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Facts {
+    pub relations: BTreeMap<RegId, Relation>,
     pub gains: BTreeMap<String, GainedCharacteristic>,
     pub chronicle: Chronicle,
-    pub audience: BTreeMap<CardId, Audience>,
-    pub limits: LimitStore,
-    pub framework: Framework,
-    pub next_id: u64,
+}
+
+/// Active rule overlay — fold / guard / divert / on-timing policies.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Constraints {
+    pub policies: BTreeMap<RegId, Policy>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -170,17 +193,7 @@ pub enum LimboKind {
     Committed,
 }
 
-// —— Registration ——
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Registration {
-    pub id: RegId,
-    pub source_card_id: CardId,
-    pub subject: Subject,
-    pub lifetime: String,
-    pub bound_id: String,
-    pub payloads: Vec<RegistrationPayload>,
-}
+// —— Facts · Relations / Constraints · Policies ——
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "tag", rename_all = "snake_case")]
@@ -192,34 +205,95 @@ pub enum Subject {
     },
 }
 
+/// Shared shell for Relation and Policy (source · lifetime · subject).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InfoShell {
+    pub id: RegId,
+    pub source_card_id: CardId,
+    pub subject: Subject,
+    pub lifetime: String,
+    pub bound_id: String,
+}
+
+/// Asserted world relation — lives in Facts (not a behavior payload).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Relation {
+    pub shell: InfoShell,
+    pub body: RelationBody,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum RegistrationPayload {
-    Modifier { modifier: ModifierPayload },
-    Gate { gate: GatePayload },
-    Directive { directive: DirectivePayload },
-    Listener { listener: ListenerPayload },
-    Status { status: StatusPayload },
+pub enum RelationBody {
+    /// Real or granted ("视为") engagement. Threat-area membership is separate (World regions).
+    Engagement {
+        enemy_id: String,
+        investigator_id: String,
+    },
+}
+
+impl Relation {
+    pub fn engagement(
+        id: impl Into<String>,
+        source_card_id: impl Into<String>,
+        enemy_id: impl Into<String>,
+        investigator_id: impl Into<String>,
+    ) -> Self {
+        let enemy = enemy_id.into();
+        Self {
+            shell: InfoShell {
+                id: id.into(),
+                source_card_id: source_card_id.into(),
+                subject: Subject::Bound {
+                    card_id: enemy.clone(),
+                },
+                lifetime: "while_in_play".into(),
+                bound_id: String::new(),
+            },
+            body: RelationBody::Engagement {
+                enemy_id: enemy,
+                investigator_id: investigator_id.into(),
+            },
+        }
+    }
+}
+
+/// Rule morphism — lives in Constraints.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Policy {
+    pub shell: InfoShell,
+    pub body: PolicyBody,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PolicyBody {
+    /// Query-station fold (former modifier).
+    FoldStat { fold: ModifierPayload },
+    /// Intent / eligibility guard (former gate).
+    GuardIntent { gate: GatePayload },
+    /// Named-flow divert (former directive).
+    DivertFlow { divert: DirectivePayload },
+    /// Timing → composition (former listener).
+    OnTiming { on_timing: ListenerPayload },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RegistrationKind {
-    Modifier,
-    Gate,
-    Directive,
-    Listener,
-    Status,
+pub enum PolicyKind {
+    FoldStat,
+    GuardIntent,
+    DivertFlow,
+    OnTiming,
 }
 
-impl RegistrationPayload {
-    pub fn kind(&self) -> RegistrationKind {
+impl PolicyBody {
+    pub fn kind(&self) -> PolicyKind {
         match self {
-            Self::Modifier { .. } => RegistrationKind::Modifier,
-            Self::Gate { .. } => RegistrationKind::Gate,
-            Self::Directive { .. } => RegistrationKind::Directive,
-            Self::Listener { .. } => RegistrationKind::Listener,
-            Self::Status { .. } => RegistrationKind::Status,
+            Self::FoldStat { .. } => PolicyKind::FoldStat,
+            Self::GuardIntent { .. } => PolicyKind::GuardIntent,
+            Self::DivertFlow { .. } => PolicyKind::DivertFlow,
+            Self::OnTiming { .. } => PolicyKind::OnTiming,
         }
     }
 }
@@ -341,29 +415,7 @@ pub struct ListenerPayload {
     pub composition: String,
 }
 
-/// Status assertions — single variant today (`engagement`); add variants when a
-/// second StatusKind appears (do not flatten unused fields).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum StatusPayload {
-    Engagement {
-        /// Enemy card id.
-        subject_id: String,
-        /// Investigator card id.
-        drawer_id: String,
-    },
-}
-
-impl StatusPayload {
-    pub fn engagement(enemy_id: impl Into<String>, investigator_id: impl Into<String>) -> Self {
-        Self::Engagement {
-            subject_id: enemy_id.into(),
-            drawer_id: investigator_id.into(),
-        }
-    }
-}
-
-/// Gain characteristic record (auth.gains) — not a Registration payload.
+/// Gain characteristic record (facts.gains) — possession mark, not a Policy.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GainedCharacteristic {
     pub id: String,
@@ -510,13 +562,13 @@ pub struct SkillTest {
 impl Snapshot {
     /// Region owned by `host_card_id` with the given place role (auth = regions only).
     pub fn region_for_place(&self, host_card_id: &str, place: &str) -> Option<&Region> {
-        self.auth.regions.values().find(|r| {
+        self.auth.world.regions.values().find(|r| {
             r.host_card_id == host_card_id && r.place == place
         })
     }
 
     pub fn region_id_for_place(&self, host_card_id: &str, place: &str) -> Option<&RegionId> {
-        self.auth.regions.iter().find_map(|(id, r)| {
+        self.auth.world.regions.iter().find_map(|(id, r)| {
             if r.host_card_id == host_card_id && r.place == place {
                 Some(id)
             } else {
@@ -547,7 +599,7 @@ impl Snapshot {
 
     /// Location card whose `on` region contains `card_id`.
     pub fn location_of(&self, card_id: &str) -> Option<&CardId> {
-        for (loc_id, card) in &self.auth.cards {
+        for (loc_id, card) in &self.auth.world.cards {
             if card.card_type != CardType::Location {
                 continue;
             }
@@ -560,4 +612,35 @@ impl Snapshot {
         }
         None
     }
+    /// Authoritative engagement Relation (not threat-area membership).
+    pub fn is_engaged_with(&self, enemy_id: &str, investigator_id: &str) -> bool {
+        self.auth.facts.relations.values().any(|r| match &r.body {
+            RelationBody::Engagement {
+                enemy_id: e,
+                investigator_id: i,
+            } => e == enemy_id && i == investigator_id,
+        })
+    }
+
+    /// Massive virtual engagement — **derived** default (not a stored Relation).
+    /// Ready massive enemy at same location as investigator. Open: materialize vs pure derived.
+    pub fn is_massive_virtually_engaged(
+        &self,
+        enemy_id: &str,
+        investigator_id: &str,
+        is_massive: impl Fn(&str) -> bool,
+    ) -> bool {
+        let Some(enemy) = self.auth.world.cards.get(enemy_id) else {
+            return false;
+        };
+        if enemy.exhausted || !is_massive(enemy_id) {
+            return false;
+        }
+        match (self.location_of(enemy_id), self.location_of(investigator_id)) {
+            (Some(a), Some(b)) => a == b,
+            _ => false,
+        }
+    }
+
 }
+

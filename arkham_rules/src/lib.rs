@@ -12,10 +12,10 @@ pub use eff::{
     answer, draw_one_eff, eval_pred, plan, run_to_ask_or_done, step, AskRequest, Eff, PlanResult,
     Pred, StepResult,
 };
-pub use intent::{commit, engagement_reg, Intent};
+pub use intent::{commit, engagement_relation, Intent};
 pub use world::{
-    AssignConstraintBody, Auth, Audience, Card, CardType, Chronicle, DirectivePayload, Face,
-    Feasibility, Focus, Framework, GatePayload, GateScope, LimboKind, Region, RegionShape,
-    Registration, RegistrationKind, RegistrationPayload, Run, Seat, Snapshot, StatusPayload,
-    Subject, TOKEN_SUPPLY,
+    AssignConstraintBody, Auth, Audience, Card, CardType, Chronicle, Constraints, DirectivePayload,
+    Face, Facts, Feasibility, Focus, Framework, GatePayload, GateScope, InfoShell, LimboKind,
+    ListenerPayload, ModifierPayload, Policy, PolicyBody, PolicyKind, Region, RegionShape,
+    Relation, RelationBody, Run, Seat, Snapshot, Subject, World, TOKEN_SUPPLY,
 };

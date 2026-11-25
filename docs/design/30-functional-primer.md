@@ -64,33 +64,30 @@
 
 ```text
 Snapshot = {
-  auth: {                     -- 权威：结算只写这里
-    cards, regions,
-    registrations, chronicle, limits,
-    audience, framework, gains, next_id
+  auth: {                     -- World × Facts × Constraints (+ Audience)
+    world, facts, constraints, audience, next_id
   }
-  derived: {                  -- 派生：可重建
-    index                     -- 登记倒排
-    feasibility               -- Φ：发起/must 可行性
-  }
-  run: { … }                  -- 进度：栈、记忆、焦点、检定
+  derived: { index, feasibility }
+  run: { … }
 }
+-- 「世界」仅 auth.world；CREATED = 写入伴件任一层（Audience 除外）
 ```
 
-下面展开 `auth` 时仍可口语叫「局面字段」：
+下面展开 `auth`：
 
 ```text
 auth = {
-  cards:         字典   键 字符串(卡id) → 卡
-  regions:       字典   键 字符串(区id) → 区（卡序 + token_stacks；含 chaos）
-  seats:         字典   键 字符串(调查员卡id) → 席位态（回合经济 / 退场 / 撤退）
-  registrations: 字典   键 字符串(登记id) → 登记条     信息层
-  gains:         字典   Gain 特征（≠ Registration 载荷）
-  chronicle:     记事记录                                    信息层
-  audience:      字典   键 字符串(卡id) → 字符串(可见档)   权限
-  limits:        LimitStore                                  信息层
-  framework:     框架记录
-  next_id:       整型   下一个序号，只增不减
+  world: {                    -- 窄世界（物理 + 框架钟）
+    cards, regions, seats, framework, limits
+  }
+  facts: {                    -- 断言伴件
+    relations, gains, chronicle
+  }
+  constraints: {              -- 运作叠层
+    policies                  -- FoldStat | GuardIntent | DivertFlow | OnTiming
+  }
+  audience:      字典         -- 权限旁路；不计 CREATED
+  next_id:       整型
 }
 ```
 
@@ -114,7 +111,7 @@ auth = {
 
 #### 席位（Seat）
 
-调查员一条；键 = 该调查员卡 id（不再另存 investigator_id 字段）。读行动数 / 是否已退场 → `auth.seats[inv]`。
+调查员一条；键 = 该调查员卡 id（不再另存 investigator_id 字段）。读行动数 / 是否已退场 → `auth.world.seats[inv]`。
 
 ```text
 席位 = {
@@ -128,7 +125,7 @@ auth = {
 
 `card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
 
-**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。每位调查员的 **资源池** 是独立 `place=resource_pool` 区（`token_stacks["resource"]` + 盒端 `$supply`）——**不**放在调查员卡 `tokens` 上，也 **不是**席位字段。物理所在地点 = 某地点 `on` 区的成员。交战 = 登记 `status/engagement`。
+**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。每位调查员的 **资源池** 是独立 `place=resource_pool` 区（`token_stacks["resource"]` + 盒端 `$supply`）——**不**放在调查员卡 `tokens` 上，也 **不是**席位字段。物理所在地点 = 某地点 `on` 区的成员。交战 = `facts.relations` · Engagement（威胁区是物理区成员；庞大虚拟默认派生）。
 
 地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
 
@@ -162,24 +159,14 @@ auth = {
 
 `remembered` 是卡面「记住」写下来的事实，例如某个名字、某个选项。手续进行中「刚才选了哪张牌」写在进度的记忆里，不写在这里。印刷文字在目录里，也不在这里。
 
-#### 登记条
+#### Facts / Constraints（详 37 §1.3）
 
 ```text
-登记条 = {
-  id:             字符串
-  source_card_id: 字符串   -- 控制者由此卡解引用；不另存 controller_id
-  lifetime:       枚举     "while_in_play" | "while_committed" | "this_skill_test" | "this_turn" | "while_drawn_card_resolving"
-  bound_id:       字符串   寿命绑到的检定 id 或卡 id；不需要则为 ""
-  payloads:       数组     元素是 Registration 载荷
-}
-
-Registration 载荷 = 按 kind 分型（五选一 body；详 37 §1.3.1）
-  modifier  → { stat, op, value, … }
-  gate      → 按 kind 分型（forbid_play 等 + GateScope subject｜peril）
-  directive → { kind: skip_aoo | …, … }
-  listener  → { timing, composition }                      -- 不分型
-  status    → { kind: engagement, subject_id, drawer_id }  -- 单变体分型
+Relation = { shell: InfoShell, body: Engagement { enemy_id, investigator_id } }
+Policy   = { shell: InfoShell, body: FoldStat | GuardIntent | DivertFlow | OnTiming }
 ```
+
+壳含 `source_card_id` / `lifetime` / `subject`。CREATED = 写入 World 或 Facts 或 Constraints（Audience 除外）。
 
 #### 可见性、框架、限额
 
@@ -199,47 +186,35 @@ Registration 载荷 = 按 kind 分型（五选一 body；详 37 §1.3.1）
 
 混乱符号是区 `chaos` 上的 `token_stacks`（类型键 + 数量），不是独立标记个体表。限额见 37 §1.5 `LimitStore`。
 
-登记 modifier 载荷**不分型**：同一 `ModifierPayload`，靠 `apply_mode` / `plan_kind` 区分用法。
+FoldStat 的 `ModifierPayload` **不分型**：靠 `apply_mode` / `plan_kind` 区分用法。
 
 #### 一份最小构造
 
 调查员、地点、技能牌都在 `cards` 里；token 在区上。混乱袋是 `place:"chaos"` 的区（堆），不是卡数组。
 
 ```text
-World {
+auth = {
   next_id: 8
-  cards: {
-    "I":  { id:"I", definition_id:"01001", card_type:"investigator",
-            controller_id:"I", face:"A", exhausted:false }
-    "L":  { id:"L", definition_id:"01111", card_type:"location", face:"B", connections:[] }
-    "C1": { id:"C1", definition_id:"06111", card_type:"skill",
-            owner_id:"I", controller_id:"I", face:"A" }
+  world: {
+    cards: { "I":…, "L":…, "C1":… }
+    seats: { "I": { actions_remaining:3, … } }
+    regions: {
+      "deck_I": { place:"deck", host_card_id:"I", card_ids:["C1"], … }
+      "hand_I": { place:"hand", host_card_id:"I", … }
+      "pool_I": { place:"resource_pool", host_card_id:"I",
+                  token_stacks:{ "resource":5 } }
+      "tok_I":  { place:"tokens", host_card_id:"I",
+                  token_stacks:{ "damage":0, "horror":0 } }
+      "on_L":   { place:"on", host_card_id:"L", card_ids:["I"], … }
+      "tok_L":  { place:"tokens", host_card_id:"L", token_stacks:{ "clue":1 } }
+      "chaos":  { place:"chaos", shape:"bag", token_stacks:{ "numeric_0":1 } }
+    }
+    framework: { round:1, lead_investigator_id:"I", … }
+    limits: { counters:{}, occupancies:{} }
   }
-  seats: {
-    "I": { actions_remaining:3, actions_bonus_next_turn:0,
-           actions_penalty_next_turn:0, eliminated:false, resigned:false }
-  }
-  regions: {
-    "deck_I": { id:"deck_I", shape:"deck", host_card_id:"I", place:"deck",
-                card_ids:["C1"], token_stacks:{}, limbo_kind:"" }
-    "hand_I": { id:"hand_I", shape:"flat", host_card_id:"I", place:"hand",
-                card_ids:[], token_stacks:{} }
-    "pool_I": { id:"pool_I", place:"resource_pool", host_card_id:"I",
-                card_ids:[], token_stacks:{ "resource":5 } }
-    "tok_I":  { id:"tok_I", place:"tokens", host_card_id:"I",
-                card_ids:[], token_stacks:{ "damage":0, "horror":0 } }
-    "on_L":   { id:"on_L", place:"on", host_card_id:"L", card_ids:["I"], token_stacks:{} }
-    "tok_L":  { id:"tok_L", place:"tokens", host_card_id:"L",
-                token_stacks:{ "clue":1 } }
-    "chaos":  { id:"chaos", shape:"bag", place:"chaos", host_card_id:"",
-                token_stacks:{ "numeric_0":1 } }
-  }
-  registrations: {}
-  gains: {}
-  chronicle: { log:[], remembered:{} }
+  facts: { relations:{}, gains:{}, chronicle:{ log:[], remembered:{} } }
+  constraints: { policies:{} }
   audience: { "C1":"controller" }
-  framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I", … }
-  limits: { counters:{}, occupancies:{} }
 }
 ```
 

@@ -1,8 +1,6 @@
 //! Unique auth writers — commit(Intent[]) → Snapshot'.
 
-use crate::world::{
-    Registration, RegistrationPayload, Snapshot, StatusPayload, Subject, TOKEN_SUPPLY,
-};
+use crate::world::{Policy, Relation, Snapshot, TOKEN_SUPPLY};
 
 #[derive(Clone, Debug)]
 pub enum Intent {
@@ -26,11 +24,17 @@ pub enum Intent {
         to_type: String,
         n: i32,
     },
-    RegInsert {
-        registration: Registration,
+    /// Insert a Facts.Relation (CREATED).
+    FactInsert {
+        relation: Relation,
     },
-    RegRemove {
-        reg_id: String,
+    /// Insert a Constraints.Policy (CREATED).
+    ConstraintInsert {
+        policy: Policy,
+    },
+    /// Remove from Facts.relations or Constraints.policies by id.
+    CompanionRemove {
+        id: String,
     },
     SetExhausted {
         card_id: String,
@@ -52,7 +56,7 @@ pub enum CommitError {
     MissingRegion(String),
     MissingCard(String),
     MissingSeat(String),
-    MissingRegistration(String),
+    MissingCompanion(String),
     NonPositiveAmount(i32),
     InsufficientTokens {
         region_id: String,
@@ -114,7 +118,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
         } => {
             {
                 let from = snap
-                    .auth
+                    .auth.world
                     .regions
                     .get_mut(from_region)
                     .ok_or_else(|| CommitError::MissingRegion(from_region.clone()))?;
@@ -129,28 +133,38 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
                 from.card_ids.remove(pos);
             }
             let to = snap
-                .auth
+                .auth.world
                 .regions
                 .get_mut(to_region)
                 .ok_or_else(|| CommitError::MissingRegion(to_region.clone()))?;
             to.card_ids.push(card_id.clone());
             Ok(())
         }
-        Intent::RegInsert { registration } => {
+        Intent::FactInsert { relation } => {
             snap.auth
-                .registrations
-                .insert(registration.id.clone(), registration.clone());
+                .facts
+                .relations
+                .insert(relation.shell.id.clone(), relation.clone());
             Ok(())
         }
-        Intent::RegRemove { reg_id } => {
-            if snap.auth.registrations.remove(reg_id).is_none() {
-                return Err(CommitError::MissingRegistration(reg_id.clone()));
+        Intent::ConstraintInsert { policy } => {
+            snap.auth
+                .constraints
+                .policies
+                .insert(policy.shell.id.clone(), policy.clone());
+            Ok(())
+        }
+        Intent::CompanionRemove { id } => {
+            let gone = snap.auth.facts.relations.remove(id).is_some()
+                || snap.auth.constraints.policies.remove(id).is_some();
+            if !gone {
+                return Err(CommitError::MissingCompanion(id.clone()));
             }
             Ok(())
         }
         Intent::SetExhausted { card_id, exhausted } => {
             let card = snap
-                .auth
+                .auth.world
                 .cards
                 .get_mut(card_id)
                 .ok_or_else(|| CommitError::MissingCard(card_id.clone()))?;
@@ -162,7 +176,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             actions_remaining,
         } => {
             let seat = snap
-                .auth
+                .auth.world
                 .seats
                 .get_mut(investigator_id)
                 .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
@@ -175,7 +189,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             resigned,
         } => {
             let seat = snap
-                .auth
+                .auth.world
                 .seats
                 .get_mut(investigator_id)
                 .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
@@ -201,7 +215,7 @@ fn debit_stack(
         return Ok(());
     }
     let region = snap
-        .auth
+        .auth.world
         .regions
         .get_mut(region_id)
         .ok_or_else(|| CommitError::MissingRegion(region_id.to_string()))?;
@@ -234,7 +248,7 @@ fn credit_stack(
         return Ok(());
     }
     let region = snap
-        .auth
+        .auth.world
         .regions
         .get_mut(region_id)
         .ok_or_else(|| CommitError::MissingRegion(region_id.to_string()))?;
@@ -245,34 +259,21 @@ fn credit_stack(
     Ok(())
 }
 
-/// Helper: engagement STATUS registration.
-pub fn engagement_reg(
+/// Helper: engagement Fact (Relation), not threat-area membership.
+pub fn engagement_relation(
     id: impl Into<String>,
     source_card_id: impl Into<String>,
     enemy_id: impl Into<String>,
     investigator_id: impl Into<String>,
-) -> Registration {
-    let enemy = enemy_id.into();
-    let inv = investigator_id.into();
-    Registration {
-        id: id.into(),
-        source_card_id: source_card_id.into(),
-        subject: Subject::Bound {
-            card_id: enemy.clone(),
-        },
-        lifetime: "while_in_play".into(),
-        bound_id: String::new(),
-        payloads: vec![RegistrationPayload::Status {
-            status: StatusPayload::engagement(enemy, inv),
-        }],
-    }
+) -> Relation {
+    Relation::engagement(id, source_card_id, enemy_id, investigator_id)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::world::{
-        Auth, Card, CardType, Face, Region, RegionShape, Seat, Snapshot, TOKEN_SUPPLY,
+        Auth, Card, CardType, Face, Region, RegionShape, Seat, Snapshot, World, TOKEN_SUPPLY,
     };
     use std::collections::BTreeMap;
 
@@ -378,9 +379,12 @@ mod tests {
 
         Snapshot {
             auth: Auth {
-                cards,
-                regions,
-                seats,
+                world: World {
+                    cards,
+                    regions,
+                    seats,
+                    ..World::default()
+                },
                 next_id: 8,
                 ..Auth::default()
             },
@@ -392,7 +396,7 @@ mod tests {
     #[test]
     fn seat_actions_not_on_card() {
         let s0 = mini_snap();
-        assert_eq!(s0.auth.seats["I"].actions_remaining, 3);
+        assert_eq!(s0.auth.world.seats["I"].actions_remaining, 3);
         let s1 = commit(
             s0,
             &[Intent::SetSeatActions {
@@ -401,7 +405,7 @@ mod tests {
             }],
         )
         .unwrap();
-        assert_eq!(s1.auth.seats["I"].actions_remaining, 2);
+        assert_eq!(s1.auth.world.seats["I"].actions_remaining, 2);
     }
 
     #[test]
@@ -429,7 +433,7 @@ mod tests {
         assert_eq!(s0.resource_pool_region_id("I"), Some(&"pool_I".to_string()));
         // Not on investigator card tokens; Seat has no resource field.
         assert_eq!(s0.token_on_card("I", "resource"), 0);
-        assert_eq!(s0.auth.seats["I"].actions_remaining, 3);
+        assert_eq!(s0.auth.world.seats["I"].actions_remaining, 3);
         let s1 = commit(
             s0,
             &[Intent::TransferToken {
@@ -442,7 +446,7 @@ mod tests {
         .unwrap();
         assert_eq!(s1.resources_of("I"), 3);
         assert_eq!(s1.token_on_card("I", "resource"), 0);
-        assert_eq!(s1.auth.seats["I"].actions_remaining, 3);
+        assert_eq!(s1.auth.world.seats["I"].actions_remaining, 3);
     }
 
     #[test]
@@ -467,7 +471,7 @@ mod tests {
     #[test]
     fn heal_damage_to_supply() {
         let mut s0 = mini_snap();
-        s0.auth
+        s0.auth.world
             .regions
             .get_mut("tok_I")
             .unwrap()
@@ -498,8 +502,8 @@ mod tests {
             }],
         )
         .unwrap();
-        assert!(s1.auth.regions["deck_I"].card_ids.is_empty());
-        assert_eq!(s1.auth.regions["hand_I"].card_ids, vec!["C1".to_string()]);
+        assert!(s1.auth.world.regions["deck_I"].card_ids.is_empty());
+        assert_eq!(s1.auth.world.regions["hand_I"].card_ids, vec!["C1".to_string()]);
     }
 
     #[test]
@@ -509,39 +513,32 @@ mod tests {
     }
 
     #[test]
-    fn engagement_is_status_payload() {
+    fn engagement_is_fact_relation() {
         let s0 = mini_snap();
-        let reg = engagement_reg("r1", "E", "E", "I");
-        assert_eq!(reg.payloads[0].kind(), crate::world::RegistrationKind::Status);
-        let s1 = commit(s0, &[Intent::RegInsert { registration: reg }]).unwrap();
-        assert!(s1.auth.registrations.contains_key("r1"));
-    }
-
-    #[test]
-    fn status_payload_is_engagement_variant() {
-        let s = crate::world::StatusPayload::engagement("E", "I");
-        match &s {
-            crate::world::StatusPayload::Engagement {
-                subject_id,
-                drawer_id,
+        let rel = engagement_relation("r1", "E", "E", "I");
+        match &rel.body {
+            crate::world::RelationBody::Engagement {
+                enemy_id,
+                investigator_id,
             } => {
-                assert_eq!(subject_id, "E");
-                assert_eq!(drawer_id, "I");
+                assert_eq!(enemy_id, "E");
+                assert_eq!(investigator_id, "I");
             }
         }
-        let v = serde_json::to_value(&s).unwrap();
-        assert_eq!(v["kind"], "engagement");
-        assert!(v.get("kind").is_some());
+        let s1 = commit(s0, &[Intent::FactInsert { relation: rel }]).unwrap();
+        assert!(s1.auth.facts.relations.contains_key("r1"));
+        assert!(s1.is_engaged_with("E", "I"));
+        assert!(!s1.is_engaged_with("E", "X"));
     }
 
     #[test]
-    fn listener_payload_stays_homogeneous() {
+    fn on_timing_policy_stays_homogeneous() {
         let listener = crate::world::ListenerPayload {
             timing: "after_evade".into(),
             composition: "comp_draw_1".into(),
         };
-        let payload = crate::world::RegistrationPayload::Listener { listener };
-        assert_eq!(payload.kind(), crate::world::RegistrationKind::Listener);
+        let body = crate::world::PolicyBody::OnTiming { on_timing: listener };
+        assert_eq!(body.kind(), crate::world::PolicyKind::OnTiming);
     }
 
     #[test]
@@ -613,7 +610,7 @@ mod tests {
     }
 
     #[test]
-    fn modifier_payload_stays_homogeneous() {
+    fn fold_stat_policy_stays_homogeneous() {
         let m = crate::world::ModifierPayload {
             stat: "combat".into(),
             op: "add".into(),
@@ -622,13 +619,13 @@ mod tests {
             plan_kind: "none".into(),
             apply_mode: "scalar".into(),
         };
-        let payload = crate::world::RegistrationPayload::Modifier { modifier: m };
-        assert_eq!(payload.kind(), crate::world::RegistrationKind::Modifier);
+        let body = crate::world::PolicyBody::FoldStat { fold: m };
+        assert_eq!(body.kind(), crate::world::PolicyKind::FoldStat);
     }
 
     #[test]
     fn gate_payload_typed_by_kind() {
-        use crate::world::{GatePayload, GateScope, RegistrationPayload};
+        use crate::world::{GatePayload, GateScope, PolicyBody};
         let peril = GatePayload::ForbidPlay {
             scope: GateScope::Peril {
                 drawer_id: "I".into(),
@@ -641,14 +638,14 @@ mod tests {
             subject_id: "I".into(),
         };
         assert_eq!(lasting.kind_name(), "forbid_draw");
-        let payload = RegistrationPayload::Gate { gate: peril };
-        assert_eq!(payload.kind(), crate::world::RegistrationKind::Gate);
+        let body = PolicyBody::GuardIntent { gate: peril };
+        assert_eq!(body.kind(), crate::world::PolicyKind::GuardIntent);
     }
 
     #[test]
     fn flip_token_moves_between_types() {
         let mut s0 = mini_snap();
-        s0.auth
+        s0.auth.world
             .regions
             .get_mut("tok_I")
             .unwrap()
