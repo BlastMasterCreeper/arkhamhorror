@@ -64,8 +64,6 @@ pub struct Card {
     pub controller_id: String,
     pub face: Face,
     pub exhausted: bool,
-    /// place → region_id (not rules asset slots).
-    pub owned_regions: BTreeMap<String, RegionId>,
     pub connections: Vec<CardId>,
 }
 
@@ -79,16 +77,15 @@ impl Default for Card {
             controller_id: String::new(),
             face: Face::A,
             exhausted: false,
-            owned_regions: BTreeMap::new(),
             connections: Vec::new(),
         }
     }
 }
 
 /// Investigator seat — turn economy and scenario outcome flags (not Card spine).
+/// Map key in `Auth.seats` = investigator card id (no redundant investigator_id field).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Seat {
-    pub investigator_id: CardId,
     pub actions_remaining: i32,
     pub actions_bonus_next_turn: i32,
     pub actions_penalty_next_turn: i32,
@@ -97,9 +94,8 @@ pub struct Seat {
 }
 
 impl Seat {
-    pub fn fresh(investigator_id: impl Into<String>, actions: i32) -> Self {
+    pub fn fresh(actions: i32) -> Self {
         Self {
-            investigator_id: investigator_id.into(),
             actions_remaining: actions,
             actions_bonus_next_turn: 0,
             actions_penalty_next_turn: 0,
@@ -512,17 +508,26 @@ pub struct SkillTest {
 }
 
 impl Snapshot {
+    /// Region owned by `host_card_id` with the given place role (auth = regions only).
+    pub fn region_for_place(&self, host_card_id: &str, place: &str) -> Option<&Region> {
+        self.auth.regions.values().find(|r| {
+            r.host_card_id == host_card_id && r.place == place
+        })
+    }
+
+    pub fn region_id_for_place(&self, host_card_id: &str, place: &str) -> Option<&RegionId> {
+        self.auth.regions.iter().find_map(|(id, r)| {
+            if r.host_card_id == host_card_id && r.place == place {
+                Some(id)
+            } else {
+                None
+            }
+        })
+    }
+
     /// Token count on a card's `tokens` place (0 if missing).
     pub fn token_on_card(&self, card_id: &str, token_type: &str) -> i32 {
-        let Some(card) = self.auth.cards.get(card_id) else {
-            return 0;
-        };
-        let Some(rid) = card.owned_regions.get("tokens") else {
-            return 0;
-        };
-        self.auth
-            .regions
-            .get(rid)
+        self.region_for_place(card_id, "tokens")
             .and_then(|r| r.token_stacks.get(token_type).copied())
             .unwrap_or(0)
     }
@@ -533,10 +538,7 @@ impl Snapshot {
             if card.card_type != CardType::Location {
                 continue;
             }
-            let Some(on_id) = card.owned_regions.get("on") else {
-                continue;
-            };
-            let Some(region) = self.auth.regions.get(on_id) else {
+            let Some(region) = self.region_for_place(loc_id, "on") else {
                 continue;
             };
             if region.card_ids.iter().any(|id| id == card_id) {

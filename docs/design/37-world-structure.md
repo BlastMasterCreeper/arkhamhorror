@@ -1,9 +1,10 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.30 · 2026-11-25  
+> **状态**：设计草案 v0.31 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
+> **简洁**：权威唯一、少冗余；同质实体不因规则绰号另开放置面（封印混乱 = 宿主上的 token 堆）。  
 > **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。  
 > **实现**：`arkham_rules` crate（M1：`Snapshot`+`commit`；M2：`Eff`/`step`/`Nest` 抽牌）。
 
@@ -53,7 +54,7 @@ Auth = {
 
 | 键 | 类型 | 说明 |
 |---|---|---|
-| `cards` | `Map<String, Card>` | 卡实体脊骨（身份·控制·形态·放置面指针） |
+| `cards` | `Map<String, Card>` | 卡实体脊骨（身份·控制·形态；放置只在 regions） |
 | `regions` | `Map<String, Region>` | **唯一放置面**：卡序 + **token 堆** |
 | `seats` | `Map<String, Seat>` | **调查员席位**：回合经济与退场/撤退；不进 Card |
 | `registrations` | `Map<String, Registration>` | 信息层（含交战等 STATUS） |
@@ -68,14 +69,15 @@ Auth = {
 
 **Token 本质**：只表示 **堆键 + 数量**；是放置的**终端**——其上不再放置卡、不再绑登记主体。即使桌上该类只有 1 枚，仍用 `token_stacks[key]=1`。双面件把当前面编进堆键，不另开个体。
 
-卡通过 `owned_regions` 挂区（放置面角色 → region id）。**禁止**用规则术语 **slot**（资产槽 Hand/Ally/Arcane…）给区命名。禁止 `Card.markers` / `location_id` / `engaged_with`。
+放置权威只在 **`regions`**（`host_card_id` + `place`）。**禁止**在 Card 再存一份 `owned_regions`（双源）。查询「某卡的 hand 区」= 扫 `regions` 中 `host_card_id=卡 ∧ place=hand`（派生索引可加速，属 `derived`）。  
+**禁止**用规则术语 **slot**（资产槽 Hand/Ally/Arcane…）给区命名。禁止 `Card.markers` / `location_id` / `engaged_with`。
 
 ---
 
-### 1.1 `Card`（脊骨 + 放置面指针）
+### 1.1 `Card`（脊骨）
 
-卡脊骨只承载：**身份、所有/控制、形态③、放置面指针、地点连通**。  
-**不**承载回合经济与退场/撤退（见 §1.1.1 `Seat`）。
+卡脊骨只承载：**身份、所有/控制、形态③、地点连通**。  
+**不**承载回合经济与退场/撤退（见 §1.1.1 `Seat`）；**不**承载放置指针。
 
 ```text
 Card = {
@@ -86,7 +88,6 @@ Card = {
   controller_id:            String,
   face:                     Face,
   exhausted:                Bool,
-  owned_regions:            Map<String, String>,  -- place → region_id（非资产槽）
   connections:              Array<String>         -- 仅 location：连通图（非「放置」）
 }
 ```
@@ -97,11 +98,10 @@ Card = {
 | `owner_id` / `controller_id` | `String` | 所有/控制（[24](24-functional-world.md)：不单立原语） |
 | `face` | `Face` | `"A"` \| `"B"`（形态③） |
 | `exhausted` | `Bool` | 横置（形态③） |
-| `owned_regions` | `Map<String, String>` | **卡拥有的放置面**；键 = `Region.place`；见下表 |
 | `connections` | `Array<String>` | 地点连通（拓扑，不是区内实体） |
 
-**已迁出 Card**：`actions_remaining` / `actions_bonus_next_turn` / `eliminated` / `resigned` → `seats`。  
-**已删**：`display_order`——同区展示序以 `Region.card_ids` 序为准，避免双源。
+**已迁出 Card**：席位态 → `seats`；放置指针 → 仅 `regions`（旧 `owned_regions` 升 **derived**）。  
+**已删**：`display_order`——同区展示序以 `Region.card_ids` 序为准。
 
 **`CardType`**：`"investigator"` \| `"asset"` \| `"event"` \| `"skill"` \| `"enemy"` \| `"treachery"` \| `"location"` \| `"act"` \| `"agenda"`
 
@@ -111,7 +111,6 @@ Card = {
 
 ```text
 Seat = {
-  investigator_id:           String,  -- = 键；冗余便于拷贝
   actions_remaining:         Int,     -- 本回合剩余行动
   actions_bonus_next_turn:   Int,     -- 下回合额外行动（跨回合；亦可日后改 Register）
   actions_penalty_next_turn: Int,     -- 下回合惩罚（与现有 InvestigatorState 对齐）
@@ -119,6 +118,8 @@ Seat = {
   resigned:                  Bool
 }
 ```
+
+键 = 调查员卡 id；**不**再存 `investigator_id` 字段（与 map 键双源）。
 
 | 为何不在 Card | |
 |---|---|
@@ -128,25 +129,27 @@ Seat = {
 
 `framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**经济与结局**在 `seats`。
 
-#### 推荐放置名（`owned_regions` 的键 = `Region.place`）
+#### 推荐放置名（`Region.place`）
 
-按 **放置面角色** 开区，不按 token 种类开。伤/恐/线索/毁灭/资源/充能… 同进一区的 `token_stacks`，靠堆键区分。
+按 **放置面角色** 开区，不按 token 种类开。伤/恐/线索/毁灭/资源/充能/封印混乱… 同进宿主 `tokens` 的 `token_stacks`，靠堆键区分。
 
-**`place` ≠ 规则资产槽（slot）**：Hand/Ally/Arcane/Body… 是进场占用约束，另模；不要写成 `Region.place` / `owned_regions` 的键。
+**`place` ≠ 规则资产槽（slot）**：Hand/Ally/Arcane/Body… 是进场占用约束，另模；不要写成 `Region.place`。
 
 | place | 谁有 | 区内存什么 |
 |---|---|---|
 | `hand` / `deck` / `discard` / `play` / `threat` | investigator | 卡 |
-| `tokens` | 会承 token 的卡 | **该宿主上全部** token 堆（伤/恐/线索/毁灭/资源/充能…） |
+| `tokens` | 会承 token 的卡 | **该宿主上全部** token 堆（伤/恐/线索/毁灭/资源/充能/**封印的混乱符号**…） |
 | `on` | location | **物理放在该地点上的**调查员/敌人卡 id（放置，非绑定） |
 | `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
-| `chaos` | 冒险公共 | 混乱袋（另一放置面；仍是堆） |
-| `augury` / `sealed` | 公共或卡 | 占兆 / 封印（不同放置面） |
+| `chaos` | 冒险公共 | 混乱袋（堆） |
+| `revealed`（可选） | 公共 | 检定中已揭示、尚未归袋/封印的混乱堆（中性放置；≠ 另类 token） |
 | `encounter_deck` / `encounter_discard` | 公共 | 卡 |
-| `token_supply`（可选） | 公共 | 仅桌面呈现；**运算端点**仍是 `$supply`，不靠本区库存 |
 
-读「某卡上有多少资源」= 读 `regions[card.owned_regions["tokens"]].token_stacks["resource"]`。  
-读「伤」同区 `token_stacks["damage"]`——**不要**再开 `damage`/`horror`/`resource` 放置面。  
+**不要**开 `sealed` / `augury` 专用放置面：封印在卡上的混乱与伤/线索同质——都是宿主 `tokens` 里的 `token_stacks` 键；检定揭示若需桌上堆，只用一个公共 `revealed`（术语「占兆」可作该区 **id**，不必新 place）。  
+**不要**开 `token_supply` 区：运算端点 `$supply` 即可。
+
+读「某卡上有多少资源 / 封印了几个 skull」= 该宿主 `place=tokens` 区的 `token_stacks[…]`。  
+读「伤」同区——**不要**再开 `damage`/`horror`/`resource`/`sealed` 放置面。  
 读「调查员物理在哪」= 哪个地点的 **`on`** 区的 `card_ids` 含该 id（派生索引可加速）。  
 **禁止**用 `at` 作地点放置名：`at` 留给绑定关系；`on` 才是物理放置。  
 「交战」= **登记载荷** `STATUS`/`ENGAGEMENT`，不进 Card 字段、不进 `on`。
@@ -172,7 +175,7 @@ Region = {
 | `id` | `String` | 区 id |
 | `shape` | `RegionShape` | `"deck"` \| `"flat"` \| `"bag"` |
 | `host_card_id` | `String` | 宿主卡；公共 `""` |
-| `place` | `String` | 放置面角色（与宿主 `owned_regions` 的键一致）；**不是**资产槽 |
+| `place` | `String` | 放置面角色；**不是**资产槽 |
 | `card_ids` | `Array<String>` | 卡序；`"deck"` 时 `[0]` 为顶 |
 | `token_stacks` | `Map<String, Int>` | **全部** token（含仅 1 枚的） |
 | `limbo_kind` | `LimboKind` | `""` \| `"resolving"` \| `"committed"` |
@@ -217,15 +220,16 @@ TokenTypeStatic = {
 `seq.effect.flip_token`（名可再定）：查 `dual_of[type]` → 目标区 `stacks[type]-=n`、`stacks[other]+=n`。  
 **不是**键形的一部分；放置/移动/揭示不必懂双面。
 
-#### 混乱 / 占兆 / 封印（堆移动）
+#### 混乱 / 揭示 / 封印（仍是堆 · Transfer）
 
 ```text
 chaos.token_stacks["skull"] = 2
--- 揭示 / 封印：同类型跨区 ±count
--- 翻面：走 flip_token seq（查 dual_of），不改键约定
+-- 揭示：Transfer chaos → revealed（或规则指定宿主）
+-- 封印：Transfer → 宿主 tokens（与放置 resource 同形）
+-- 翻面：FlipToken / flip seq（查 dual_of）
 ```
 
-无个体 id。同类型多枚不可区分。
+无个体 id。同类型多枚不可区分。**封印不是新实体种类，也不是新放置面。**
 
 #### 放置伤/线索 = Transfer（禁止 Adjust）
 
@@ -239,7 +243,7 @@ chaos.token_stacks["skull"] = 2
 | 再分配 / 发现线索 | 承载区 → 承载区（仍 1→1） |
 
 `$supply`（常量 `TOKEN_SUPPLY`）：无穷供给端点——**取出永不因库存失败**；**回池不累加**库存计数。可不建真实 `Region` 行。  
-可选公共区 `place:"token_supply"` 仅作桌面呈现；运算仍认 `$supply`。
+运算端点 `$supply`；**不**另建 `token_supply` 区。
 
 术语：全文用 **token**。
 
@@ -633,7 +637,7 @@ SkillTest = {
 |---|---|
 | Choice `deadline_ms` / UI prompt 文案 | **驱动层**（不纯）；结果进 answer |
 | SkillTest 回调 / `modifier_breakdown` | Catalog plan / 查询重算；勿存权威 |
-| SkillTest `revealed_tokens` 个体表 | `augury` 区堆 +/或检定帧记忆；勿第二套 token 个体 |
+| SkillTest `revealed_tokens` 个体表 | 公共 `revealed` 堆 +/或检定帧记忆；勿第二套 token 个体 |
 | Frame.`phase`（Would/When/…） | Catalog 步表 + `step_index` |
 
 **投入区**：纸面裁决 OQ-01-03 为 commit 后仍 HAND 至 ST.8；`Region.limbo_kind=committed` 若用于投入，须与 01/04 **另轮统一**——本版 `committed_ids` 只保证 Run 索引与区成员可对拍。
@@ -742,14 +746,13 @@ Snapshot {
   auth: {
     next_id: 8
     cards: {
-      "I": { card_type:"investigator",
-             owned_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I", … }, … }
-      "L": { card_type:"location", owned_regions:{ "on":"on_L", "tokens":"tok_L" }, connections:[], … }
+      "I": { card_type:"investigator", … }
+      "L": { card_type:"location", connections:[], … }
+      -- 放置只看 regions[].host_card_id + place（无 Card.owned_regions）
     }
     seats: {
-      "I": { investigator_id:"I", actions_remaining:3,
-             actions_bonus_next_turn:0, actions_penalty_next_turn:0,
-             eliminated:false, resigned:false }
+      "I": { actions_remaining:3, actions_bonus_next_turn:0,
+             actions_penalty_next_turn:0, eliminated:false, resigned:false }
     }
     regions: {
       "hand_I":  { host_card_id:"I", place:"hand", card_ids:[], token_stacks:{}, … }
@@ -804,3 +807,4 @@ Snapshot {
 | 2026-11-25 | v0.28：Framework 钉五字段精简集（排除 deck/threshold/phase）；ModifierPayload **明确不分型** |
 | 2026-11-25 | v0.29：Run/Focus 精简边界；Listener 不分型；StatusPayload 单变体 `engagement`；24 Run 对齐 |
 | 2026-11-25 | v0.30：ChoiceState 对齐 Ask；SkillTest+`st_step`；Key 封闭代数对拍 35（RegionStack/Seat/RunST） |
+| 2026-11-25 | v0.31：无冗余 — 废 Card.owned_regions/Seat.investigator_id；封印并入宿主 tokens；去掉 sealed/augury/token_supply 放置名 |

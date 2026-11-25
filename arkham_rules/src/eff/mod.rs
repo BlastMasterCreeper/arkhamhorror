@@ -290,19 +290,15 @@ pub fn answer(
 
 /// Built-in: draw top card from investigator deck place → hand place.
 pub fn draw_one_eff(investigator_id: &str, snap: &Snapshot) -> Result<Eff, String> {
-    let card = snap
-        .auth
-        .cards
-        .get(investigator_id)
-        .ok_or_else(|| format!("missing investigator {investigator_id}"))?;
-    let deck_id = card
-        .owned_regions
-        .get("deck")
+    if !snap.auth.cards.contains_key(investigator_id) {
+        return Err(format!("missing investigator {investigator_id}"));
+    }
+    let deck_id = snap
+        .region_id_for_place(investigator_id, "deck")
         .ok_or("missing deck place")?
         .clone();
-    let hand_id = card
-        .owned_regions
-        .get("hand")
+    let hand_id = snap
+        .region_id_for_place(investigator_id, "hand")
         .ok_or("missing hand place")?
         .clone();
     let top = snap
@@ -330,10 +326,6 @@ mod tests {
 
     fn snap_with_deck() -> Snapshot {
         let mut cards = BTreeMap::new();
-        let mut owned = BTreeMap::new();
-        owned.insert("deck".into(), "deck_I".into());
-        owned.insert("hand".into(), "hand_I".into());
-        owned.insert("tokens".into(), "tok_I".into());
         cards.insert(
             "I".into(),
             Card {
@@ -341,7 +333,6 @@ mod tests {
                 card_type: CardType::Investigator,
                 controller_id: "I".into(),
                 face: Face::A,
-                owned_regions: owned,
                 ..Card::default()
             },
         );

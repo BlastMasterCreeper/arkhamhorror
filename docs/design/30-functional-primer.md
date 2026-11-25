@@ -97,7 +97,7 @@ auth = {
 #### 卡
 
 每张卡都是同一条记录。某个 `card_type` 用不到的键不写。权威形状以 [37](37-world-structure.md) 为准。  
-卡脊骨**不**放回合行动数、eliminated/resigned（那些在 `seats`）；同区展示序以 `Region.card_ids` 为准（无 `display_order`）。
+卡脊骨**不**放回合行动数、eliminated/resigned（`seats`）；**不**放放置指针（权威在 `regions` 的 `host_card_id`+`place`）。同区序 = `Region.card_ids`。
 
 ```text
 卡 = {
@@ -108,18 +108,16 @@ auth = {
   controller_id:  字符串
   face:           枚举      "A" 或 "B"
   exhausted:      布尔
-  owned_regions:  字典      键=放置面名(place)，值=区 id
   connections:    数组      地点：相连地点的卡 id
 }
 ```
 
 #### 席位（Seat）
 
-调查员一条；键 = 该调查员卡 id。读行动数 / 是否已退场 → `auth.seats[inv]`，不读 `cards[inv]`。
+调查员一条；键 = 该调查员卡 id（不再另存 investigator_id 字段）。读行动数 / 是否已退场 → `auth.seats[inv]`。
 
 ```text
 席位 = {
-  investigator_id:          字符串   = 键
   actions_remaining:        整型
   actions_bonus_next_turn:  整型
   actions_penalty_next_turn:整型
@@ -130,7 +128,7 @@ auth = {
 
 `card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
 
-**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/资源等在宿主 `owned_regions["tokens"]` 区的 `token_stacks`。物理所在地点 = 某地点 `on` 区的成员。交战 = 登记 `status/engagement`。
+**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/资源/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。物理所在地点 = 某地点 `on` 区的成员。交战 = 登记 `status/engagement`。
 
 地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
 
@@ -212,17 +210,14 @@ World {
   next_id: 8
   cards: {
     "I":  { id:"I", definition_id:"01001", card_type:"investigator",
-            controller_id:"I", face:"A", exhausted:false,
-            owned_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I" } }
-    "L":  { id:"L", definition_id:"01111", card_type:"location", face:"B",
-            owned_regions:{ "on":"on_L", "tokens":"tok_L" }, connections:[] }
+            controller_id:"I", face:"A", exhausted:false }
+    "L":  { id:"L", definition_id:"01111", card_type:"location", face:"B", connections:[] }
     "C1": { id:"C1", definition_id:"06111", card_type:"skill",
-            owner_id:"I", controller_id:"I", face:"A", owned_regions:{} }
+            owner_id:"I", controller_id:"I", face:"A" }
   }
   seats: {
-    "I": { investigator_id:"I", actions_remaining:3,
-           actions_bonus_next_turn:0, actions_penalty_next_turn:0,
-           eliminated:false, resigned:false }
+    "I": { actions_remaining:3, actions_bonus_next_turn:0,
+           actions_penalty_next_turn:0, eliminated:false, resigned:false }
   }
   regions: {
     "deck_I": { id:"deck_I", shape:"deck", host_card_id:"I", place:"deck",
@@ -385,7 +380,7 @@ World {
 \mathrm{commit}(w,\ i :: is) = \mathrm{commit}(\mathrm{apply}(w,i),\ is)
 \]
 
-`apply` 只改对应分量。例如从供给池放到卡的 `tokens` 区（\(R=\) 该卡 `owned_regions["tokens"]`）：
+`apply` 只改对应分量。例如从供给池放到卡的 `tokens` 区（\(R=\) 宿主 `place=tokens` 的区 id）：
 
 \[
 \mathrm{apply}(w,\ \mathrm{TransferToken}(k,n,\texttt{\$supply},R)).\mathrm{regions}[R].\mathrm{token\_stacks}[k]

@@ -278,10 +278,6 @@ mod tests {
 
     fn mini_snap() -> Snapshot {
         let mut cards = BTreeMap::new();
-        let mut owned = BTreeMap::new();
-        owned.insert("hand".into(), "hand_I".into());
-        owned.insert("deck".into(), "deck_I".into());
-        owned.insert("tokens".into(), "tok_I".into());
         cards.insert(
             "I".into(),
             Card {
@@ -290,7 +286,6 @@ mod tests {
                 card_type: CardType::Investigator,
                 controller_id: "I".into(),
                 face: Face::A,
-                owned_regions: owned,
                 ..Card::default()
             },
         );
@@ -301,10 +296,6 @@ mod tests {
                 definition_id: "01111".into(),
                 card_type: CardType::Location,
                 face: Face::B,
-                owned_regions: BTreeMap::from([
-                    ("on".into(), "on_L".into()),
-                    ("tokens".into(), "tok_L".into()),
-                ]),
                 ..Card::default()
             },
         );
@@ -373,7 +364,7 @@ mod tests {
         );
 
         let mut seats = BTreeMap::new();
-        seats.insert("I".into(), Seat::fresh("I", 3));
+        seats.insert("I".into(), Seat::fresh(3));
 
         Snapshot {
             auth: Auth {
@@ -401,6 +392,24 @@ mod tests {
         )
         .unwrap();
         assert_eq!(s1.auth.seats["I"].actions_remaining, 2);
+    }
+
+    #[test]
+    fn sealed_chaos_lives_on_host_tokens() {
+        // Seal = Transfer chaos-type onto host tokens place (no sealed region).
+        let s0 = mini_snap();
+        let s1 = commit(
+            s0,
+            &[Intent::TransferToken {
+                token_type: "skull".into(),
+                amount: 1,
+                from_region: TOKEN_SUPPLY.into(),
+                to_region: "tok_I".into(),
+            }],
+        )
+        .unwrap();
+        assert_eq!(s1.token_on_card("I", "skull"), 1);
+        assert!(s1.region_for_place("I", "sealed").is_none());
     }
 
     #[test]

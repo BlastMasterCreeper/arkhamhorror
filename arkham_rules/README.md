@@ -5,7 +5,8 @@ Functional rules kernel (Rust). Shape follows [`docs/design/37-world-structure.m
 ## Current (M1 + M2)
 
 - `Snapshot` = `auth` ⊕ `derived` ⊕ `run` ⊕ `gen`
-- Token stacks on `Region`; `owned_regions` / `place` (not asset slots)
+- Token stacks on `Region` (`host_card_id`+`place`; no Card.owned_regions dual source)
+- Sealed chaos = host `tokens` stacks (no `sealed`/`augury` places)
 - Investigator turn economy / eliminated / resigned on `Auth.seats` (not `Card`)
 - `RegistrationPayload` ×5; engagement = `status`
 - `LimitStore`: `limit_key` + `occupancies` (not `slot_id` / asset-slot confusion)

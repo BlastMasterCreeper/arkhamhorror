@@ -91,7 +91,7 @@ transit 末尾：按 Touched 刷新 Derived（兴趣点）
 
 | 原语类 | 权威落点（37） | 读法 |
 |---|---|---|
-| ① 区/序 | `regions[].card_ids` + 卡 `owned_regions` | `zone_of` · `order_in` · in-play |
+| ① 区/序 | `regions[].card_ids`（`host_card_id`+`place`） | `zone_of` · `order_in` · in-play |
 | ② 标记 | `regions[].token_stacks`（宿主 `place:"tokens"` 等） | fold；经 `TransferToken` |
 | ③ 形态 | `cards[].face` / `exhausted` | 翻面 / 横置 |
 | 席位经济 / 结局 | `seats[]`（非 Card 脊骨） | 行动剩余 · eliminated |
