@@ -82,20 +82,20 @@ Snapshot = {
 ```text
 auth = {
   cards:         字典   键 字符串(卡id) → 卡
-  regions:       字典   键 字符串(区id) → 区
+  regions:       字典   键 字符串(区id) → 区（卡序 + token_stacks；含 chaos）
   registrations: 字典   键 字符串(登记id) → 登记条     信息层
+  gains:         字典   Gain 特征（≠ Registration 载荷）
   chronicle:     记事记录                                    信息层
   audience:      字典   键 字符串(卡id) → 字符串(可见档)   权限
-  limits:        字典   键 字符串 → 整型                   信息层
+  limits:        LimitStore                                  信息层
   framework:     框架记录
-  chaos_bag:     数组   元素是混乱标记                 物理：袋里的标记
   next_id:       整型   下一个序号，只增不减
 }
 ```
 
 #### 卡
 
-每张卡都是同一条记录。某个 `card_type` 用不到的键不写。
+每张卡都是同一条记录。某个 `card_type` 用不到的键不写。权威形状以 [37](37-world-structure.md) 为准。
 
 ```text
 卡 = {
@@ -107,11 +107,8 @@ auth = {
   face:           枚举      "A" 或 "B"
   exhausted:      布尔
   display_order:  整型
-  markers:        字典      键 字符串，值 整型
-  location_id:    字符串    调查员、敌人：所在地点的卡 id
-  engaged_with:   字符串    敌人：交战的调查员卡 id；未交战为 ""
-  connections:    数组      地点：相连地点的卡 id，元素是字符串
-  region_ids:     字典      键 字符串，值 字符串(区id)
+  owned_regions:  字典      键=放置面名(place)，值=区 id
+  connections:    数组      地点：相连地点的卡 id
   actions_remaining:       整型
   actions_bonus_next_turn: 整型
   eliminated:     布尔
@@ -121,29 +118,27 @@ auth = {
 
 `card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
 
-`markers` 的键：`"damage"`、`"horror"`、`"doom"`、`"clue"`、`"resource"`，以及充能用途字符串。值是整型。0 可以不放这个键。资源、伤、恐、线索、毁灭都写在这里，不另做「调查员资源字段」。
-
-`region_ids` 只在 `card_type = "investigator"` 时出现。键是 `"hand"`、`"deck"`、`"discard"`、`"play"`、`"threat"`，值是区 id。
+**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/资源等在宿主 `owned_regions["tokens"]` 区的 `token_stacks`。物理所在地点 = 某地点 `on` 区的成员。交战 = 登记 `status/engagement`。
 
 地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
 
 #### 区
 
-区不是卡。它是一叠卡 id。
+区不是卡。它是卡序 + token 堆的放置面。
 
 ```text
 区 = {
-  id:         字符串
-  shape:      枚举     "deck" 或 "flat"
-  owner_id:   字符串   属主卡 id；公共区为 ""
-  card_ids:   数组     元素是字符串(卡id)
-  limbo_kind: 字符串   "resolving"、"committed" 或 ""
-  host_id:    字符串   附着、垫下、旁置的宿主卡 id；否则 ""
+  id:            字符串
+  shape:         枚举     "deck" | "flat" | "bag"
+  host_card_id:  字符串   宿主卡 id；公共区为 ""
+  place:         字符串   放置面角色（≠ 资产槽 slot）
+  card_ids:      数组     卡 id
+  token_stacks:  字典     类型 → 数量
+  limbo_kind:    字符串   "resolving" | "committed" | ""
 }
 ```
 
 `shape = "deck"` 时，`card_ids[0]` 是顶。
-
 #### 信息层也在局面里
 
 物理层是区、标记、横置和正反面。信息层是登记和记事。两层都写在同一份 `World` 里。权限（谁看得见牌面）也在局面里，改它不算一次结算。
@@ -176,65 +171,64 @@ Registration 载荷 = 按 kind 分型（五选一 body；详 37 §1.3.1）
   status    → { kind: engagement, subject_id, drawer_id }
 ```
 
-#### 可见性、框架、混乱袋、限额
+#### 可见性、框架、限额
 
 ```text
 可见档 = 枚举 "hidden_all" | "controller" | "all"
 
 框架 = {
   round:                  整型
-  lead_investigator_id:   字符串    一张 card_type 为 investigator 的卡 id
+  lead_investigator_id:   字符串
   active_investigator_id: 字符串
-  current_act_id:         字符串    一张 card_type 为 act 的卡 id
-  current_agenda_id:      字符串    一张 card_type 为 agenda 的卡 id
-}
-
-混乱标记 = {
-  id:        字符串
-  kind:      枚举    "numeric" | "skull" | "cultist" | "tablet" | "elder_thing" | "auto_fail" | "elder_sign" | "bless" | "curse"
-  modifier:  整型    kind 为 numeric 时的数值；其它为 0
+  current_act_id:         字符串
+  current_agenda_id:      字符串
 }
 ```
 
-`limits` 的键是字符串（能力 id），值是整型（已用次数）。`next_id` 是整型。
+混乱符号是区 `chaos` 上的 `token_stacks`（类型键 + 数量），不是独立标记个体表。限额见 37 §1.5 `LimitStore`。
 
 #### 一份最小构造
 
-调查员、地点、技能牌都在 `cards` 里。
+调查员、地点、技能牌都在 `cards` 里；token 在区上。混乱袋是 `place:"chaos"` 的区（堆），不是卡数组。
 
 ```text
 World {
-  next_id: 4
+  next_id: 8
   cards: {
     "I":  { id:"I", definition_id:"01001", card_type:"investigator",
-            owner_id:"", controller_id:"I", face:"A", exhausted:false, display_order:0,
-            markers:{ "resource":5 }, location_id:"L",
-            region_ids:{ "hand":"hand_I", "deck":"deck_I", "discard":"disc_I", "play":"play_I", "threat":"thr_I" },
-            actions_remaining:3, actions_bonus_next_turn:0, eliminated:false, resigned:false }
-    "L":  { id:"L", definition_id:"01111", card_type:"location",
-            owner_id:"", controller_id:"", face:"B", exhausted:false, display_order:0,
-            markers:{ "clue":1 }, connections:[] }
+            controller_id:"I", face:"A", exhausted:false,
+            owned_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I" },
+            actions_remaining:3, … }
+    "L":  { id:"L", definition_id:"01111", card_type:"location", face:"B",
+            owned_regions:{ "on":"on_L", "tokens":"tok_L" }, connections:[] }
     "C1": { id:"C1", definition_id:"06111", card_type:"skill",
-            owner_id:"I", controller_id:"I", face:"A", exhausted:false, display_order:0,
-            markers:{} }
+            owner_id:"I", controller_id:"I", face:"A", owned_regions:{} }
   }
   regions: {
-    "deck_I": { id:"deck_I", shape:"deck", owner_id:"I", card_ids:["C1"], limbo_kind:"", host_id:"" }
-    "hand_I": { id:"hand_I", shape:"flat", owner_id:"I", card_ids:[], limbo_kind:"", host_id:"" }
+    "deck_I": { id:"deck_I", shape:"deck", host_card_id:"I", place:"deck",
+                card_ids:["C1"], token_stacks:{}, limbo_kind:"" }
+    "hand_I": { id:"hand_I", shape:"flat", host_card_id:"I", place:"hand",
+                card_ids:[], token_stacks:{} }
+    "tok_I":  { id:"tok_I", place:"tokens", host_card_id:"I",
+                card_ids:[], token_stacks:{ "resource":5 } }
+    "on_L":   { id:"on_L", place:"on", host_card_id:"L", card_ids:["I"], token_stacks:{} }
+    "tok_L":  { id:"tok_L", place:"tokens", host_card_id:"L",
+                token_stacks:{ "clue":1 } }
+    "chaos":  { id:"chaos", shape:"bag", place:"chaos", host_card_id:"",
+                token_stacks:{ "numeric_0":1 } }
   }
   registrations: {}
+  gains: {}
   chronicle: { log:[], remembered:{} }
   audience: { "C1":"controller" }
-  framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I",
-               current_act_id:"", current_agenda_id:"" }
-  chaos_bag: [ { id:"t0", kind:"numeric", modifier:0 } ]
-  limits: {}
+  framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I", … }
+  limits: { counters:{}, max_slots:{} }
 }
 ```
 
-密谋上的毁灭是密谋那张卡的 `markers["doom"]`。阈值在目录里，是整型。
+密谋上的毁灭是密谋卡 `tokens` 区的 `token_stacks["doom"]`。阈值在目录里。
 
-抽一张牌时，新局面只改两个数组：`regions["deck_I"].card_ids` 变成 `[]`，`regions["hand_I"].card_ids` 变成 `["C1"]`。`cards["C1"]` 的 `id` 和 `card_type` 不变。
+抽一张牌：`MoveCard` 改两个区的 `card_ids`；`cards["C1"]` 身份不变。
 
 ### 1.2 进度
 

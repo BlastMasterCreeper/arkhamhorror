@@ -1,10 +1,11 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.21 · 2026-11-24  
+> **状态**：设计草案 v0.22 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
-> **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。
+> **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。  
+> **实现**：`arkham_rules` crate（M1：`Snapshot` + `commit`）。
 
 ---
 
@@ -40,6 +41,7 @@ Auth = {
   cards:          Map<CardId, Card>,
   regions:        Map<RegionId, Region>,
   registrations:  Map<RegId, Registration>,
+  gains:          Map<GainId, GainedCharacteristic>,  -- Gain 特征；≠ payloads
   chronicle:      Chronicle,
   audience:       Map<CardId, Audience>,
   limits:         LimitStore,
@@ -52,7 +54,8 @@ Auth = {
 |---|---|---|
 | `cards` | `Map<String, Card>` | 卡实体脊骨 |
 | `regions` | `Map<String, Region>` | **唯一放置面**：卡序 + **token 堆** |
-| `registrations` | `Map<String, Registration>` | 信息层（含交战等） |
+| `registrations` | `Map<String, Registration>` | 信息层（含交战等 STATUS） |
+| `gains` | `Map<String, GainedCharacteristic>` | Gain 特征（KEYWORD/TRAIT/ICON/ABILITY） |
 | `chronicle` | `Chronicle` | 日志∪记住 |
 | `audience` | `Map<String, Audience>` | 牌面可见档 |
 | `limits` | `LimitStore` | 次数/配额；见 §1.5 |
@@ -67,7 +70,7 @@ Auth = {
 
 ---
 
-### 1.1 `Card`（脊骨 + 槽位区指针）
+### 1.1 `Card`（脊骨 + 放置面指针）
 
 ```text
 Card = {
@@ -239,7 +242,18 @@ Subject =
 
 **`Lifetime`**：`"while_in_play"` \| `"while_committed"` \| `"this_skill_test"` \| `"this_turn"` \| `"while_drawn_card_resolving"`
 
-**不是** Registration 载荷：KEYWORD/TRAIT/ICON/ABILITY 等 **Gain 特征**（`GainedCharacteristicStore` / `seq.effect.grant`）。
+**不是** Registration 载荷：KEYWORD/TRAIT/ICON/ABILITY 等 **Gain 特征** → 写 `auth.gains`（`seq.effect.grant`），可再衍生 payloads。
+
+```text
+GainedCharacteristic = {
+  id:                 String,
+  card_id:            String,
+  kind:               String,   -- "keyword" | "trait" | "icon" | "ability"
+  characteristic_id:  String,
+  source_kind:        String,   -- "printed" | "player" | "encounter"
+  lifetime:           String
+}
+```
 
 ---
 
@@ -569,7 +583,25 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 | `auth` | 仅 `commit(Intent[])` | 一切查询 / `legalTracked` / 投影 |
 | `derived` | `transit` 末尾 `refresh*` | 交互读 feasibility；索引加速查询 |
 | `run` | `step` / `answer` / `bind` | 议程、Ask、宇宙枚举 |
-| `Catalog` | 装载期 | 印刷与 Eff 树 |
+| `Catalog` | 装载期 | 印刷、Eff 树、`TokenTypeStatic` |
+
+---
+
+## 5.1 `Intent`（权威唯一写法 · M1 子集）
+
+```text
+Intent =
+  | AdjustToken { region_id, token_type, delta }     -- Place/Remove
+  | FlipToken   { region_id, from_type, to_type, n } -- 查 Catalog.dual_of 后提交
+  | MoveCard    { card_id, from_region, to_region }
+  | RegInsert   { registration }
+  | RegRemove   { reg_id }
+  | SetExhausted{ card_id, exhausted }
+  -- 后续：GainInsert/Remove、AudienceSet、LimitBump、FrameworkSet…
+```
+
+`commit(Snapshot, Intent[]) → Snapshot'`：顺序应用；任一条失败则整批拒绝（M1）；成功则 `gen += 1`。  
+实现：`arkham_rules::commit`。
 
 ---
 
@@ -629,3 +661,4 @@ Snapshot {
 | 2026-11-24 | v0.19：正文去掉已弃用俗称残留 |
 | 2026-11-24 | v0.20：`Region.slot`/`slot_regions` → `place`/`owned_regions`；slot 留给规则资产槽 |
 | 2026-11-24 | v0.21：补全 `RegistrationPayload` 分型及五类 body 字段 |
+| 2026-11-25 | v0.22：`auth.gains`；Intent M1 子集；`arkham_rules` Snapshot+commit 骨架 |

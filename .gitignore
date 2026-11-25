@@ -25,3 +25,6 @@ Desktop.ini
 .env
 .env.*
 tools/__pycache__/
+
+# Rust kernel
+arkham_rules/target/
