@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.29 · 2026-11-25  
+> **状态**：设计草案 v0.30 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
@@ -590,31 +590,53 @@ Frame = {
 }
 
 ChoiceState = {
-  ask_id:         String,
-  kind:           String,           -- AskKind / ChoiceKind 名
-  default_value:  String,
-  candidates:     Array<String>
+  ask_id:         String,           -- = ChoiceRequest.prompt_id
+  kind:           String,           -- ChoiceKind 名
+  controller_id:  String,           -- decider（谁确认）
+  bind_key:       String,           -- 答案写入 run.memory[controller][bind_key]
+  default_value:  String,           -- 逾期默认（有限期确认；16 §3.1）
+  candidates:     Array<String>     -- 选项 id / 实体 id
 }
 
 SkillTest = {
-  test_id:        String,
-  investigator_id:String,
-  skill:          String,
-  difficulty:     Int,
-  committed_ids:  Array<String>,
-  success:        Bool | null,
-  fail_by:        Int
+  test_id:         String,
+  investigator_id: String,
+  skill:           String,
+  difficulty:      Int,
+  committed_ids:   Array<String>,   -- Run 索引；与区成员同步（见下）
+  st_step:         String,          -- "st1"…"st8"；未开则 ""
+  success:         Bool | null,     -- ST.6 前为 null
+  fail_by:         Int              -- ST.6 后有意义；此前 0
 }
 ```
 
 | 键 | 类型 | 说明 |
 |---|---|---|
 | `stack` | `Array<Frame>` | 手续栈；末元素为顶 |
-| `open_choice` | `ChoiceState \| null` | 效果体内 **有限期确认**（PI）；与 Focus.must 正交 |
-| `skill_tests` | `Array<SkillTest>` | 检定栈 |
+| `open_choice` | `ChoiceState \| null` | 效果体内 **有限期确认**（PI）；与 Focus.must 正交；NeedAsk 时写入 |
+| `skill_tests` | `Array<SkillTest>` | 检定栈（可嵌套） |
 | `memory` | `Map<String, Map<String, String>>` | 步间指称（含险境 frame id 等）；**不**另开 encounter_frames 袋 |
 | `focus` | `Focus` | Φ 宇宙焦点（[35](35-legal-interest.md)） |
 | `timing_phase` | `String` | 信封相位摘要；**不是** Frame 内 ST/RESOLVE 微步 |
+
+#### Frame / ChoiceState / SkillTest 字段边界
+
+| 保留 | 理由 |
+|---|---|
+| Frame.`cancelled` / `created` | Cancel 剪枝；发起 CREATED（07） |
+| Frame.`cont_after` | 续算句柄；**不**常驻整棵 Eff |
+| ChoiceState.`controller_id` / `bind_key` / `default_value` | 对齐 Ask + [16](16-player-interaction.md) 有限期确认 |
+| SkillTest.`st_step` | ST.1–8 游标（独立于 Framework / `timing_phase`） |
+| SkillTest.`committed_ids` | 本次检定投入索引（[04](04-skill-test-engine.md)） |
+
+| 不进这些记录 | 落点 |
+|---|---|
+| Choice `deadline_ms` / UI prompt 文案 | **驱动层**（不纯）；结果进 answer |
+| SkillTest 回调 / `modifier_breakdown` | Catalog plan / 查询重算；勿存权威 |
+| SkillTest `revealed_tokens` 个体表 | `augury` 区堆 +/或检定帧记忆；勿第二套 token 个体 |
+| Frame.`phase`（Would/When/…） | Catalog 步表 + `step_index` |
+
+**投入区**：纸面裁决 OQ-01-03 为 commit 后仍 HAND 至 ST.8；`Region.limbo_kind=committed` 若用于投入，须与 01/04 **另轮统一**——本版 `committed_ids` 只保证 Run 索引与区成员可对拍。
 
 #### Focus / Run 精简边界
 
@@ -634,27 +656,48 @@ SkillTest = {
 
 ---
 
-## 4. 依赖 / 触碰用的 `Key` 编码（与 auth 对齐）
+## 4. 依赖 / 触碰用的 `Key`（封闭代数 · 与 [35](35-legal-interest.md) 对齐）
 
-Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串，例如：
+Deps / Touched **同一**键空间；编码进 `feasibility.deps` 的字符串。禁止未登记键；禁止读 `feasibility.answers`。
 
-| 构造 | 编码例 | 对应权威路径 |
+```text
+Key =
+  | CardField(card_id, field)       -- face / exhausted / …（禁止 location_id / engaged_with）
+  | RegionMembers(region_id)        -- 卡序容器
+  | RegionStack(region_id, type)    -- token 堆（替代旧 Marker(card, kind)）
+  | QueryFp(query_id, args_fp)      -- enemies_on(L) / hand(I)…
+  | Reg(reg_id)
+  | RegAspect(aspect)               -- fight / gate.play / …
+  | SeatField(inv_id, field)        -- actions_remaining / eliminated / …
+  | FrameworkField(name)
+  | LimitCounter(limit_key)
+  | ChronicleKey(name)
+  | RunFocus
+  | RunMemory(controller, mem_key)
+  | RunSkillTest(test_id, field)    -- 读 success / difficulty / committed 时
+  | RunChoice                       -- 读 open_choice 时
+```
+
+| 构造 | 编码例 | 权威路径 |
 |---|---|---|
-| 卡字段 | `card:<id>:exhausted` | `auth.cards[id].exhausted` |
-| 区成员 | `region:<id>:members` | 卡序 ∪ token 堆/序的指纹 |
-| token 堆 | `region:<id>:stack:damage` | `token_stacks["damage"]` |
-| token 堆 | `region:<id>:stack:<key>` | `token_stacks[key]` |
-| 查询指纹 | `query:enemies_on:<loc>` | 地点 `on` 区等投影 |
-| 登记 | `reg:<id>` | `auth.registrations[id]` |
-| 方面 | `aspect:fight` | 索引 / 多条登记 |
-| 席位 | `seat:<inv>:actions_remaining` | `auth.seats[inv]…` |
-| 框架 | `fw:active_investigator_id` | `auth.framework…` |
-| 限额 | `limit:<limit_key>` | `auth.limits…` |
-| 记事 | `chron:remembered:<k>` | `auth.chronicle.remembered[k]` |
-| 焦点 | `run:focus` | `run.focus` |
-| 记忆 | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
+| CardField | `card:<id>:exhausted` | `auth.cards[id].exhausted` |
+| RegionMembers | `region:<id>:members` | `regions[id].card_ids` |
+| RegionStack | `region:<id>:stack:damage` | `token_stacks["damage"]` |
+| QueryFp | `query:enemies_on:<loc>` | 地点 `on` 等投影 |
+| Reg | `reg:<id>` | `auth.registrations[id]` |
+| RegAspect | `aspect:fight` | 索引 / 多条登记 |
+| SeatField | `seat:<inv>:actions_remaining` | `auth.seats[inv]…` |
+| FrameworkField | `fw:active_investigator_id` | `auth.framework…` |
+| LimitCounter | `limit:<limit_key>` | `auth.limits…` |
+| ChronicleKey | `chron:remembered:<k>` | `auth.chronicle.remembered[k]` |
+| RunFocus | `run:focus` | `run.focus` |
+| RunMemory | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
+| RunSkillTest | `run:st:<test_id>:success` | `run.skill_tests[…]` |
+| RunChoice | `run:choice` | `run.open_choice` |
 
-读「卡上伤害」→ 宿主 `tokens` 放置面的 `token_stacks["damage"]`。禁止再依赖已废除的 `card.markers`。
+读「卡上伤害」→ `RegionStack`（宿主 `tokens` 区），**禁止**已废的 `card.markers` / `Marker(card,…)`。  
+读「交战」→ `Reg` / `RegAspect`（STATUS），**禁止** `CardField(…, engaged_with)`。  
+读「所在地点」→ 含该 id 的 `on` 区之 `RegionMembers` 或 `QueryFp`，**禁止** `CardField(…, location_id)`。
 
 ---
 
@@ -760,3 +803,4 @@ Snapshot {
 | 2026-11-25 | v0.27：`GatePayload` 按 kind 分型 + `GateScope`（subject｜peril）；24 W2 对齐 auth 扁平物理 |
 | 2026-11-25 | v0.28：Framework 钉五字段精简集（排除 deck/threshold/phase）；ModifierPayload **明确不分型** |
 | 2026-11-25 | v0.29：Run/Focus 精简边界；Listener 不分型；StatusPayload 单变体 `engagement`；24 Run 对齐 |
+| 2026-11-25 | v0.30：ChoiceState 对齐 Ask；SkillTest+`st_step`；Key 封闭代数对拍 35（RegionStack/Seat/RunST） |

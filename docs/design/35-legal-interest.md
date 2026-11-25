@@ -1,9 +1,9 @@
 # 35 — 操作合法性的兴趣点（确定可解）
 
-> **状态**：设计草案 v0.2 · 2026-11-24  
+> **状态**：设计草案 v0.4 · 2026-11-25  
 > **依赖**：[24-functional-world](24-functional-world.md)、[33-candidate-functions](33-candidate-functions.md)、[34-registration-index-cache](34-registration-index-cache.md)、[25-functional-eff](25-functional-eff.md)、[07 §0 CREATED](07-effect-primitives.md)  
 > **裁决**：重算集 \(\mathrm{Dirty}(\Delta)=\mathrm{Deps}\cap\mathrm{Touched}\) 唯一确定。`wouldCreate` ⊆ `legal(op)`。依赖集规则见 §1.1。  
-> **修订 v0.2+**：可行性进派生字段；**v0.3** 钉死 Deps 键空间与集合容器键纪律。  
+> **修订**：v0.3 钉 Deps；**v0.4** Key 对齐 37（RegionStack/Seat/RunST；废 Marker(card)/location_id）。  
 > **宇宙清单**：[36-interest-universe-inventory](36-interest-universe-inventory.md)。
 
 ---
@@ -126,34 +126,38 @@ must 宇宙的 `viable` 仍写进 **同一** `w.feasibility`（或 `feasibility.
 
 ```text
 Key =
-  | CardField(card_id, field)     -- face / exhausted / location_id / engaged_with / …
-  | Marker(card_id, token_kind) -- resource / damage / horror / clue / doom / …
-  | RegionMembers(region_id)      -- 该区成员多重集（或区版本号）；枚举/计数必记
-  | QueryBag(query_id, args_fp) -- 具名查询结果指纹（enemies_at(L)、hand(I)…）
+  | CardField(card_id, field)       -- face / exhausted / …（禁止 location_id / engaged_with）
+  | RegionMembers(region_id)        -- 卡序容器；枚举/计数必记
+  | RegionStack(region_id, type)    -- token 堆（替代旧 Marker(card, kind)）
+  | QueryFp(query_id, args_fp)      -- enemies_on(L) / hand(I)…
   | Reg(reg_id)
-  | RegAspect(aspect)             -- fight / gate.play / keyword.X …
-  | FrameworkField(name)          -- active_investigator / round / …
-  | LimitCounter(limit_id)
-  | ChronicleKey(name)            -- 若 dataOK/效果读了记事
-  | RunFocus                      -- 窗 / 控制者指纹
-  | RunMemory(mem_key)
+  | RegAspect(aspect)               -- fight / gate.play / keyword.X …
+  | SeatField(inv_id, field)        -- actions_remaining / eliminated / …
+  | FrameworkField(name)            -- active_investigator / round / …
+  | LimitCounter(limit_key)
+  | ChronicleKey(name)              -- 若 dataOK/效果读了记事
+  | RunFocus                        -- 窗 / 控制者 / 池指纹
+  | RunMemory(controller, mem_key)
+  | RunSkillTest(test_id, field)    -- success / difficulty / committed…
+  | RunChoice                       -- open_choice
 ```
 
-禁止未登记的字符串键。`Catalog` 印刷不进 Key（不变）。`feasibility.answers` **禁止**出现在读路径。
+编码表见 [37 §4](37-world-structure.md)。禁止未登记的字符串键。`Catalog` 印刷不进 Key（不变）。`feasibility.answers` **禁止**出现在读路径。
 
 ### R1. 录读纪律（生成 Deps）
 
 | 代码里发生的读 | 必须记入 Deps 的键 |
 |---|---|
 | 读一张卡的某字段 | `CardField(id, field)` |
-| 读标记 | `Marker(id, kind)` |
+| 读 token 堆 | `RegionStack(region, type)` |
 | `for x in region` / `count(region)` / `is_empty(region)` | **`RegionMembers(region_id)`**（不能只记当前枚举到的 id） |
-| `enemies_at(L)` / `hand(I)` 等查询 | **`QueryBag(q, args)`**；若再读每个 x 的字段，另记那些 `CardField`/`Marker` |
+| `enemies_on(L)` / `hand(I)` 等查询 | **`QueryFp(q, args)`**；若再读每个 x 的字段，另记那些 `CardField`/`RegionStack` |
 | 读某条登记 | `Reg(id)`；按方面收集时还记 `RegAspect(aspect)` |
-| 读限额 | `LimitCounter(id)` |
+| 读席位 | `SeatField(inv, field)` |
+| 读限额 | `LimitCounter(key)` |
 | 读框架游标 | `FrameworkField(…)` |
-| 读记忆/焦点 | `RunMemory` / `RunFocus` |
-| Matching 主语登记是否 covers | 该 Matching 的 `QueryBag` 或等价过滤指纹 + 相关卡字段 |
+| 读记忆/焦点/检定/选择 | `RunMemory` / `RunFocus` / `RunSkillTest` / `RunChoice` |
+| Matching 主语登记是否 covers | 该 Matching 的 `QueryFp` 或等价过滤指纹 + 相关卡字段 |
 
 **集合类铁律**：凡结果依赖「有哪些实体」，Deps 必须含 **容器键**（`RegionMembers` 或 `QueryBag`）。只记首次看到的 E1、E2 → 规则不合格（E3 进场会漏脏）。
 
@@ -161,14 +165,16 @@ Key =
 
 | Intent | 至少写入 Touched |
 |---|---|
-| `PlaceEntity` / 换区 | 卡放置字段 + **旧区与新区的 `RegionMembers`** |
-| `AddMarker` / `TransferMarkers` | `Marker(…)` |
-| `SetForm` | `CardField(…)` |
+| `MoveCard` / 换区 | **旧区与新区的 `RegionMembers`** |
+| `TransferToken` / `FlipToken` | `RegionStack(…)` |
+| `SetExhausted` / 翻面 | `CardField(…)` |
+| `SetSeat*` | `SeatField(…)` |
 | `RegInsert` / `RegRemove` | `Reg(id)` + 其 `RegAspect(…)` |
 | 限额递增 | `LimitCounter` |
 | Chronicle 追加 | `ChronicleKey` |
-| bind 记忆 | `RunMemory` |
-| 换窗 / 换控制者 | `RunFocus` |
+| bind 记忆 / answer | `RunMemory`（及 `RunChoice` 若清 open_choice） |
+| 换窗 / 换控制者 / 池变 | `RunFocus` |
+| 检定步进 | `RunSkillTest` |
 
 容器成员一变，Touched 必须含同一 `RegionMembers`/`QueryBag` 键，才能与 R1 相交。
 
@@ -364,3 +370,4 @@ answers[op] = { data_ok, effect_ok }
 | 2026-11-24 | v0.1：定义、定理条件、S0–S5 步骤、倒排 Interest、验收 |
 | 2026-11-24 | v0.2：可行性融入局面值；废「会话 LegalTable 为主」；`commitPlus` |
 | 2026-11-24 | v0.3：§1.1 依赖集规则 R0–R4（键空间、集合容器键、writes 对齐）；重算集改称 Dirty |
+| 2026-11-25 | v0.4：Key 对拍 37 — RegionStack/SeatField/RunSkillTest/RunChoice；writes 用 TransferToken/MoveCard |

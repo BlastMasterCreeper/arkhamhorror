@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use crate::catalog::Catalog;
 use crate::intent::{commit, Intent};
-use crate::world::{Frame, Snapshot};
+use crate::world::{ChoiceState, Frame, Snapshot};
 
 /// Read-only predicate id (M2: tiny built-in set).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -220,18 +220,29 @@ pub fn step(snap: Snapshot, catalog: &Catalog, eff: Eff) -> StepResult {
             bind_key,
             controller_id,
             cont,
-        } => StepResult::NeedAsk {
-            snap,
-            request: AskRequest {
-                ask_id,
-                kind,
-                candidates,
-                default_value,
-                bind_key,
-                controller_id,
-            },
-            cont: *cont,
-        },
+        } => {
+            let mut snap = snap;
+            snap.run.open_choice = Some(ChoiceState {
+                ask_id: ask_id.clone(),
+                kind: kind.clone(),
+                controller_id: controller_id.clone(),
+                bind_key: bind_key.clone(),
+                default_value: default_value.clone(),
+                candidates: candidates.clone(),
+            });
+            StepResult::NeedAsk {
+                snap,
+                request: AskRequest {
+                    ask_id,
+                    kind,
+                    candidates,
+                    default_value,
+                    bind_key,
+                    controller_id,
+                },
+                cont: *cont,
+            }
+        }
     }
 }
 
@@ -273,6 +284,7 @@ pub fn answer(
         .entry(request.controller_id.clone())
         .or_default();
     entry.insert(request.bind_key.clone(), choice.to_string());
+    snap.run.open_choice = None;
     step(snap, catalog, cont)
 }
 
@@ -494,6 +506,11 @@ mod tests {
             other => panic!("expected ask, got {other:?}"),
         };
         assert_eq!(req.default_value, "tok_I");
+        assert!(snap.run.open_choice.is_some());
+        assert_eq!(
+            snap.run.open_choice.as_ref().unwrap().bind_key,
+            "chosen_region"
+        );
         let after = answer(snap, &cat, &req, "tok_I", cont);
         let snap = match after {
             StepResult::Done { snap } => snap,
@@ -505,6 +522,7 @@ mod tests {
         };
         assert_eq!(snap.token_on_card("I", "clue"), 1);
         assert_eq!(snap.run.memory["I"]["chosen_region"], "tok_I");
+        assert!(snap.run.open_choice.is_none());
     }
 
     #[test]

@@ -502,6 +502,40 @@ mod tests {
     }
 
     #[test]
+    fn choice_state_carries_bind_and_controller() {
+        let ch = crate::world::ChoiceState {
+            ask_id: "pick".into(),
+            kind: "pick_target".into(),
+            controller_id: "I".into(),
+            bind_key: "chosen".into(),
+            default_value: "A".into(),
+            candidates: vec!["A".into(), "B".into()],
+        };
+        let v = serde_json::to_value(&ch).unwrap();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 6);
+        assert_eq!(v["controller_id"], "I");
+        assert_eq!(v["bind_key"], "chosen");
+        assert!(!obj.contains_key("deadline_ms"));
+    }
+
+    #[test]
+    fn skill_test_has_st_step_cursor() {
+        let st = crate::world::SkillTest {
+            test_id: "t1".into(),
+            investigator_id: "I".into(),
+            skill: "intellect".into(),
+            difficulty: 3,
+            committed_ids: vec!["C1".into()],
+            st_step: "st6".into(),
+            success: Some(false),
+            fail_by: 2,
+        };
+        assert_eq!(st.st_step, "st6");
+        assert_eq!(st.fail_by, 2);
+    }
+
+    #[test]
     fn focus_keeps_sticky_pools() {
         let focus = crate::world::Focus {
             window: "player_window".into(),

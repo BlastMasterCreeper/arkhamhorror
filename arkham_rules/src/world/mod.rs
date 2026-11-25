@@ -486,14 +486,18 @@ pub struct Frame {
     pub cont_after: String,
 }
 
+/// Open PI confirmation (16 timed default). Deadline/UI stay in the driver.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ChoiceState {
     pub ask_id: String,
     pub kind: String,
+    pub controller_id: String,
+    pub bind_key: String,
     pub default_value: String,
     pub candidates: Vec<String>,
 }
 
+/// In-flight skill test cursor (04 ST.1–8). Revealed chaos → augury region / memory.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SkillTest {
     pub test_id: String,
@@ -501,6 +505,8 @@ pub struct SkillTest {
     pub skill: String,
     pub difficulty: i32,
     pub committed_ids: Vec<CardId>,
+    /// `"st1"`…`"st8"`; empty if not started.
+    pub st_step: String,
     pub success: Option<bool>,
     pub fail_by: i32,
 }
