@@ -177,7 +177,7 @@ auth = {
 
 Registration 载荷 = 按 kind 分型（五选一 body；详 37 §1.3.1）
   modifier  → { stat, op, value, … }
-  gate      → { kind: forbid_*, drawer_id, … }
+  gate      → 按 kind 分型（forbid_play 等 + GateScope subject｜peril）
   directive → { kind: skip_aoo | …, … }
   listener  → { timing, composition }
   status    → { kind: engagement, subject_id, drawer_id }

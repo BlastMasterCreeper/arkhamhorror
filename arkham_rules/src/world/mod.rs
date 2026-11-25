@@ -238,13 +238,63 @@ pub struct ModifierPayload {
     pub apply_mode: String,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct GatePayload {
-    pub kind: String,
-    pub drawer_id: String,
-    pub drawn_card_id: String,
-    pub encounter_frame_id: String,
-    pub subject_id: String,
+/// Per-kind gate — not a flat union of peril + subject fields.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum GatePayload {
+    ForbidDraw {
+        subject_id: String,
+    },
+    ForbidPlay {
+        scope: GateScope,
+    },
+    ForbidTrigger {
+        scope: GateScope,
+    },
+    ForbidCommitToTest {
+        scope: GateScope,
+    },
+    ForbidLeaveHand {
+        subject_id: String,
+    },
+    ForbidDiscoverClue {
+        subject_id: String,
+    },
+    ForbidSpendClue {
+        subject_id: String,
+    },
+    ForbidAttack {
+        subject_id: String,
+    },
+}
+
+/// Who / which encounter frame the gate applies to.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "tag", rename_all = "snake_case")]
+pub enum GateScope {
+    /// Lasting / subject-scoped cannot (actor or card id).
+    Subject { subject_id: String },
+    /// Peril encounter frame: drawer exempt; bind drawn card + frame.
+    Peril {
+        drawer_id: String,
+        drawn_card_id: String,
+        encounter_frame_id: String,
+    },
+}
+
+impl GatePayload {
+    pub fn kind_name(&self) -> &'static str {
+        match self {
+            Self::ForbidDraw { .. } => "forbid_draw",
+            Self::ForbidPlay { .. } => "forbid_play",
+            Self::ForbidTrigger { .. } => "forbid_trigger",
+            Self::ForbidCommitToTest { .. } => "forbid_commit_to_test",
+            Self::ForbidLeaveHand { .. } => "forbid_leave_hand",
+            Self::ForbidDiscoverClue { .. } => "forbid_discover_clue",
+            Self::ForbidSpendClue { .. } => "forbid_spend_clue",
+            Self::ForbidAttack { .. } => "forbid_attack",
+        }
+    }
 }
 
 /// Per-kind body — not a flat union of every directive field (spine slim).

@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.26 · 2026-11-25  
+> **状态**：设计草案 v0.27 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
@@ -324,18 +324,25 @@ ModifierPayload = {
 
 #### `GatePayload`（拦 Intent / 合法性 · cannot）
 
-```text
-GatePayload = {
-  kind:               GateKind,
-  drawer_id:          String,
-  drawn_card_id:      String,
-  encounter_frame_id: String,
-  subject_id:         String
-}
+按 **kind 分型**（同 Directive）；禁止扁平塞齐 `drawer_id`/`subject_id`/…。  
+险境帧与 lasting 主体用 `GateScope` 区分（对齐 [06 §7 / §16.4](06-registration-payload-model.md)）：
 
-GateKind =
-  "forbid_draw" | "forbid_play" | "forbid_trigger" | "forbid_commit_to_test"
-  | "forbid_leave_hand" | "forbid_discover_clue" | "forbid_spend_clue" | "forbid_attack"
+```text
+GatePayload =
+  | { kind: "forbid_draw",            subject_id }
+  | { kind: "forbid_play",            scope: GateScope }
+  | { kind: "forbid_trigger",         scope: GateScope }
+  | { kind: "forbid_commit_to_test",  scope: GateScope }
+  | { kind: "forbid_leave_hand",      subject_id }   -- Hidden 等
+  | { kind: "forbid_discover_clue",   subject_id }
+  | { kind: "forbid_spend_clue",      subject_id }
+  | { kind: "forbid_attack",          subject_id }   -- Aloof 等
+
+GateScope =
+  | { tag: "subject", subject_id }                                   -- lasting / 主体 cannot
+  | { tag: "peril", drawer_id, drawn_card_id, encounter_frame_id }   -- 险境帧；drawer 豁免
+
+GateKind = 上列 kind 字面量
 ```
 
 #### `DirectivePayload`（原流程读取后改道 · 非 Intent 拦截）
@@ -715,3 +722,4 @@ Snapshot {
 | 2026-11-25 | v0.24：席位态离 Card → `auth.seats`；删 Card.display_order（序=区 card_ids） |
 | 2026-11-25 | v0.25：Seat 补 `actions_penalty_next_turn`；LimitStore `slot_id`/`max_slots`→`limit_key`/`occupancies`（slot 留给资产槽）；例中混乱键统一 `numeric_0` |
 | 2026-11-25 | v0.26：废 `AdjustToken`→`TransferToken`+`$supply`（对齐 07 Transfer-only）；`DirectivePayload` 按 kind 分型收瘦 |
+| 2026-11-25 | v0.27：`GatePayload` 按 kind 分型 + `GateScope`（subject｜peril）；24 W2 对齐 auth 扁平物理 |

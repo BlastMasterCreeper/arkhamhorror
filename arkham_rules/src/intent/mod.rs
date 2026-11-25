@@ -475,6 +475,25 @@ mod tests {
     }
 
     #[test]
+    fn gate_payload_typed_by_kind() {
+        use crate::world::{GatePayload, GateScope, RegistrationPayload};
+        let peril = GatePayload::ForbidPlay {
+            scope: GateScope::Peril {
+                drawer_id: "I".into(),
+                drawn_card_id: "T1".into(),
+                encounter_frame_id: "ef1".into(),
+            },
+        };
+        assert_eq!(peril.kind_name(), "forbid_play");
+        let lasting = GatePayload::ForbidDraw {
+            subject_id: "I".into(),
+        };
+        assert_eq!(lasting.kind_name(), "forbid_draw");
+        let payload = RegistrationPayload::Gate { gate: peril };
+        assert_eq!(payload.kind(), crate::world::RegistrationKind::Gate);
+    }
+
+    #[test]
     fn flip_token_moves_between_types() {
         let mut s0 = mini_snap();
         s0.auth

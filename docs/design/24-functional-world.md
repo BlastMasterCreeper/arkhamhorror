@@ -1,9 +1,9 @@
 # 24 — 函数式 `World` 值模型（草案）
 
-> **状态**：设计草案 v0.1 · 2026-11-23  
+> **状态**：设计草案 v0.2 · 2026-11-25  
 > **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-payload-model](06-registration-payload-model.md)、[17-seq-runtime](17-seq-runtime.md)  
 > **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影（本文只定 **局面值**）  
-> **键名与类型总表**：[37-world-structure](37-world-structure.md)  
+> **键名与类型总表（权威形状）**：[37-world-structure](37-world-structure.md) — 若本文与 37 冲突，**以 37 为准**。  
 > **与现实现关系**：对照 `PhysicalStore` · `GameStateStore` · `RegistrationStore` · `RulesMemory`；**不**要求立刻替换 Godot 对象图，先定值边界与不变量。
 
 ---
@@ -35,16 +35,18 @@ Snapshot = {
 ```
 
 ```text
-Auth (狭义「桌上事实」) = {
-  physical,      -- ①区/序 · ②标记 · ③形态
-  registrations, -- 信息原语主量（含寿命）
-  chronicle,     -- 薄：日志∪记住
-  audience,      -- 牌面可见性（非结算；在权威袋但 CREATED 不计）
-  framework,     -- 回合/场景等局面级框架
-  entropy,       -- 袋内剩余、已抽序列…
-  limits,        -- 次数配额等已发生计数
-  meta,          -- id 分配等
+Auth (狭义「桌上事实」；形状以 37 为准) = {
+  cards, regions, seats,  -- 物理三类落点（§2；无嵌套 auth.physical）
+  registrations,          -- 信息原语主量（含寿命）
+  gains,                  -- Gain 特征（≠ Registration 载荷）
+  chronicle,              -- 薄：日志∪记住
+  audience,               -- 牌面可见性（非结算；CREATED 不计）
+  limits,                 -- 次数配额等已发生计数
+  framework,              -- 回合/场景等局面级框架
+  next_id                 -- id 分配
 }
+-- 混乱袋剩余 = regions[place=chaos].token_stacks（不再单列 auth.entropy）
+-- 检定已揭示挂 Run.skill_tests / augury；rng 若需另议，不默认进 auth
 
 Derived = {
   index,         -- 登记倒排（34）
@@ -61,13 +63,13 @@ Run = {
 }
 ```
 
-实现上可用一个大记录叫 `World`，但字段必须打上 **auth / derived** 标签；`transit` 返回整份 `Snapshot`。口语「世界值」= `Snapshot`（或至少 `auth ⊕ derived`），不是只等于 `physical`。
+实现上可用一个大记录叫 `World`，但字段必须打上 **auth / derived** 标签；`transit` 返回整份 `Snapshot`。口语「世界值」= `Snapshot`（或至少 `auth ⊕ derived`），**不是**只等于「物理三类」。
 
 | 袋 | 分类 | 理由 |
 |---|---|---|
-| 卡在哪、横置、doom 数 | **auth** | 物理原语 |
+| 卡在哪、横置、doom 数、席位行动 | **auth**（cards/regions/seats） | 物理原语 + 席位机 |
 | Registration / payloads | **auth** | 信息原语（Registration 载荷） |
-| Chronicle / limits | **auth** | 已发生信息 |
+| Chronicle / limits / gains | **auth** | 已发生信息 |
 | FaceAudience | **auth**（旁路） | 非结算，但属局面权限 |
 | index / feasibility Φ | **derived** | 由 auth(+run 焦点) 重建；算时不读旧 Φ.answers |
 | 「本手续选中的敌人」 | **run** | 步间指称 |
@@ -83,49 +85,35 @@ transit 末尾：按 Touched 刷新 Derived（兴趣点）
 
 ---
 
-## 2. `physical` — 对齐状态原语三类
+## 2. 物理三类 — 落在 `auth.cards` / `regions` / `seats`（无嵌套 `physical`）
 
-与 [07 §0](07-effect-primitives.md) / 现有 `PhysicalStore` 对齐；**权威在物理袋**，Domain 标签（交战、当前密谋名）是投影或薄索引，不另造第二套真相。
+与 [07 §0](07-effect-primitives.md) 对齐。早期草案曾写 `auth.physical = {…}`；**现形状以 [37](37-world-structure.md) 为准**：不设嵌套 `physical` 袋，三类原语直接落在权威字段。
 
-### 2.1 形状（概念）
-
-```text
-Physical = {
-  entities:  Map EntityId → EntitySpine,  -- 卡 / 调查员座位 / 地点座位…
-  regions:   Map RegionId → Region,       -- 有序卡区、标记区
-  placement: Map EntityId → Placement,    -- FREE|BESIDE|ATTACHED|UNDER|DECK_ORDERED…
-  markers:   Map EntityId → MarkerBag,    -- damage/horror/doom/clue/resource/uses…
-  form:      Map EntityId → Form,         -- face A/B · exhausted
-}
-
-Placement = { kind, region_id, index?, host_id? }
-Form      = { face, exhausted }
-MarkerBag = { damage, horror, doom, clue, resources?, uses?: Map UseKey → Int }
-```
-
-| 原语类 | 写入 | 读法 |
+| 原语类 | 权威落点（37） | 读法 |
 |---|---|---|
-| ① 区/序 | 改 `placement` / `regions` 序 | `zone_of` · `order_in` · in-play 谓词 |
-| ② 标记 | 改 `markers` | `doom_in_play` = fold |
-| ③ 形态 | 改 `form` | `exhausted?` · `face` |
+| ① 区/序 | `regions[].card_ids` + 卡 `owned_regions` | `zone_of` · `order_in` · in-play |
+| ② 标记 | `regions[].token_stacks`（宿主 `place:"tokens"` 等） | fold；经 `TransferToken` |
+| ③ 形态 | `cards[].face` / `exhausted` | 翻面 / 横置 |
+| 席位经济 / 结局 | `seats[]`（非 Card 脊骨） | 行动剩余 · eliminated |
 
-**LIMBO 子区**（[01 §3.5.0](01-game-state-zones.md)）：`Placement.kind = LIMBO` + `limbo_kind ∈ {RESOLVING, COMMITTED}` + 可选 `committed_test_id`。权威在 physical；`SkillTest.committed` 列表是 **Run** 内索引，须与之同步。
+**LIMBO**（[01 §3.5.0](01-game-state-zones.md)）：悬置区 `limbo_kind ∈ {resolving, committed}`。权威在 `regions`；`SkillTest.committed_ids` 是 **Run** 索引，须与之同步。
 
-### 2.2 不变量（硬）
+### 2.1 不变量（硬）
 
-1. 每个卡实体至多一个 `Placement`。  
-2. `ATTACHED` / `UNDER` / `BESIDE` 的 `host_id` 必须存在。  
-3. `zone == LIMBO` ⇒ `limbo_kind` 有值；离开 LIMBO ⇒ 清空。  
-4. id **单调分配、不复用**（与现 `PhysicalStore` 一致）→ `meta.next_entity_serial`。  
-5. **控制权 / 所有者** 放实体脊骨字段（`owner_id` / `controller_id`），不单立原语；转移经效果 Intent，不是「光学改路径」。
+1. 每张卡至多出现在一个区的 `card_ids`（派生可建反向索引）。  
+2. `attachments` / `under` / `beside` 的宿主卡必须存在。  
+3. 在悬置区 ⇒ `limbo_kind` 有值；离开 ⇒ 清空。  
+4. id **单调分配、不复用** → `auth.next_id`。  
+5. **控制权 / 所有者** 在 `Card`（`owner_id` / `controller_id`），不单立原语；转移经 Intent。
 
-### 2.3 与现实现映射
+### 2.2 与现实现映射
 
-| 值字段 | 今日近似 |
+| 值字段（37） | 今日近似 |
 |---|---|
-| `entities` / `regions` | `PhysicalStore.players/cards/card_regions` |
-| `markers` / `form` | `PhysicalCard` + Domain `TokenBag` 镜像 |
-| 交战、威胁区语义 | Domain / Enemy 投影（可读 physical + regs） |
+| `cards` / `regions` | `PhysicalStore` 卡与区 |
+| `token_stacks` | Domain `TokenBag` / 标记计数 |
+| `seats` | `InvestigatorState` 行动/淘汰等 |
+| 交战 | Registration `status/engagement`（非 Card 字段） |
 
 ---
 
@@ -200,19 +188,15 @@ FrameworkSlice = {
 
 ---
 
-## 7. `entropy` — 随机已决议
+## 7. 随机 / 混乱袋（不再单列 `auth.entropy`）
 
-```text
-Entropy = {
-  chaos_bag: [Token],       -- 袋内剩余（多重集/序按实现）
-  revealed_ledger: […],     -- 本次检定已揭示（亦可挂在 Run.skill_test）
-  rng_seed: Seed,           -- 若仍需未抽尽的随机
-}
-```
+| 内容 | 落点（37） |
+|---|---|
+| 袋内剩余 | `regions` 中 `place:"chaos"` 的 `token_stacks` |
+| 本次检定已揭示 | **`Run.skill_tests` 顶帧** 与/或 `augury` 区 |
+| 仍需未抽尽的 `rng_seed` | **另议**；不默认进 auth（内核禁止隐式 `rand()`） |
 
-规则内核内 **禁止**隐式 `rand()`：未抽完的随机必须来自 `entropy` 或驱动层预先注入的 token 列表。
-
-检定进行中的「本测试已揭示」更常挂在 **`Run.skill_tests` 顶帧**；袋内剩余属 `World.entropy`。
+规则内核内未抽完的随机必须来自已决议的袋堆或驱动层预先注入的 token 列表。
 
 ---
 
@@ -267,17 +251,7 @@ commit: World × Intent[] → World   -- 唯一写入口
 
 ## 10. Intent 与提交（World 的唯一变法）
 
-```text
-Intent =
-  | PlaceEntity { id, placement }
-  | Reorder { region_id, order }
-  | TransferMarkers { … }
-  | SetForm { id, face?, exhausted? }
-  | RegInsert { registration }
-  | RegRemove { filter }
-  | ChronicleAppend { entry }
-  | AudienceSet { id, audience }   -- 非 CREATED
-```
+权威 Intent 枚举以 **[37 §5.1](37-world-structure.md)** 为准（`TransferToken` / `MoveCard` / `FlipToken` / Reg* / Seat* …）。下文仅为早期示意，勿再当作形状源。
 
 - Composition / `seq` RESOLVE：**先** `plan` 得 `Intent[]`，**再** `commit`。  
 - 真空禁令：无 `Run.stack` 顶帧（或框架允许的根 run）不得 `commit`。  
@@ -290,12 +264,12 @@ Intent =
 | # | 裁决 |
 |---|---|
 | W1 | **World / Run 分立**：局面值 vs 执行游标；指称与栈不进存档级 World |
-| W2 | **物理权威单一**：三类原语只写 `physical`；交战等为投影 |
+| W2 | **物理权威单一**：三类原语只写 `auth` 的 cards/regions（+ seats）；**不**嵌套 `auth.physical`；交战等为 Registration / 投影 |
 | W3 | **Registration 在 World**：寿命未到期的 **payloads** 是局面的一部分 |
 | W4 | **Catalog 外置**：印刷与编译树不是 World 字段 |
 | W5 | **Audience 在 World、非结算**：与 form 正交 |
 | W6 | **唯一写法 = Intent commit**；查询/投影只读 |
-| W7 | **与现引擎兼容路径**：`PhysicalStore`≈`physical`；`RegistrationStore`≈`registrations`；`RulesMemory`≈`Run.memory`；可先做 **快照导出 `World`** 供纯查询，不必一次替换对象图 |
+| W7 | **与现引擎兼容路径**：`PhysicalStore`≈cards/regions；`RegistrationStore`≈`registrations`；`RulesMemory`≈`Run.memory`；可先做 **快照导出** 供纯查询 |
 
 ---
 
@@ -312,3 +286,4 @@ Intent =
 | 日期 | 摘要 |
 |---|---|
 | 2026-11-23 | v0.1 初稿：World/Run 分立、physical/regs/chronicle/audience/framework/entropy、Intent 唯一写 |
+| 2026-11-25 | v0.2：对齐 37 — Auth 扁平（无 `physical`/`entropy` 袋）；W2 改写；Intent/混乱袋指向 37 |

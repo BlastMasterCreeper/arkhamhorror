@@ -15,6 +15,7 @@ pub use eff::{
 pub use intent::{commit, engagement_reg, Intent};
 pub use world::{
     AssignConstraintBody, Auth, Audience, Card, CardType, Chronicle, DirectivePayload, Face,
-    Feasibility, Focus, Framework, LimboKind, Region, RegionShape, Registration, RegistrationKind,
-    RegistrationPayload, Run, Seat, Snapshot, StatusPayload, Subject, TOKEN_SUPPLY,
+    Feasibility, Focus, Framework, GatePayload, GateScope, LimboKind, Region, RegionShape,
+    Registration, RegistrationKind, RegistrationPayload, Run, Seat, Snapshot, StatusPayload,
+    Subject, TOKEN_SUPPLY,
 };
