@@ -83,6 +83,7 @@ Snapshot = {
 auth = {
   cards:         字典   键 字符串(卡id) → 卡
   regions:       字典   键 字符串(区id) → 区（卡序 + token_stacks；含 chaos）
+  seats:         字典   键 字符串(调查员卡id) → 席位态（回合经济 / 退场 / 撤退）
   registrations: 字典   键 字符串(登记id) → 登记条     信息层
   gains:         字典   Gain 特征（≠ Registration 载荷）
   chronicle:     记事记录                                    信息层
@@ -95,7 +96,8 @@ auth = {
 
 #### 卡
 
-每张卡都是同一条记录。某个 `card_type` 用不到的键不写。权威形状以 [37](37-world-structure.md) 为准。
+每张卡都是同一条记录。某个 `card_type` 用不到的键不写。权威形状以 [37](37-world-structure.md) 为准。  
+卡脊骨**不**放回合行动数、eliminated/resigned（那些在 `seats`）；同区展示序以 `Region.card_ids` 为准（无 `display_order`）。
 
 ```text
 卡 = {
@@ -106,13 +108,23 @@ auth = {
   controller_id:  字符串
   face:           枚举      "A" 或 "B"
   exhausted:      布尔
-  display_order:  整型
   owned_regions:  字典      键=放置面名(place)，值=区 id
   connections:    数组      地点：相连地点的卡 id
-  actions_remaining:       整型
-  actions_bonus_next_turn: 整型
-  eliminated:     布尔
-  resigned:       布尔
+}
+```
+
+#### 席位（Seat）
+
+调查员一条；键 = 该调查员卡 id。读行动数 / 是否已退场 → `auth.seats[inv]`，不读 `cards[inv]`。
+
+```text
+席位 = {
+  investigator_id:          字符串   = 键
+  actions_remaining:        整型
+  actions_bonus_next_turn:  整型
+  actions_penalty_next_turn:整型
+  eliminated:               布尔
+  resigned:                 布尔
 }
 ```
 
@@ -197,12 +209,16 @@ World {
   cards: {
     "I":  { id:"I", definition_id:"01001", card_type:"investigator",
             controller_id:"I", face:"A", exhausted:false,
-            owned_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I" },
-            actions_remaining:3, … }
+            owned_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I" } }
     "L":  { id:"L", definition_id:"01111", card_type:"location", face:"B",
             owned_regions:{ "on":"on_L", "tokens":"tok_L" }, connections:[] }
     "C1": { id:"C1", definition_id:"06111", card_type:"skill",
             owner_id:"I", controller_id:"I", face:"A", owned_regions:{} }
+  }
+  seats: {
+    "I": { investigator_id:"I", actions_remaining:3,
+           actions_bonus_next_turn:0, actions_penalty_next_turn:0,
+           eliminated:false, resigned:false }
   }
   regions: {
     "deck_I": { id:"deck_I", shape:"deck", host_card_id:"I", place:"deck",
@@ -222,7 +238,7 @@ World {
   chronicle: { log:[], remembered:{} }
   audience: { "C1":"controller" }
   framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I", … }
-  limits: { counters:{}, max_slots:{} }
+  limits: { counters:{}, occupancies:{} }
 }
 ```
 

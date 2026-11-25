@@ -20,6 +20,8 @@ pub struct Snapshot {
 pub struct Auth {
     pub cards: BTreeMap<CardId, Card>,
     pub regions: BTreeMap<RegionId, Region>,
+    /// Investigator seat state (turn economy / eliminated / resigned). Key = investigator card id.
+    pub seats: BTreeMap<CardId, Seat>,
     pub registrations: BTreeMap<RegId, Registration>,
     /// Gain characteristics (KEYWORD/TRAIT/ICON/ABILITY) — not Registration payloads.
     pub gains: BTreeMap<String, GainedCharacteristic>,
@@ -58,14 +60,9 @@ pub struct Card {
     pub controller_id: String,
     pub face: Face,
     pub exhausted: bool,
-    pub display_order: i32,
     /// place → region_id (not rules asset slots).
     pub owned_regions: BTreeMap<String, RegionId>,
     pub connections: Vec<CardId>,
-    pub actions_remaining: i32,
-    pub actions_bonus_next_turn: i32,
-    pub eliminated: bool,
-    pub resigned: bool,
 }
 
 impl Default for Card {
@@ -78,11 +75,30 @@ impl Default for Card {
             controller_id: String::new(),
             face: Face::A,
             exhausted: false,
-            display_order: 0,
             owned_regions: BTreeMap::new(),
             connections: Vec::new(),
-            actions_remaining: 0,
+        }
+    }
+}
+
+/// Investigator seat — turn economy and scenario outcome flags (not Card spine).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Seat {
+    pub investigator_id: CardId,
+    pub actions_remaining: i32,
+    pub actions_bonus_next_turn: i32,
+    pub actions_penalty_next_turn: i32,
+    pub eliminated: bool,
+    pub resigned: bool,
+}
+
+impl Seat {
+    pub fn fresh(investigator_id: impl Into<String>, actions: i32) -> Self {
+        Self {
+            investigator_id: investigator_id.into(),
+            actions_remaining: actions,
             actions_bonus_next_turn: 0,
+            actions_penalty_next_turn: 0,
             eliminated: false,
             resigned: false,
         }
@@ -313,12 +329,13 @@ pub struct Framework {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LimitStore {
     pub counters: BTreeMap<String, LimitCounter>,
-    pub max_slots: BTreeMap<String, MaxSlot>,
+    /// Max-N occupancy (not rules asset slots).
+    pub occupancies: BTreeMap<String, Occupancy>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LimitCounter {
-    pub slot_id: String,
+    pub limit_key: String,
     pub spec_id: String,
     pub period: String,
     pub scope: String,
@@ -329,8 +346,8 @@ pub struct LimitCounter {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct MaxSlot {
-    pub slot_id: String,
+pub struct Occupancy {
+    pub limit_key: String,
     pub kind: String,
     pub subject_id: String,
     pub holders: Vec<CardId>,

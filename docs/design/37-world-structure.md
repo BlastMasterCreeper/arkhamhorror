@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.23 · 2026-11-25  
+> **状态**：设计草案 v0.25 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
@@ -40,6 +40,7 @@ Snapshot = {
 Auth = {
   cards:          Map<CardId, Card>,
   regions:        Map<RegionId, Region>,
+  seats:          Map<CardId, Seat>,   -- 调查员席位态；键=调查员卡 id
   registrations:  Map<RegId, Registration>,
   gains:          Map<GainId, GainedCharacteristic>,  -- Gain 特征；≠ payloads
   chronicle:      Chronicle,
@@ -52,15 +53,16 @@ Auth = {
 
 | 键 | 类型 | 说明 |
 |---|---|---|
-| `cards` | `Map<String, Card>` | 卡实体脊骨 |
+| `cards` | `Map<String, Card>` | 卡实体脊骨（身份·控制·形态·放置面指针） |
 | `regions` | `Map<String, Region>` | **唯一放置面**：卡序 + **token 堆** |
+| `seats` | `Map<String, Seat>` | **调查员席位**：回合经济与退场/撤退；不进 Card |
 | `registrations` | `Map<String, Registration>` | 信息层（含交战等 STATUS） |
 | `gains` | `Map<String, GainedCharacteristic>` | Gain 特征（KEYWORD/TRAIT/ICON/ABILITY） |
 | `chronicle` | `Chronicle` | 日志∪记住 |
 | `audience` | `Map<String, Audience>` | 牌面可见档 |
 | `limits` | `LimitStore` | 次数/配额；见 §1.5 |
 | `framework` | `Framework` | 回合与场景/密谋游标 |
-| `next_id` | `Int` | 下一分配序号（卡/区/登记） |
+| `next_id` | `Int` | 下一分配序号（卡/区/登记/席位相关） |
 
 **不设** `auth.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
 
@@ -72,6 +74,9 @@ Auth = {
 
 ### 1.1 `Card`（脊骨 + 放置面指针）
 
+卡脊骨只承载：**身份、所有/控制、形态③、放置面指针、地点连通**。  
+**不**承载回合经济与退场/撤退（见 §1.1.1 `Seat`）。
+
 ```text
 Card = {
   id:                       String,
@@ -81,28 +86,47 @@ Card = {
   controller_id:            String,
   face:                     Face,
   exhausted:                Bool,
-  display_order:            Int,
   owned_regions:            Map<String, String>,  -- place → region_id（非资产槽）
-  connections:              Array<String>,        -- 仅 location：连通图（非「放置」）
-  actions_remaining:        Int,                  -- 仅 investigator：回合经济
-  actions_bonus_next_turn:  Int,
-  eliminated:               Bool,
-  resigned:                 Bool
+  connections:              Array<String>         -- 仅 location：连通图（非「放置」）
 }
 ```
 
 | 键 | 类型 | 说明 |
 |---|---|---|
 | `id` / `definition_id` / `card_type` | `String` / `String` / `CardType` | 身份 |
-| `owner_id` / `controller_id` | `String` | 所有/控制 |
-| `face` | `Face` | `"A"` \| `"B"` |
+| `owner_id` / `controller_id` | `String` | 所有/控制（[24](24-functional-world.md)：不单立原语） |
+| `face` | `Face` | `"A"` \| `"B"`（形态③） |
 | `exhausted` | `Bool` | 横置（形态③） |
-| `display_order` | `Int` | 同区展示序 |
 | `owned_regions` | `Map<String, String>` | **卡拥有的放置面**；键 = `Region.place`；见下表 |
 | `connections` | `Array<String>` | 地点连通（拓扑，不是区内实体） |
-| `actions_*` / `eliminated` / `resigned` | `Int`/`Bool` | 调查员回合/胜负态 |
+
+**已迁出 Card**：`actions_remaining` / `actions_bonus_next_turn` / `eliminated` / `resigned` → `seats`。  
+**已删**：`display_order`——同区展示序以 `Region.card_ids` 序为准，避免双源。
 
 **`CardType`**：`"investigator"` \| `"asset"` \| `"event"` \| `"skill"` \| `"enemy"` \| `"treachery"` \| `"location"` \| `"act"` \| `"agenda"`
+
+### 1.1.1 `Seat`（调查员席位态）
+
+每个在场（或已退场仍占座）的调查员一条；键 = 该调查员 **卡 id**（与 `cards` 中 `card_type=investigator` 对齐）。
+
+```text
+Seat = {
+  investigator_id:           String,  -- = 键；冗余便于拷贝
+  actions_remaining:         Int,     -- 本回合剩余行动
+  actions_bonus_next_turn:   Int,     -- 下回合额外行动（跨回合；亦可日后改 Register）
+  actions_penalty_next_turn: Int,     -- 下回合惩罚（与现有 InvestigatorState 对齐）
+  eliminated:                Bool,
+  resigned:                  Bool
+}
+```
+
+| 为何不在 Card | |
+|---|---|
+| 回合经济 | 框架/席位机，非卡形态或放置 |
+| 退场/撤退 | 冒险内结局标志，与 face/exhausted/区成员正交 |
+| 查询 | `seats[inv_id].actions_remaining`，不读 `cards[inv]` |
+
+`framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**经济与结局**在 `seats`。
 
 #### 推荐放置名（`owned_regions` 的键 = `Region.place`）
 
@@ -383,12 +407,12 @@ Framework = {
 
 ```text
 LimitStore = {
-  counters:   Map<String, LimitCounter>,   -- slot_id → 计数条
-  max_slots:  Map<String, MaxSlot>         -- 可选；Max N in play 类占用
+  counters:     Map<String, LimitCounter>,  -- limit_key → 计数条
+  occupancies:  Map<String, Occupancy>      -- 可选；Max N in play 类占用
 }
 
 LimitCounter = {
-  slot_id:       String,       -- 稳定键，见编码
+  limit_key:     String,       -- 稳定键，见编码（≠ 规则资产槽 slot）
   spec_id:       String,       -- Catalog LimitSpec id / ability_id
   period:        LimitPeriod,
   scope:         LimitScope,
@@ -398,8 +422,8 @@ LimitCounter = {
   window_id:     String        -- 周期实例：round 号、test_id、""(game)…
 }
 
-MaxSlot = {
-  slot_id:       String,       -- 如 title / exceptional 键
+Occupancy = {
+  limit_key:     String,       -- 如 title / exceptional 键
   kind:          MaxKind,      -- "in_play_by_title" | "committed_per_test" | …
   subject_id:    String,       -- 检定 id / "" 
   holders:       Array<String>,-- 当前占用的 card_id
@@ -407,39 +431,41 @@ MaxSlot = {
 }
 ```
 
+**命名**：限额键用 `limit_key` / 表名 `occupancies`，**禁止**再用 `slot_id`/`max_slots`——`slot` 已留给规则资产槽（Hand/Ally…）；放置面用 `place`。
+
 **`LimitPeriod`**：`"per_round"` \| `"per_turn"` \| `"per_phase"` \| `"per_game"` \| `"per_skill_test"` \| `"while_in_play"` \| `"per_card_enter"`  
 
 **`LimitScope`**：`"controller"` \| `"owner"` \| `"card_instance"` \| `"group"` \| `"title"`  
 
 **`MaxKind`**：`"in_play_by_title"` \| `"committed_per_test"` \| `"other"`
 
-#### `slot_id` 编码（权威键）
+#### `limit_key` 编码（权威键）
 
 ```text
-slot_id = spec_id + "|" + period + "|" + scope + "|" + subject_id + "|" + window_id
+limit_key = spec_id + "|" + period + "|" + scope + "|" + subject_id + "|" + window_id
 ```
 
 例：
 
-| 纸面 | `slot_id` 意象 |
+| 纸面 | `limit_key` 意象 |
 |---|---|
 | Joe：Limit once per round | `joe_react\|per_round\|controller\|I\|round:3` |
 | Group limit once per game | `orne_act\|per_game\|group\|\|game` |
 | Limit once per card（进场重置） | `ability_x\|while_in_play\|card_instance\|card:C9\|` |
-| Max 1 committed per test | `max_slots`：`committed_per_test` + `test_id` → `holders` |
+| Max 1 committed per test | `occupancies`：`committed_per_test` + `test_id` → `holders` |
 
 #### 运算
 
 | 动作 | 写什么 |
 |---|---|
-| L5 检查 | 读 `counters[slot].used < cap`（无条视为 0） |
+| L5 检查 | 读 `counters[key].used < cap`（无条视为 0） |
 | 成功发起 / 决议记次 | `used += 1`（政策钉在 commence 或 resolve 后，见 06 OQ） |
 | 新回合 / 新回合窗 | 清或作废 `period=per_round` 且 `window_id` 过期的条 |
 | 卡进场 | `per_card_enter` / `while_in_play` 按实例建或重置 |
-| 卡离场 | 删该 `card_instance` 条；`max_slots.holders` 移除 |
+| 卡离场 | 删该 `card_instance` 条；`occupancies.holders` 移除 |
 | Max in play | 进场写入 `holders`；离场移除；超 cap 则发起/进场门槛失败 |
 
-`window_id` 与 `auth.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<slot_id>`。
+`window_id` 与 `auth.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<limit_key>`。
 
 **不做**：把 Limit 规格正文存进局面；用单个全局 `Int` 糊所有能力。
 
@@ -566,8 +592,9 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 | 查询指纹 | `query:enemies_on:<loc>` | 地点 `on` 区等投影 |
 | 登记 | `reg:<id>` | `auth.registrations[id]` |
 | 方面 | `aspect:fight` | 索引 / 多条登记 |
+| 席位 | `seat:<inv>:actions_remaining` | `auth.seats[inv]…` |
 | 框架 | `fw:active_investigator_id` | `auth.framework…` |
-| 限额 | `limit:<slot_id>` | `auth.limits…` |
+| 限额 | `limit:<limit_key>` | `auth.limits…` |
 | 记事 | `chron:remembered:<k>` | `auth.chronicle.remembered[k]` |
 | 焦点 | `run:focus` | `run.focus` |
 | 记忆 | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
@@ -597,6 +624,8 @@ Intent =
   | RegInsert   { registration }
   | RegRemove   { reg_id }
   | SetExhausted{ card_id, exhausted }
+  | SetSeatActions { investigator_id, actions_remaining }
+  | SetSeatOutcome { investigator_id, eliminated?, resigned? }
   -- 后续：GainInsert/Remove、AudienceSet、LimitBump、FrameworkSet…
 ```
 
@@ -617,6 +646,11 @@ Snapshot {
              owned_regions:{ "hand":"hand_I", "deck":"deck_I", "tokens":"tok_I", … }, … }
       "L": { card_type:"location", owned_regions:{ "on":"on_L", "tokens":"tok_L" }, connections:[], … }
     }
+    seats: {
+      "I": { investigator_id:"I", actions_remaining:3,
+             actions_bonus_next_turn:0, actions_penalty_next_turn:0,
+             eliminated:false, resigned:false }
+    }
     regions: {
       "hand_I":  { host_card_id:"I", place:"hand", card_ids:[], token_stacks:{}, … }
       "tok_I":   { host_card_id:"I", place:"tokens", card_ids:[],
@@ -624,7 +658,7 @@ Snapshot {
       "on_L":    { host_card_id:"L", place:"on", card_ids:["I"], token_stacks:{}, … }
       "tok_L":   { host_card_id:"L", place:"tokens", card_ids:[], token_stacks:{ "clue":1 }, … }
       "chaos":   { host_card_id:"", place:"chaos", shape:"bag",
-                   token_stacks:{ "numeric:0": 2, "skull": 1, "auto_fail": 1 }, … }
+                   token_stacks:{ "numeric_0": 2, "skull": 1, "auto_fail": 1 }, … }
     }
     registrations: {}
     …
@@ -663,3 +697,5 @@ Snapshot {
 | 2026-11-24 | v0.21：补全 `RegistrationPayload` 分型及五类 body 字段 |
 | 2026-11-25 | v0.22：`auth.gains`；Intent M1 子集；`arkham_rules` Snapshot+commit 骨架 |
 | 2026-11-25 | v0.23：M2 Eff 子集（Do/Seq/If/Nest/Ask）+ 抽牌 Flow；primer Intent 改 AdjustToken |
+| 2026-11-25 | v0.24：席位态离 Card → `auth.seats`；删 Card.display_order（序=区 card_ids） |
+| 2026-11-25 | v0.25：Seat 补 `actions_penalty_next_turn`；LimitStore `slot_id`/`max_slots`→`limit_key`/`occupancies`（slot 留给资产槽）；例中混乱键统一 `numeric_0` |

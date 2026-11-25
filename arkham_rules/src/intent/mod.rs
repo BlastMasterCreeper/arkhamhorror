@@ -35,12 +35,22 @@ pub enum Intent {
         card_id: String,
         exhausted: bool,
     },
+    SetSeatActions {
+        investigator_id: String,
+        actions_remaining: i32,
+    },
+    SetSeatOutcome {
+        investigator_id: String,
+        eliminated: Option<bool>,
+        resigned: Option<bool>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommitError {
     MissingRegion(String),
     MissingCard(String),
+    MissingSeat(String),
     MissingRegistration(String),
     InsufficientTokens {
         region_id: String,
@@ -169,6 +179,36 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             card.exhausted = *exhausted;
             Ok(())
         }
+        Intent::SetSeatActions {
+            investigator_id,
+            actions_remaining,
+        } => {
+            let seat = snap
+                .auth
+                .seats
+                .get_mut(investigator_id)
+                .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
+            seat.actions_remaining = *actions_remaining;
+            Ok(())
+        }
+        Intent::SetSeatOutcome {
+            investigator_id,
+            eliminated,
+            resigned,
+        } => {
+            let seat = snap
+                .auth
+                .seats
+                .get_mut(investigator_id)
+                .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
+            if let Some(v) = eliminated {
+                seat.eliminated = *v;
+            }
+            if let Some(v) = resigned {
+                seat.resigned = *v;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -198,7 +238,7 @@ pub fn engagement_reg(
 mod tests {
     use super::*;
     use crate::world::{
-        Auth, Card, CardType, Face, Region, RegionShape, Snapshot,
+        Auth, Card, CardType, Face, Region, RegionShape, Seat, Snapshot,
     };
     use std::collections::BTreeMap;
 
@@ -217,7 +257,6 @@ mod tests {
                 controller_id: "I".into(),
                 face: Face::A,
                 owned_regions: owned,
-                actions_remaining: 3,
                 ..Card::default()
             },
         );
@@ -302,16 +341,35 @@ mod tests {
             },
         );
 
+        let mut seats = BTreeMap::new();
+        seats.insert("I".into(), Seat::fresh("I", 3));
+
         Snapshot {
             auth: Auth {
                 cards,
                 regions,
+                seats,
                 next_id: 8,
                 ..Auth::default()
             },
             gen: 1,
             ..Snapshot::default()
         }
+    }
+
+    #[test]
+    fn seat_actions_not_on_card() {
+        let s0 = mini_snap();
+        assert_eq!(s0.auth.seats["I"].actions_remaining, 3);
+        let s1 = commit(
+            s0,
+            &[Intent::SetSeatActions {
+                investigator_id: "I".into(),
+                actions_remaining: 2,
+            }],
+        )
+        .unwrap();
+        assert_eq!(s1.auth.seats["I"].actions_remaining, 2);
     }
 
     #[test]
