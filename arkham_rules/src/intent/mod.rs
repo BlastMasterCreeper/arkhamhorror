@@ -1,16 +1,17 @@
 //! Unique auth writers — commit(Intent[]) → Snapshot'.
 
 use crate::world::{
-    Registration, RegistrationPayload, Snapshot, StatusPayload, Subject,
+    Registration, RegistrationPayload, Snapshot, StatusPayload, Subject, TOKEN_SUPPLY,
 };
 
 #[derive(Clone, Debug)]
 pub enum Intent {
-    /// Δ token stack on a region (PlaceToken / RemoveToken).
-    AdjustToken {
-        region_id: String,
+    /// 1 source → 1 target token move (07 AtomTransferMarker). Supply = `TOKEN_SUPPLY`.
+    TransferToken {
         token_type: String,
-        delta: i32,
+        amount: i32,
+        from_region: String,
+        to_region: String,
     },
     /// Move one card between regions (order: append to dest end).
     MoveCard {
@@ -18,7 +19,7 @@ pub enum Intent {
         from_region: String,
         to_region: String,
     },
-    /// Flip dual token via Catalog dual_of — caller passes both types.
+    /// Flip dual token via Catalog dual_of — same-region type remapping (not Adjust).
     FlipToken {
         region_id: String,
         from_type: String,
@@ -52,6 +53,7 @@ pub enum CommitError {
     MissingCard(String),
     MissingSeat(String),
     MissingRegistration(String),
+    NonPositiveAmount(i32),
     InsufficientTokens {
         region_id: String,
         token_type: String,
@@ -79,31 +81,17 @@ pub fn commit(mut snap: Snapshot, intents: &[Intent]) -> Result<Snapshot, Commit
 
 fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
     match intent {
-        Intent::AdjustToken {
-            region_id,
+        Intent::TransferToken {
             token_type,
-            delta,
+            amount,
+            from_region,
+            to_region,
         } => {
-            let region = snap
-                .auth
-                .regions
-                .get_mut(region_id)
-                .ok_or_else(|| CommitError::MissingRegion(region_id.clone()))?;
-            let cur = region.token_stacks.get(token_type).copied().unwrap_or(0);
-            let next = cur + delta;
-            if next < 0 {
-                return Err(CommitError::InsufficientTokens {
-                    region_id: region_id.clone(),
-                    token_type: token_type.clone(),
-                    have: cur,
-                    need: -delta,
-                });
+            if *amount <= 0 {
+                return Err(CommitError::NonPositiveAmount(*amount));
             }
-            if next == 0 {
-                region.token_stacks.remove(token_type);
-            } else {
-                region.token_stacks.insert(token_type.clone(), next);
-            }
+            debit_stack(snap, from_region, token_type, *amount)?;
+            credit_stack(snap, to_region, token_type, *amount)?;
             Ok(())
         }
         Intent::FlipToken {
@@ -112,22 +100,12 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             to_type,
             n,
         } => {
-            apply_one(
-                snap,
-                &Intent::AdjustToken {
-                    region_id: region_id.clone(),
-                    token_type: from_type.clone(),
-                    delta: -n,
-                },
-            )?;
-            apply_one(
-                snap,
-                &Intent::AdjustToken {
-                    region_id: region_id.clone(),
-                    token_type: to_type.clone(),
-                    delta: *n,
-                },
-            )
+            if *n <= 0 {
+                return Err(CommitError::NonPositiveAmount(*n));
+            }
+            debit_stack(snap, region_id, from_type, *n)?;
+            credit_stack(snap, region_id, to_type, *n)?;
+            Ok(())
         }
         Intent::MoveCard {
             card_id,
@@ -143,7 +121,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
                 let pos = from
                     .card_ids
                     .iter()
-                    .position(|id| id == card_id)
+                    .position(|c| c == card_id)
                     .ok_or_else(|| CommitError::CardNotInRegion {
                         card_id: card_id.clone(),
                         region_id: from_region.clone(),
@@ -212,24 +190,80 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
     }
 }
 
-/// Convenience: engagement STATUS registration.
+fn debit_stack(
+    snap: &mut Snapshot,
+    region_id: &str,
+    token_type: &str,
+    amount: i32,
+) -> Result<(), CommitError> {
+    if region_id == TOKEN_SUPPLY {
+        // Infinite supply: never fails, no stock to decrement.
+        return Ok(());
+    }
+    let region = snap
+        .auth
+        .regions
+        .get_mut(region_id)
+        .ok_or_else(|| CommitError::MissingRegion(region_id.to_string()))?;
+    let cur = region.token_stacks.get(token_type).copied().unwrap_or(0);
+    if cur < amount {
+        return Err(CommitError::InsufficientTokens {
+            region_id: region_id.to_string(),
+            token_type: token_type.to_string(),
+            have: cur,
+            need: amount,
+        });
+    }
+    let next = cur - amount;
+    if next == 0 {
+        region.token_stacks.remove(token_type);
+    } else {
+        region.token_stacks.insert(token_type.to_string(), next);
+    }
+    Ok(())
+}
+
+fn credit_stack(
+    snap: &mut Snapshot,
+    region_id: &str,
+    token_type: &str,
+    amount: i32,
+) -> Result<(), CommitError> {
+    if region_id == TOKEN_SUPPLY {
+        // Return to supply does not accumulate inventory.
+        return Ok(());
+    }
+    let region = snap
+        .auth
+        .regions
+        .get_mut(region_id)
+        .ok_or_else(|| CommitError::MissingRegion(region_id.to_string()))?;
+    let cur = region.token_stacks.get(token_type).copied().unwrap_or(0);
+    region
+        .token_stacks
+        .insert(token_type.to_string(), cur + amount);
+    Ok(())
+}
+
+/// Helper: engagement STATUS registration.
 pub fn engagement_reg(
     id: impl Into<String>,
     source_card_id: impl Into<String>,
     enemy_id: impl Into<String>,
     investigator_id: impl Into<String>,
 ) -> Registration {
-    let enemy_id = enemy_id.into();
+    let enemy = enemy_id.into();
+    let inv = investigator_id.into();
     Registration {
         id: id.into(),
         source_card_id: source_card_id.into(),
         subject: Subject::Bound {
-            card_id: enemy_id.clone(),
+            card_id: enemy.clone(),
         },
         lifetime: "while_in_play".into(),
         bound_id: String::new(),
         payloads: vec![RegistrationPayload::Status {
-            status: StatusPayload::engagement(enemy_id, investigator_id),
+            status: StatusPayload::engagement(enemy, inv),
         }],
     }
 }
@@ -238,16 +272,16 @@ pub fn engagement_reg(
 mod tests {
     use super::*;
     use crate::world::{
-        Auth, Card, CardType, Face, Region, RegionShape, Seat, Snapshot,
+        Auth, Card, CardType, Face, Region, RegionShape, Seat, Snapshot, TOKEN_SUPPLY,
     };
     use std::collections::BTreeMap;
 
     fn mini_snap() -> Snapshot {
         let mut cards = BTreeMap::new();
         let mut owned = BTreeMap::new();
-        owned.insert("tokens".into(), "tok_I".into());
         owned.insert("hand".into(), "hand_I".into());
         owned.insert("deck".into(), "deck_I".into());
+        owned.insert("tokens".into(), "tok_I".into());
         cards.insert(
             "I".into(),
             Card {
@@ -260,9 +294,6 @@ mod tests {
                 ..Card::default()
             },
         );
-        let mut loc_owned = BTreeMap::new();
-        loc_owned.insert("on".into(), "on_L".into());
-        loc_owned.insert("tokens".into(), "tok_L".into());
         cards.insert(
             "L".into(),
             Card {
@@ -270,7 +301,10 @@ mod tests {
                 definition_id: "01111".into(),
                 card_type: CardType::Location,
                 face: Face::B,
-                owned_regions: loc_owned,
+                owned_regions: BTreeMap::from([
+                    ("on".into(), "on_L".into()),
+                    ("tokens".into(), "tok_L".into()),
+                ]),
                 ..Card::default()
             },
         );
@@ -287,16 +321,13 @@ mod tests {
         );
 
         let mut regions = BTreeMap::new();
-        let mut stacks = BTreeMap::new();
-        stacks.insert("resource".into(), 5);
         regions.insert(
             "tok_I".into(),
             Region {
                 id: "tok_I".into(),
-                shape: RegionShape::Flat,
-                host_card_id: "I".into(),
                 place: "tokens".into(),
-                token_stacks: stacks,
+                host_card_id: "I".into(),
+                token_stacks: BTreeMap::from([("resource".into(), 5)]),
                 ..Region::default()
             },
         );
@@ -373,20 +404,43 @@ mod tests {
     }
 
     #[test]
-    fn place_damage_on_investigator_tokens() {
+    fn place_damage_from_supply() {
         let s0 = mini_snap();
         assert_eq!(s0.token_on_card("I", "resource"), 5);
         let s1 = commit(
             s0,
-            &[Intent::AdjustToken {
-                region_id: "tok_I".into(),
+            &[Intent::TransferToken {
                 token_type: "damage".into(),
-                delta: 1,
+                amount: 1,
+                from_region: TOKEN_SUPPLY.into(),
+                to_region: "tok_I".into(),
             }],
         )
         .unwrap();
         assert_eq!(s1.token_on_card("I", "damage"), 1);
         assert_eq!(s1.gen, 2);
+    }
+
+    #[test]
+    fn heal_damage_to_supply() {
+        let mut s0 = mini_snap();
+        s0.auth
+            .regions
+            .get_mut("tok_I")
+            .unwrap()
+            .token_stacks
+            .insert("damage".into(), 2);
+        let s1 = commit(
+            s0,
+            &[Intent::TransferToken {
+                token_type: "damage".into(),
+                amount: 1,
+                from_region: "tok_I".into(),
+                to_region: TOKEN_SUPPLY.into(),
+            }],
+        )
+        .unwrap();
+        assert_eq!(s1.token_on_card("I", "damage"), 1);
     }
 
     #[test]
@@ -423,7 +477,12 @@ mod tests {
     #[test]
     fn flip_token_moves_between_types() {
         let mut s0 = mini_snap();
-        s0.auth.regions.get_mut("tok_I").unwrap().token_stacks.insert("tablet".into(), 1);
+        s0.auth
+            .regions
+            .get_mut("tok_I")
+            .unwrap()
+            .token_stacks
+            .insert("tablet".into(), 1);
         let s1 = commit(
             s0,
             &[Intent::FlipToken {

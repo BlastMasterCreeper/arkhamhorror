@@ -7,6 +7,10 @@ pub type CardId = String;
 pub type RegionId = String;
 pub type RegId = String;
 
+/// Infinite token supply endpoint for `TransferToken` (07 Transfer-only).
+/// Not required as a real `Region` entry; from-side never insufficient, to-side does not grow stacks.
+pub const TOKEN_SUPPLY: &str = "$supply";
+
 /// Whole functional operand: auth ⊕ derived ⊕ run ⊕ gen.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Snapshot {
@@ -243,14 +247,35 @@ pub struct GatePayload {
     pub subject_id: String,
 }
 
+/// Per-kind body — not a flat union of every directive field (spine slim).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum DirectivePayload {
+    SkipAoo {
+        #[serde(default)]
+        drawer_id: String,
+        #[serde(default)]
+        drawn_card_id: String,
+        #[serde(default)]
+        subject_id: String,
+    },
+    SuppressAutoEngage {
+        #[serde(default)]
+        subject_id: String,
+    },
+    AssignConstraint {
+        assign: AssignConstraintBody,
+    },
+    SkillRedirect {
+        redirect_from: i32,
+        redirect_to: i32,
+        #[serde(default)]
+        subject_id: String,
+    },
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct DirectivePayload {
-    pub kind: String,
-    pub drawer_id: String,
-    pub drawn_card_id: String,
-    pub subject_id: String,
-    pub redirect_from: i32,
-    pub redirect_to: i32,
+pub struct AssignConstraintBody {
     pub assign_op: String,
     pub assign_affliction: String,
     pub assign_direct_scope: String,

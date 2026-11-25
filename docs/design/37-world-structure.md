@@ -1,9 +1,9 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.25 · 2026-11-25  
+> **状态**：设计草案 v0.26 · 2026-11-25  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
-> **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`（原类型→实体代表，常为资源）；翻面走专用 seq。  
+> **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
 > **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。  
 > **实现**：`arkham_rules` crate（M1：`Snapshot`+`commit`；M2：`Eff`/`step`/`Nest` 抽牌）。
 
@@ -143,6 +143,7 @@ Seat = {
 | `chaos` | 冒险公共 | 混乱袋（另一放置面；仍是堆） |
 | `augury` / `sealed` | 公共或卡 | 占兆 / 封印（不同放置面） |
 | `encounter_deck` / `encounter_discard` | 公共 | 卡 |
+| `token_supply`（可选） | 公共 | 仅桌面呈现；**运算端点**仍是 `$supply`，不靠本区库存 |
 
 读「某卡上有多少资源」= 读 `regions[card.owned_regions["tokens"]].token_stacks["resource"]`。  
 读「伤」同区 `token_stacks["damage"]`——**不要**再开 `damage`/`horror`/`resource` 放置面。  
@@ -226,9 +227,19 @@ chaos.token_stacks["skull"] = 2
 
 无个体 id。同类型多枚不可区分。
 
-#### 放置伤/线索
+#### 放置伤/线索 = Transfer（禁止 Adjust）
 
-`PlaceToken` / `RemoveToken`：只改 `token_stacks[type]`（盒装供应默认永够）。
+对齐 [07 §5.2](07-effect-primitives.md)：桌面 token **唯一**权威写法 = **1 源 → 1 目标** 的 `TransferToken`。  
+**禁止**单端 `AdjustToken` / 虚无 delta（已废止的 `AtomAdjustMarker`）。
+
+| 语义 | Intent |
+|---|---|
+| 放置 / deal | `TransferToken { type, n, from: "$supply", to: bearer_tokens }` |
+| 治愈 / 回池 | `TransferToken { …, from: bearer_tokens, to: "$supply" }` |
+| 再分配 / 发现线索 | 承载区 → 承载区（仍 1→1） |
+
+`$supply`（常量 `TOKEN_SUPPLY`）：无穷供给端点——**取出永不因库存失败**；**回池不累加**库存计数。可不建真实 `Region` 行。  
+可选公共区 `place:"token_supply"` 仅作桌面呈现；运算仍认 `$supply`。
 
 术语：全文用 **token**。
 
@@ -329,15 +340,17 @@ GateKind =
 
 #### `DirectivePayload`（原流程读取后改道 · 非 Intent 拦截）
 
+按 **kind 分型**，禁止把全部字段摊平进一条记录（脊骨过肥）：
+
 ```text
-DirectivePayload = {
-  kind:                 DirectiveKind,
-  drawer_id:            String,
-  drawn_card_id:        String,
-  subject_id:           String,
-  redirect_from:        Int,      -- skill_redirect；不用则为 -1
-  redirect_to:          Int,
-  assign_op:            String,   -- AssignConstraintOp；非 assign 类可忽略
+DirectivePayload =
+  | { kind: "skip_aoo",              drawer_id, drawn_card_id, subject_id }
+  | { kind: "suppress_auto_engage",  subject_id }
+  | { kind: "assign_constraint",     assign: AssignConstraintBody }
+  | { kind: "skill_redirect",        redirect_from, redirect_to, subject_id }
+
+AssignConstraintBody = {
+  assign_op:            String,
   assign_affliction:    String,
   assign_direct_scope:  String,
   assign_expand_scope:  String,
@@ -618,8 +631,9 @@ Deps / Touched 使用同一键空间；编码进 `feasibility.deps` 的字符串
 
 ```text
 Intent =
-  | AdjustToken { region_id, token_type, delta }     -- Place/Remove
-  | FlipToken   { region_id, from_type, to_type, n } -- 查 Catalog.dual_of 后提交
+  | TransferToken { token_type, amount, from_region, to_region }
+      -- amount>0；`$supply` = 无穷池端（07 Transfer）
+  | FlipToken   { region_id, from_type, to_type, n } -- 同区双面键重标；查 Catalog.dual_of
   | MoveCard    { card_id, from_region, to_region }
   | RegInsert   { registration }
   | RegRemove   { reg_id }
@@ -627,6 +641,7 @@ Intent =
   | SetSeatActions { investigator_id, actions_remaining }
   | SetSeatOutcome { investigator_id, eliminated?, resigned? }
   -- 后续：GainInsert/Remove、AudienceSet、LimitBump、FrameworkSet…
+  -- 禁止：AdjustToken / 单端 delta
 ```
 
 `commit(Snapshot, Intent[]) → Snapshot'`：顺序应用；任一条失败则整批拒绝（M1）；成功则 `gen += 1`。  
@@ -699,3 +714,4 @@ Snapshot {
 | 2026-11-25 | v0.23：M2 Eff 子集（Do/Seq/If/Nest/Ask）+ 抽牌 Flow；primer Intent 改 AdjustToken |
 | 2026-11-25 | v0.24：席位态离 Card → `auth.seats`；删 Card.display_order（序=区 card_ids） |
 | 2026-11-25 | v0.25：Seat 补 `actions_penalty_next_turn`；LimitStore `slot_id`/`max_slots`→`limit_key`/`occupancies`（slot 留给资产槽）；例中混乱键统一 `numeric_0` |
+| 2026-11-25 | v0.26：废 `AdjustToken`→`TransferToken`+`$supply`（对齐 07 Transfer-only）；`DirectivePayload` 按 kind 分型收瘦 |

@@ -313,7 +313,7 @@ mod tests {
     use crate::catalog::{Catalog, Flow};
     use crate::intent::Intent;
     use crate::world::{
-        Auth, Card, CardType, Face, Region, RegionShape, Snapshot,
+        Auth, Card, CardType, Face, Region, RegionShape, Snapshot, TOKEN_SUPPLY,
     };
 
     fn snap_with_deck() -> Snapshot {
@@ -389,14 +389,15 @@ mod tests {
     }
 
     #[test]
-    fn seq_do_adjust_token() {
+    fn seq_do_transfer_token() {
         let s0 = snap_with_deck();
         let cat = Catalog::new();
         let eff = Eff::Seq(
-            Box::new(Eff::Do(Intent::AdjustToken {
-                region_id: "tok_I".into(),
+            Box::new(Eff::Do(Intent::TransferToken {
                 token_type: "damage".into(),
-                delta: 1,
+                amount: 1,
+                from_region: TOKEN_SUPPLY.into(),
+                to_region: "tok_I".into(),
             })),
             Box::new(Eff::Pass),
         );
@@ -415,15 +416,17 @@ mod tests {
         let cat = Catalog::new();
         let eff = Eff::If {
             pred: Pred::Const(false),
-            then_branch: Box::new(Eff::Do(Intent::AdjustToken {
-                region_id: "tok_I".into(),
+            then_branch: Box::new(Eff::Do(Intent::TransferToken {
                 token_type: "damage".into(),
-                delta: 9,
+                amount: 9,
+                from_region: TOKEN_SUPPLY.into(),
+                to_region: "tok_I".into(),
             })),
-            else_branch: Box::new(Eff::Do(Intent::AdjustToken {
-                region_id: "tok_I".into(),
+            else_branch: Box::new(Eff::Do(Intent::TransferToken {
                 token_type: "horror".into(),
-                delta: 1,
+                amount: 1,
+                from_region: TOKEN_SUPPLY.into(),
+                to_region: "tok_I".into(),
             })),
         };
         let out = run_to_ask_or_done(s0, &cat, eff, 8);
@@ -474,10 +477,11 @@ mod tests {
             default_value: "tok_I".into(),
             bind_key: "chosen_region".into(),
             controller_id: "I".into(),
-            cont: Box::new(Eff::Do(Intent::AdjustToken {
-                region_id: "tok_I".into(),
+            cont: Box::new(Eff::Do(Intent::TransferToken {
                 token_type: "clue".into(),
-                delta: 1,
+                amount: 1,
+                from_region: TOKEN_SUPPLY.into(),
+                to_region: "tok_I".into(),
             })),
         };
         let out = run_to_ask_or_done(s0, &cat, eff, 4);

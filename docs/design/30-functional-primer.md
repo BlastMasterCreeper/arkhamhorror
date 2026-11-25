@@ -314,7 +314,7 @@ World {
 \[
 \mathrm{Intent}
 =
-\mathrm{AdjustToken}(\mathrm{RegionId},\mathrm{Type},\mathbb{Z})
+\mathrm{TransferToken}(\mathrm{Type},\mathbb{N}^+,\mathrm{FromRegion},\mathrm{ToRegion})
 \mid
 \mathrm{MoveCard}(\mathrm{CardId},\mathrm{FromRegion},\mathrm{ToRegion})
 \mid
@@ -322,6 +322,8 @@ World {
 \mid
 \mathrm{RegRemove}(\mathrm{RegId})
 \]
+
+`FromRegion`/`ToRegion` 可为承载区 id，或无穷供给端点 `$supply`（对齐 [07 §5.2](07-effect-primitives.md) Transfer-only；**禁止**单端 Adjust）。
 
 ### 1.4 运算上下文与返回值
 
@@ -379,15 +381,15 @@ World {
 \mathrm{commit}(w,\ i :: is) = \mathrm{commit}(\mathrm{apply}(w,i),\ is)
 \]
 
-`apply` 只改对应分量。例如在卡的 `tokens` 放置面上加减 token（\(R=\) 该卡 `owned_regions["tokens"]`）：
+`apply` 只改对应分量。例如从供给池放到卡的 `tokens` 区（\(R=\) 该卡 `owned_regions["tokens"]`）：
 
 \[
-\mathrm{apply}(w,\ \mathrm{AdjustToken}(R,k,n)).\mathrm{regions}[R].\mathrm{token\_stacks}[k]
+\mathrm{apply}(w,\ \mathrm{TransferToken}(k,n,\texttt{\$supply},R)).\mathrm{regions}[R].\mathrm{token\_stacks}[k]
 =
 w.\mathrm{regions}[R].\mathrm{token\_stacks}[k] + n
 \]
 
-其它分量原样保留（结构共享：没改的部分仍指向旧数据）。
+（`$supply` 端不读写库存。）其它分量原样保留（结构共享：没改的部分仍指向旧数据）。
 
 ### 2.2 先左后右（内联）
 
@@ -568,7 +570,7 @@ e_2(x)
 \end{align*}
 \]
 
-「造成伤害」「调查员抽牌」是目录里的手续号。造成伤害套标准能力窗；效果体是对目标 `tokens` 区做 \(\mathrm{AdjustToken}(\ldots,\mathrm{damage},1)\)。
+「造成伤害」「调查员抽牌」是目录里的手续号。造成伤害套标准能力窗；效果体是 \(\mathrm{TransferToken}(\mathrm{damage},1,\texttt{\$supply},R_{\mathrm{目标tokens}})\)。
 
 ### 3.2 起始值
 
@@ -614,10 +616,10 @@ r_2.\mathrm{栈}=[\phi_{\mathrm{显现}},\ \phi_{\mathrm{造成伤害}}(\mathrm{
 
 标准窗前面的「将要 / 当时」这里假设没有人响应，步号一路加到「解释效果体」。这些步的公式都是 2.6，且 \(\mathrm{commit}\) 还没发生，所以 \(w\) 仍是 \(w_0\)。
 
-**步 D.** 效果体是 \(\mathrm{Do}(\mathrm{AdjustToken}(R_E,\mathrm{damage},1))\)。公式 2.4 与 2.1：
+**步 D.** 效果体是 \(\mathrm{Do}(\mathrm{TransferToken}(\mathrm{damage},1,\texttt{\$supply},R_E))\)。公式 2.4 与 2.1：
 
 \[
-w_1 = \mathrm{commit}(w_0,[\mathrm{AdjustToken}(R_E,\mathrm{damage},1)])
+w_1 = \mathrm{commit}(w_0,[\mathrm{TransferToken}(\mathrm{damage},1,\texttt{\$supply},R_E)])
 \]
 
 \[
@@ -664,15 +666,15 @@ w_2.\mathrm{deck}(I)=[C_2],\qquad w_2.\mathrm{hand}(I)=[C_1]
 
 ---
 
-## 4. 和「全部写成 AdjustToken」差在哪
+## 4. 和「全部写成裸 TransferToken」差在哪
 
-若伤害不嵌套，而写成 \(\mathrm{Do}(\mathrm{AdjustToken}(\ldots))\)：
+若伤害不嵌套，而写成 \(\mathrm{Do}(\mathrm{TransferToken}(\ldots))\)：
 
 \[
 \mathrm{commit}\ \text{的结果可以相同}
 \]
 
-议程不同：标准窗的「当时 / 之后」不会发生，别的卡听不到「造成伤害时」。所以卡面写「造成伤害」时，公式用的是 2.5（嵌套），不是直接 2.4。`AdjustToken` 只出现在伤害手续自己的效果体里。
+议程不同：标准窗的「当时 / 之后」不会发生，别的卡听不到「造成伤害时」。所以卡面写「造成伤害」时，公式用的是 2.5（嵌套），不是直接 2.4。`TransferToken` 只出现在伤害手续自己的效果体里。
 
 ---
 
