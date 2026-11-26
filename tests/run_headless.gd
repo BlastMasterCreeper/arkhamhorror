@@ -279,6 +279,11 @@ func _initialize() -> void:
 	_run_test("ENC-SURGE-06 raising suspicions places doom", _test_enc_surge_12160_places_doom)
 	_run_test("ENC-SURGE-07 raising suspicions no target gains surge", _test_enc_surge_12160_no_target_gained)
 	_run_test("GAIN-01 effective keyword query", _test_gain_effective_keyword)
+	_run_test("LOSE-01 suppress printed keyword", _test_lose_suppress_printed)
+	_run_test("LOSE-02 silver encounter lose beats player gain", _test_lose_silver_encounter_beats_player)
+	_run_test("LOSE-03 silver encounter gain beats player lose", _test_lose_silver_encounter_gain_wins)
+	_run_test("LOSE-04 catalog lose_characteristic", _test_lose_catalog_and_composition)
+	_run_test("LOSE-05 keyword no double gain", _test_keyword_no_double_gain)
 	_run_test("KW-OCC-01 keyword listener occasions table", _test_kw_occ_profile_table)
 	_run_test("KW-OCC-02 leave play unregisters only in-play", _test_kw_occ_leave_play_scoped)
 	_run_test("KW-OCC-03 leave hand unregisters hidden not in-play", _test_kw_occ_leave_hand_scoped)
@@ -2666,7 +2671,7 @@ func _test_mod_enemy_attack_increase_pending() -> bool:
 
 
 func _test_mod_discover_named_bonus() -> bool:
-	## MOD-12 · 09059 形：效果步指名在另一地点加发现（非无名 Buff 选腿）。
+	## MOD-12 · 09059 形：效果步指名在另一地点加发现（非无名载荷 选腿）。
 	var h := RuleTestHarness.new(42)
 	var plan := AmountPlan.discover_single(&"loc_a", 1)
 	plan.add_named_bonus(&"loc_enemy", 1)
@@ -3069,7 +3074,7 @@ func _test_must_choice_pick_option() -> bool:
 	var c := CompositionTestHelper.new(h.ctx)
 	c.execute(node)
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
-	return inv.horror_taken == 0 and h.ctx.registrations.count() == 1
+	return inv.horror_taken == 0 and h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _test_choice_optional_default_decline() -> bool:
@@ -3329,7 +3334,7 @@ func _test_enc_12124_choice_punish() -> bool:
 	return (
 		inv.damage_taken == 1
 		and inv.horror_taken == 1
-		and h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+		and h.ctx.gains.has_gained_keyword(card_id, &"surge")
 	)
 
 
@@ -3346,7 +3351,7 @@ func _test_enc_surge_12126_fail_by_horror() -> bool:
 	if not h.resolve_encounter_revelation(card_id):
 		return false
 	inv = h.ctx.state.registry.get_investigator(&"inv_1")
-	return inv.horror_taken == 1 and inv.clues_on_card == 2 and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return inv.horror_taken == 1 and inv.clues_on_card == 2 and not h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _collect_initiation_steps(h: RuleTestHarness) -> Array:
@@ -4399,21 +4404,32 @@ func _test_seq_eff_register_unregister() -> bool:
 		return false
 	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.unregister"):
 		return false
-	var card_id := &"surge_card"
-	var c := CompositionTestHelper.new(h.ctx)
-	c.execute(CompositionNode.grant_keyword(card_id, &"surge"))
-	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.grant"):
 		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	## Registration 路径：MODIFIER register / unregister。
+	c.execute(
+		CompositionNode.nest_effect_register(
+			RegistrationTemplate.lasting_modifier(
+				&"inv_1",
+				AhcEnums.DurationAnchorKind.THIS_TURN,
+				ModifierPayload.add_skill(AhcEnums.StatRef.SKILL_WILLPOWER, 1)
+			)
+		)
+	)
 	if _sequence_kind_count(h, &"effect_register") == 0:
 		return false
 	var regs: Array = h.ctx.registrations.all_registrations()
 	if regs.is_empty():
 		return false
 	c.execute(CompositionNode.nest_effect_unregister((regs[0] as Registration).id))
-	return (
+	var reg_ok := (
 		h.ctx.registrations.count() == 0
 		and _sequence_kind_count(h, &"effect_unregister") > 0
 	)
+	## Gain 路径：grant keyword（不进 Registration）。
+	c.execute(CompositionNode.grant_keyword(&"surge_card", &"surge"))
+	return reg_ok and h.ctx.gains.has_gained_keyword(&"surge_card", &"surge")
 
 
 func _test_seq_eff_lose_resources_fizzle() -> bool:
@@ -6597,16 +6613,16 @@ func _test_enc_surge_keyword_survives_g4() -> bool:
 	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_surge", [])
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	EncounterGainedKeyword.register_surge(h.ctx, card_id)
-	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+	if not h.ctx.gains.has_gained_keyword(card_id, &"surge"):
 		return false
 	EncounterPeril.unregister_for_card(h.ctx, card_id)
-	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+	if not h.ctx.gains.has_gained_keyword(card_id, &"surge"):
 		return false
 	DrawEncounterFlow.resolve_encounter_card_tail(h.ctx, &"inv_1", card_id)
-	if not h.ctx.registrations.has_keyword_buff(card_id, &"surge"):
+	if not h.ctx.gains.has_gained_keyword(card_id, &"surge"):
 		return false
 	var consumed := KeywordConsumer.evaluate_keyword(h.ctx, card_id, &"surge")
-	return consumed and not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return consumed and not h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _adb_add_encounter_treachery_to_deck(h: RuleTestHarness, def_id: StringName) -> StringName:
@@ -6668,7 +6684,7 @@ func _test_enc_surge_12126_with_clues() -> bool:
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	if not h.resolve_encounter_revelation(card_id):
 		return false
-	return not h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return not h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _test_adb_compile_raising_suspicions() -> bool:
@@ -6704,13 +6720,15 @@ func _test_enc_surge_12160_places_doom() -> bool:
 		return false
 	var enemy := h.ctx.state.registry.get_enemy(&"enemy_a")
 	var cards: Array = res.get("cards", [])
+	## 放了 doom → 不 gains surge；印刷也无 surge（勿把 gains 文误标进 keywords）。
 	return (
 		enemy != null
 		and enemy.doom == 1
-		and cards.size() == 2
+		and cards.size() == 1
 		and cards[0] == first
-		and cards[1] == second
-		and int(res.get("surge_depth", 0)) == 1
+		and int(res.get("surge_depth", 0)) == 0
+		and not h.ctx.gains.has_gained_keyword(first, &"surge")
+		and second != &""
 	)
 
 
@@ -6721,7 +6739,7 @@ func _test_enc_surge_12160_no_target_gained() -> bool:
 	h.ctx.mutator.enter_limbo(card_id, &"inv_1")
 	if not h.resolve_encounter_revelation(card_id):
 		return false
-	return h.ctx.registrations.has_keyword_buff(card_id, &"surge")
+	return h.ctx.gains.has_gained_keyword(card_id, &"surge")
 
 
 func _test_gain_effective_keyword() -> bool:
@@ -6732,7 +6750,115 @@ func _test_gain_effective_keyword() -> bool:
 	if not EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge"):
 		return false
 	EncounterGainedKeyword.register_surge(h.ctx, card_id)
-	return EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge")
+	## 印刷已有 → 不再 grant（仍有效）。
+	return (
+		EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"surge")
+		and h.ctx.gains.count() == 0
+	)
+
+
+func _test_lose_suppress_printed() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_print_ret", [&"retaliate"])
+	var card := h.ctx.state.registry.get_card(card_id)
+	var def_id := card.id.definition_id
+	if not EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"retaliate"):
+		return false
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.lose_keyword(
+			card_id, &"retaliate", AhcEnums.CharacteristicSourceKind.PLAYER
+		)
+	)
+	return (
+		h.ctx.losts.has_lost_keyword(card_id, &"retaliate")
+		and not EffectiveCharacteristicQuery.has_effective_keyword(
+			h.ctx, card_id, def_id, &"retaliate"
+		)
+	)
+
+
+func _test_lose_silver_encounter_beats_player() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_lose", [])
+	var card := h.ctx.state.registry.get_card(card_id)
+	var def_id := card.id.definition_id
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_effect_grant(
+			GainTemplate.keyword_while_in_play(
+				card_id, &"hunter", AhcEnums.CharacteristicSourceKind.PLAYER
+			)
+		)
+	)
+	if not EffectiveCharacteristicQuery.has_effective_keyword(h.ctx, card_id, def_id, &"hunter"):
+		return false
+	c.execute(
+		CompositionNode.nest_effect_lose_characteristic(
+			LoseTemplate.keyword_while_in_play(
+				card_id, &"hunter", AhcEnums.CharacteristicSourceKind.ENCOUNTER
+			)
+		)
+	)
+	return not EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, card_id, def_id, &"hunter"
+	)
+
+
+func _test_lose_silver_encounter_gain_wins() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_gain", [])
+	var card := h.ctx.state.registry.get_card(card_id)
+	var def_id := card.id.definition_id
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_effect_lose_characteristic(
+			LoseTemplate.keyword_while_in_play(
+				card_id, &"aloof", AhcEnums.CharacteristicSourceKind.PLAYER
+			)
+		)
+	)
+	c.execute(
+		CompositionNode.nest_effect_grant(
+			GainTemplate.keyword_while_in_play(
+				card_id, &"aloof", AhcEnums.CharacteristicSourceKind.ENCOUNTER
+			)
+		)
+	)
+	return EffectiveCharacteristicQuery.has_effective_keyword(
+		h.ctx, card_id, def_id, &"aloof"
+	)
+
+
+func _test_lose_catalog_and_composition() -> bool:
+	var h := RuleTestHarness.new(42)
+	if not h.ctx.sequence_catalog.has_flow(&"seq.effect.lose_characteristic"):
+		return false
+	var card_id := &"lose_card"
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(CompositionNode.lose_keyword(card_id, &"peril"))
+	return h.ctx.losts.has_lost_keyword(card_id, &"peril") and h.ctx.losts.count() == 1
+
+
+func _test_keyword_no_double_gain() -> bool:
+	var h := RuleTestHarness.new(42)
+	var card_id := GameBootstrap.add_encounter_card_to_deck(h.ctx, &"enc_plain_dbl", [])
+	var c := CompositionTestHelper.new(h.ctx)
+	c.execute(
+		CompositionNode.nest_effect_grant(
+			GainTemplate.keyword_while_in_play(
+				card_id, &"surge", AhcEnums.CharacteristicSourceKind.ENCOUNTER
+			)
+		)
+	)
+	c.execute(
+		CompositionNode.nest_effect_grant(
+			GainTemplate.keyword_while_in_play(
+				card_id, &"surge", AhcEnums.CharacteristicSourceKind.PLAYER
+			)
+		)
+	)
+	return h.ctx.gains.count() == 1
 
 
 func _test_kw_occ_profile_table() -> bool:
@@ -6743,7 +6869,7 @@ func _test_kw_occ_profile_table() -> bool:
 	var surge := KeywordProfileTable.profile_for(&"surge")
 	if surge == null:
 		return false
-	if surge.buff_type != &"LISTENER":
+	if surge.registration_kind != &"LISTENER":
 		return false
 	if surge.register_flow_id != KeywordProfileTable.FLOW_DRAW_ENCOUNTER:
 		return false
@@ -6820,14 +6946,14 @@ func _test_kw_occ_profile_table() -> bool:
 	if bonded == null or bonded.armed_zone != KeywordProfileTable.ZONE_SET_ASIDE:
 		return false
 	var fast := KeywordProfileTable.profile_for(&"fast")
-	if fast == null or fast.buff_type != KeywordProfileTable.BUFF_INITIATION:
+	if fast == null or fast.registration_kind != KeywordProfileTable.KIND_INITIATION:
 		return false
 	if fast.register_slot != &"":
 		return false
 	if fast.armed_zone != KeywordProfileTable.ZONE_HAND:
 		return false
 	for profile in KeywordProfileTable.all_profiles():
-		if profile.buff_type != KeywordProfileTable.BUFF_LISTENER:
+		if profile.registration_kind != KeywordProfileTable.KIND_LISTENER:
 			continue
 		if profile.register_slot == &"" or profile.unregister_slot == &"":
 			return false
@@ -6864,8 +6990,8 @@ func _kw_occ_bind(
 	var template := RegistrationTemplate.new()
 	template.lifetime_kind = lifetime
 	template.drawn_card_id = card_id
-	template.buffs.append(
-		BuffSpec.listener_buff(ListenerPayload.at_timing(&"kw_occ_dummy", null))
+	template.payloads.append(
+		RegistrationPayload.of_listener(ListenerPayload.at_timing(&"kw_occ_dummy", null))
 	)
 	return store.register(template)
 
@@ -6911,26 +7037,28 @@ func _test_kw_occ_leave_hand_scoped() -> bool:
 func _test_kw_occ_peril_finalize() -> bool:
 	var h := RuleTestHarness.new(42)
 	var store := h.ctx.registrations
+	var gains := h.ctx.gains
 	store.register(RegistrationTemplate.peril_drawn_card_resolving(&"inv_1", &"treachery"))
 	EncounterGainedKeyword.register_surge(h.ctx, &"treachery")
 	_kw_occ_bind(store, AhcEnums.LifetimeKind.WHILE_IN_PLAY, &"hunter_card")
-	if store.count() != 3:
+	## peril + hunter in Registration；surge 在 GainStore。
+	if store.count() != 2:
 		return false
 	if not store.has_peril_for_drawn_card(&"treachery"):
 		return false
-	if not store.has_keyword_buff(&"treachery", &"surge"):
+	if not gains.has_gained_keyword(&"treachery", &"surge"):
 		return false
 	store.on_card_leave_play(&"treachery")
-	if store.count() != 3:
+	if store.count() != 2:
 		return false
 	store.on_drawn_card_finalize(&"treachery")
 	if store.has_peril_for_drawn_card(&"treachery"):
 		return false
-	if not store.has_keyword_buff(&"treachery", &"surge"):
+	if not gains.has_gained_keyword(&"treachery", &"surge"):
 		return false
 	store.on_leave_deck(&"starting_missing")
 	store.on_leave_set_aside(&"bonded_missing")
-	return store.count() == 2 and store.has_keyword_buff(&"treachery", &"surge")
+	return store.count() == 1 and gains.has_gained_keyword(&"treachery", &"surge")
 
 
 func _test_kw_fast_play_form() -> bool:
@@ -6945,7 +7073,7 @@ func _test_kw_fast_play_form() -> bool:
 	var fast := KeywordProfileTable.profile_for(&"fast")
 	return (
 		fast != null
-		and fast.buff_type == KeywordProfileTable.BUFF_INITIATION
+		and fast.registration_kind == KeywordProfileTable.KIND_INITIATION
 		and fast.armed_zone == KeywordProfileTable.ZONE_HAND
 	)
 
@@ -8725,7 +8853,7 @@ func _test_act_engage_nests_kernel() -> bool:
 
 
 func _test_engage_grant_cross_location() -> bool:
-	## grant：Register 交战 Buff；不移入威胁区（检测威胁区仍为假）。
+	## grant：Register 交战载荷；不移入威胁区（检测威胁区仍为假）。
 	var h := RuleTestHarness.new(42)
 	GameBootstrap.setup_test_location(h.ctx, &"loc_far")
 	GameBootstrap.setup_investigator_at_location(h.ctx, &"inv_1", &"test_loc")
@@ -8756,7 +8884,7 @@ func _test_engage_grant_cross_location() -> bool:
 
 
 func _test_engage_enter_threat_buff() -> bool:
-	## 真实交战：Register Buff，并移入威胁区（检测在威胁区为真）。
+	## 真实交战：Register 载荷，并移入威胁区（检测在威胁区为真）。
 	var h := RuleTestHarness.new(42)
 	if not h.prepare_action_phase():
 		return false
@@ -10089,8 +10217,10 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.effect.evade",
 		&"seq.effect.exhaust",
 		&"seq.effect.gain_resource",
+		&"seq.effect.grant",
 		&"seq.effect.heal",
 		&"seq.effect.lose_action",
+		&"seq.effect.lose_characteristic",
 		&"seq.effect.lose_resources",
 		&"seq.effect.move",
 		&"seq.effect.place_clue",
@@ -10149,7 +10279,7 @@ func _test_seq_audit_catalog_inventory() -> bool:
 		&"seq.skill_test.agility",
 		&"seq.setup",
 	]
-	if required.size() != 60:
+	if required.size() != 62:
 		return false
 	for flow_id in required:
 		if not catalog.has_flow(flow_id):
@@ -10774,7 +10904,7 @@ func _test_asn_prior_fill() -> bool:
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
-			RestrictionPayload.assign_prior_fill(card_id, &"inv_1", &"horror")
+			DirectivePayload.assign_prior_fill(card_id, &"inv_1", &"horror")
 		)
 	)
 	var legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"horror", 3, false)
@@ -10793,7 +10923,7 @@ func _test_asn_min_to_subject() -> bool:
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
-			RestrictionPayload.assign_min_to_subject(card_id, &"inv_1", 1, &"damage")
+			DirectivePayload.assign_min_to_subject(card_id, &"inv_1", 1, &"damage")
 		)
 	)
 	var legs := DamageAssigner.default_assignment(h.ctx, &"inv_1", &"damage", 3, false)
@@ -10819,7 +10949,7 @@ func _test_asn_max_to_match() -> bool:
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
-			RestrictionPayload.assign_max_to_match(&"inv_1", &"Miskatonic", 1, &"either")
+			DirectivePayload.assign_max_to_match(&"inv_1", &"Miskatonic", 1, &"either")
 		)
 	)
 	var ok_one := [
@@ -10850,7 +10980,7 @@ func _test_asn_include_direct() -> bool:
 		return false
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
-			RestrictionPayload.assign_include_candidate(
+			DirectivePayload.assign_include_candidate(
 				card_id,
 				&"inv_1",
 				&"either",
@@ -10875,7 +11005,7 @@ func _test_asn_include_bodyguard() -> bool:
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
-			RestrictionPayload.assign_include_candidate(
+			DirectivePayload.assign_include_candidate(
 				guard_id,
 				&"inv_1",
 				&"damage",
@@ -10901,7 +11031,7 @@ func _test_asn_pipeline_prior_fill() -> bool:
 	)
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
-			RestrictionPayload.assign_prior_fill(card_id, &"inv_1", &"horror")
+			DirectivePayload.assign_prior_fill(card_id, &"inv_1", &"horror")
 		)
 	)
 	var res := DamagePipeline.deal_investigator(h.ctx, &"inv_1", &"horror", 3, false)
@@ -10931,7 +11061,7 @@ func _test_asn_grant_capacity() -> bool:
 		return false
 	h.ctx.registrations.register(
 		RegistrationTemplate.assign_constraint_while_in_play(
-			RestrictionPayload.assign_grant_capacity(card_id, &"inv_1", 2, &"damage")
+			DirectivePayload.assign_grant_capacity(card_id, &"inv_1", 2, &"damage")
 		)
 	)
 	if not DamageAssigner.validate(h.ctx, &"inv_1", &"damage", false, 1, bare):

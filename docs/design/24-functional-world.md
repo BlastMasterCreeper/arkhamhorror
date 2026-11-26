@@ -1,9 +1,11 @@
 # 24 — 函数式 `World` 值模型（草案）
 
-> **状态**：设计草案 v0.1 · 2026-11-23  
-> **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-buff-model](06-registration-buff-model.md)、[17-seq-runtime](17-seq-runtime.md)  
-> **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影（本文只定 **局面值**）  
-> **与现实现关系**：对照 `PhysicalStore` · `GameStateStore` · `RegistrationStore` · `RulesMemory`；**不**要求立刻替换 Godot 对象图，先定值边界与不变量。
+> **状态**：设计草案 v0.7 · 2026-11-26  
+> **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-payload-model](06-registration-payload-model.md)、[17-seq-runtime](17-seq-runtime.md)  
+> **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影  
+> **键名与类型总表（权威形状）**：[37-world-structure](37-world-structure.md) — 若本文与 37 冲突，**以 37 为准**。  
+> **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`）。  
+> **口径**：`Snapshot.data` = Data；分区 **Board × Facts × Constraints**（+ Audience）；物理袋叫 **Board**，不叫世界；Control=`Run`；CREATED = 改 Data（Audience 可除外）。
 
 ---
 
@@ -11,126 +13,116 @@
 
 | 目标 | 非目标 |
 |---|---|
-| 把「规则可判定的局面」收成 **不可变值** `World` | 重写 Godot / 换语言 |
-| 与物理三类 + Register + 薄 Chronicle **同构** | 把 UI、输入、网络塞进 `World` |
-| 明确 **World vs Run**（局面 vs 执行游标） | 用 lens 宗教替代 Cancel/Instead 手续 |
-| 为纯查询 / dry-run / 重放提供稳定自变量 | 每步深拷贝整桌当性能方案（实现可选结构共享） |
+| 定 **Snapshot** = Data × Control × Derived | 重写 Godot / 换语言 |
+| Data 内按代数角色分区（物理只是一类 sort） | 把「世界」说成只有桌上物理 |
+| 明确 Data vs Run vs Catalog | 用 lens 宗教替代 Cancel/Instead |
+| 为 dry-run / 重放提供稳定自变量 | 每步深拷贝整桌当性能方案 |
 
-**一句话**：`World` = 存档级规则局面；`Run` = 正在走的手续栈与待确认选择。纯内核吃 `(World, RunEnv)`，写出 `(World', RunEnv') | NeedChoice`。
-
+**一句话**：函数世界 = **Data**；Run = 控制；Catalog 外置。详见 [38](38-functional-data-world.md)。
 ---
 
 ## 1. 总结构
 
-```text
-World = {
-  physical,      -- ①区/序 · ②标记 · ③形态
-  registrations, -- 信息原语主量（含寿命）
-  chronicle,     -- 薄：日志∪记住（可重放所需）
-  audience,      -- 牌面可见性（非结算；查询/表现用）
-  framework,     -- 回合/场景游标中「局面级」部分
-  entropy,       -- 随机源已决议部分（袋内剩余、已抽序列…）
-  meta,          -- 分配计数器等（id 单调；非规则语义）
-}
+快照要**分类**，不要把权威事实、派生投影、执行游标糊成一袋：
 
-Run = {
-  stack,         -- ResolutionSequence 帧栈（值）
-  open_choice,   -- NeedChoice | None
-  skill_tests,   -- 检定栈（值）
-  memory,        -- 步间指称 / cancel 键（手续期）
-  timing_phase,  -- Would/When/After 等当前相位标记
+```text
+Snapshot = {
+  data,      -- World_FP = Data（结算写这里）
+  derived,   -- 派生（可重建；含可行性 Φ）
+  run,       -- 进度游标（Control）
 }
+-- Catalog 外置，永不进 Snapshot
 ```
 
-| 袋 | 进 `World`？ | 理由 |
+```text
+Data（形状以 37 为准；≡ World_FP）= {
+  board:        Board,         -- 物理分区：仅 cards/regions
+  facts:        Facts,         -- relations · gains · chronicle
+  constraints:  Constraints,   -- policies（Fold/Guard/Divert/OnTiming）
+  limits:       LimitStore,    -- 配额计数（非物理；不进 Board）
+  framework:    Framework,     -- Clock 游标（非物理；不进 Board）
+  seats:        Map Seat,      -- 席位经济（非物理；不进 Board）
+  audience,                    -- 权限旁路；CREATED 不计
+  next_id
+}
+-- 混乱袋 = board.regions[place=chaos].token_stacks
+-- 检定已揭示挂 Run.skill_tests；rng 若需另议
+
+Derived = { index, feasibility }
+Run = { stack, open_choice, skill_tests, memory, timing_phase, focus }
+```
+
+**函数世界 = `data`（整袋 Data）**。Board 只是物理分区。详见 [37 §0](37-world-structure.md) / [38](38-functional-data-world.md)。
+
+| 袋 | 分类 | 理由 |
 |---|---|---|
-| 卡在哪、横置、doom 数 | **是** | 物理原语结果 |
-| Registration / Buff | **是** | 信息原语结果；寿命未到期仍属局面 |
-| 「本手续选中的敌人」 | **否 → Run.memory** | 步间指称；手续 pop 可清 |
-| 序列栈深度、当前 RESOLVE 砖 | **否 → Run.stack** | 执行游标 |
-| FaceAudience | **是**（旁路袋） | 非结算，但查询/同步需要；与 physical 正交 |
-| CardDefinition 印刷 | **否** | 目录 / 不可变外置 `Catalog`；`World` 只持 `definition_id` |
-| PI Gate 超时时钟 | **否** | 驱动层；确认结果写入 `Run.memory` 后再继续 |
+| cards / regions | **board** | 物理分区 |
+| relations / gains / chronicle | **facts** | 断言与薄记事 |
+| policies | **constraints** | 运作叠层（非桌上物） |
+| LimitStore | **limits** | 次数/配额（非物理；不进 Board） |
+| Framework | **framework** | Clock 游标（非物理；不进 Board） |
+| seats | **seats** | 席位经济（非物理；不进 Board） |
+| FaceAudience | **audience** 旁路 | 非结算 |
+| index / feasibility Φ | **derived** | 可重建 |
+| 手续栈 / 选择 / as-if 叠镜 | **run** | 执行游标 |
+| CardDefinition | **Catalog** | 外置 |
 
 ```text
-Catalog（外置 · 永不进 World）
-  definition_id → 印刷 Spec / compiled Eff / 关键词表…
-
-World  ×  Catalog  ×  RunEnv  →  查询 / plan / step
+Catalog（外置）
+Data × Run × Catalog  →  query / plan / transit
 ```
 
 ---
 
-## 2. `physical` — 对齐状态原语三类
+## 2. 物理三类 — 落在 `data.board`（cards / regions / seats）
 
-与 [07 §0](07-effect-primitives.md) / 现有 `PhysicalStore` 对齐；**权威在物理袋**，Domain 标签（交战、当前密谋名）是投影或薄索引，不另造第二套真相。
+与 [07 §0](07-effect-primitives.md) 对齐；形状以 [37](37-world-structure.md) 为准。
 
-### 2.1 形状（概念）
-
-```text
-Physical = {
-  entities:  Map EntityId → EntitySpine,  -- 卡 / 调查员座位 / 地点座位…
-  regions:   Map RegionId → Region,       -- 有序卡区、标记区
-  placement: Map EntityId → Placement,    -- FREE|BESIDE|ATTACHED|UNDER|DECK_ORDERED…
-  markers:   Map EntityId → MarkerBag,    -- damage/horror/doom/clue/resource/uses…
-  form:      Map EntityId → Form,         -- face A/B · exhausted
-}
-
-Placement = { kind, region_id, index?, host_id? }
-Form      = { face, exhausted }
-MarkerBag = { damage, horror, doom, clue, resources?, uses?: Map UseKey → Int }
-```
-
-| 原语类 | 写入 | 读法 |
+| 原语类 | 权威落点（37） | 读法 |
 |---|---|---|
-| ① 区/序 | 改 `placement` / `regions` 序 | `zone_of` · `order_in` · in-play 谓词 |
-| ② 标记 | 改 `markers` | `doom_in_play` = fold |
-| ③ 形态 | 改 `form` | `exhausted?` · `face` |
+| ① 区/序 | `board.regions[].card_ids` | `zone_of` · `order_in` · in-play |
+| ② 标记 | `board.regions[].token_stacks` | fold；经 `TransferToken` |
+| ③ 形态 | `board.cards[].face` / `exhausted` | 翻面 / 横置 |
+| 席位经济 / 结局 | `data.seats[]` | 行动剩余 · eliminated |
 
-**LIMBO 子区**（[01 §3.5.0](01-game-state-zones.md)）：`Placement.kind = LIMBO` + `limbo_kind ∈ {RESOLVING, COMMITTED}` + 可选 `committed_test_id`。权威在 physical；`SkillTest.committed` 列表是 **Run** 内索引，须与之同步。
+**LIMBO**（[01 §3.5.0](01-game-state-zones.md)）：悬置区 `limbo_kind ∈ {resolving, committed}`。权威在 `regions`；`SkillTest.committed_ids` 是 **Run** 索引，须与之同步。
 
-### 2.2 不变量（硬）
+### 2.1 不变量（硬）
 
-1. 每个卡实体至多一个 `Placement`。  
-2. `ATTACHED` / `UNDER` / `BESIDE` 的 `host_id` 必须存在。  
-3. `zone == LIMBO` ⇒ `limbo_kind` 有值；离开 LIMBO ⇒ 清空。  
-4. id **单调分配、不复用**（与现 `PhysicalStore` 一致）→ `meta.next_entity_serial`。  
-5. **控制权 / 所有者** 放实体脊骨字段（`owner_id` / `controller_id`），不单立原语；转移经效果 Intent，不是「光学改路径」。
+1. 每张卡至多出现在一个区的 `card_ids`（派生可建反向索引）。  
+2. `attachments` / `under` / `beside` 的宿主卡必须存在。  
+3. 在悬置区 ⇒ `limbo_kind` 有值；离开 ⇒ 清空。  
+4. id **单调分配、不复用** → `data.next_id`。  
+5. **控制权 / 所有者** 在 `Card`（`owner_id` / `controller_id`），不单立原语；转移经 Intent。
 
-### 2.3 与现实现映射
+### 2.2 与现实现映射
 
-| 值字段 | 今日近似 |
+| 值字段（37） | 今日近似 |
 |---|---|
-| `entities` / `regions` | `PhysicalStore.players/cards/card_regions` |
-| `markers` / `form` | `PhysicalCard` + Domain `TokenBag` 镜像 |
-| 交战、威胁区语义 | Domain / Enemy 投影（可读 physical + regs） |
+| `cards` / `regions` | `PhysicalStore` 卡与区 |
+| `token_stacks` | Domain `TokenBag` / 标记计数 |
+| `seats` | `InvestigatorState` 行动/淘汰等 |
+| 交战 | `data.facts.relations` · Engagement（非 Card；威胁区在 world.regions） |
 
 ---
 
-## 3. `registrations` — 信息主量
+## 3. `facts` / `constraints` — Data 分区（与 Board 并列）
 
 ```text
-Registrations = Map RegId → Registration
-
-Registration = {
-  id, source,           -- AbilityUnitRef / card instance…
-  lifetime,            -- WHILE_IN_PLAY | WHILE_COMMITTED | THIS_SKILL_TEST | …
-  scope,               -- 作用域过滤（值）
-  buffs: [BuffSpec],   -- MODIFIER|RESTRICTION|LISTENER|KEYWORD|…
-  tags
-}
+Facts = { relations, gains, chronicle }
+Constraints = { policies }   -- PolicyBody = FoldStat | GuardIntent | DivertFlow | OnTiming
 ```
 
-- **Register / Unregister** 是对 `World.registrations` 的 Intent，不是第二套 store API。  
-- **寿命 tick**（ST.8、阶段结束、离场）= 纯函数  
-  `tick(event, World) → World'`（卸匹配 lifetime 的记录）。  
-- **有效关键词** = `physical` 印刷投影 ∪ Gain KEYWORD Buff（查询层，不把「有效集」存回 World，除非做缓存且可丢弃）。
+- **FactInsert / ConstraintInsert / CompanionRemove** 写伴件；插入成功 = CREATED。  
+- **寿命 tick** = 纯函数卸匹配 lifetime 的 Relation/Policy。  
+- **有效关键词** = 印刷 ∪ **Gain**（Facts）；行为衍生进 Constraints。  
+- 旧 `registrations.payloads` 五类：status→Relation；其余四类→PolicyBody。
 
-Silas / Daring 类：`uncommit` 只卸 `WHILE_COMMITTED` 与绑在该卡上的 `after_test_ends` 延时；**保留** `THIS_SKILL_TEST` lasting —— 全部由 lifetime 数据表达，不靠隐藏可变标志。
+Silas / Daring：`uncommit` 只卸 `WHILE_COMMITTED` 与绑卡延时；**保留** `THIS_SKILL_TEST` lasting —— 由 lifetime 表达。
 
 ---
 
-## 4. `chronicle` — 薄记事
+## 4. `chronicle` — 薄记事（∈ Facts）
 
 ```text
 Chronicle = {
@@ -152,74 +144,65 @@ Audience = Map EntityId → FaceAudience   -- HIDDEN_ALL | CONTROLLER | ALL
 
 - 与 `form.face` **正交**（背面仍可知）。  
 - dry-run **不**因仅改 audience 而 CREATED。  
-- 进 `World` 是为了查询与同步仍是「局面的一部分」；权限层，不是第三类原语。
+- 挂在 `data.audience`（旁路）；权限层，不是窄 World，也不是第三类原语。
 
 ---
 
-## 6. `framework` — 局面级游标
+## 6. `framework` — 局面级游标（精简 · 对齐 37）
 
-只放**存档仍有意义**的框架字段：
+只放**存档仍有意义**且非区/Catalog/Run 的指针。权威形状见 [37](37-world-structure.md)（Framework ∈ `data.framework`，**不**在 Board）：
 
 ```text
-FrameworkSlice = {
-  round_number,
-  lead_investigator_id,
-  active_investigator_id,   -- 若规则「谁的回合」属局面
-  current_act_id,
-  current_agenda_id,
-  act_deck, agenda_deck,    -- 或 region 引用
-  scenario_reference_id,
-  doom_threshold?,          -- 或读自当前密谋 definition
-  phase_id?,                -- Mythos/Action/… 若存档需要
+Framework = {
+  round:                   Int,
+  lead_investigator_id:    String,
+  active_investigator_id:  String,
+  current_act_id:          String,
+  current_agenda_id:       String
 }
 ```
 
-**不放**：当前 Framework 步内的临时「正在结算 1.4 第几张」——属 `Run.stack` 帧参数。
+| 早期草案字段 | 现落点 |
+|---|---|
+| `act_deck` / `agenda_deck` | `data.board.regions` |
+| `doom_threshold` | Catalog（密谋 definition） |
+| `scenario_reference_id` | 冒险装载 / Catalog（不塞 Framework） |
+| `phase_id` | `run.timing_phase` |
+| 手续内「正在结算第几张」 | `Run.stack` 帧参数 |
 
 ---
 
-## 7. `entropy` — 随机已决议
+## 7. 随机 / 混乱袋（不再单列 `data.entropy`）
 
-```text
-Entropy = {
-  chaos_bag: [Token],       -- 袋内剩余（多重集/序按实现）
-  revealed_ledger: […],     -- 本次检定已揭示（亦可挂在 Run.skill_test）
-  rng_seed: Seed,           -- 若仍需未抽尽的随机
-}
-```
+| 内容 | 落点（37） |
+|---|---|
+| 袋内剩余 | `board.regions` 中 `place:"chaos"` 的 `token_stacks` |
+| 本次检定已揭示 | **`Run.skill_tests` 顶帧** 与/或 `augury` 区 |
+| 仍需未抽尽的 `rng_seed` | **另议**；不默认进 Data（内核禁止隐式 `rand()`） |
 
-规则内核内 **禁止**隐式 `rand()`：未抽完的随机必须来自 `entropy` 或驱动层预先注入的 token 列表。
-
-检定进行中的「本测试已揭示」更常挂在 **`Run.skill_tests` 顶帧**；袋内剩余属 `World.entropy`。
+规则内核内未抽完的随机必须来自已决议的袋堆或驱动层预先注入的 token 列表。
 
 ---
 
-## 8. `Run` — 执行游标（不进存档局面时可丢）
+## 8. `Run` — 执行游标（对齐 37 §3）
+
+权威形状见 [37 §3](37-world-structure.md)。摘要：
 
 ```text
-Frame = {
-  flow_id,           -- seq.*
-  phase,             -- Would | When | Resolve | After…
-  bind: Env,         -- card_id / controller / params
-  cont: Eff,         -- 剩余效果树（值）
-  cancelled: Bool
-}
-
 Run = {
-  stack: [Frame],
-  skill_tests: [SkillTestValue],
-  memory: {
-    referents: Map Controller → Map Key → Value,
-    cancelled_keys: Set SequenceBindKey,
-    encounter_frames: [EncounterFrameValue]
-  },
-  open_choice: ChoiceRequest | None
+  stack,           -- Frame[]：flow_id / env / step_index / cancelled / created / cont_after
+  open_choice,     -- ChoiceState | null（效果体内有限期确认）
+  skill_tests,
+  memory,          -- controller → (key → value)；扁平，无 encounter_frames 专用袋
+  focus,           -- window / controller / must / InitiationPool ids / ResponsePool ids
+  timing_phase     -- 信封相位摘要（≠ Frame 微步）
 }
 ```
 
-- **Ask / PI**：解释到 `Ask` ⇒ 返回 `NeedChoice(req, World, Run)`；驱动填答后纯续跑。  
-- **Cancel**：置帧 `cancelled` 或对 `cont` 做纯剪枝（共享 Cancel 手续仍可 nest 为 `Eff`）。  
-- 存档策略：可序列化 `World`；`Run` 可选（断点续算）或只存「玩家窗空闲」快照。
+- **Ask / PI**：解释到 `Ask` ⇒ `NeedAsk`；驱动填答后纯续跑。  
+- **Cancel**：置帧 `cancelled` 或剪枝 `cont_after`（共享 Cancel 仍可 nest）。  
+- **Focus 池 ids**：粘性池权威成员（[16](16-player-interaction.md)），属 Run 而非 derived。  
+- 存档：可序列化 `data`；`Run` 可选（断点续算）或只存「玩家窗空闲」快照。
 
 ---
 
@@ -230,32 +213,22 @@ Run = {
 | 用途 | 典型 View |
 |---|---|
 | `commit_only` / Eligibility | `test_kind` + 印刷 icons + 相关 regs |
-| 有效关键词 | 实体 form + KEYWORD buffs + 印刷 |
+| 有效关键词 | 实体 form + Gain 特征 + 印刷 |
 | dry-run CREATED | 目标实体 markers/placement + regs（只读） |
 | 地点连通移动 | locations 图 + placement |
 
 ```text
-view : World → WorldView   -- 纯；可缓存
+view : Snapshot → WorldView   -- 纯；可缓存（可读 world/facts/constraints）
 query : WorldView × Spec → Answer
-plan  : World × Env × Eff → Intent[]
-commit: World × Intent[] → World   -- 唯一写入口
+plan  : Snapshot × Env × Eff → Intent[]
+commit: Snapshot × Intent[] → Snapshot   -- 唯一写入口；可触 World/Facts/Constraints
 ```
 
 ---
 
 ## 10. Intent 与提交（World 的唯一变法）
 
-```text
-Intent =
-  | PlaceEntity { id, placement }
-  | Reorder { region_id, order }
-  | TransferMarkers { … }
-  | SetForm { id, face?, exhausted? }
-  | RegInsert { registration }
-  | RegRemove { filter }
-  | ChronicleAppend { entry }
-  | AudienceSet { id, audience }   -- 非 CREATED
-```
+权威 Intent 枚举以 **[37 §5.1](37-world-structure.md)** 为准（`TransferToken` / `MoveCard` / `FlipToken` / Reg* / Seat* …）。下文仅为早期示意，勿再当作形状源。
 
 - Composition / `seq` RESOLVE：**先** `plan` 得 `Intent[]`，**再** `commit`。  
 - 真空禁令：无 `Run.stack` 顶帧（或框架允许的根 run）不得 `commit`。  
@@ -267,13 +240,13 @@ Intent =
 
 | # | 裁决 |
 |---|---|
-| W1 | **World / Run 分立**：局面值 vs 执行游标；指称与栈不进存档级 World |
-| W2 | **物理权威单一**：三类原语只写 `physical`；交战等为投影 |
-| W3 | **Registration 在 World**：寿命未到期的 Buff 是局面的一部分 |
-| W4 | **Catalog 外置**：印刷与编译树不是 World 字段 |
-| W5 | **Audience 在 World、非结算**：与 form 正交 |
+| W1 | **窄 World / Run 分立**：物理局面 vs 执行游标；指称与栈不进 World |
+| W2 | **物理只在 Board**：三类原语写 `data.board`；**不**嵌套 `data.physical` |
+| W3 | **Facts × Constraints 是 Data 分区，与 Board 合称世界**：Relation/Policy 有寿命、可 CREATED，但口语「世界」不含它们 |
+| W4 | **Catalog 外置**：印刷与编译树不是 Snapshot 字段 |
+| W5 | **Audience 旁路、非结算**：与 form 正交；不计 CREATED |
 | W6 | **唯一写法 = Intent commit**；查询/投影只读 |
-| W7 | **与现引擎兼容路径**：`PhysicalStore`≈`physical`；`RegistrationStore`≈`registrations`；`RulesMemory`≈`Run.memory`；可先做 **快照导出 `World`** 供纯查询，不必一次替换对象图 |
+| W7 | **兼容路径**：`PhysicalStore`≈board；旧 RegistrationStore≈data.facts.relations∪data.constraints.policies；`RulesMemory`≈`Run.memory` |
 
 ---
 
@@ -290,3 +263,9 @@ Intent =
 | 日期 | 摘要 |
 |---|---|
 | 2026-11-23 | v0.1 初稿：World/Run 分立、physical/regs/chronicle/audience/framework/entropy、Intent 唯一写 |
+| 2026-11-25 | v0.2：对齐 37 — Auth 扁平（无 `physical`/`entropy` 袋）；W2 改写；Intent/混乱袋指向 37 |
+| 2026-11-25 | v0.3：Framework 收成 37 五字段；剔除 deck/threshold/phase 等 |
+| 2026-11-25 | v0.4：Run/Focus 对齐 37；去掉 memory 专用袋 / Frame.phase 旧形 |
+| 2026-11-25 | v0.5：统一口径 — 窄 World；Facts×Constraints；改 W1–W7；废「Registration 在 World」 |
+| 2026-11-25 | v0.6：对齐 38 — 函数世界=Data；分区表语义；指针改 38 |
+| 2026-11-26 | v0.7：对齐 38/37 — Auth→Data；World→Board；废窄世界称谓 |

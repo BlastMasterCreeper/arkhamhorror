@@ -658,6 +658,10 @@ func _simulate_atom(node: CompositionNode, sim: GameSimulator) -> bool:
 			return act_inv != null and act_inv.actions_remaining > 0
 		&"nest_effect_register":
 			return node.register_template != null
+		&"nest_effect_grant":
+			return node.gain_template != null
+		&"nest_effect_lose_characteristic":
+			return node.lose_template != null
 		&"nest_effect_unregister":
 			return node.pending_id != &""
 		&"discard_all_enemies_in_play":

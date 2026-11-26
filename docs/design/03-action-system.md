@@ -276,9 +276,12 @@ func is_valid_activate_source(inv: StringName, card: EntityId) -> bool:
 
 ## 7. 额外行动 / 失去行动
 
-- 回合外 gain action → 下回合 `actions_remaining` 增加
-- 回合外 lose action → 下回合减少
-- 在 investigation phase 外 gain/lose 在**该调查员 turn 开始**时应用（Grimoire Action）
+三分法（详见 [37 Seat](37-world-structure.md)）：
+
+- **标准**：`Seat.actions_remaining`
+- **本回合 additional**（Daisy 等）：Constraints Grant；Constant → `WHILE_IN_PLAY`
+- **跨回合 deferred**（回合外 gain/lose；显式 next turn）：Constraints OnTiming lasting @ turn begin → 并入标准后卸；**不**进 Seat 标量
+- **立刻 take action**（Ursula/Haste）：Run nest；不改 Seat 预算
 
 ---
 

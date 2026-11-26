@@ -1,6 +1,6 @@
 # 07b — 效果组合 Composition 规格
 
-> **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-buff-model.md](06-registration-buff-model.md)  
+> **依赖**：[07-effect-primitives.md](07-effect-primitives.md), [06-registration-payload-model.md](06-registration-payload-model.md)  
 > **被依赖**：[06-ability-initiation.md](06-ability-initiation.md)（dry-run）、LISTENER Buff  
 > **状态**：v0.9.11 · 2026-10-24 — 空效果体 = EmptySettle（锚 09125；完备性非门特例）  
 > **函数式代数（草案）**：[25-functional-eff.md](25-functional-eff.md) — Composition / 手续体统一为 `Eff`；本文仍是现行运行时规格
@@ -423,10 +423,10 @@ flowchart TB
 
 ```gdscript
 class RegisterNode extends CompositionNode:
-    var template: RegistrationTemplate   # lifetime + scope + buffs[]
+    var template: RegistrationTemplate   # lifetime + scope + payloads[]
 ```
 
-创建 **持续 / 延时 / 进场能力** 均为此节点；差别在 `LifetimeSpec`（见 [06-registration-buff-model §6](06-registration-buff-model.md)）。
+创建 **持续 / 延时 / 进场能力** 均为此节点；差别在 `LifetimeSpec`（见 [06-registration-payload-model §6](06-registration-payload-model.md)）。
 
 ### 3.3 卡面 **If** 消歧（timing · condition · both · 已裁决 2026-07-07）
 

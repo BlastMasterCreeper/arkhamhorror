@@ -1172,9 +1172,7 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [
-      "surge"
-    ],
+    "keywords": [],
     "traits": [
       "Pact"
     ],
@@ -2899,9 +2897,7 @@
     "aloof": false,
     "permanent": false,
     "victory": 0,
-    "keywords": [
-      "surge"
-    ],
+    "keywords": [],
     "traits": [
       "Blunder"
     ],

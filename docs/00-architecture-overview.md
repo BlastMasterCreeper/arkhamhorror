@@ -366,6 +366,12 @@ class EventRecord:
 | [29-flow-agendas.md](design/29-flow-agendas.md) | Flow 议程表：能力窗 / 遭遇抽牌 / 调查员抽牌 |
 | [30-functional-primer.md](design/30-functional-primer.md) | 函数化可读说明：类型与运算公式 |
 | [31-functional-host.md](design/31-functional-host.md) | 函数核心语言选型（Rust）与 Godot 对接 |
+| [32-ability-open-body.md](design/32-ability-open-body.md) | 能力函数重抽象：开口 + 执行（含隐式时点） |
+| [33-candidate-functions.md](design/33-candidate-functions.md) | 候选目标：纯函数过滤 + Ask |
+| [34-registration-index-cache.md](design/34-registration-index-cache.md) | 登记倒排索引与查询缓存 |
+| [35-legal-interest.md](design/35-legal-interest.md) | 操作合法性兴趣点（Deps∩Touched，确定可解） |
+| [36-interest-universe-inventory.md](design/36-interest-universe-inventory.md) | 兴趣点宇宙清单（对照窗/发起/must 与代码） |
+| [37-world-structure.md](design/37-world-structure.md) | 世界结构：分类、键名、类型 |
 | [02-framework-flow.md](design/02-framework-flow.md) | FrameworkFlowEngine |
 | [03-action-system.md](design/03-action-system.md) | ActionSystem、AOO |
 | [04-skill-test-engine.md](design/04-skill-test-engine.md) | SkillTestEngine |

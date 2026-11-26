@@ -3,7 +3,8 @@
 > **状态**：说明稿 v0.1 · 2026-11-24  
 > **给谁看**：要把 [24](24-functional-world.md)–[29](29-flow-agendas.md) 读成「代入即能算」的人。  
 > **规则裁决仍以 01–23 与 28 为准**；本文只把词、类型、公式写直。  
-> **实现宿主**：[31-functional-host](31-functional-host.md)（规则内核 Rust，Godot 只做桥与表现）。
+> **实现宿主**：[31-functional-host](31-functional-host.md)（规则内核 Rust，Godot 只做桥与表现）。  
+> **结构总表**：[37-world-structure](37-world-structure.md)（分类 · 键名 · 类型）。
 
 黑话第一次出现都写成：**中文（英文原词）**。后文用中文。
 
@@ -55,27 +56,45 @@
 
 ### 1.1 局面怎么构造
 
-局面里**只有一种实体：卡**。调查员、地点、敌人、支援、事件、技能、场景、密谋都是 `cards` 里的一条，用字段 `card_type` 区分。没有第二张「调查员表」或「敌人表」。
+Board 里**只有一种实体：卡**。调查员、地点、敌人、支援、事件、技能、场景、密谋都是 `board.cards` 里的一条，用字段 `card_type` 区分。没有第二张「调查员表」或「敌人表」。
 
 印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。局面上不复制一份。
 
+**值要分类**（见 [24](24-functional-world.md) / [37](37-world-structure.md) / [38](38-functional-data-world.md)）：**Data**（Board / Facts / Constraints / Limits / Framework / Seats）/ 派生 / 进度。驱动持有整份 **Snapshot**；口语「世界」= 整个 `data`（World_FP），**不是**只有 Board。
+
 ```text
-World = {
-  cards:         字典   键 字符串(卡id) → 卡
-  regions:       字典   键 字符串(区id) → 区
-  registrations: 字典   键 字符串(登记id) → 登记条     信息层
-  chronicle:     记事记录                                    信息层
-  audience:      字典   键 字符串(卡id) → 字符串(可见档)   权限，也在局面里
-  limits:        字典   键 字符串 → 整型                   信息层
-  framework:     框架记录
-  chaos_bag:     数组   元素是混乱标记                 物理：袋里的标记
-  next_id:       整型   下一个序号，只增不减
+Snapshot = {
+  data: {                     -- World_FP
+    board, facts, constraints, limits, framework, seats, audience, next_id
+  }
+  derived: { index, feasibility }
+  run: { … }
+}
+-- CREATED = 改 Data（Audience 除外）
+```
+
+下面展开 `data`：
+
+```text
+data = {
+  board: {                    -- 物理分区（不叫「世界」）
+    cards, regions, seats, framework, limits
+  }
+  facts: {                    -- Proposition / Gain / Chronicle
+    relations, gains, chronicle
+  }
+  constraints: {              -- Endomorphism
+    policies                  -- FoldStat | GuardIntent | DivertFlow | OnTiming
+  }
+  audience:      字典         -- 权限旁路；不计 CREATED
+  next_id:       整型
 }
 ```
 
 #### 卡
 
-每张卡都是同一条记录。某个 `card_type` 用不到的键不写。
+每张卡都是同一条记录。某个 `card_type` 用不到的键不写。权威形状以 [37](37-world-structure.md) 为准。  
+卡脊骨**不**放回合行动数、eliminated/resigned（`seats`）；**不**放放置指针（权威在 `board.regions` 的 `host_card_id`+`place`）。同区序 = `Region.card_ids`。
 
 ```text
 卡 = {
@@ -86,136 +105,123 @@ World = {
   controller_id:  字符串
   face:           枚举      "A" 或 "B"
   exhausted:      布尔
-  display_order:  整型
-  markers:        字典      键 字符串，值 整型
-  location_id:    字符串    调查员、敌人：所在地点的卡 id
-  engaged_with:   字符串    敌人：交战的调查员卡 id；未交战为 ""
-  connections:    数组      地点：相连地点的卡 id，元素是字符串
-  region_ids:     字典      键 字符串，值 字符串(区id)
-  actions_remaining:       整型
-  actions_bonus_next_turn: 整型
-  eliminated:     布尔
-  resigned:       布尔
+  connections:    数组      地点：相连地点的卡 id
 }
+```
+
+#### 席位（Seat）
+
+调查员一条；键 = 该调查员卡 id（不再另存 investigator_id 字段）。读行动数 / 是否已退场 → `data.seats[inv]`（**不**在 Board）。
+
+```text
+席位 = {
+  actions_remaining: 整型   -- 本回合标准剩余
+  eliminated:        布尔
+  resigned:          布尔
+}
+-- 跨回合 ±action → Constraints OnTiming @ turn begin（不进 Seat）
+-- 本回合 additional → Constraints Grant（WHILE_IN_PLAY 等）；立刻 take → Run nest
 ```
 
 `card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
 
-`markers` 的键：`"damage"`、`"horror"`、`"doom"`、`"clue"`、`"resource"`，以及充能用途字符串。值是整型。0 可以不放这个键。资源、伤、恐、线索、毁灭都写在这里，不另做「调查员资源字段」。
-
-`region_ids` 只在 `card_type = "investigator"` 时出现。键是 `"hand"`、`"deck"`、`"discard"`、`"play"`、`"threat"`，值是区 id。
+**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。每位**玩家**的 **资源池** 是独立 `place=resource_pool` 区（`host_player_id` + `token_stacks["resource"]` + 盒端 `$supply`）——**绑玩家**，**不**绑调查员卡，**不**放在任何卡 `tokens` 上，也 **不是**席位字段。物理所在地点 = 某地点 `on` 区的成员。交战 = `facts.relations` · Engagement（威胁区是物理区成员；庞大虚拟默认派生）。
 
 地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
 
 #### 区
 
-区不是卡。它是一叠卡 id。
+区不是卡。它是卡序 + token 堆的放置面。
 
 ```text
 区 = {
-  id:         字符串
-  shape:      枚举     "deck" 或 "flat"
-  owner_id:   字符串   属主卡 id；公共区为 ""
-  card_ids:   数组     元素是字符串(卡id)
-  limbo_kind: 字符串   "resolving"、"committed" 或 ""
-  host_id:    字符串   附着、垫下、旁置的宿主卡 id；否则 ""
+  id:             字符串
+  shape:          枚举     "deck" | "flat" | "bag"
+  host_card_id:   字符串   卡宿主；玩家宿主/公共为 ""
+  host_player_id: 字符串   玩家宿主（resource_pool）；卡宿主/公共为 ""
+  place:          字符串   放置面角色（≠ 资产槽 slot）
+  card_ids:       数组     卡 id
+  token_stacks:   字典     类型 → 数量
+  limbo_kind:     字符串   "resolving" | "committed" | ""
 }
+-- 宿主互斥：卡 | 玩家 | 公共
 ```
 
-`shape = "deck"` 时，`card_ids[0]` 是顶。
+`shape = "deck"` 时，`card_ids[0]` 是顶。资源池用 `host_player_id`，勿填调查员卡 id。
 
-#### 信息层也在局面里
+#### Data 分区：Board / Facts / Constraints / Limits / Framework / Seats
 
-物理层是区、标记、横置和正反面。信息层是登记和记事。两层都写在同一份 `World` 里。权限（谁看得见牌面）也在局面里，改它不算一次结算。
+| 袋 | 放什么 | 是不是「世界」 |
+|---|---|---|
+| **Board** | 卡、区、token、横置/翻面 | 与下几项合称 **Data = 世界**；单独不叫世界 |
+| **Facts** | 交战 Relation、Gain 拥有、Chronicle 记事 | 同左 |
+| **Constraints** | lasting/+N/cannot/延时等 Policy | 同左 |
+| **Limits** | 能力次数/配额已用（LimitStore） | 同左；**不**进 Board |
+| **Framework** | round / 主·当前调查员 / 场景·密谋游标 | 同左；**不**进 Board |
+| **Seats** | 标准行动预算 / eliminated / resigned | 同左；**不**进 Board |
+| **Audience** | 谁看得见牌面 | 在 Data 内，但改之**不计** CREATED |
 
 ```text
-记事 = {
+记事（∈ Facts.chronicle）= {
   log:        数组    元素是 { text: 字符串, round: 整型 }
   remembered: 字典    键 字符串，值 字符串
 }
+
+Relation = { shell: InfoShell, body: Engagement { enemy_id, investigator_id } }
+Policy   = { shell: InfoShell, body: FoldStat | GuardIntent | DivertFlow | OnTiming }
 ```
 
-`remembered` 是卡面「记住」写下来的事实，例如某个名字、某个选项。手续进行中「刚才选了哪张牌」写在进度的记忆里，不写在这里。印刷文字在目录里，也不在这里。
+壳含 `source_card_id` / `lifetime` / `subject`。  
+**CREATED** = 写入 World **或** Facts **或** Constraints（含 Chronicle）；Audience 除外。  
+`remembered` 是卡面「记住」；手续里「刚才选了哪张」写在 `run.memory`，不进 chronicle。
 
-#### 登记条
+#### 可见性、框架、限额
 
 ```text
-登记条 = {
-  id:             字符串
-  controller_id:  字符串
-  source_card_id: 字符串
-  lifetime:       枚举     "while_in_play" | "while_committed" | "this_skill_test" | "this_turn" | "while_drawn_card_resolving"
-  bound_id:       字符串   寿命绑到的检定 id 或卡 id；不需要则为 ""
-  buffs:          数组     元素是增益
-}
+可见档 = 枚举 "hidden_all" | "controller" | "all"   -- data.audience
 
-增益 = {
-  type:     枚举    "keyword" | "modifier" | "restriction" | "listener"
-  keyword:  字符串  type 为 keyword 时用，如 "retaliate"；否则 ""
-  stat:     字符串  type 为 modifier 时用，如 "combat"；否则 ""
-  amount:   整型    修正量；其它类型为 0
+框架（∈ data.framework · Clock）= {
+  round, lead_investigator_id, active_investigator_id,
+  current_act_id, current_agenda_id
 }
 ```
 
-#### 可见性、框架、混乱袋、限额
-
-```text
-可见档 = 枚举 "hidden_all" | "controller" | "all"
-
-框架 = {
-  round:                  整型
-  lead_investigator_id:   字符串    一张 card_type 为 investigator 的卡 id
-  active_investigator_id: 字符串
-  current_act_id:         字符串    一张 card_type 为 act 的卡 id
-  current_agenda_id:      字符串    一张 card_type 为 agenda 的卡 id
-}
-
-混乱标记 = {
-  id:        字符串
-  kind:      枚举    "numeric" | "skull" | "cultist" | "tablet" | "elder_thing" | "auto_fail" | "elder_sign" | "bless" | "curse"
-  modifier:  整型    kind 为 numeric 时的数值；其它为 0
-}
-```
-
-`limits` 的键是字符串（能力 id），值是整型（已用次数）。`next_id` 是整型。
+（仅此五字段；牌库在区、毁灭阈值在目录、阶段名在 `run.timing_phase`——见 37。）  
+限额 ∈ `data.limits`；框架 ∈ `data.framework`（皆**不**在 Board）。混乱符号是区 `chaos` 上的 `token_stacks`。FoldStat 的 `ModifierPayload` **不分型**。
 
 #### 一份最小构造
 
-调查员、地点、技能牌都在 `cards` 里。
+调查员、地点、技能牌都在 `cards` 里；token 在区上。混乱袋是 `place:"chaos"` 的区（堆），不是卡数组。
 
 ```text
-World {
-  next_id: 4
-  cards: {
-    "I":  { id:"I", definition_id:"01001", card_type:"investigator",
-            owner_id:"", controller_id:"I", face:"A", exhausted:false, display_order:0,
-            markers:{ "resource":5 }, location_id:"L",
-            region_ids:{ "hand":"hand_I", "deck":"deck_I", "discard":"disc_I", "play":"play_I", "threat":"thr_I" },
-            actions_remaining:3, actions_bonus_next_turn:0, eliminated:false, resigned:false }
-    "L":  { id:"L", definition_id:"01111", card_type:"location",
-            owner_id:"", controller_id:"", face:"B", exhausted:false, display_order:0,
-            markers:{ "clue":1 }, connections:[] }
-    "C1": { id:"C1", definition_id:"06111", card_type:"skill",
-            owner_id:"I", controller_id:"I", face:"A", exhausted:false, display_order:0,
-            markers:{} }
+data = {
+  next_id: 8
+  board: {
+    cards: { "I":…, "L":…, "C1":… }
+    regions: {
+      "deck_I": { place:"deck", host_card_id:"I", card_ids:["C1"], … }
+      "hand_I": { place:"hand", host_card_id:"I", … }
+      "pool_P1":{ place:"resource_pool", host_player_id:"P1",
+                  token_stacks:{ "resource":5 } }
+      "tok_I":  { place:"tokens", host_card_id:"I",
+                  token_stacks:{ "damage":0, "horror":0 } }
+      "on_L":   { place:"on", host_card_id:"L", card_ids:["I"], … }
+      "tok_L":  { place:"tokens", host_card_id:"L", token_stacks:{ "clue":1 } }
+      "chaos":  { place:"chaos", shape:"bag", token_stacks:{ "numeric_0":1 } }
+    }
   }
-  regions: {
-    "deck_I": { id:"deck_I", shape:"deck", owner_id:"I", card_ids:["C1"], limbo_kind:"", host_id:"" }
-    "hand_I": { id:"hand_I", shape:"flat", owner_id:"I", card_ids:[], limbo_kind:"", host_id:"" }
-  }
-  registrations: {}
-  chronicle: { log:[], remembered:{} }
+  facts: { relations:{}, gains:{}, chronicle:{ log:[], remembered:{} } }
+  constraints: { policies:{} }
+  limits: { counters:{}, occupancies:{} }
+  framework: { round:1, lead_investigator_id:"I", … }
+  seats: { "I": { actions_remaining:3, … } }
   audience: { "C1":"controller" }
-  framework: { round:1, lead_investigator_id:"I", active_investigator_id:"I",
-               current_act_id:"", current_agenda_id:"" }
-  chaos_bag: [ { id:"t0", kind:"numeric", modifier:0 } ]
-  limits: {}
 }
 ```
 
-密谋上的毁灭是密谋那张卡的 `markers["doom"]`。阈值在目录里，是整型。
+密谋上的毁灭是密谋卡 `tokens` 区的 `token_stacks["doom"]`。阈值在目录里。
 
-抽一张牌时，新局面只改两个数组：`regions["deck_I"].card_ids` 变成 `[]`，`regions["hand_I"].card_ids` 变成 `["C1"]`。`cards["C1"]` 的 `id` 和 `card_type` 不变。
+抽一张牌：`MoveCard` 改两个区的 `card_ids`；`board.cards["C1"]` 身份不变。
 
 ### 1.2 进度
 
@@ -280,27 +286,32 @@ World {
 | Nest | 打开一条手续 |
 | Ask | 等人选，答案决定下一截树 |
 
-意图的类型（只列本说明用到的）：
+意图的类型（只列本说明用到的；权威见 [37 §5.1](37-world-structure.md)）：
 
 \[
 \mathrm{Intent}
 =
-\mathrm{AddMarker}(\mathrm{Id},\mathrm{Kind},\mathbb{Z})
+\mathrm{TransferToken}(\mathrm{Type},\mathbb{N}^+,\mathrm{FromRegion},\mathrm{ToRegion})
 \mid
-\mathrm{MoveCard}(\mathrm{Id},\mathrm{Place})
+\mathrm{MoveCard}(\mathrm{CardId},\mathrm{FromRegion},\mathrm{ToRegion})
 \mid
-\mathrm{InsertReg}(\mathrm{登记条})
+\mathrm{FactInsert}(\mathrm{Relation})
 \mid
-\mathrm{RemoveReg}(\mathrm{条件})
+\mathrm{ConstraintInsert}(\mathrm{Policy})
+\mid
+\mathrm{CompanionRemove}(\mathrm{Id})
 \]
+
+`FromRegion`/`ToRegion` 可为承载区 id，或无穷供给端点 `$supply`（对齐 [07 §5.2](07-effect-primitives.md) Transfer-only；**禁止**单端 Adjust）。
 
 ### 1.4 运算上下文与返回值
 
-一次运算看到的全部输入：
+一次运算看到的全部输入（Data = 函数世界；Run = 控制）：
 
 \[
-\mathrm{Ctx} = \mathrm{World} \times \mathrm{Run}
+\mathrm{Ctx} = \mathrm{Data} \times \mathrm{Run}
 \]
+（Data 内含 Board×Facts×Constraints×Audience；Catalog 外置；写 Audience 不计 CREATED。）
 
 返回值三选一：
 
@@ -350,15 +361,15 @@ World {
 \mathrm{commit}(w,\ i :: is) = \mathrm{commit}(\mathrm{apply}(w,i),\ is)
 \]
 
-`apply` 只改对应分量。例如加标记：
+`apply` 只改对应分量。例如从供给池放到卡的 `tokens` 区（\(R=\) 宿主 `place=tokens` 的区 id）：
 
 \[
-\mathrm{apply}(w,\ \mathrm{AddMarker}(e,k,n)).\mathrm{cards}[e].\mathrm{markers}[k]
+\mathrm{apply}(w,\ \mathrm{TransferToken}(k,n,\texttt{\$supply},R)).\mathrm{regions}[R].\mathrm{token\_stacks}[k]
 =
-w.\mathrm{cards}[e].\mathrm{markers}[k] + n
+w.\mathrm{regions}[R].\mathrm{token\_stacks}[k] + n
 \]
 
-其它分量原样保留（结构共享：没改的部分仍指向旧数据）。
+（`$supply` 端不读写库存。）其它分量原样保留（结构共享：没改的部分仍指向旧数据）。
 
 ### 2.2 先左后右（内联）
 
@@ -485,7 +496,7 @@ w.\mathrm{cards}[e].\mathrm{markers}[k] + n
 \{\mathrm{种类}=s.\mathrm{kind},\ \mathrm{候选}=\mathrm{legal}(w,r,s),\ \mathrm{默认}=s.\mathrm{default}\}
 \]
 
-`legal` 是查询。`bind` 把答案写进进度的记忆，不写局面。
+`legal` 即候选函数 \(\mathrm{candidates}\)（四层过滤，见 [33](33-candidate-functions.md)）。`bind` 把答案写进进度的记忆，不写局面。
 
 驱动层（唯一不纯的地方）做的事：
 
@@ -539,13 +550,13 @@ e_2(x)
 \end{align*}
 \]
 
-「造成伤害」「调查员抽牌」是目录里的手续号。造成伤害套标准能力窗；它的效果体是一条加标记。
+「造成伤害」「调查员抽牌」是目录里的手续号。造成伤害套标准能力窗；效果体是 \(\mathrm{TransferToken}(\mathrm{damage},1,\texttt{\$supply},R_{\mathrm{目标tokens}})\)。
 
 ### 3.2 起始值
 
 \[
-w_0.\mathrm{cards}[E].\mathrm{markers}[\mathrm{damage}]=0,\quad
-w_0.\mathrm{place}(E)=\mathrm{在场},\quad
+w_0.\mathrm{regions}[R_E].\mathrm{token\_stacks}[\mathrm{damage}]=0,\quad
+w_0.\mathrm{on}(E)=\mathrm{在场},\quad
 w_0.\mathrm{deck}(I)=[C_1,C_2],\quad
 w_0.\mathrm{hand}(I)=[\,]
 \]
@@ -585,14 +596,14 @@ r_2.\mathrm{栈}=[\phi_{\mathrm{显现}},\ \phi_{\mathrm{造成伤害}}(\mathrm{
 
 标准窗前面的「将要 / 当时」这里假设没有人响应，步号一路加到「解释效果体」。这些步的公式都是 2.6，且 \(\mathrm{commit}\) 还没发生，所以 \(w\) 仍是 \(w_0\)。
 
-**步 D.** 效果体是 \(\mathrm{Do}(\mathrm{AddMarker}(E,\mathrm{伤},1))\)。公式 2.4 与 2.1：
+**步 D.** 效果体是 \(\mathrm{Do}(\mathrm{TransferToken}(\mathrm{damage},1,\texttt{\$supply},R_E))\)。公式 2.4 与 2.1：
 
 \[
-w_1 = \mathrm{commit}(w_0,[\mathrm{AddMarker}(E,\mathrm{伤},1)])
+w_1 = \mathrm{commit}(w_0,[\mathrm{TransferToken}(\mathrm{damage},1,\texttt{\$supply},R_E)])
 \]
 
 \[
-w_1.\mathrm{cards}[E].\mathrm{markers}[\mathrm{damage}]=1
+w_1.\mathrm{regions}[R_E].\mathrm{token\_stacks}[\mathrm{damage}]=1
 \]
 
 然后伤害这层议程走到「之后」（仍假设没人），再公式 2.5 的退出：弹出伤害帧。
@@ -635,15 +646,15 @@ w_2.\mathrm{deck}(I)=[C_2],\qquad w_2.\mathrm{hand}(I)=[C_1]
 
 ---
 
-## 4. 和「全部写成加标记」差在哪
+## 4. 和「全部写成裸 TransferToken」差在哪
 
-若伤害不嵌套，而写成 \(\mathrm{Do}(\mathrm{AddMarker}(\ldots))\)：
+若伤害不嵌套，而写成 \(\mathrm{Do}(\mathrm{TransferToken}(\ldots))\)：
 
 \[
 \mathrm{commit}\ \text{的结果可以相同}
 \]
 
-议程不同：标准窗的「当时 / 之后」不会发生，别的卡听不到「造成伤害时」。所以卡面写「造成伤害」时，公式用的是 2.5（嵌套），不是直接 2.4。加标记只出现在伤害手续自己的效果体里。
+议程不同：标准窗的「当时 / 之后」不会发生，别的卡听不到「造成伤害时」。所以卡面写「造成伤害」时，公式用的是 2.5（嵌套），不是直接 2.4。`TransferToken` 只出现在伤害手续自己的效果体里。
 
 ---
 
