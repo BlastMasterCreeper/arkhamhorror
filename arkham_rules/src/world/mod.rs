@@ -23,18 +23,21 @@ pub struct Snapshot {
     pub gen: u64,
 }
 
-/// Functional world (World_FP): Board × Facts × Constraints (+ Audience, not CREATED).
+/// Functional world (World_FP): Board × Facts × Constraints × Limits (+ Audience, not CREATED).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Data {
     pub board: Board,
     pub facts: Facts,
     pub constraints: Constraints,
+    /// Ability/quota usage counters — not physical; sibling of Board (not inside Board).
+    pub limits: LimitStore,
     /// Permission bypass — authoritative but never CREATED.
     pub audience: BTreeMap<CardId, Audience>,
     pub next_id: u64,
 }
 
-/// Physical partition: cards/regions/seats + framework/limits clock.
+/// Physical partition: Placement ∪ Measure ∪ Form (+ seats/framework cursors).
+/// **Not** LimitStore — limits live on `Data.limits`.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Board {
     pub cards: BTreeMap<CardId, Card>,
@@ -42,7 +45,6 @@ pub struct Board {
     /// Investigator seat state (turn economy / eliminated / resigned). Key = investigator card id.
     pub seats: BTreeMap<CardId, Seat>,
     pub framework: Framework,
-    pub limits: LimitStore,
 }
 
 /// Non-physical asserted truths (engagement relations, gains, chronicle).

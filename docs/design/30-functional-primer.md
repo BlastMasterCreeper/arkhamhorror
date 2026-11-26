@@ -184,7 +184,7 @@ Policy   = { shell: InfoShell, body: FoldStat | GuardIntent | DivertFlow | OnTim
 ```
 
 （仅此五字段；牌库在区、毁灭阈值在目录、阶段名在 `run.timing_phase`——见 37。）  
-限额 ∈ `board.limits`。混乱符号是区 `chaos` 上的 `token_stacks`。FoldStat 的 `ModifierPayload` **不分型**。
+限额 ∈ `data.limits`（**不**在 Board）。混乱符号是区 `chaos` 上的 `token_stacks`。FoldStat 的 `ModifierPayload` **不分型**。
 
 #### 一份最小构造
 
@@ -208,10 +208,10 @@ data = {
       "chaos":  { place:"chaos", shape:"bag", token_stacks:{ "numeric_0":1 } }
     }
     framework: { round:1, lead_investigator_id:"I", … }
-    limits: { counters:{}, occupancies:{} }
   }
   facts: { relations:{}, gains:{}, chronicle:{ log:[], remembered:{} } }
   constraints: { policies:{} }
+  limits: { counters:{}, occupancies:{} }
   audience: { "C1":"controller" }
 }
 ```

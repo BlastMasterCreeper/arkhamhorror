@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.39 · 2026-11-26  
+> **状态**：设计草案 v0.40 · 2026-11-26  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -16,7 +16,7 @@
 ## 0. 总形
 
 **函数世界 World_FP = `Data`**（见 [38](38-functional-data-world.md)）。  
-`Data` 的分区表 = **Board × Facts × Constraints**（+ Audience）；**Board 是物理分区，不叫「世界」。**
+`Data` 的分区表 = **Board × Facts × Constraints × Limits**（+ Audience）；**Board 是物理分区，不叫「世界」；limits 不进 Board。**
 
 ```text
 Snapshot = {
@@ -27,26 +27,28 @@ Snapshot = {
 }
 
 Data = {
-  board:         Board,         -- 物理分区：卡/区/席位 + 框架钟
+  board:         Board,         -- 物理分区：卡/区/席位 + 框架游标
   facts:         Facts,         -- Proposition · Gain · Chronicle
   constraints:   Constraints,   -- Endomorphism（Policy）
+  limits:        LimitStore,    -- 能力/配额已用次数（非物理；Clock 旁路）
   audience:      Map<CardId, Audience>,  -- Permission；不计 CREATED
   next_id:       Int
 }
 ```
 
-`Catalog` **外置**。闭包：`Data × Run × Catalog`（= Board×Facts×Constraints×Audience × Control × Catalog）。
+`Catalog` **外置**。闭包：`Data × Run × Catalog`。
 
 | 分区 | 判据 | 丢了 |
 |---|---|---|
-| **board** | 看得见的桌上实体与席位/框架钟 | 物理局面坏 |
+| **board** | 看得见的桌上实体与席位/框架游标 | 物理局面坏 |
 | **facts** | 非物理但「为真」的断言 | 交战/拥有/记住丢 |
 | **constraints** | 改写 query/legal/plan/原流程的态射 | lasting/cannot/延时丢 |
+| **limits** | 次数/配额已用计数与占用 | Limit once / Max in play 坏 |
 | **audience** | 谁可见哪面 | 权限坏；**非**结算 |
 | **derived** | 由 Data(+run.focus) 可重建 | 可 rebuild |
 | **run** | 手续游标与步间指称 | 手续结束可清 |
 
-**CREATED** = dry-run 写入 **Data** 结算排序（Board ∨ Facts ∨ Constraints ∨ Chronicle）；**Audience 除外**。  
+**CREATED** = dry-run 写入 **Data** 结算排序（Board ∨ Facts ∨ Constraints ∨ Limits ∨ Chronicle）；**Audience 除外**。  
 口语「世界」= **整个 Data**；**禁止**把 Board 叫成世界。
 
 ---
@@ -58,9 +60,9 @@ Board = {
   cards:          Map<CardId, Card>,
   regions:        Map<RegionId, Region>,
   seats:          Map<CardId, Seat>,
-  framework:      Framework,
-  limits:         LimitStore
+  framework:      Framework
 }
+-- 禁止 limits 进 Board
 ```
 
 | 键 | 说明 |
@@ -69,7 +71,6 @@ Board = {
 | `regions` | **唯一放置面**：卡序① + token 堆② |
 | `seats` | 回合经济与退场/撤退 |
 | `framework` | round / 主·当前调查员 / 场景·密谋游标 |
-| `limits` | 次数与配额计数 |
 
 **不设** `board.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
 
@@ -428,7 +429,7 @@ ListenerPayload = { timing, composition }
 
 ---
 
-### 1.4 `Audience` · `Framework`（Framework/Limits 在 Board）
+### 1.4 `Audience` · `Framework`（Framework 在 Board；Limits 见 §1.5）
 
 ```text
 Chronicle = {
@@ -462,7 +463,9 @@ Framework = {
 
 ---
 
-### 1.5 `LimitStore` — 限制/配额（权威）
+### 1.5 `data.limits` — `LimitStore`（权威 · 非物理）
+
+**不在 Board。** 能力发动次数 / Max in play 等是配额计数，不是 Placement/Measure/Form。
 
 先前草案用 `Map<LimitId, Int>` **不够**：Grimoire 有 per round / per game / per card / group limit / Max in play 等，键必须带**周期 + 范围 + 主体**，并支持清零与封顶。
 
@@ -712,7 +715,7 @@ Key =
 | RegAspect | `aspect:fight` | 索引 / 多条登记 |
 | SeatField | `seat:<inv>:actions_remaining` | `board.seats[inv]…` |
 | FrameworkField | `fw:active_investigator_id` | `board.framework…` |
-| LimitCounter | `limit:<limit_key>` | `board.limits…` |
+| LimitCounter | `limit:<limit_key>` | `data.limits…` |
 | ChronicleKey | `chron:remembered:<k>` | `facts.chronicle.remembered[k]` |
 | RunFocus | `run:focus` | `run.focus` |
 | RunMemory | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
@@ -782,10 +785,10 @@ Snapshot {
         "chaos":   { place:"chaos", shape:"bag", token_stacks:{ … }, … }
       }
       framework: { round:1, lead_investigator_id:"I", … }
-      limits: { counters:{}, occupancies:{} }
     }
     facts: { relations:{}, gains:{}, chronicle:{ log:[], remembered:{} } }
     constraints: { policies:{} }
+    limits: { counters:{}, occupancies:{} }
     audience: { … }
   }
   derived: { … }
@@ -835,3 +838,4 @@ Snapshot {
 | 2026-11-26 | v0.37：对齐 38 — Auth→Data；物理袋 World→Board；实例/读写表字段同步；废「窄世界」称谓 |
 | 2026-11-26 | v0.38：资源池归属改为 `host_player_id`（玩家）；禁止用调查员 CardId 作 host |
 | 2026-11-26 | v0.39：Seat 删 bonus/penalty_next_turn；跨回合 deferred → Constraints OnTiming @ turn begin；行动经济三分法 |
+| 2026-11-26 | v0.40：`LimitStore` 升出 Board → `data.limits`（非物理 Clock 旁路） |

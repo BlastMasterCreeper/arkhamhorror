@@ -1,6 +1,6 @@
 # 38 — 函数世界（Data）说明
 
-> **状态**：说明稿 v0.4 · 2026-11-26  
+> **状态**：说明稿 v0.5 · 2026-11-26  
 > **目的**：用数学 / FP 口径定义「世界」是什么；**不是**桌上模拟隐喻。  
 > **形状落地**：[37-world-structure](37-world-structure.md)（字段与类型）  
 > **Eff / 步骤**：[25-functional-eff](25-functional-eff.md)  
@@ -92,7 +92,8 @@ Audience 可标成 Data 内的**非结算排序**（改可见性 ≠ CREATED）�
 | **Placement** | 容器与序 | `regions.card_ids`、威胁区成员 | `MoveCard` |
 | **Measure** | 可加计数 | `token_stacks`、资源池 | `TransferToken` |
 | **Form** | 有限属性 | `face` / `exhausted` | `SetExhausted` / Flip |
-| **Clock** | 离散钟与游标 | round、席位行动、limits | Seat / Framework |
+| **Clock** | 离散钟与游标 | round、席位行动 | Seat / Framework（仍可挂 Board） |
+| **Quota** | 次数/配额已用 | Limit once、Max in play 占用 | **`Data.limits`**（**不**进物理 Board） |
 | **Proposition** | 可判定命题（常带寿命） | `Engagement`、Gain 标记 | `FactInsert`；`is_engaged_with` |
 | **Endomorphism** | 解释上的可结合变换（带寿命） | FoldStat / Guard / Divert / OnTiming | `ConstraintInsert`；query/legal 折叠 |
 | **Log** | 近似只增 | Chronicle | 记住 / 日志 |
@@ -201,13 +202,14 @@ on_timing(t, data)    = base_handlers(t) ++ on_timings(data, t)
 
 | 模拟隐喻（曾用） | FP 归宿 |
 |---|---|
-| 「窄世界 = 物理」（已废称谓） | Data.**Board**（Placement ∪ Measure ∪ Form ∪ Clock） |
+| 「窄世界 = 物理」（已废称谓） | Data.**Board**（Placement ∪ Measure ∪ Form；+ seats/framework 游标） |
 | 「Facts」 | Data.facts（Proposition ∪ Log） |
 | 「Constraints」 | Data.constraints（Endomorphism） |
+| 次数限制 / 配额 | Data.**limits**（Quota；**不**在 Board） |
 | 口语「世界 = 只有物理」 | **废弃作函数定义**；至多作文档分区名 |
 
-37 的 `data.board` / `facts` / `constraints`：是 **Data 的分区表**，合起来才是 `World_FP`。物理分区字段名是 **Board**，不要叫世界。  
-**不要**再说「只有物理那一袋叫世界」。
+37 的 `data.board` / `facts` / `constraints` / `limits`：是 **Data 的分区表**，合起来才是 `World_FP`。物理分区字段名是 **Board**，不要叫世界。  
+**不要**再说「只有物理那一袋叫世界」。**不要**把 LimitStore 塞进 Board。
 
 ---
 
@@ -254,3 +256,4 @@ on_timing(t, data)    = base_handlers(t) ++ on_timings(data, t)
 | 2026-11-25 | v0.2：细讲 Proposition / Endomorphism（定义、消费、对照、交战与 Gain） |
 | 2026-11-26 | v0.3：§1.1 四者对照 Data / Control / Derived / Catalog（例子与边界） |
 | 2026-11-26 | v0.4：与类型对齐 — Auth→Data；物理袋 Board；37/24/30 同步 |
+| 2026-11-26 | v0.5：LimitStore 升出 Board → Data.limits（Quota）；Board 不再含 limits |
