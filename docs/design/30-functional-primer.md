@@ -60,12 +60,12 @@ Board 里**只有一种实体：卡**。调查员、地点、敌人、支援、�
 
 印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。局面上不复制一份。
 
-**值要分类**（见 [24](24-functional-world.md) / [37](37-world-structure.md) / [38](38-functional-data-world.md)）：**Data**（Board / Facts / Constraints / Limits）/ 派生 / 进度。驱动持有整份 **Snapshot**；口语「世界」= 整个 `data`（World_FP），**不是**只有 Board。
+**值要分类**（见 [24](24-functional-world.md) / [37](37-world-structure.md) / [38](38-functional-data-world.md)）：**Data**（Board / Facts / Constraints / Limits / Framework）/ 派生 / 进度。驱动持有整份 **Snapshot**；口语「世界」= 整个 `data`（World_FP），**不是**只有 Board。
 
 ```text
 Snapshot = {
   data: {                     -- World_FP
-    board, facts, constraints, limits, audience, next_id
+    board, facts, constraints, limits, framework, audience, next_id
   }
   derived: { index, feasibility }
   run: { … }
@@ -149,14 +149,15 @@ data = {
 
 `shape = "deck"` 时，`card_ids[0]` 是顶。资源池用 `host_player_id`，勿填调查员卡 id。
 
-#### Data 分区：Board / Facts / Constraints / Limits
+#### Data 分区：Board / Facts / Constraints / Limits / Framework
 
 | 袋 | 放什么 | 是不是「世界」 |
 |---|---|---|
-| **Board** | 区、token、横置/翻面、席位、框架游标 | 与下几项合称 **Data = 世界**；单独不叫世界 |
+| **Board** | 区、token、横置/翻面、席位（暂） | 与下几项合称 **Data = 世界**；单独不叫世界 |
 | **Facts** | 交战 Relation、Gain 拥有、Chronicle 记事 | 同左 |
 | **Constraints** | lasting/+N/cannot/延时等 Policy | 同左 |
 | **Limits** | 能力次数/配额已用（LimitStore） | 同左；**不**进 Board |
+| **Framework** | round / 主·当前调查员 / 场景·密谋游标 | 同左；**不**进 Board |
 | **Audience** | 谁看得见牌面 | 在 Data 内，但改之**不计** CREATED |
 
 ```text
@@ -178,14 +179,14 @@ Policy   = { shell: InfoShell, body: FoldStat | GuardIntent | DivertFlow | OnTim
 ```text
 可见档 = 枚举 "hidden_all" | "controller" | "all"   -- data.audience
 
-框架（∈ board.framework）= {
+框架（∈ data.framework · Clock）= {
   round, lead_investigator_id, active_investigator_id,
   current_act_id, current_agenda_id
 }
 ```
 
 （仅此五字段；牌库在区、毁灭阈值在目录、阶段名在 `run.timing_phase`——见 37。）  
-限额 ∈ `data.limits`（**不**在 Board）。混乱符号是区 `chaos` 上的 `token_stacks`。FoldStat 的 `ModifierPayload` **不分型**。
+限额 ∈ `data.limits`；框架 ∈ `data.framework`（皆**不**在 Board）。混乱符号是区 `chaos` 上的 `token_stacks`。FoldStat 的 `ModifierPayload` **不分型**。
 
 #### 一份最小构造
 
@@ -208,11 +209,11 @@ data = {
       "tok_L":  { place:"tokens", host_card_id:"L", token_stacks:{ "clue":1 } }
       "chaos":  { place:"chaos", shape:"bag", token_stacks:{ "numeric_0":1 } }
     }
-    framework: { round:1, lead_investigator_id:"I", … }
   }
   facts: { relations:{}, gains:{}, chronicle:{ log:[], remembered:{} } }
   constraints: { policies:{} }
   limits: { counters:{}, occupancies:{} }
+  framework: { round:1, lead_investigator_id:"I", … }
   audience: { "C1":"controller" }
 }
 ```

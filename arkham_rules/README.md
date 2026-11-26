@@ -7,8 +7,8 @@ and [`docs/design/38-functional-data-world.md`](../docs/design/38-functional-dat
 ## Current (M1 + M2)
 
 - `Snapshot` = `data` ⊕ `derived` ⊕ `run` ⊕ `gen`
-- `Data` = `Board` × `Facts` × `Constraints` × `Limits` (+ `Audience`); physical bag is **Board**, not 「世界」
-- `LimitStore` on **`data.limits`** (not inside Board)
+- `Data` = `Board` × `Facts` × `Constraints` × `Limits` × `Framework` (+ `Audience`); physical bag is **Board**, not 「世界」
+- `LimitStore` on **`data.limits`**; `Framework` on **`data.framework`** (neither inside Board)
 - Token stacks on `Region` (`host_card_id`|`host_player_id`+`place`; no Card.owned_regions dual source)
 - `resource_pool` binds to **player** (`host_player_id`); not investigator CardId
 - Sealed chaos = host `tokens` stacks (no `sealed`/`augury` places)

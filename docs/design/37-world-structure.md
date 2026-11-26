@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.40 · 2026-11-26  
+> **状态**：设计草案 v0.41 · 2026-11-26  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -16,7 +16,7 @@
 ## 0. 总形
 
 **函数世界 World_FP = `Data`**（见 [38](38-functional-data-world.md)）。  
-`Data` 的分区表 = **Board × Facts × Constraints × Limits**（+ Audience）；**Board 是物理分区，不叫「世界」；limits 不进 Board。**
+`Data` 的分区表 = **Board × Facts × Constraints × Limits × Framework**（+ Audience）；**Board 是物理分区，不叫「世界」；limits / framework 不进 Board。**
 
 ```text
 Snapshot = {
@@ -27,10 +27,11 @@ Snapshot = {
 }
 
 Data = {
-  board:         Board,         -- 物理分区：卡/区/席位 + 框架游标
+  board:         Board,         -- 物理分区：卡/区（+ seats 暂留）
   facts:         Facts,         -- Proposition · Gain · Chronicle
   constraints:   Constraints,   -- Endomorphism（Policy）
-  limits:        LimitStore,    -- 能力/配额已用次数（非物理；Clock 旁路）
+  limits:        LimitStore,    -- 能力/配额已用次数（Quota）
+  framework:     Framework,     -- 回合/场景游标（Clock）
   audience:      Map<CardId, Audience>,  -- Permission；不计 CREATED
   next_id:       Int
 }
@@ -40,15 +41,16 @@ Data = {
 
 | 分区 | 判据 | 丢了 |
 |---|---|---|
-| **board** | 看得见的桌上实体与席位/框架游标 | 物理局面坏 |
+| **board** | 看得见的桌上实体（+ seats 暂留） | 物理局面坏 |
 | **facts** | 非物理但「为真」的断言 | 交战/拥有/记住丢 |
 | **constraints** | 改写 query/legal/plan/原流程的态射 | lasting/cannot/延时丢 |
 | **limits** | 次数/配额已用计数与占用 | Limit once / Max in play 坏 |
+| **framework** | round / 主·当前调查员 / 场景·密谋游标 | 框架钟坏 |
 | **audience** | 谁可见哪面 | 权限坏；**非**结算 |
 | **derived** | 由 Data(+run.focus) 可重建 | 可 rebuild |
 | **run** | 手续游标与步间指称 | 手续结束可清 |
 
-**CREATED** = dry-run 写入 **Data** 结算排序（Board ∨ Facts ∨ Constraints ∨ Limits ∨ Chronicle）；**Audience 除外**。  
+**CREATED** = dry-run 写入 **Data** 结算排序（Board ∨ Facts ∨ Constraints ∨ Limits ∨ Framework ∨ Chronicle）；**Audience 除外**。  
 口语「世界」= **整个 Data**；**禁止**把 Board 叫成世界。
 
 ---
@@ -59,18 +61,16 @@ Data = {
 Board = {
   cards:          Map<CardId, Card>,
   regions:        Map<RegionId, Region>,
-  seats:          Map<CardId, Seat>,
-  framework:      Framework
+  seats:          Map<CardId, Seat>
 }
--- 禁止 limits 进 Board
+-- 禁止 limits / framework 进 Board
 ```
 
 | 键 | 说明 |
 |---|---|
 | `cards` | 卡脊骨（身份·控制·形态③）；放置只在 regions |
 | `regions` | **唯一放置面**：卡序① + token 堆② |
-| `seats` | 回合经济与退场/撤退 |
-| `framework` | round / 主·当前调查员 / 场景·密谋游标 |
+| `seats` | 回合经济与退场/撤退（非放置；暂留 Board，可再升 Clock） |
 
 **不设** `board.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
 
@@ -133,7 +133,7 @@ Seat = {
 | 退场/撤退 | 冒险内结局标志，与 face/exhausted/区成员正交 |
 | 查询 | `board.seats[inv_id].actions_remaining`，不读 `board.cards[inv]` |
 
-`board.framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**标准预算与结局**在 `board.seats`。
+`data.framework.active_investigator_id` / `lead_investigator_id` 是 Clock 游标；**标准预算与结局**在 `board.seats`。
 
 #### 行动经济三分法（Seat vs Constraints vs Run）
 
@@ -429,7 +429,7 @@ ListenerPayload = { timing, composition }
 
 ---
 
-### 1.4 `Audience` · `Framework`（Framework 在 Board；Limits 见 §1.5）
+### 1.4 `Audience` · Chronicle
 
 ```text
 Chronicle = {
@@ -439,7 +439,17 @@ Chronicle = {
 LogEntry = { text: String, round: Int }
 
 Audience = "hidden_all" | "controller" | "all"
+```
 
+混乱与其它 token 的 `stack_key`：见 §1.2.1。
+
+---
+
+### 1.4.1 `data.framework` — Framework（Clock · 非物理）
+
+**不在 Board。** round / 主·当前调查员 / 场景·密谋游标是局面钟，不是 Placement/Measure/Form。
+
+```text
 Framework = {
   round:                   Int,
   lead_investigator_id:    String,
@@ -458,8 +468,6 @@ Framework = {
 | `scenario_reference_id` | 冒险装载 / Catalog 绑定 | 非回合游标；需要时另字段，不塞 Framework |
 | `phase_id`（Mythos/Action…） | `run.timing_phase` | 执行信封相位；手续内临时步更在 `Run.stack` |
 | 席位行动 / eliminated | `board.seats` | 已离 Card，也不进 Framework |
-
-混乱与其它 token 的 `stack_key`：见 §1.2.1。
 
 ---
 
@@ -531,7 +539,7 @@ limit_key = spec_id + "|" + period + "|" + scope + "|" + subject_id + "|" + wind
 | 卡离场 | 删该 `card_instance` 条；`occupancies.holders` 移除 |
 | Max in play | 进场写入 `holders`；离场移除；超 cap 则发起/进场门槛失败 |
 
-`window_id` 与 `board.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<limit_key>`。
+`window_id` 与 `data.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<limit_key>`。
 
 **不做**：把 Limit 规格正文存进局面；用单个全局 `Int` 糊所有能力。
 
@@ -714,7 +722,7 @@ Key =
 | Reg | `reg:<id>` | `facts.relations[id]` 或 `constraints.policies[id]` |
 | RegAspect | `aspect:fight` | 索引 / 多条登记 |
 | SeatField | `seat:<inv>:actions_remaining` | `board.seats[inv]…` |
-| FrameworkField | `fw:active_investigator_id` | `board.framework…` |
+| FrameworkField | `fw:active_investigator_id` | `data.framework…` |
 | LimitCounter | `limit:<limit_key>` | `data.limits…` |
 | ChronicleKey | `chron:remembered:<k>` | `facts.chronicle.remembered[k]` |
 | RunFocus | `run:focus` | `run.focus` |
@@ -784,11 +792,11 @@ Snapshot {
         "tok_L":   { host_card_id:"L", place:"tokens", token_stacks:{ "clue":1 }, … }
         "chaos":   { place:"chaos", shape:"bag", token_stacks:{ … }, … }
       }
-      framework: { round:1, lead_investigator_id:"I", … }
     }
     facts: { relations:{}, gains:{}, chronicle:{ log:[], remembered:{} } }
     constraints: { policies:{} }
     limits: { counters:{}, occupancies:{} }
+    framework: { round:1, lead_investigator_id:"I", … }
     audience: { … }
   }
   derived: { … }
@@ -839,3 +847,4 @@ Snapshot {
 | 2026-11-26 | v0.38：资源池归属改为 `host_player_id`（玩家）；禁止用调查员 CardId 作 host |
 | 2026-11-26 | v0.39：Seat 删 bonus/penalty_next_turn；跨回合 deferred → Constraints OnTiming @ turn begin；行动经济三分法 |
 | 2026-11-26 | v0.40：`LimitStore` 升出 Board → `data.limits`（非物理 Clock 旁路） |
+| 2026-11-26 | v0.41：`Framework` 升出 Board → `data.framework`（Clock）；Board 不再含 framework |
