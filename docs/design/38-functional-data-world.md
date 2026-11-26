@@ -1,6 +1,6 @@
 # 38 — 函数世界（Data）说明
 
-> **状态**：说明稿 v0.1 · 2026-11-25  
+> **状态**：说明稿 v0.3 · 2026-11-26  
 > **目的**：用数学 / FP 口径定义「世界」是什么；**不是**桌上模拟隐喻。  
 > **形状落地**：[37-world-structure](37-world-structure.md)（字段与类型）  
 > **Eff / 步骤**：[25-functional-eff](25-functional-eff.md)  
@@ -38,21 +38,44 @@ Snapshot = {
 Catalog ∉ Snapshot      -- 静态理论（印刷、flow 定义）；对局中不变
 ```
 
-| 袋 | 是世界吗？ | 角色 |
+### 1.1 四者对照（判据 · 例子 · 边界）
+
+| | **Data** | **Control** | **Derived** | **Catalog** |
+|---|---|---|---|---|
+| **一句话** | 函数世界：权威局面载体 | 解释器拉链（Run） | 可重建的视图/索引 | 静态理论（外置） |
+| **是 World_FP？** | **是** | 否 | 否 | 否 |
+| **进 Snapshot？** | 是（权威） | 是（进度） | 是（可丢可重建） | **否** |
+| **谁改它？** | 仅 `commit(Intent)` | `step` / `answer` / bind | transit 末尾按 Data(+focus) 刷新 | 装载期；**对局中不改** |
+| **丢掉会怎样？** | 局面不可还原 | 当前手续断掉；存档级局面仍在 | 慢一点，可算回来 | 整套规则/印刷没了 |
+| **CREATED？** | 结算排序上的写入计 | 不算（游标） | 不算（投影） | 不算（只读） |
+
+**Data 例子**：卡在哪个区、资源池数量、横置、交战 Relation、until-EOT +1、cannot play、Chronicle 记住。  
+**Control 例子**：手续栈帧、`open_choice`、检定 `st_step`、`memory["chosen"]`、焦点窗、手续内临时 as-if 叠镜。  
+**Derived 例子**：登记倒排索引、可行性 Φ、庞大虚拟交战（Massive∧ready∧同地）、「卡在哪」的加速反向索引。  
+**Catalog 例子**：印刷 fight=4、费用、能力编译树、`seq.draw.*` 流程体、token `dual_of`、密谋 doom 阈值规格。
+
+**边界（易混）**
+
+| 现象 | 放哪 | 为何 |
 |---|---|---|
-| **Data** | **是（World_FP）** | Intent 的唯一改写对象 |
-| **Control（Run）** | 否 | 解释器拉链；手续结束可清 |
-| **Derived** | 否 | 视图 / 索引 / Φ；可 rebuild |
-| **Catalog** | 否 | 外置常量 |
+| 印刷战力 4 | Catalog | 对局中不变；卡上只留 `definition_id` |
+| 有效战力 5（+1 lasting） | Data（Endomorphism）+ 查询时 fold Catalog 底 | 变的是 Data 行，不是印刷 |
+| 「本手续选中的敌人」 | Control.memory | 步间指称；手续完可清 |
+| lasting「视为交战」 | Data（Proposition） | 权威真假，要存档 |
+| 庞大「算交战」 | Derived 查询 | 由关键词+形态+地点唯一可算 |
+| 威胁区里有这张敌 | Data（Placement） | 区成员是权威 |
+| 倒排「谁挂了 FoldStat」 | Derived | 可由 Data 的 Endomorphism 表重建 |
+| Audience 可见档 | Data 内 Permission 排序（可非结算） | 权威权限；改之**不计** CREATED |
 
 运算形：
 
 ```text
-query  : Data × Catalog × Spec → Answer
+query  : Data × Catalog × Spec → Answer          -- 常只读；可顺带用 Derived 缓存
 plan   : Data × Control × Catalog × Eff → Intent[]
-commit : Data × Intent[] → Data              -- 唯一改世界
+commit : Data × Intent[] → Data                  -- 唯一改世界
 step   : Data × Control × Catalog × Eff
            → (Data × Control) | NeedAsk
+-- transit 末尾：Derived := rebuild(Data, Control.focus)
 ```
 
 **CREATED**（发起有效性 / L7 dry-run）= 某次（沙盒）`commit` 使 **Data** 在结算排序上发生了变化。  
@@ -229,3 +252,4 @@ on_timing(t, data)    = base_handlers(t) ++ on_timings(data, t)
 |---|---|
 | 2026-11-25 | v0.1：定义 World_FP≜Data；主划分 Data×Control；Data 内代数分拣；对照模拟隐喻 |
 | 2026-11-25 | v0.2：细讲 Proposition / Endomorphism（定义、消费、对照、交战与 Gain） |
+| 2026-11-26 | v0.3：§1.1 四者对照 Data / Control / Derived / Catalog（例子与边界） |
