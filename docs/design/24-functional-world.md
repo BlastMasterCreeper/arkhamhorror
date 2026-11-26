@@ -27,9 +27,9 @@
 
 ```text
 Snapshot = {
-  auth,      -- 权威局面（结算写这里）
+  data,      -- World_FP = Data（结算写这里）
   derived,   -- 派生（可重建；含可行性 Φ）
-  run,       -- 进度游标
+  run,       -- 进度游标（Control）
 }
 -- Catalog 外置，永不进 Snapshot
 ```
@@ -166,13 +166,13 @@ Framework = {
 
 ---
 
-## 7. 随机 / 混乱袋（不再单列 `auth.entropy`）
+## 7. 随机 / 混乱袋（不再单列 `data.entropy`）
 
 | 内容 | 落点（37） |
 |---|---|
-| 袋内剩余 | `regions` 中 `place:"chaos"` 的 `token_stacks` |
+| 袋内剩余 | `board.regions` 中 `place:"chaos"` 的 `token_stacks` |
 | 本次检定已揭示 | **`Run.skill_tests` 顶帧** 与/或 `augury` 区 |
-| 仍需未抽尽的 `rng_seed` | **另议**；不默认进 auth（内核禁止隐式 `rand()`） |
+| 仍需未抽尽的 `rng_seed` | **另议**；不默认进 Data（内核禁止隐式 `rand()`） |
 
 规则内核内未抽完的随机必须来自已决议的袋堆或驱动层预先注入的 token 列表。
 
@@ -196,7 +196,7 @@ Run = {
 - **Ask / PI**：解释到 `Ask` ⇒ `NeedAsk`；驱动填答后纯续跑。  
 - **Cancel**：置帧 `cancelled` 或剪枝 `cont_after`（共享 Cancel 仍可 nest）。  
 - **Focus 池 ids**：粘性池权威成员（[16](16-player-interaction.md)），属 Run 而非 derived。  
-- 存档：可序列化 auth；`Run` 可选（断点续算）或只存「玩家窗空闲」快照。
+- 存档：可序列化 `data`；`Run` 可选（断点续算）或只存「玩家窗空闲」快照。
 
 ---
 
@@ -235,7 +235,7 @@ commit: Snapshot × Intent[] → Snapshot   -- 唯一写入口；可触 World/Fa
 | # | 裁决 |
 |---|---|
 | W1 | **窄 World / Run 分立**：物理局面 vs 执行游标；指称与栈不进 World |
-| W2 | **物理只在 board**：三类原语写 `data.board`；**不**嵌套 `auth.physical` |
+| W2 | **物理只在 Board**：三类原语写 `data.board`；**不**嵌套 `data.physical` |
 | W3 | **Facts × Constraints 是 Data 分区，与 Board 合称世界**：Relation/Policy 有寿命、可 CREATED，但口语「世界」不含它们 |
 | W4 | **Catalog 外置**：印刷与编译树不是 Snapshot 字段 |
 | W5 | **Audience 旁路、非结算**：与 form 正交；不计 CREATED |

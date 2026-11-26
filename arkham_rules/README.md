@@ -1,14 +1,17 @@
 # arkham_rules
 
-Functional rules kernel (Rust). Shape follows [`docs/design/37-world-structure.md`](../docs/design/37-world-structure.md).
+Functional rules kernel (Rust). Shape follows [`docs/design/37-world-structure.md`](../docs/design/37-world-structure.md)
+and [`docs/design/38-functional-data-world.md`](../docs/design/38-functional-data-world.md)
+(`World_FP ≜ Data`).
 
 ## Current (M1 + M2)
 
-- `Snapshot` = `auth` ⊕ `derived` ⊕ `run` ⊕ `gen`
+- `Snapshot` = `data` ⊕ `derived` ⊕ `run` ⊕ `gen`
+- `Data` = `Board` × `Facts` × `Constraints` (+ `Audience`); physical bag is **Board**, not 「世界」
 - Token stacks on `Region` (`host_card_id`+`place`; no Card.owned_regions dual source)
 - Sealed chaos = host `tokens` stacks (no `sealed`/`augury` places)
-- Investigator turn economy / eliminated / resigned on `Auth.seats` (not `Card`)
-- `RegistrationPayload` ×5; engagement = `status`
+- Investigator turn economy / eliminated / resigned on `Board.seats` (not `Card`)
+- `RegistrationPayload` ×5; engagement = `status` (Facts relation)
 - `LimitStore`: `limit_key` + `occupancies` (not `slot_id` / asset-slot confusion)
 - `commit(Intent[])`: `TransferToken`（`$supply` 无穷池）/ card / reg / exhaust / seat — **无** `AdjustToken`
 - `DirectivePayload` / `GatePayload` 按 kind 分型；`StatusPayload::Engagement` 单变体；Listener/Modifier 同质不分型

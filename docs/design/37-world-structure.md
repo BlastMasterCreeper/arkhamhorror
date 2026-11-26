@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.36 · 2026-11-26  
+> **状态**：设计草案 v0.37 · 2026-11-26  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -218,7 +218,7 @@ Region = {
 
 ### 1.2.1 Token = 类型 + 数量（终端）
 
-不在 `auth` 单列 token 表。区上的堆即全部权威：
+不在 `data` 单列 token 表。区上的堆即全部权威：
 
 ```text
 token_stacks: Map<String, Int>   -- type → count
@@ -652,7 +652,7 @@ SkillTest = {
 | 保留 | 理由 |
 |---|---|
 | `focus.window` / `controller_id` / `open_must_ask_id` | 换宇宙键；`stepFocus` 触发 Φ 重建 |
-| `initiation_pool_ids` / `response_pool_ids` | **粘性池**权威成员（16）；非 auth 派生缓存，属 Run |
+| `initiation_pool_ids` / `response_pool_ids` | **粘性池**权威成员（16）；非 Data 派生缓存，属 Run |
 | `open_choice` | 中途 Ask；可与 must 并存但语义不同 |
 | `timing_phase` | 存档级信封相位；微步只在 `stack[].step_index` |
 
@@ -714,7 +714,7 @@ Key =
 
 | 分类 | 写入 | 读取 |
 |---|---|---|
-| `auth` | 仅 `commit(Intent[])` | 一切查询 / `legalTracked` / 投影 |
+| `data` | 仅 `commit(Intent[])` | 一切查询 / `legalTracked` / 投影 |
 | `derived` | `transit` 末尾 `refresh*` | 交互读 feasibility；索引加速查询 |
 | `run` | `step` / `answer` / `bind` | 议程、Ask、宇宙枚举 |
 | `Catalog` | 装载期 | 印刷、Eff 树、`TokenTypeStatic` |
@@ -751,9 +751,9 @@ Intent =
 ```text
 Snapshot {
   gen: 1
-  auth: {
+  data: {
     next_id: 8
-    world: {
+    board: {
       cards: { "I": { card_type:"investigator", … }, "L": { … } }
       seats: { "I": { actions_remaining:3, … } }
       regions: {
@@ -817,3 +817,4 @@ Snapshot {
 | 2026-11-25 | v0.31：无冗余 — 废 Card.owned_regions/Seat.investigator_id；封印并入宿主 tokens；去掉 sealed/augury/token_supply 放置名 |
 | 2026-11-25 | v0.32：标明 resource pool = 宿主 `tokens` 的 `resource` 堆 + `$supply`；非 Seat/独立区 |
 | 2026-11-25 | v0.33：纠正 — 资源池 = 独立 `place=resource_pool` 区（非调查员卡 `tokens`）；卡上 resource 仍走 `tokens` |
+| 2026-11-26 | v0.37：对齐 38 — Auth→Data；物理袋 World→Board；实例/读写表字段同步；废「窄世界」称谓 |
