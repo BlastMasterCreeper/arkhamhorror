@@ -49,7 +49,7 @@ Catalog ∉ Snapshot      -- 静态理论（印刷、flow 定义）；对局中�
 | **丢掉会怎样？** | 局面不可还原 | 当前手续断掉；存档级局面仍在 | 慢一点，可算回来 | 整套规则/印刷没了 |
 | **CREATED？** | 结算排序上的写入计 | 不算（游标） | 不算（投影） | 不算（只读） |
 
-**Data 例子**：卡在哪个区、资源池数量、横置、交战 Relation、until-EOT +1、cannot play、Chronicle 记住。  
+**Data 例子**：卡在哪个区、资源池数量、横置、交战 Relation、until-EOT +1、cannot play、Limit once 已用次数、Chronicle 记住。  
 **Control 例子**：手续栈帧、`open_choice`、检定 `st_step`、`memory["chosen"]`、焦点窗、手续内临时 as-if 叠镜。  
 **Derived 例子**：登记倒排索引、可行性 Φ、庞大虚拟交战（Massive∧ready∧同地）、「卡在哪」的加速反向索引。  
 **Catalog 例子**：印刷 fight=4、费用、能力编译树、`seq.draw.*` 流程体、token `dual_of`、密谋 doom 阈值规格。
