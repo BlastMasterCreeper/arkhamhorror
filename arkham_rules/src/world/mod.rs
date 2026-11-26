@@ -23,7 +23,7 @@ pub struct Snapshot {
     pub gen: u64,
 }
 
-/// Functional world (World_FP): Board × Facts × Constraints × Limits × Framework
+/// Functional world (World_FP): Board × Facts × Constraints × Limits × Framework × Seats
 /// (+ Audience, not CREATED).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Data {
@@ -34,19 +34,19 @@ pub struct Data {
     pub limits: LimitStore,
     /// Scenario/round cursors (Clock) — not physical; sibling of Board.
     pub framework: Framework,
+    /// Player/investigator seat economy + outcome flags — not physical.
+    /// Key = investigator card id (no redundant investigator_id field).
+    pub seats: BTreeMap<CardId, Seat>,
     /// Permission bypass — authoritative but never CREATED.
     pub audience: BTreeMap<CardId, Audience>,
     pub next_id: u64,
 }
 
-/// Physical partition: Placement ∪ Measure ∪ Form (+ seats for now).
-/// **Not** LimitStore / Framework — those live on `Data` top-level.
+/// Physical partition only: Placement ∪ Measure ∪ Form (cards + regions).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Board {
     pub cards: BTreeMap<CardId, Card>,
     pub regions: BTreeMap<RegionId, Region>,
-    /// Investigator seat state (turn economy / eliminated / resigned). Key = investigator card id.
-    pub seats: BTreeMap<CardId, Seat>,
 }
 
 /// Non-physical asserted truths (engagement relations, gains, chronicle).
@@ -110,7 +110,7 @@ impl Default for Card {
 }
 
 /// Investigator seat — standard action budget this turn + scenario outcome flags.
-/// Map key in `Board.seats` = investigator card id (no redundant investigator_id field).
+/// Map key in `Data.seats` = investigator card id (no redundant investigator_id field).
 ///
 /// Cross-turn gain/lose and same-turn additional actions are **not** Seat fields:
 /// they live in `Constraints` (OnTiming lasting @ turn begin / Grant WHILE_IN_PLAY).

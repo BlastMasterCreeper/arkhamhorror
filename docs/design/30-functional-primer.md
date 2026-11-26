@@ -60,12 +60,12 @@ Board 里**只有一种实体：卡**。调查员、地点、敌人、支援、�
 
 印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。局面上不复制一份。
 
-**值要分类**（见 [24](24-functional-world.md) / [37](37-world-structure.md) / [38](38-functional-data-world.md)）：**Data**（Board / Facts / Constraints / Limits / Framework）/ 派生 / 进度。驱动持有整份 **Snapshot**；口语「世界」= 整个 `data`（World_FP），**不是**只有 Board。
+**值要分类**（见 [24](24-functional-world.md) / [37](37-world-structure.md) / [38](38-functional-data-world.md)）：**Data**（Board / Facts / Constraints / Limits / Framework / Seats）/ 派生 / 进度。驱动持有整份 **Snapshot**；口语「世界」= 整个 `data`（World_FP），**不是**只有 Board。
 
 ```text
 Snapshot = {
   data: {                     -- World_FP
-    board, facts, constraints, limits, framework, audience, next_id
+    board, facts, constraints, limits, framework, seats, audience, next_id
   }
   derived: { index, feasibility }
   run: { … }
@@ -111,7 +111,7 @@ data = {
 
 #### 席位（Seat）
 
-调查员一条；键 = 该调查员卡 id（不再另存 investigator_id 字段）。读行动数 / 是否已退场 → `data.board.seats[inv]`。
+调查员一条；键 = 该调查员卡 id（不再另存 investigator_id 字段）。读行动数 / 是否已退场 → `data.seats[inv]`（**不**在 Board）。
 
 ```text
 席位 = {
@@ -149,15 +149,16 @@ data = {
 
 `shape = "deck"` 时，`card_ids[0]` 是顶。资源池用 `host_player_id`，勿填调查员卡 id。
 
-#### Data 分区：Board / Facts / Constraints / Limits / Framework
+#### Data 分区：Board / Facts / Constraints / Limits / Framework / Seats
 
 | 袋 | 放什么 | 是不是「世界」 |
 |---|---|---|
-| **Board** | 区、token、横置/翻面、席位（暂） | 与下几项合称 **Data = 世界**；单独不叫世界 |
+| **Board** | 卡、区、token、横置/翻面 | 与下几项合称 **Data = 世界**；单独不叫世界 |
 | **Facts** | 交战 Relation、Gain 拥有、Chronicle 记事 | 同左 |
 | **Constraints** | lasting/+N/cannot/延时等 Policy | 同左 |
 | **Limits** | 能力次数/配额已用（LimitStore） | 同左；**不**进 Board |
 | **Framework** | round / 主·当前调查员 / 场景·密谋游标 | 同左；**不**进 Board |
+| **Seats** | 标准行动预算 / eliminated / resigned | 同左；**不**进 Board |
 | **Audience** | 谁看得见牌面 | 在 Data 内，但改之**不计** CREATED |
 
 ```text
@@ -197,7 +198,6 @@ data = {
   next_id: 8
   board: {
     cards: { "I":…, "L":…, "C1":… }
-    seats: { "I": { actions_remaining:3, … } }
     regions: {
       "deck_I": { place:"deck", host_card_id:"I", card_ids:["C1"], … }
       "hand_I": { place:"hand", host_card_id:"I", … }
@@ -214,6 +214,7 @@ data = {
   constraints: { policies:{} }
   limits: { counters:{}, occupancies:{} }
   framework: { round:1, lead_investigator_id:"I", … }
+  seats: { "I": { actions_remaining:3, … } }
   audience: { "C1":"controller" }
 }
 ```

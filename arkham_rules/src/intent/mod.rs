@@ -176,7 +176,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             actions_remaining,
         } => {
             let seat = snap
-                .data.board
+                .data
                 .seats
                 .get_mut(investigator_id)
                 .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
@@ -189,7 +189,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             resigned,
         } => {
             let seat = snap
-                .data.board
+                .data
                 .seats
                 .get_mut(investigator_id)
                 .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
@@ -384,9 +384,9 @@ mod tests {
                 board: Board {
                     cards,
                     regions,
-                    seats,
                     ..Board::default()
                 },
+                seats,
                 next_id: 8,
                 ..Data::default()
             },
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn seat_actions_not_on_card() {
         let s0 = mini_snap();
-        assert_eq!(s0.data.board.seats["I"].actions_remaining, 3);
+        assert_eq!(s0.data.seats["I"].actions_remaining, 3);
         let s1 = commit(
             s0,
             &[Intent::SetSeatActions {
@@ -407,7 +407,7 @@ mod tests {
             }],
         )
         .unwrap();
-        assert_eq!(s1.data.board.seats["I"].actions_remaining, 2);
+        assert_eq!(s1.data.seats["I"].actions_remaining, 2);
     }
 
     #[test]
@@ -443,7 +443,7 @@ mod tests {
         assert_eq!(pool.host_player_id, "P1");
         assert!(pool.host_card_id.is_empty());
         assert_eq!(s0.token_on_card("I", "resource"), 0);
-        assert_eq!(s0.data.board.seats["I"].actions_remaining, 3);
+        assert_eq!(s0.data.seats["I"].actions_remaining, 3);
         let s1 = commit(
             s0,
             &[Intent::TransferToken {
@@ -456,7 +456,7 @@ mod tests {
         .unwrap();
         assert_eq!(s1.resources_of("P1"), 3);
         assert_eq!(s1.token_on_card("I", "resource"), 0);
-        assert_eq!(s1.data.board.seats["I"].actions_remaining, 3);
+        assert_eq!(s1.data.seats["I"].actions_remaining, 3);
     }
 
     #[test]

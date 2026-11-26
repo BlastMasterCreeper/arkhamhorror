@@ -36,11 +36,12 @@ Snapshot = {
 
 ```text
 Data（形状以 37 为准；≡ World_FP）= {
-  board:        Board,         -- 物理分区：cards/regions/seats
+  board:        Board,         -- 物理分区：仅 cards/regions
   facts:        Facts,         -- relations · gains · chronicle
   constraints:  Constraints,   -- policies（Fold/Guard/Divert/OnTiming）
   limits:       LimitStore,    -- 配额计数（非物理；不进 Board）
   framework:    Framework,     -- Clock 游标（非物理；不进 Board）
+  seats:        Map Seat,      -- 席位经济（非物理；不进 Board）
   audience,                    -- 权限旁路；CREATED 不计
   next_id
 }
@@ -55,11 +56,12 @@ Run = { stack, open_choice, skill_tests, memory, timing_phase, focus }
 
 | 袋 | 分类 | 理由 |
 |---|---|---|
-| cards / regions / seats | **board** | 物理分区（seats 暂留） |
+| cards / regions | **board** | 物理分区 |
 | relations / gains / chronicle | **facts** | 断言与薄记事 |
 | policies | **constraints** | 运作叠层（非桌上物） |
 | LimitStore | **limits** | 次数/配额（非物理；不进 Board） |
 | Framework | **framework** | Clock 游标（非物理；不进 Board） |
+| seats | **seats** | 席位经济（非物理；不进 Board） |
 | FaceAudience | **audience** 旁路 | 非结算 |
 | index / feasibility Φ | **derived** | 可重建 |
 | 手续栈 / 选择 / as-if 叠镜 | **run** | 执行游标 |
@@ -81,7 +83,7 @@ Data × Run × Catalog  →  query / plan / transit
 | ① 区/序 | `board.regions[].card_ids` | `zone_of` · `order_in` · in-play |
 | ② 标记 | `board.regions[].token_stacks` | fold；经 `TransferToken` |
 | ③ 形态 | `board.cards[].face` / `exhausted` | 翻面 / 横置 |
-| 席位经济 / 结局 | `board.seats[]` | 行动剩余 · eliminated |
+| 席位经济 / 结局 | `data.seats[]` | 行动剩余 · eliminated |
 
 **LIMBO**（[01 §3.5.0](01-game-state-zones.md)）：悬置区 `limbo_kind ∈ {resolving, committed}`。权威在 `regions`；`SkillTest.committed_ids` 是 **Run** 索引，须与之同步。
 

@@ -7,12 +7,12 @@ and [`docs/design/38-functional-data-world.md`](../docs/design/38-functional-dat
 ## Current (M1 + M2)
 
 - `Snapshot` = `data` ⊕ `derived` ⊕ `run` ⊕ `gen`
-- `Data` = `Board` × `Facts` × `Constraints` × `Limits` × `Framework` (+ `Audience`); physical bag is **Board**, not 「世界」
-- `LimitStore` on **`data.limits`**; `Framework` on **`data.framework`** (neither inside Board)
+- `Data` = `Board` × `Facts` × `Constraints` × `Limits` × `Framework` × `Seats` (+ `Audience`); physical bag is **Board**, not 「世界」
+- Board = **cards + regions only**; `limits` / `framework` / `seats` on Data top-level
 - Token stacks on `Region` (`host_card_id`|`host_player_id`+`place`; no Card.owned_regions dual source)
 - `resource_pool` binds to **player** (`host_player_id`); not investigator CardId
 - Sealed chaos = host `tokens` stacks (no `sealed`/`augury` places)
-- `Board.seats`: `actions_remaining` + eliminated/resigned only (no bonus/penalty_next_turn; deferred → Constraints OnTiming)
+- `data.seats`: `actions_remaining` + eliminated/resigned only (no bonus/penalty_next_turn; deferred → Constraints OnTiming)
 - `RegistrationPayload` ×5; engagement = `status` (Facts relation)
 - `LimitStore`: `limit_key` + `occupancies` (not `slot_id` / asset-slot confusion)
 - `commit(Intent[])`: `TransferToken`（`$supply` 无穷池）/ card / reg / exhaust / seat — **无** `AdjustToken`

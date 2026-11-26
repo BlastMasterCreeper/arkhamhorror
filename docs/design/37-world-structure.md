@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.41 · 2026-11-26  
+> **状态**：设计草案 v0.42 · 2026-11-26  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -16,7 +16,7 @@
 ## 0. 总形
 
 **函数世界 World_FP = `Data`**（见 [38](38-functional-data-world.md)）。  
-`Data` 的分区表 = **Board × Facts × Constraints × Limits × Framework**（+ Audience）；**Board 是物理分区，不叫「世界」；limits / framework 不进 Board。**
+`Data` 的分区表 = **Board × Facts × Constraints × Limits × Framework × Seats**（+ Audience）；**Board 只留 cards+regions（物理）**；limits / framework / seats 不进 Board。
 
 ```text
 Snapshot = {
@@ -27,11 +27,12 @@ Snapshot = {
 }
 
 Data = {
-  board:         Board,         -- 物理分区：卡/区（+ seats 暂留）
+  board:         Board,         -- 物理分区：仅 cards + regions
   facts:         Facts,         -- Proposition · Gain · Chronicle
   constraints:   Constraints,   -- Endomorphism（Policy）
   limits:        LimitStore,    -- 能力/配额已用次数（Quota）
   framework:     Framework,     -- 回合/场景游标（Clock）
+  seats:         Map<CardId, Seat>,  -- 席位经济/结局（玩家抽象）
   audience:      Map<CardId, Audience>,  -- Permission；不计 CREATED
   next_id:       Int
 }
@@ -41,16 +42,17 @@ Data = {
 
 | 分区 | 判据 | 丢了 |
 |---|---|---|
-| **board** | 看得见的桌上实体（+ seats 暂留） | 物理局面坏 |
+| **board** | 看得见的桌上实体（卡/区/token/形态） | 物理局面坏 |
 | **facts** | 非物理但「为真」的断言 | 交战/拥有/记住丢 |
 | **constraints** | 改写 query/legal/plan/原流程的态射 | lasting/cannot/延时丢 |
 | **limits** | 次数/配额已用计数与占用 | Limit once / Max in play 坏 |
 | **framework** | round / 主·当前调查员 / 场景·密谋游标 | 框架钟坏 |
+| **seats** | 标准行动预算 / eliminated / resigned | 席位经济坏 |
 | **audience** | 谁可见哪面 | 权限坏；**非**结算 |
 | **derived** | 由 Data(+run.focus) 可重建 | 可 rebuild |
 | **run** | 手续游标与步间指称 | 手续结束可清 |
 
-**CREATED** = dry-run 写入 **Data** 结算排序（Board ∨ Facts ∨ Constraints ∨ Limits ∨ Framework ∨ Chronicle）；**Audience 除外**。  
+**CREATED** = dry-run 写入 **Data** 结算排序（Board ∨ Facts ∨ Constraints ∨ Limits ∨ Framework ∨ Seats ∨ Chronicle）；**Audience 除外**。  
 口语「世界」= **整个 Data**；**禁止**把 Board 叫成世界。
 
 ---
@@ -60,17 +62,15 @@ Data = {
 ```text
 Board = {
   cards:          Map<CardId, Card>,
-  regions:        Map<RegionId, Region>,
-  seats:          Map<CardId, Seat>
+  regions:        Map<RegionId, Region>
 }
--- 禁止 limits / framework 进 Board
+-- 禁止 limits / framework / seats 进 Board
 ```
 
 | 键 | 说明 |
 |---|---|
 | `cards` | 卡脊骨（身份·控制·形态③）；放置只在 regions |
 | `regions` | **唯一放置面**：卡序① + token 堆② |
-| `seats` | 回合经济与退场/撤退（非放置；暂留 Board，可再升 Clock） |
 
 **不设** `board.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
 
@@ -107,12 +107,14 @@ Card = {
 | `exhausted` | `Bool` | 横置（形态③） |
 | `connections` | `Array<String>` | 地点连通（拓扑，不是区内实体） |
 
-**已迁出 Card**：席位态 → `board.seats`；放置指针 → 仅 `board.regions`（旧 `owned_regions` 升 **derived**）。  
+**已迁出 Card**：席位态 → `data.seats`；放置指针 → 仅 `board.regions`（旧 `owned_regions` 升 **derived**）。  
 **已删**：`display_order`——同区展示序以 `Region.card_ids` 序为准。
 
 **`CardType`**：`"investigator"` \| `"asset"` \| `"event"` \| `"skill"` \| `"enemy"` \| `"treachery"` \| `"location"` \| `"act"` \| `"agenda"`
 
-### 1.1.1 `Seat`（调查员席位态 · ∈ World）
+### 1.1.1 `data.seats` — Seat（席位 · 非物理）
+
+**不在 Board。** 玩家/调查员席位抽象（标准行动预算 + 结局标志），不是 Placement/Measure/Form。
 
 每个在场（或已退场仍占座）的调查员一条；键 = 该调查员 **卡 id**（与 `board.cards` 中 `card_type=investigator` 对齐）。
 
@@ -127,13 +129,13 @@ Seat = {
 键 = 调查员卡 id；**不**再存 `investigator_id` 字段（与 map 键双源）。  
 **已删** `actions_bonus_next_turn` / `actions_penalty_next_turn`（跨回合 deferred 不进 Seat）。
 
-| 为何不在 Card | |
+| 为何不在 Card / Board | |
 |---|---|
-| 标准行动预算 | 框架/席位机，非卡形态或放置 |
+| 标准行动预算 | 席位机，非卡形态或放置 |
 | 退场/撤退 | 冒险内结局标志，与 face/exhausted/区成员正交 |
-| 查询 | `board.seats[inv_id].actions_remaining`，不读 `board.cards[inv]` |
+| 查询 | `data.seats[inv_id].actions_remaining`，不读 `board.cards[inv]` |
 
-`data.framework.active_investigator_id` / `lead_investigator_id` 是 Clock 游标；**标准预算与结局**在 `board.seats`。
+`data.framework.active_investigator_id` / `lead_investigator_id` 是 Clock 游标；**标准预算与结局**在 `data.seats`。
 
 #### 行动经济三分法（Seat vs Constraints vs Run）
 
@@ -467,7 +469,7 @@ Framework = {
 | `doom_threshold` | Catalog（当前密谋 definition） | 印刷规格外置 |
 | `scenario_reference_id` | 冒险装载 / Catalog 绑定 | 非回合游标；需要时另字段，不塞 Framework |
 | `phase_id`（Mythos/Action…） | `run.timing_phase` | 执行信封相位；手续内临时步更在 `Run.stack` |
-| 席位行动 / eliminated | `board.seats` | 已离 Card，也不进 Framework |
+| 席位行动 / eliminated | `data.seats` | 已离 Card/Board，也不进 Framework |
 
 ---
 
@@ -721,7 +723,7 @@ Key =
 | QueryFp | `query:enemies_on:<loc>` | 地点 `on` 等投影 |
 | Reg | `reg:<id>` | `facts.relations[id]` 或 `constraints.policies[id]` |
 | RegAspect | `aspect:fight` | 索引 / 多条登记 |
-| SeatField | `seat:<inv>:actions_remaining` | `board.seats[inv]…` |
+| SeatField | `seat:<inv>:actions_remaining` | `data.seats[inv]…` |
 | FrameworkField | `fw:active_investigator_id` | `data.framework…` |
 | LimitCounter | `limit:<limit_key>` | `data.limits…` |
 | ChronicleKey | `chron:remembered:<k>` | `facts.chronicle.remembered[k]` |
@@ -781,7 +783,6 @@ Snapshot {
     next_id: 8
     board: {
       cards: { "I": { card_type:"investigator", … }, "L": { … } }
-      seats: { "I": { actions_remaining:3, … } }
       regions: {
         "hand_I":  { host_card_id:"I", host_player_id:"", place:"hand", … }
         "pool_P1": { host_card_id:"", host_player_id:"P1", place:"resource_pool",
@@ -797,6 +798,7 @@ Snapshot {
     constraints: { policies:{} }
     limits: { counters:{}, occupancies:{} }
     framework: { round:1, lead_investigator_id:"I", … }
+    seats: { "I": { actions_remaining:3, … } }
     audience: { … }
   }
   derived: { … }
@@ -848,3 +850,4 @@ Snapshot {
 | 2026-11-26 | v0.39：Seat 删 bonus/penalty_next_turn；跨回合 deferred → Constraints OnTiming @ turn begin；行动经济三分法 |
 | 2026-11-26 | v0.40：`LimitStore` 升出 Board → `data.limits`（非物理 Clock 旁路） |
 | 2026-11-26 | v0.41：`Framework` 升出 Board → `data.framework`（Clock）；Board 不再含 framework |
+| 2026-11-26 | v0.42：`seats` 升出 Board → `data.seats`；Board 只留 cards+regions |
