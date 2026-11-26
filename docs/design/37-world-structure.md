@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.37 · 2026-11-26  
+> **状态**：设计草案 v0.38 · 2026-11-26  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -75,7 +75,7 @@ Board = {
 
 **Token 本质**：只表示 **堆键 + 数量**；是放置的**终端**。
 
-放置权威只在 **`board.regions`**（`host_card_id` + `place`）。**禁止** Card 再存 `owned_regions`。  
+放置权威只在 **`board.regions`**（`host_card_id` **或** `host_player_id` + `place`）。**禁止** Card 再存 `owned_regions`。  
 **禁止**用规则术语 **slot** 给区命名。禁止 `Card.markers` / `location_id` / `engaged_with`。
 
 ---
@@ -138,53 +138,53 @@ Seat = {
 #### 推荐放置名（`Region.place`）
 
 按 **放置面角色** 开区，不按 token 种类开。伤/恐/线索/毁灭/充能/封印混乱… 同进宿主 `tokens` 的 `token_stacks`，靠堆键区分。  
-**例外**：每位调查员的 **资源池** 是独立 `place=resource_pool` 区——**不**写进调查员卡的 `tokens`（纸面资源不放在调查员卡牌身上）。
+**例外**：**玩家资源池** 是独立 `place=resource_pool` 区——归属 **玩家**（`host_player_id`），**不**绑调查员卡，**不**写进任何卡的 `tokens`。
 
 **`place` ≠ 规则资产槽（slot）**：Hand/Ally/Arcane/Body… 是进场占用约束，另模；不要写成 `Region.place`。
 
-| place | 谁有 | 区内存什么 |
+| place | 谁有（宿主键） | 区内存什么 |
 |---|---|---|
-| `hand` / `deck` / `discard` / `play` / `threat` | investigator | 卡 |
-| `resource_pool` | investigator（每位一条） | **该调查员的资源池**：`token_stacks["resource"]`；**不是**卡上 token |
-| `tokens` | 会承 token 的卡 | **该宿主卡上** token 堆（伤/恐/线索/毁灭/充能/**封印的混乱符号**/卡上放置的 resource…） |
-| `on` | location | **物理放在该地点上的**调查员/敌人卡 id（放置，非绑定） |
-| `attachments` / `under` / `beside` | 任意宿主 | 附着/垫下/旁置的卡 |
-| `chaos` | 冒险公共 | 混乱袋（堆） |
+| `hand` / `deck` / `discard` / `play` / `threat` | 卡宿主 `host_card_id`=investigator | 卡 |
+| `resource_pool` | **玩家** `host_player_id`（每位玩家一条） | **该玩家的资源池**：`token_stacks["resource"]`；**不是**卡上 token |
+| `tokens` | 卡宿主 `host_card_id` | **该宿主卡上** token 堆（伤/恐/线索/毁灭/充能/**封印的混乱符号**/卡上放置的 resource…） |
+| `on` | location 卡 | **物理放在该地点上的**调查员/敌人卡 id（放置，非绑定） |
+| `attachments` / `under` / `beside` | 任意卡宿主 | 附着/垫下/旁置的卡 |
+| `chaos` | 冒险公共（宿主空） | 混乱袋（堆） |
 | `revealed`（可选） | 公共 | 检定中已揭示、尚未归袋/封印的混乱堆（中性放置；≠ 另类 token） |
 | `encounter_deck` / `encounter_discard` | 公共 | 卡 |
 
 **不要**开 `sealed` / `augury` 专用放置面：封印在卡上的混乱与伤/线索同质——都是宿主 `tokens` 里的 `token_stacks` 键；检定揭示若需桌上堆，只用一个公共 `revealed`（术语「占兆」可作该区 **id**，不必新 place）。  
 **不要**开 `token_supply` 区：运算端点 `$supply` 即可。
 
-读「调查员资源池有多少」= 该调查员 `place=resource_pool` 区的 `token_stacks["resource"]`（**不是** `tokens`）。  
+读「玩家资源池有多少」= 该玩家 `place=resource_pool` 区的 `token_stacks["resource"]`（**不是** `tokens`，**不是**调查员 CardId）。  
 读「某卡上有多少伤 / 封印了几个 skull / 卡上放了几个 resource」= 该宿主 `place=tokens` 区的 `token_stacks[…]`。  
 读「伤」同区——**不要**再开 `damage`/`horror`/`sealed` 放置面；资源池单独用 `resource_pool`。  
 读「调查员物理在哪」= 哪个地点的 **`on`** 区的 `card_ids` 含该 id（派生索引可加速）。  
 **禁止**用 `at` 作地点放置名：`at` 留给绑定关系；`on` 才是物理放置。  
-「交战」= **Facts.Relation** `Engagement`，不进 Card 字段、不进 `on`；威胁区是 World 区成员。
+「交战」= **Facts.Relation** `Engagement`，不进 Card 字段、不进 `on`；威胁区是 Board 区成员。
 
-#### 资源池（resource pool）——独立区；唯一源
+#### 资源池（resource pool）——玩家归属；独立区；唯一源
 
-旧 Godot `InvestigatorState.resource_pool` / 07 `MarkerSlot.RESOURCE` 在本结构中的落点：
+旧 Godot `InvestigatorState.resource_pool` / 07 `MarkerSlot.RESOURCE` 在本结构中的落点（**FAQ 纠正**：绑**玩家**，勿绑调查员卡）：
 
 | 口语 | 权威落点 | 不是 |
 |---|---|---|
-| 调查员的资源池 | **独立** `Region`：`host_card_id=调查员` · `place=resource_pool` · `token_stacks["resource"]` | **不是**调查员卡 `tokens`；**不是** `Seat` 字段；**不是** Card 标量 |
+| **玩家**资源池 | **独立** `Region`：`host_player_id=玩家` · `host_card_id=""` · `place=resource_pool` · `token_stacks["resource"]` | **不是**调查员卡宿主；**不是**调查员卡 `tokens`；**不是** `Seat` 字段；**不是** Card 标量 |
 | 盒中无穷供应（gain/spend 的池端） | Intent 端点 `$supply`（`TOKEN_SUPPLY`） | **不**在 Snapshot 里存库存计数 |
 | 卡上放置的 resource（支援 uses 等） | 该宿主卡 `place=tokens` 的 `token_stacks["resource"]` | 与资源池分源；勿混读 |
 | 地点上的线索等 | 地点宿主 `tokens` 堆 | 同理勿开 `clues_on_location` 字段 |
 
-`host_card_id` 只表示 **归属**（与 `hand`/`deck` 同形），**不**表示「token 放在调查员卡面上」。每位调查员恰好一条 `resource_pool` 区（例 id `pool_I`）。
+每位玩家恰好一条 `resource_pool` 区（例 id `pool_P1`）。`host_player_id` 与席位/玩家 id 对齐；**禁止**用调查员 `CardId` 作该区 host。
 
 读写例：
 
 ```text
-读：  regions[host=I, place=resource_pool].token_stacks["resource"]
-得：  TransferToken { type:"resource", n, from:"$supply", to: pool_I }
-花：  TransferToken { type:"resource", n, from: pool_I, to:"$supply" }
+读：  regions[host_player=P1, place=resource_pool].token_stacks["resource"]
+得：  TransferToken { type:"resource", n, from:"$supply", to: pool_P1 }
+花：  TransferToken { type:"resource", n, from: pool_P1, to:"$supply" }
 ```
 
-对齐 [07 §5.2](07-effect-primitives.md) Transfer-only：`POOL_RESOURCE → inv.RESOURCE` / 回池；FP 里 `inv.RESOURCE` = 该席的 `resource_pool` 区，而非卡上 `tokens`。
+对齐 [07 §5.2](07-effect-primitives.md) Transfer-only：`POOL_RESOURCE → player.RESOURCE` / 回池；FP 里玩家 RESOURCE = 该玩家的 `resource_pool` 区，而非任何卡上 `tokens`。
 
 ---
 
@@ -194,19 +194,22 @@ Seat = {
 Region = {
   id:             String,
   shape:          RegionShape,
-  host_card_id:   String,
+  host_card_id:   String,              -- 卡宿主；玩家宿主/公共为 ""
+  host_player_id: String,              -- 玩家宿主（resource_pool）；卡宿主/公共为 ""
   place:          String,              -- 放置面角色；≠ 资产槽 slot
   card_ids:       Array<String>,
   token_stacks:   Map<String, Int>,    -- type → count；token 的唯一权威
   limbo_kind:     LimboKind
 }
+-- 宿主互斥：卡宿主 | 玩家宿主 | 公共（二者皆空）；禁止双填
 ```
 
 | 键 | 类型 | 说明 |
 |---|---|---|
 | `id` | `String` | 区 id |
 | `shape` | `RegionShape` | `"deck"` \| `"flat"` \| `"bag"` |
-| `host_card_id` | `String` | 宿主卡；公共 `""` |
+| `host_card_id` | `String` | 卡宿主；玩家宿主/公共 `""` |
+| `host_player_id` | `String` | 玩家宿主（`resource_pool`）；**不是**调查员 CardId；卡宿主/公共 `""` |
 | `place` | `String` | 放置面角色；**不是**资产槽 |
 | `card_ids` | `Array<String>` | 卡序；`"deck"` 时 `[0]` 为顶 |
 | `token_stacks` | `Map<String, Int>` | **全部** token（含仅 1 枚的） |
@@ -757,10 +760,10 @@ Snapshot {
       cards: { "I": { card_type:"investigator", … }, "L": { … } }
       seats: { "I": { actions_remaining:3, … } }
       regions: {
-        "hand_I":  { host_card_id:"I", place:"hand", … }
-        "pool_I":  { host_card_id:"I", place:"resource_pool",
+        "hand_I":  { host_card_id:"I", host_player_id:"", place:"hand", … }
+        "pool_P1": { host_card_id:"", host_player_id:"P1", place:"resource_pool",
                      token_stacks:{ "resource":5 }, … }
-        "tok_I":   { host_card_id:"I", place:"tokens",
+        "tok_I":   { host_card_id:"I", host_player_id:"", place:"tokens",
                      token_stacks:{ "damage":0, "horror":0 }, … }
         "on_L":    { host_card_id:"L", place:"on", card_ids:["I"], … }
         "tok_L":   { host_card_id:"L", place:"tokens", token_stacks:{ "clue":1 }, … }
@@ -818,3 +821,4 @@ Snapshot {
 | 2026-11-25 | v0.32：标明 resource pool = 宿主 `tokens` 的 `resource` 堆 + `$supply`；非 Seat/独立区 |
 | 2026-11-25 | v0.33：纠正 — 资源池 = 独立 `place=resource_pool` 区（非调查员卡 `tokens`）；卡上 resource 仍走 `tokens` |
 | 2026-11-26 | v0.37：对齐 38 — Auth→Data；物理袋 World→Board；实例/读写表字段同步；废「窄世界」称谓 |
+| 2026-11-26 | v0.38：资源池归属改为 `host_player_id`（玩家）；禁止用调查员 CardId 作 host |

@@ -152,7 +152,11 @@ pub enum Face {
 pub struct Region {
     pub id: RegionId,
     pub shape: RegionShape,
+    /// Card-hosted regions (hand/deck/tokens/on/…). Empty when player-hosted or public.
     pub host_card_id: String,
+    /// Player-hosted regions (`resource_pool`). Empty when card-hosted or public.
+    /// Never the investigator CardId — pool belongs to the player/seat, not the inv card.
+    pub host_player_id: String,
     /// Placement-face role; ≠ asset slot.
     pub place: String,
     pub card_ids: Vec<CardId>,
@@ -167,6 +171,7 @@ impl Default for Region {
             id: String::new(),
             shape: RegionShape::Flat,
             host_card_id: String::new(),
+            host_player_id: String::new(),
             place: String::new(),
             card_ids: Vec::new(),
             token_stacks: BTreeMap::new(),
@@ -560,7 +565,7 @@ pub struct SkillTest {
 }
 
 impl Snapshot {
-    /// Region owned by `host_card_id` with the given place role (data = regions only).
+    /// Card-hosted region with the given place role (`host_card_id` + `place`).
     pub fn region_for_place(&self, host_card_id: &str, place: &str) -> Option<&Region> {
         self.data.board.regions.values().find(|r| {
             r.host_card_id == host_card_id && r.place == place
@@ -577,6 +582,27 @@ impl Snapshot {
         })
     }
 
+    /// Player-hosted region (`host_player_id` + `place`); used by `resource_pool`.
+    pub fn region_for_player_place(&self, host_player_id: &str, place: &str) -> Option<&Region> {
+        self.data.board.regions.values().find(|r| {
+            r.host_player_id == host_player_id && r.place == place
+        })
+    }
+
+    pub fn region_id_for_player_place(
+        &self,
+        host_player_id: &str,
+        place: &str,
+    ) -> Option<&RegionId> {
+        self.data.board.regions.iter().find_map(|(id, r)| {
+            if r.host_player_id == host_player_id && r.place == place {
+                Some(id)
+            } else {
+                None
+            }
+        })
+    }
+
     /// Token count on a card's `tokens` place (0 if missing).
     pub fn token_on_card(&self, card_id: &str, token_type: &str) -> i32 {
         self.region_for_place(card_id, "tokens")
@@ -584,17 +610,17 @@ impl Snapshot {
             .unwrap_or(0)
     }
 
-    /// Investigator resource-pool count — independent `place=resource_pool` region
-    /// (not the investigator card's `tokens` place; former Godot `resource_pool` scalar).
-    pub fn resources_of(&self, investigator_id: &str) -> i32 {
-        self.region_for_place(investigator_id, "resource_pool")
+    /// Player resource-pool count — independent `place=resource_pool` region
+    /// keyed by **player** id (not investigator CardId; not card `tokens`).
+    pub fn resources_of(&self, player_id: &str) -> i32 {
+        self.region_for_player_place(player_id, "resource_pool")
             .and_then(|r| r.token_stacks.get("resource").copied())
             .unwrap_or(0)
     }
 
-    /// Region id of an investigator's resource pool, if present.
-    pub fn resource_pool_region_id(&self, investigator_id: &str) -> Option<&RegionId> {
-        self.region_id_for_place(investigator_id, "resource_pool")
+    /// Region id of a player's resource pool, if present.
+    pub fn resource_pool_region_id(&self, player_id: &str) -> Option<&RegionId> {
+        self.region_id_for_player_place(player_id, "resource_pool")
     }
 
     /// Location card whose `on` region contains `card_id`.

@@ -285,7 +285,8 @@ mod tests {
                 id: "I".into(),
                 definition_id: "01001".into(),
                 card_type: CardType::Investigator,
-                controller_id: "I".into(),
+                owner_id: "P1".into(),
+                controller_id: "P1".into(),
                 face: Face::A,
                 ..Card::default()
             },
@@ -306,19 +307,20 @@ mod tests {
                 id: "C1".into(),
                 definition_id: "06111".into(),
                 card_type: CardType::Skill,
-                owner_id: "I".into(),
-                controller_id: "I".into(),
+                owner_id: "P1".into(),
+                controller_id: "P1".into(),
                 ..Card::default()
             },
         );
 
         let mut regions = BTreeMap::new();
+        // Resource pool binds to **player** P1 — not investigator card I.
         regions.insert(
-            "pool_I".into(),
+            "pool_P1".into(),
             Region {
-                id: "pool_I".into(),
+                id: "pool_P1".into(),
                 place: "resource_pool".into(),
-                host_card_id: "I".into(),
+                host_player_id: "P1".into(),
                 token_stacks: BTreeMap::from([("resource".into(), 5)]),
                 ..Region::default()
             },
@@ -429,9 +431,17 @@ mod tests {
     #[test]
     fn resource_pool_is_independent_region_not_card_tokens() {
         let s0 = mini_snap();
-        assert_eq!(s0.resources_of("I"), 5);
-        assert_eq!(s0.resource_pool_region_id("I"), Some(&"pool_I".to_string()));
-        // Not on investigator card tokens; Seat has no resource field.
+        assert_eq!(s0.resources_of("P1"), 5);
+        assert_eq!(
+            s0.resource_pool_region_id("P1"),
+            Some(&"pool_P1".to_string())
+        );
+        // Bound to player, not investigator CardId; not on card tokens; Seat has no resource field.
+        assert!(s0.resource_pool_region_id("I").is_none());
+        assert!(s0.region_for_place("I", "resource_pool").is_none());
+        let pool = s0.data.board.regions.get("pool_P1").unwrap();
+        assert_eq!(pool.host_player_id, "P1");
+        assert!(pool.host_card_id.is_empty());
         assert_eq!(s0.token_on_card("I", "resource"), 0);
         assert_eq!(s0.data.board.seats["I"].actions_remaining, 3);
         let s1 = commit(
@@ -439,12 +449,12 @@ mod tests {
             &[Intent::TransferToken {
                 token_type: "resource".into(),
                 amount: 2,
-                from_region: "pool_I".into(),
+                from_region: "pool_P1".into(),
                 to_region: TOKEN_SUPPLY.into(),
             }],
         )
         .unwrap();
-        assert_eq!(s1.resources_of("I"), 3);
+        assert_eq!(s1.resources_of("P1"), 3);
         assert_eq!(s1.token_on_card("I", "resource"), 0);
         assert_eq!(s1.data.board.seats["I"].actions_remaining, 3);
     }
@@ -452,7 +462,7 @@ mod tests {
     #[test]
     fn place_damage_from_supply() {
         let s0 = mini_snap();
-        assert_eq!(s0.resources_of("I"), 5);
+        assert_eq!(s0.resources_of("P1"), 5);
         let s1 = commit(
             s0,
             &[Intent::TransferToken {
@@ -464,7 +474,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(s1.token_on_card("I", "damage"), 1);
-        assert_eq!(s1.resources_of("I"), 5);
+        assert_eq!(s1.resources_of("P1"), 5);
         assert_eq!(s1.gen, 2);
     }
 

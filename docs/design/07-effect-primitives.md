@@ -289,7 +289,7 @@ class InsertIndex:
 ```gdscript
 enum MarkerKind {
     DAMAGE, HORROR, DOOM, CLUE,
-    RESOURCE,                      # investigator.resource_pool
+    RESOURCE,                      # player resource_pool（FP：host_player_id；≠调查员卡）
     ACTION,                        # investigator.actions_remaining（本回合）
     USES,                          # sub_key = "ammo" | "charges" | ...
     SHROUD,                        # location.shroud（revealed 后）
@@ -315,7 +315,8 @@ enum BearerKind {
 | MarkerKind | 存储位置 |
 |---|---|
 | DAMAGE / HORROR / DOOM / CLUE / USES | `CardInstance.tokens` |
-| RESOURCE / ACTION / CLUES_ON_INVESTIGATOR | `InvestigatorState` 对应字段 |
+| RESOURCE | Godot 旧：`InvestigatorState.resource_pool`；**FP**：[37](37-world-structure.md) `host_player_id` 的 `resource_pool` 区（绑**玩家**，非调查员卡） |
+| ACTION / CLUES_ON_INVESTIGATOR | `InvestigatorState` 对应字段（FP：ACTION→`seats`；线索在卡 `tokens`） |
 | CLUES_ON_LOCATION / SHROUD | `LocationState` |
 | DOOM_ON_AGENDA | `GameStateStore.doom_on_agenda` |
 | POOL_* | `GameStateStore.global_token_pool` |

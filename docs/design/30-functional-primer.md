@@ -125,7 +125,7 @@ data = {
 
 `card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
 
-**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。每位调查员的 **资源池** 是独立 `place=resource_pool` 区（`token_stacks["resource"]` + 盒端 `$supply`）——**不**放在调查员卡 `tokens` 上，也 **不是**席位字段。物理所在地点 = 某地点 `on` 区的成员。交战 = `facts.relations` · Engagement（威胁区是物理区成员；庞大虚拟默认派生）。
+**不设** `markers` / `location_id` / `engaged_with`。伤/恐/线索/封印混乱等在宿主 `place=tokens` 区的 `token_stacks`（不另开 sealed）。每位**玩家**的 **资源池** 是独立 `place=resource_pool` 区（`host_player_id` + `token_stacks["resource"]` + 盒端 `$supply`）——**绑玩家**，**不**绑调查员卡，**不**放在任何卡 `tokens` 上，也 **不是**席位字段。物理所在地点 = 某地点 `on` 区的成员。交战 = `facts.relations` · Engagement（威胁区是物理区成员；庞大虚拟默认派生）。
 
 地点是否已揭示用 `face`：未揭示 `"A"`，已揭示 `"B"`。
 
@@ -135,17 +135,19 @@ data = {
 
 ```text
 区 = {
-  id:            字符串
-  shape:         枚举     "deck" | "flat" | "bag"
-  host_card_id:  字符串   宿主卡 id；公共区为 ""
-  place:         字符串   放置面角色（≠ 资产槽 slot）
-  card_ids:      数组     卡 id
-  token_stacks:  字典     类型 → 数量
-  limbo_kind:    字符串   "resolving" | "committed" | ""
+  id:             字符串
+  shape:          枚举     "deck" | "flat" | "bag"
+  host_card_id:   字符串   卡宿主；玩家宿主/公共为 ""
+  host_player_id: 字符串   玩家宿主（resource_pool）；卡宿主/公共为 ""
+  place:          字符串   放置面角色（≠ 资产槽 slot）
+  card_ids:       数组     卡 id
+  token_stacks:   字典     类型 → 数量
+  limbo_kind:     字符串   "resolving" | "committed" | ""
 }
+-- 宿主互斥：卡 | 玩家 | 公共
 ```
 
-`shape = "deck"` 时，`card_ids[0]` 是顶。
+`shape = "deck"` 时，`card_ids[0]` 是顶。资源池用 `host_player_id`，勿填调查员卡 id。
 
 #### Data 分区：Board / Facts / Constraints
 
@@ -197,7 +199,7 @@ data = {
     regions: {
       "deck_I": { place:"deck", host_card_id:"I", card_ids:["C1"], … }
       "hand_I": { place:"hand", host_card_id:"I", … }
-      "pool_I": { place:"resource_pool", host_card_id:"I",
+      "pool_P1":{ place:"resource_pool", host_player_id:"P1",
                   token_stacks:{ "resource":5 } }
       "tok_I":  { place:"tokens", host_card_id:"I",
                   token_stacks:{ "damage":0, "horror":0 } }
