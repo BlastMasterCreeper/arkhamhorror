@@ -105,13 +105,14 @@ impl Default for Card {
     }
 }
 
-/// Investigator seat — turn economy and scenario outcome flags (not Card spine).
+/// Investigator seat — standard action budget this turn + scenario outcome flags.
 /// Map key in `Board.seats` = investigator card id (no redundant investigator_id field).
+///
+/// Cross-turn gain/lose and same-turn additional actions are **not** Seat fields:
+/// they live in `Constraints` (OnTiming lasting @ turn begin / Grant WHILE_IN_PLAY).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Seat {
     pub actions_remaining: i32,
-    pub actions_bonus_next_turn: i32,
-    pub actions_penalty_next_turn: i32,
     pub eliminated: bool,
     pub resigned: bool,
 }
@@ -120,8 +121,6 @@ impl Seat {
     pub fn fresh(actions: i32) -> Self {
         Self {
             actions_remaining: actions,
-            actions_bonus_next_turn: 0,
-            actions_penalty_next_turn: 0,
             eliminated: false,
             resigned: false,
         }

@@ -192,7 +192,7 @@ func begin_round() -> void:
 
 ### 5.3 Investigation 2.2.x
 
-- 2.2：调查员自选顺序；`actions_remaining = 3 + bonus - penalty`
+- 2.2：调查员自选顺序；`actions_remaining = 3`，再结算 Constraints 跨回合 deferred（OnTiming @ turn begin）
 - 2.2.1：`ActionSystem.execute`；若 actions > 0 且玩家选择继续 → 回到 `PW_BEFORE_ACTION`
 - 2.2.2：forfeit 剩余 actions；标记 turn 结束
 

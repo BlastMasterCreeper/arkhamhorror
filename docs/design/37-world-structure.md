@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.38 · 2026-11-26  
+> **状态**：设计草案 v0.39 · 2026-11-26  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -117,23 +117,33 @@ Card = {
 
 ```text
 Seat = {
-  actions_remaining:         Int,     -- 本回合剩余行动
-  actions_bonus_next_turn:   Int,     -- 下回合额外行动（跨回合；亦可日后改 Register）
-  actions_penalty_next_turn: Int,     -- 下回合惩罚（与现有 InvestigatorState 对齐）
-  eliminated:                Bool,
-  resigned:                  Bool
+  actions_remaining: Int,   -- 本回合「标准」剩余（付费扣这里）
+  eliminated:        Bool,
+  resigned:          Bool
 }
 ```
 
-键 = 调查员卡 id；**不**再存 `investigator_id` 字段（与 map 键双源）。
+键 = 调查员卡 id；**不**再存 `investigator_id` 字段（与 map 键双源）。  
+**已删** `actions_bonus_next_turn` / `actions_penalty_next_turn`（跨回合 deferred 不进 Seat）。
 
 | 为何不在 Card | |
 |---|---|
-| 回合经济 | 框架/席位机，非卡形态或放置 |
+| 标准行动预算 | 框架/席位机，非卡形态或放置 |
 | 退场/撤退 | 冒险内结局标志，与 face/exhausted/区成员正交 |
 | 查询 | `board.seats[inv_id].actions_remaining`，不读 `board.cards[inv]` |
 
-`board.framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**经济与结局**在 `board.seats`。
+`board.framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**标准预算与结局**在 `board.seats`。
+
+#### 行动经济三分法（Seat vs Constraints vs Run）
+
+| # | 形态 | 落点 | Seat？ |
+|---|---|---|---|
+| **标准** | 回合开始 3；付费扣减 | `Seat.actions_remaining` | 是 |
+| **#1 本回合 additional** | Daisy/Trish 等（± qualifier） | Constraints Grant；Constant → `WHILE_IN_PLAY` 绑来源；FAQ 1.10 匹配扣 Grant | 否 |
+| **#2 跨回合 deferred** | 回合外 gain/lose；显式 next turn ±action | Constraints **OnTiming lasting @ 该调查员 turn begin**：并入标准预算后 unregister | 否 |
+| **#3 立刻 take action** | Ursula/Haste | Run 立刻 nest 发起（FAQ 2.19）；不改 Seat 预算 | 否 |
+
+回合开始（INV 2.2）：`actions_remaining := 3`，再结算该席仍挂着的 **#2 OnTiming**（各 ±N 写入 Seat 后卸），再挂载仍有效的 **#1 Grant**。
 
 #### 推荐放置名（`Region.place`）
 
@@ -411,6 +421,8 @@ ListenerPayload = { timing, composition }
 ```
 
 印刷 Forced/反应仍是 AbilitySpec，**不是** OnTiming。
+
+**跨回合 deferred（#2）**：`kind: on_timing`，`timing` = 该调查员 turn begin；`composition` 把 ±N 并入 `Seat.actions_remaining` 后 `CompanionRemove` 自身。寿命到该次 turn begin（消费一次）。**禁止**再把 bonus/penalty 压成 Seat 标量。
 
 结算 Intent：`FactInsert` / `ConstraintInsert` / `CompanionRemove`（+ 物理族）。**不**按 Policy 种拆 `seq.effect.*`。
 
@@ -822,3 +834,4 @@ Snapshot {
 | 2026-11-25 | v0.33：纠正 — 资源池 = 独立 `place=resource_pool` 区（非调查员卡 `tokens`）；卡上 resource 仍走 `tokens` |
 | 2026-11-26 | v0.37：对齐 38 — Auth→Data；物理袋 World→Board；实例/读写表字段同步；废「窄世界」称谓 |
 | 2026-11-26 | v0.38：资源池归属改为 `host_player_id`（玩家）；禁止用调查员 CardId 作 host |
+| 2026-11-26 | v0.39：Seat 删 bonus/penalty_next_turn；跨回合 deferred → Constraints OnTiming @ turn begin；行动经济三分法 |

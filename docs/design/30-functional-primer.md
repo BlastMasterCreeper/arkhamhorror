@@ -115,12 +115,12 @@ data = {
 
 ```text
 席位 = {
-  actions_remaining:        整型
-  actions_bonus_next_turn:  整型
-  actions_penalty_next_turn:整型
-  eliminated:               布尔
-  resigned:                 布尔
+  actions_remaining: 整型   -- 本回合标准剩余
+  eliminated:        布尔
+  resigned:          布尔
 }
+-- 跨回合 ±action → Constraints OnTiming @ turn begin（不进 Seat）
+-- 本回合 additional → Constraints Grant（WHILE_IN_PLAY 等）；立刻 take → Run nest
 ```
 
 `card_type` 取值：`"investigator"`、`"asset"`、`"event"`、`"skill"`、`"enemy"`、`"treachery"`、`"location"`、`"act"`、`"agenda"`。
