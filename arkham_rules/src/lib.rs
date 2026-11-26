@@ -14,8 +14,8 @@ pub use eff::{
 };
 pub use intent::{commit, engagement_relation, Intent};
 pub use world::{
-    AssignConstraintBody, Auth, Audience, Card, CardType, Chronicle, Constraints, DirectivePayload,
-    Face, Facts, Feasibility, Focus, Framework, GatePayload, GateScope, InfoShell, LimboKind,
-    ListenerPayload, ModifierPayload, Policy, PolicyBody, PolicyKind, Region, RegionShape,
-    Relation, RelationBody, Run, Seat, Snapshot, Subject, World, TOKEN_SUPPLY,
+    AssignConstraintBody, Audience, Board, Card, CardType, Chronicle, Constraints, Data,
+    DirectivePayload, Face, Facts, Feasibility, Focus, Framework, GatePayload, GateScope, InfoShell,
+    LimboKind, ListenerPayload, ModifierPayload, Policy, PolicyBody, PolicyKind, Region,
+    RegionShape, Relation, RelationBody, Run, Seat, Snapshot, Subject, TOKEN_SUPPLY,
 };

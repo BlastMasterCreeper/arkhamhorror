@@ -11,22 +11,22 @@ pub type RegId = String;
 /// Not required as a real `Region` entry; from-side never insufficient, to-side does not grow stacks.
 pub const TOKEN_SUPPLY: &str = "$supply";
 
-/// Whole functional operand: auth ⊕ derived ⊕ run ⊕ gen.
+/// Snapshot = data ⊕ derived ⊕ run ⊕ gen.
 ///
-/// Auth = World × Facts × Constraints (+ Audience bypass). Catalog is external.
-/// Narrow **World** = physical only; lasting/cannot/+N live in **Constraints**.
+/// **Data** = World_FP (38) = Board × Facts × Constraints (+ Audience).
+/// **Board** = physical partition only — not the functional world.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Snapshot {
-    pub auth: Auth,
+    pub data: Data,  // World_FP
     pub derived: Derived,
     pub run: Run,
     pub gen: u64,
 }
 
-/// Authoritative companion: World × Facts × Constraints (+ Audience, not CREATED).
+/// Functional world (World_FP): Board × Facts × Constraints (+ Audience, not CREATED).
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Auth {
-    pub world: World,
+pub struct Data {
+    pub board: Board,
     pub facts: Facts,
     pub constraints: Constraints,
     /// Permission bypass — authoritative but never CREATED.
@@ -34,9 +34,9 @@ pub struct Auth {
     pub next_id: u64,
 }
 
-/// Narrow world = physical board + necessary framework clock.
+/// Physical partition: cards/regions/seats + framework/limits clock.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct World {
+pub struct Board {
     pub cards: BTreeMap<CardId, Card>,
     pub regions: BTreeMap<RegionId, Region>,
     /// Investigator seat state (turn economy / eliminated / resigned). Key = investigator card id.
@@ -106,7 +106,7 @@ impl Default for Card {
 }
 
 /// Investigator seat — turn economy and scenario outcome flags (not Card spine).
-/// Map key in `Auth.seats` = investigator card id (no redundant investigator_id field).
+/// Map key in `Board.seats` = investigator card id (no redundant investigator_id field).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Seat {
     pub actions_remaining: i32,
@@ -225,7 +225,7 @@ pub struct Relation {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RelationBody {
-    /// Real or granted ("视为") engagement. Threat-area membership is separate (World regions).
+    /// Real or granted ("视为") engagement. Threat-area membership is separate (Board regions).
     Engagement {
         enemy_id: String,
         investigator_id: String,
@@ -560,15 +560,15 @@ pub struct SkillTest {
 }
 
 impl Snapshot {
-    /// Region owned by `host_card_id` with the given place role (auth = regions only).
+    /// Region owned by `host_card_id` with the given place role (data = regions only).
     pub fn region_for_place(&self, host_card_id: &str, place: &str) -> Option<&Region> {
-        self.auth.world.regions.values().find(|r| {
+        self.data.board.regions.values().find(|r| {
             r.host_card_id == host_card_id && r.place == place
         })
     }
 
     pub fn region_id_for_place(&self, host_card_id: &str, place: &str) -> Option<&RegionId> {
-        self.auth.world.regions.iter().find_map(|(id, r)| {
+        self.data.board.regions.iter().find_map(|(id, r)| {
             if r.host_card_id == host_card_id && r.place == place {
                 Some(id)
             } else {
@@ -599,7 +599,7 @@ impl Snapshot {
 
     /// Location card whose `on` region contains `card_id`.
     pub fn location_of(&self, card_id: &str) -> Option<&CardId> {
-        for (loc_id, card) in &self.auth.world.cards {
+        for (loc_id, card) in &self.data.board.cards {
             if card.card_type != CardType::Location {
                 continue;
             }
@@ -614,7 +614,7 @@ impl Snapshot {
     }
     /// Authoritative engagement Relation (not threat-area membership).
     pub fn is_engaged_with(&self, enemy_id: &str, investigator_id: &str) -> bool {
-        self.auth.facts.relations.values().any(|r| match &r.body {
+        self.data.facts.relations.values().any(|r| match &r.body {
             RelationBody::Engagement {
                 enemy_id: e,
                 investigator_id: i,
@@ -630,7 +630,7 @@ impl Snapshot {
         investigator_id: &str,
         is_massive: impl Fn(&str) -> bool,
     ) -> bool {
-        let Some(enemy) = self.auth.world.cards.get(enemy_id) else {
+        let Some(enemy) = self.data.board.cards.get(enemy_id) else {
             return false;
         };
         if enemy.exhausted || !is_massive(enemy_id) {

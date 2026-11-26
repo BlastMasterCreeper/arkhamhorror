@@ -1,11 +1,11 @@
 # 24 — 函数式 `World` 值模型（草案）
 
-> **状态**：设计草案 v0.5 · 2026-11-25  
+> **状态**：设计草案 v0.7 · 2026-11-26  
 > **依赖**：[01-game-state-zones](01-game-state-zones.md)、[07-effect-primitives](07-effect-primitives.md)、[06-registration-payload-model](06-registration-payload-model.md)、[17-seq-runtime](17-seq-runtime.md)  
 > **被依赖**：[25-functional-eff](25-functional-eff.md)（`Eff` 代数）、Intent 提交 / 纯查询投影  
 > **键名与类型总表（权威形状）**：[37-world-structure](37-world-structure.md) — 若本文与 37 冲突，**以 37 为准**。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`）。  
-> **口径**：Data = 函数世界；`auth.world`/`facts`/`constraints` 是 Data 分区；Control=`Run`；CREATED = 改 Data（Audience 可除外）。
+> **口径**：`Snapshot.data` = Data；分区 **Board × Facts × Constraints**（+ Audience）；物理袋叫 **Board**，不叫世界；Control=`Run`；CREATED = 改 Data（Audience 可除外）。
 
 ---
 
@@ -35,25 +35,25 @@ Snapshot = {
 ```
 
 ```text
-Auth（形状以 37 为准）= {
-  world:        World,         -- 窄世界：cards/regions/seats + framework/limits 钟
+Data（形状以 37 为准；≡ World_FP）= {
+  board:        Board,         -- 物理分区：cards/regions/seats + framework/limits
   facts:        Facts,         -- relations · gains · chronicle
   constraints:  Constraints,   -- policies（Fold/Guard/Divert/OnTiming）
   audience,                    -- 权限旁路；CREATED 不计
   next_id
 }
--- 混乱袋 = world.regions[place=chaos].token_stacks
+-- 混乱袋 = board.regions[place=chaos].token_stacks
 -- 检定已揭示挂 Run.skill_tests；rng 若需另议
 
 Derived = { index, feasibility }
 Run = { stack, open_choice, skill_tests, memory, timing_phase, focus }
 ```
 
-**「世界」仅 `auth.world`（窄物理）**。权威伴件 = World × Facts × Constraints。CREATED = 写入伴件任一层（Audience 除外）。详见 [37 §0](37-world-structure.md)。
+**函数世界 = `data`（整袋 Data）**。Board 只是物理分区。详见 [37 §0](37-world-structure.md) / [38](38-functional-data-world.md)。
 
 | 袋 | 分类 | 理由 |
 |---|---|---|
-| cards / regions / seats / framework / limits | **world** | 物理 + 必要钟 |
+| cards / regions / seats / framework / limits | **board** | 物理 + 必要钟 |
 | relations / gains / chronicle | **facts** | 断言与薄记事 |
 | policies | **constraints** | 运作叠层（非桌上物） |
 | FaceAudience | **audience** 旁路 | 非结算 |
@@ -63,21 +63,21 @@ Run = { stack, open_choice, skill_tests, memory, timing_phase, focus }
 
 ```text
 Catalog（外置）
-World × Facts × Constraints × Run × Catalog  →  query / plan / transit
+Data × Run × Catalog  →  query / plan / transit
 ```
 
 ---
 
-## 2. 物理三类 — 落在 `auth.world`（cards / regions / seats）
+## 2. 物理三类 — 落在 `data.board`（cards / regions / seats）
 
 与 [07 §0](07-effect-primitives.md) 对齐；形状以 [37](37-world-structure.md) 为准。
 
 | 原语类 | 权威落点（37） | 读法 |
 |---|---|---|
-| ① 区/序 | `world.regions[].card_ids` | `zone_of` · `order_in` · in-play |
-| ② 标记 | `world.regions[].token_stacks` | fold；经 `TransferToken` |
-| ③ 形态 | `world.cards[].face` / `exhausted` | 翻面 / 横置 |
-| 席位经济 / 结局 | `world.seats[]` | 行动剩余 · eliminated |
+| ① 区/序 | `board.regions[].card_ids` | `zone_of` · `order_in` · in-play |
+| ② 标记 | `board.regions[].token_stacks` | fold；经 `TransferToken` |
+| ③ 形态 | `board.cards[].face` / `exhausted` | 翻面 / 横置 |
+| 席位经济 / 结局 | `board.seats[]` | 行动剩余 · eliminated |
 
 **LIMBO**（[01 §3.5.0](01-game-state-zones.md)）：悬置区 `limbo_kind ∈ {resolving, committed}`。权威在 `regions`；`SkillTest.committed_ids` 是 **Run** 索引，须与之同步。
 
@@ -86,7 +86,7 @@ World × Facts × Constraints × Run × Catalog  →  query / plan / transit
 1. 每张卡至多出现在一个区的 `card_ids`（派生可建反向索引）。  
 2. `attachments` / `under` / `beside` 的宿主卡必须存在。  
 3. 在悬置区 ⇒ `limbo_kind` 有值；离开 ⇒ 清空。  
-4. id **单调分配、不复用** → `auth.next_id`。  
+4. id **单调分配、不复用** → `data.next_id`。  
 5. **控制权 / 所有者** 在 `Card`（`owner_id` / `controller_id`），不单立原语；转移经 Intent。
 
 ### 2.2 与现实现映射
@@ -96,11 +96,11 @@ World × Facts × Constraints × Run × Catalog  →  query / plan / transit
 | `cards` / `regions` | `PhysicalStore` 卡与区 |
 | `token_stacks` | Domain `TokenBag` / 标记计数 |
 | `seats` | `InvestigatorState` 行动/淘汰等 |
-| 交战 | `facts.relations` · Engagement（非 Card；威胁区在 world.regions） |
+| 交战 | `data.facts.relations` · Engagement（非 Card；威胁区在 world.regions） |
 
 ---
 
-## 3. `facts` / `constraints` — 伴件（非窄世界）
+## 3. `facts` / `constraints` — Data 分区（与 Board 并列）
 
 ```text
 Facts = { relations, gains, chronicle }
@@ -138,13 +138,13 @@ Audience = Map EntityId → FaceAudience   -- HIDDEN_ALL | CONTROLLER | ALL
 
 - 与 `form.face` **正交**（背面仍可知）。  
 - dry-run **不**因仅改 audience 而 CREATED。  
-- 挂在 `auth.audience`（旁路）；权限层，不是窄 World，也不是第三类原语。
+- 挂在 `data.audience`（旁路）；权限层，不是窄 World，也不是第三类原语。
 
 ---
 
 ## 6. `framework` — 局面级游标（精简 · 对齐 37）
 
-只放**存档仍有意义**且非区/Catalog/Run 的指针。权威形状见 [37 §1.4](37-world-structure.md)：
+只放**存档仍有意义**且非区/Catalog/Run 的指针。权威形状见 [37](37-world-structure.md)（Framework ∈ Board）：
 
 ```text
 Framework = {
@@ -158,7 +158,7 @@ Framework = {
 
 | 早期草案字段 | 现落点 |
 |---|---|
-| `act_deck` / `agenda_deck` | `auth.regions` |
+| `act_deck` / `agenda_deck` | `data.board.regions` |
 | `doom_threshold` | Catalog（密谋 definition） |
 | `scenario_reference_id` | 冒险装载 / Catalog（不塞 Framework） |
 | `phase_id` | `run.timing_phase` |
@@ -235,12 +235,12 @@ commit: Snapshot × Intent[] → Snapshot   -- 唯一写入口；可触 World/Fa
 | # | 裁决 |
 |---|---|
 | W1 | **窄 World / Run 分立**：物理局面 vs 执行游标；指称与栈不进 World |
-| W2 | **物理只在 world**：三类原语写 `auth.world`；**不**嵌套 `auth.physical` |
-| W3 | **Facts × Constraints 是伴件，不是世界**：Relation/Policy 有寿命、可 CREATED，但口语「世界」不含它们 |
+| W2 | **物理只在 board**：三类原语写 `data.board`；**不**嵌套 `auth.physical` |
+| W3 | **Facts × Constraints 是 Data 分区，与 Board 合称世界**：Relation/Policy 有寿命、可 CREATED，但口语「世界」不含它们 |
 | W4 | **Catalog 外置**：印刷与编译树不是 Snapshot 字段 |
 | W5 | **Audience 旁路、非结算**：与 form 正交；不计 CREATED |
 | W6 | **唯一写法 = Intent commit**；查询/投影只读 |
-| W7 | **兼容路径**：`PhysicalStore`≈world；旧 RegistrationStore≈facts.relations∪constraints.policies；`RulesMemory`≈`Run.memory` |
+| W7 | **兼容路径**：`PhysicalStore`≈board；旧 RegistrationStore≈data.facts.relations∪data.constraints.policies；`RulesMemory`≈`Run.memory` |
 
 ---
 
@@ -262,3 +262,4 @@ commit: Snapshot × Intent[] → Snapshot   -- 唯一写入口；可触 World/Fa
 | 2026-11-25 | v0.4：Run/Focus 对齐 37；去掉 memory 专用袋 / Frame.phase 旧形 |
 | 2026-11-25 | v0.5：统一口径 — 窄 World；Facts×Constraints；改 W1–W7；废「Registration 在 World」 |
 | 2026-11-25 | v0.6：对齐 38 — 函数世界=Data；分区表语义；指针改 38 |
+| 2026-11-26 | v0.7：对齐 38/37 — Auth→Data；World→Board；废窄世界称谓 |

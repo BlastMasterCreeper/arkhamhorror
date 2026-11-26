@@ -56,34 +56,34 @@
 
 ### 1.1 局面怎么构造
 
-窄世界里**只有一种实体：卡**。调查员、地点、敌人、支援、事件、技能、场景、密谋都是 `world.cards` 里的一条，用字段 `card_type` 区分。没有第二张「调查员表」或「敌人表」。
+Board 里**只有一种实体：卡**。调查员、地点、敌人、支援、事件、技能、场景、密谋都是 `board.cards` 里的一条，用字段 `card_type` 区分。没有第二张「调查员表」或「敌人表」。
 
-印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。世界上不复制一份。
+印刷数字（技能值、生命上限、隐蔽值）在目录里，按 `definition_id` 查，类型是整型。局面上不复制一份。
 
-**值要分类**（见 [24](24-functional-world.md) / [37](37-world-structure.md)）：窄**世界**（物理）/ Facts / Constraints / 派生 / 进度。驱动持有的是整份 **Snapshot**；口语「世界」只指 `auth.world`。
+**值要分类**（见 [24](24-functional-world.md) / [37](37-world-structure.md) / [38](38-functional-data-world.md)）：**Data**（Board / Facts / Constraints）/ 派生 / 进度。驱动持有整份 **Snapshot**；口语「世界」= 整个 `data`（World_FP），**不是**只有 Board。
 
 ```text
 Snapshot = {
-  auth: {                     -- World × Facts × Constraints (+ Audience)
-    world, facts, constraints, audience, next_id
+  data: {                     -- World_FP
+    board, facts, constraints, audience, next_id
   }
   derived: { index, feasibility }
   run: { … }
 }
--- 「世界」仅 auth.world；CREATED = 写入伴件任一层（Audience 除外）
+-- CREATED = 改 Data（Audience 除外）
 ```
 
-下面展开 `auth`：
+下面展开 `data`：
 
 ```text
-auth = {
-  world: {                    -- 窄世界（物理 + 框架钟）
+data = {
+  board: {                    -- 物理分区（不叫「世界」）
     cards, regions, seats, framework, limits
   }
-  facts: {                    -- 断言伴件
+  facts: {                    -- Proposition / Gain / Chronicle
     relations, gains, chronicle
   }
-  constraints: {              -- 运作叠层
+  constraints: {              -- Endomorphism
     policies                  -- FoldStat | GuardIntent | DivertFlow | OnTiming
   }
   audience:      字典         -- 权限旁路；不计 CREATED
@@ -94,7 +94,7 @@ auth = {
 #### 卡
 
 每张卡都是同一条记录。某个 `card_type` 用不到的键不写。权威形状以 [37](37-world-structure.md) 为准。  
-卡脊骨**不**放回合行动数、eliminated/resigned（`seats`）；**不**放放置指针（权威在 `regions` 的 `host_card_id`+`place`）。同区序 = `Region.card_ids`。
+卡脊骨**不**放回合行动数、eliminated/resigned（`seats`）；**不**放放置指针（权威在 `board.regions` 的 `host_card_id`+`place`）。同区序 = `Region.card_ids`。
 
 ```text
 卡 = {
@@ -111,7 +111,7 @@ auth = {
 
 #### 席位（Seat）
 
-调查员一条；键 = 该调查员卡 id（不再另存 investigator_id 字段）。读行动数 / 是否已退场 → `auth.world.seats[inv]`。
+调查员一条；键 = 该调查员卡 id（不再另存 investigator_id 字段）。读行动数 / 是否已退场 → `data.board.seats[inv]`。
 
 ```text
 席位 = {
@@ -147,14 +147,14 @@ auth = {
 
 `shape = "deck"` 时，`card_ids[0]` 是顶。
 
-#### 世界之外：Facts 与 Constraints（不要再叫「信息层塞进 World」）
+#### Data 分区：Board / Facts / Constraints
 
 | 袋 | 放什么 | 是不是「世界」 |
 |---|---|---|
-| **World** | 区、token、横置/翻面、席位、框架钟、限额钟 | **是**（窄物理） |
-| **Facts** | 交战 Relation、Gain 拥有、Chronicle 记事 | **否**（断言伴件） |
-| **Constraints** | lasting/+N/cannot/延时等 Policy | **否**（运作叠层） |
-| **Audience** | 谁看得见牌面 | **否**（权限旁路；改它不算 CREATED） |
+| **Board** | 区、token、横置/翻面、席位、框架钟、限额钟 | 与下两项合称 **Data = 世界**；单独不叫世界 |
+| **Facts** | 交战 Relation、Gain 拥有、Chronicle 记事 | 同左 |
+| **Constraints** | lasting/+N/cannot/延时等 Policy | 同左 |
+| **Audience** | 谁看得见牌面 | 在 Data 内，但改之**不计** CREATED |
 
 ```text
 记事（∈ Facts.chronicle）= {
@@ -173,25 +173,25 @@ Policy   = { shell: InfoShell, body: FoldStat | GuardIntent | DivertFlow | OnTim
 #### 可见性、框架、限额
 
 ```text
-可见档 = 枚举 "hidden_all" | "controller" | "all"   -- auth.audience
+可见档 = 枚举 "hidden_all" | "controller" | "all"   -- data.audience
 
-框架（∈ world.framework）= {
+框架（∈ board.framework）= {
   round, lead_investigator_id, active_investigator_id,
   current_act_id, current_agenda_id
 }
 ```
 
 （仅此五字段；牌库在区、毁灭阈值在目录、阶段名在 `run.timing_phase`——见 37。）  
-限额 ∈ `world.limits`。混乱符号是区 `chaos` 上的 `token_stacks`。FoldStat 的 `ModifierPayload` **不分型**。
+限额 ∈ `board.limits`。混乱符号是区 `chaos` 上的 `token_stacks`。FoldStat 的 `ModifierPayload` **不分型**。
 
 #### 一份最小构造
 
 调查员、地点、技能牌都在 `cards` 里；token 在区上。混乱袋是 `place:"chaos"` 的区（堆），不是卡数组。
 
 ```text
-auth = {
+data = {
   next_id: 8
-  world: {
+  board: {
     cards: { "I":…, "L":…, "C1":… }
     seats: { "I": { actions_remaining:3, … } }
     regions: {
@@ -216,7 +216,7 @@ auth = {
 
 密谋上的毁灭是密谋卡 `tokens` 区的 `token_stacks["doom"]`。阈值在目录里。
 
-抽一张牌：`MoveCard` 改两个区的 `card_ids`；`world.cards["C1"]` 身份不变。
+抽一张牌：`MoveCard` 改两个区的 `card_ids`；`board.cards["C1"]` 身份不变。
 
 ### 1.2 进度
 
@@ -301,12 +301,12 @@ auth = {
 
 ### 1.4 运算上下文与返回值
 
-一次运算看到的全部输入（窄世界只是伴件之一）：
+一次运算看到的全部输入（Data = 函数世界；Run = 控制）：
 
 \[
-\mathrm{Ctx} = \mathrm{World} \times \mathrm{Facts} \times \mathrm{Constraints} \times \mathrm{Run}
+\mathrm{Ctx} = \mathrm{Data} \times \mathrm{Run}
 \]
-（Catalog 外置；Audience 可读，写之不计 CREATED。）
+（Data 内含 Board×Facts×Constraints×Audience；Catalog 外置；写 Audience 不计 CREATED。）
 
 返回值三选一：
 

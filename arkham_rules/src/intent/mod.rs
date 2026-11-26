@@ -1,4 +1,4 @@
-//! Unique auth writers — commit(Intent[]) → Snapshot'.
+//! Unique Data writers — commit(Intent[]) → Snapshot'.
 
 use crate::world::{Policy, Relation, Snapshot, TOKEN_SUPPLY};
 
@@ -70,7 +70,7 @@ pub enum CommitError {
     },
 }
 
-/// Apply intents in order; bumps `gen` once if any auth change lands.
+/// Apply intents in order; bumps `gen` once if any Data change lands.
 pub fn commit(mut snap: Snapshot, intents: &[Intent]) -> Result<Snapshot, CommitError> {
     let mut touched = false;
     for intent in intents {
@@ -118,7 +118,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
         } => {
             {
                 let from = snap
-                    .auth.world
+                    .data.board
                     .regions
                     .get_mut(from_region)
                     .ok_or_else(|| CommitError::MissingRegion(from_region.clone()))?;
@@ -133,7 +133,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
                 from.card_ids.remove(pos);
             }
             let to = snap
-                .auth.world
+                .data.board
                 .regions
                 .get_mut(to_region)
                 .ok_or_else(|| CommitError::MissingRegion(to_region.clone()))?;
@@ -141,22 +141,22 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             Ok(())
         }
         Intent::FactInsert { relation } => {
-            snap.auth
+            snap.data
                 .facts
                 .relations
                 .insert(relation.shell.id.clone(), relation.clone());
             Ok(())
         }
         Intent::ConstraintInsert { policy } => {
-            snap.auth
+            snap.data
                 .constraints
                 .policies
                 .insert(policy.shell.id.clone(), policy.clone());
             Ok(())
         }
         Intent::CompanionRemove { id } => {
-            let gone = snap.auth.facts.relations.remove(id).is_some()
-                || snap.auth.constraints.policies.remove(id).is_some();
+            let gone = snap.data.facts.relations.remove(id).is_some()
+                || snap.data.constraints.policies.remove(id).is_some();
             if !gone {
                 return Err(CommitError::MissingCompanion(id.clone()));
             }
@@ -164,7 +164,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
         }
         Intent::SetExhausted { card_id, exhausted } => {
             let card = snap
-                .auth.world
+                .data.board
                 .cards
                 .get_mut(card_id)
                 .ok_or_else(|| CommitError::MissingCard(card_id.clone()))?;
@@ -176,7 +176,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             actions_remaining,
         } => {
             let seat = snap
-                .auth.world
+                .data.board
                 .seats
                 .get_mut(investigator_id)
                 .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
@@ -189,7 +189,7 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
             resigned,
         } => {
             let seat = snap
-                .auth.world
+                .data.board
                 .seats
                 .get_mut(investigator_id)
                 .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
@@ -215,7 +215,7 @@ fn debit_stack(
         return Ok(());
     }
     let region = snap
-        .auth.world
+        .data.board
         .regions
         .get_mut(region_id)
         .ok_or_else(|| CommitError::MissingRegion(region_id.to_string()))?;
@@ -248,7 +248,7 @@ fn credit_stack(
         return Ok(());
     }
     let region = snap
-        .auth.world
+        .data.board
         .regions
         .get_mut(region_id)
         .ok_or_else(|| CommitError::MissingRegion(region_id.to_string()))?;
@@ -273,7 +273,7 @@ pub fn engagement_relation(
 mod tests {
     use super::*;
     use crate::world::{
-        Auth, Card, CardType, Face, Region, RegionShape, Seat, Snapshot, World, TOKEN_SUPPLY,
+        Data, Card, CardType, Face, Region, RegionShape, Seat, Snapshot, Board, TOKEN_SUPPLY,
     };
     use std::collections::BTreeMap;
 
@@ -378,15 +378,15 @@ mod tests {
         seats.insert("I".into(), Seat::fresh(3));
 
         Snapshot {
-            auth: Auth {
-                world: World {
+            data: Data {
+                board: Board {
                     cards,
                     regions,
                     seats,
-                    ..World::default()
+                    ..Board::default()
                 },
                 next_id: 8,
-                ..Auth::default()
+                ..Data::default()
             },
             gen: 1,
             ..Snapshot::default()
@@ -396,7 +396,7 @@ mod tests {
     #[test]
     fn seat_actions_not_on_card() {
         let s0 = mini_snap();
-        assert_eq!(s0.auth.world.seats["I"].actions_remaining, 3);
+        assert_eq!(s0.data.board.seats["I"].actions_remaining, 3);
         let s1 = commit(
             s0,
             &[Intent::SetSeatActions {
@@ -405,7 +405,7 @@ mod tests {
             }],
         )
         .unwrap();
-        assert_eq!(s1.auth.world.seats["I"].actions_remaining, 2);
+        assert_eq!(s1.data.board.seats["I"].actions_remaining, 2);
     }
 
     #[test]
@@ -433,7 +433,7 @@ mod tests {
         assert_eq!(s0.resource_pool_region_id("I"), Some(&"pool_I".to_string()));
         // Not on investigator card tokens; Seat has no resource field.
         assert_eq!(s0.token_on_card("I", "resource"), 0);
-        assert_eq!(s0.auth.world.seats["I"].actions_remaining, 3);
+        assert_eq!(s0.data.board.seats["I"].actions_remaining, 3);
         let s1 = commit(
             s0,
             &[Intent::TransferToken {
@@ -446,7 +446,7 @@ mod tests {
         .unwrap();
         assert_eq!(s1.resources_of("I"), 3);
         assert_eq!(s1.token_on_card("I", "resource"), 0);
-        assert_eq!(s1.auth.world.seats["I"].actions_remaining, 3);
+        assert_eq!(s1.data.board.seats["I"].actions_remaining, 3);
     }
 
     #[test]
@@ -471,7 +471,7 @@ mod tests {
     #[test]
     fn heal_damage_to_supply() {
         let mut s0 = mini_snap();
-        s0.auth.world
+        s0.data.board
             .regions
             .get_mut("tok_I")
             .unwrap()
@@ -502,8 +502,8 @@ mod tests {
             }],
         )
         .unwrap();
-        assert!(s1.auth.world.regions["deck_I"].card_ids.is_empty());
-        assert_eq!(s1.auth.world.regions["hand_I"].card_ids, vec!["C1".to_string()]);
+        assert!(s1.data.board.regions["deck_I"].card_ids.is_empty());
+        assert_eq!(s1.data.board.regions["hand_I"].card_ids, vec!["C1".to_string()]);
     }
 
     #[test]
@@ -526,7 +526,7 @@ mod tests {
             }
         }
         let s1 = commit(s0, &[Intent::FactInsert { relation: rel }]).unwrap();
-        assert!(s1.auth.facts.relations.contains_key("r1"));
+        assert!(s1.data.facts.relations.contains_key("r1"));
         assert!(s1.is_engaged_with("E", "I"));
         assert!(!s1.is_engaged_with("E", "X"));
     }
@@ -645,7 +645,7 @@ mod tests {
     #[test]
     fn flip_token_moves_between_types() {
         let mut s0 = mini_snap();
-        s0.auth.world
+        s0.data.board
             .regions
             .get_mut("tok_I")
             .unwrap()

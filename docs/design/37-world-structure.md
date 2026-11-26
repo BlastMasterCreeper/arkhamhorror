@@ -1,67 +1,65 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.34 · 2026-11-25  
+> **状态**：设计草案 v0.36 · 2026-11-26  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐。  
-> **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `world/facts/constraints` = Data 分区表）。  
+> **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
 > **约定**：键名为 **snake_case 英文**（进代码）；类型用基础型：`Int` · `String` · `Bool` · `Array<T>` · `Map<K,V>` · 具名枚举。空 id 用 `""`。不用的字段可省略。  
 > **token**：堆只存 **类型 → 数量**；静态表含 `dual_of` 与 `represent_as`；桌面变更 **仅 Transfer**（[07 §5.2](07-effect-primitives.md)）；翻面走 `FlipToken` / seq。  
 > **简洁**：权威唯一、少冗余；同质实体不因规则绰号另开放置面（封印混乱 = 宿主上的 token 堆）。  
 > **on vs at**：`on` = 物理放置（区成员）；`at` = 绑定关系（登记等），不作地点放置槽名。  
 > **实现**：`arkham_rules` crate（M1：`Snapshot`+`commit`；M2：`Eff`/`step`/`Nest` 抽牌）。  
-> **口径（已拍板）**：**世界 = 窄物理**；Facts/Constraints 是权威伴件不是世界；CREATED = 写入伴件（Audience 除外）。
+> **口径（已拍板）**：**World_FP = Data**；物理分区 = **Board**（勿称世界）；CREATED = 改 Data（Audience 除外）。
 
 ---
 
 ## 0. 总形
 
-**「世界」= 窄物理**；权威伴件 = **World × Facts × Constraints**（Audience 旁路；Run/Catalog 在闭包外）。  
-**禁止**再把 lasting/cannot/交战称作「也在世界里」——它们分别在 Constraints / Facts。
+**函数世界 World_FP = `Data`**（见 [38](38-functional-data-world.md)）。  
+`Data` 的分区表 = **Board × Facts × Constraints**（+ Audience）；**Board 是物理分区，不叫「世界」。**
 
 ```text
 Snapshot = {
-  auth:     Auth,      -- World × Facts × Constraints (+ Audience)
-  derived:  Derived,   -- 派生：可重建；transit 末尾刷新
-  run:      Run,       -- 进度：step/answer/bind；可含临时 as-if 叠镜
+  data:     Data,      -- World_FP
+  derived:  Derived,
+  run:      Run,       -- Control
   gen:      Int
 }
 
-Auth = {
-  world:         World,         -- 窄世界：物理 + 框架钟
-  facts:         Facts,         -- 断言关系 · Gain · Chronicle
-  constraints:   Constraints,   -- 运作叠层（Policy）
-  audience:      Map<CardId, Audience>,  -- 权限旁路；不计 CREATED
+Data = {
+  board:         Board,         -- 物理分区：卡/区/席位 + 框架钟
+  facts:         Facts,         -- Proposition · Gain · Chronicle
+  constraints:   Constraints,   -- Endomorphism（Policy）
+  audience:      Map<CardId, Audience>,  -- Permission；不计 CREATED
   next_id:       Int
 }
 ```
 
-`Catalog` **外置**。内核闭包：`World × Facts × Constraints × Run × Catalog`（Audience 可读；写 Audience ≠ CREATED）。
+`Catalog` **外置**。闭包：`Data × Run × Catalog`（= Board×Facts×Constraints×Audience × Control × Catalog）。
 
-| 袋 | 判据 | 丢了 |
+| 分区 | 判据 | 丢了 |
 |---|---|---|
-| **world** | 看得见的桌上实体与席位/框架钟 | 物理局面坏 |
+| **board** | 看得见的桌上实体与席位/框架钟 | 物理局面坏 |
 | **facts** | 非物理但「为真」的断言 | 交战/拥有/记住丢 |
 | **constraints** | 改写 query/legal/plan/原流程的态射 | lasting/cannot/延时丢 |
 | **audience** | 谁可见哪面 | 权限坏；**非**结算 |
-| **derived** | 由伴件(+run.focus) 可重建 | 可 rebuild |
+| **derived** | 由 Data(+run.focus) 可重建 | 可 rebuild |
 | **run** | 手续游标与步间指称 | 手续结束可清 |
 
-**CREATED**（发起有效性 / L7）= dry-run 时成功写入 **World ∨ Facts ∨ Constraints ∨ Chronicle** 任一层；**Audience 除外**。纯挂 lasting/cannot/延时 = `ConstraintInsert` 成功 → 已 CREATED。  
-口诀：旧「放进世界才算生效」→ **「写入权威伴件即算生效」**。
-
-口语「快照」= `Snapshot`；口语「世界」**仅** `auth.world`（窄物理）。
+**CREATED** = dry-run 写入 **Data** 结算排序（Board ∨ Facts ∨ Constraints ∨ Chronicle）；**Audience 除外**。  
+口语「世界」= **整个 Data**；**禁止**把 Board 叫成世界。
 
 ---
 
-## 1. `auth.world` — 窄世界（物理）
+## 1. `data.board` — 物理分区（Board）
 
 ```text
-World = {
+Board = {
   cards:          Map<CardId, Card>,
   regions:        Map<RegionId, Region>,
-  seats:          Map<CardId, Seat>,   -- 调查员席位；键=调查员卡 id
-  framework:      Framework,           -- 必要框架钟
-  limits:         LimitStore           -- 次数/配额钟
+  seats:          Map<CardId, Seat>,
+  framework:      Framework,
+  limits:         LimitStore
 }
 ```
 
@@ -73,11 +71,11 @@ World = {
 | `framework` | round / 主·当前调查员 / 场景·密谋游标 |
 | `limits` | 次数与配额计数 |
 
-**不设** `world.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
+**不设** `board.tokens` / 区上 `token_ids`。token **不是**带 id 的可再挂载实体。
 
 **Token 本质**：只表示 **堆键 + 数量**；是放置的**终端**。
 
-放置权威只在 **`world.regions`**（`host_card_id` + `place`）。**禁止** Card 再存 `owned_regions`。  
+放置权威只在 **`board.regions`**（`host_card_id` + `place`）。**禁止** Card 再存 `owned_regions`。  
 **禁止**用规则术语 **slot** 给区命名。禁止 `Card.markers` / `location_id` / `engaged_with`。
 
 ---
@@ -108,14 +106,14 @@ Card = {
 | `exhausted` | `Bool` | 横置（形态③） |
 | `connections` | `Array<String>` | 地点连通（拓扑，不是区内实体） |
 
-**已迁出 Card**：席位态 → `world.seats`；放置指针 → 仅 `world.regions`（旧 `owned_regions` 升 **derived**）。  
+**已迁出 Card**：席位态 → `board.seats`；放置指针 → 仅 `board.regions`（旧 `owned_regions` 升 **derived**）。  
 **已删**：`display_order`——同区展示序以 `Region.card_ids` 序为准。
 
 **`CardType`**：`"investigator"` \| `"asset"` \| `"event"` \| `"skill"` \| `"enemy"` \| `"treachery"` \| `"location"` \| `"act"` \| `"agenda"`
 
 ### 1.1.1 `Seat`（调查员席位态 · ∈ World）
 
-每个在场（或已退场仍占座）的调查员一条；键 = 该调查员 **卡 id**（与 `world.cards` 中 `card_type=investigator` 对齐）。
+每个在场（或已退场仍占座）的调查员一条；键 = 该调查员 **卡 id**（与 `board.cards` 中 `card_type=investigator` 对齐）。
 
 ```text
 Seat = {
@@ -133,9 +131,9 @@ Seat = {
 |---|---|
 | 回合经济 | 框架/席位机，非卡形态或放置 |
 | 退场/撤退 | 冒险内结局标志，与 face/exhausted/区成员正交 |
-| 查询 | `world.seats[inv_id].actions_remaining`，不读 `world.cards[inv]` |
+| 查询 | `board.seats[inv_id].actions_remaining`，不读 `board.cards[inv]` |
 
-`world.framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**经济与结局**在 `world.seats`。
+`board.framework.active_investigator_id` / `lead_investigator_id` 仍是游标；**经济与结局**在 `board.seats`。
 
 #### 推荐放置名（`Region.place`）
 
@@ -308,14 +306,14 @@ RelationBody =
 
 **Lifetime**：`"while_in_play"` \| `"while_committed"` \| `"this_skill_test"` \| `"this_turn"` \| `"while_drawn_card_resolving"`
 
-控制者 = `world.cards[source_card_id].controller_id`（壳上不另存）。
+控制者 = `board.cards[source_card_id].controller_id`（壳上不另存）。
 
 #### 交战（默认）
 
 | 情况 | 落点 |
 |---|---|
 | 真实交战 / lasting **视为交战** | `Facts.relations` · `Engagement`（CREATED） |
-| 威胁区成员 | `World.regions`（物理）；**不等于**交战 |
+| 威胁区成员 | `Board.regions`（物理）；**不等于**交战 |
 | **庞大**虚拟交战 | **派生默认**：Massive∧未横置∧同地点 → 查询；**不**默认物化 Relation（**待裁 A**） |
 | 手续内临时 as if | **Run 叠镜**默认（**待裁 B**）；非存档 Fact |
 
@@ -415,7 +413,7 @@ ListenerPayload = { timing, composition }
 
 ---
 
-### 1.4 `Audience` · `Framework`（Framework/Limits 在 World）
+### 1.4 `Audience` · `Framework`（Framework/Limits 在 Board）
 
 ```text
 Chronicle = {
@@ -443,7 +441,7 @@ Framework = {
 | `doom_threshold` | Catalog（当前密谋 definition） | 印刷规格外置 |
 | `scenario_reference_id` | 冒险装载 / Catalog 绑定 | 非回合游标；需要时另字段，不塞 Framework |
 | `phase_id`（Mythos/Action…） | `run.timing_phase` | 执行信封相位；手续内临时步更在 `Run.stack` |
-| 席位行动 / eliminated | `world.seats` | 已离 Card，也不进 Framework |
+| 席位行动 / eliminated | `board.seats` | 已离 Card，也不进 Framework |
 
 混乱与其它 token 的 `stack_key`：见 §1.2.1。
 
@@ -515,7 +513,7 @@ limit_key = spec_id + "|" + period + "|" + scope + "|" + subject_id + "|" + wind
 | 卡离场 | 删该 `card_instance` 条；`occupancies.holders` 移除 |
 | Max in play | 进场写入 `holders`；离场移除；超 cap 则发起/进场门槛失败 |
 
-`window_id` 与 `world.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<limit_key>`。
+`window_id` 与 `board.framework.round`、`run.skill_tests[].test_id` 对齐，便于 Touched：`limit:<limit_key>`。
 
 **不做**：把 Limit 规格正文存进局面；用单个全局 `Int` 糊所有能力。
 
@@ -691,15 +689,15 @@ Key =
 
 | 构造 | 编码例 | 权威路径 |
 |---|---|---|
-| CardField | `card:<id>:exhausted` | `world.cards[id].exhausted` |
+| CardField | `card:<id>:exhausted` | `board.cards[id].exhausted` |
 | RegionMembers | `region:<id>:members` | `regions[id].card_ids` |
 | RegionStack | `region:<id>:stack:damage` | `token_stacks["damage"]` |
 | QueryFp | `query:enemies_on:<loc>` | 地点 `on` 等投影 |
 | Reg | `reg:<id>` | `facts.relations[id]` 或 `constraints.policies[id]` |
 | RegAspect | `aspect:fight` | 索引 / 多条登记 |
-| SeatField | `seat:<inv>:actions_remaining` | `world.seats[inv]…` |
-| FrameworkField | `fw:active_investigator_id` | `world.framework…` |
-| LimitCounter | `limit:<limit_key>` | `world.limits…` |
+| SeatField | `seat:<inv>:actions_remaining` | `board.seats[inv]…` |
+| FrameworkField | `fw:active_investigator_id` | `board.framework…` |
+| LimitCounter | `limit:<limit_key>` | `board.limits…` |
 | ChronicleKey | `chron:remembered:<k>` | `facts.chronicle.remembered[k]` |
 | RunFocus | `run:focus` | `run.focus` |
 | RunMemory | `run:mem:<ctrl>:<k>` | `run.memory[ctrl][k]` |
@@ -809,7 +807,7 @@ Snapshot {
 | 2026-11-24 | v0.21：补全 `RegistrationPayload` 分型及五类 body 字段 |
 | 2026-11-25 | v0.22：`auth.gains`；Intent M1 子集；`arkham_rules` Snapshot+commit 骨架 |
 | 2026-11-25 | v0.23：M2 Eff 子集（Do/Seq/If/Nest/Ask）+ 抽牌 Flow；primer Intent 改 AdjustToken |
-| 2026-11-25 | v0.24：席位态离 Card → `auth.seats`；删 Card.display_order（序=区 card_ids） |
+| 2026-11-25 | v0.24：席位态离 Card → `data.board.seats`；删 Card.display_order（序=区 card_ids） |
 | 2026-11-25 | v0.25：Seat 补 `actions_penalty_next_turn`；LimitStore `slot_id`/`max_slots`→`limit_key`/`occupancies`（slot 留给资产槽）；例中混乱键统一 `numeric_0` |
 | 2026-11-25 | v0.26：废 `AdjustToken`→`TransferToken`+`$supply`（对齐 07 Transfer-only）；`DirectivePayload` 按 kind 分型收瘦 |
 | 2026-11-25 | v0.27：`GatePayload` 按 kind 分型 + `GateScope`（subject｜peril）；24 W2 对齐 auth 扁平物理 |

@@ -1,6 +1,6 @@
 # 38 — 函数世界（Data）说明
 
-> **状态**：说明稿 v0.3 · 2026-11-26  
+> **状态**：说明稿 v0.4 · 2026-11-26  
 > **目的**：用数学 / FP 口径定义「世界」是什么；**不是**桌上模拟隐喻。  
 > **形状落地**：[37-world-structure](37-world-structure.md)（字段与类型）  
 > **Eff / 步骤**：[25-functional-eff](25-functional-eff.md)  
@@ -201,12 +201,12 @@ on_timing(t, data)    = base_handlers(t) ++ on_timings(data, t)
 
 | 模拟隐喻（曾用） | FP 归宿 |
 |---|---|
-| 「窄世界 = 物理」 | Data 的 Placement ∪ Measure ∪ Form ∪ Clock |
-| 「Facts 伴件」 | Data 的 Proposition ∪ Log |
-| 「Constraints 运作叠层」 | Data 的 Endomorphism |
+| 「窄世界 = 物理」（已废称谓） | Data.**Board**（Placement ∪ Measure ∪ Form ∪ Clock） |
+| 「Facts」 | Data.facts（Proposition ∪ Log） |
+| 「Constraints」 | Data.constraints（Endomorphism） |
 | 口语「世界 = 只有物理」 | **废弃作函数定义**；至多作文档分区名 |
 
-37 里若仍见 `auth.world` / `facts` / `constraints` 顶层字段：把它们读作 **Data 的分区表**，合起来才是 `World_FP`。  
+37 的 `data.board` / `facts` / `constraints`：是 **Data 的分区表**，合起来才是 `World_FP`。物理分区字段名是 **Board**，不要叫世界。  
 **不要**再说「只有物理那一袋叫世界」。
 
 ---
@@ -253,3 +253,4 @@ on_timing(t, data)    = base_handlers(t) ++ on_timings(data, t)
 | 2026-11-25 | v0.1：定义 World_FP≜Data；主划分 Data×Control；Data 内代数分拣；对照模拟隐喻 |
 | 2026-11-25 | v0.2：细讲 Proposition / Endomorphism（定义、消费、对照、交战与 Gain） |
 | 2026-11-26 | v0.3：§1.1 四者对照 Data / Control / Derived / Catalog（例子与边界） |
+| 2026-11-26 | v0.4：与类型对齐 — Auth→Data；物理袋 Board；37/24/30 同步 |

@@ -95,7 +95,7 @@ pub fn eval_pred(snap: &Snapshot, pred: &Pred) -> bool {
             n,
         } => snap.token_on_card(card_id, token_type) >= *n,
         Pred::RegionNonEmpty { region_id } => snap
-            .auth.world
+            .data.board
             .regions
             .get(region_id)
             .map(|r| !r.card_ids.is_empty())
@@ -290,7 +290,7 @@ pub fn answer(
 
 /// Built-in: draw top card from investigator deck place → hand place.
 pub fn draw_one_eff(investigator_id: &str, snap: &Snapshot) -> Result<Eff, String> {
-    if !snap.auth.world.cards.contains_key(investigator_id) {
+    if !snap.data.board.cards.contains_key(investigator_id) {
         return Err(format!("missing investigator {investigator_id}"));
     }
     let deck_id = snap
@@ -302,7 +302,7 @@ pub fn draw_one_eff(investigator_id: &str, snap: &Snapshot) -> Result<Eff, Strin
         .ok_or("missing hand place")?
         .clone();
     let top = snap
-        .auth.world
+        .data.board
         .regions
         .get(&deck_id)
         .and_then(|r| r.card_ids.first())
@@ -321,7 +321,7 @@ mod tests {
     use crate::catalog::{Catalog, Flow};
     use crate::intent::Intent;
     use crate::world::{
-        Auth, Card, CardType, Face, Region, RegionShape, Snapshot, World, TOKEN_SUPPLY,
+        Data, Card, CardType, Face, Region, RegionShape, Snapshot, Board, TOKEN_SUPPLY,
     };
 
     fn snap_with_deck() -> Snapshot {
@@ -381,13 +381,13 @@ mod tests {
         regions.get_mut("tok_I").unwrap().token_stacks.clear();
 
         Snapshot {
-            auth: Auth {
-                world: World {
+            data: Data {
+                board: Board {
                     cards,
                     regions,
-                    ..World::default()
+                    ..Board::default()
                 },
-                ..Auth::default()
+                ..Data::default()
             },
             gen: 1,
             ..Snapshot::default()
@@ -464,8 +464,8 @@ mod tests {
         let out = run_to_ask_or_done(s0, &cat, eff, 8);
         match out {
             StepResult::Done { snap } => {
-                assert!(snap.auth.world.regions["deck_I"].card_ids.is_empty());
-                assert_eq!(snap.auth.world.regions["hand_I"].card_ids, vec!["C1".to_string()]);
+                assert!(snap.data.board.regions["deck_I"].card_ids.is_empty());
+                assert_eq!(snap.data.board.regions["hand_I"].card_ids, vec!["C1".to_string()]);
                 assert_eq!(snap.run.stack.len(), 0);
             }
             other => panic!("unexpected {other:?}"),
