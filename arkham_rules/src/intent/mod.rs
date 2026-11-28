@@ -1,8 +1,8 @@
 //! Unique Data writers — commit(Intent[]) → (Snapshot', CommitReport).
 
 use crate::world::{
-    Audience, Data, GatePayload, GuardPolarity, InfoShell, Policy, PolicyBody, Relation, Snapshot,
-    Subject, TOKEN_SUPPLY,
+    Audience, Data, GatePayload, GainedCharacteristic, GuardPolarity, InfoShell, LogEntry, Policy,
+    PolicyBody, Relation, Snapshot, Subject, TOKEN_SUPPLY,
 };
 
 #[derive(Clone, Debug)]
@@ -25,6 +25,24 @@ pub enum Intent {
     /// Insert a Constraints.Policy (CREATED).
     ConstraintInsert {
         policy: Policy,
+    },
+    /// Insert Facts.gains row (CREATED) — possession mark, not Policy.
+    GainInsert {
+        gain: GainedCharacteristic,
+    },
+    /// Remove Facts.gains by id (CREATED when present).
+    GainRemove {
+        id: String,
+    },
+    /// Append Chronicle log line (CREATED).
+    ChronicleLog {
+        text: String,
+        round: i32,
+    },
+    /// Upsert Chronicle remembered key (CREATED).
+    ChronicleRemember {
+        key: String,
+        value: String,
     },
     CompanionRemove {
         id: String,
@@ -56,6 +74,7 @@ pub enum CommitError {
     MissingCard(String),
     MissingSeat(String),
     MissingCompanion(String),
+    MissingGain(String),
     NonPositiveAmount(i32),
     InsufficientTokens {
         region_id: String,
@@ -163,6 +182,34 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
                 .insert(policy.shell.id.clone(), policy.clone());
             Ok(())
         }
+        Intent::GainInsert { gain } => {
+            snap.data
+                .facts
+                .gains
+                .insert(gain.id.clone(), gain.clone());
+            Ok(())
+        }
+        Intent::GainRemove { id } => {
+            if snap.data.facts.gains.remove(id).is_none() {
+                return Err(CommitError::MissingGain(id.clone()));
+            }
+            Ok(())
+        }
+        Intent::ChronicleLog { text, round } => {
+            snap.data.facts.chronicle.log.push(LogEntry {
+                text: text.clone(),
+                round: *round,
+            });
+            Ok(())
+        }
+        Intent::ChronicleRemember { key, value } => {
+            snap.data
+                .facts
+                .chronicle
+                .remembered
+                .insert(key.clone(), value.clone());
+            Ok(())
+        }
         Intent::CompanionRemove { id } => {
             let gone = snap.data.facts.relations.remove(id).is_some()
                 || snap.data.constraints.policies.remove(id).is_some();
@@ -262,6 +309,23 @@ pub fn engagement_relation(
     investigator_id: impl Into<String>,
 ) -> Relation {
     Relation::engagement(id, source_card_id, enemy_id, investigator_id)
+}
+
+/// Helper: Facts.gains row (possession mark).
+pub fn gained(
+    id: impl Into<String>,
+    card_id: impl Into<String>,
+    kind: impl Into<String>,
+    characteristic_id: impl Into<String>,
+) -> GainedCharacteristic {
+    GainedCharacteristic {
+        id: id.into(),
+        card_id: card_id.into(),
+        kind: kind.into(),
+        characteristic_id: characteristic_id.into(),
+        source_kind: "effect".into(),
+        lifetime: "while_in_play".into(),
+    }
 }
 
 /// Helper: GuardIntent policy with given polarity (foundation stub).
@@ -562,5 +626,54 @@ mod tests {
         .unwrap_err();
         assert!(matches!(err, CommitError::CardNotInRegion { .. }));
         assert!(!s0.data.board.regions["deck_I"].card_ids.is_empty());
+    }
+
+    #[test]
+    fn gain_insert_and_remove_are_created() {
+        let s0 = mini_snap();
+        let g = gained("gain1", "C1", "keyword", "surge");
+        let report = dry_run(&s0, &[Intent::GainInsert { gain: g.clone() }]).unwrap();
+        assert!(report.created);
+        assert!(!s0.data.facts.gains.contains_key("gain1"));
+
+        let (s1, live) = commit(s0, &[Intent::GainInsert { gain: g }]).unwrap();
+        assert!(live.created);
+        assert_eq!(s1.data.facts.gains["gain1"].characteristic_id, "surge");
+
+        let (s2, rem) = commit(
+            s1,
+            &[Intent::GainRemove {
+                id: "gain1".into(),
+            }],
+        )
+        .unwrap();
+        assert!(rem.created);
+        assert!(!s2.data.facts.gains.contains_key("gain1"));
+    }
+
+    #[test]
+    fn chronicle_log_and_remember_are_created() {
+        let s0 = mini_snap();
+        let (s1, report) = commit(
+            s0,
+            &[
+                Intent::ChronicleLog {
+                    text: "remembered the elder sign".into(),
+                    round: 1,
+                },
+                Intent::ChronicleRemember {
+                    key: "visited_museum".into(),
+                    value: "true".into(),
+                },
+            ],
+        )
+        .unwrap();
+        assert!(report.created);
+        assert_eq!(s1.data.facts.chronicle.log.len(), 1);
+        assert_eq!(s1.data.facts.chronicle.log[0].round, 1);
+        assert_eq!(
+            s1.data.facts.chronicle.remembered.get("visited_museum"),
+            Some(&"true".to_string())
+        );
     }
 }

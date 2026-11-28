@@ -14,6 +14,7 @@ Functional rules kernel (Rust). Shape follows
 - `GuardIntent`：`GuardPolarity::{Restrict, Permit}` 同一扇门
 - `legal` / `fold_guards`：匹配 Guard → Restrict∪Permit → `Ok|Forbid`（最小稳定序；完整竞争另开）
 - `dry_run`：沙盒 `commit`，不改原 Snapshot；`created` 仅结算排序（Audience 不计）
+- `GainInsert` / `GainRemove` / `ChronicleLog` / `ChronicleRemember` → Facts；计 CREATED
 - **不**含 FoldStat 折叠 / AmountPlan / Chuck / Eff M2 / gdext
 
 ```bash
