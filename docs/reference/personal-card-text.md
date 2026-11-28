@@ -202,36 +202,41 @@
 
 FAQ（2024-03）：Chuck 给的 Fast **不能**用来在回合外打出——须卡面自带回合外许可；Taboo 已写 *Play only during your turn*。
 
-### 个人版改写（Constant · 额外费用 → 第二条发起路径）
+### 个人版改写（Constant · 额外费用 → 可选发起路径）
 
-**只改 Fast 选项的模型**；减费 / +2 技能另条（本竖切不展开）。
+印刷 *choose one* → 个人版 **选路径**（互斥）。+2 技能不改发起费用可行性，本竖切仍不展开。
 
 **EN**
 
-> **Constant** — While Chuck Fergus is ready and in play, you have an **additional way** to play a Tactic or Trick event from your hand:
+> **Constant** — While Chuck Fergus is ready and in play, you have **additional ways** to play a Tactic or Trick event from your hand. As an **additional cost** to initiate on one of these paths, exhaust Chuck Fergus and choose **one**:
 >
-> As an **additional cost** to initiate that play on this path, exhaust Chuck Fergus and choose **Fast**. That initiation uses **Fast** (*Play only during your turn*) for the **entire** play initiation: it does **not** cost a Play action. This is **not** a Would rewrite of a Play-action initiation.
+> - **Fast path:** That initiation uses **Fast** (*Play only during your turn*) for the **entire** play initiation: it does **not** cost a Play action.
+> - **Cheap path:** That initiation costs **2 fewer resources** (floored at 0). Resource feasibility uses the reduced cost. Play-action cost is unchanged (not Fast).
+>
+> These are **not** Would rewrites of a default Play-action initiation.
 
 **ZH**
 
-> **Constant** — 当 Chuck Fergus 在场且未横置时，你有一条 **额外的** 打出 Tactic / Trick 事件的发起路径：
+> **Constant** — 当 Chuck Fergus 在场且未横置时，你有 **额外的** 打出 Tactic / Trick 事件的发起路径。走其中一条时，以 **额外费用** 横置 Chuck Fergus 并 **选一**：
 >
-> 走该路径发起打出时，以 **额外费用** 横置 Chuck Fergus 并选择 **快速**。该次发起全程按 **快速**（*仅可在你的回合打出*）结算：**不**花费 Play 行动。这 **不是** 对「已按行动打出发起」的 Would / 时点改写。
-
-（减费 / +2 技能仍可作同形「选路径」或独立选项；引擎竖切先只落地 Fast 路径。）
+> - **快速路径：** 该次发起全程按 **快速**（*仅可在你的回合打出*）：**不**花费 Play 行动。
+> - **减费路径：** 该次发起的资源费用 **减少 2**（不低于 0）；可行性按折后费用判断。Play 行动花费不变（不是快速）。
+>
+> 这 **不是** 对默认行动打出发起的 Would / 时点改写。
 
 ### 引擎映射（个人版）
 
 | 句 | 译法 | 备注 |
 |---|---|---|
-| Constant · ready in play | 持续打开路径目录，**不是** `[reaction] When you play` | 寿命随 Chuck 在场且未横置 |
-| additional cost: exhaust Chuck | `AdditionalCost::Exhaust` 挂在 **路径** 上；评估/支付在 **发起有效性** 阶段 | 非 RR「狭义打出结算步才付额外费用」 |
-| choose Fast → Fast whole initiation | `InitiationPath` · `PlayForm::FastWindow` + `DuringControllerTurn` | 广义打出；`play_action_cost = 0` |
-| kinds still PLAY_CARD | 种类仍是打出，不是能力 | 06 §4.2 |
-| **禁止** Would / 时点改写 | `is_would_rewrite ≡ false` | prefs 2026-11-28 |
+| Constant · ready in play | 持续打开路径目录，**不是** `[reaction] When you play` | 寿命随 Chuck 在场且未横置；完整引擎随拍 refresh |
+| additional cost: exhaust Chuck | `AdditionalCost::Exhaust` 挂在 **路径** 上 | 发起有效性阶段评估/支付 |
+| choose Fast | `chuck_fast_path` · `FastWindow` + `DuringControllerTurn` | `play_action_cost = 0` |
+| choose −2 resources | `chuck_cheap_path` · `resource_cost_delta = -2` | `effective = max(0, printed+delta)`；同次可行性 |
+| kinds still PLAY_CARD | 种类仍是打出 | 06 §4.2 |
+| **禁止** Would | `is_would_rewrite ≡ false` | prefs 2026-11-28 |
 
-竖切：`arkham_rules::initiation` · `chuck_fast_path` / `offer_play_paths` / `evaluate_path`。  
-详细实现走查：[39-chuck-initiation-path](../design/39-chuck-initiation-path.md)。
+竖切：`arkham_rules::initiation` · `chuck_fast_path` / `chuck_cheap_path` / `offer_play_paths` / `evaluate_path`。  
+详细实现走查（含减费说明）：[39-chuck-initiation-path](../design/39-chuck-initiation-path.md)。
 
 ---
 
@@ -239,7 +244,7 @@ FAQ（2024-03）：Chuck 给的 Fast **不能**用来在回合外打出——须
 
 | 日期 | 卡 / 主题 | 摘要 |
 |---|---|---|
-| 2026-11-28 | 09072 Chuck Fergus | Fast = Constant 额外费用→第二条 PLAY_CARD 发起路径（广义打出）；非 Would |
+| 2026-11-28 | 09072 Chuck Fergus | Constant 额外费用→可选路径：Fast（广义打出）与 −2 资源（可行性折算）；非 Would |
 | 2026-11-28 | 页眉裁决 | 引擎/卡面效果落地 **必须** 跟个人版；官方印刷仅对照 |
 | 2026-11-28 | 08001 Daniela Reyes | 「even if canceled」拆成 After-attack + After-cancel 两条钩，共享效果体；官方无 once/round |
 | 2026-11-23 | After this test ends | 改裁为延时 @ `skill_test_ends`（ST.8 弃置后；提前 uncommit 取消） |

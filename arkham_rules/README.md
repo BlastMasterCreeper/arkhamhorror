@@ -14,7 +14,7 @@ Functional rules kernel (Rust). Shape follows
 - **M2 Eff**：`Do`/`Empty`/`Pass`/`Seq`/`If`/`Nest`/`Ask` + `plan`/`step`/`answer`；外置 `Catalog`
 - **FoldStat**：`query_stat` / `fold_stats`（`add`/`set`）
 - **AmountPlan**：建 Plan → FoldStat 叠量 → Assign（PI）→ `settle_intents`
-- **Initiation path（Chuck 09072）**：Constant 额外费用 → 第二条 `PLAY_CARD` 路径；Fast 盖住广义打出；**非** Would
+- **Initiation path（Chuck 09072）**：Constant 额外费用 → 可选 `PLAY_CARD` 路径（Fast / −2 资源）；**非** Would
 
 ```bash
 cd arkham_rules && cargo test
