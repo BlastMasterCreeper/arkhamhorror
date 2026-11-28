@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.43 · 2026-11-28  
+> **状态**：设计草案 v0.44 · 2026-11-28  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐（24/30 等可后补同步）。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -399,7 +399,7 @@ ModifierPayload = {
 GuardPolarity = "restrict" | "permit"
   -- restrict：匹配时倾向 Forbid（cannot / peril…）
   -- permit：匹配时倾向 Ok（放行例外 / 覆盖默认禁令）
-  -- legal = fold_guards(…); 完整竞争序另文
+  -- legal = fold_guards(…); 最小实现见 arkham_rules::legal（policy id 序；完整竞争另文）
 
 GatePayload =
   | { kind: "draw",            subject_id }
@@ -862,3 +862,4 @@ Snapshot {
 | 2026-11-26 | v0.41：`Framework` 升出 Board → `data.framework`（Clock）；Board 不再含 framework |
 | 2026-11-26 | v0.42：`seats` 升出 Board → `data.seats`；Board 只留 cards+regions |
 | 2026-11-28 | v0.43：GuardIntent + `GuardPolarity`（restrict∪permit）；Gate 种类去 forbid_ 前缀；commit 回报 CREATED；对齐 38 v0.8 |
+| 2026-11-28 | v0.44：`legal` / `fold_guards` 最小（GuardedAct；Restrict→Forbid、Permit→Ok；id 稳定序）；完整竞争另开 |

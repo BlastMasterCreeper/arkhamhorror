@@ -12,6 +12,7 @@ Functional rules kernel (Rust). Shape follows
 - **Board** = cards + regions only（物理；勿称「世界」）
 - `FactInsert` / `ConstraintInsert` → `commit` 回报 `CommitReport.created`
 - `GuardIntent`：`GuardPolarity::{Restrict, Permit}` 同一扇门
+- `legal` / `fold_guards`：匹配 Guard → Restrict∪Permit → `Ok|Forbid`（最小稳定序；完整竞争另开）
 - **不**含 FoldStat 折叠 / AmountPlan / Chuck / Eff M2 / gdext
 
 ```bash
