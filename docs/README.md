@@ -36,6 +36,7 @@
 - [design/38-functional-data-world.md](design/38-functional-data-world.md) — **World_FP ≜ Data**（代数分拣 · GuardIntent 限制∪准许）
 - [design/37-world-structure.md](design/37-world-structure.md) — Data 分区表形状（Board=cards+regions；limits/framework/seats 顶层）
 - [design/25-functional-eff.md](design/25-functional-eff.md) — **Eff 代数**（M2：Do/Seq/If/Nest/Ask）
+- [design/39-chuck-initiation-path.md](design/39-chuck-initiation-path.md) — **Chuck 09072** Constant 额外费用 → 第二条 `PLAY_CARD` 路径（非 Would）
 - 实现：[`arkham_rules/`](../arkham_rules/)（`cargo test`）
 
 ## 卡池数据（离线）
