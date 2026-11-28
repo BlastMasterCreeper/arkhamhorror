@@ -21,6 +21,7 @@
 | [`arkhamdb-rules-reference.md`](arkhamdb-rules-reference.md) | [zh.arkhamdb.com/rules](https://zh.arkhamdb.com/rules) | 英文 RR+FAQ 镜像；**`[symbol]` 记法来源** |
 | [`arkham-symbol-notation.md`](arkham-symbol-notation.md) | 本项目约定 | design 文档统一符号表 |
 | [`terminology-zh.md`](terminology-zh.md) | 本项目约定 | **简中术语对照**（Retaliate→反击、Alert→警戒 等） |
+| [`personal-card-text.md`](personal-card-text.md) | **个人版**（非官方） | 卡面改写：让持续/延时/仍投入/`may` 辖域/取消攻击时点从描述自明（如 06111、08001） |
 | [`grimoire-glossary-extract.md`](grimoire-glossary-extract.md) | 手工策展 | 高频条目 + 引擎映射草案 |
 
 ## 刷新离线镜像
