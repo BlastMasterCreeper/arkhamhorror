@@ -5,17 +5,14 @@ Functional rules kernel (Rust). Shape follows
 [`docs/design/38-functional-data-world.md`](../docs/design/38-functional-data-world.md)
 (`World_FP ≜ Data`).
 
-## This PR (Data foundation)
+## Current
 
 - `Snapshot` = `data` ⊕ `derived` ⊕ `run` ⊕ `gen`
 - `Data` = `Board` × `Facts` × `Constraints` × `Limits` × `Framework` × `Seats` (+ `Audience`)
 - **Board** = cards + regions only（物理；勿称「世界」）
-- `FactInsert` / `ConstraintInsert` → `commit` 回报 `CommitReport.created`
-- `GuardIntent`：`GuardPolarity::{Restrict, Permit}` 同一扇门
-- `legal` / `fold_guards`：匹配 Guard → Restrict∪Permit → `Ok|Forbid`（最小稳定序；完整竞争另开）
-- `dry_run`：沙盒 `commit`，不改原 Snapshot；`created` 仅结算排序（Audience 不计）
-- `GainInsert` / `GainRemove` / `ChronicleLog` / `ChronicleRemember` → Facts；计 CREATED
-- **不**含 FoldStat 折叠 / AmountPlan / Chuck / Eff M2 / gdext
+- `commit` / `dry_run` · `legal` / `fold_guards` · Gain / Chronicle
+- **M2 Eff**：`Do`/`Empty`/`Pass`/`Seq`/`If`/`Nest`/`Ask` + `plan`/`step`/`answer`；外置 `Catalog`
+- **不**含 FoldStat 全文 / AmountPlan / Chuck / gdext
 
 ```bash
 cd arkham_rules && cargo test

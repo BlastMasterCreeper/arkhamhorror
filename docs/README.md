@@ -35,7 +35,8 @@
 
 - [design/38-functional-data-world.md](design/38-functional-data-world.md) — **World_FP ≜ Data**（代数分拣 · GuardIntent 限制∪准许）
 - [design/37-world-structure.md](design/37-world-structure.md) — Data 分区表形状（Board=cards+regions；limits/framework/seats 顶层）
-- 实现骨架：[`arkham_rules/`](../arkham_rules/)（`cargo test`；foundation only）
+- [design/25-functional-eff.md](design/25-functional-eff.md) — **Eff 代数**（M2：Do/Seq/If/Nest/Ask）
+- 实现：[`arkham_rules/`](../arkham_rules/)（`cargo test`）
 
 ## 卡池数据（离线）
 

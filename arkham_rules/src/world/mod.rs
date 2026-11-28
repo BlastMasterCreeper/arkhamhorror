@@ -528,12 +528,29 @@ impl Snapshot {
             .find(|r| r.host_card_id == host_card_id && r.place == place)
     }
 
+    pub fn region_id_for_place(&self, host_card_id: &str, place: &str) -> Option<&RegionId> {
+        self.data.board.regions.iter().find_map(|(id, r)| {
+            if r.host_card_id == host_card_id && r.place == place {
+                Some(id)
+            } else {
+                None
+            }
+        })
+    }
+
     pub fn region_for_player_place(&self, host_player_id: &str, place: &str) -> Option<&Region> {
         self.data
             .board
             .regions
             .values()
             .find(|r| r.host_player_id == host_player_id && r.place == place)
+    }
+
+    /// Token count on a card's `tokens` place (0 if missing).
+    pub fn token_on_card(&self, card_id: &str, token_type: &str) -> i32 {
+        self.region_for_place(card_id, "tokens")
+            .and_then(|r| r.token_stacks.get(token_type).copied())
+            .unwrap_or(0)
     }
 
     pub fn resources_of(&self, player_id: &str) -> i32 {
