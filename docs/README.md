@@ -31,6 +31,12 @@
 23. [design/18-arkhamdb-card-data.md](design/18-arkhamdb-card-data.md) — **ArkhamDB JSON 卡池**（字段映射 · Core 2026 统计 · 导入计划）
 24. [design/19-core-2026-translation-roadmap.md](design/19-core-2026-translation-roadmap.md) — **2.0 基础卡牌翻译路线图**（分轨 · DoD · 实施顺序）
 
+### 函数世界（FP Data · 进行中）
+
+- [design/38-functional-data-world.md](design/38-functional-data-world.md) — **World_FP ≜ Data**（代数分拣 · GuardIntent 限制∪准许）
+- [design/37-world-structure.md](design/37-world-structure.md) — Data 分区表形状（Board=cards+regions；limits/framework/seats 顶层）
+- 实现骨架：[`arkham_rules/`](../arkham_rules/)（`cargo test`；foundation only）
+
 ## 卡池数据（离线）
 
 - [`data/arkhamdb/`](../../data/arkhamdb/) — schema + Core 2026 镜像 + 分析报告

@@ -12,19 +12,21 @@ Godot **4.6** 规则引擎骨架，设计文档见 [`docs/`](docs/README.md)。
 
 ```
 
-core/       Domain：状态、区域、日志、TimingBus
+core/          Domain：状态、区域、日志、TimingBus
 
-rules/      Rules：Framework、Action、SkillTest、Effect
+rules/         Rules：Framework、Action、SkillTest、Effect
 
-api/        GameContext 会话上下文
+api/           GameContext 会话上下文
 
-bootstrap/  装配入口（无 Node 依赖）
+bootstrap/     装配入口（无 Node 依赖）
 
-scripts/    CardScript 基类（待扩展）
+scripts/       CardScript 基类（待扩展）
 
-tests/      Headless 回归
+tests/         Headless 回归
 
-data/       YAML 卡牌数据（待导入）
+data/          YAML 卡牌数据（待导入）
+
+arkham_rules/  FP Data 地基（Rust · World_FP≜Data；`cargo test`）
 
 ```
 
