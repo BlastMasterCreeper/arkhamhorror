@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.44 · 2026-11-28  
+> **状态**：设计草案 v0.45 · 2026-11-28  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐（24/30 等可后补同步）。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -778,9 +778,10 @@ Intent =
   -- 禁止：AdjustToken / 单端 delta
 ```
 
-`commit(Snapshot, Intent[]) → (Snapshot', CommitReport)`：顺序应用；任一条失败则整批拒绝（M1）；成功且有结算排序写入则 `gen += 1` 且 `CommitReport.created = true`。  
-**CREATED** = 改 Data 结算排序（Board ∨ Facts ∨ Constraints ∨ Limits ∨ Framework ∨ Seats ∨ Chronicle）；**Audience 除外**。  
-实现：`arkham_rules::commit`。
+`commit(Snapshot, Intent[]) → (Snapshot', CommitReport)`：顺序应用；任一条失败则整批拒绝（M1）；结算排序指纹变化则 `gen += 1` 且 `CommitReport.created = true`。  
+`dry_run(&Snapshot, Intent[]) → CommitReport`：沙盒 clone+commit，**不**改原 Snapshot；CREATED 规则同 `commit`。  
+**CREATED** = 改 Data 结算排序（Board ∨ Facts ∨ Constraints ∨ Limits ∨ Framework ∨ Seats ∨ Chronicle）；**Audience 除外**（`SetAudience` 可写权限但不计 CREATED）。  
+实现：`arkham_rules::commit` / `dry_run`。
 
 ---
 
@@ -863,3 +864,4 @@ Snapshot {
 | 2026-11-26 | v0.42：`seats` 升出 Board → `data.seats`；Board 只留 cards+regions |
 | 2026-11-28 | v0.43：GuardIntent + `GuardPolarity`（restrict∪permit）；Gate 种类去 forbid_ 前缀；commit 回报 CREATED；对齐 38 v0.8 |
 | 2026-11-28 | v0.44：`legal` / `fold_guards` 最小（GuardedAct；Restrict→Forbid、Permit→Ok；id 稳定序）；完整竞争另开 |
+| 2026-11-28 | v0.45：`dry_run` 沙盒 CREATED；`SetAudience` 不计 CREATED；commit 按结算指纹判 created |
