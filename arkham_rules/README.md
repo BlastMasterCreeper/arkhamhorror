@@ -12,7 +12,8 @@ Functional rules kernel (Rust). Shape follows
 - **Board** = cards + regions only（物理；勿称「世界」）
 - `commit` / `dry_run` · `legal` / `fold_guards` · Gain / Chronicle
 - **M2 Eff**：`Do`/`Empty`/`Pass`/`Seq`/`If`/`Nest`/`Ask` + `plan`/`step`/`answer`；外置 `Catalog`
-- **FoldStat**：`query_stat` / `fold_stats`（`add`/`set`）；**不**含 AmountPlan / Chuck / gdext
+- **FoldStat**：`query_stat` / `fold_stats`（`add`/`set`）
+- **AmountPlan**：建 Plan → FoldStat 叠量 → Assign（PI）→ `settle_intents`；**不**含 Chuck / gdext
 
 ```bash
 cd arkham_rules && cargo test

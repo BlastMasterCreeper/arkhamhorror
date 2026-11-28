@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.47 · 2026-11-28  
+> **状态**：设计草案 v0.48 · 2026-11-28  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐（24/30 等可后补同步）。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -383,7 +383,8 @@ Deps / 索引 aspect 由 body **派生**。对照旧五类：modifier/gate/direc
 #### `ModifierPayload`（FoldStat 体）
 
 **不分型**：域 A/B/C 与 SCALAR / CONSUME 共用同一形。异质靠 `apply_mode` / `plan_kind` / `stat`。  
-**实现**：`arkham_rules::query_stat` 折叠 `add`/`set`（policy id 序）；**AmountPlan / Assign 另开**。
+**实现**：`arkham_rules::query_stat` 折叠 `add`/`set`（policy id 序）。  
+**AmountPlan**：`arkham_rules::amount` — 建 Plan → `apply_folds` → `assign`（PI，非结算）→ `settle_intents`；见 [06 §16.3](06-registration-buff-model.md)。
 
 ```text
 ModifierPayload = {
@@ -872,3 +873,4 @@ Snapshot {
 | 2026-11-28 | v0.45：`dry_run` 沙盒 CREATED；`SetAudience` 不计 CREATED；commit 按结算指纹判 created |
 | 2026-11-28 | v0.46：GainInsert/Remove · ChronicleLog/Remember 写入 Facts；计 CREATED |
 | 2026-11-28 | v0.47：`query_stat` / FoldStat 最小（add/set）；AmountPlan 仍另开 |
+| 2026-11-28 | v0.48：AmountPlan 最小（DETERMINED/ASSIGN；Assign=PI；settle→Intent[]） |
