@@ -1297,7 +1297,7 @@
                 "steps": [
                   {
                     "template": "take_damage",
-                    "flow_id": "seq.effect.damage",
+                    "flow_id": "seq.effect.deal.assignable",
                     "kind": "damage",
                     "amount": 1,
                     "target": "controller"
@@ -1540,7 +1540,7 @@
             "st7": {
               "on_fail_by_each": {
                 "template": "take_damage",
-                "flow_id": "seq.effect.damage",
+                "flow_id": "seq.effect.deal.assignable",
                 "kind": "damage",
                 "amount": 1,
                 "target": "controller"

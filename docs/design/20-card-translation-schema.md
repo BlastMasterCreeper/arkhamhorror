@@ -78,6 +78,8 @@
 
 卡面 **choose / select / may（选目标）** → **A**，不是 nest、不是 Then。通用规格见 **[21-selection-spec](21-selection-spec.md)**。
 
+**打出声明支选支**（[06 §4.2.1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广)）：声明期对 `PlayDeclarationPlan` 的 OPTIONAL/REQUIRED / `choose_one` **走 Gate 有限期确认**——有多支必问；仅一条且含额外费用也问意向；**不是** nest，**不是** `when_play` 事后反应。
+
 | 卡面语义 | template 例 | 必填规格 |
 |---|---|---|
 | 选 1 / N 实体（区域·特性·关键词·横置…） | `select` / `pick_target` / `pick_multi` | `filter`、`min`/`max`、`prompt_id`、`bind`/`memory_key`（多选 shape=`entity_list`） |
@@ -291,6 +293,36 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 
 **不再使用**条目级 `provokes_aoo` 覆盖。类型豁免（Fight/Evade/Parley/Resign）走 `action_types`；卡面「does not provoke」走 **B · `no_provoke_aoo`**。
 
+### 7.1 打出声明支（Constant · 可推广）
+
+纸面句式对齐 **05114 Meat Cleaver**：*As an additional cost to initiate this ability, you may … to …*；打出域为 *As an additional cost to play …, you may … to …*（及引擎将「打出时获快速 / 降费 / 结算加值」改写者）。登记为 **`play_branch_offer`**（挂提供方；目标打出收集进 `PlayDeclarationPlan`）。一支可带额外费用，并修正 **本帧快速 / 费用 / 结算期**：
+
+```json
+{
+  "register_as": "constant",
+  "play_branch_offer": {
+    "mode": "optional",
+    "filter": { "traits": ["tactic", "trick"] },
+    "additional": [{ "template": "exhaust_self" }],
+    "choose_one": [
+      { "grant_fast": true },
+      { "cost_delta": { "resource": -2 } },
+      { "resolution": { "skill_value": 2 } }
+    ]
+  }
+}
+```
+
+| 字段 | 含义 |
+|---|---|
+| `mode` | `optional` / `required` |
+| `grant_fast` | **本帧**快速入口；默认 **Play only during your turn**（Chuck 勘误）；不改牌面关键词 |
+| `cost_delta` | 资源费修正 |
+| `resolution` | 本帧结算期修正（检定加值等） |
+| `choose_one` | 互斥子支 |
+
+运行时：[06 §4.2.1](06-ability-initiation.md#421-打出声明支额外费用包装--fence--chuck--可推广)。**禁止** WHEN 事后改入口/费用、provisional、另拆 `[free] Play` 冒充获快速。
+
 ---
 
 ## 8. 反例 → 正例
@@ -302,6 +334,7 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 卡面 steps 内联拆光 `seq.effect.resign` 体 | nest `flow_id: seq.effect.resign` |
 | 为选目标 nest `seq.choose.*` | `pick_target`（A） |
 | JSON 写 `"enemy": "enemy_conn"` | `"enemy": "memory:picked_enemy"` 或寻址规格 |
+| `When you play … gains fast / reduce cost / +skill` 作 WHEN 或拆 `[free] Play` | Constant `play_branch_offer`（可 `grant_fast` / `cost_delta` / `resolution`）+ 声明期 PI（§7.1） |
 
 ---
 
@@ -324,3 +357,5 @@ consume:  后续 B/C/D 叶的 enemy|target|… = "memory:key"
 | 2026-09-28 | v0.2 | §4.2.1：抑制+明示交战不可被 forced-auto / After 替代（冷漠/横置） |
 | 2026-09-29 | v0.3 | §4.1：具名限制叶落地一律 `seq.effect.register`（禁真空 Store） |
 | 2026-09-29 | v0.4 | §3：挂接 21 SelectionSpec；白名单扩 filter 对象 / bind / 基数 |
+| 2026-10-28 | v0.5 | **§7.1** 打出额外费用初稿 |
+| 2026-10-28 | v0.6 | **§7.1** 升级 `play_branch_offer`：本帧快速/降费/结算加值；卡文可收束 |

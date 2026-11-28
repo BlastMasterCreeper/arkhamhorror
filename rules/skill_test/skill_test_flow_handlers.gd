@@ -56,18 +56,5 @@ static func run_revelation_test(game_ctx: GameContext, params: Dictionary) -> Di
 	}
 
 
-static func skill_type_for_flow(flow_id: StringName) -> AhcEnums.SkillType:
-	## 兼容旧调用；统一后 skill 只来自 params。
-	match flow_id:
-		&"seq.skill_test.intellect":
-			return AhcEnums.SkillType.INTELLECT
-		&"seq.skill_test.combat":
-			return AhcEnums.SkillType.COMBAT
-		&"seq.skill_test.agility":
-			return AhcEnums.SkillType.AGILITY
-		_:
-			return AhcEnums.SkillType.WILLPOWER
-
-
 static func flow_id_for_skill(_skill: AhcEnums.SkillType) -> StringName:
 	return &"seq.skill_test"

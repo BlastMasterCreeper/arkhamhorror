@@ -556,7 +556,7 @@ Would / When 由 TC 槽位决定；发起 impact **写入** zone，因此各槽�
 | **ENCOUNTER_REVELATION_COMMITTED** | `seq.encounter.revelation` | 遭遇显现 nest；priority **90**；**非** `seq.enter_hand` |
 | **MOVE_INTENT_COMMITTED** | `seq.effect.move`（行动 / 卡面 nest；含敌/附属/标记） | 狭义移动 from/to **已确定**；leave+enter **规则上同时**（一个 brick）；**不含**地点交换 |
 | **FIGHT_COMMITTED** | `seq.action.fight` | Fight 行动 **开始 RESOLVE**；默认与内嵌 test 的 AFTER **merge**（§7） |
-| **GAIN_COMMITTED** | `seq.gain_resource`（设计别名 `seq.action.gain_resource`） | 一次 gain 结算 commit（已实现竖切） |
+| **GAIN_COMMITTED** | `seq.effect.gain_resource`（设计别名 `seq.action.gain_resource`） | 一次 gain 结算 commit（已实现竖切） |
 | **REVEAL_COMMITTED** | `seq.encounter.reveal` | 遭遇显现；`pre_impact=SPLIT` |
 
 ### 5.3 Move 事务
@@ -791,7 +791,7 @@ FrameworkFlowEngine._resolve_upkeep_draw_and_resource()
 | 步 | 内联/nest | 因果 | seq |
 |---|---|---|---|
 | 抽 1 | Delegate → 完整 draw seq | 连续（框架编排） | `seq.draw.investigator` |
-| +1 资源 | Delegate → 完整 gain seq | 连续 | `seq.gain_resource` |
+| +1 资源 | Delegate → 完整 gain seq | 连续 | `seq.effect.gain_resource` |
 
 **tags**：`framework` + `upkeep_4_4`；`gain_resource` / `draw_investigator` 由 `TriggeringCondition` 自动附加。L3 能力可绑 `framework_step == UPKEEP_4_4`（见 06 §4.1）。
 
@@ -876,8 +876,8 @@ var enter_hand_timing: EnterHandTimingPolicy = EnterHandTimingPolicy.new()
 |---|---|
 | `CardFaceVisibility` + `FaceAudience`（[01 §3.6](01-game-state-zones.md)） | `TimingCatalog` / WOULD·WHEN 砖块边界 emit（TIM-01～04） |
 | L0：`pop_deck_top`、`shuffle_discard_into_deck`、`commit_enter_hand`、`reveal_to_controller` | `seq.draw.encounter` |
-| L1：`DrawInvestigatorComposition`（`shuffle_and_horror`、`reveal_batch`、`enter_hand_batch`） | 设计别名 `seq.action.gain_resource` → 代码 `seq.gain_resource` 对齐（可选） |
-| `SequenceCatalog`：`seq.draw.investigator`、`seq.draw.empty_piles_defeated`、`seq.enter_hand`、`seq.gain_resource` | `TimingCatalog` 索引表（§17） |
+| L1：`DrawInvestigatorComposition`（`shuffle_and_horror`、`reveal_batch`、`enter_hand_batch`） | 设计别名 `seq.action.gain_resource` → 代码 `seq.effect.gain_resource` 对齐（可选） |
+| `SequenceCatalog`：`seq.draw.investigator`、`seq.draw.empty_piles_defeated`、`seq.enter_hand`、`seq.effect.gain_resource` | `TimingCatalog` 索引表（§17） |
 | `DrawInvestigatorFlow` + `DrawSubflowHandlers`；`DrawInvestigatorService` → `catalog.run` | D1 per-card instance bind（当前以 `card_id` + pending 列表） |
 | `CardRegistry.register_revelation` → Composition；ENT-01～03 测试 | encounter draw 共用 `seq.enter_hand` |
 | `StateMutator.execute_draw_instruction` dry-run 回退（`run_mutator_only`） | |
@@ -1674,7 +1674,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | `seq.draw.investigator` | RUN | 调查员抽 N 张；D1 内联 collect；`nest_batch seq.enter_hand` |
 | `seq.draw.empty_piles_defeated` | RUN（因果 nest） | 两堆皆空 → ELIMINATED |
 | `seq.enter_hand` | NEST_BATCH | 入手 timing + Revelation Composition（全来源共用） |
-| `seq.gain_resource` | RUN | 资源 gain + modifier |
+| `seq.effect.gain_resource` | RUN | 资源 gain + modifier |
 
 占位：move / fight / skill_test 的 `(sequence_id, slot)` 将在流程评审通过后写入。
 
@@ -1685,7 +1685,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 | `seq.draw.investigator` | RUN | 调查员抽 N 张；D1 内联 collect；`nest_batch seq.enter_hand` |
 | `seq.draw.empty_piles_defeated` | RUN（因果 nest） | 两堆皆空 → ELIMINATED |
 | `seq.enter_hand` | NEST_BATCH | 入手 timing + Revelation Composition（**玩家牌**） |
-| `seq.gain_resource` | RUN | 资源 gain + modifier |
+| `seq.effect.gain_resource` | RUN | 资源 gain + modifier |
 | `seq.draw.encounter` | RUN | 遭遇抽 N；E1 内联；Surge 同 frame |
 | `seq.encounter.resolve_card` | RUN | 已持有实例 → 遭遇侧能力体系（同 `resolve_card_body`） |
 | `seq.encounter.revelation` | RUN（nest） | priority **90** 结算体（`ENCOUNTER_CARD_DRAWN`） |
@@ -1760,7 +1760,7 @@ P-ENC-7  ENC-01～07 测试 + Mythos 1.4 框架集成测试
 |---|---|
 | `CardFaceVisibility`、`StateMutator` L0 原子 | `TimingCatalog` |
 | `CompositionExecutor` + `DrawInvestigatorComposition` | 卡面 draw 转译：WHEN = 抽取步骤；WOULD = 这次抽取 PreImpact；AFTER = 整段结算完毕 |
-| `SequenceCatalog` + `SequenceCatalogBootstrap`（draw 子 flow、`seq.enter_hand`、`seq.gain_resource`） | **`seq.draw.encounter` 全家桶**（§17.4） |
+| `SequenceCatalog` + `SequenceCatalogBootstrap`（draw 子 flow、`seq.enter_hand`、`seq.effect.gain_resource`） | **`seq.draw.encounter` 全家桶**（§17.4） |
 | `ResolutionSequenceStack` push/pop/nest + `SequenceCatalog.nest` / `nest_batch` | `EncounterResolutionFrame` |
 | `DrawInvestigatorService` / `ResourceGainService` 薄 facade → `catalog.run` | `DrawEncounterFlow` / `DrawEncounterComposition` |
 | `CardAbilityService` + `CardRegistry.register_revelation` | `resolve_encounter_revelations`（或复用 + flow_id 分支） |

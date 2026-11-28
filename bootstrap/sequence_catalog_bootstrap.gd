@@ -97,7 +97,6 @@ static func _register_flows(
 	var gain_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return _resolve_gain_resource(game_ctx, params, mutator)
 	catalog.register_run(&"seq.effect.gain_resource", gain_build, gain_resolve)
-	catalog.register_run(&"seq.gain_resource", gain_build, gain_resolve)
 	_register_keyword_flows(catalog)
 	_register_interrupt_flows(catalog)
 	_register_replace_flows(catalog)
@@ -179,20 +178,6 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return LocationEnterRules.reveal_and_place_clues(game_ctx, params)
 	)
-	## 旧 id 别名（敌人卡面 nest）；resolve 强制 subject=enemy。
-	catalog.register_run(
-		&"seq.enemy.move",
-		func(params: Dictionary) -> TriggeringCondition:
-			var p := params.duplicate()
-			p["subject"] = MoveFlow.SUBJECT_ENEMY
-			return TriggeringCondition.move(p),
-		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-			var p := params.duplicate()
-			p["subject"] = MoveFlow.SUBJECT_ENEMY
-			if not p.has("destination_id") and p.has("target_location"):
-				p["destination_id"] = p["target_location"]
-			return MoveFlow.run(game_ctx, p)
-	)
 	catalog.register_run(
 		&"seq.effect.discover_clue",
 		func(params: Dictionary) -> TriggeringCondition:
@@ -200,7 +185,7 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return DiscoverClueFlow.run_params(game_ctx, params)
 	)
-	## 造成伤害/恐惧：待分配 / 无分配。旧 flow_id damage* 作别名。
+	## 造成伤害/恐惧：待分配 / 无分配（正式 id = deal*；勿再注册 damage*）。
 	var deal_assignable := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return DealAssignableFlow.run(game_ctx, params)
 	var deal_determined := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
@@ -220,20 +205,6 @@ static func _register_effect_flows(catalog: SequenceCatalog) -> void:
 		deal_determined,
 		false,
 		true ## 无分配已定 legs/单点
-	)
-	catalog.register_run(
-		&"seq.effect.damage.assignable",
-		deal_tc,
-		deal_assignable,
-		false,
-		true
-	)
-	catalog.register_run(
-		&"seq.effect.damage",
-		deal_tc,
-		deal_determined,
-		false,
-		true
 	)
 	catalog.register_run(
 		&"seq.effect.lose_resources",
@@ -392,7 +363,6 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EnemyPhaseFlow.resolve_location(game_ctx, params)
 	)
-	## seq.enemy.move 已并入 _register_effect_flows（别名 → seq.effect.move）。
 	catalog.register_run(
 		&"seq.engage",
 		func(params: Dictionary) -> TriggeringCondition:
@@ -409,26 +379,13 @@ static func _register_enemy_flows(catalog: SequenceCatalog) -> void:
 		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 			return EnemyPhaseFlow.attack(game_ctx, params)
 	)
-	## G5：击败效果；成功后 nest 退场。敌人别名保留 TC `enemy_defeated`。
-	var defeat_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
-		return DefeatFlow.resolve(game_ctx, params)
+	## G5：击败效果；成功后 nest 退场。敌人主体 TC.kind = enemy_defeated（见 TriggeringCondition.defeat）。
 	catalog.register_run(
 		&"seq.effect.defeat",
 		func(params: Dictionary) -> TriggeringCondition:
 			return TriggeringCondition.defeat(params),
-		defeat_resolve
-	)
-	catalog.register_run(
-		&"seq.enemy.defeat",
-		func(params: Dictionary) -> TriggeringCondition:
-			var p := params.duplicate()
-			p["subject"] = DefeatFlow.SUBJECT_ENEMY
-			return TriggeringCondition.enemy_defeated(
-				p.get("enemy_id", &"") as StringName,
-				p.get("location_id", &"") as StringName,
-				p.get("definition_id", &"") as StringName
-			),
-		defeat_resolve
+		func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
+			return DefeatFlow.resolve(game_ctx, params)
 	)
 	catalog.register_run(
 		&"seq.defeat.leave_play",
@@ -446,20 +403,6 @@ static func _register_mythos_flows(catalog: SequenceCatalog) -> void:
 	var phase_resolve := func(game_ctx: GameContext, params: Dictionary) -> Dictionary:
 		return PhaseBoundaryFlow.resolve(game_ctx, params)
 	catalog.register_run(PhaseBoundaryFlow.FLOW, phase_build, phase_resolve)
-	## 旧 id：调查结束别名 → 固定 params。
-	catalog.register_run(
-		PhaseBoundaryFlow.FLOW_INVESTIGATION_ENDS_ALIAS,
-		func(_params: Dictionary) -> TriggeringCondition:
-			return TriggeringCondition.investigation_phase_ends(),
-		func(game_ctx: GameContext, _params: Dictionary) -> Dictionary:
-			return PhaseBoundaryFlow.resolve(
-				game_ctx,
-				{
-					"phase": PhaseBoundaryFlow.PHASE_INVESTIGATION,
-					"boundary": PhaseBoundaryFlow.BOUNDARY_ENDS,
-				}
-			)
-	)
 	catalog.register_run(
 		&"seq.mythos.place_doom",
 		func(_params: Dictionary) -> TriggeringCondition:

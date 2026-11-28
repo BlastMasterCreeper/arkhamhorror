@@ -7,7 +7,9 @@ var skill: AhcEnums.SkillType = AhcEnums.SkillType.WILLPOWER
 var difficulty: int = 0
 var committed: Array[CommittedCard] = []
 var revealed_tokens: Array[ChaosToken] = []
+## 审计镜像：ST.4 写入的混乱技能修正累计；真相在 Registration MODIFIER（THIS_SKILL_TEST）。
 var chaos_modifier: int = 0
+var chaos_modifier_reg_ids: Array[StringName] = []
 var modified_value: int = 0
 var success: bool = false
 var fail_by: int = 0

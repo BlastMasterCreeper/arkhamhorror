@@ -101,7 +101,7 @@
 ### B1 运行时 + A3 ✅
 - 威胁区弃置：`StateMutator` 清 `threat_area` / `play_area`
 - `activate_action` 闭环（12102）：耗 2 行动 → 弃弱点 → 卸载触发
-- `seq.framework.investigation_phase_ends` + Fire! Forced（非 Elite 有生命值卡）
+- `seq.framework.phase_boundary`（investigation/ends）+ Fire! Forced（非 Elite 有生命值卡）
 - 附着后 `install_card`；地点调查员恐惧/伤害 template
 - 指标：53 → **55**；SEQ-EFF-09 / ADB-41..43
 
@@ -129,7 +129,7 @@
 
 ### 12116 / 12122 / 12132 ✅
 - 12116 Free：`pick_target(location_connecting)` → `nest_move_to` + `investigators_in_game_1_or_2`（Group limit → partial）
-- 12132 Forced：`seq.enemy.defeat` WHEN → `take_horror` @ `each_at_source_location`
+- 12132 Forced：`seq.effect.defeat` WHEN（`enemy_defeated`）→ `take_horror` @ `each_at_source_location`
 - 12122 Forced：`seq.enemy.attack` AFTER → `discard_card` @ `controlled_assets`
 - 敌人进场 `install_triggered_abilities`；击败/弃置离场卸载
 

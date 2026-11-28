@@ -7,15 +7,19 @@ extends RefCounted
 
 
 ## 若 token 为 bless/curse 则施加并返回 true；否则 false（留给其它 ST.4 路由）。
-static func try_apply(ctx: SkillTestContext, token: ChaosToken) -> bool:
+static func try_apply(
+	ctx: SkillTestContext,
+	token: ChaosToken,
+	game_ctx: GameContext = null
+) -> bool:
 	if token == null:
 		return false
 	match token.kind:
 		AhcEnums.ChaosTokenKind.BLESS:
-			apply(ctx, token, 2)
+			apply(ctx, token, 2, game_ctx)
 			return true
 		AhcEnums.ChaosTokenKind.CURSE:
-			apply(ctx, token, -2)
+			apply(ctx, token, -2, game_ctx)
 			return true
 		_:
 			return false
@@ -23,10 +27,16 @@ static func try_apply(ctx: SkillTestContext, token: ChaosToken) -> bool:
 
 ## Bless +2 / Curse −2；Reveal another；ST.8 归 chaos_token_pool（非袋）。
 ## 能力揭示 curse 不走此路径 → finalize 仍回袋。
-static func apply(ctx: SkillTestContext, token: ChaosToken, modifier: int) -> void:
+## 技能修正经 ChaosSkillModifier → MODIFIER Buff（THIS_SKILL_TEST）。
+static func apply(
+	ctx: SkillTestContext,
+	token: ChaosToken,
+	modifier: int,
+	game_ctx: GameContext = null
+) -> void:
 	if ctx == null:
 		return
-	ctx.chaos_modifier += modifier
+	ChaosSkillModifier.apply(game_ctx, ctx, modifier)
 	if token == null:
 		return
 	token.reveal_another = true

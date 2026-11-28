@@ -84,14 +84,6 @@ func _deal_via_seq(attack: EnemyAttack) -> void:
 			_game_ctx, &"seq.effect.deal.assignable", params
 		)
 		return
-	if (
-		_game_ctx.sequence_catalog != null
-		and _game_ctx.sequence_catalog.has_flow(&"seq.effect.damage.assignable")
-	):
-		_game_ctx.sequence_catalog.nest(
-			_game_ctx, &"seq.effect.damage.assignable", params
-		)
-		return
 	DamagePipeline.deal_investigator_bundle(
 		_game_ctx,
 		attack.target_investigator,

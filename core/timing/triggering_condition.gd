@@ -709,19 +709,23 @@ static func enemy_defeated(
 	return t
 
 
-## 击败效果（seq.effect.defeat · 敌人/调查员）。
+## 击败效果（seq.effect.defeat · 敌人/调查员/支援）。
+## 敌人主体 → TC.kind=`enemy_defeated`（Forced / doomed 等 match_kind）。
 static func defeat(
 	params: Dictionary,
 	after_timing: StringName = &"after_defeat"
 ) -> TriggeringCondition:
 	var subject: StringName = params.get("subject", &"") as StringName
 	var enemy_id: StringName = params.get("enemy_id", &"") as StringName
-	if subject == &"" and enemy_id != &"":
+	if subject == &"enemy" or (subject == &"" and enemy_id != &""):
+		var at := after_timing
+		if at == &"" or at == &"after_defeat":
+			at = &"after_enemy_defeated"
 		return enemy_defeated(
 			enemy_id,
 			params.get("location_id", &"") as StringName,
 			params.get("definition_id", &"") as StringName,
-			after_timing
+			at
 		)
 	var inv_id: StringName = params.get(
 		"investigator_id", params.get("inv_id", &"")

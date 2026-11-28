@@ -3,7 +3,7 @@ extends RefCounted
 
 ## 敌人 defeat / discard-from-play · 08 §8
 ##
-## - damage >= health → 常态检测 → `DefeatFlow`（`seq.effect.defeat` / `seq.enemy.defeat`）
+## - damage >= health → 常态检测 → `DefeatFlow`（`seq.effect.defeat`）
 ## - 卡面击败：`defeat(..., cause=effect)` 无视伤量
 ## - 击败成功后 nest 退场（`finalize_leave_play`）；Cancel → 无退场
 ## - discard_from_play：仅离场，不算 defeat
