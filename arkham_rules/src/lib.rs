@@ -7,7 +7,7 @@ pub mod legal;
 pub mod world;
 
 pub use intent::{
-    commit, engagement_relation, guard_policy, CommitError, CommitReport, Intent,
+    commit, dry_run, engagement_relation, guard_policy, CommitError, CommitReport, Intent,
 };
 pub use legal::{fold_guards, legal, GuardedAct, LegalVerdict};
 pub use world::{

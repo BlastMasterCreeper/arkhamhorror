@@ -1,8 +1,8 @@
 //! Unique Data writers — commit(Intent[]) → (Snapshot', CommitReport).
 
 use crate::world::{
-    GatePayload, GuardPolarity, InfoShell, Policy, PolicyBody, Relation, Snapshot, Subject,
-    TOKEN_SUPPLY,
+    Audience, Data, GatePayload, GuardPolarity, InfoShell, Policy, PolicyBody, Relation, Snapshot,
+    Subject, TOKEN_SUPPLY,
 };
 
 #[derive(Clone, Debug)]
@@ -37,9 +37,14 @@ pub enum Intent {
         investigator_id: String,
         actions_remaining: i32,
     },
+    /// Permission write — authoritative but **never** CREATED (38 / 07).
+    SetAudience {
+        card_id: String,
+        audience: Audience,
+    },
 }
 
-/// Settlement-sort write happened on Data (Audience excluded; no Audience Intent yet).
+/// Settlement-sort write happened on Data (**Audience excluded**).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CommitReport {
     pub created: bool,
@@ -64,17 +69,38 @@ pub enum CommitError {
     },
 }
 
-/// Apply intents in order. Settlement writes set `created` and bump `gen`.
+/// Apply intents in order. `created` iff settlement-sort Data changed (Audience ignored).
 pub fn commit(mut snap: Snapshot, intents: &[Intent]) -> Result<(Snapshot, CommitReport), CommitError> {
-    let mut created = false;
+    let before = settlement_fingerprint(&snap.data);
     for intent in intents {
         apply_one(&mut snap, intent)?;
-        created = true;
     }
+    let created = settlement_fingerprint(&snap.data) != before;
     if created {
         snap.gen = snap.gen.saturating_add(1);
     }
     Ok((snap, CommitReport { created }))
+}
+
+/// Sandbox commit: clone → apply → report; **does not** mutate `snap`.
+/// Same CREATED rule as [`commit`] (Audience writes do not set `created`).
+pub fn dry_run(snap: &Snapshot, intents: &[Intent]) -> Result<CommitReport, CommitError> {
+    let (_sandbox, report) = commit(snap.clone(), intents)?;
+    Ok(report)
+}
+
+/// Fingerprint of Data settlement partitions — excludes `audience` (Permission, non-CREATED).
+fn settlement_fingerprint(data: &Data) -> String {
+    let view = serde_json::json!({
+        "board": data.board,
+        "facts": data.facts,
+        "constraints": data.constraints,
+        "limits": data.limits,
+        "framework": data.framework,
+        "seats": data.seats,
+        "next_id": data.next_id,
+    });
+    serde_json::to_string(&view).expect("settlement fingerprint")
 }
 
 fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
@@ -165,6 +191,10 @@ fn apply_one(snap: &mut Snapshot, intent: &Intent) -> Result<(), CommitError> {
                 .get_mut(investigator_id)
                 .ok_or_else(|| CommitError::MissingSeat(investigator_id.clone()))?;
             seat.actions_remaining = *actions_remaining;
+            Ok(())
+        }
+        Intent::SetAudience { card_id, audience } => {
+            snap.data.audience.insert(card_id.clone(), *audience);
             Ok(())
         }
     }
@@ -467,5 +497,70 @@ mod tests {
         // seats live on Data, not Board
         let board = serde_json::to_value(&s1.data.board).unwrap();
         assert!(!board.as_object().unwrap().contains_key("seats"));
+    }
+
+    #[test]
+    fn dry_run_reports_created_without_mutating() {
+        let s0 = mini_snap();
+        let gen0 = s0.gen;
+        let rel = engagement_relation("r_dry", "E", "E", "I");
+        let report = dry_run(
+            &s0,
+            &[Intent::FactInsert {
+                relation: rel.clone(),
+            }],
+        )
+        .unwrap();
+        assert!(report.created);
+        // Original unchanged
+        assert!(!s0.data.facts.relations.contains_key("r_dry"));
+        assert_eq!(s0.gen, gen0);
+        // Live commit still works
+        let (s1, live) = commit(s0, &[Intent::FactInsert { relation: rel }]).unwrap();
+        assert!(live.created);
+        assert!(s1.data.facts.relations.contains_key("r_dry"));
+    }
+
+    #[test]
+    fn audience_write_is_not_created() {
+        use crate::world::Audience;
+        let s0 = mini_snap();
+        let gen0 = s0.gen;
+        let report = dry_run(
+            &s0,
+            &[Intent::SetAudience {
+                card_id: "C1".into(),
+                audience: Audience::Controller,
+            }],
+        )
+        .unwrap();
+        assert!(!report.created);
+        let (s1, live) = commit(
+            s0,
+            &[Intent::SetAudience {
+                card_id: "C1".into(),
+                audience: Audience::Controller,
+            }],
+        )
+        .unwrap();
+        assert!(!live.created);
+        assert_eq!(s1.gen, gen0);
+        assert_eq!(s1.data.audience.get("C1"), Some(&Audience::Controller));
+    }
+
+    #[test]
+    fn dry_run_propagates_commit_errors() {
+        let s0 = mini_snap();
+        let err = dry_run(
+            &s0,
+            &[Intent::MoveCard {
+                card_id: "missing".into(),
+                from_region: "deck_I".into(),
+                to_region: "hand_I".into(),
+            }],
+        )
+        .unwrap_err();
+        assert!(matches!(err, CommitError::CardNotInRegion { .. }));
+        assert!(!s0.data.board.regions["deck_I"].card_ids.is_empty());
     }
 }
