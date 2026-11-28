@@ -3,6 +3,7 @@
 //! Shape: `docs/design/37-world-structure.md` · World_FP: `docs/design/38-functional-data-world.md`.
 //! Eff: `docs/design/25-functional-eff.md`.
 
+pub mod amount;
 pub mod catalog;
 pub mod eff;
 pub mod intent;
@@ -10,6 +11,10 @@ pub mod legal;
 pub mod query;
 pub mod world;
 
+pub use amount::{
+    apply_folds, assign, build_plan, settle_intents, AmountEffectShape, AmountLeg, AmountPlan,
+    AmountPlanKind, AssignError, SettleError,
+};
 pub use catalog::{Catalog, Flow};
 pub use eff::{
     answer, draw_one_eff, eval_pred, plan, run_to_ask_or_done, step, AskRequest, Eff, PlanResult,
