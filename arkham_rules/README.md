@@ -13,7 +13,8 @@ Functional rules kernel (Rust). Shape follows
 - `commit` / `dry_run` · `legal` / `fold_guards` · Gain / Chronicle
 - **M2 Eff**：`Do`/`Empty`/`Pass`/`Seq`/`If`/`Nest`/`Ask` + `plan`/`step`/`answer`；外置 `Catalog`
 - **FoldStat**：`query_stat` / `fold_stats`（`add`/`set`）
-- **AmountPlan**：建 Plan → FoldStat 叠量 → Assign（PI）→ `settle_intents`；**不**含 Chuck / gdext
+- **AmountPlan**：建 Plan → FoldStat 叠量 → Assign（PI）→ `settle_intents`
+- **Initiation path（Chuck 09072）**：Constant 额外费用 → 可选 `PLAY_CARD` 路径（Fast / −2 资源）；**非** Would
 
 ```bash
 cd arkham_rules && cargo test
