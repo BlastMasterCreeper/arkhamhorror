@@ -255,7 +255,7 @@ pub struct Policy {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PolicyBody {
-    /// Query-station fold shell (fold / AmountPlan not implemented in foundation).
+    /// Query-station fold (`query_stat`); AmountPlan/Assign deferred.
     FoldStat { fold: ModifierPayload },
     /// Intent → Ok|Forbid door; Restrict ∪ Permit (38 v0.8).
     GuardIntent {

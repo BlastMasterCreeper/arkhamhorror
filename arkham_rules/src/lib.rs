@@ -7,6 +7,7 @@ pub mod catalog;
 pub mod eff;
 pub mod intent;
 pub mod legal;
+pub mod query;
 pub mod world;
 
 pub use catalog::{Catalog, Flow};
@@ -18,6 +19,7 @@ pub use intent::{
     commit, dry_run, engagement_relation, gained, guard_policy, CommitError, CommitReport, Intent,
 };
 pub use legal::{fold_guards, legal, GuardedAct, LegalVerdict};
+pub use query::{fold_stat_policy, fold_stats, query_stat};
 pub use world::{
     AssignConstraintBody, Audience, Board, Card, CardType, Chronicle, Constraints, Data,
     DirectivePayload, Face, Facts, Feasibility, Focus, Framework, GatePayload, GateScope,
