@@ -230,7 +230,8 @@ FAQ（2024-03）：Chuck 给的 Fast **不能**用来在回合外打出——须
 | kinds still PLAY_CARD | 种类仍是打出，不是能力 | 06 §4.2 |
 | **禁止** Would / 时点改写 | `is_would_rewrite ≡ false` | prefs 2026-11-28 |
 
-竖切：`arkham_rules::initiation` · `chuck_fast_path` / `offer_play_paths` / `evaluate_path`。
+竖切：`arkham_rules::initiation` · `chuck_fast_path` / `offer_play_paths` / `evaluate_path`。  
+详细实现走查：[39-chuck-initiation-path](../design/39-chuck-initiation-path.md)。
 
 ---
 
