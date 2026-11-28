@@ -7,13 +7,14 @@ pub mod legal;
 pub mod world;
 
 pub use intent::{
-    commit, dry_run, engagement_relation, guard_policy, CommitError, CommitReport, Intent,
+    commit, dry_run, engagement_relation, gained, guard_policy, CommitError, CommitReport, Intent,
 };
 pub use legal::{fold_guards, legal, GuardedAct, LegalVerdict};
 pub use world::{
     AssignConstraintBody, Audience, Board, Card, CardType, Chronicle, Constraints, Data,
     DirectivePayload, Face, Facts, Feasibility, Focus, Framework, GatePayload, GateScope,
-    GuardPolarity, InfoShell, LimboKind, LimitStore, ListenerPayload, ModifierPayload, Policy,
+    GainedCharacteristic, GuardPolarity, InfoShell, LimboKind, LimitStore, ListenerPayload,
+    LogEntry, ModifierPayload, Policy,
     PolicyBody, PolicyKind, Region, RegionShape, Relation, RelationBody, Run, Seat, Snapshot,
     Subject, TOKEN_SUPPLY,
 };

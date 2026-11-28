@@ -1,6 +1,6 @@
 # 37 — 世界结构（分类 · 键名 · 类型）
 
-> **状态**：设计草案 v0.45 · 2026-11-28  
+> **状态**：设计草案 v0.46 · 2026-11-28  
 > **地位**：函数运算的自变量/返回值形状；与 [24](24-functional-world.md)、[30](30-functional-primer.md)、[34](34-registration-index-cache.md)、[35](35-legal-interest.md) 对齐（24/30 等可后补同步）。  
 > **函数世界定义**：[38-functional-data-world](38-functional-data-world.md)（`World_FP ≜ Data`；本文 `board/facts/constraints` = Data 分区表）。  
 
@@ -773,8 +773,13 @@ Intent =
   | SetSeatOutcome { investigator_id, eliminated?, resigned? }
   | FactInsert { relation }            -- Facts.relations；CREATED
   | ConstraintInsert { policy }        -- Constraints.policies；CREATED
+  | GainInsert { gain }                -- Facts.gains；CREATED
+  | GainRemove { id }                  -- Facts.gains；CREATED
+  | ChronicleLog { text, round }       -- Facts.chronicle.log；CREATED
+  | ChronicleRemember { key, value }   -- Facts.chronicle.remembered；CREATED
+  | SetAudience { card_id, audience }  -- Permission；**不计** CREATED
   | CompanionRemove { id }
-  -- 后续：GainInsert/Remove、AudienceSet、LimitBump、FrameworkSet…
+  -- 后续：LimitBump、FrameworkSet…
   -- 禁止：AdjustToken / 单端 delta
 ```
 
@@ -865,3 +870,4 @@ Snapshot {
 | 2026-11-28 | v0.43：GuardIntent + `GuardPolarity`（restrict∪permit）；Gate 种类去 forbid_ 前缀；commit 回报 CREATED；对齐 38 v0.8 |
 | 2026-11-28 | v0.44：`legal` / `fold_guards` 最小（GuardedAct；Restrict→Forbid、Permit→Ok；id 稳定序）；完整竞争另开 |
 | 2026-11-28 | v0.45：`dry_run` 沙盒 CREATED；`SetAudience` 不计 CREATED；commit 按结算指纹判 created |
+| 2026-11-28 | v0.46：GainInsert/Remove · ChronicleLog/Remember 写入 Facts；计 CREATED |
