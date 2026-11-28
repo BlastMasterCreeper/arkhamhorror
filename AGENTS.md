@@ -22,11 +22,17 @@ behavior is exercised through the headless GDScript test suite.
 ### Test
 - Run the headless suite (canonical entry, see `README.md` / `run_tests.ps1`):
   `godot --headless --path . -s "res://tests/run_headless.gd"`
-- It prints `All tests passed.` and exits `0` on success.
-- Gotcha: on exit Godot prints benign `ObjectDB instances leaked` /
-  `resources still in use at exit` warnings even when all tests pass — these do
-  NOT indicate failure. Judge success by the `All tests passed.` line and the
-  exit code, not by the absence of these warnings.
+- It prints `All tests passed.` on success.
+- Gotcha (Linux): the `-s` script-mode `SceneTree` runner reliably prints every
+  `OK` line and `All tests passed.`, but this Godot 4.6.3 Linux build then
+  **aborts during engine shutdown** with a glibc heap message (e.g.
+  `corrupted size vs. prev_size in fastbins`) and returns exit code `134`
+  AFTER all tests have passed. This shutdown abort is benign and does NOT mean a
+  test failed. Judge success by the presence of `All tests passed.` (and the
+  absence of any `FAIL`/`FAILED:` line), NOT by exit code `0`.
+- Godot may also print benign `ObjectDB instances leaked` /
+  `resources still in use at exit` warnings — these do NOT indicate failure
+  either.
 - `run_tests.ps1` is Windows/PowerShell only; on Linux call the `godot` command
   above directly.
 
