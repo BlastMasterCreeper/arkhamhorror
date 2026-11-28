@@ -47,7 +47,7 @@
 
 | 现状 | 状态 |
 |---|---|
-| ~~`seq.gain_resource`~~ | **已迁** → `seq.effect.gain_resource`（旧 id 别名） |
+| ~~`seq.gain_resource`~~ | **已删** → 仅 `seq.effect.gain_resource` |
 | `seq.engage` | **保留根 id**；仅 `auto`/`effect`（行动=效果交战）；见 §3.4 / M5 |
 
 ---
@@ -93,12 +93,14 @@
 | `seq.effect.attach` | Attach To | **保留** |
 | `seq.effect.resign` | Resign | **保留** |
 | `seq.effect.register` / `unregister` | lasting / Cannot / keyword 标记创建 | **保留**；勿为每个 keyword 开创建 seq |
-| `seq.effect.gain_resource` | Gain resources | **已迁**；旧 `seq.gain_resource` 别名 |
+| `seq.effect.gain_resource` | Gain resources | **已迁**；旧根 id 已删 |
 | `seq.effect.evade` | Evade（效果） | **已铸**；横置+解除交战；`mode` attempt\|automatic；卡面**执行**=自动躲避；「evade」措辞多用于时点 |
 | `seq.effect.search` | Search | **已铸**；见 G3 |
 | `seq.effect.exhaust` / `ready` | Exhaust / Ready | **已铸**；见 G2 |
 | `seq.effect.move` | Move（狭义） | **已铸**；见 G1 |
 | `seq.effect.defeat` | Defeat | **已铸**；见 G5 |
+| `seq.effect.reveal_location` | Reveal location + 首次放线索 | **已铸**；进入未揭示地点 nest（`LocationEnterRules`） |
+| `seq.effect.seal` / `release_seal` | Seal Domain | **已铸**；混乱袋封印 / 释放（见 [05](05-chaos-bag.md)） |
 
 ### 3.4 敌军阶段 / 敌人 / 交战
 
@@ -132,7 +134,7 @@
 
 | flow_id | Grimoire | 粒度裁决（草案） |
 |---|---|---|
-| ~~`seq.enemy.move`~~ | Move（敌人） | **已并** → `seq.effect.move`（`subject=enemy`；兼容别名仍注册） |
+| ~~`seq.enemy.move`~~ | Move（敌人） | **已并并删别名** → `seq.effect.move`（`subject=enemy`） |
 | `seq.enemy.3_2_hunter_patrol` | （误铸） | **删除** → 见 §4 M2 |
 | `seq.enemy.3_2_patrol` | （误铸） | **删除** → 见 §4 M2 |
 | `seq.enemy.3_2` | Framework **3.2** 基础手续 | **已收口**：枚举 + `ENEMY_3_2` 消费槽；**不含**移动路径 |
@@ -142,7 +144,7 @@
 | `seq.enemy.phase_attacks` | 3.3 Engaged attacks | **已收口**：固定手续；nest `seq.enemy.attack` |
 | `seq.enemy.massive_phase_attacks` | （误铸） | **删除** |
 | `seq.keyword.massive` | Massive REPLACE 体 | **已铸**：替换 `seq.enemy.attack`（PHASE→batch） |
-| `seq.enemy.defeat` | Defeat（敌人） | **保留**；见下「击败」— 退场 **nest** 广义移动，不内联 |
+| ~~`seq.enemy.defeat`~~ | Defeat（敌人） | **已并并删别名** → `seq.effect.defeat`；敌主体 TC.kind=`enemy_defeated` |
 | `seq.enemy.resolve_location` | Prey / 地点解析辅助 | **保留或降为内部**（若无独立订阅需求） |
 | `seq.engage` | Engage（交战） | **扩展内核**：见下「交战 params」；外壳 `seq.action.engage` nest 本条 |
 | `seq.effect.move` | 狭义 Move | **统一核**：`subject` = investigator / enemy / attachment / marker |
@@ -226,7 +228,8 @@
 | `seq.mythos.check_doom_threshold` | 1.3 | **保留** |
 | `seq.agenda.advance` / `seq.act.advance` | Agenda/Act advance | **保留** |
 | `seq.act_agenda.resolve_back` | 背面结算 | **保留** |
-| `seq.framework.phase_boundary` | 各阶段 begins/ends | **已铸**（G6 · **一条**）；`phase`+`boundary` params；TC.kind 仍细分；旧 `investigation_phase_ends` 别名 |
+| `seq.framework.phase_boundary` | 各阶段 begins/ends | **已铸**（G6 · **一条**）；`phase`+`boundary` params；TC.kind 仍细分（如 `investigation_phase_ends`）；旧 flow 别名已删 |
+| `seq.chaos.reveal` | Chaos bag reveal（ST.3） | **已铸**；WHEN 窗收集替换 → RESOLVE 离袋（[05](05-chaos-bag.md)） |
 | `seq.interrupt.cancel` / `ignore` | Cancel / Ignore | **保留** |
 | `seq.replace.instead` | Instead / Would | **保留** |
 | `seq.ability.resolve` | Initiation 装载 | **保留**（工程帧，非词条） |
@@ -240,7 +243,7 @@
 | M1 | ~~`discard_from_hand`~~ | **已并**入 `discard_card` + `from` | 同词条 Discard | Eligibility 须读 `from` / tag `from_hand` |
 | M2 | `3_2_hunter_patrol` / `3_2_patrol` | **已落地**：框架只留 **`seq.enemy.3_2`**（枚举 + 消费槽）；Hunter/Patrol 移动体摘为 **`seq.keyword.hunter` / `seq.keyword.patrol`**（KeywordConsumer @ `ENEMY_3_2`） | [08 §5](08-enemy-engagement.md)、[06 §3.2.5](06-registration-buff-model.md) | 关键词 ≠ 框架 handler 内联 |
 | M3 | `phase_attacks` + `massive_phase_attacks` | **已落地**：只留 **`seq.enemy.phase_attacks`**（固定 nest 攻击）；庞大 = 对一般攻击 **`seq.enemy.attack`** 的 **REPLACE**（PHASE→`seq.keyword.massive`）；删平行 massive 流程 | [06 §3.2.7](06-registration-buff-model.md)、[08 §6.3](08-enemy-engagement.md) | REPLACE 锚在攻击效果，不在 3.3 框架 |
-| M4 | `seq.gain_resource` | **已落地**：正式 `seq.effect.gain_resource`；旧 id 别名 | taxonomy | — |
+| M4 | `seq.gain_resource` | **已落地**：正式 `seq.effect.gain_resource`；旧根 id **已删** | taxonomy | — |
 | M5 | `seq.engage` | **已收口**：交战状态 = **ENGAGEMENT Buff**；威胁区仅区划检测；`grant` 不移入威胁区 | 行动=效果交战 | `EngagementStatus` vs `threat_area` 分查 |
 
 **不建议合并**（已确认或强烈倾向）：
@@ -265,42 +268,52 @@
 | G2 | **Exhaust / Ready / Evade effect** | **已铸** `seq.effect.exhaust` / `ready` / **`evade`** | 横置/重整；躲避效果核 = **横置∥脱离同时组**；费用 exhaust 仍走 Cost |
 | G3 | **Search** | **已铸** `seq.effect.search` | 单条；`area`/`scope`/`amount`/`filter`/`take_count`；搜牌库须洗（整库/顶 N）；≠ look/find |
 | G4 | **Put into play / Enter play** | 区划事实（场外→场上） | **不铸** `seq.effect.enter_play` — **不是效果**；见下「进场」 |
-| G5 | **Defeat**（击败） | **已铸** `seq.effect.defeat`；敌人别名 `seq.enemy.defeat`；退场 nest `seq.defeat.leave_play` | 伤/恐上限常态检测；Cancel → 无退场；卡面 `cause=effect` |
+| G5 | **Defeat**（击败） | **已铸** `seq.effect.defeat`；退场 nest `seq.defeat.leave_play`；敌主体 TC=`enemy_defeated` | 伤/恐上限常态检测；Cancel → 无退场；卡面 `cause=effect` |
 | G6 | **Phase begins/ends** | **已铸** 单条 `seq.framework.phase_boundary` | params：`phase` × `boundary`；框架步进进入时 `run`；订阅靠 TC.kind |
-| G7 | **Attack of opportunity** | **不另铸**；落在敌人攻击通道 | 见下「不另铸但可听」 |
-| G8 | **Play（打出）** | **不另铸**；`PLAY_CARD` Initiation | 同上 |
-| G9 | **Commit** | **不另铸**；落在 `seq.skill_test` / ST.2 | 同上 |
-| G10 | **Spend**（费用） | **不另铸**；Initiation 付费场合 | 与失去资源 **同 L0**；见下 |
-| G11 | **Peril / Hidden 限制** | **不另铸**；父帧 Register RESTRICTION | 同上；不另开 check seq |
+| G7 | **Attack of opportunity** | **不另铸**；仍是攻击 | 嵌套来源辨认；见下 |
+| G8 | **Play（打出）** | **要对 Initiation 加打出包装** | 完整流程 + 可响应时点；见下（**改裁**） |
+| G9 | **Commit（投入）** | **待议** | 疑点多；暂不锁「仅 ST.2 / 不铸」 |
+| G10 | **Cost / Spend（费用）** | **不另铸** Spend seq | 费用 = 效果属性；见下（**改裁**） |
+| G11 | **Peril（险境）** | **不另铸**；无物理层序列 | Buff / 信息层；见下 |
 
-**不另铸但可听（G7–G11 · 已裁决）** — 与进场同构：信息在更泛用通道上，时点用 **过滤 / 栈溯源 / Initiation 场合** 听见，不新开 `seq.*`。
+**G7 · 借机攻击（已确认）**
 
-| 信息 | 落在哪条泛用通道 | 怎么听（别名 / 过滤） |
-|---|---|---|
-| **借机攻击（AOO）** | 敌人攻击（`seq.enemy.attack` / `perform_attack`） | **多轴可辨**（见下）；**不是** `seq.aoo` |
-| **打出（Play）** | `PLAY_CARD` Initiation（进场区划 + 效果体 Composition） | 订 Initiation / 打出窗；进场结果仍听 `seq.zone.move` 场外→场上；**不** `seq.play` |
-| **投入（Commit）** | `seq.skill_test` 的 ST.2 | 订检定窗 / ST 步；卡面「投入时」挂在检定通道，**不** `seq.commit` |
-| **支付费用（Spend）** | Initiation / Cost 付费 | 与 `seq.effect.lose_resources` **结算同核**（见下）；**不**另铸 Spend seq |
-| **险境 / 隐私限制** | 父遭遇帧 / 入手上的 **RESTRICTION Register** | 听限制是否成立（Eligibility / Intent）；注销跟父帧 G4 或 leave-hand，**不** `seq.peril.check` |
+借机攻击 **就是** 敌人攻击（`seq.enemy.attack` / `perform_attack`）。**禁止** `seq.aoo`。  
+是否借机 = 看 **攻击嵌套的来源**（挂在 Initiation 付完费用后、主体效果前的 AOO 砖 / 栈溯源）。`AttackKind.OPPORTUNITY` 仍可作叶上快捷过滤，不是唯一辨识轴。
 
-**AOO 怎么辨（不必只靠 AttackKind）**
+**G8 · 打出（改裁 · 2026-10-27）**
 
-| 轴 | 含义 | 用途 |
-|---|---|---|
-| **场合 / 栈** | 发生在 Initiation **付完费用后、主体效果前**（`INIT_2B`）；攻击帧挂在该 Initiation 之下 | 「借机」= 溯源父手续；听攻击时看栈是否在 AOO 砖 |
-| **资格集合** | 同地点、未横置、与你交战（等）的敌人各打一次 | 谁打属于 Eligibility，不是第二套攻击 seq |
-| **AttackKind.OPPORTUNITY** | 攻击载荷上的种类标记 | 叶上快捷过滤；与反击/警戒/阶段攻击并列；**可选轴**，不是唯一辨识 |
+打出是 **完整流程**，有可响应时点；**不是**「只靠裸 Initiation 种类名凑合听」。  
+**要**在已有发起手续（`PLAY_CARD` Initiation 七步）外加一层 **打出包装**（命名流程或等价包装帧），使打出窗 / When-you-play 等订在包装上，而不是散落在通用 Initiation。  
+进场区划结果仍听 `seq.zone.move`（场外→场上）。包装的精确 `flow_id` / 与 Initiation 分槽 → 实现时钉（候选如 `seq.play` 包装 nest/委托 Initiation；**禁止**把打出收成 `AbilityKind`）。
 
-「after you are attacked by an attack of opportunity」→ 听**敌人攻击** +（栈在 INIT_2B **或** kind=OPPORTUNITY）。禁止为好听另铸 `seq.aoo`。
+**G9 · 投入（待议）**
 
-**支付资源 vs 失去资源**
+暂缓锁死。现网多挂在 `seq.skill_test` ST.2，但是否足够、要否独立包装/时点，**需另开讨论**。禁止在未裁决前为「好听」另铸 `seq.commit`。
 
-- **结算**：同一次资源池扣减（L0 / 同一写核）；没有两套「扣资源原语」。
-- **差别**：只是**适用场合的描述** — 支付常出现在 **发起 / Initiation 费用**；失去常出现在 **负面效果叶**（`seq.effect.lose_resources`，可被效果时点听到、可 Cancel 等）。
-- **时点**：订「失去资源」效果 → 订效果通道；Initiation 付费默认**不是**该效果的结算（场合过滤），不是因为另有一种 Spend 原子。
-- **禁止**：另铸 `seq.spend`；也禁止把「费用支付」与「效果失去」说成两套不同的状态写入。
+**通则 · 同原子、异包装（已裁决 2026-10-27）**
 
-翻译 / 接线时点：先找**已有泛用 seq 或 Initiation**，再写过滤键；禁止为上述词条各铸一条「好听一点」的专属 flow。
+纸面多词条常 **共用同一 L0 状态原语**；差别在 **命名流程 / 效果包装**（时点、可响应性、与后续体的门闩）。  
+**时点响应订包装，不订裸原子。** 禁止为每个近义词再铸一套平行写核。
+
+| L0（同） | 包装 A | 包装 B | 备注 |
+|---|---|---|---|
+| 资源标记 → 池 | **花费**（费用结算包装 / cost 属性） | **失去**（`seq.effect.lose_resources`） | 见 G10 |
+| 伤害/恐惧标记 → 承载者 | **受到**（take 视角；常 `deal.assignable`） | **放置/造成**（deal 外向 / 已定腿） | 同核 `deal*`；视角与 Assign 不同 |
+| 伤害/恐惧标记 → 池 | **治愈**（`seq.effect.heal`） | **移除**（非 heal 语义的剥记；若可响应须自有包装，勿冒充 heal AFTER） | 写核可同 `transfer_marker` |
+| 牌 → HAND | **抽取**（`seq.draw.*` 手续） | **加入手牌**（非抽牌手续的入手；显现入口仍可 `seq.enter_hand`） | 勿把 add 译成 draw 整段 |
+
+推广：进场/离场听 `seq.zone.move` 过滤；封印/释放等同记不同包装——凡「物理一样、规则词不同」先复用原子，再分包装。
+
+**G10 · 费用（改裁 · 2026-10-27）**
+
+支付费用 **本身也是结算**：这段结算可影响后续效果体能否/如何结算；费用在语义上也可以是效果。  
+**建模**：费用 **只作效果属性**（资源费用 / 能力费用 / 额外费用等），挂在 **已有** `seq.*`（或其效果叶）上，**不**另铸 `seq.spend` / `seq.effect.spend_token` 之类「第二种扣资源原语」。  
+实例见上表「花费 / 失去」：同 L0，异包装。翻译进 **cost / gates + 费用包装**；不要 nest 一条与 `lose_resources` 抢通道的 Spend 效果 seq。
+
+**G11 · 险境（已确认）**
+
+险境多种效果由 **Buff（RESTRICTION 等）** 实现，属 **信息层**；**没有**物理层序列结算。**禁止** `seq.peril.check`。Eligibility / Intent 读 Buff；生命周期跟遭遇帧等既有注销点。
 
 ---
 
@@ -337,7 +350,8 @@
 
 7. ~~**G3**~~：**已落地** — `seq.effect.search`；搜牌库须洗（整库/顶 N）；look/find 不入本 seq  
 8. ~~**G4**~~：**已裁决并落地** — `seq.zone.move`；进场/离场 = 过滤别名；**不铸** `seq.effect.enter_play`  
-9. ~~**G5**~~：**已落地** — `seq.effect.defeat` + nest `seq.defeat.leave_play`；敌人别名保留；伤/恐常态检测  
+9. ~~**G5**~~：**已落地** — `seq.effect.defeat` + nest `seq.defeat.leave_play`；伤/恐常态检测；敌主体 TC=`enemy_defeated`  
+
 9b. ~~**G6**~~：**已落地** — 单条 `seq.framework.phase_boundary`（phase/boundary params） |
 10. ~~**`resolve_bound` / `resolve_location`**~~：**已裁决** — 废除重定向；抽出按**卡面能力**（类型默认能力包）结算 → `seq.encounter.resolve_card`。`resolve_location` 仍可降内部（落点辅助）。  
 11. ~~**交战 grant / Buff**~~：**已落地** — ENGAGEMENT Buff；威胁区是区划检测，不是第二套状态写入
@@ -390,3 +404,50 @@
 | 2026-10-13 | 落地 `seq.effect.evade`（躲避效果核；automatic = 自动躲避） |
 | 2026-10-13 | 裁决：卡面「evade」效果措辞→时点；执行→自动躲避（无独立 effect mode） |
 | 2026-10-13 | I2 真空抽查 → [23-vacuum-audit](23-vacuum-audit.md)；铸造清单已收口，下一刀偏结构性硬门槛 |
+| 2026-10-27 | §9 Catalog 全量审计：初扫 66（含别名） |
+| 2026-10-27 | §9.2：**去掉全部 flow 别名**；正式 **60** 条；`damage*`/`gain_resource`/`enemy.move`/`enemy.defeat`/`investigation_phase_ends` 已删；`skill_type_for_flow` 死代码已删 |
+| 2026-10-27 | G7–G11 改裁：费用=效果属性；AOO=攻击嵌套来源；**打出要 Initiation 包装**；投入待议；险境=Buff 信息层 |
+| 2026-10-27 | G10 补例：花费/失去资源 **同 L0**，**异包装时点**；响应订包装不订裸原子 |
+| 2026-10-27 | 通则：同原子异包装 — 受到/放置伤恐、治愈/移除、抽取/加入手牌 |
+
+---
+
+## 9. Catalog 全量审计（2026-10-27）
+
+对照 `bootstrap/sequence_catalog_bootstrap.gd` + 代码引用（不含 conversation-export 历史噪音）。
+
+### 9.1 结论
+
+| 档 | 结论 |
+|---|---|
+| **G1–G11 / M1–M5** | **无铸造缺漏**；已废 id 测试断言不存在 |
+| **运行时调用** | `.gd` / 现网 JSON **无** nest/run 未注册 `flow_id` |
+| **注册总数** | **60**（无别名）；`SEQ-AUDIT-01` 锁清单 |
+
+### 9.2 已删别名（统一正式名）
+
+| 曾用别名 | 正式 |
+|---|---|
+| `seq.gain_resource` | `seq.effect.gain_resource` |
+| `seq.enemy.move` | `seq.effect.move`（`subject=enemy`） |
+| `seq.effect.damage` / `damage.assignable` | `seq.effect.deal` / `deal.assignable` |
+| `seq.enemy.defeat` | `seq.effect.defeat`（敌主体 TC.kind=`enemy_defeated`） |
+| `seq.framework.investigation_phase_ends` | `seq.framework.phase_boundary` + `phase`/`boundary` params |
+
+订阅靠 TC.`kind` / tags，不靠 flow_id 字符串相等。
+
+### 9.3 刻意不铸（非缺漏）
+
+| id | 理由 |
+|---|---|
+| `seq.setup` | KeywordProfile 挂载锚（Starting / Permanent / Bonded）；开局仍走 `FrameworkStep` / `ScenarioSetupFlow`；[17 §6.4](17-seq-runtime.md) 后置 |
+| `seq.effect.spend_token` / `seq.spend` | **费用 = 效果属性**（G10）；挂已有 seq，不另铸 |
+| `seq.aoo` | **就是攻击**（G7）；嵌套来源辨认 |
+| `seq.peril.check` | **纯 Buff / 信息**（G11）；无物理序列 |
+| `seq.effect.enter_play` | **不是效果**（G4）；听 `seq.zone.move` |
+| `seq.commit` | **G9 待议**；未裁决前不铸 |
+| `seq.skill_test.{intellect,combat,agility}` | 已并 → 单条 `seq.skill_test` + `params.skill` |
+
+### 9.4 文档债（本轮已收）
+
+- §3 / §9 与 Catalog 对齐；[17 §5](17-seq-runtime.md) 指向本清单

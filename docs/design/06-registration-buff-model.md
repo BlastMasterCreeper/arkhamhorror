@@ -661,7 +661,7 @@ mount（进场 / G2 / …）
 | **Retaliate** | ENTER_PLAY | `(seq.skill_test, POST_ST7_FAIL)` · Fight 失败 | LISTENER | 10 | attack（竖切） |
 | **Alert** | ENTER_PLAY | `(seq.skill_test, POST_ST7_FAIL)` · Evade 失败 | LISTENER | 20 | attack（竖切） |
 | **Elusive** | ENTER_PLAY | `(seq.enemy.attack, AFTER_ATTACK)`（含被 Fight） | LISTENER | 10 | flee+exhaust |
-| **Doomed** | ENTER_PLAY | `(seq.enemy.defeat, ON_DEFEAT)` | LISTENER | 10 | +1 agenda doom |
+| **Doomed** | ENTER_PLAY | `(seq.effect.defeat, ON_DEFEAT)` | LISTENER | 10 | +1 agenda doom |
 | **Starting** | setup / 库 | `(seq.setup, AFTER mulligan)` | DELAYED | 10 | 检索入手 |
 | **Swarming** | ENTER_PLAY | `(seq.encounter.spawn, AFTER)` | DELAYED | 10 | 垫 X swarm |
 
@@ -681,7 +681,7 @@ mount（进场 / G2 / …）
 | `seq.enemy.attack` | 一般敌人攻击效果 | `ATTACK`（庞大 **REPLACE** · PHASE→batch）；`AFTER_ATTACK`（Elusive） | 把庞大写成 `phase_attacks` 的平行分支 |
 | `seq.draw.encounter` | G1–G4 队列 | `AFTER_DRAWN_CARD`（涌动） | 把涌动写进 G1–G4 优先队 |
 | `seq.skill_test` | ST.1–ST.8 | `POST_ST7_FAIL` | 在 ST handler 按名写死 Retaliate/Alert 体 |
-| `seq.enemy.defeat` | 击败内核 | `ON_DEFEAT` | 内联 Doomed 种类分支 |
+| `seq.effect.defeat` | 击败内核（敌主体 TC=`enemy_defeated`） | `ON_DEFEAT` | 内联 Doomed 种类分支 |
 
 **禁止**：为关键词另开与固定流程平行的 `seq.enemy.3_2_*` / `seq.enemy.massive_phase_attacks`；把庞大 REPLACE 锚错挂到 `phase_attacks`；在父 handler `match keyword` 写移动/攻击体；用队长选序跨越 Hunter↔Patrol 的 `fire_priority`。
 
