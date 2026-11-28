@@ -183,10 +183,62 @@
 
 ---
 
+## 09072 · Chuck Fergus（查克·弗格斯）
+
+### 官方印刷（ArkhamDB · The Scarlet Keys · Taboo 首条）
+
+> When you play a Tactic or Trick event, exhaust Chuck Fergus: Choose one -
+>
+> - That event gains: "Fast. Play only during your turn."
+> - That event costs 2 fewer resources to play.
+> - You get +2 skill value while performing a skill test during the resolution of that event.
+
+### 问题
+
+印刷用 *When you play… gains Fast* 易被读成：先按 **无 Fast** 的 `PLAY_CARD` 发起（已评估 Play 行动花费）→ 再在发起/结算中「获得快速」。则：
+
+1. **行动花费已在发起路径上定死**，后加的 Fast **盖不住整个发起**（广义打出），无法减免那 1 点 Play action。
+2. 用 Would / 「提前批时序」假装改写已开的发起，违背「时点只由可执行结算产生；有效性不过则无发起时点」。
+
+FAQ（2024-03）：Chuck 给的 Fast **不能**用来在回合外打出——须卡面自带回合外许可；Taboo 已写 *Play only during your turn*。
+
+### 个人版改写（Constant · 额外费用 → 第二条发起路径）
+
+**只改 Fast 选项的模型**；减费 / +2 技能另条（本竖切不展开）。
+
+**EN**
+
+> **Constant** — While Chuck Fergus is ready and in play, you have an **additional way** to play a Tactic or Trick event from your hand:
+>
+> As an **additional cost** to initiate that play on this path, exhaust Chuck Fergus and choose **Fast**. That initiation uses **Fast** (*Play only during your turn*) for the **entire** play initiation: it does **not** cost a Play action. This is **not** a Would rewrite of a Play-action initiation.
+
+**ZH**
+
+> **Constant** — 当 Chuck Fergus 在场且未横置时，你有一条 **额外的** 打出 Tactic / Trick 事件的发起路径：
+>
+> 走该路径发起打出时，以 **额外费用** 横置 Chuck Fergus 并选择 **快速**。该次发起全程按 **快速**（*仅可在你的回合打出*）结算：**不**花费 Play 行动。这 **不是** 对「已按行动打出发起」的 Would / 时点改写。
+
+（减费 / +2 技能仍可作同形「选路径」或独立选项；引擎竖切先只落地 Fast 路径。）
+
+### 引擎映射（个人版）
+
+| 句 | 译法 | 备注 |
+|---|---|---|
+| Constant · ready in play | 持续打开路径目录，**不是** `[reaction] When you play` | 寿命随 Chuck 在场且未横置 |
+| additional cost: exhaust Chuck | `AdditionalCost::Exhaust` 挂在 **路径** 上；评估/支付在 **发起有效性** 阶段 | 非 RR「狭义打出结算步才付额外费用」 |
+| choose Fast → Fast whole initiation | `InitiationPath` · `PlayForm::FastWindow` + `DuringControllerTurn` | 广义打出；`play_action_cost = 0` |
+| kinds still PLAY_CARD | 种类仍是打出，不是能力 | 06 §4.2 |
+| **禁止** Would / 时点改写 | `is_would_rewrite ≡ false` | prefs 2026-11-28 |
+
+竖切：`arkham_rules::initiation` · `chuck_fast_path` / `offer_play_paths` / `evaluate_path`。
+
+---
+
 ## 变更记录
 
 | 日期 | 卡 / 主题 | 摘要 |
 |---|---|---|
+| 2026-11-28 | 09072 Chuck Fergus | Fast = Constant 额外费用→第二条 PLAY_CARD 发起路径（广义打出）；非 Would |
 | 2026-11-28 | 页眉裁决 | 引擎/卡面效果落地 **必须** 跟个人版；官方印刷仅对照 |
 | 2026-11-28 | 08001 Daniela Reyes | 「even if canceled」拆成 After-attack + After-cancel 两条钩，共享效果体；官方无 once/round |
 | 2026-11-23 | After this test ends | 改裁为延时 @ `skill_test_ends`（ST.8 弃置后；提前 uncommit 取消） |
