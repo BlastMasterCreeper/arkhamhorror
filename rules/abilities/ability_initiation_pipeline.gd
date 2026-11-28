@@ -233,6 +233,11 @@ func _play_card_pre_error(intent: InitiationIntent, ctx: GameContext) -> StringN
 		return &"unknown_card"
 	if card.zone != AhcEnums.Zone.HAND or not inv.hand.has(intent.card_id):
 		return &"not_in_hand"
+	## Seal 关键词：袋内须有可封印候选（合法性，非 L6 费用）。
+	if CardRegistry.has_seal_on_enter(card.id.definition_id):
+		var spec: SealSpec = CardRegistry.seal_spec(card.id.definition_id)
+		if not SealFlow.can_satisfy(ctx.state.chaos_bag, spec):
+			return &"seal_unsatisfied"
 	return &""
 
 

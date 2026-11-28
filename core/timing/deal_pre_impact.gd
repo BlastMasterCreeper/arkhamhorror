@@ -1,7 +1,7 @@
 class_name DealPreImpact
 extends RefCounted
 
-## 外向 / 已定主体腿的 PreImpact：Assign（若有）之后 → WOULD → WHEN → Apply。
+## 外向 / 已定主体腿的 PreImpact：Assign（若有）之后 → WHEN_HEADER → WHEN → Apply。
 ## 与调查员承伤 `DamagePipeline` 对称；腿格式 `{ "id", "amount" }`（可混装敌/卡/调查员）。
 ## scope_id：RulesMemory 键（通常 controller_id）；嵌套承伤时与 inv pending 分通道。
 
@@ -48,7 +48,7 @@ static func apply_legs(
 	}
 
 
-## 伤+恐已定腿：同帧一次 WOULD/WHEN，再同时 Apply。
+## 伤+恐已定腿：同帧一次 WHEN_HEADER/WHEN，再同时 Apply。
 static func apply_bundle(
 	game_ctx: GameContext,
 	damage_legs: Array,
@@ -127,7 +127,7 @@ static func pending_horror_legs(game_ctx: GameContext, scope_id: StringName) -> 
 	return []
 
 
-## WOULD：降低尚未写入的外向量；按比例砍腿（末腿优先）。
+## WHEN_HEADER：降低尚未写入的外向量；按比例砍腿（末腿优先）。
 static func reduce_pending(game_ctx: GameContext, scope_id: StringName, by: int) -> int:
 	if game_ctx == null or game_ctx.memory == null or by <= 0:
 		return pending_amount(game_ctx, scope_id)
@@ -151,7 +151,7 @@ static func prevent_pending(game_ctx: GameContext, scope_id: StringName) -> void
 static func _offer_preimpact(game_ctx: GameContext) -> void:
 	if game_ctx.sequences == null:
 		return
-	game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WOULD)
+	game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN_HEADER)
 	game_ctx.sequences.offer_slot(AhcEnums.SequencePhase.WHEN)
 
 

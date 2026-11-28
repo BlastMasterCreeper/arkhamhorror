@@ -1,0 +1,345 @@
+class_name DeckbuildingTestHelper
+extends RefCounted
+
+## DB-* Deckbuilding Options 准入竖切。
+
+
+static func _card(
+	id: String,
+	opts: Dictionary = {}
+) -> DeckCardView:
+	var data := {
+		"definition_id": id,
+		"title": opts.get("title", id),
+		"level": opts.get("level", 0),
+		"card_type": opts.get("card_type", "asset"),
+		"factions": opts.get("factions", []),
+		"faction_code": opts.get("faction_code", ""),
+		"traits": opts.get("traits", []),
+		"tags": opts.get("tags", []),
+		"uses_types": opts.get("uses_types", []),
+		"permanent": opts.get("permanent", false),
+		"ignore_deckbuilding": opts.get("ignore_deckbuilding", false),
+		"is_weakness": opts.get("is_weakness", false),
+		"myriad": opts.get("myriad", false),
+		"exceptional": opts.get("exceptional", false),
+	}
+	if data["factions"] is Array and (data["factions"] as Array).is_empty() and str(data["faction_code"]) != "":
+		data["factions"] = [data["faction_code"]]
+	return DeckCardView.from_definition_dict(data, StringName(id))
+
+
+static func _roland() -> DeckbuildingProfile:
+	return DeckbuildingProfile.from_options(
+		[
+			{"faction": ["guardian", "neutral"], "level": {"min": 0, "max": 5}},
+			{"faction": ["seeker"], "level": {"min": 0, "max": 2}},
+		],
+		{},
+		30,
+		&"01001"
+	)
+
+
+static func _zoey() -> DeckbuildingProfile:
+	return DeckbuildingProfile.from_options(
+		[
+			{"faction": ["guardian", "neutral"], "level": {"min": 0, "max": 5}},
+			{
+				"level": {"min": 0, "max": 0},
+				"limit": 5,
+				"error": "You cannot have more than 5 cards that are not Guardian or Neutral",
+			},
+		],
+		{},
+		30,
+		&"02001"
+	)
+
+
+static func test_db01_roland_seeker_levels() -> bool:
+	var profile := _roland()
+	var seeker2 := _card("s2", {"faction_code": "seeker", "level": 2})
+	var seeker3 := _card("s3", {"faction_code": "seeker", "level": 3})
+	var guardian5 := _card("g5", {"faction_code": "guardian", "level": 5})
+	return (
+		CardAccessMatcher.can_access(seeker2, profile)
+		and not CardAccessMatcher.can_access(seeker3, profile)
+		and CardAccessMatcher.can_access(guardian5, profile)
+	)
+
+
+static func test_db02_zoey_offclass_limit_and_multiclass() -> bool:
+	var profile := _zoey()
+	## 本职不占越级坑。
+	var g0 := _card("g0", {"faction_code": "guardian", "level": 0})
+	if CardAccessMatcher.classify(g0, profile).get("kind") != CardAccessMatcher.KIND_UNLIMITED:
+		return false
+	## 多职阶含本职 → 无限带（FAQ 1.16 Dunwich）。
+	var multi := _card(
+		"gs0",
+		{"factions": ["guardian", "seeker"], "level": 0, "title": "Multi"}
+	)
+	if CardAccessMatcher.classify(multi, profile).get("kind") != CardAccessMatcher.KIND_UNLIMITED:
+		return false
+	## 五张越级 L0 后第六张拒。
+	var deck: Array = []
+	for i in 5:
+		deck.append(_card("sk%d" % i, {"faction_code": "seeker", "level": 0, "title": "Sk%d" % i}))
+	var sixth := _card("sk5", {"faction_code": "seeker", "level": 0, "title": "Sk5"})
+	var add5 := DeckLegality.can_add_card(deck.slice(0, 4), deck[4], profile)
+	if not bool(add5.get("ok", false)):
+		return false
+	var add6 := DeckLegality.can_add_card(deck, sixth, profile)
+	return not bool(add6.get("ok", false))
+
+
+static func test_db03_carolyn_heal_tag_and_weapon_forbid() -> bool:
+	var profile := DeckbuildingProfile.from_options(
+		[
+			{"not": true, "trait": ["weapon"], "level": {"min": 1, "max": 5}},
+			{"faction": ["guardian"], "level": {"min": 0, "max": 3}},
+			{"faction": ["neutral"], "level": {"min": 0, "max": 5}},
+			{"tag": ["hh"], "level": {"min": 0, "max": 5}},
+			{
+				"faction": ["seeker", "mystic"],
+				"level": {"min": 0, "max": 1},
+				"limit": 15,
+				"error": "You cannot have more than 15 level 0-1 Seeker and/or Mystic cards",
+			},
+		],
+		{},
+		30,
+		&"05001"
+	)
+	var healer := _card(
+		"heal",
+		{"faction_code": "seeker", "level": 3, "tags": ["hh"], "title": "Healer"}
+	)
+	## Seeker L3 不在跨职 limit，但 hh 无限带可收。
+	if CardAccessMatcher.classify(healer, profile).get("kind") != CardAccessMatcher.KIND_UNLIMITED:
+		return false
+	var weapon := _card(
+		"gun",
+		{"faction_code": "guardian", "level": 1, "traits": ["weapon"], "title": "Gun"}
+	)
+	return CardAccessMatcher.classify(weapon, profile).get("kind") == CardAccessMatcher.KIND_FORBIDDEN
+
+
+static func test_db04_tony_secondary_class_choice() -> bool:
+	## 选调查员后的附带选择：Secondary Class → survivor。
+	var inv := {
+		"definition_id": "06003",
+		"card_type": "investigator",
+		"title": "Tony",
+		"deck_options": [
+			{"faction": ["rogue", "neutral"], "level": {"min": 0, "max": 5}},
+			{
+				"name": "Secondary Class",
+				"faction_select": ["guardian", "seeker", "survivor"],
+				"level": {"min": 0, "max": 1},
+				"type": ["event", "skill"],
+				"limit": 10,
+			},
+		],
+		"deck_requirements": {"size": 30},
+	}
+	var pending := DeckbuildingChoiceFlow.list_choices(inv, {})
+	if pending.size() != 1 or pending[0].get("kind") != DeckbuildingChoiceFlow.KIND_FACTION:
+		return false
+	var rec := CampaignInvestigatorRecord.new()
+	var bound := DeckbuildingChoiceFlow.bind_investigator(
+		rec, inv, {"Secondary Class": "survivor"}
+	)
+	if not bool(bound.get("ok", false)):
+		return false
+	var profile: DeckbuildingProfile = bound["profile"]
+	var surv_event := _card(
+		"se",
+		{
+			"faction_code": "survivor",
+			"level": 1,
+			"card_type": "event",
+			"title": "SurvEvent",
+		}
+	)
+	var surv_asset := _card(
+		"sa",
+		{
+			"faction_code": "survivor",
+			"level": 0,
+			"card_type": "asset",
+			"title": "SurvAsset",
+		}
+	)
+	return (
+		CardAccessMatcher.can_access(surv_event, profile)
+		and not CardAccessMatcher.can_access(surv_asset, profile)
+	)
+
+
+static func test_db05_mandy_deck_size_choice() -> bool:
+	## Mandy：选调查员后附带 deck_size + Secondary Class。
+	var inv := {
+		"definition_id": "06002",
+		"card_type": "investigator",
+		"title": "Mandy",
+		"deck_options": [
+			{"deck_size_select": ["30", "40", "50"], "name": "Deck Size"},
+			{"faction": ["seeker", "neutral"], "level": {"min": 0, "max": 5}},
+			{
+				"name": "Secondary Class",
+				"faction_select": ["mystic", "rogue", "survivor"],
+				"level": {"min": 0, "max": 1},
+				"type": ["event", "skill"],
+				"limit": 10,
+			},
+		],
+		"deck_requirements": {"size": 30},
+	}
+	var pending := DeckbuildingChoiceFlow.list_choices(inv, {})
+	if pending.size() != 2:
+		return false
+	var kinds: Array = []
+	for p in pending:
+		kinds.append(p.get("kind"))
+	if not kinds.has(DeckbuildingChoiceFlow.KIND_DECK_SIZE):
+		return false
+	if not kinds.has(DeckbuildingChoiceFlow.KIND_FACTION):
+		return false
+	## 未答 → bind 未完成。
+	var rec0 := CampaignInvestigatorRecord.new()
+	var unbound := DeckbuildingChoiceFlow.bind_investigator(rec0, inv, {})
+	if bool(unbound.get("ok", true)):
+		return false
+	var rec := CampaignInvestigatorRecord.new()
+	var bound := DeckbuildingChoiceFlow.bind_investigator(
+		rec, inv, {"deck_size": 50, "Secondary Class": "mystic"}
+	)
+	if not bool(bound.get("ok", false)):
+		return false
+	var profile: DeckbuildingProfile = bound["profile"]
+	if profile.deck_size != 50:
+		return false
+	## 50 张 guardian 占位（实际 Mandy 是 seeker；用 seeker 填满）。
+	var deck: Array = []
+	for i in 50:
+		deck.append(_card("c%d" % i, {"faction_code": "seeker", "level": 0, "title": "C%d" % i}))
+	var ok50 := DeckLegality.validate_deck(deck, profile)
+	if not bool(ok50.get("ok", false)):
+		return false
+	## 30 张对 size=50 应失败。
+	var short: Array = deck.slice(0, 30)
+	var bad := DeckLegality.validate_deck(short, profile)
+	return not bool(bad.get("ok", true))
+
+
+static func test_db06_lola_atleast() -> bool:
+	var profile := DeckbuildingProfile.from_options(
+		[
+			{
+				"faction": ["survivor", "guardian", "seeker", "rogue", "mystic"],
+				"level": {"min": 0, "max": 3},
+				"atleast": {"factions": 3, "min": 7},
+				"error": "You must have at least 7 cards from 3 different factions",
+			},
+			{"faction": ["neutral"], "level": {"min": 0, "max": 5}},
+		],
+		{},
+		30,
+		&"03006"
+	)
+	## 仅 2 职阶各 7 + 16 neutral = 30 → atleast 失败。
+	var deck: Array = []
+	for i in 7:
+		deck.append(_card("g%d" % i, {"faction_code": "guardian", "level": 0, "title": "G%d" % i}))
+	for i in 7:
+		deck.append(_card("s%d" % i, {"faction_code": "seeker", "level": 0, "title": "S%d" % i}))
+	for i in 16:
+		deck.append(_card("n%d" % i, {"faction_code": "neutral", "level": 0, "title": "N%d" % i}))
+	var bad := DeckLegality.validate_deck(deck, profile)
+	if bool(bad.get("ok", true)):
+		return false
+	## 7g + 7s + 7m + 9n = 30 → 3 职阶达标。
+	var good_deck: Array = []
+	for i in 7:
+		good_deck.append(_card("g%d" % i, {"faction_code": "guardian", "level": 0, "title": "G%d" % i}))
+	for i in 7:
+		good_deck.append(_card("s%d" % i, {"faction_code": "seeker", "level": 0, "title": "S%d" % i}))
+	for i in 7:
+		good_deck.append(_card("m%d" % i, {"faction_code": "mystic", "level": 0, "title": "M%d" % i}))
+	for i in 9:
+		good_deck.append(_card("n%d" % i, {"faction_code": "neutral", "level": 0, "title": "N%d" % i}))
+	var good := DeckLegality.validate_deck(good_deck, profile)
+	return bool(good.get("ok", false))
+
+
+static func test_db07_purchase_dry_run_limit_full() -> bool:
+	var profile := _zoey()
+	var deck: Array = []
+	for i in 5:
+		deck.append(_card("sk%d" % i, {"faction_code": "seeker", "level": 0, "title": "Sk%d" % i}))
+	var next := _card("skx", {"faction_code": "seeker", "level": 0, "title": "SkX"})
+	return not bool(DeckLegality.can_add_card(deck, next, profile).get("ok", true))
+
+
+## 30 张标准 + Signature + 弱点 + Permanent + Bearer → size 仍为 30。
+static func test_db08_size_exempt_signature_weakness_permanent_bearer() -> bool:
+	var profile := _roland()
+	var deck: Array = []
+	for i in 30:
+		deck.append(_card("c%d" % i, {"faction_code": "guardian", "level": 0, "title": "C%d" % i}))
+	deck.append(_card("sig", {
+		"faction_code": "guardian", "level": 0, "title": "Roland.38",
+		"ignore_deckbuilding": true,
+	}))
+	deck.append(_card("wkn", {
+		"faction_code": "neutral", "level": 0, "title": "CoverUp",
+		"is_weakness": true, "ignore_deckbuilding": true,
+	}))
+	deck.append(_card("perm", {
+		"faction_code": "guardian", "level": 0, "title": "Charisma",
+		"permanent": true,
+	}))
+	deck.append(_card("story", {
+		"faction_code": "neutral", "level": 0, "title": "KeyOfYs",
+		"ignore_deckbuilding": true,  ## Bearer 剧情
+	}))
+	var ok := DeckLegality.validate_deck(deck, profile)
+	if not bool(ok.get("ok", false)):
+		return false
+	## 去掉一张标准后 size 不足。
+	deck.pop_front()
+	var bad := DeckLegality.validate_deck(deck, profile)
+	return not bool(bad.get("ok", true))
+
+
+## Myriad 三副本全部计入 size（29 + 3 = 32 ≠ 30）。
+static func test_db09_myriad_counts_toward_size() -> bool:
+	var profile := _roland()
+	var deck: Array = []
+	for i in 29:
+		deck.append(_card("c%d" % i, {"faction_code": "guardian", "level": 0, "title": "C%d" % i}))
+	for i in 3:
+		deck.append(_card("m%d" % i, {
+			"faction_code": "guardian", "level": 0, "title": "Swarm",
+			"myriad": true,
+		}))
+	var over := DeckLegality.validate_deck(deck, profile)
+	if bool(over.get("ok", true)):
+		return false
+	var has_size := false
+	for e in over.get("errors", []):
+		if str(e).begins_with("deck_size"):
+			has_size = true
+	## 27 + 3 myriad = 30 → 合法。
+	var good: Array = []
+	for i in 27:
+		good.append(_card("g%d" % i, {"faction_code": "guardian", "level": 0, "title": "G%d" % i}))
+	for i in 3:
+		good.append(_card("m%d" % i, {
+			"faction_code": "guardian", "level": 0, "title": "Swarm",
+			"myriad": true,
+		}))
+	var ok := DeckLegality.validate_deck(good, profile)
+	return has_size and bool(ok.get("ok", false))

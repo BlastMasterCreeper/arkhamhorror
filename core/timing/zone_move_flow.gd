@@ -151,9 +151,9 @@ static func _apply_seal_on_enter(game_ctx: GameContext, card_id: StringName) -> 
 	if game_ctx == null or game_ctx.state == null or card_id == &"":
 		return
 	var card := game_ctx.state.registry.get_card(card_id)
-	if card == null or not CardRegistry.has_seal_play_cost(card.id.definition_id):
+	if card == null or not CardRegistry.has_seal_on_enter(card.id.definition_id):
 		return
-	SealFlow.pay_keyword_on_enter(game_ctx, card_id)
+	SealFlow.apply_on_enter_play(game_ctx, card_id)
 
 
 static func _apply_uses_on_enter(game_ctx: GameContext, card: CardInstance) -> void:

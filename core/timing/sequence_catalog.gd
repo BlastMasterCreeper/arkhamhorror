@@ -6,7 +6,7 @@ enum EntryKind { RUN, NEST_BATCH }
 var _entries: Dictionary = {}
 
 
-## `split_timing`：信封头 WOULD（抽牌 SPLIT）。`no_envelope_slot`：信封不开槽，
+## `split_timing`：信封头 WHEN_HEADER（when 的 would 头）（抽牌 SPLIT）。`no_envelope_slot`：信封不开槽，
 ## 由 handler 在砖块边界 `offer_slot`（伤害 Apply 等）。
 func register_run(
 	flow_id: StringName,

@@ -9,7 +9,7 @@ static func run(game_ctx: GameContext, drawer_id: StringName) -> Dictionary:
 		return _fail("invalid_context")
 	var frame := EncounterResolutionFrame.create(drawer_id)
 	game_ctx.memory.push_encounter_frame(frame)
-	## WOULD 由栈信封在 RESOLVE 前打开（整段 PreImpact）；WHEN 在 G1/揭示后 offer。
+	## WHEN_HEADER 由栈信封在 RESOLVE 前打开（when 的 would 头）；WHEN 在 G1/揭示后 offer。
 	var collect := DrawEncounterSubflowHandlers.collect_one_step(game_ctx, frame)
 	if collect.get("rules_gap", false):
 		game_ctx.memory.pop_encounter_frame()

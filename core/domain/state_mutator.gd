@@ -388,6 +388,11 @@ func shuffle_discard_into_deck(inv_id: StringName) -> void:
 	_mirror_rebuild_player_deck(inv_id)
 
 
+## 将信息层 inv.deck 顺序镜像到物理牌库区（Setup 洗牌 / 开局装库后调用）。
+func sync_player_deck(inv_id: StringName) -> void:
+	_mirror_rebuild_player_deck(inv_id)
+
+
 func discard_from_hand(card_id: StringName, inv_id: StringName) -> bool:
 	return move_card(card_id, CardSlot.discard_top(inv_id))
 

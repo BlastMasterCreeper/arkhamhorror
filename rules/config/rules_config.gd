@@ -15,3 +15,6 @@ var setup_act_definition_ids: Array = []
 var setup_agenda_definition_ids: Array = []
 ## 冒险参考卡难度带：`easy_standard` | `hard_expert`。
 var chaos_difficulty: StringName = &"easy_standard"
+## 为 true 时 Framework SETUP_02/03/04/07/08 执行玩家侧步骤（创伤/Lead/洗牌/起始资源/起手）。
+## `CampaignSetup.begin_scenario` 默认打开；竖切 harness 保持 false，避免空库抽牌。
+var setup_run_player_steps: bool = false

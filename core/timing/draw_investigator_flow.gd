@@ -37,7 +37,7 @@ static func _run_core(game_ctx: GameContext, inv_id: StringName, amount: int) ->
 	if amount <= 0:
 		return _empty_result()
 	DrawInvestigatorComposition.init_draw_state(memory, inv_id)
-	## WOULD 由栈信封在 RESOLVE 前打开（整段 PreImpact）；此处只 offer WHEN。
+	## WHEN_HEADER 由栈信封在 RESOLVE 前打开（when 的 would 头）；此处只 offer WHEN。
 	while DrawInvestigatorComposition.draw_slots_filled(memory, inv_id) < amount:
 		var collect := DrawSubflowHandlers.collect_one_step(game_ctx, inv_id, catalog)
 		if collect.get("defeated", false):

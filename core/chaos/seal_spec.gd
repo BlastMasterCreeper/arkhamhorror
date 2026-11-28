@@ -1,8 +1,9 @@
 class_name SealSpec
 extends RefCounted
 
-## 关键词 Seal 参数（06 Domain）：打出额外费用门槛 + 进场封印序列。
+## 关键词 Seal 参数（06 Domain）：打出合法性查袋 + 进场 Domain 封印。
 ## 例：Seal (Elder Sign). · Seal (0). · Seal ([cultist] or [tablet]).
+## 不进 Initiation CostPipeline（非资源/行动类费用）。
 
 const MODE_KIND := &"kind" ## 搜指定 kind（可多枚并列 → 有限期选）
 const MODE_NUMERIC := &"numeric" ## 搜指定面值数字标记
@@ -14,8 +15,14 @@ var mode: StringName = MODE_KIND
 var kinds: Array = [] ## Array[AhcEnums.ChaosTokenKind] as int
 var numeric_value: int = 0
 var has_numeric_value: bool = false
-## 关键词 Seal 为进场额外费用；false = 仅效果体用同一 Spec。
-var as_play_cost: bool = true
+## true = 印刷关键词：打出须袋内可满足，进场后 Domain 封印；false = 仅效果体 Spec。
+var on_enter_play: bool = true
+## 旧字段别名（JSON `as_play_cost`）；读写转发 on_enter_play。
+var as_play_cost: bool:
+	get:
+		return on_enter_play
+	set(v):
+		on_enter_play = v
 
 
 static func kind(token_kind: AhcEnums.ChaosTokenKind) -> SealSpec:
@@ -50,7 +57,10 @@ static func from_dictionary(raw: Dictionary) -> SealSpec:
 	if raw == null or raw.is_empty():
 		return null
 	var s := SealSpec.new()
-	s.as_play_cost = bool(raw.get("as_play_cost", true))
+	if raw.has("on_enter_play"):
+		s.on_enter_play = bool(raw.get("on_enter_play"))
+	else:
+		s.on_enter_play = bool(raw.get("as_play_cost", true))
 	if raw.has("numeric") or raw.has("value"):
 		s.mode = MODE_NUMERIC
 		s.numeric_value = int(raw.get("numeric", raw.get("value", 0)))

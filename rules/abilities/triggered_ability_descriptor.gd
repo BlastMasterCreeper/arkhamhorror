@@ -212,8 +212,9 @@ static func phase_from_raw(raw: Variant) -> AhcEnums.SequencePhase:
 	if raw is int:
 		return raw as AhcEnums.SequencePhase
 	match str(raw).to_upper():
-		"WOULD":
-			return AhcEnums.SequencePhase.WOULD
+		"WHEN_HEADER", "WOULD", "WOULD_HEADER":
+			## WOULD = 卡面/旧名；相位是 when 的头窗。
+			return AhcEnums.SequencePhase.WHEN_HEADER
 		"WHEN":
 			return AhcEnums.SequencePhase.WHEN
 		"RESOLVE":

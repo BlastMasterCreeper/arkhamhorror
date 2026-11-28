@@ -125,9 +125,9 @@ static func uses_spec(definition_id: StringName) -> Dictionary:
 	return parse_uses_from_text(str(data.get("text", "")))
 
 
-## Seal 关键词规格；null = 无 Seal 打出额外费用。
+## Seal 关键词规格；null = 无进场 Seal 关键词。
 ## 来源：定义 `seal` 字段 · keywords 含 seal + 正文 `Seal (…)` · 或正文印刷 `Seal (…)`。
-## 「seal a random…」效果句（无括号种类）不匹配，不走打出费用。
+## 「seal a random…」效果句（无括号种类）不匹配进场关键词。
 static func seal_spec(definition_id: StringName) -> SealSpec:
 	var data := definition_data(definition_id)
 	if data.has("seal"):
@@ -149,9 +149,14 @@ static func seal_spec(definition_id: StringName) -> SealSpec:
 	return null
 
 
-static func has_seal_play_cost(definition_id: StringName) -> bool:
+## 印刷 Seal 关键词：打出合法性查袋 + 进场 Domain 封印。
+static func has_seal_on_enter(definition_id: StringName) -> bool:
 	var spec := seal_spec(definition_id)
-	return spec != null and spec.as_play_cost
+	return spec != null and spec.on_enter_play
+
+
+static func has_seal_play_cost(definition_id: StringName) -> bool:
+	return has_seal_on_enter(definition_id)
 
 
 ## 调查员 `[elder_sign] effect` 规格字典；空 = 无印刷旧印能力。
